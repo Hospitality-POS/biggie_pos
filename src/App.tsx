@@ -1,12 +1,12 @@
 import * as React from 'react';
-import Layout from './components/layout/Layout';
+import Routers from './routes/Routers';
 
 const App: React.FC = () => {
   
 
   return (
     <div>
-      <Layout />
+      <Routers />
     </div>
   );
 };
