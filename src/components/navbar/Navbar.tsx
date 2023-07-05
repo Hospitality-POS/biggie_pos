@@ -12,11 +12,14 @@ import Button from "@mui/material/Button";
 import Tooltip from "@mui/material/Tooltip";
 import MenuItem from "@mui/material/MenuItem";
 import SearchIcon from "@mui/icons-material/Search";
-import InputBase from '@mui/material/InputBase';
-import AdbIcon from "@mui/icons-material/Adb";
+import InputBase from "@mui/material/InputBase";
 import { styled, alpha } from "@mui/material/styles";
+import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
+import SportsBarIcon from "@mui/icons-material/SportsBar";
+import PeopleIcon from "@mui/icons-material/People";
+import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
 
-const pages = ["Restaurant", "Bar", "Kitchen"];
+const pages = ["Staff", "Restaurant", "Bar", "Kitchen"];
 const settings = ["Profile", "Account", "Dashboard", "Logout"];
 
 function Navbar() {
@@ -85,13 +88,12 @@ function Navbar() {
       <Container maxWidth="xl">
         <Toolbar disableGutters>
           {/* <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} /> */}
-          <img src="/bigsmoke icon.png" alt="logo" height={40} />
+          <img src="/bigsmoke icon.png" alt="logo" height={60} />
 
           <Typography
             variant="h6"
             noWrap
             component="a"
-            href="/"
             sx={{
               mr: 2,
               display: { xs: "none", md: "flex" },
@@ -141,25 +143,6 @@ function Navbar() {
               ))}
             </Menu>
           </Box>
-          {/* <AdbIcon sx={{ display: { xs: "flex", md: "none" }, mr: 1 }} />
-          <Typography
-            variant="h5"
-            noWrap
-            component="a"
-            href=""
-            sx={{
-              mr: 2,
-              display: { xs: "flex", md: "none" },
-              flexGrow: 1,
-              fontFamily: "monospace",
-              fontWeight: 700,
-              letterSpacing: ".3rem",
-              color: "inherit",
-              textDecoration: "none",
-            }}
-          >
-            BigSmoke
-          </Typography> */}
           <Search>
             <SearchIconWrapper>
               <SearchIcon />
@@ -176,13 +159,28 @@ function Navbar() {
             }}
           >
             {pages.map((page) => (
-              <Button
-                key={page}
-                onClick={handleCloseNavMenu}
-                sx={{ my: 2, color: "white", display: "block" }}
-              >
-                {page}
-              </Button>
+              <>
+                <Button
+                  key={page}
+                  style={{ display: "flex", flexDirection: "column" }}
+                  onClick={handleCloseNavMenu}
+                  sx={{ my: 2, color: "white", display: "block" }}
+                >
+
+                  {page === "Restaurant" ? (
+                    <RestaurantOutlinedIcon style={{ fontSize: '16px' }}  />
+                  ) : page === "Bar" ? (
+                    <SportsBarIcon style={{ fontSize: '16px' }} />
+                  ) : page === "Staff" ? (
+                    <PeopleIcon style={{ fontSize: '16px' }}  />
+                  ) : page === "Kitchen" ? (
+                    <SoupKitchenIcon style={{ fontSize: '16px' }}  />
+                  ) : (
+                    ""
+                  )}
+                  {page}
+                </Button>
+              </>
             ))}
           </Box>
 
