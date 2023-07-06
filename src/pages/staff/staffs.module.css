@@ -1,0 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500&display=swap');
+.staffheader{
+    display: flex;
+    align-items: center;
+    margin-left: 20px;
+    font-size: medium;
+    font-family: 'Poppins', sans-serif;
+}
