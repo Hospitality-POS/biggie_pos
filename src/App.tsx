@@ -1,12 +1,16 @@
-import * as React from 'react';
+
+import Navbar from './components/navbar/Navbar';
+import Staff from './pages/staff/Staff';
 import Routers from './routes/Routers';
 
-const App: React.FC = () => {
+const App = () => {
   
 
   return (
     <div>
-      <Routers />
+      <Routers/>
+      {/* <Staff /> */}
+      {/* <Navbar /> */}
     </div>
   );
 };
