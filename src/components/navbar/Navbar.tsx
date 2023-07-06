@@ -159,28 +159,25 @@ function Navbar() {
             }}
           >
             {pages.map((page) => (
-              <>
-                <Button
-                  key={page}
-                  style={{ display: "flex", flexDirection: "column" }}
-                  onClick={handleCloseNavMenu}
-                  sx={{ my: 2, color: "white", display: "block" }}
-                >
-
-                  {page === "Restaurant" ? (
-                    <RestaurantOutlinedIcon style={{ fontSize: '16px' }}  />
-                  ) : page === "Bar" ? (
-                    <SportsBarIcon style={{ fontSize: '16px' }} />
-                  ) : page === "Staff" ? (
-                    <PeopleIcon style={{ fontSize: '16px' }}  />
-                  ) : page === "Kitchen" ? (
-                    <SoupKitchenIcon style={{ fontSize: '16px' }}  />
-                  ) : (
-                    ""
-                  )}
-                  {page}
-                </Button>
-              </>
+              <Button
+                key={page}
+                style={{ display: "flex", flexDirection: "column" }}
+                onClick={handleCloseNavMenu}
+                sx={{ my: 2, color: "white", display: "block" }}
+              >
+                {page === "Restaurant" ? (
+                  <RestaurantOutlinedIcon style={{ fontSize: "16px" }} />
+                ) : page === "Bar" ? (
+                  <SportsBarIcon style={{ fontSize: "16px" }} />
+                ) : page === "Staff" ? (
+                  <PeopleIcon style={{ fontSize: "16px" }} />
+                ) : page === "Kitchen" ? (
+                  <SoupKitchenIcon style={{ fontSize: "16px" }} />
+                ) : (
+                  ""
+                )}
+                {page}
+              </Button>
             ))}
           </Box>
 
