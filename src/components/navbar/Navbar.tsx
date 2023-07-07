@@ -18,8 +18,10 @@ import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
 import SportsBarIcon from "@mui/icons-material/SportsBar";
 import PeopleIcon from "@mui/icons-material/People";
 import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
+import { useNavigate } from "react-router-dom";
+import TableBarIcon from '@mui/icons-material/TableBar';
 
-const pages = ["Staff", "Restaurant", "Bar", "Kitchen"];
+const pages = ["Staff", "Restaurant", "Bar", "Kitchen", "Tables"];
 const settings = ["Profile", "Account", "Dashboard", "Logout"];
 
 function Navbar() {
@@ -29,6 +31,7 @@ function Navbar() {
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
   );
+  const navigate = useNavigate()
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElNav(event.currentTarget);
@@ -170,10 +173,10 @@ function Navbar() {
                 ) : page === "Bar" ? (
                   <SportsBarIcon style={{ fontSize: "16px" }} />
                 ) : page === "Staff" ? (
-                  <PeopleIcon style={{ fontSize: "16px" }} />
+                  <PeopleIcon style={{ fontSize: "16px" }} onClick={()=>navigate("/staff")}/>
                 ) : page === "Kitchen" ? (
-                  <SoupKitchenIcon style={{ fontSize: "16px" }} />
-                ) : (
+                  <SoupKitchenIcon style={{ fontSize: "16px" }}  />
+                ) : page === "Tables"? <TableBarIcon style={{ fontSize: "16px" }} onClick={()=>navigate("/tables")}/>: (
                   ""
                 )}
                 {page}
