@@ -1,0 +1,30 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  padding: 16px;
+  border: none;
+}
+
+.image {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  position: relative;
+  border-radius: 4px;
+  opacity: 20%;
+}
+
+.name {
+  font-weight: bold;
+  text-align: center;
+  position: absolute;
+}
+
+.cardContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
