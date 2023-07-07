@@ -17,7 +17,7 @@ const Staff = () => {
   if (isLoading) {
     return <>
     <div className={classes.staffheader}>
-        <span>Staff</span>
+        <p>Registered Staff</p>
       </div>
       <Divider />
       <div className="cards">
@@ -30,13 +30,13 @@ const Staff = () => {
   }
 
   if (error) {
-    return <div>An error has occurred: {error}</div>;
+    return <div>An error has occurred: {error.message}</div>;
   }
 
   return (
     <section className="staff-section">
       <div className={classes.staffheader}>
-        <h3>Registered Staff</h3>
+        <p>Registered Staff</p>
       </div>
       <Divider />
       <div className="cards">

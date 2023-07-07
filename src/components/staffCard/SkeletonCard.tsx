@@ -4,7 +4,7 @@ import classes from "./staff.module.css";
 
 const SkeletonCard = () => {
   return (
-    <div className={classes.card}>
+    <div className={classes.cards}>
       <div className={classes.avatarContainer}>
         <Skeleton variant="circular" width={50} height={50} />
       </div>
