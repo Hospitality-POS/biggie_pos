@@ -1,8 +1,9 @@
 import { Button, Modal, TextField, Grid } from "@mui/material";
-import classes from "./staff.module.css"
+import classes from "./staff.module.css";
+import LoginIcon from "@mui/icons-material/Login";
+import BackspaceIcon from "@mui/icons-material/Backspace";
 
-function StaffModal({setOpen, setPin, pin, open}) {
-
+function StaffModal({ setOpen, setPin, pin, open }) {
   const handleClose = () => {
     setOpen(false);
   };
@@ -28,6 +29,7 @@ function StaffModal({setOpen, setPin, pin, open}) {
           <TextField
             label="Enter PIN"
             variant="outlined"
+             type="password"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             fullWidth
@@ -46,18 +48,20 @@ function StaffModal({setOpen, setPin, pin, open}) {
           </Grid>
           <div className={classes.pinbutton}>
             <Button
-              variant="contained"
+              variant="outlined"
               onClick={handleLogin}
               className={classes.loginButton}
+              sx={{ display: "flex", alignContent: "center" }}
             >
-              Login
+              Login <LoginIcon fontSize="small" sx={{ ml: 1 }} />
             </Button>
             <Button
               onClick={handleClearPin}
-              variant="contained"
+              variant="outlined"
               color="warning"
+              sx={{ display: "flex", alignContent: "center" }}
             >
-              Clear
+              Clear <BackspaceIcon fontSize="small" sx={{ ml: 1 }} />
             </Button>
           </div>
         </div>

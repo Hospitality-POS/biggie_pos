@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import ContactsIcon from "@mui/icons-material/Contacts";
 import MailIcon from "@mui/icons-material/Mail";
 import StaffModal from "./StaffModal";
+import LaunchIcon from '@mui/icons-material/Launch';
 
 interface itemProps {
   item: any;
@@ -20,6 +21,14 @@ const StaffCard: React.FC<itemProps> = ({ item }) => {
   return (
     <div className={classes.card}>
       <div className={classes.avatarContainer}>
+        <Avvvatars
+          value={item.email}
+          shadow={true}
+          style="character"
+          borderSize={0.5}
+          border={true}
+          size={60}
+        />
         <Badge
           color={item.status === "Active"? "primary": "error"}
           anchorOrigin={{
@@ -28,30 +37,12 @@ const StaffCard: React.FC<itemProps> = ({ item }) => {
           }}
           badgeContent={item.status === "suspended" ? "Suspended" : item.status}
         >
-          <Avvvatars
-            value={item.email}
-            shadow={true}
-            style="character"
-            borderSize={0.5}
-            border={true}
-            size={60}
-          />
         </Badge>
       </div>
       <h4 className={classes.headcontent}>{item.fullname}</h4>
-      <div className={classes.content}>
-        <span>
-          <ContactsIcon />
-          <small> {"0" + item.phone}</small>
-        </span>
-        <span>
-          <MailIcon />
-          <small className={classes.lineClamp}> {item.email}</small>
-        </span>
-      </div>
 
-      <Button variant="contained" color="success" onClick={handleOpen}>
-        Connect
+      <Button variant="outlined" color="success" onClick={handleOpen}>
+        Connect <LaunchIcon fontSize="small" sx={{ml: 1}}/>
       </Button>
 
       {/* Modal */}
