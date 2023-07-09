@@ -11,7 +11,7 @@ function formatPrice(price: { toLocaleString: () => any }) {
 function ProductCard({ menu, handleCart }: any) {
   return (
     <Card
-      sx={{ maxWidth: 345, boxShadow: "none", width: "200px", height: "250px" }}
+      sx={{ maxWidth: 345, width: "200px", height: "250px" }}
       onClick={handleCart}
     >
       <CardActionArea>
