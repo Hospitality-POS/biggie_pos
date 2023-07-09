@@ -1,4 +1,4 @@
-import { Divider } from "@mui/material";
+import { Divider, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import classes from "../staff/staffs.module.css";
 import TableCard from "../../components/TableCard/TableCard";
@@ -12,49 +12,57 @@ function Table() {
       fetch("http://localhost:3000/tables").then((res) => res.json()),
   });
 
-
   if (isLoading) {
-    return    <>
-        
-          <div className={classes.staffheader}>
-            <p>Tables List</p>
-          </div>
-          <Divider />
-          <div className="cards" 
+    return (
+      <>
+        <div className={classes.staffheader}>
+          {/* <p>Tables List</p> */}
+          <Typography variant="h6" gutterBottom mt={1} pl={2}>
+            Tables List
+          </Typography>
+        </div>
+        <Divider />
+        <div
+          className="cards"
           style={{
-          display: "flex",
-          gap: "20px",
-          alignItems: "center",
-          justifyContent: "center",
-          margin: "0 auto",
-          flexWrap: "wrap",
-        }}>
-            {[...Array(20)].map((_, index) => (
-              <TableCardSkeleton key={index} />
-            ))}
-          </div>
-       
+            display: "flex",
+            gap: "20px",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto",
+            flexWrap: "wrap",
+          }}
+        >
+          {[...Array(20)].map((_, index) => (
+            <TableCardSkeleton key={index} />
+          ))}
+        </div>
       </>
-    
+    );
   }
 
   if (error) {
     return <div>An error has occurred: {error.message}</div>;
   }
+
   return (
     <div className="staff-section">
       <div className={classes.staffheader}>
-        <p>Tables List</p>
+        {/* <p>Tables List</p> */}
+        <Typography variant="h6" gutterBottom mt={1} pl={2}>
+          Tables List
+        </Typography>
       </div>
       <Divider />
       <div
+      className="cards"
         style={{
           display: "flex",
           gap: "20px",
           justifyContent: "center",
           marginTop: "10px",
           flexWrap: "wrap",
-          width: "100%"
+          width: "100%",
         }}
       >
         {data.map((item: { _id: Key | null | undefined }) => (

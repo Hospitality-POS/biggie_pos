@@ -12,7 +12,7 @@ function Routers() {
           <Route index element={<Staff />}/>
           <Route path="/staff" element={<Staff />}/>
           <Route path="/tables" element={<Table />}/>
-          <Route path="/rest" element={<RestaurantPage />}/>
+          <Route path="/restaurant" element={<RestaurantPage />}/>
         </Route>
       </Routes>
     </>

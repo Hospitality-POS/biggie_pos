@@ -19,7 +19,7 @@ import SportsBarIcon from "@mui/icons-material/SportsBar";
 import PeopleIcon from "@mui/icons-material/People";
 import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
 import { useNavigate } from "react-router-dom";
-import TableBarIcon from '@mui/icons-material/TableBar';
+import TableBarIcon from "@mui/icons-material/TableBar";
 
 const pages = ["Staff", "Restaurant", "Bar", "Kitchen", "Tables"];
 const settings = ["Profile", "Account", "Dashboard", "Logout"];
@@ -31,7 +31,7 @@ function Navbar() {
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
   );
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElNav(event.currentTarget);
@@ -169,14 +169,22 @@ function Navbar() {
                 sx={{ my: 2, color: "white", display: "block" }}
               >
                 {page === "Restaurant" ? (
-                  <RestaurantOutlinedIcon style={{ fontSize: "16px" }} />
+                  <RestaurantOutlinedIcon style={{ fontSize: "16px" }} onClick={() => navigate("/restaurant")}/>
                 ) : page === "Bar" ? (
                   <SportsBarIcon style={{ fontSize: "16px" }} />
                 ) : page === "Staff" ? (
-                  <PeopleIcon style={{ fontSize: "16px" }} onClick={()=>navigate("/staff")}/>
+                  <PeopleIcon
+                    style={{ fontSize: "16px" }}
+                    onClick={() => navigate("/staff")}
+                  />
                 ) : page === "Kitchen" ? (
-                  <SoupKitchenIcon style={{ fontSize: "16px" }}  />
-                ) : page === "Tables"? <TableBarIcon style={{ fontSize: "16px" }} onClick={()=>navigate("/tables")}/>: (
+                  <SoupKitchenIcon style={{ fontSize: "16px" }} />
+                ) : page === "Tables" ? (
+                  <TableBarIcon
+                    style={{ fontSize: "16px" }}
+                    onClick={() => navigate("/tables")}
+                  />
+                ) : (
                   ""
                 )}
                 {page}
