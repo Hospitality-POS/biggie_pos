@@ -1,15 +1,23 @@
-import { Button, Modal, TextField, Grid } from "@mui/material";
+import { Button, Modal, TextField, Grid, IconButton } from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import classes from "./staff.module.css";
 import LoginIcon from "@mui/icons-material/Login";
 import BackspaceIcon from "@mui/icons-material/Backspace";
+import { useState } from "react";
 
 function StaffModal({ setOpen, setPin, pin, open }) {
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleClickShowPassword = () => {
+    setShowPassword((show) => !show);
+  };
+
   const handleClose = () => {
     setOpen(false);
   };
 
-  const handleNumberClick = (number: string | number) => {
-    setPin((prevPin: string | number) => prevPin + number);
+  const handleNumberClick = (number) => {
+    setPin((prevPin) => prevPin + number);
   };
 
   const handleClearPin = () => {
@@ -21,6 +29,7 @@ function StaffModal({ setOpen, setPin, pin, open }) {
     console.log("Login with pin:", pin);
     handleClose();
   };
+
   return (
     <>
       {/* Modal */}
@@ -29,10 +38,21 @@ function StaffModal({ setOpen, setPin, pin, open }) {
           <TextField
             label="Enter PIN"
             variant="outlined"
-             type="password"
+            type={showPassword ? "text" : "password"}
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             fullWidth
+            InputProps={{
+              endAdornment: (
+                <IconButton
+                  onClick={handleClickShowPassword}
+                  edge="end"
+                  size="large"
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              ),
+            }}
           />
           <Grid container spacing={1} className={classes.numPad}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((number) => (

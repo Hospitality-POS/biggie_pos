@@ -49,7 +49,7 @@ const Staff = () => {
         {data.map((item: { _id: Key | null | undefined }) => (
           <StaffCard key={item._id} item={item} />
         ))}
-        <ReactQueryDevtools initialIsOpen={false} />
+        {/* <ReactQueryDevtools initialIsOpen={false} /> */}
       </div>
     </section>
   );
