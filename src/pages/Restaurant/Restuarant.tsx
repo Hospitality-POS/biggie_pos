@@ -10,20 +10,21 @@ import {
   IconButton,
   Box,
   Button,
+  keyframes,
 } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
 import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
 import SkeletonCategoryCard from "../../components/category/skeletonCategoryCard";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import Draggable from "react-draggable";
 
 const RestaurantPage = () => {
   const { isLoading, error, data } = useQuery({
     queryKey: ["product"],
     queryFn: () =>
-      fetch("http://localhost:3000/product/products").then((res) =>
-        res.json()
-      ),
+      fetch("http://localhost:3000/product/products").then((res) => res.json()),
   });
 
   const categories = [
@@ -57,6 +58,17 @@ const RestaurantPage = () => {
     setPaymentOpen(false);
   };
 
+  const glowAnimation = keyframes`
+  0% {
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
+  }
+`;
   if (isLoading) {
     return (
       <>
@@ -187,6 +199,26 @@ const RestaurantPage = () => {
           </Box>
         </Box>
       </Drawer>
+      <Draggable>
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: "20px",
+            right: "50px",
+            zIndex: 999,
+            animation: `${glowAnimation} 2s ease-in-out infinite`,
+          }}
+        >
+          <Button
+            variant="contained"
+            color="primary"
+            endIcon={<ShoppingCartIcon />}
+            onClick={handleCartOpen}
+          >
+            Open Cart
+          </Button>
+        </Box>
+      </Draggable>
     </div>
   );
 };

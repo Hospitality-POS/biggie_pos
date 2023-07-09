@@ -22,7 +22,7 @@ import { useNavigate } from "react-router-dom";
 import TableBarIcon from "@mui/icons-material/TableBar";
 
 const pages = ["Staff", "Restaurant", "Bar", "Kitchen", "Tables"];
-const settings = ["Profile", "Account", "Dashboard", "Logout"];
+const settings = ["Dashboard", "Logout"];
 
 function Navbar() {
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(

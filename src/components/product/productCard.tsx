@@ -4,15 +4,15 @@ import CardMedia from "@mui/material/CardMedia";
 import Typography from "@mui/material/Typography";
 import { Button, CardActionArea, CardActions } from "@mui/material";
 
+
 function formatPrice(price: { toLocaleString: () => any }) {
   return price.toLocaleString();
 }
 
-function ProductCard({ menu, handleCart }: any) {
+function ProductCard({ menu }: any) {
   return (
     <Card
       sx={{ maxWidth: 345, width: "200px", height: "250px" }}
-      onClick={handleCart}
     >
       <CardActionArea>
         <CardMedia
