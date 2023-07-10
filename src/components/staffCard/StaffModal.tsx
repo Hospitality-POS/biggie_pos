@@ -4,10 +4,22 @@ import classes from "./staff.module.css";
 import LoginIcon from "@mui/icons-material/Login";
 import BackspaceIcon from "@mui/icons-material/Backspace";
 import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { loginUser } from "../../features/Auth/AuthActions";
 
-function StaffModal({ setOpen, setPin, pin, open }) {
+
+
+interface StaffModalProps{
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setPin: React.Dispatch<React.SetStateAction<string>>;
+  pin: string;
+  open: boolean;
+  username: string;
+}
+const StaffModal:React.FC<StaffModalProps> = ({ setOpen, setPin, pin, open,username })=> {
   const [showPassword, setShowPassword] = useState(false);
-
+  const {isError, isSuccess, isLoading, message} = useSelector(state=>state.auth)
+  const dispatch = useDispatch()
   const handleClickShowPassword = () => {
     setShowPassword((show) => !show);
   };
@@ -16,7 +28,7 @@ function StaffModal({ setOpen, setPin, pin, open }) {
     setOpen(false);
   };
 
-  const handleNumberClick = (number) => {
+  const handleNumberClick = (number: string | number) => {
     setPin((prevPin) => prevPin + number);
   };
 
@@ -26,7 +38,8 @@ function StaffModal({ setOpen, setPin, pin, open }) {
 
   const handleLogin = () => {
     // Perform login with the entered pin
-    console.log("Login with pin:", pin);
+    // console.log("Login with pin:", username, pin);
+    dispatch(loginUser({username,pin}))
     handleClose();
   };
 

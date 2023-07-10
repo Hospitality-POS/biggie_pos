@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import StaffCard from "../../components/staffCard/StaffCard";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+// import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Divider, Typography } from "@mui/material";
 import classes from "./staffs.module.css";
 import { Key } from "react";
@@ -12,7 +12,7 @@ const Staff = () => {
     queryFn: () =>
       fetch("http://localhost:3000/users/all").then((res) => res.json()),
   });
-  console.log(data);
+  // console.log(data);
 
   if (isLoading) {
     return <>

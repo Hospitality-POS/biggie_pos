@@ -13,6 +13,8 @@ function Routers() {
           <Route path="/staff" element={<Staff />}/>
           <Route path="/tables" element={<Table />}/>
           <Route path="/restaurant" element={<RestaurantPage />}/>
+          <Route path="/bar" element={""}  />
+          <Route path="/kitchen" element={""} />
         </Route>
       </Routes>
     </>

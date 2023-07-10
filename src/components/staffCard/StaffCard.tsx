@@ -2,8 +2,6 @@ import classes from "./staff.module.css";
 import { Badge, Button } from "@mui/material";
 import Avvvatars from "avvvatars-react";
 import React, { useState } from "react";
-import ContactsIcon from "@mui/icons-material/Contacts";
-import MailIcon from "@mui/icons-material/Mail";
 import StaffModal from "./StaffModal";
 import LaunchIcon from '@mui/icons-material/Launch';
 
@@ -47,7 +45,7 @@ const StaffCard: React.FC<itemProps> = ({ item }) => {
 
       {/* Modal */}
 
-      <StaffModal setOpen={setOpen} setPin={setPin} pin={pin} open={open} />
+      <StaffModal setOpen={setOpen} setPin={setPin} pin={pin} open={open}  username={item.username} />
     </div>
   );
 };

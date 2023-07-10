@@ -1,0 +1,60 @@
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { loginUser } from "./AuthActions";
+
+interface User {
+   username: string;
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  message: string;
+  isSuccess: boolean;
+  isLoading: boolean;
+  isError: boolean;
+}
+
+const initialState: AuthState = {
+  user: null,
+  token: null,
+  message: "",
+  isSuccess: false,
+  isLoading: false,
+  isError: false,
+};
+
+export const authSlice = createSlice({
+  name: "authUser",
+  initialState,
+  reducers: {
+    reset: (state) => {
+      state.isError = false;
+      state.isLoading = false;
+      state.isSuccess = false;
+      state.message = "";
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(loginUser.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(loginUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload as string;
+        state.user = null;
+      })
+      .addCase(
+        loginUser.fulfilled,
+        (state, action: PayloadAction<{ user: User; token: string }>) => {
+          state.isLoading = false;
+          state.isSuccess = true;
+          state.isError = false;
+          state.message = "Login successful";
+          state.user = action.payload;
+          state.token = action.payload.token;
+        }
+      );
+  },
+});

@@ -1,4 +1,3 @@
-import React from "react";
 import { Skeleton } from "@mui/material";
 import classes from "./staff.module.css";
 
