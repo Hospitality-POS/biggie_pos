@@ -11,7 +11,7 @@ const TableCardSkeleton = () => {
       }}
       className={classes.container}
     >
-      <CardMedia />
+      {/* <CardMedia /> */}
       <Skeleton
         variant="circular"
         width={80}

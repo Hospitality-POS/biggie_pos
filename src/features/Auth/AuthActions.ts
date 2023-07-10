@@ -12,7 +12,7 @@ export const loginUser = createAsyncThunk(
   "authUser/loginUser",
   async (_userDetails: UserDetails, { rejectWithValue }) => {
     try {
-        console.log(_userDetails);
+        // console.log(_userDetails);
         
       const response = await axios.post(`${baseUrl}/login`, _userDetails);
       return response.data;

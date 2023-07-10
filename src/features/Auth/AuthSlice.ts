@@ -32,6 +32,7 @@ export const authSlice = createSlice({
       state.isLoading = false;
       state.isSuccess = false;
       state.message = "";
+      state.user = null;
     },
   },
   extraReducers: (builder) => {
@@ -58,3 +59,11 @@ export const authSlice = createSlice({
       );
   },
 });
+
+
+
+export const {
+    reset
+} = authSlice.actions
+
+export default authSlice.reducer

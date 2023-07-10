@@ -5,20 +5,37 @@ import Table from "../pages/Tables/Table";
 import RestaurantPage from "../pages/Restaurant/Restuarant";
 import { Suspense, lazy } from "react";
 import Spinner from "../components/spinner/Spinner";
+import Private from "../components/layout/private/Private";
 
-const Staff = lazy(()=>import("../pages/staff/Staff"));
+const Staff = lazy(() => import("../pages/staff/Staff"));
+// const RestaurantPage = lazy(() => import("../pages/Restaurant/Restuarant"));
 
 function Routers() {
   return (
     <Suspense fallback={<Spinner />}>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Staff />}/>
-          <Route path="/staff" element={<Staff />}/>
-          <Route path="/tables" element={<Table />}/>
-          <Route path="/restaurant" element={<RestaurantPage />}/>
-          <Route path="/bar" element={""}  />
+          <Route index element={<Staff />} />
+          <Route path="/staff" element={<Staff />} />
+          <Route
+            path="/tables"
+            element={
+              <Private>
+                <Table />
+              </Private>
+            }
+          />
+          <Route
+            path="/restaurant"
+            element={
+              <Private>
+                <RestaurantPage />
+              </Private>
+            }
+          />
+          <Route path="/bar" element={""} />
           <Route path="/kitchen" element={""} />
+          <Route path="*" element={<Spinner />} />
         </Route>
       </Routes>
     </Suspense>

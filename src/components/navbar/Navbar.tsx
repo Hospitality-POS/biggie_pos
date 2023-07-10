@@ -21,7 +21,8 @@ import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
 import { useNavigate } from "react-router-dom";
 import TableBarIcon from "@mui/icons-material/TableBar";
 import Avvvatars from "avvvatars-react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { reset } from "../../features/Auth/AuthSlice";
 
 const pages = ["Staff", "Restaurant", "Bar", "Kitchen", "Tables"];
 const settings = ["Dashboard", "Logout"];
@@ -34,8 +35,8 @@ function Navbar() {
     null
   );
   const { user } = useSelector((state) => state.auth);
-  
 
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -51,6 +52,9 @@ function Navbar() {
 
   const handleCloseUserMenu = () => {
     setAnchorElUser(null);
+  };
+  const handleLogout = () => {
+    dispatch(reset());
   };
   const Search = styled("div")(({ theme }) => ({
     position: "relative",
@@ -320,7 +324,15 @@ function Navbar() {
             >
               {settings.map((setting) => (
                 <MenuItem key={setting} onClick={handleCloseUserMenu}>
-                  <Typography textAlign="center">{setting}</Typography>
+                  {setting === "Logout" ? (
+                    <Typography textAlign="center" onClick={handleLogout}>
+                      Logout
+                    </Typography>
+                  ) : setting === "Dashboard" && user?.isAdmin ? (
+                    <Typography textAlign="center">Dashboard</Typography>
+                  ) : (
+                    ""
+                  )}
                 </MenuItem>
               ))}
             </Menu>

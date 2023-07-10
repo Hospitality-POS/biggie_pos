@@ -1,14 +1,13 @@
-import classes from "./spinner.module.css"
+import classes from "./spinner.module.css";
 
 function Spinner() {
   return (
     <>
-    <div className={classes.container}>
-
-    <div className={classes.loader}></div>
-    </div>
+      <div className={classes.container}>
+        <div className={classes.loader}></div>
+      </div>
     </>
-  )
+  );
 }
 
-export default Spinner
+export default Spinner;
