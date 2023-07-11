@@ -24,7 +24,7 @@ import Avvvatars from "avvvatars-react";
 import { useDispatch, useSelector } from "react-redux";
 import { reset } from "../../features/Auth/AuthSlice";
 
-const pages = ["Staff", "Restaurant", "Bar", "Kitchen", "Tables"];
+const pages = ["Staff", "Tables", "Restaurant", "Kitchen", "Bar"];
 const settings = ["Dashboard", "Logout"];
 
 function Navbar() {
@@ -245,7 +245,7 @@ function Navbar() {
                       Bar
                     </Typography>
                   </>
-                ) : page === "Staff" ? (
+                ) : page === "Staff" && !user ? (
                   <>
                     <PeopleIcon
                       style={{ fontSize: "16px" }}

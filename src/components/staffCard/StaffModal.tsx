@@ -1,4 +1,4 @@
-import { Button, Modal, TextField, Grid, IconButton, Alert } from "@mui/material";
+import { Button, Modal, TextField, Grid, IconButton, Alert, CircularProgress } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -123,7 +123,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
               className={classes.loginButton}
               sx={{ display: "flex", alignContent: "center" }}
             >
-              Login <LoginIcon fontSize="small" sx={{ ml: 1 }} />
+              Login {isLoading ? <CircularProgress size={20} thickness={8} sx={{ ml: 1 }}/>:<LoginIcon fontSize="small" sx={{ ml: 1 }} />}
             </Button>
             <Button
               onClick={handleClearPin}
