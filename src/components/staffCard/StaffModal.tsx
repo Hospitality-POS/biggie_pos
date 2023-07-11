@@ -137,12 +137,6 @@ const StaffModal: React.FC<StaffModalProps> = ({
         </div>
       </Modal>
 
-      {/* <NotificationModal
-        open={notificationOpen}
-        onClose={handleNotificationClose}
-        type={notificationType}
-        message={notificationMessage}
-      /> */}
     </>
   );
 };

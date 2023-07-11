@@ -1,28 +1,14 @@
 import React, { useState } from "react";
 
-import {
-  Typography,
-  Divider,
-  Drawer,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
-  Box,
-  Button,
-  keyframes,
-  Fab,
-} from "@mui/material";
+import { Typography } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
 import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
 import SkeletonCategoryCard from "../../components/category/skeletonCategoryCard";
-// import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-// import Draggable from "react-draggable";
-// import { green } from "@mui/material/colors";
-
 import AddToCartIcon from "../../components/cart/AddToCartIcon";
+import PaymentDrawer from "../../components/payment/PaymentDrawer";
+import CartDrawer from "../../components/cart/CartDrawer";
 
 const RestaurantPage = () => {
   const { isLoading, error, data } = useQuery({
@@ -62,17 +48,17 @@ const RestaurantPage = () => {
     setPaymentOpen(false);
   };
 
-//   const glowAnimation = keyframes`
-//   0% {
-//     box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
-//   }
-//   50% {
-//     box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.4);
-//   }
-//   100% {
-//     box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
-//   }
-// `;
+  //   const glowAnimation = keyframes`
+  //   0% {
+  //     box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
+  //   }
+  //   50% {
+  //     box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.4);
+  //   }
+  //   100% {
+  //     box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
+  //   }
+  // `;
 
   if (isLoading) {
     return (
@@ -143,11 +129,11 @@ const RestaurantPage = () => {
           />
         ))}
       </section>
-      {/* <Divider /> */}
+
       <Typography variant="h6" gutterBottom mt={2} pl={4}>
         Special Menu for you
       </Typography>
-      {/* <Divider /> */}
+
       <section
         className="cards"
         style={{
@@ -161,78 +147,19 @@ const RestaurantPage = () => {
           <ProductCard key={menu._id} menu={menu} handleCart={handleCartOpen} />
         ))}
       </section>
-      <Drawer anchor="right" open={cartOpen} onClose={handleCartClose}>
-        <Box sx={{ width: "300px" }}>
-          <Typography variant="h6" gutterBottom mt={1} ml={2}>
-            Cart
-          </Typography>
-          <List>
-            <ListItem>
-              <ListItemText primary="Item 1" />
-            </ListItem>
-            <ListItem>
-              <ListItemText primary="Item 2" />
-            </ListItem>
-            <ListItem>
-              <ListItemText primary="Item 3" />
-            </ListItem>
-          </List>
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
-            <Button variant="contained" onClick={handlePaymentOpen}>
-              Proceed to Payment
-            </Button>
-          </Box>
-        </Box>
-      </Drawer>
-      <Drawer
-        anchor="right"
-        open={paymentOpen}
-        onClose={handlePaymentClose}
-        sx={{ width: "400px" }}
-      >
-        <Box sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom mt={1} ml={2}>
-            Payment
-          </Typography>
-          <Typography variant="body1" gutterBottom>
-            Enter your payment details here.
-          </Typography>
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
-            <Button variant="contained" color="primary">
-              Pay Now
-            </Button>
-          </Box>
-        </Box>
-      </Drawer>
 
-      <AddToCartIcon OpenCart={handleCartOpen}/>
-      {/* <Draggable>
-  <Box
-    sx={{
-      position: "fixed",
-      bottom: "20px",
-      right: "40px",
-      zIndex: 999,
-      animation: `${glowAnimation} 2s ease-in-out infinite`,
-      borderRadius: "50%",
-    }}
-  >
-    <Fab
-      color="primary"
-      onClick={handleCartOpen}
-      sx={{
-        backgroundColor: green[500],
-        width: "60px",
-        height: "60px",
-        "&:hover": {
-          backgroundColor: green[700],
-        },
-      }}
-    >
-      <ShoppingCartIcon sx={{ fontSize: 36 }} />
-    </Fab>
-  </Box>
-</Draggable> */}
+      <CartDrawer
+        cartOpen={cartOpen}
+        handleCartClose={handleCartClose}
+        handlePaymentOpen={handlePaymentOpen}
+      />
+
+      <PaymentDrawer
+        paymentOpen={paymentOpen}
+        handlePaymentClose={handlePaymentClose}
+      />
+
+      <AddToCartIcon OpenCart={handleCartOpen} />
     </div>
   );
 };
