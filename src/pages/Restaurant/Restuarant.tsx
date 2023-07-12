@@ -11,6 +11,7 @@ import PaymentDrawer from "../../components/payment/PaymentDrawer";
 import CartDrawer from "../../components/cart/CartDrawer";
 
 const RestaurantPage = () => {
+  const [selectedCard, setSelectedCard] = useState(null);
   const { isLoading, error, data } = useQuery({
     queryKey: ["product"],
     queryFn: () =>
@@ -47,18 +48,9 @@ const RestaurantPage = () => {
   const handlePaymentClose = () => {
     setPaymentOpen(false);
   };
-
-  //   const glowAnimation = keyframes`
-  //   0% {
-  //     box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
-  //   }
-  //   50% {
-  //     box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.4);
-  //   }
-  //   100% {
-  //     box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
-  //   }
-  // `;
+  const handleSelectCard = (card) => {
+    setSelectedCard(card);
+  };
 
   if (isLoading) {
     return (
@@ -80,7 +72,7 @@ const RestaurantPage = () => {
               <SkeletonCategoryCard key={index} />
             ))}
           </section>
-          {/* <Divider /> */}
+       
           <Typography variant="h6" gutterBottom mt={2} pl={4}>
             Special Menu for you
           </Typography>
@@ -122,6 +114,8 @@ const RestaurantPage = () => {
         {categories.map((category, index) => (
           <CategoryCard
             key={index}
+            handleSelectedCard={handleSelectCard}
+            selectedCard={selectedCard}
             icon={category.icon}
             name={category.name}
             itemCount={category.itemCount}
