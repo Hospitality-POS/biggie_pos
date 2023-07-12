@@ -14,6 +14,7 @@ import LocalAtmIcon from "@mui/icons-material/LocalAtm";
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import MobileScreenShareIcon from '@mui/icons-material/MobileScreenShare';
+import { grey } from "@mui/material/colors";
 
 function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
   const [selectedMethod, setSelectedMethod] = useState(null);
@@ -62,8 +63,10 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
               variant={selectedMethod === method._id ? "outlined" : "elevation"}
               onClick={() => handleSelectMethod(method._id)}
               sx={{
+                backgroundColor: grey[100],
                 cursor: "pointer",
                 borderRadius: "10px",
+                transition: "background-color 0.3s ease",
                 position: "relative",
                 "&.selected": {
                   borderColor: "green",
@@ -94,17 +97,17 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
                 {method.name === "Cash" ? (
                   <>
                     <LocalAtmIcon />
-                    <Typography variant="subtitle1">cash</Typography>
+                    <Typography variant="subtitle1" fontSize={16}>cash</Typography>
                   </>
                 ) : method.name === "M-Pesa" ? (
                   <>
                     <MobileScreenShareIcon />
-                    <Typography variant="subtitle1">M-pesa</Typography>
+                    <Typography variant="subtitle1" fontSize={16}>M-pesa</Typography>
                   </>
                 ) : method.name === "Card" ? (
                   <>
                     <CreditCardIcon />
-                    <Typography variant="subtitle1">Card</Typography>
+                    <Typography variant="subtitle1" fontSize={16}>Card</Typography>
                   </>
                 ) : (
                   ""
@@ -113,8 +116,8 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
             </Card>
           ))}
         </Box>
-        <CardActions>
-          <Button variant="outlined" color="primary">
+        <CardActions sx={{width: "100%", justifyContent: "space-between"}}>
+          <Button variant="outlined" color="primary" onClick={handlePaymentClose}>
             Cancel
           </Button>
           <Button variant="contained" color="primary">
