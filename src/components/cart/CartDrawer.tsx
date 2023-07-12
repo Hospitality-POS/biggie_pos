@@ -4,10 +4,11 @@ import { Box, Button, Drawer, List, ListItem, ListItemText, Typography } from "@
 function CartDrawer({cartOpen,handleCartClose,handlePaymentOpen}) {
   return (
     <Drawer anchor="right" open={cartOpen} onClose={handleCartClose}>
-        <Box sx={{ width: "300px" }}>
-          <Typography variant="h6" gutterBottom mt={1} ml={2}>
-            Cart
+        <Box sx={{ width: "300px",p: 2, mt: 2  }}>
+          <Typography variant="h6" fontWeight="bold" gutterBottom mt={1}>
+            Order #djf8i
           </Typography>
+          
           <List>
             <ListItem>
               <ListItemText primary="Item 1" />
