@@ -2,22 +2,22 @@ import { Card, CardContent, CardMedia, Typography } from "@mui/material";
 import { green, grey } from "@mui/material/colors";
 import { useState } from "react";
 
-function CategoryCard({ icon, name, itemCount, id }: any) {
-  const [activeCardIndex, setActiveCardIndex] = useState("");
+function CategoryCard({
+  icon,
+  name,
+  itemCount,
+  id,
+  handleSelectedCard,
+  selectedCard,
+}: any) {
+ 
   
-  const isActive = activeCardIndex === id;
-
-  const handleClick = () => {
-    setActiveCardIndex(id === activeCardIndex ? "" : id);
-  };
-
-
   return (
     <Card
-      onClick={handleClick}
+      onClick={()=>handleSelectedCard(id)}
       sx={{
-        backgroundColor: isActive ? green[500] : grey[100],
-        color: isActive ? "white" : "black",
+        backgroundColor: selectedCard === id ? green[500] : grey[100],
+        color: selectedCard === id ? "white" : "black",
         cursor: "pointer",
         transition: "background-color 0.3s ease",
         width: "120px",
