@@ -1,6 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-
 interface CartItem {
   _id: string;
   name: string;
@@ -20,7 +19,7 @@ export const cartSlice = createSlice({
 
       if (existingItem) {
         existingItem.quantity += 1;
-        existingItem.price += existingItem.price
+        existingItem.price = existingItem.price * existingItem.quantity;
       } else {
         state.push(action.payload);
       }
@@ -32,9 +31,9 @@ export const cartSlice = createSlice({
       if (existingItemIndex !== -1) {
         const existingItem = state[existingItemIndex];
 
-        if (existingItem.quantity > 1 && existingItem.price > existingItem.price) {
+        if (existingItem.quantity > 1) {
           existingItem.quantity -= 1;
-          existingItem.price -= existingItem.price
+          existingItem.price = existingItem.price / existingItem.quantity;
         } else {
           state.splice(existingItemIndex, 1);
         }
