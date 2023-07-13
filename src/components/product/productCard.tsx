@@ -3,6 +3,8 @@ import CardContent from "@mui/material/CardContent";
 import CardMedia from "@mui/material/CardMedia";
 import Typography from "@mui/material/Typography";
 import { CardActionArea} from "@mui/material";
+import { useDispatch } from "react-redux";
+import { addItem } from "../../features/Cart/CartSlice";
 
 
 function formatPrice(price: { toLocaleString: () => any }) {
@@ -10,9 +12,15 @@ function formatPrice(price: { toLocaleString: () => any }) {
 }
 
 function ProductCard({ menu }: any) {
+  const dispatch = useDispatch()
+
+  const handleAddToCart=()=>{
+    dispatch(addItem(menu))
+  }
   return (
     <Card
       sx={{ maxWidth: 345, width: "200px", height: "250px" }}
+      onClick={handleAddToCart}
     >
       <CardActionArea>
         <CardMedia

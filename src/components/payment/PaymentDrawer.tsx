@@ -117,7 +117,7 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
           ))}
         </Box>
         <CardActions sx={{width: "100%", justifyContent: "space-between"}}>
-          <Button variant="outlined" color="primary" onClick={handlePaymentClose}>
+          <Button variant="outlined" color="primary" onClick={()=>{handlePaymentClose(), setSelectedMethod(null)}}>
             Cancel
           </Button>
           <Button variant="contained" color="primary">

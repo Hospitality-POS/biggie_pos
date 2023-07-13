@@ -1,4 +1,4 @@
-import { Card, Skeleton, Typography } from '@mui/material';
+import { Card, Skeleton } from '@mui/material';
 
 function SkeletonCategoryCard() {
   return (

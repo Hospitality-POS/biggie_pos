@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { Typography } from "@mui/material";
+import { Button, Grid, Typography } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
 import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
@@ -9,6 +9,8 @@ import SkeletonCategoryCard from "../../components/category/skeletonCategoryCard
 import AddToCartIcon from "../../components/cart/AddToCartIcon";
 import PaymentDrawer from "../../components/payment/PaymentDrawer";
 import CartDrawer from "../../components/cart/CartDrawer";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 
 const RestaurantPage = () => {
   const [selectedCard, setSelectedCard] = useState(null);
@@ -32,6 +34,7 @@ const RestaurantPage = () => {
 
   const [cartOpen, setCartOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const handleCartOpen = () => {
     setCartOpen(true);
@@ -48,8 +51,15 @@ const RestaurantPage = () => {
   const handlePaymentClose = () => {
     setPaymentOpen(false);
   };
-  const handleSelectCard = (card) => {
+  const handleSelectCard = (card: React.SetStateAction<null>) => {
     setSelectedCard(card);
+  };
+  const handleNext = () => {
+    setCurrentIndex((currentIndex + 1) % categories.length);
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex((currentIndex - 1 + categories.length) % categories.length);
   };
 
   if (isLoading) {
@@ -72,7 +82,7 @@ const RestaurantPage = () => {
               <SkeletonCategoryCard key={index} />
             ))}
           </section>
-       
+
           <Typography variant="h6" gutterBottom mt={2} pl={4}>
             Special Menu for you
           </Typography>
@@ -99,30 +109,88 @@ const RestaurantPage = () => {
   }
 
   return (
-    <div>
-      <Typography variant="h6" gutterBottom mt={1} pl={4}>
-        Categories
-      </Typography>
-      <section
+    <>
+      <Grid item xs={12}>
+        <Grid container justifyContent="space-between" mt={2}>
+          <Typography variant="h6" gutterBottom mt={1} pl={4}>
+            Categories
+          </Typography>
+          <Grid item>
+            <Grid container spacing={2} pr={5}>
+              <Grid item>
+                <Button
+                  size="small"
+                  onClick={handlePrev}
+                  variant="outlined"
+                  disabled={categories.length === 1}
+                >
+                  <NavigateBeforeIcon />
+                </Button>
+              </Grid>
+              <Grid item>
+                <Button
+                  size="small"
+                  onClick={handleNext}
+                  variant="outlined"
+                  disabled={categories.length === 1}
+                >
+                  <NavigateNextIcon />
+                </Button>
+              </Grid>
+            </Grid>
+          </Grid>
+        </Grid>
+      </Grid>
+      {/* <section
         className="cards"
         style={{
           display: "flex",
           gap: "20px",
           marginTop: "10px",
         }}
-      >
-        {categories.map((category, index) => (
-          <CategoryCard
-            key={index}
-            handleSelectedCard={handleSelectCard}
-            selectedCard={selectedCard}
-            icon={category.icon}
-            name={category.name}
-            itemCount={category.itemCount}
-            id={category.id}
-          />
-        ))}
-      </section>
+      > */}
+      <Grid item xs={12}>
+        <Grid container justifyContent="center">
+          <Grid item>
+            <div style={{ display: "flex", overflow: "hidden" , width: "100%"}}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "20px",
+                  width: `${categories.length * 100}%`,
+                  transform: `translateX(-${
+                    currentIndex * (100 / categories.length)
+                  }%)`,
+                  transition: "transform 0.5s ease-in-out",
+                }}
+              >
+
+                {categories.map((category, index) => (
+                  <CategoryCard
+                    style={{
+                      flex: `0 0 ${100 / categories.length}%`,
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      border: "1px solid black",
+                    }}
+                    key={index}
+                    handleSelectedCard={handleSelectCard}
+                    selectedCard={selectedCard}
+                    icon={category.icon}
+                    name={category.name}
+                    itemCount={category.itemCount}
+                    id={category.id}
+                  />
+                ))}
+                
+              </div>
+            </div>
+          </Grid>
+        </Grid>
+      </Grid>
+
+      {/* </section> */}
 
       <Typography variant="h6" gutterBottom mt={2} pl={4}>
         Special Menu for you
@@ -154,7 +222,7 @@ const RestaurantPage = () => {
       />
 
       <AddToCartIcon OpenCart={handleCartOpen} />
-    </div>
+    </>
   );
 };
 

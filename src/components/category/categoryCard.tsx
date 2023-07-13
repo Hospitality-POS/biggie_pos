@@ -1,6 +1,5 @@
 import { Card, CardContent, CardMedia, Typography } from "@mui/material";
 import { green, grey } from "@mui/material/colors";
-import { useState } from "react";
 
 function CategoryCard({
   icon,
