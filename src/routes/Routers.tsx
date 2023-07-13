@@ -1,13 +1,13 @@
 import { Routes, Route } from "react-router-dom";
 import Layout from "../components/layout/Layout";
-// import Staff from "../pages/staff/Staff";
+import Staff from "../pages/staff/Staff";
 import Table from "../pages/Tables/Table";
 import RestaurantPage from "../pages/Restaurant/Restuarant";
 import { Suspense, lazy } from "react";
 import Spinner from "../components/spinner/Spinner";
 import Private from "../components/layout/private/Private";
 
-const Staff = lazy(() => import("../pages/staff/Staff"));
+// const Staff = lazy(() => import("../pages/staff/Staff"));
 // const RestaurantPage = lazy(() => import("../pages/Restaurant/Restuarant"));
 
 function Routers() {
