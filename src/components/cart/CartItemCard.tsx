@@ -45,7 +45,7 @@ function CartItemCard({cartItem}) {
               margin="normal"
               InputProps={{
                 endAdornment: (
-                  <IconButton size="small" onClick={()=>dispatch(removeItem(cartItem._id))}>
+                  <IconButton size="small" >
                     <AddIcon />
                   </IconButton>
                 ),
@@ -53,7 +53,7 @@ function CartItemCard({cartItem}) {
             />
             <Button variant="outlined" color="error" size="small" sx={{height: 40, mt: 2, borderRadius: "8px"}}>
 
-            <DeleteIcon  color="error"/>
+            <DeleteIcon  color="error" onClick={()=>dispatch(removeItem(cartItem._id))}/>
             </Button>
             </Grid>
           </CardContent>
