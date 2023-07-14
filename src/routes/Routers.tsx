@@ -7,7 +7,7 @@ import { Suspense, lazy } from "react";
 import Spinner from "../components/spinner/Spinner";
 import Private from "../components/layout/private/Private";
 
-const Layout = lazy(()=>import("../components/layout/Layout"))
+const Layout = lazy(() => import("../components/layout/Layout"));
 // const Staff = lazy(() => import("../pages/staff/Staff"));
 // const RestaurantPage = lazy(() => import("../pages/Restaurant/Restuarant"));
 
@@ -35,6 +35,7 @@ function Routers() {
             }
           />
           <Route path="/bar" element={""} />
+          <Route path="/store" element={""} />
           <Route path="/kitchen" element={""} />
           <Route path="*" element={<Spinner />} />
         </Route>
