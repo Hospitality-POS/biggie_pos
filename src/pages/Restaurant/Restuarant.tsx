@@ -14,10 +14,12 @@ import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 
 const RestaurantPage = () => {
   const [selectedCard, setSelectedCard] = useState(null);
-  const { isLoading, error, data } = useQuery({
+  const { isLoading, isError, error, data } = useQuery({
     queryKey: ["product"],
     queryFn: () =>
       fetch("http://localhost:3000/product/products").then((res) => res.json()),
+    retry: 3,
+    retryDelay: 1000,
   });
 
   const categories = [
@@ -104,7 +106,7 @@ const RestaurantPage = () => {
     );
   }
 
-  if (error) {
+  if (isError) {
     return <div>An error has occurred: {error.message}</div>;
   }
 
@@ -152,7 +154,7 @@ const RestaurantPage = () => {
       <Grid item xs={12}>
         <Grid container justifyContent="center">
           <Grid item>
-            <div style={{ display: "flex", overflow: "hidden" , width: "100%"}}>
+            <div style={{ display: "flex", overflow: "hidden", width: "100%" }}>
               <div
                 style={{
                   display: "flex",
@@ -164,7 +166,6 @@ const RestaurantPage = () => {
                   transition: "transform 0.5s ease-in-out",
                 }}
               >
-
                 {categories.map((category, index) => (
                   <CategoryCard
                     style={{
@@ -183,7 +184,6 @@ const RestaurantPage = () => {
                     id={category.id}
                   />
                 ))}
-                
               </div>
             </div>
           </Grid>

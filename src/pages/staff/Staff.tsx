@@ -7,10 +7,12 @@ import { Key } from "react";
 import SkeletonCard from "../../components/staffCard/SkeletonCard";
 
 const Staff = () => {
-  const { isLoading, error, data } = useQuery({
+  const { isLoading, isError, error, data } = useQuery({
     queryKey: ["staff"],
     queryFn: () =>
       fetch("http://localhost:3000/users/all").then((res) => res.json()),
+      retry: 3,
+      retryDelay: 1000,
   });
   // console.log(data);
 
@@ -32,7 +34,7 @@ const Staff = () => {
         </>;
   }
 
-  if (error) {
+  if (isError) {
     return <div>An error has occurred: {error.message}</div>;
   }
 

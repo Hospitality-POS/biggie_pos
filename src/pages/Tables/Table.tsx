@@ -6,10 +6,12 @@ import { Key } from "react";
 import TableCardSkeleton from "../../components/TableCard/TableCardSkeleton";
 
 function Table() {
-  const { isLoading, error, data } = useQuery({
+  const { isLoading, isError, error, data } = useQuery({
     queryKey: ["tables"],
     queryFn: () =>
       fetch("http://localhost:3000/tables").then((res) => res.json()),
+    retry: 3,
+    retryDelay: 1000,
   });
 
   if (isLoading) {
@@ -41,7 +43,7 @@ function Table() {
     );
   }
 
-  if (error) {
+  if (isError) {
     return <div>An error has occurred: {error.message}</div>;
   }
 
@@ -55,7 +57,7 @@ function Table() {
       </div>
       <Divider />
       <div
-      className="cards"
+        className="cards"
         style={{
           display: "flex",
           gap: "20px",
