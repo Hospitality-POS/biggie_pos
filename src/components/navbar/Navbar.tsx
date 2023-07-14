@@ -23,8 +23,8 @@ import TableBarIcon from "@mui/icons-material/TableBar";
 import Avvvatars from "avvvatars-react";
 import { useDispatch, useSelector } from "react-redux";
 import { reset } from "../../features/Auth/AuthSlice";
-
-const pages = ["Staff", "Tables", "Restaurant", "Kitchen", "Bar"];
+import StoreIcon from '@mui/icons-material/Store';
+const pages = ["Staff", "Tables", "Restaurant", "Kitchen", "Bar", "Store"];
 const settings = ["Dashboard", "Logout"];
 
 function Navbar() {
@@ -190,6 +190,14 @@ function Navbar() {
                     >
                       Tables
                     </Typography>
+                  ) : page === "Store" ? (
+                    <Typography
+                      textAlign="center"
+                      fontSize="inherit"
+                      onClick={() => navigate("/tables")}
+                    >
+                      Store
+                    </Typography>
                   ) : (
                     ""
                   )}
@@ -284,7 +292,20 @@ function Navbar() {
                       Tables
                     </Typography>
                   </>
-                ) : (
+                ) :page === "Store" && user?.isAdmin ? (
+                  <>
+                    <StoreIcon
+                      style={{ fontSize: "16px" }}
+                      onClick={() => navigate("/store")}
+                    />
+                    <Typography
+                      fontSize="inherit"
+                      onClick={() => navigate("/store")}
+                    >
+                      Store
+                    </Typography>
+                  </>
+                ) :  (
                   ""
                 )}
               </Button>
