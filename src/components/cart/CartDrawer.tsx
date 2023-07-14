@@ -14,7 +14,7 @@ import { Key } from "react";
 
 function CartDrawer({ cartOpen, handleCartClose, handlePaymentOpen }) {
   const CartItem = useSelector((state) => state.cart);
-  console.log(CartItem+ "waa");
+  // console.log(CartItem+ "waa");
   
   return (
     <Drawer anchor="right" open={cartOpen} onClose={handleCartClose}>
