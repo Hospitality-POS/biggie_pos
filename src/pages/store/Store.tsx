@@ -12,6 +12,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import StoreProductCard from "../../components/store/StoreProductCard";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import StoreProductCardSkeleton from "../../components/store/StoreProductSkeletonCard";
 
 const Store: React.FC = () => {
   const { isLoading, isError, error, data } = useQuery({
@@ -28,9 +29,14 @@ const Store: React.FC = () => {
   const onAdd = () => {
     console.log("clicked");
   };
+
+  if (isError) {
+    return <div>An error has occurred: {error.message}</div>;
+  }
+
   return (
     <>
-      <Typography mt={2} variant="body1" ml={4} mb={2} gutterBottom>
+      <Typography mt={2} variant="h6" ml={4} mb={1} gutterBottom>
         Products Management
       </Typography>
       <Divider sx={{ mb: 2 }} />
@@ -75,28 +81,24 @@ const Store: React.FC = () => {
           </CardContent>
         </Card>
 
-        {data?.products.map(
-          (product: {
-            _id: React.Key | null | undefined;
-            quantity: number;
-            price: number;
-            name: string;
-            img: string;
-          }) => (
-            <StoreProductCard
-              key={product._id}
-              bowls={product.quantity}
-              price={product.price}
-              name={product.name}
-              img={product.img}
-              onEdit={onEdit}
-            />
-          )
-        )}
+        {isLoading
+          ? [...Array(11)].map((_, index) => (
+              <StoreProductCardSkeleton key={index} />
+            ))
+          : data?.products.map((product: any) => (
+              <StoreProductCard
+                key={product._id}
+                bowls={product.quantity}
+                price={product.price}
+                name={product.name}
+                img={product.img}
+                onEdit={onEdit}
+              />
+            ))}
       </div>
       <Divider />
       <Grid item xs={12} sx={{ position: "sticky", bottom: 0 }}>
-        <Grid item sx={{ display: "flex", columnGap: 2, p: 2 , ml: 1}}>
+        <Grid item sx={{ display: "flex", columnGap: 2, p: 2, ml: 1 }}>
           <Button variant="outlined" sx={{ p: 1 }}>
             Discard Changes
           </Button>

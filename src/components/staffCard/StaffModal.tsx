@@ -88,6 +88,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
           <TextField
             label="Enter PIN"
             variant="outlined"
+            autoFocus
             type={showPassword ? "text" : "password"}
             value={pin}
             onChange={(e) => setPin(e.target.value)}
