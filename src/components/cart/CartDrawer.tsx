@@ -19,7 +19,7 @@ function CartDrawer({ cartOpen, handleCartClose, handlePaymentOpen }) {
   // console.log(CartItem+ "waa");
   
   return (
-    <Drawer anchor="right" open={cartOpen} onClose={handleCartClose} style={{ height: "100vh", overflowY: "auto" }}>
+    <Drawer anchor="right" open={cartOpen}  onClose={handleCartClose} style={{ height: "100vh", overflowY: "auto" }}>
       <Box sx={{ width: "430px", p: 2, mt: 2 }}>
         <Typography variant="h6" fontWeight="bold" gutterBottom mt={1}>
           Order #djf8i
