@@ -84,15 +84,17 @@ const StaffModal: React.FC<StaffModalProps> = ({
     <>
       <Modal open={open} onClose={handleClose} className={classes.modal}>
         <div className={classes.modalContent}>
-          { notificationOpen && (<Alert severity="error" onClose={handleNotificationClose}>{notificationMessage}</Alert>)}
+          {/* { notificationOpen && (<Alert severity="error" onClose={handleNotificationClose}>{notificationMessage}</Alert>)} */}
           <TextField
             label="Enter PIN"
-            variant="outlined"
+            variant="filled"
             autoFocus
             type={showPassword ? "text" : "password"}
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             fullWidth
+             error={notificationOpen} 
+            helperText={notificationOpen ? "Invalid PIN" : ""}
             InputProps={{
               endAdornment: (
                 <IconButton

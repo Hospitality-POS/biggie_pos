@@ -15,6 +15,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import MobileScreenShareIcon from '@mui/icons-material/MobileScreenShare';
 import { grey } from "@mui/material/colors";
+import RecommendIcon from '@mui/icons-material/Recommend';
+import CloseIcon from '@mui/icons-material/Close';
 
 function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
   const [selectedMethod, setSelectedMethod] = useState(null);
@@ -117,10 +119,10 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
           ))}
         </Box>
         <CardActions sx={{width: "100%", justifyContent: "space-between"}}>
-          <Button variant="outlined" color="primary" onClick={()=>{handlePaymentClose(), setSelectedMethod(null)}}>
+          <Button variant="outlined" color="primary" onClick={()=>{handlePaymentClose(), setSelectedMethod(null)}} endIcon={<CloseIcon />} sx={{p:1}}>
             Cancel
           </Button>
-          <Button variant="contained" color="primary">
+          <Button variant="contained" color="primary" endIcon={<RecommendIcon />} sx={{p:1}}>
             Confirm Payment
           </Button>
         </CardActions>

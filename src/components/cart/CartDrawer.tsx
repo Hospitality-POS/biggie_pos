@@ -11,14 +11,16 @@ import {
 import CartItemCard from "./CartItemCard";
 import { useSelector } from "react-redux";
 import { Key } from "react";
+import PrintIcon from '@mui/icons-material/Print';
+import AddCardIcon from '@mui/icons-material/AddCard';
 
 function CartDrawer({ cartOpen, handleCartClose, handlePaymentOpen }) {
   const CartItem = useSelector((state) => state.cart);
   // console.log(CartItem+ "waa");
   
   return (
-    <Drawer anchor="right" open={cartOpen} onClose={handleCartClose}>
-      <Box sx={{ width: "400px", p: 2, mt: 2 }}>
+    <Drawer anchor="right" open={cartOpen} onClose={handleCartClose} style={{ height: "100vh", overflowY: "auto" }}>
+      <Box sx={{ width: "430px", p: 2, mt: 2 }}>
         <Typography variant="h6" fontWeight="bold" gutterBottom mt={1}>
           Order #djf8i
         </Typography>
@@ -30,7 +32,7 @@ function CartDrawer({ cartOpen, handleCartClose, handlePaymentOpen }) {
                 <Typography variant="body1">Item</Typography>
               </Grid>
               <Grid item xs={3}>
-                <Typography variant="body1">Quantity</Typography>
+                <Typography variant="body1" pl={1}>Qty</Typography>
               </Grid>
               <Grid item xs={3}>
                 <Typography variant="body1">Price</Typography>
@@ -40,15 +42,24 @@ function CartDrawer({ cartOpen, handleCartClose, handlePaymentOpen }) {
           <Divider />
         </Card>
 
-        {CartItem?.map((Item: { _id: Key | null | undefined; }) => (
-          <CartItemCard key={Item._id} cartItem={Item}/>
-        ))}
-
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
-          <Button variant="contained" onClick={handlePaymentOpen}>
-            Proceed to Payment
-          </Button>
+        <Box sx={{ maxHeight: "calc(100vh - 250px)", overflowY: "auto" }}>
+          {CartItem?.map((Item: { _id: Key | null | undefined; }) => (
+            <CartItemCard key={Item._id} cartItem={Item}/>
+          ))}
         </Box>
+
+        <Divider />
+
+        <Grid item xs={12} sx={{ position: "sticky", bottom: 0, backgroundColor: "white" }}>
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 2, columnGap: 2 }}>
+            <Button variant="outlined" endIcon={<PrintIcon />} sx={{p:1}}>
+              Print Bill
+            </Button>
+            <Button variant="contained" onClick={handlePaymentOpen} endIcon={<AddCardIcon />} sx={{p:1}}> 
+              Proceed to Payment
+            </Button>
+          </Box>
+        </Grid>
       </Box>
     </Drawer>
   );
