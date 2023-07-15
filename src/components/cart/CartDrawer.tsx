@@ -7,12 +7,14 @@ import {
   CardContent,
   Grid,
   Divider,
+  IconButton,
 } from "@mui/material";
 import CartItemCard from "./CartItemCard";
 import { useSelector } from "react-redux";
 import { Key } from "react";
 import PrintIcon from '@mui/icons-material/Print';
 import AddCardIcon from '@mui/icons-material/AddCard';
+import { CloseRounded } from "@mui/icons-material";
 
 function CartDrawer({ cartOpen, handleCartClose, handlePaymentOpen }) {
   const CartItem = useSelector((state) => state.cart);
@@ -21,9 +23,15 @@ function CartDrawer({ cartOpen, handleCartClose, handlePaymentOpen }) {
   return (
     <Drawer anchor="right" open={cartOpen}  onClose={handleCartClose} style={{ height: "100vh", overflowY: "auto" }}>
       <Box sx={{ width: "430px", p: 2, mt: 2 }}>
+        <Grid item xs={12} sx={{display: "flex", justifyContent: "space-between"}}>
+
         <Typography variant="h6" fontWeight="bold" gutterBottom mt={1}>
           Order #djf8i
         </Typography>
+        <IconButton onClick={handleCartClose}>
+          <CloseRounded fontSize="large"/>
+        </IconButton>
+        </Grid>
 
         <Card sx={{ mb: 2, boxShadow: "none" }}>
           <CardContent>
