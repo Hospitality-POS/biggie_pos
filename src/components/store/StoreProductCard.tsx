@@ -62,7 +62,7 @@ const StoreProductCard:React.FC<StoreProductCardProps>=({name, img, price, bowls
           </CardContent>
           <Button
             variant="contained"
-            sx={{ borderRadius: 0, gap: 2, p: 2 }}
+            sx={{ borderRadius: 0, gap: 2, p: 2, bgcolor: "#FF8400" }}
             onClick={onEdit}
           >
             <BorderColorOutlinedIcon fontSize="inherit" />

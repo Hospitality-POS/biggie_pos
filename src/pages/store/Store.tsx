@@ -45,12 +45,18 @@ const Store: React.FC = () => {
       <Typography mt={2} variant="h6" ml={4} gutterBottom>
         Products Management
       </Typography>
-      <Box sx={{ bgcolor: "background.paper", width: "100", ml: 2}}>
+      <Box sx={{ bgcolor: "background.paper", width: "100", ml: 2 }}>
         <Tabs
           value={value}
           onChange={handleChange}
+          textColor="inherit"
           variant="scrollable"
           scrollButtons="auto"
+          sx={{
+            "& .MuiTabs-indicator": {
+              backgroundColor: "#864000",
+            },
+          }}
           aria-label="scrollable auto tabs example"
         >
           <Tab label="Desert" />

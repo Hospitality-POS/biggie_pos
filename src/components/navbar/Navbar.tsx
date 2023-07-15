@@ -108,7 +108,7 @@ function Navbar() {
   }));
   return (
     <AppBar position="static">
-      <Container maxWidth="xl">
+      <Container maxWidth="xl" sx={{bgcolor:"#4F200D"}}>
         <Toolbar disableGutters>
           {/* <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} /> */}
           <img src="/bigsmoke icon.png" alt="logo" height={60} />
