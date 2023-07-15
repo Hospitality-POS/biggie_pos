@@ -7,7 +7,8 @@ import Typography from "@mui/material/Typography";
 import Menu from "@mui/material/Menu";
 import MenuIcon from "@mui/icons-material/Menu";
 import Container from "@mui/material/Container";
-import Avatar from "@mui/material/Avatar";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 import Button from "@mui/material/Button";
 import Tooltip from "@mui/material/Tooltip";
 import MenuItem from "@mui/material/MenuItem";
@@ -23,7 +24,7 @@ import TableBarIcon from "@mui/icons-material/TableBar";
 import Avvvatars from "avvvatars-react";
 import { useDispatch, useSelector } from "react-redux";
 import { reset } from "../../features/Auth/AuthSlice";
-import StoreIcon from '@mui/icons-material/Store';
+import StoreIcon from "@mui/icons-material/Store";
 const pages = ["Staff", "Tables", "Restaurant", "Kitchen", "Bar", "Store"];
 const settings = ["Dashboard", "Logout"];
 
@@ -56,6 +57,16 @@ function Navbar() {
   const handleLogout = () => {
     dispatch(reset());
   };
+
+  const handleTabClick = (page: string) => {
+    if (page === "Restaurant") navigate("/restaurant");
+    else if (page === "Bar") navigate("/bar");
+    else if (page === "Staff") navigate("/staffs");
+    else if (page === "Kitchen") navigate("/kitchen");
+    else if (page === "Tables") navigate("/tables");
+    else if (page === "Store") navigate("/store");
+  };
+
   const Search = styled("div")(({ theme }) => ({
     position: "relative",
     borderRadius: theme.shape.borderRadius,
@@ -220,96 +231,51 @@ function Navbar() {
               display: { xs: "none", md: "flex", alignItems: "flex-end" },
             }}
           >
-            {pages.map((page) => (
-              <Button
-                key={page}
-                style={{ display: "flex", flexDirection: "column" }}
-                onClick={handleCloseNavMenu}
-                sx={{ my: 2, color: "white", display: "block" }}
-              >
-                {page === "Restaurant" && user ? (
-                  <>
-                    <RestaurantOutlinedIcon
-                      style={{ fontSize: "16px" }}
-                      onClick={() => navigate("/restaurant")}
-                    />
-                    <Typography
-                      fontSize="inherit"
-                      onClick={() => navigate("/restaurant")}
-                    >
-                      Restaurant
-                    </Typography>
-                  </>
-                ) : page === "Bar" && user ? (
-                  <>
-                    <SportsBarIcon
-                      onClick={() => navigate("/bar")}
-                      style={{ fontSize: "16px" }}
-                    />
-                    <Typography
-                      fontSize="inherit"
-                      onClick={() => navigate("/bar")}
-                    >
-                      Bar
-                    </Typography>
-                  </>
-                ) : page === "Staff" && !user ? (
-                  <>
-                    <PeopleIcon
-                      style={{ fontSize: "16px" }}
-                      onClick={() => navigate("/staff")}
-                    />
-                    <Typography
-                      fontSize="inherit"
-                      onClick={() => navigate("/staff")}
-                    >
-                      Staff
-                    </Typography>
-                  </>
-                ) : page === "Kitchen" && user ? (
-                  <>
-                    <SoupKitchenIcon
-                      onClick={() => navigate("/kitchen")}
-                      style={{ fontSize: "16px" }}
-                    />
-                    <Typography
-                      fontSize="inherit"
-                      onClick={() => navigate("/kitchen")}
-                    >
-                      Kitchen
-                    </Typography>
-                  </>
-                ) : page === "Tables" && user ? (
-                  <>
-                    <TableBarIcon
-                      style={{ fontSize: "16px" }}
-                      onClick={() => navigate("/tables")}
-                    />
-                    <Typography
-                      fontSize="inherit"
-                      onClick={() => navigate("/tables")}
-                    >
-                      Tables
-                    </Typography>
-                  </>
-                ) :page === "Store" && user?.isAdmin ? (
-                  <>
-                    <StoreIcon
-                      style={{ fontSize: "16px" }}
-                      onClick={() => navigate("/store")}
-                    />
-                    <Typography
-                      fontSize="inherit"
-                      onClick={() => navigate("/store")}
-                    >
-                      Store
-                    </Typography>
-                  </>
-                ) :  (
-                  ""
-                )}
-              </Button>
-            ))}
+            <Tabs value={false} variant="scrollable" textColor="inherit" scrollButtons="auto">
+              {pages.map((page) => (
+                <Tab
+                  key={page}
+                  label={
+                    <>
+                      {page === "Restaurant" && user ? (
+                        <>
+                          <RestaurantOutlinedIcon
+                            style={{ fontSize: "16px" }}
+                          />
+                          <Typography fontSize="inherit">Restaurant</Typography>
+                        </>
+                      ) : page === "Bar" && user ? (
+                        <>
+                          <SportsBarIcon style={{ fontSize: "16px" }} />
+                          <Typography fontSize="inherit">Bar</Typography>
+                        </>
+                      ) : page === "Staff" && !user ? (
+                        <>
+                          <PeopleIcon style={{ fontSize: "16px" }} />
+                          <Typography fontSize="inherit">Staff</Typography>
+                        </>
+                      ) : page === "Kitchen" && user ? (
+                        <>
+                          <SoupKitchenIcon style={{ fontSize: "16px" }} />
+                          <Typography fontSize="inherit">Kitchen</Typography>
+                        </>
+                      ) : page === "Tables" && user ? (
+                        <>
+                          <TableBarIcon style={{ fontSize: "16px" }} />
+                          <Typography fontSize="inherit">Tables</Typography>
+                        </>
+                      ) : page === "Store" && user?.isAdmin ? (
+                        <>
+                          <StoreIcon style={{ fontSize: "16px" }} />
+                          <Typography fontSize="inherit">Store</Typography>
+                        </>
+                      ) : null}
+                    </>
+                  }
+                  onClick={() => handleTabClick(page)}
+                />
+              ))}
+            </Tabs>
           </Box>
 
           <Box sx={{ flexGrow: 0 }}>

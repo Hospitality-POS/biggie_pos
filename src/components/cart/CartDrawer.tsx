@@ -29,13 +29,13 @@ function CartDrawer({ cartOpen, handleCartClose, handlePaymentOpen }) {
           <CardContent>
             <Grid container spacing={2} alignItems="center">
               <Grid item xs={6}>
-                <Typography variant="body1">Item</Typography>
+                <Typography variant="body1" fontWeight="bold">Item</Typography>
               </Grid>
               <Grid item xs={3}>
-                <Typography variant="body1" pl={1}>Qty</Typography>
+                <Typography variant="body1" fontWeight="bold" pl={1}>Qty</Typography>
               </Grid>
               <Grid item xs={3}>
-                <Typography variant="body1">Price</Typography>
+                <Typography variant="body1" fontWeight="bold">Price</Typography>
               </Grid>
             </Grid>
           </CardContent>

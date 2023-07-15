@@ -6,6 +6,8 @@ import {
   Divider,
   Grid,
   IconButton,
+  Tab,
+  Tabs,
   Typography,
 } from "@mui/material";
 import React from "react";
@@ -22,7 +24,11 @@ const Store: React.FC = () => {
     retry: 3,
     retryDelay: 1000,
   });
+  const [value, setValue] = React.useState(0);
 
+  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+    setValue(newValue);
+  };
   const onEdit = () => {
     console.log("clicked");
   };
@@ -36,13 +42,31 @@ const Store: React.FC = () => {
 
   return (
     <>
-      <Typography mt={2} variant="h6" ml={4} mb={1} gutterBottom>
+      <Typography mt={2} variant="h6" ml={4} gutterBottom>
         Products Management
       </Typography>
+      <Box sx={{ bgcolor: "background.paper", width: "100", ml: 2}}>
+        <Tabs
+          value={value}
+          onChange={handleChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          aria-label="scrollable auto tabs example"
+        >
+          <Tab label="Desert" />
+          <Tab label="Pork" />
+          <Tab label="Food" />
+          <Tab label="Main course" />
+          <Tab label="fry chicken" />
+          <Tab label="Vegetables" />
+          <Tab label="Chicken" />
+        </Tabs>
+      </Box>
       <Divider sx={{ mb: 2 }} />
+
       <div
         className="cards"
-        style={{ height: "calc(100vh - 230px)", overflowY: "auto" }}
+        style={{ height: "calc(100vh - 280px)", overflowY: "auto" }}
       >
         <Card
           sx={{
