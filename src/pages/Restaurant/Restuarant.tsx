@@ -1,11 +1,16 @@
 import React, { useState } from "react";
-
-import { Button, Grid, Typography } from "@mui/material";
-import ProductCard from "../../components/product/productCard";
+import {
+  Button,
+  Grid,
+  Typography,
+  Box,
+  Card,
+  CardContent,
+  CardActions,
+  CardMedia,
+} from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import SkeletonProductCard from "../../components/product/skeletonProductCard";
-import CategoryCard from "../../components/category/categoryCard";
-import SkeletonCategoryCard from "../../components/category/skeletonCategoryCard";
+import Skeleton from "@mui/material/Skeleton";
 import AddToCartIcon from "../../components/cart/AddToCartIcon";
 import PaymentDrawer from "../../components/payment/PaymentDrawer";
 import CartDrawer from "../../components/cart/CartDrawer";
@@ -17,7 +22,9 @@ const RestaurantPage = () => {
   const { isLoading, isError, error, data } = useQuery({
     queryKey: ["product"],
     queryFn: () =>
-      fetch("http://localhost:3000/product/products").then((res) => res.json()),
+      fetch("http://localhost:3000/product/products").then((res) =>
+        res.json()
+      ),
     retry: 3,
     retryDelay: 1000,
   });
@@ -53,9 +60,11 @@ const RestaurantPage = () => {
   const handlePaymentClose = () => {
     setPaymentOpen(false);
   };
-  const handleSelectCard = (card: React.SetStateAction<null>) => {
+
+  const handleSelectCard = (card) => {
     setSelectedCard(card);
   };
+
   const handleNext = () => {
     setCurrentIndex((currentIndex + 1) % categories.length);
   };
@@ -66,43 +75,44 @@ const RestaurantPage = () => {
 
   if (isLoading) {
     return (
-      <>
-        <div>
-          <Typography variant="h6" gutterBottom mt={1} pl={4}>
-            Categories
-          </Typography>
-          <section
-            className="cards"
-            style={{
-              display: "flex",
-              gap: "20px",
-              marginTop: "10px",
-              paddingLeft: "4px",
-            }}
-          >
-            {[...Array(8)].map((_, index) => (
-              <SkeletonCategoryCard key={index} />
-            ))}
-          </section>
+      <Box>
+        <Typography variant="h6" gutterBottom mt={1} pl={4}>
+          Categories
+        </Typography>
+        <Box display="flex" mt={1} pl={4}>
+          {[...Array(8)].map((_, index) => (
+            <Skeleton
+              key={index}
+              variant="rectangular"
+              width={120}
+              height={120}
+              mr={2}
+            />
+          ))}
+        </Box>
 
-          <Typography variant="h6" gutterBottom mt={2} pl={4}>
-            Special Menu for you
-          </Typography>
-          <section
-            className="cards"
-            style={{
-              display: "flex",
-              gap: "20px",
-              marginTop: "10px",
-              paddingLeft: "4px",
-            }}
-          >
-            {[...Array(12)].map((_, index) => (
-              <SkeletonProductCard key={index} />
-            ))}
-          </section>
-        </div>
-      </>
+        <Typography variant="h6" gutterBottom mt={2} pl={4}>
+          Special Menu for you
+        </Typography>
+        <Box
+          display="flex"
+          overflowX="auto"
+          gap={2}
+          mt={2}
+          pl={2}
+          pb={2}
+          css={{ scrollbarWidth: "thin" }}
+        >
+          {[...Array(12)].map((_, index) => (
+            <Skeleton
+              key={index}
+              variant="rectangular"
+              width={250}
+              height={200}
+            />
+          ))}
+        </Box>
+      </Box>
     );
   }
 
@@ -111,104 +121,107 @@ const RestaurantPage = () => {
   }
 
   return (
-    <>
-      <Grid item xs={12}>
-        <Grid container justifyContent="space-between" mt={2}>
-          <Typography variant="h6" gutterBottom mt={1} pl={4}>
-            Categories
-          </Typography>
-          <Grid item>
-            <Grid container spacing={2} pr={5}>
-              <Grid item>
-                <Button
-                  size="small"
-                  onClick={handlePrev}
-                  variant="outlined"
-                  disabled={categories.length === 1}
-                >
-                  <NavigateBeforeIcon />
-                </Button>
-              </Grid>
-              <Grid item>
-                <Button
-                  size="small"
-                  onClick={handleNext}
-                  variant="outlined"
-                  disabled={categories.length === 1}
-                >
-                  <NavigateNextIcon />
-                </Button>
-              </Grid>
+    <Box>
+      <Grid container justifyContent="space-between" mt={2}>
+        <Typography variant="h6" gutterBottom mt={1} pl={4}>
+          Categories
+        </Typography>
+        <Grid item>
+          <Grid container spacing={2} pr={5}>
+            <Grid item>
+              <Button
+                size="small"
+                onClick={handlePrev}
+                variant="outlined"
+                disabled={categories.length === 1}
+              >
+                <NavigateBeforeIcon />
+              </Button>
+            </Grid>
+            <Grid item>
+              <Button
+                size="small"
+                onClick={handleNext}
+                variant="outlined"
+                disabled={categories.length === 1}
+              >
+                <NavigateNextIcon />
+              </Button>
             </Grid>
           </Grid>
         </Grid>
       </Grid>
-      {/* <section
-        className="cards"
-        style={{
-          display: "flex",
-          gap: "20px",
-          marginTop: "10px",
-        }}
-      > */}
-      <Grid item xs={12}>
-        <Grid container justifyContent="center">
-          <Grid item>
-            <div style={{ display: "flex", overflow: "hidden", width: "100%" }}>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "20px",
-                  width: `${categories.length * 100}%`,
-                  transform: `translateX(-${
-                    currentIndex * (100 / categories.length)
-                  }%)`,
-                  transition: "transform 0.5s ease-in-out",
-                }}
-              >
-                {categories.map((category, index) => (
-                  <CategoryCard
-                    style={{
-                      flex: `0 0 ${100 / categories.length}%`,
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      border: "1px solid black",
-                    }}
-                    key={index}
-                    handleSelectedCard={handleSelectCard}
-                    selectedCard={selectedCard}
-                    icon={category.icon}
-                    name={category.name}
-                    itemCount={category.itemCount}
-                    id={category.id}
-                  />
-                ))}
-              </div>
-            </div>
-          </Grid>
-        </Grid>
-      </Grid>
 
-      {/* </section> */}
+      <Box mt={2} pl={2}>
+        <Box
+          display="flex"
+          overflowX="auto"
+          gap={2}
+          mt={2}
+          pl={2}
+          pb={2}
+          css={{ scrollbarWidth: "thin" }}
+        >
+          {categories.map((category, index) => (
+            <Card
+              key={index}
+              sx={{
+                minWidth: 250,
+                flex: "0 0 auto",
+                boxShadow: selectedCard === index ? "0 0 5px 3px #000" : "none",
+              }}
+              onClick={() => handleSelectCard(index)}
+            >
+              <CardContent>
+                <Typography variant="h6" component="div">
+                  {category.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Item Count: {category.itemCount}
+                </Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      </Box>
 
       <Typography variant="h6" gutterBottom mt={2} pl={4}>
         Special Menu for you
       </Typography>
 
-      <section
-        className="cards"
-        style={{
-          display: "flex",
-          gap: "20px",
-          marginTop: "10px",
-          paddingLeft: "4px",
-        }}
+      <Box
+        display="flex"
+        overflowX="auto"
+        gap={2}
+        mt={2}
+        pl={2}
+        pb={2}
+        css={{ scrollbarWidth: "thin" }}
       >
-        {data?.products.map((menu: { _id: React.Key | null | undefined }) => (
-          <ProductCard key={menu._id} menu={menu} handleCart={handleCartOpen} />
+        {data?.products.map((menu) => (
+          <Card key={menu._id} sx={{ minWidth: 250 }}>
+            <CardMedia
+              component="img"
+              height={140}
+              image={menu.image}
+              alt={menu.title}
+            />
+            <CardContent>
+              <Typography variant="h6" component="div">
+                {menu.title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {menu.description}
+              </Typography>
+            </CardContent>
+            <CardActions>
+              <Button size="small" onClick={handleCartOpen}>
+                Add to Cart
+              </Button>
+            </CardActions>
+          </Card>
         ))}
-      </section>
+      </Box>
 
       <CartDrawer
         cartOpen={cartOpen}
@@ -222,7 +235,7 @@ const RestaurantPage = () => {
       />
 
       <AddToCartIcon OpenCart={handleCartOpen} />
-    </>
+    </Box>
   );
 };
 
