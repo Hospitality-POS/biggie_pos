@@ -17,7 +17,7 @@ import AddCardIcon from "@mui/icons-material/AddCard";
 import { CloseRounded } from "@mui/icons-material";
 
 interface CartDrawerProps {
-  cartOpen: ()=>void;
+  cartOpen: () => void;
   handleCartClose: () => void;
   handlePaymentOpen: () => void;
 }
@@ -81,32 +81,34 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
 
         <Divider />
 
-        <Grid
-          item
-          xs={12}
-          sx={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              mt: 2,
-              columnGap: 2,
-            }}
+        {CartItem?.length ? (
+          <Grid
+            item
+            xs={12}
+            sx={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
           >
-            <Button variant="outlined" endIcon={<PrintIcon />} sx={{ p: 1 }}>
-              Print Bill
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handlePaymentOpen}
-              endIcon={<AddCardIcon />}
-              sx={{ p: 1 }}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                mt: 2,
+                columnGap: 2,
+              }}
             >
-              Proceed to Payment
-            </Button>
-          </Box>
-        </Grid>
+              <Button variant="outlined" endIcon={<PrintIcon />} sx={{ p: 1 }}>
+                Print Bill
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handlePaymentOpen}
+                endIcon={<AddCardIcon />}
+                sx={{ p: 1 }}
+              >
+                Proceed to Payment
+              </Button>
+            </Box>
+          </Grid>
+        ): ""}
       </Box>
     </Drawer>
   );
