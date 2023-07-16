@@ -3,9 +3,11 @@ import { green } from "@mui/material/colors";
 import Draggable from "react-draggable";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { useSelector } from "react-redux";
+import { useRef } from "react";
 
 function AddToCartIcon({ OpenCart }: any) {
   const CartItem = useSelector((state) => state.cart);
+  const draggableRef = useRef(null);
   const glowAnimation = keyframes`
   0% {
     box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
@@ -19,8 +21,9 @@ function AddToCartIcon({ OpenCart }: any) {
 `;
   return (
     <>
-      <Draggable>
+      <Draggable nodeRef={draggableRef}>
         <Box
+          ref={draggableRef}
           sx={{
             position: "fixed",
             bottom: "20px",
@@ -30,31 +33,30 @@ function AddToCartIcon({ OpenCart }: any) {
             borderRadius: "50%",
           }}
         >
-            <Fab
-              color="primary"
-              onClick={OpenCart}
-              sx={{
-                backgroundColor: green[500],
-                width: "60px",
-                height: "60px",
-                "&:hover": {
-                  backgroundColor: green[700],
-                },
+          <Fab
+            color="primary"
+            onClick={OpenCart}
+            sx={{
+              backgroundColor: green[500],
+              width: "60px",
+              height: "60px",
+              "&:hover": {
+                backgroundColor: green[700],
+              },
+            }}
+          >
+            <Badge
+              badgeContent={CartItem.length}
+              max={50}
+              color="success"
+              anchorOrigin={{
+                vertical: "top",
+                horizontal: "left",
               }}
             >
-              <Badge
-                badgeContent={CartItem.length}
-                max={50}
-                color="success"
-                anchorOrigin={{
-                  vertical: "top",
-                  horizontal: "left",
-                }}
-                
-              >
               <ShoppingCartIcon sx={{ fontSize: 36 }} />
-          </Badge>
-            </Fab>
+            </Badge>
+          </Fab>
         </Box>
       </Draggable>
     </>

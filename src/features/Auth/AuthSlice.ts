@@ -14,8 +14,10 @@ interface AuthState {
   isError: boolean;
 }
 
+const user = JSON.parse(localStorage.getItem('user'))
+
 const initialState: AuthState = {
-  user: null,
+  user: user? user : null,
   token: null,
   message: "",
   isSuccess: false,
