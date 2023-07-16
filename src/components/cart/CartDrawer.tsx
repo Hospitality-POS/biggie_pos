@@ -17,7 +17,7 @@ import AddCardIcon from "@mui/icons-material/AddCard";
 import { CloseRounded } from "@mui/icons-material";
 
 interface CartDrawerProps {
-  cartOpen: () => void;
+  cartOpen: boolean | undefined;
   handleCartClose: () => void;
   handlePaymentOpen: () => void;
 }
@@ -26,7 +26,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   handleCartClose,
   handlePaymentOpen,
 }) => {
-  const CartItem = useSelector((state) => state.cart);
+  const CartItem = useSelector((state:any) => state.cart);
   // console.log(CartItem+ "waa");
 
   return (

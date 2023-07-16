@@ -129,10 +129,10 @@ const Store: React.FC = () => {
       <Divider />
       <Grid item xs={12} sx={{ position: "sticky", bottom: 0 }}>
         <Grid item sx={{ display: "flex", columnGap: 2, p: 2, ml: 1 }}>
-          <Button variant="outlined" sx={{ p: 1 }}>
+          <Button variant="outlined" sx={{ p: 1 , borderColor: "#4F200D"}}>
             Discard Changes
           </Button>
-          <Button variant="contained" sx={{ p: 1 }}>
+          <Button variant="contained" sx={{ p: 1, bgcolor: "#4F200D" }}>
             Save Changes
           </Button>
         </Grid>
