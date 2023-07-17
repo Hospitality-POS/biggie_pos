@@ -19,7 +19,7 @@ function Table() {
       <>
         <div className={classes.staffheader}>
           {/* <p>Tables List</p> */}
-          <Typography variant="h6" gutterBottom mt={1} pl={2}>
+          <Typography variant="h6" gutterBottom mt={2} pl={2}>
             Tables List
           </Typography>
         </div>
@@ -51,7 +51,7 @@ function Table() {
     <div className="staff-section">
       <div className={classes.staffheader}>
         {/* <p>Tables List</p> */}
-        <Typography variant="h6" gutterBottom mt={1} pl={2}>
+        <Typography variant="h6" gutterBottom mt={2} pl={2}>
           Tables List
         </Typography>
       </div>

@@ -11,12 +11,12 @@ import {
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CreditCardIcon from '@mui/icons-material/CreditCard';
-import MobileScreenShareIcon from '@mui/icons-material/MobileScreenShare';
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CreditCardIcon from "@mui/icons-material/CreditCard";
+import MobileScreenShareIcon from "@mui/icons-material/MobileScreenShare";
 import { grey } from "@mui/material/colors";
-import RecommendIcon from '@mui/icons-material/Recommend';
-import CloseIcon from '@mui/icons-material/Close';
+import RecommendIcon from "@mui/icons-material/Recommend";
+import CloseIcon from "@mui/icons-material/Close";
 
 function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
   const [selectedMethod, setSelectedMethod] = useState(null);
@@ -58,8 +58,16 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
         <Typography gutterBottom mt={1} variant="h6" fontWeight="light">
           Payment Method
         </Typography>
-        <Box sx={{ display: "flex", flexDirection: "row", gap: 2, flexWrap:"wrap" }} mb={4}>
-          {data.map((method:any) => (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+          mb={4}
+        >
+          {data.map((method: any) => (
             <Card
               key={method._id}
               variant={selectedMethod === method._id ? "outlined" : "elevation"}
@@ -77,16 +85,16 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
                 height: "70px",
               }}
             >
-               {selectedMethod === method._id && (
-                
-                <CheckCircleIcon sx={{
+              {selectedMethod === method._id && (
+                <CheckCircleIcon
+                  sx={{
                     position: "absolute",
                     top: 0,
                     right: 0,
                     padding: "4px",
                     color: "green",
-                  }} />
-                
+                  }}
+                />
               )}
               <CardContent
                 sx={{
@@ -99,17 +107,23 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
                 {method.name === "Cash" ? (
                   <>
                     <LocalAtmIcon />
-                    <Typography variant="subtitle1" fontSize={16}>cash</Typography>
+                    <Typography variant="subtitle1" fontSize={16}>
+                      cash
+                    </Typography>
                   </>
                 ) : method.name === "M-Pesa" ? (
                   <>
                     <MobileScreenShareIcon />
-                    <Typography variant="subtitle1" fontSize={16}>M-pesa</Typography>
+                    <Typography variant="subtitle1" fontSize={16}>
+                      M-pesa
+                    </Typography>
                   </>
                 ) : method.name === "Card" ? (
                   <>
                     <CreditCardIcon />
-                    <Typography variant="subtitle1" fontSize={16}>Card</Typography>
+                    <Typography variant="subtitle1" fontSize={16}>
+                      Card
+                    </Typography>
                   </>
                 ) : (
                   ""
@@ -118,11 +132,40 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
             </Card>
           ))}
         </Box>
-        <CardActions sx={{width: "100%", justifyContent: "space-between"}}>
-          <Button variant="outlined" color="primary" onClick={()=>{handlePaymentClose(), setSelectedMethod(null)}} endIcon={<CloseIcon />} sx={{p:1}}>
+        <CardActions sx={{ width: "100%", justifyContent: "space-between" }}>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => {
+              handlePaymentClose(), setSelectedMethod(null);
+            }}
+            endIcon={<CloseIcon />}
+            sx={{
+              p: 1,
+              color: "#6c1c2c",
+              borderColor: "#6c1c2c",
+
+              "&:hover": {
+                borderColor: "#bc8c7c",
+                color: "#bc8c7c",
+              },
+            }}
+          >
             Cancel
           </Button>
-          <Button variant="contained" color="primary" endIcon={<RecommendIcon />} sx={{p:1}}>
+          <Button
+            variant="contained"
+            color="primary"
+            endIcon={<RecommendIcon />}
+            sx={{
+              p: 1,
+              bgcolor: "#6c1c2c",
+              "&:hover": {
+                bgcolor: "#bc8c7c",
+                color: "#ffff",
+              },
+            }}
+          >
             Confirm Payment
           </Button>
         </CardActions>

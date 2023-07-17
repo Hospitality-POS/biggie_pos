@@ -90,6 +90,8 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
             xs={12}
             sx={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
           >
+            <Typography>Total : </Typography>
+            <Typography>Served By: </Typography>
             <Box
               sx={{
                 display: "flex",
@@ -97,15 +99,35 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                 mt: 2,
                 columnGap: 2,
               }}
-            >
-              <Button variant="outlined" endIcon={<PrintIcon />} sx={{ p: 1 }}>
+            > 
+              <Button
+                variant="outlined"
+                endIcon={<PrintIcon />}
+                sx={{
+                  p: 1,
+                  color: "#6c1c2c",
+                  borderColor: "#6c1c2c",
+
+                  "&:hover": {
+                    borderColor: "#bc8c7c",
+                    color: "#bc8c7c",
+                  },
+                }}
+              >
                 Print Bill
               </Button>
               <Button
                 variant="contained"
                 onClick={handlePaymentOpen}
                 endIcon={<AddCardIcon />}
-                sx={{ p: 1 }}
+                sx={{
+                  p: 1,
+                  bgcolor: "#6c1c2c",
+                  "&:hover": {
+                    bgcolor: "#bc8c7c",
+                    color: "#ffff",
+                  },
+                }}
               >
                 Proceed to Payment
               </Button>

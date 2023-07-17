@@ -15,7 +15,7 @@ function CategoryCard({
     <Card
       onClick={()=>handleSelectedCard(id)}
       sx={{
-        backgroundColor: selectedCard === id ? "#F3CF7A" : grey[100],
+        backgroundColor: selectedCard === id ? "#bc8c7c" : grey[100],
         color: selectedCard === id ? "white" : "black",
         cursor: "pointer",
         transition: "background-color 0.3s ease",

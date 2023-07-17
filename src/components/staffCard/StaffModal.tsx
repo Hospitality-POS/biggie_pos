@@ -84,7 +84,6 @@ const StaffModal: React.FC<StaffModalProps> = ({
     <>
       <Modal open={open} onClose={handleClose} className={classes.modal}>
         <div className={classes.modalContent}>
-          {/* { notificationOpen && (<Alert severity="error" onClose={handleNotificationClose}>{notificationMessage}</Alert>)} */}
           <TextField
             label="Enter PIN"
             variant="filled"

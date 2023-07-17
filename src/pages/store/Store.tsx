@@ -10,13 +10,15 @@ import {
   Tabs,
   Typography,
 } from "@mui/material";
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import StoreProductCard from "../../components/store/StoreProductCard";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import StoreProductCardSkeleton from "../../components/store/StoreProductSkeletonCard";
+import AddNewProductModal from "../../components/store/AddNewProductModal";
 
 const Store: React.FC = () => {
+  const [open, setOpen] = useState(false);
   const { isLoading, isError, error, data } = useQuery({
     queryKey: ["product"],
     queryFn: () =>
@@ -33,7 +35,13 @@ const Store: React.FC = () => {
     console.log("clicked");
   };
   const onAdd = () => {
+    setOpen(true);
+  };
+  const onSave = () => {
     console.log("clicked");
+  };
+  const onClose = () => {
+    setOpen(false);
   };
 
   if (isError) {
@@ -54,7 +62,7 @@ const Store: React.FC = () => {
           scrollButtons="auto"
           sx={{
             "& .MuiTabs-indicator": {
-              backgroundColor: "#864000",
+              backgroundColor: "#6c1c2c",
             },
           }}
           aria-label="scrollable auto tabs example"
@@ -81,7 +89,7 @@ const Store: React.FC = () => {
             height: 300,
             display: "flex",
             flexDirection: "column",
-            border: "2px dashed skyblue",
+            border: "2px dashed #6c1c2c",
             justifyContent: "center",
             alignItems: "center",
           }}
@@ -111,6 +119,8 @@ const Store: React.FC = () => {
           </CardContent>
         </Card>
 
+        <AddNewProductModal open={open} onClose={onClose} onSave={onSave} />
+
         {isLoading
           ? [...Array(11)].map((_, index) => (
               <StoreProductCardSkeleton key={index} />
@@ -129,10 +139,32 @@ const Store: React.FC = () => {
       <Divider />
       <Grid item xs={12} sx={{ position: "sticky", bottom: 0 }}>
         <Grid item sx={{ display: "flex", columnGap: 2, p: 2, ml: 1 }}>
-          <Button variant="outlined" sx={{ p: 1 , borderColor: "#6d2b0c"}}>
+          <Button
+            variant="outlined"
+            sx={{
+              p: 1,
+              color: '#6c1c2c',
+              borderColor: "#6c1c2c",
+            
+              "&:hover": {
+                 borderColor: "#bc8c7c",
+                color: "#bc8c7c",
+              },
+            }}
+          >
             Discard Changes
           </Button>
-          <Button variant="contained" sx={{ p: 1, bgcolor: "#6d2b0c" }}>
+          <Button
+            variant="contained"
+            sx={{
+              p: 1,
+              bgcolor: "#6c1c2c",
+              "&:hover": {
+                bgcolor: "#bc8c7c",
+                color: "#ffff",
+              },
+            }}
+          >
             Save Changes
           </Button>
         </Grid>

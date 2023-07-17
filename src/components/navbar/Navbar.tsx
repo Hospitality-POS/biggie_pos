@@ -108,12 +108,12 @@ function Navbar() {
   }));
   return (
     <AppBar position="static">
-      <Container maxWidth="xl" sx={{bgcolor:"#6d2b0c"}}>
+      <Container maxWidth="xl" sx={{bgcolor:"#6c1c2c"}}>
         <Toolbar disableGutters>
           {/* <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} /> */}
-          <img src="/bigsmoke icon.png" alt="logo" height={60} />
+          <img src="/android-chrome-192x192.png" alt="logo" height={70} width={120}/>
 
-          <Typography
+          {/* <Typography
             variant="h6"
             noWrap
             component="a"
@@ -128,7 +128,7 @@ function Navbar() {
             }}
           >
             BigSmoke
-          </Typography>
+          </Typography> */}
 
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
             <IconButton

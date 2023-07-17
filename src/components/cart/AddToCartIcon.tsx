@@ -37,18 +37,19 @@ function AddToCartIcon({ OpenCart }: any) {
             color="primary"
             onClick={OpenCart}
             sx={{
-              backgroundColor: green[500],
+              backgroundColor: "#6c1c2c",
               width: "60px",
               height: "60px",
               "&:hover": {
-                backgroundColor: green[700],
+                backgroundColor: "#6c1c2c",
               },
             }}
           >
             <Badge
               badgeContent={CartItem.length}
               max={50}
-              color="success"
+              color="error"
+             
               anchorOrigin={{
                 vertical: "top",
                 horizontal: "left",
