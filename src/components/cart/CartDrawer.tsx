@@ -8,6 +8,8 @@ import {
   Grid,
   Divider,
   IconButton,
+  CardMedia,
+  Badge,
 } from "@mui/material";
 import CartItemCard from "./CartItemCard";
 import { useSelector } from "react-redux";
@@ -15,6 +17,7 @@ import React, { Key } from "react";
 import PrintIcon from "@mui/icons-material/Print";
 import AddCardIcon from "@mui/icons-material/AddCard";
 import { CloseRounded } from "@mui/icons-material";
+import classes from "./Cart.module.css";
 
 interface CartDrawerProps {
   cartOpen: boolean | undefined;
@@ -26,7 +29,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   handleCartClose,
   handlePaymentOpen,
 }) => {
-  const CartItem = useSelector((state:any) => state.cart);
+  const CartItem = useSelector((state: any) => state.cart);
   // console.log(CartItem+ "waa");
 
   return (
@@ -79,7 +82,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
           ))}
         </Box>
 
-        <Divider />
+        {/* <Divider /> */}
 
         {CartItem?.length ? (
           <Grid
@@ -108,7 +111,28 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               </Button>
             </Box>
           </Grid>
-        ): ""}
+        ) : (
+          <Card className={classes.cardm}>
+            <Badge
+              badgeContent="Empty"
+              color="error"
+              overlap="circular"
+              anchorOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+              className={classes.badge}
+            >
+              <CardMedia
+                component="img"
+                alt="Basket"
+                className={classes.media}
+                image="/basket.png"
+                sx={{ width: 100 }}
+              />
+            </Badge>
+          </Card>
+        )}
       </Box>
     </Drawer>
   );

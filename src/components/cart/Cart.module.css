@@ -1,0 +1,29 @@
+.media {
+  max-width: 100%;
+  height: auto;
+  opacity: 40%;
+  width: "100px";
+  margin: 0 auto;
+}
+
+.cardm {
+  margin: 0 auto;
+  height: 100%;
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
+.badge {
+  position: absolute;
+  animation: fade 1s infinite alternate;
+}
+
+@keyframes fade {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.4;
+  }
+}
