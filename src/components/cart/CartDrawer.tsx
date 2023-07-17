@@ -30,6 +30,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   handlePaymentOpen,
 }) => {
   const CartItem = useSelector((state: any) => state.cart);
+  const {user } = useSelector(state=>state.auth)
   // console.log(CartItem+ "waa");
 
   return (
@@ -90,8 +91,8 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
             xs={12}
             sx={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
           >
-            <Typography>Total : </Typography>
-            <Typography>Served By: </Typography>
+            <Typography>Total : ksh. {CartItem.reduce((accumulator, item) => accumulator + item.price, 0).toLocaleString()}</Typography>
+            <Typography>Served By: {user.name} </Typography>
             <Box
               sx={{
                 display: "flex",

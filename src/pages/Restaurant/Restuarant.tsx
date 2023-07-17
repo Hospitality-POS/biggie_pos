@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { Box, Button, Grid, Typography, useMediaQuery } from "@mui/material";
+import { Button, Grid, Typography } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
 import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
@@ -64,7 +64,7 @@ const RestaurantPage = () => {
   const handlePrev = () => {
     setCurrentIndex((currentIndex - 1 + categories.length) % categories.length);
   };
-  
+
   if (isLoading) {
     return (
       <>
@@ -125,6 +125,15 @@ const RestaurantPage = () => {
                   size="small"
                   onClick={handlePrev}
                   variant="outlined"
+                  sx={{
+                    color: "#6c1c2c",
+                    borderColor: "#6c1c2c",
+
+                    "&:hover": {
+                      borderColor: "#bc8c7c",
+                      color: "#bc8c7c",
+                    },
+                  }}
                   disabled={categories.length === 1}
                 >
                   <NavigateBeforeIcon />
@@ -135,6 +144,15 @@ const RestaurantPage = () => {
                   size="small"
                   onClick={handleNext}
                   variant="outlined"
+                  sx={{
+                    color: "#6c1c2c",
+                    borderColor: "#6c1c2c",
+
+                    "&:hover": {
+                      borderColor: "#bc8c7c",
+                      color: "#bc8c7c",
+                    },
+                  }}
                   disabled={categories.length === 1}
                 >
                   <NavigateNextIcon />
@@ -144,14 +162,7 @@ const RestaurantPage = () => {
           </Grid>
         </Grid>
       </Grid>
-      {/* <section
-        className="cards"
-        style={{
-          display: "flex",
-          gap: "20px",
-          marginTop: "10px",
-        }}
-      > */}
+
       <Grid item xs={12}>
         <Grid container justifyContent="center">
           <Grid item>

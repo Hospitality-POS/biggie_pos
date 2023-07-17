@@ -11,27 +11,27 @@ const Staff = () => {
     queryKey: ["staff"],
     queryFn: () =>
       fetch("http://localhost:3000/users/all").then((res) => res.json()),
-      retry: 3,
-      retryDelay: 1000,
+    retry: 3,
+    retryDelay: 1000,
   });
-  // console.log(data);
+  
 
   if (isLoading) {
-    return <>
-    <div className={classes.staffheader}>
-        {/* <p>Registered Staff</p> */}
-        <Typography variant="h6" gutterBottom mt={1} pl={2}>
-          Registered Staff
-        </Typography>
-      </div>
-      <Divider />
-      <div className="cards" >
-
-        {[...Array(12)].map((_, index) => (
-          <SkeletonCard key={index} />
-        ))}
+    return (
+      <>
+        <div className={classes.staffheader}>
+          <Typography mt={2} variant="h6" ml={2} gutterBottom>
+            Registered Staff
+          </Typography>
         </div>
-        </>;
+        <Divider />
+        <div className="cards">
+          {[...Array(12)].map((_, index) => (
+            <SkeletonCard key={index} />
+          ))}
+        </div>
+      </>
+    );
   }
 
   if (isError) {
@@ -41,9 +41,8 @@ const Staff = () => {
   return (
     <section className="staff-section">
       <div className={classes.staffheader}>
-        <p>Registered Staff</p>
-        <Typography>
-
+        <Typography mt={2} variant="h6" ml={2} gutterBottom>
+          Registered Staff
         </Typography>
       </div>
       <Divider />

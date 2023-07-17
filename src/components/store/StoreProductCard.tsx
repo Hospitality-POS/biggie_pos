@@ -67,9 +67,9 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
               display: "flex",
             }}
           >
-            Ksh.{price}{" "}
-            <CircleIcon  sx={{ fontSize: 8, mt: 1, color:'#6c1c2c' }} /> {bowls}{" "}
-            Bowls
+            Ksh.{price.toLocaleString()}
+            <CircleIcon sx={{ fontSize: 8, mt: 1, color: "#6c1c2c" }} /> {bowls}{" "}
+            Bowl{bowls <= 1 ? " " : "s"}
           </Typography>
         </CardContent>
         <Button
