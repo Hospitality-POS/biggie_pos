@@ -35,7 +35,7 @@ function Routers() {
               </Private>
             }
           /> */}
-           <Route
+          <Route
             path="/restaurant/:id"
             element={
               <Private>
@@ -47,7 +47,7 @@ function Routers() {
             path="/store"
             element={
               <Private>
-                <Store />{" "}
+                <Store />
               </Private>
             }
           />
