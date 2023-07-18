@@ -1,12 +1,15 @@
-import { Divider, Typography } from "@mui/material";
+import { Box, Divider, Tab, Tabs, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import classes from "../staff/staffs.module.css";
 import TableCard from "../../components/TableCard/TableCard";
-import { Key } from "react";
+import React, { Key } from "react";
 import TableCardSkeleton from "../../components/TableCard/TableCardSkeleton";
 import { Link } from "react-router-dom";
+import DeckIcon from '@mui/icons-material/Deck';
 
 function Table() {
+  const [value, setValue] = React.useState("one");
+
   const { isLoading, isError, error, data } = useQuery({
     queryKey: ["tables"],
     queryFn: () =>
@@ -14,6 +17,9 @@ function Table() {
     retry: 3,
     retryDelay: 1000,
   });
+  const handleChange = (event: React.SyntheticEvent, newValue: string) => {
+    setValue(newValue);
+  };
 
   if (isLoading) {
     return (
@@ -56,6 +62,24 @@ function Table() {
           Tables List
         </Typography>
       </div>
+      <Box sx={{ width: "100%", pl: 3, }}>
+            <Tabs
+              value={value}
+              onChange={handleChange}
+              textColor="inherit"
+              indicatorColor="secondary"
+              aria-label="secondary tabs example"
+               sx={{
+            "& .MuiTabs-indicator": {
+              backgroundColor: "#6c1c2c",
+            },
+          }}
+            >
+              <Tab value="one" label="Inside" icon={<DeckIcon />} />
+              <Tab value="two" label="Outside" icon={<DeckIcon />}/>
+              <Tab value="three" label="Collidor" icon={<DeckIcon />}/>
+            </Tabs>
+          </Box>
       <Divider />
       <div
         className="cards"
@@ -66,6 +90,7 @@ function Table() {
           marginTop: "10px",
           flexWrap: "wrap",
           width: "100%",
+          bottom: 0
         }}
       >
         {data.map((item: { _id: Key | null | undefined }) => (
@@ -74,7 +99,6 @@ function Table() {
             to={`/restaurant/${item._id}`}
             style={{ textDecoration: "none" }}
           >
-
             <TableCard key={item._id} item={item} />
           </Link>
         ))}

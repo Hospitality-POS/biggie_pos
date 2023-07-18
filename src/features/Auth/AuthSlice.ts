@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { loginUser } from "./AuthActions";
+import { loginUser, logoutUser } from "./AuthActions";
 
 interface User {
    username: string;
@@ -58,7 +58,10 @@ export const authSlice = createSlice({
           state.user = action.payload;
           state.token = action.payload.token;
         }
-      );
+      )
+      .addCase(logoutUser.fulfilled, (state, action) => {
+                state.user = null
+            });
   },
 });
 

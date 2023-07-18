@@ -22,3 +22,14 @@ export const loginUser = createAsyncThunk(
     }
   }
 );
+export const logoutUser = createAsyncThunk(
+    "authUser/logoutUser",
+    async () => {
+        try {
+            const response = await localStorage.removeItem('user')
+            return response
+        } catch (error) {
+            return error.message
+        }
+    }
+)
