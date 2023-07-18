@@ -141,7 +141,7 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
             }}
             endIcon={<CloseIcon />}
             sx={{
-              p: 1,
+              pl: 2,
               color: "#6c1c2c",
               borderColor: "#6c1c2c",
 
@@ -158,7 +158,7 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
             color="primary"
             endIcon={<RecommendIcon />}
             sx={{
-              p: 1,
+              pl: 2,
               bgcolor: "#6c1c2c",
               "&:hover": {
                 bgcolor: "#bc8c7c",

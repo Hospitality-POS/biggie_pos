@@ -35,6 +35,14 @@ function Routers() {
               </Private>
             }
           />
+           <Route
+            path="/restaurant/:id"
+            element={
+              <Private>
+                <RestaurantPage />
+              </Private>
+            }
+          />
           <Route
             path="/store"
             element={

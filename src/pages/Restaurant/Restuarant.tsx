@@ -11,10 +11,14 @@ import PaymentDrawer from "../../components/payment/PaymentDrawer";
 import CartDrawer from "../../components/cart/CartDrawer";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
+import { useParams } from "react-router-dom";
+import { useSelector } from "react-redux";
 // import { useTheme } from "@emotion/react";
 
 const RestaurantPage = () => {
+  const {user} = useSelector(state=>state.auth)
   const [selectedCard, setSelectedCard] = useState(null);
+  const {id} = useParams()
   const { isLoading, isError, error, data } = useQuery({
     queryKey: ["product"],
     queryFn: () =>
@@ -22,6 +26,17 @@ const RestaurantPage = () => {
     retry: 3,
     retryDelay: 1000,
   });
+
+const {  data: tableData } = useQuery({
+  queryKey: ["table_name"],
+  queryFn: () =>
+    fetch(`http://localhost:3000/tables/${id}`,{
+      headers: {
+        Authorization: `Bearer ${user.Token}`,
+      },}).then((res) => res.json()),
+  retry: 3,
+  retryDelay: 1000,
+});
 
   const categories = [
     { id: 1, name: "Appetizers", icon: "/chip.png", itemCount: 10 },
@@ -223,6 +238,7 @@ const RestaurantPage = () => {
       </section>
 
       <CartDrawer
+        tableData={tableData}
         cartOpen={cartOpen}
         handleCartClose={handleCartClose}
         handlePaymentOpen={handlePaymentOpen}

@@ -4,6 +4,7 @@ import classes from "../staff/staffs.module.css";
 import TableCard from "../../components/TableCard/TableCard";
 import { Key } from "react";
 import TableCardSkeleton from "../../components/TableCard/TableCardSkeleton";
+import { Link } from "react-router-dom";
 
 function Table() {
   const { isLoading, isError, error, data } = useQuery({
@@ -68,7 +69,14 @@ function Table() {
         }}
       >
         {data.map((item: { _id: Key | null | undefined }) => (
-          <TableCard key={item._id} item={item} />
+          <Link
+            key={item._id}
+            to={`/restaurant/${item._id}`}
+            style={{ textDecoration: "none" }}
+          >
+
+            <TableCard key={item._id} item={item} />
+          </Link>
         ))}
       </div>
     </div>
