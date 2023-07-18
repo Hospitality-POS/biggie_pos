@@ -37,6 +37,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               >
                 <RemoveIcon />
               </IconButton>
+
               <Typography variant="body1">{cartItem.quantity}</Typography>
               <IconButton
                 size="small"
