@@ -91,7 +91,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
         <Box sx={style}>
           <div
             style={{
-              backgroundColor: "#bc8c7c",
+              backgroundColor: "#6c1c2c",
               padding: "8px",
               marginBottom: "16px",
               borderRadius: "4px",
@@ -169,7 +169,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 minRows={3}
-                maxRows={10}
+                maxRows={3}
                 style={{ width: "100%", marginTop: 10 }}
               />
             </Grid>
