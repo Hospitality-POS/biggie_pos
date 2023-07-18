@@ -59,7 +59,7 @@ function Navbar() {
   };
 
   const handleTabClick = (page: string) => {
-    if (page === "Restaurant") navigate("/restaurant");
+    if (page === "Restaurant") navigate("/tables");
     else if (page === "Bar") navigate("/bar");
     else if (page === "Staff") navigate("/staffs");
     else if (page === "Kitchen") navigate("/kitchen");
@@ -205,7 +205,7 @@ function Navbar() {
                     <Typography
                       textAlign="center"
                       fontSize="inherit"
-                      onClick={() => navigate("/tables")}
+                      onClick={() => navigate("/store")}
                     >
                       Store
                     </Typography>
