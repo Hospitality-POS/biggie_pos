@@ -25,6 +25,7 @@ import Avvvatars from "avvvatars-react";
 import { useDispatch, useSelector } from "react-redux";
 import { reset } from "../../features/Auth/AuthSlice";
 import StoreIcon from "@mui/icons-material/Store";
+import { logoutUser } from "../../features/Auth/AuthActions";
 const pages = ["Staff", "Tables", "Restaurant", "Kitchen", "Bar", "Store"];
 const settings = ["Dashboard", "Logout"];
 
@@ -55,6 +56,7 @@ function Navbar() {
     setAnchorElUser(null);
   };
   const handleLogout = () => {
+    dispatch(logoutUser())
     dispatch(reset());
   };
 
