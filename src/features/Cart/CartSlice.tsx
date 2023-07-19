@@ -14,12 +14,12 @@ export const cartSlice = createSlice({
   initialState,
   reducers: {
     addItem: (state, action: PayloadAction<CartItem>) => {
-      const { _id } = action.payload;
+      const { _id, price } = action.payload;
       const existingItem = state.find(item => item._id === _id);
 
       if (existingItem) {
         existingItem.quantity += 1;
-        existingItem.price = existingItem.price * existingItem.quantity;
+        existingItem.price = price * existingItem.quantity;
       } else {
         state.push(action.payload);
       }
@@ -39,10 +39,18 @@ export const cartSlice = createSlice({
         }
       }
     },
+    deleteItem: (state, action: PayloadAction<string>) => {
+      const id = action.payload;
+      const existingItemIndex = state.findIndex(item => item._id === id);
+
+      if (existingItemIndex !== -1) {
+        state.splice(existingItemIndex, 1);
+      }
+    },
     clearCart: () => initialState,
   },
 });
 
-export const { addItem, removeItem, clearCart } = cartSlice.actions;
+export const { addItem, removeItem, clearCart, deleteItem } = cartSlice.actions;
 
 export default cartSlice.reducer;

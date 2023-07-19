@@ -13,7 +13,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { useDispatch } from "react-redux";
-import { addItem, removeItem } from "../../features/Cart/CartSlice";
+import { addItem, deleteItem, removeItem } from "../../features/Cart/CartSlice";
 import React from "react";
 interface cartItemCardProps {
   cartItem: string | number | boolean;
@@ -83,7 +83,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
           >
             <DeleteIcon
               color="error"
-              onClick={() => dispatch(removeItem(cartItem._id))}
+              onClick={() => dispatch(deleteItem(cartItem._id))}
             />
           </Button>
         </Grid>

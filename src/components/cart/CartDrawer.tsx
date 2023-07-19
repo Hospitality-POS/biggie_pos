@@ -17,9 +17,10 @@ import React, { Key } from "react";
 import PrintIcon from "@mui/icons-material/Print";
 import AddCardIcon from "@mui/icons-material/AddCard";
 import { CloseRounded } from "@mui/icons-material";
-import TableBarIcon from '@mui/icons-material/TableBar';
-import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import TableBarIcon from "@mui/icons-material/TableBar";
+import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
+// import { useParams } from "react-router-dom";
 
 interface CartDrawerProps {
   tableData: any;
@@ -33,8 +34,9 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   handlePaymentOpen,
   tableData,
 }) => {
+  // const CartItem = useSelector((state: any) => state.cart);
   const CartItem = useSelector((state: any) => state.cart);
-  const { user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state: any) => state.auth);
   // console.log(CartItem+ "waa");
 
   return (
@@ -48,31 +50,69 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
         <Grid
           item
           xs={12}
-          sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
         >
-          <Grid item xs={12} pl={2}   sx={{ display: "flex", columnGap: 2, alignItems: "center", flexDirection: "column"}}>
-           <Button variant="outlined" sx={{
-                   pl: 2,
-                   color: "#6c1c2c",
-                   borderColor: "#6c1c2c",
- 
-                   "&:hover": {
-                     borderColor: "#bc8c7c",
-                     color: "#bc8c7c",
-                   },
-                 }} startIcon={<BookmarkBorderIcon />}> #837B</Button>
-         </Grid>
-        <Grid item xs={12} pl={2}   sx={{ display: "flex", columnGap: 2, alignItems: "center", flexDirection: "column"}}>
-          <Button variant="contained" sx={{
-                  pl:2 ,
-                  bgcolor: "#6c1c2c",
-                  "&:hover": {
-                    bgcolor: "#bc8c7c",
-                    color: "#ffff",
-                  },
-                }} startIcon={<TableBarIcon />} > {tableData?.name}</Button>
-        </Grid>
-          
+          <Grid
+            item
+            xs={12}
+            pl={2}
+            sx={{
+              display: "flex",
+              columnGap: 2,
+              alignItems: "center",
+              flexDirection: "column",
+            }}
+          >
+            <Button
+              variant="outlined"
+              sx={{
+                pl: 2,
+                color: "#6c1c2c",
+                borderColor: "#6c1c2c",
+
+                "&:hover": {
+                  borderColor: "#bc8c7c",
+                  color: "#bc8c7c",
+                },
+              }}
+              startIcon={<BookmarkBorderIcon />}
+            >
+              {" "}
+              #837B
+            </Button>
+          </Grid>
+          <Grid
+            item
+            xs={12}
+            pl={2}
+            sx={{
+              display: "flex",
+              columnGap: 2,
+              alignItems: "center",
+              flexDirection: "column",
+            }}
+          >
+            <Button
+              variant="contained"
+              sx={{
+                pl: 2,
+                bgcolor: "#6c1c2c",
+                "&:hover": {
+                  bgcolor: "#bc8c7c",
+                  color: "#ffff",
+                },
+              }}
+              startIcon={<TableBarIcon />}
+            >
+              {" "}
+              {tableData?.name}
+            </Button>
+          </Grid>
+
           <IconButton onClick={handleCartClose}>
             <CloseRounded fontSize="large" />
           </IconButton>
@@ -113,16 +153,18 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
           <Grid
             item
             xs={12}
-            sx={{ position: "sticky", bottom: 0, backgroundColor: "white",  }}
+            sx={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
           >
             <Typography variant="body1" fontWeight="bold" pl={2}>
-              Total :  {" "}
+              Total :{" "}
               {CartItem.reduce(
                 (accumulator, item) => accumulator + item.price,
                 0
               ).toLocaleString()}
             </Typography>
-            <Typography variant="body1" fontWeight="bold" pl={2}>Served By: {user.name} </Typography>
+            <Typography variant="body1" fontWeight="bold" pl={2}>
+              Served By: {user.name}{" "}
+            </Typography>
             <Box
               sx={{
                 display: "flex",
@@ -130,7 +172,6 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                 mt: 2,
                 columnGap: 2,
                 bottom: 0,
-                
               }}
             >
               <Button
