@@ -19,33 +19,27 @@ export const cartSlice = createSlice({
 
       if (existingItem) {
         existingItem.quantity += 1;
-        existingItem.price = price * existingItem.quantity;
+        existingItem.price += price;
       } else {
         state.push(action.payload);
       }
     },
-    removeItem: (state, action: PayloadAction<string>) => {
-      const id = action.payload;
-      const existingItemIndex = state.findIndex(item => item._id === id);
+    removeItem: (state, action: PayloadAction<CartItem>) => {
+      const {_id, price} = action.payload;
+      const existingItem = state.find(item => item._id === _id);
 
-      if (existingItemIndex !== -1) {
-        const existingItem = state[existingItemIndex];
-
+      if (existingItem) {
         if (existingItem.quantity > 1) {
           existingItem.quantity -= 1;
-          existingItem.price = existingItem.price / existingItem.quantity;
+          existingItem.price -= price;
         } else {
-          state.splice(existingItemIndex, 1);
+          return state.filter(item => item._id !== _id);
         }
       }
     },
     deleteItem: (state, action: PayloadAction<string>) => {
       const id = action.payload;
-      const existingItemIndex = state.findIndex(item => item._id === id);
-
-      if (existingItemIndex !== -1) {
-        state.splice(existingItemIndex, 1);
-      }
+      return state.filter(item => item._id !== id);
     },
     clearCart: () => initialState,
   },

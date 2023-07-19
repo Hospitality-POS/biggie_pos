@@ -33,7 +33,8 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               <IconButton
                 size="small"
                 sx={{ borderRadius: 50, border: 1 }}
-                onClick={() => dispatch(removeItem(cartItem._id))}
+                disabled={cartItem.quantity === 1}
+                onClick={() => dispatch(removeItem(cartItem))}
               >
                 <RemoveIcon />
               </IconButton>
