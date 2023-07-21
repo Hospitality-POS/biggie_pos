@@ -2,11 +2,21 @@ import { Card, CardMedia } from "@mui/material";
 import classes from "./table.module.css";
 
 const TableCard = ({ item }) => {
+  const cardStyles = {
+    boxShadow: "none",
+    bgcolor: "transparent",
+    color: item.isOccupied ? "white" : "black"
+  };
+  const imageStyles = {
+    border: "none",
+    opacity: item.isOccupied ? 1 : 0.5, 
+
+  };
   return (
-    <Card sx={{ boxShadow: "none", bgcolor:"transparent" }} className={classes.container}>
+    <Card sx={cardStyles} className={classes.container}>
       <div className={classes.cardContent}>
         <CardMedia 
-          sx={{ border: "none" }}
+          sx={imageStyles}
           component="img"
           alt="Table"
           height="120"

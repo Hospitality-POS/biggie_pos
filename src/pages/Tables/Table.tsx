@@ -32,7 +32,7 @@ function Table() {
   const { locatedAt } = useParams();
   const [uniqueLocatedAtValues, setUniqueLocatedAtValues] = useState([]);
 
-  const { isLoading: isLoadingUniqueLocatedAt, data: uniqueLocatedAtData } = useQuery({
+  const { isLoading: isLoadingUniqueLocatedAt, data: uniqueLocatedAtData , isError:isErrorTabs} = useQuery({
     queryKey: ["uniqueLocatedAtValues"],
     queryFn: () =>
       fetch("http://localhost:3000/tables/tables/unique-locatedAt").then((res) => res.json()),
@@ -76,7 +76,7 @@ function Table() {
     );
   }
 
-  if (isError) {
+  if (isError || isErrorTabs) {
     return <div>An error has occurred: {error.message}</div>;
   }
 
@@ -104,9 +104,7 @@ function Table() {
               {uniqueLocatedAtValues.map((locatedAtValue) => (
             <Tab key={locatedAtValue} value={locatedAtValue} label={locatedAtValue} icon={<DeckIcon />} />
           ))}
-              {/* <Tab value="in-doors" label="In-doors" icon={<DeckIcon />} />
-              <Tab value="outside" label="Outside" icon={<DeckIcon />}/>
-              <Tab value="collidors" label="Collidor" icon={<DeckIcon />}/> */}
+             
             </Tabs>
           </Box>
       <Divider />
