@@ -2,24 +2,50 @@ import { Box, Divider, Tab, Tabs, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import classes from "../staff/staffs.module.css";
 import TableCard from "../../components/TableCard/TableCard";
-import React, { Key } from "react";
+import React, { Key, useEffect, useState } from "react";
 import TableCardSkeleton from "../../components/TableCard/TableCardSkeleton";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import DeckIcon from '@mui/icons-material/Deck';
 
+
+
+
 function Table() {
-  const [value, setValue] = React.useState("one");
+  const [value, setValue] = React.useState("in-doors");
+
+  const fetchTables = async (locatedAt: string) => {
+    const res = await fetch(`http://localhost:3000/tables/locatedAt/${locatedAt}`);
+    return await res.json();
+  };
 
   const { isLoading, isError, error, data } = useQuery({
-    queryKey: ["tables"],
-    queryFn: () =>
-      fetch("http://localhost:3000/tables").then((res) => res.json()),
+    queryKey: ["tables", value],
+    queryFn:  () => fetchTables(value),
     retry: 3,
     retryDelay: 1000,
   });
   const handleChange = (event: React.SyntheticEvent, newValue: string) => {
     setValue(newValue);
   };
+
+
+  const { locatedAt } = useParams();
+  const [uniqueLocatedAtValues, setUniqueLocatedAtValues] = useState([]);
+
+  const { isLoading: isLoadingUniqueLocatedAt, data: uniqueLocatedAtData } = useQuery({
+    queryKey: ["uniqueLocatedAtValues"],
+    queryFn: () =>
+      fetch("http://localhost:3000/tables/tables/unique-locatedAt").then((res) => res.json()),
+    retry: 3,
+    retryDelay: 1000,
+  });
+
+  useEffect(() => {
+    setValue(locatedAt || "in-doors");
+    if (!isLoadingUniqueLocatedAt && uniqueLocatedAtData) {
+      setUniqueLocatedAtValues(uniqueLocatedAtData);
+    }
+  }, [locatedAt, isLoadingUniqueLocatedAt, uniqueLocatedAtData]);
 
   if (isLoading) {
     return (
@@ -75,9 +101,12 @@ function Table() {
             },
           }}
             >
-              <Tab value="one" label="Inside" icon={<DeckIcon />} />
-              <Tab value="two" label="Outside" icon={<DeckIcon />}/>
-              <Tab value="three" label="Collidor" icon={<DeckIcon />}/>
+              {uniqueLocatedAtValues.map((locatedAtValue) => (
+            <Tab key={locatedAtValue} value={locatedAtValue} label={locatedAtValue} icon={<DeckIcon />} />
+          ))}
+              {/* <Tab value="in-doors" label="In-doors" icon={<DeckIcon />} />
+              <Tab value="outside" label="Outside" icon={<DeckIcon />}/>
+              <Tab value="collidors" label="Collidor" icon={<DeckIcon />}/> */}
             </Tabs>
           </Box>
       <Divider />
