@@ -27,14 +27,7 @@ function Routers() {
               </Private>
             }
           />
-          {/* <Route
-            path="/restaurant"
-            element={
-              <Private>
-                <RestaurantPage />
-              </Private>
-            }
-          /> */}
+
           <Route
             path="/restaurant/:id"
             element={
