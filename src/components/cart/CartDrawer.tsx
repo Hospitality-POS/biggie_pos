@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Box,
   Button,
@@ -140,7 +141,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
         </Card>
 
         <Box sx={{ maxHeight: "calc(100vh - 250px)", overflowY: "auto" }}>
-          {CartItem?.map((Item: { _id: Key | null | undefined }) => (
+          {CartItem?.map((Item: { _id: Key | null | undefined}) => (
             <CartItemCard key={Item._id} cartItem={Item} />
           ))}
         </Box>
@@ -156,7 +157,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
             <Typography variant="body1" fontWeight="bold" pl={2}>
               Total :{" "}
               {CartItem.reduce(
-                (accumulator, item) => accumulator + item.price,
+                (accumulator: number, item: { price: number; }) => accumulator + item.price,
                 0
               ).toLocaleString()}
             </Typography>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Box,
   Button,
@@ -16,7 +17,7 @@ import { useDispatch } from "react-redux";
 import { addItem, deleteItem, removeItem } from "../../features/Cart/CartSlice";
 import React from "react";
 interface cartItemCardProps {
-  cartItem: string | number | boolean;
+  cartItem: any;
 }
 const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const dispatch = useDispatch();
