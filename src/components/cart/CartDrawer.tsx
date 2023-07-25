@@ -20,7 +20,6 @@ import { CloseRounded } from "@mui/icons-material";
 import TableBarIcon from "@mui/icons-material/TableBar";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
-// import { useParams } from "react-router-dom";
 
 interface CartDrawerProps {
   tableData: any;
@@ -34,10 +33,9 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   handlePaymentOpen,
   tableData,
 }) => {
-  // const CartItem = useSelector((state: any) => state.cart);
   const CartItem = useSelector((state: any) => state.cart);
   const { user } = useSelector((state: any) => state.auth);
-  // console.log(CartItem+ "waa");
+  
 
   return (
     <Drawer
