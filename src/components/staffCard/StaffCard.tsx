@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import classes from "./staff.module.css";
 import { Badge, Button } from "@mui/material";
 import Avvvatars from "avvvatars-react";

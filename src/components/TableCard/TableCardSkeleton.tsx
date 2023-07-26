@@ -1,4 +1,4 @@
-import { Box, Card, CardMedia, Skeleton } from "@mui/material";
+import {Card, Skeleton } from "@mui/material";
 import classes from "./table.module.css";
 
 const TableCardSkeleton = () => {
@@ -11,7 +11,6 @@ const TableCardSkeleton = () => {
       }}
       className={classes.container}
     >
-      {/* <CardMedia /> */}
       <Skeleton
         variant="circular"
         width={80}

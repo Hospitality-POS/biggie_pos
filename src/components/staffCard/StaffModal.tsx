@@ -1,14 +1,15 @@
-import { Button, Modal, TextField, Grid, IconButton, Alert, CircularProgress } from "@mui/material";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Button, Modal, TextField, Grid, IconButton, CircularProgress } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { loginUser } from "../../features/Auth/AuthActions";
-import NotificationModal from "../notification/NotificationModal";
 import classes from "./staff.module.css";
 import LoginIcon from "@mui/icons-material/Login";
 import BackspaceIcon from "@mui/icons-material/Backspace";
-import { Navigate, useNavigate } from "react-router-dom";
-// import NotificationModal from "./NotificationModal";
+import {useNavigate } from "react-router-dom";
+
 
 interface StaffModalProps {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -30,9 +31,9 @@ const StaffModal: React.FC<StaffModalProps> = ({
   const [notificationType, setNotificationType] = useState<
     "error" | "success" | ""
   >("");
-  const [notificationMessage, setNotificationMessage] = useState("");
+  const [, setNotificationMessage] = useState("");
   const { isError, isSuccess, isLoading, message } = useSelector(
-    (state) => state.auth
+    (state: any) => state.auth
   );
   const navigate = useNavigate()
   const dispatch = useDispatch();
