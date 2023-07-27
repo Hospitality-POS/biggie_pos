@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Key, SetStateAction, useState } from "react";
 import {
   Box,
   Button,
@@ -20,9 +20,9 @@ import CloseIcon from "@mui/icons-material/Close";
 
 interface paymentProps{
   paymentOpen: boolean;
-  handlePaymentClose: ()=>void();
+  handlePaymentClose: ()=>void;
 }
-const PaymentDrawer:React.FC<paymentProps>({ paymentOpen, handlePaymentClose }) =>{
+const PaymentDrawer:React.FC<paymentProps>=({ paymentOpen, handlePaymentClose }) =>{
   const [selectedMethod, setSelectedMethod] = useState(null);
 
   const { isLoading, error, data } = useQuery({
@@ -31,7 +31,7 @@ const PaymentDrawer:React.FC<paymentProps>({ paymentOpen, handlePaymentClose }) 
       fetch("http://localhost:3000/payment-methods/").then((res) => res.json()),
   });
   
-  const handleSelectMethod = (method) => {
+  const handleSelectMethod = (method: SetStateAction<null>) => {
     setSelectedMethod(method);
   };
 
@@ -70,7 +70,7 @@ const PaymentDrawer:React.FC<paymentProps>({ paymentOpen, handlePaymentClose }) 
           }}
           mb={4}
         >
-          {data.map((method: any) => (
+          {data.map((method: { _id: Key | SetStateAction<null> | undefined; name: string; }) => (
             <Card
               key={method._id}
               variant={selectedMethod === method._id ? "outlined" : "elevation"}
