@@ -18,7 +18,11 @@ import { grey } from "@mui/material/colors";
 import RecommendIcon from "@mui/icons-material/Recommend";
 import CloseIcon from "@mui/icons-material/Close";
 
-function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
+interface paymentProps{
+  paymentOpen: boolean;
+  handlePaymentClose: ()=>void();
+}
+const PaymentDrawer:React.FC<paymentProps>({ paymentOpen, handlePaymentClose }) =>{
   const [selectedMethod, setSelectedMethod] = useState(null);
 
   const { isLoading, error, data } = useQuery({
@@ -26,8 +30,7 @@ function PaymentDrawer({ paymentOpen, handlePaymentClose }) {
     queryFn: () =>
       fetch("http://localhost:3000/payment-methods/").then((res) => res.json()),
   });
-  //   console.log(data);
-
+  
   const handleSelectMethod = (method) => {
     setSelectedMethod(method);
   };
