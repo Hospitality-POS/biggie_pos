@@ -16,6 +16,7 @@ import StoreProductCard from "../../components/store/StoreProductCard";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import StoreProductCardSkeleton from "../../components/store/StoreProductSkeletonCard";
 import AddNewProductModal from "../../components/store/AddNewProductModal";
+import axios from "axios";
 
 const Store: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -44,6 +45,13 @@ const Store: React.FC = () => {
     setOpen(false);
   };
 
+  const fetchCategories = async () => {
+    const response = await axios.get("http://localhost:3000/categories"); 
+    return response.data;
+  };
+
+  const { data: categoriesData } = useQuery(["categories"], ()=>fetchCategories());
+
   if (isError) {
     return <div>An error has occurred: {error.message}</div>;
   }
@@ -67,13 +75,10 @@ const Store: React.FC = () => {
           }}
           aria-label="scrollable auto tabs example"
         >
-          <Tab label="Desert" />
-          <Tab label="Pork" />
-          <Tab label="Food" />
-          <Tab label="Main course" />
-          <Tab label="fry chicken" />
-          <Tab label="Vegetables" />
-          <Tab label="Chicken" />
+          {categoriesData &&
+            categoriesData.map((category: any) => (
+              <Tab key={category._id} label={category.name} />
+            ))}
         </Tabs>
       </Box>
       <Divider sx={{ mb: 2 }} />

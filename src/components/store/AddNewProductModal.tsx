@@ -12,6 +12,8 @@ import {
   InputLabel,
   FormControl,
 } from "@mui/material";
+import axios from "axios";
+import { useQuery } from '@tanstack/react-query';
 
 interface AddNewProductModalProps {
   open: boolean;
@@ -51,6 +53,15 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
   const [quantity, setQuantity] = React.useState(0);
   const [minViableQuantity, setMinViableQuantity] = React.useState(0);
   const [category, setCategory] = React.useState("");
+
+  const fetchCategories = async () => {
+    const response = await axios.get("http://localhost:3000/categories"); // Replace with your actual API endpoint for fetching categories
+    return response.data;
+  };
+
+  const { data: categories } = useQuery(["categories"], ()=>fetchCategories());
+  
+  
 
   const handleSave = () => {
     onSave(
@@ -95,7 +106,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
               padding: "8px",
               marginBottom: "16px",
               borderRadius: "4px",
-              textAlign: "center"
+              textAlign: "center",
             }}
           >
             <Typography variant="h6" component="h2" color="white">
@@ -119,9 +130,28 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
                   label="Category"
                 >
                   <MenuItem value="">Select category</MenuItem>
-                  <MenuItem value="category1">Category 1</MenuItem>
-                  <MenuItem value="category2">Category 2</MenuItem>
-                  <MenuItem value="category3">Category 3</MenuItem>
+                  {categories &&
+                    categories.map(
+                      (category: {
+                        _id: React.Key | readonly string[] | null | undefined;
+                        name:
+                          | string
+                          | number
+                          | boolean
+                          | React.ReactElement<
+                              any,
+                              string | React.JSXElementConstructor<any>
+                            >
+                          | Iterable<React.ReactNode>
+                          | React.ReactPortal
+                          | null
+                          | undefined;
+                      }) => (
+                        <MenuItem key={category._id} value={category._id}>
+                          {category.name}
+                        </MenuItem>
+                      )
+                    )}
                 </Select>
               </FormControl>
               <TextField
