@@ -13,30 +13,38 @@ import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import { useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
-// import { useTheme } from "@emotion/react";
 
 const RestaurantPage = () => {
-  const {user} = useSelector(state=>state.auth)
+  const { user } = useSelector((state) => state.auth);
   const [selectedCard, setSelectedCard] = useState(null);
-  const {id} = useParams()
-  const { isLoading, isError, error, data } = useQuery({
-    queryKey: ["product"],
+  const { id } = useParams();
+
+  const fetchData = async () => {
+    try {
+      const response = await fetch(`http://localhost:3000/product/products`);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      throw error;
+    }
+  };
+
+  const { isLoading, isError, error, data } = useQuery(["products"], () =>
+    fetchData()
+  );
+
+  const { data: tableData } = useQuery({
+    queryKey: ["table_name"],
     queryFn: () =>
-      fetch("http://localhost:3000/product/products").then((res) => res.json()),
+      fetch(`http://localhost:3000/tables/${id}`, {
+        headers: {
+          Authorization: `Bearer ${user.Token}`,
+        },
+      }).then((res) => res.json()),
     retry: 3,
     retryDelay: 1000,
   });
-
-const {  data: tableData } = useQuery({
-  queryKey: ["table_name"],
-  queryFn: () =>
-    fetch(`http://localhost:3000/tables/${id}`,{
-      headers: {
-        Authorization: `Bearer ${user.Token}`,
-      },}).then((res) => res.json()),
-  retry: 3,
-  retryDelay: 1000,
-});
 
   const categories = [
     { id: 1, name: "Appetizers", icon: "/chip.png", itemCount: 10 },
