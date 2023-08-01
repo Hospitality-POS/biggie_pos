@@ -24,7 +24,7 @@ interface ProductCardProps {
 
 function ProductCard({ menu }: ProductCardProps) {
   const { user } = useSelector((state: any) => state.auth);
-  const { cart } = useSelector((state: any) => state.cart);
+  const { cartDetails } = useSelector((state: any) => state.cart);
   const dispatch = useDispatch();
 
   const { id } = useParams();
@@ -32,10 +32,11 @@ function ProductCard({ menu }: ProductCardProps) {
   const handleAddToCart = () => {
     dispatch(
       addItemToCart({
-        cart_id: cart._id,
+        cart_id: cartDetails._id,
         product_id: menu._id,
         price: menu.price,
-        created_by: user._id,
+        created_by: user.id,
+        quantity: menu.quantity,
         desc: menu.desc,
         table_id: id,
       })

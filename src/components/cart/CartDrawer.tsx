@@ -21,9 +21,11 @@ import { CloseRounded } from "@mui/icons-material";
 import TableBarIcon from "@mui/icons-material/TableBar";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 
 interface CartDrawerProps {
+  tableData: any;
   cartOpen: boolean | undefined;
   handleCartClose: () => void;
   handlePaymentOpen: () => void;
@@ -32,17 +34,42 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   cartOpen,
   handleCartClose,
   handlePaymentOpen,
+  tableData,
 }) => {
-  const {cartItems, cartDetails} = useSelector((state: any) => state.cart);
+  const { cartDetails } = useSelector((state: any) => state.cart);
   const { user } = useSelector((state: any) => state.auth);
 
-  const { data } = useQuery({
-    queryKey: ["cartDetails"],
-    queryFn: () =>
-      fetch(`http://localhost:3000/cart/cart/${cartDetails._id}`).then((res) => res.json()),
-  });
-  
-  
+  const {
+    data: cartItems,
+    isLoading,
+    isError,
+    error,
+  } = useQuery(
+    ["cartItems", cartDetails?._id],
+    () => fetchCartItems(cartDetails?._id),
+    {
+      refetchInterval: 1000,
+    }
+  );
+
+  const fetchCartItems = async (cartId: string) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:3000/cart/cart-items/${cartId}`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error("Error fetching cart items: " + error.message);
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (isError) {
+    return <div>Error: {error.message}</div>;
+  }
 
   return (
     <Drawer
@@ -78,7 +105,6 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                 pl: 2,
                 color: "#6c1c2c",
                 borderColor: "#6c1c2c",
-
                 "&:hover": {
                   borderColor: "#bc8c7c",
                   color: "#bc8c7c",
@@ -86,8 +112,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               }}
               startIcon={<BookmarkBorderIcon />}
             >
-              {" "}
-              {data?.order_no}
+              {cartDetails?.order_no}
             </Button>
           </Grid>
           <Grid
@@ -113,8 +138,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               }}
               startIcon={<TableBarIcon />}
             >
-              {" "}
-              {data?.table_id.name}
+              {tableData?.name}
             </Button>
           </Grid>
 
@@ -147,12 +171,10 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
         </Card>
 
         <Box sx={{ maxHeight: "calc(100vh - 250px)", overflowY: "auto" }}>
-          {cartItems?.map((Item: { _id: Key | null | undefined}) => (
-            <CartItemCard key={Item._id} cartItem={Item} />
+          {cartItems?.map((item: { _id: Key | null | undefined }) => (
+            <CartItemCard key={item._id} cartItem={item} />
           ))}
         </Box>
-
-        {/* <Divider /> */}
 
         {cartItems?.length ? (
           <Grid
@@ -162,10 +184,13 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
           >
             <Typography variant="body1" fontWeight="bold" pl={2}>
               Total :{" "}
-              {cartItems.reduce(
-                (accumulator: number, item: { price: number; }) => accumulator + item.price,
-                0
-              ).toLocaleString()}
+              {cartItems
+                .reduce(
+                  (accumulator: number, item: { price: number }) =>
+                    accumulator + item.price,
+                  0
+                )
+                .toLocaleString()}
             </Typography>
             <Typography variant="body1" fontWeight="bold" pl={2}>
               Served By: {user.name}{" "}
@@ -186,7 +211,6 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                   pl: 2,
                   color: "#6c1c2c",
                   borderColor: "#6c1c2c",
-
                   "&:hover": {
                     borderColor: "#bc8c7c",
                     color: "#bc8c7c",

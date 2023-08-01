@@ -51,7 +51,7 @@ export const addItemToCart = createAsyncThunk(
   "cart/addItemToCart",
   async (cartItem: CartItem, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${baseUrl}/cart/${cartItem.cartId}/add-item`, cartItem);
+      const response = await axios.post(`${baseUrl}/add-item-to-cart`, cartItem);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

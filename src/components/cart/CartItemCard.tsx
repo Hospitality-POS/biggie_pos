@@ -20,6 +20,7 @@ interface cartItemCardProps {
 }
 const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const dispatch = useDispatch();
+console.log(cartItem);
 
   return (
     <Card sx={{ mb: 1, boxShadow: "none", backgroundColor: "#F8F8F8" }}>
