@@ -27,7 +27,7 @@ console.log(cartItem);
       <CardContent>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={6}>
-            <Typography variant="body1">{cartItem.name}</Typography>
+            <Typography variant="body1">{cartItem?.product_id.name}</Typography>
           </Grid>
           <Grid item xs={3} ml={-2}>
             <Box sx={{ display: "flex", alignItems: "center", columnGap: 1 }}>
@@ -65,7 +65,7 @@ console.log(cartItem);
           columnGap={1}
         >
           <TextField
-            placeholder="Add Description"
+            placeholder={cartItem.desc}
             variant="outlined"
             size="small"
             fullWidth
