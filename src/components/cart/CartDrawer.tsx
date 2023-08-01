@@ -21,9 +21,9 @@ import { CloseRounded } from "@mui/icons-material";
 import TableBarIcon from "@mui/icons-material/TableBar";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
+import { useQuery } from '@tanstack/react-query';
 
 interface CartDrawerProps {
-  tableData: any;
   cartOpen: boolean | undefined;
   handleCartClose: () => void;
   handlePaymentOpen: () => void;
@@ -32,10 +32,16 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   cartOpen,
   handleCartClose,
   handlePaymentOpen,
-  tableData,
 }) => {
-  const {cartItems} = useSelector((state: any) => state.cart);
+  const {cartItems, cartDetails} = useSelector((state: any) => state.cart);
   const { user } = useSelector((state: any) => state.auth);
+
+  const { data } = useQuery({
+    queryKey: ["cartDetails"],
+    queryFn: () =>
+      fetch(`http://localhost:3000/cart/cart/${cartDetails._id}`).then((res) => res.json()),
+  });
+  
   
 
   return (
@@ -81,7 +87,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               startIcon={<BookmarkBorderIcon />}
             >
               {" "}
-              #837B
+              {data?.order_no}
             </Button>
           </Grid>
           <Grid
@@ -108,7 +114,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               startIcon={<TableBarIcon />}
             >
               {" "}
-              {tableData?.name}
+              {data?.table_id.name}
             </Button>
           </Grid>
 
