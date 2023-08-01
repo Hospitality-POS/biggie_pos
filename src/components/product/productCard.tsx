@@ -2,21 +2,45 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CardMedia from "@mui/material/CardMedia";
 import Typography from "@mui/material/Typography";
-import { CardActionArea} from "@mui/material";
-import { useDispatch } from "react-redux";
-import { addItem } from "../../features/Cart/CartSlice";
-
+import { CardActionArea } from "@mui/material";
+import { useDispatch, useSelector } from "react-redux";
+import { addItemToCart } from "../../features/Cart/CartActions";
+import { useParams } from "react-router-dom";
 
 function formatPrice(price: { toLocaleString: () => any }) {
   return price.toLocaleString();
 }
 
-function ProductCard({ menu }: any) {
-  const dispatch = useDispatch()
+interface ProductCardProps {
+  menu: {
+    _id: string;
+    name: string;
+    price: number;
+    desc: string;
+    image?: string;
+  };
+  table_id: string;
+}
 
-  const handleAddToCart=()=>{
-    dispatch(addItem(menu))
-  }
+function ProductCard({ menu }: ProductCardProps) {
+  const { user } = useSelector((state: any) => state.auth);
+  const { cart } = useSelector((state: any) => state.cart);
+  const dispatch = useDispatch();
+
+  const { id } = useParams();
+
+  const handleAddToCart = () => {
+    dispatch(
+      addItemToCart({
+        cart_id: cart._id,
+        product_id: menu._id,
+        price: menu.price,
+        created_by: user._id,
+        desc: menu.desc,
+        table_id: id,
+      })
+    );
+  };
   return (
     <Card
       sx={{ maxWidth: 345, width: "200px", height: "250px" }}
@@ -31,7 +55,7 @@ function ProductCard({ menu }: any) {
           alt="Product"
         />
         <CardContent>
-          <div >
+          <div>
             <Typography
               gutterBottom
               variant="h6"
@@ -39,7 +63,7 @@ function ProductCard({ menu }: any) {
               component="span"
               color="text.secondary"
             >
-              {menu.name} 
+              {menu.name}
             </Typography>
           </div>
           <div>
@@ -55,7 +79,6 @@ function ProductCard({ menu }: any) {
           </div>
         </CardContent>
       </CardActionArea>
-      
     </Card>
   );
 }

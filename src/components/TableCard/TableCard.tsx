@@ -1,21 +1,46 @@
 import { Card, CardMedia } from "@mui/material";
 import classes from "./table.module.css";
+import React from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { createCart } from "../../features/Cart/CartActions";
 
-const TableCard = ({ item }) => {
+interface Item {
+  item: any;
+}
+
+const TableCard: React.FC<Item> = ({ item }) => {
+  const { user } = useSelector((state: any) => state.auth);
+  const dispatch = useDispatch();
+
   const cardStyles = {
     boxShadow: "none",
     bgcolor: "transparent",
-    color: item.isOccupied ? "white" : "black"
+    color: item.isOccupied ? "white" : "black",
   };
+
   const imageStyles = {
     border: "none",
-    opacity: item.isOccupied ? 1 : 0.5, 
-
+    opacity: item.isOccupied ? 1 : 0.5,
   };
+
+  const handleCreate = () => {
+    if (user) {
+      const cartDetails = {
+        table_id: item._id,
+        created_by: user.id,
+      };
+      dispatch(createCart(cartDetails));
+    }
+  };
+
   return (
-    <Card sx={cardStyles} className={classes.container}>
+    <Card
+      sx={cardStyles}
+      className={classes.container}
+      onClick={handleCreate} // Corrected the usage of onClick event
+    >
       <div className={classes.cardContent}>
-        <CardMedia 
+        <CardMedia
           sx={imageStyles}
           component="img"
           alt="Table"

@@ -34,7 +34,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   handlePaymentOpen,
   tableData,
 }) => {
-  const CartItem = useSelector((state: any) => state.cart);
+  const {cartItems} = useSelector((state: any) => state.cart);
   const { user } = useSelector((state: any) => state.auth);
   
 
@@ -141,14 +141,14 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
         </Card>
 
         <Box sx={{ maxHeight: "calc(100vh - 250px)", overflowY: "auto" }}>
-          {CartItem?.map((Item: { _id: Key | null | undefined}) => (
+          {cartItems?.map((Item: { _id: Key | null | undefined}) => (
             <CartItemCard key={Item._id} cartItem={Item} />
           ))}
         </Box>
 
         {/* <Divider /> */}
 
-        {CartItem?.length ? (
+        {cartItems?.length ? (
           <Grid
             item
             xs={12}
@@ -156,7 +156,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
           >
             <Typography variant="body1" fontWeight="bold" pl={2}>
               Total :{" "}
-              {CartItem.reduce(
+              {cartItems.reduce(
                 (accumulator: number, item: { price: number; }) => accumulator + item.price,
                 0
               ).toLocaleString()}

@@ -14,7 +14,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { useDispatch } from "react-redux";
-import { addItem, deleteItem, removeItem } from "../../features/Cart/CartSlice";
 import React from "react";
 interface cartItemCardProps {
   cartItem: any;
@@ -35,7 +34,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 size="small"
                 sx={{ borderRadius: 50, border: 1 }}
                 disabled={cartItem.quantity === 1}
-                onClick={() => dispatch(removeItem(cartItem))}
+                // onClick={() => dispatch(removeItem(cartItem))}
               >
                 <RemoveIcon />
               </IconButton>
@@ -44,7 +43,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               <IconButton
                 size="small"
                 sx={{ borderRadius: 50, border: 1 }}
-                onClick={() => dispatch(addItem(cartItem))}
+                // onClick={() => dispatch(addItem(cartItem))}
               >
                 <AddIcon />
               </IconButton>
@@ -85,7 +84,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
           >
             <DeleteIcon
               color="error"
-              onClick={() => dispatch(deleteItem(cartItem._id))}
+              // onClick={() => dispatch(deleteItem(cartItem._id))}
             />
           </Button>
         </Grid>
