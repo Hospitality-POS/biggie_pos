@@ -8,12 +8,14 @@ import {
 import React from "react";
 import CircleIcon from "@mui/icons-material/Circle";
 import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
+import EditProductModal from "./EditProductModal";
 
 interface StoreProductCardProps {
   img: string;
   name: string;
   price: number;
   bowls: number;
+  product: any;
   onEdit: () => void;
 }
 const StoreProductCard: React.FC<StoreProductCardProps> = ({
@@ -21,8 +23,22 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
   img,
   price,
   bowls,
+  product,
   onEdit,
 }) => {
+  const [modalOpen, setModalOpen] = React.useState(false);
+
+  const handleEditClick = () => {
+    setModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+  };
+
+  const handleUpdateProduct = (updatedProductData) => {
+    onEdit(updatedProductData);
+  };
   return (
     <>
       <Card
@@ -84,12 +100,18 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
               color: "#ffff",
             },
           }}
-          onClick={onEdit}
+         onClick={handleEditClick}
         >
           <BorderColorOutlinedIcon fontSize="inherit" />
           Edit Dish
         </Button>
       </Card>
+      <EditProductModal
+        open={modalOpen}
+        productData={product}
+        onClose={handleCloseModal}
+        onUpdate={handleUpdateProduct}
+      />
     </>
   );
 };
