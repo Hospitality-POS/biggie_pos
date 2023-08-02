@@ -14,13 +14,46 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { useDispatch } from "react-redux";
-import React from "react";
-import { deleteCartItem } from "../../features/Cart/CartActions";
+import React, { useState } from "react";
+import {
+  deleteCartItem,
+  updateCartItems,
+} from "../../features/Cart/CartActions";
 interface cartItemCardProps {
   cartItem: any;
 }
 const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const dispatch = useDispatch();
+
+  const [quantity, setQuantity] = useState(cartItem.quantity);
+
+  const handleAddQuantity = () => {
+    const newQuantity = quantity + 1;
+    setQuantity(newQuantity);
+    const priceDifference = cartItem.price * newQuantity - cartItem.price;
+    const updatedCartItem = {
+      ...cartItem,
+      quantity: newQuantity,
+      price: cartItem.price + priceDifference,
+    };
+    dispatch(updateCartItems([updatedCartItem]));
+  };
+
+  const handleReduceQuantity = () => {
+    if (quantity > 1) {
+      const newQuantity = quantity - 1;
+      setQuantity(newQuantity);
+      const priceDifference = cartItem.price * newQuantity - cartItem.price;
+      const updatedCartItem = {
+        ...cartItem,
+        quantity: newQuantity,
+        price: cartItem.price + priceDifference,
+      };
+      dispatch(updateCartItems([updatedCartItem]));
+    } else {
+      dispatch(deleteCartItem(cartItem._id));
+    }
+  };
 
   return (
     <Card sx={{ mb: 1, boxShadow: "none", backgroundColor: "#F8F8F8" }}>
@@ -34,8 +67,8 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               <IconButton
                 size="small"
                 sx={{ borderRadius: 50, border: 1 }}
-                disabled={cartItem.quantity === 1}
-                // onClick={() => dispatch(removeItem(cartItem))}
+                disabled={quantity === 1}
+                onClick={handleReduceQuantity}
               >
                 <RemoveIcon />
               </IconButton>
@@ -44,7 +77,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               <IconButton
                 size="small"
                 sx={{ borderRadius: 50, border: 1 }}
-                // onClick={() => dispatch(addItem(cartItem))}
+                onClick={handleAddQuantity}
               >
                 <AddIcon />
               </IconButton>

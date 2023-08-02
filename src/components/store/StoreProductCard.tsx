@@ -16,7 +16,6 @@ interface StoreProductCardProps {
   price: number;
   bowls: number;
   product: any;
-  onEdit: () => void;
 }
 const StoreProductCard: React.FC<StoreProductCardProps> = ({
   name,
@@ -24,7 +23,6 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
   price,
   bowls,
   product,
-  onEdit,
 }) => {
   const [modalOpen, setModalOpen] = React.useState(false);
 
@@ -36,9 +34,6 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
     setModalOpen(false);
   };
 
-  const handleUpdateProduct = (updatedProductData) => {
-    onEdit(updatedProductData);
-  };
   return (
     <>
       <Card
@@ -100,7 +95,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
               color: "#ffff",
             },
           }}
-         onClick={handleEditClick}
+          onClick={handleEditClick}
         >
           <BorderColorOutlinedIcon fontSize="inherit" />
           Edit Dish
@@ -110,7 +105,6 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
         open={modalOpen}
         productData={product}
         onClose={handleCloseModal}
-        onUpdate={handleUpdateProduct}
       />
     </>
   );

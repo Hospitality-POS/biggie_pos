@@ -4,9 +4,31 @@ import Draggable from "react-draggable";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { useSelector } from "react-redux";
 import { useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 
 function AddToCartIcon({ OpenCart }: any) {
-  const CartItem = useSelector((state) => state.cart);
+  const { cartDetails } = useSelector((state: any) => state.cart);
+
+  const { data: cartItems } = useQuery(
+    ["cartItems", cartDetails?._id],
+    () => fetchCartItems(cartDetails?._id),
+    {
+      refetchInterval: 1000,
+    }
+  );
+
+  const fetchCartItems = async (cartId: string) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:3000/cart/cart-items/${cartId}`
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error("Error fetching cart items: " + error.message);
+    }
+  };
+
   const draggableRef = useRef(null);
   const glowAnimation = keyframes`
   0% {
@@ -46,10 +68,9 @@ function AddToCartIcon({ OpenCart }: any) {
             }}
           >
             <Badge
-              badgeContent={CartItem.length}
+              badgeContent={cartItems?.length}
               max={50}
               color="error"
-             
               anchorOrigin={{
                 vertical: "top",
                 horizontal: "left",

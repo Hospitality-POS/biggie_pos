@@ -23,7 +23,6 @@ import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import Spinner from "../spinner/Spinner";
 
 interface CartDrawerProps {
   tableData: any;
@@ -41,10 +40,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   const { user } = useSelector((state: any) => state.auth);
 
   const {
-    data: cartItems,
-    isLoading,
-    isError,
-    error,
+    data: cartItems
   } = useQuery(
     ["cartItems", cartDetails?._id],
     () => fetchCartItems(cartDetails?._id),
@@ -64,13 +60,6 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   };
 
-  if (isLoading) {
-    return <Spinner/>;
-  }
-
-  if (isError) {
-    return <div>Error: {error.message}</div>;
-  }
 
   return (
     <Drawer

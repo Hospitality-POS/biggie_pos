@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
@@ -9,7 +10,7 @@ interface CartDetails {
 }
 
 interface CartItem {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  _id: any;
   cartId: any;
 }
 export const createCart = createAsyncThunk(
@@ -61,15 +62,16 @@ export const addItemToCart = createAsyncThunk(
 
 export const updateCartItems = createAsyncThunk(
   "cart/updateCartItems",
-  async (updatedCartItems: CartItem[], { rejectWithValue }) => {
-    try {
-      const response = await axios.put(`${baseUrl}/cart/update-items`, updatedCartItems);
+  async (updatedCartItems:any, { rejectWithValue }) => {
+    try {    
+      const response = await axios.put(`${baseUrl}/cart-item/${updatedCartItems._id}`, updatedCartItems);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
     }
   }
 );
+
 
 export const deleteCartItem = createAsyncThunk(
   "cart/deleteCartItem",

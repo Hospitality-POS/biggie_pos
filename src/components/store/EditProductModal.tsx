@@ -15,7 +15,8 @@ import {
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 
-interface AddNewProductModalProps {
+interface EditProductModalProps {
+  productData: any;
   open: boolean;
   onClose: () => void;
   onSave: (
@@ -41,46 +42,55 @@ const style = {
   p: 4,
 };
 
-const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
+const EditProductModal: React.FC<EditProductModalProps> = ({
   open,
+  productData,
   onClose,
-  onSave,
 }) => {
-  const [name, setName] = React.useState("");
-  const [price, setPrice] = React.useState(0);
-  const [desc, setDescription] = React.useState("");
+  const [name, setName] = React.useState(productData.name || "");
+  const [price, setPrice] = React.useState(productData.price || 0);
+  const [desc, setDescription] = React.useState(
+    productData.desc|| ""
+  );
   const [image, setImage] = React.useState<File | null>(null);
-  const [quantity, setQuantity] = React.useState(0);
-  const [min_viable_quantity, setMinViableQuantity] = React.useState(0);
-  const [category, setCategory] = React.useState("");
+  const [quantity, setQuantity] = React.useState(
+    productData.quantity || 0
+  );
+  const [min_viable_quantity, setMinViableQuantity] = React.useState(
+    productData.min_viable_quantity || 0
+  );
+  const [category, setCategory] = React.useState(
+    productData.category._id || ""
+  );
 
   const fetchCategories = async () => {
-    const response = await axios.get("http://localhost:3000/categories"); // Replace with your actual API endpoint for fetching categories
-    return response.data;
+    const response = await axios.get("http://localhost:3000/categories");
+    return response.data
   };
 
+  console.log(productData);
+  
   const { data: categories } = useQuery(["categories"], () =>
     fetchCategories()
   );
 
-  const handleSave = async () => {
-    const productData = {
+  const handleUpdate = async () => {
+    const newProductData = {
       name,
       price,
-      description: desc,
+      desc,
       quantity,
       min_viable_quantity: min_viable_quantity,
       category,
       image: image || null,
     };
-    
 
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const accessToken = user.Token;
     try {
-      const response = await axios.post(
-        "http://localhost:3000/product/products",
-        productData,
+      await axios.put(
+        `http://localhost:3000/product/products/${productData._id}`,
+        newProductData,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -133,7 +143,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
             }}
           >
             <Typography variant="h6" component="h2" color="white">
-              Add a new Dish
+              Update Dish
             </Typography>
           </div>
           <Grid container spacing={2}>
@@ -228,7 +238,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
             </Grid>
           </Grid>
           <Button
-            onClick={handleSave}
+            onClick={handleUpdate}
             variant="outlined"
             sx={{
               pl: 2,
@@ -242,7 +252,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
             }}
             fullWidth
           >
-            Save
+            update
           </Button>
         </Box>
       </Modal>
@@ -250,4 +260,4 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
   );
 };
 
-export default AddNewProductModal;
+export default EditProductModal;

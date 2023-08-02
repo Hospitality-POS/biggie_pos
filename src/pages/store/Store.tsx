@@ -26,14 +26,12 @@ const Store: React.FC = () => {
       fetch("http://localhost:3000/product/products").then((res) => res.json()),
     retry: 3,
     retryDelay: 1000,
+    refetchInterval: 1000,
   });
   const [value, setValue] = React.useState(0);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
-  };
-  const onEdit = () => {
-    console.log("clicked");
   };
   const onAdd = () => {
     setOpen(true);
@@ -46,11 +44,13 @@ const Store: React.FC = () => {
   };
 
   const fetchCategories = async () => {
-    const response = await axios.get("http://localhost:3000/categories"); 
+    const response = await axios.get("http://localhost:3000/categories");
     return response.data;
   };
 
-  const { data: categoriesData } = useQuery(["categories"], ()=>fetchCategories());
+  const { data: categoriesData } = useQuery(["categories"], () =>
+    fetchCategories()
+  );
 
   if (isError) {
     return <div>An error has occurred: {error.message}</div>;
@@ -137,7 +137,7 @@ const Store: React.FC = () => {
                 price={product.price}
                 name={product.name}
                 img={product.img}
-                onEdit={onEdit}
+                product={product}
               />
             ))}
       </div>
@@ -148,11 +148,11 @@ const Store: React.FC = () => {
             variant="outlined"
             sx={{
               p: 1,
-              color: '#6c1c2c',
+              color: "#6c1c2c",
               borderColor: "#6c1c2c",
-            
+
               "&:hover": {
-                 borderColor: "#bc8c7c",
+                borderColor: "#bc8c7c",
                 color: "#bc8c7c",
               },
             }}
