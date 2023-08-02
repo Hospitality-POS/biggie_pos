@@ -11,9 +11,11 @@ import {
   MenuItem,
   InputLabel,
   FormControl,
+  IconButton,
 } from "@mui/material";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
+import { CloseRounded } from "@mui/icons-material";
 
 interface AddNewProductModalProps {
   open: boolean;
@@ -130,11 +132,17 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
               marginBottom: "16px",
               borderRadius: "4px",
               textAlign: "center",
+               display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
             <Typography variant="h6" component="h2" color="white">
               Add a new Dish
             </Typography>
+             <IconButton onClick={() => onClose()}>
+              <CloseRounded fontSize="large" color="inherit" />
+            </IconButton>
           </div>
           <Grid container spacing={2}>
             <Grid item xs={6}>

@@ -27,6 +27,7 @@ const Store: React.FC = () => {
     retry: 3,
     retryDelay: 1000,
     refetchInterval: 1000,
+    refetchIntervalInBackground: true
   });
   const [value, setValue] = React.useState(0);
 

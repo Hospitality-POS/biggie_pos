@@ -11,9 +11,11 @@ import {
   MenuItem,
   InputLabel,
   FormControl,
+  IconButton,
 } from "@mui/material";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
+import { CloseRounded } from "@mui/icons-material";
 
 interface EditProductModalProps {
   productData: any;
@@ -49,13 +51,9 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
 }) => {
   const [name, setName] = React.useState(productData.name || "");
   const [price, setPrice] = React.useState(productData.price || 0);
-  const [desc, setDescription] = React.useState(
-    productData.desc|| ""
-  );
+  const [desc, setDescription] = React.useState(productData.desc || "");
   const [image, setImage] = React.useState<File | null>(null);
-  const [quantity, setQuantity] = React.useState(
-    productData.quantity || 0
-  );
+  const [quantity, setQuantity] = React.useState(productData.quantity || 0);
   const [min_viable_quantity, setMinViableQuantity] = React.useState(
     productData.min_viable_quantity || 0
   );
@@ -65,13 +63,17 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
 
   const fetchCategories = async () => {
     const response = await axios.get("http://localhost:3000/categories");
-    return response.data
+    return response.data;
   };
 
-  console.log(productData);
-  
-  const { data: categories } = useQuery(["categories"], () =>
-    fetchCategories()
+  //   console.log(productData);
+
+  const { data: categories } = useQuery(
+    ["categories"],
+    () => fetchCategories(),
+    {
+      refetchInterval: 1000,
+    }
   );
 
   const handleUpdate = async () => {
@@ -140,11 +142,18 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
               marginBottom: "16px",
               borderRadius: "4px",
               textAlign: "center",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              
             }}
           >
             <Typography variant="h6" component="h2" color="white">
               Update Dish
             </Typography>
+            <IconButton onClick={() => onClose()}>
+              <CloseRounded fontSize="large" color="inherit" />
+            </IconButton>
           </div>
           <Grid container spacing={2}>
             <Grid item xs={6}>
