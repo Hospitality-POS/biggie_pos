@@ -23,6 +23,7 @@ import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import Spinner from "../spinner/Spinner";
 
 interface CartDrawerProps {
   tableData: any;
@@ -64,7 +65,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <Spinner/>;
   }
 
   if (isError) {

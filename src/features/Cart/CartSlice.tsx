@@ -5,6 +5,7 @@ import {
   fetchCartItems,
   addItemToCart,
   updateCartItems,
+  deleteCartItem,
 } from "./CartActions";
 
 interface CartDetails {
@@ -99,6 +100,12 @@ const cartSlice = createSlice({
       .addCase(updateCartItems.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+       .addCase(deleteCartItem.fulfilled, (state, action) => {
+        state.cartItems = action.payload;
+      })
+      .addCase(deleteCartItem.rejected, (state, action) => {
+        state.error= action.error;
       });
   },
 });

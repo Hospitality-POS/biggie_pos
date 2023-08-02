@@ -15,12 +15,12 @@ import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { useDispatch } from "react-redux";
 import React from "react";
+import { deleteCartItem } from "../../features/Cart/CartActions";
 interface cartItemCardProps {
   cartItem: any;
 }
 const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const dispatch = useDispatch();
-console.log(cartItem);
 
   return (
     <Card sx={{ mb: 1, boxShadow: "none", backgroundColor: "#F8F8F8" }}>
@@ -85,7 +85,7 @@ console.log(cartItem);
           >
             <DeleteIcon
               color="error"
-              // onClick={() => dispatch(deleteItem(cartItem._id))}
+              onClick={() => dispatch(deleteCartItem(cartItem._id))}
             />
           </Button>
         </Grid>
