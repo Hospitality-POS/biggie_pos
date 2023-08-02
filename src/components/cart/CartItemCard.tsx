@@ -30,11 +30,11 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const handleAddQuantity = () => {
     const newQuantity = quantity + 1;
     setQuantity(newQuantity);
-    const priceDifference = cartItem.price * newQuantity - cartItem.price;
+
     const updatedCartItem = {
       ...cartItem,
       quantity: newQuantity,
-      price: cartItem.price + priceDifference,
+      price: cartItem.price * newQuantity,
     };
     dispatch(updateCartItems([updatedCartItem]));
   };
@@ -43,11 +43,10 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     if (quantity > 1) {
       const newQuantity = quantity - 1;
       setQuantity(newQuantity);
-      const priceDifference = cartItem.price * newQuantity - cartItem.price;
       const updatedCartItem = {
         ...cartItem,
         quantity: newQuantity,
-        price: cartItem.price + priceDifference,
+        price: cartItem.price * newQuantity,
       };
       dispatch(updateCartItems([updatedCartItem]));
     } else {

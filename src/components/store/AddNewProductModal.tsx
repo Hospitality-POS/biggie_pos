@@ -90,7 +90,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
         }
       );
 
-      // const newProduct = response.data;
+      const newProduct = response.data;
 
       // console.log("New product created:", newProduct);
 
