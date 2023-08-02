@@ -26,7 +26,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { reset } from "../../features/Auth/AuthSlice";
 import StoreIcon from "@mui/icons-material/Store";
 import { logoutUser } from "../../features/Auth/AuthActions";
-const pages = ["Staff", "Tables", "Restaurant", "Kitchen", "Bar", "Store"];
+import SettingsIcon from '@mui/icons-material/Settings';
+const pages = ["Staff", "Tables", "Restaurant", "Kitchen", "Bar", "Store", "Settings"];
 const settings = ["Dashboard", "Logout"];
 
 function Navbar() {
@@ -56,7 +57,7 @@ function Navbar() {
     setAnchorElUser(null);
   };
   const handleLogout = () => {
-    dispatch(logoutUser())
+    dispatch(logoutUser());
     dispatch(reset());
   };
 
@@ -67,6 +68,7 @@ function Navbar() {
     else if (page === "Kitchen") navigate("/kitchen");
     else if (page === "Tables") navigate("/tables");
     else if (page === "Store") navigate("/store");
+    else if (page === "Settings") navigate("/settings");
   };
 
   const Search = styled("div")(({ theme }) => ({
@@ -110,10 +112,15 @@ function Navbar() {
   }));
   return (
     <AppBar position="static">
-      <Container maxWidth="xl" sx={{bgcolor:"#6c1c2c"}}>
+      <Container maxWidth="xl" sx={{ bgcolor: "#6c1c2c" }}>
         <Toolbar disableGutters>
           {/* <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} /> */}
-          <img src="/android-chrome-192x192.png" alt="logo" height={70} width={120}/>
+          <img
+            src="/android-chrome-192x192.png"
+            alt="logo"
+            height={70}
+            width={120}
+          />
 
           {/* <Typography
             variant="h6"
@@ -211,6 +218,14 @@ function Navbar() {
                     >
                       Store
                     </Typography>
+                  ) : page === "Settings" ? (
+                    <Typography
+                      textAlign="center"
+                      fontSize="inherit"
+                      onClick={() => navigate("/store")}
+                    >
+                      Store
+                    </Typography>
                   ) : (
                     ""
                   )}
@@ -233,7 +248,12 @@ function Navbar() {
               display: { xs: "none", md: "flex", alignItems: "flex-end" },
             }}
           >
-            <Tabs value={false} variant="scrollable" textColor="inherit" scrollButtons="auto">
+            <Tabs
+              value={false}
+              variant="scrollable"
+              textColor="inherit"
+              scrollButtons="auto"
+            >
               {pages.map((page) => (
                 <Tab
                   key={page}
@@ -270,6 +290,11 @@ function Navbar() {
                         <>
                           <StoreIcon style={{ fontSize: "16px" }} />
                           <Typography fontSize="inherit">Store</Typography>
+                        </>
+                      ) : page === "Settings" && user?.isAdmin ? (
+                        <>
+                          <SettingsIcon style={{ fontSize: "16px" }} />
+                          <Typography fontSize="inherit">Settings</Typography>
                         </>
                       ) : null}
                     </>
