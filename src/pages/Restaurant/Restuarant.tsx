@@ -12,10 +12,12 @@ import CartDrawer from "../../components/cart/CartDrawer";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import { useParams } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchCartItems } from "../../features/Cart/CartActions";
 
 const RestaurantPage = () => {
   const { user } = useSelector((state) => state.auth);
+  const {cartDetails} = useSelector((state:any)=>state.cart)
   const [selectedCard, setSelectedCard] = useState(null);
   const { id } = useParams();
 
@@ -61,9 +63,12 @@ const RestaurantPage = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const dispatch = useDispatch();
 
   const handleCartOpen = () => {
     setCartOpen(true);
+    dispatch(fetchCartItems(cartDetails?._id))
+    
   };
 
   const handleCartClose = () => {

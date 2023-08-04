@@ -13,8 +13,8 @@ import {
   Badge,
 } from "@mui/material";
 import CartItemCard from "./CartItemCard";
-import { useSelector } from "react-redux";
-import React, { Key } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import React, { Key, useEffect } from "react";
 import PrintIcon from "@mui/icons-material/Print";
 import AddCardIcon from "@mui/icons-material/AddCard";
 import { CloseRounded } from "@mui/icons-material";
@@ -23,6 +23,7 @@ import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { fetchCartItems } from "../../features/Cart/CartActions";
 
 interface CartDrawerProps {
   tableData: any;
@@ -36,30 +37,34 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   handlePaymentOpen,
   tableData,
 }) => {
-  const { cartDetails } = useSelector((state: any) => state.cart);
+  const { cartDetails, totalAmount, cartItems } = useSelector(
+    (state: any) => state.cart
+  );
   const { user } = useSelector((state: any) => state.auth);
 
-  const {
-    data: cartItems
-  } = useQuery(
-    ["cartItems", cartDetails?._id],
-    () => fetchCartItems(cartDetails?._id),
-    {
-      refetchInterval: 1000,
-    }
-  );
+  // const dispatch = useDispatch();
+  // useEffect(() => {
+  //   dispatch(fetchCartItems(cartDetails?._id)); 
+  // }, [dispatch]);
 
-  const fetchCartItems = async (cartId: string) => {
-    try {
-      const response = await axios.get(
-        `http://localhost:3000/cart/cart-items/${cartId}`
-      );
-      return response.data;
-    } catch (error) {
-      throw new Error("Error fetching cart items: " + error.message);
-    }
-  };
+  // const { data } = useQuery(
+  //   ["cartItems", cartDetails?._id],
+  //   () => fetchCartItems(cartDetails?._id),
+  //   {
+  //     refetchInterval: 1000,
+  //   }
+  // );
 
+  // const fetchCartItems = async (cartId: string) => {
+  //   try {
+  //     const response = await axios.get(
+  //       `http://localhost:3000/cart/cart-items/${cartId}`
+  //     );
+  //     return response.data;
+  //   } catch (error) {
+  //     throw new Error("Error fetching cart items: " + error.message);
+  //   }
+  // };
 
   return (
     <Drawer
@@ -173,14 +178,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
             sx={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
           >
             <Typography variant="body1" fontWeight="bold" pl={2}>
-              Total :{" "}
-              {cartItems
-                .reduce(
-                  (accumulator: number, item: { price: number }) =>
-                    accumulator + item.price,
-                  0
-                )
-                .toLocaleString()}
+              Total : {totalAmount}
             </Typography>
             <Typography variant="body1" fontWeight="bold" pl={2}>
               Served By: {user.name}{" "}

@@ -1,11 +1,13 @@
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import { authSlice } from "./features/Auth/AuthSlice";
 import CartSlice from "./features/Cart/CartSlice";
+import OrderSlice from "./features/Order/OrderSlice";
 
 
 const rootReducer = combineReducers({
   auth: authSlice.reducer,
-  cart: CartSlice
+  cart: CartSlice,
+  order: OrderSlice
 });
 
 export const store = configureStore({

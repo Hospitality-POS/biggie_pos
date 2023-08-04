@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
   createCart,
   getCart,
@@ -22,6 +22,7 @@ interface CartItem {
 interface CartState {
   cartDetails: CartDetails | null;
   cartItems: CartItem[];
+  totalAmount: number; // New field to store the total amount of all cart items
   loading: boolean;
   error: string | null;
 }
@@ -29,6 +30,7 @@ interface CartState {
 const initialState: CartState = {
   cartDetails: null,
   cartItems: [],
+  totalAmount: 0,
   loading: false,
   error: null,
 };
@@ -37,7 +39,16 @@ const cartSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
-    // Add any synchronous reducers here if needed
+    removeCartItem(state, action: PayloadAction<string>) {
+      state.cartItems = state.cartItems.filter(
+        (item) => item._id !== action.payload
+      );
+
+      state.totalAmount = state.cartItems.reduce(
+        (total, item) => total + parseFloat(item.price),
+        0
+      );
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -60,6 +71,11 @@ const cartSlice = createSlice({
       .addCase(getCart.fulfilled, (state, action) => {
         state.loading = false;
         state.cartItems = action.payload;
+        // Calculate the total amount of all cart items using reduce
+        state.totalAmount = action.payload.reduce(
+          (total, item) => total + parseFloat(item.price) * item.quantity,
+          0
+        );
       })
       .addCase(getCart.rejected, (state, action) => {
         state.loading = false;
@@ -72,6 +88,11 @@ const cartSlice = createSlice({
       .addCase(fetchCartItems.fulfilled, (state, action) => {
         state.loading = false;
         state.cartItems = action.payload;
+        // Calculate the total amount of all cart items using reduce
+        state.totalAmount = action.payload.reduce(
+          (total, item) => total + parseFloat(item.price),
+          0
+        );
       })
       .addCase(fetchCartItems.rejected, (state, action) => {
         state.loading = false;
@@ -83,7 +104,6 @@ const cartSlice = createSlice({
       })
       .addCase(addItemToCart.fulfilled, (state, action) => {
         state.loading = false;
-        // state.cartItems = push(action.payload);
       })
       .addCase(addItemToCart.rejected, (state, action) => {
         state.loading = false;
@@ -95,19 +115,38 @@ const cartSlice = createSlice({
       })
       .addCase(updateCartItems.fulfilled, (state, action) => {
         state.loading = false;
-         state.cartItems = action.payload;
+        state.cartItems = action.payload;
+        // state.totalAmount = action.payload.reduce(
+        //   (total, item) => total + parseFloat(item.price) * item.quantity,
+        //   0
+        // );
       })
       .addCase(updateCartItems.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-       .addCase(deleteCartItem.fulfilled, (state, action) => {
-        state.cartItems = action.payload;
+      .addCase(deleteCartItem.fulfilled, (state, action) => {
+        state.loading = false;
+        const deletedItemId = action.payload._id;
+        const deletedItemIndex = state.cartItems.findIndex(
+          (item) => item._id === deletedItemId
+        );
+
+        if (deletedItemIndex !== -1) {
+          state.cartItems.splice(deletedItemIndex, 1);
+        }
+
+        state.totalAmount = state.cartItems.reduce(
+          (total, item) => total + parseFloat(item.price),
+          0
+        );
       })
       .addCase(deleteCartItem.rejected, (state, action) => {
-        state.error= action.error;
+        state.error = action.error;
       });
   },
 });
+
+export const { removeCartItem } = cartSlice.actions;
 
 export default cartSlice.reducer;

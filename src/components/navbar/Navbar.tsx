@@ -224,7 +224,7 @@ function Navbar() {
                       fontSize="inherit"
                       onClick={() => navigate("/store")}
                     >
-                      Store
+                      Settings
                     </Typography>
                   ) : (
                     ""
