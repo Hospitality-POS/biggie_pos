@@ -13,18 +13,22 @@ interface OrderState {
   orders: Order[];
   loading: boolean;
   error: string | null;
+  openModal: boolean;
 }
 
 const initialState: OrderState = {
   orders: [],
   loading: false,
   error: null,
+  openModal: false
 };
 
 const orderSlice = createSlice({
   name: "order",
   initialState,
-  reducers: {},
+  reducers: { closeModal(state) {
+      state.openModal = false;
+    },},
   extraReducers: (builder) => {
     builder
       .addCase(createOrder.pending, (state) => {
@@ -32,10 +36,12 @@ const orderSlice = createSlice({
       })
       .addCase(createOrder.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders.push(action.payload);
+        state.openModal = true
+        state.orders.push(action.payload);     
       })
       .addCase(createOrder.rejected, (state, action) => {
         state.loading = false;
+        state.openModal=false
         state.error = action.payload as string;
       })
       .addCase(fetchOrders.pending, (state) => {
@@ -89,5 +95,9 @@ const orderSlice = createSlice({
       });
   },
 });
+
+
+
+export const { closeModal } = orderSlice.actions;
 
 export default orderSlice.reducer;

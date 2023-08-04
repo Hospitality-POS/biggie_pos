@@ -6,11 +6,14 @@ import React, { Key, useEffect, useState } from "react";
 import TableCardSkeleton from "../../components/TableCard/TableCardSkeleton";
 import { Link, useParams } from "react-router-dom";
 import DeckIcon from '@mui/icons-material/Deck';
+import SuccessModal from "../../components/MODALS/SuccessModal";
+import { useSelector } from "react-redux";
 
 
 
 
 function Table() {
+  const {openModal}= useSelector((state:any)=>state.order)
   const [value, setValue] = React.useState("in-doors");
 
   const fetchTables = async (locatedAt: string) => {
@@ -82,6 +85,7 @@ function Table() {
 
   return (
     <div className="staff-section">
+      {openModal && <SuccessModal />}
       <div className={classes.staffheader}>
         {/* <p>Tables List</p> */}
         <Typography variant="h6" gutterBottom mt={2} pl={2}>

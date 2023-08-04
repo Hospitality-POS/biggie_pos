@@ -39,6 +39,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
   const { loading, error } = useSelector((state: any) => state.order);
   const { user } = useSelector((state: any) => state.auth);
   const [selectedMethod, setSelectedMethod] = useState(null);
+    
   const {
     isLoading,
     error: Derror,
