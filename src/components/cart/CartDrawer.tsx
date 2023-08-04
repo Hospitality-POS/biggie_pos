@@ -22,6 +22,8 @@ import TableBarIcon from "@mui/icons-material/TableBar";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
 import PrintBillModal from "../MODALS/PrintBillModal";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 
 interface CartDrawerProps {
   tableData: any;
@@ -44,6 +46,9 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   const onCloseM = () => {
     setOpenM(false);
   };
+
+  const cartId = cartDetails?._id
+  const {data}=useQuery(["cart", cartId], async() => await axios.get(`http://localhost:3000/cart/cart/${cartId}`))
 
   return (
     <Drawer
@@ -161,7 +166,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               Total : {totalAmount}
             </Typography>
             <Typography variant="body1" fontWeight="bold" pl={2}>
-              Served By: {user.name}{" "}
+              Served By: {data?.data.created_by.username}
             </Typography>
             <Box
               sx={{
