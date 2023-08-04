@@ -22,3 +22,9 @@ body {
   gap: 20px;
   flex-wrap: wrap;
 }
+
+@media print {
+  .no-print {
+    display: none;
+  }
+}

@@ -13,17 +13,15 @@ import {
   Badge,
 } from "@mui/material";
 import CartItemCard from "./CartItemCard";
-import { useDispatch, useSelector } from "react-redux";
-import React, { Key, useEffect } from "react";
+import { useSelector } from "react-redux";
+import React, { Key, useState } from "react";
 import PrintIcon from "@mui/icons-material/Print";
 import AddCardIcon from "@mui/icons-material/AddCard";
 import { CloseRounded } from "@mui/icons-material";
 import TableBarIcon from "@mui/icons-material/TableBar";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import { fetchCartItems } from "../../features/Cart/CartActions";
+import PrintBillModal from "../MODALS/PrintBillModal";
 
 interface CartDrawerProps {
   tableData: any;
@@ -37,34 +35,15 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   handlePaymentOpen,
   tableData,
 }) => {
+  const [openM, setOpenM] = useState(false);
   const { cartDetails, totalAmount, cartItems } = useSelector(
     (state: any) => state.cart
   );
   const { user } = useSelector((state: any) => state.auth);
 
-  // const dispatch = useDispatch();
-  // useEffect(() => {
-  //   dispatch(fetchCartItems(cartDetails?._id)); 
-  // }, [dispatch]);
-
-  // const { data } = useQuery(
-  //   ["cartItems", cartDetails?._id],
-  //   () => fetchCartItems(cartDetails?._id),
-  //   {
-  //     refetchInterval: 1000,
-  //   }
-  // );
-
-  // const fetchCartItems = async (cartId: string) => {
-  //   try {
-  //     const response = await axios.get(
-  //       `http://localhost:3000/cart/cart-items/${cartId}`
-  //     );
-  //     return response.data;
-  //   } catch (error) {
-  //     throw new Error("Error fetching cart items: " + error.message);
-  //   }
-  // };
+  const onCloseM = () => {
+    setOpenM(false);
+  };
 
   return (
     <Drawer
@@ -73,6 +52,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
       onClose={handleCartClose}
       style={{ height: "100vh", overflowY: "auto" }}
     >
+      <PrintBillModal openM={openM} onCloseM={onCloseM} cartDetails={cartDetails} totalAmount={totalAmount}/>
       <Box sx={{ width: "430px", mt: 2 }}>
         <Grid
           item
@@ -194,6 +174,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
             >
               <Button
                 variant="outlined"
+                onClick={() => setOpenM(true)}
                 endIcon={<PrintIcon />}
                 sx={{
                   pl: 2,
