@@ -1,4 +1,5 @@
-import React, { Key, useState } from "react";
+import React, { Key } from "react";
+import { useSelector } from "react-redux";
 import {
   Button,
   Modal,
@@ -16,7 +17,8 @@ import {
 import { CloseOutlined } from "@mui/icons-material";
 import LocalPrintshopIcon from "@mui/icons-material/LocalPrintshop";
 import PrintDisabledIcon from "@mui/icons-material/PrintDisabled";
-import { useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 
 interface CartItem {
   _id: Key | null | undefined;
@@ -52,6 +54,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
     onCloseM();
   };
 
+  const cartId = cartDetails?._id
+  const {data}=useQuery(["cart", cartId], async() => await axios.get(`http://localhost:3000/cart/cart/${cartId}`))
+  
+
   return (
     <Modal open={openM} onClose={onCloseM}>
       <Box
@@ -60,59 +66,66 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: "80%",
+          // width: "80%",
           bgcolor: "white",
           p: 3,
           borderRadius: "4px",
-          boxShadow: 2, // Adding a shadow to the receipt
+          boxShadow: 2, 
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
         }}
       >
-        <Paper
-          className="no-print"
+        <Box
           sx={{
-            padding: "10px",
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor: "#6c1c2c",
+            mt: 2,
+            width: "100%",
+            maxWidth: "350px",
+            margin: "0 auto",
+            boxShadow: "10px",
+            padding: 2,
+            backgroundColor: "#fff",
           }}
         >
-          <img
-            src="/android-chrome-512x512.png"
-            alt="Restaurant Logo"
-            style={{ width: "50px", height: "50px", borderRadius: "50%" }}
-          />
-          <Typography variant="h6" ml={2}>
-            Receipt
-          </Typography>
-          <IconButton onClick={onCloseM}>
-            <CloseOutlined />
-          </IconButton>
-        </Paper>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              width: "100%",
+              marginBottom: 2,
+            }}
+          >
+            <img
+              src="/android-chrome-512x512.png"
+              alt="Restaurant Logo"
+              style={{ width: "100px", height: "50px" }}
+            />
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+            <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+              Order No: 
+            </Typography>{data?.data.order_no}
+            <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+              Table No: 
+            </Typography>{data?.data.table_id.name}
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+            <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+              Date: 
+            </Typography>{new Date().toLocaleDateString()}
+            <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+              Served By: 
+            </Typography>{data?.data.created_by.username}
+          </Box>
 
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-            Order No: {cartDetails?.order_no}
-          </Typography>
-          <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-            Table No: {cartDetails?.table_id}
-          </Typography>
-          <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-            Date: {new Date().toLocaleDateString()}
-          </Typography>
-          <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-            Served By: {cartDetails?.created_by}
-          </Typography>
-
-          <TableContainer component={Paper} sx={{ mt: 2 }}>
+          <TableContainer component={Paper} sx={{ mt: 2, width: "100%" }}>
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Item</TableCell>
                   <TableCell align="right">Qty</TableCell>
                   <TableCell align="right">Price</TableCell>
-                  <TableCell align="right">Total</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -125,15 +138,13 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                     <TableCell align="right">
                       ${item.price.toFixed(2)}
                     </TableCell>
-                    <TableCell align="right">
-                      ${(item.quantity * item.price).toFixed(2)}
-                    </TableCell>
                   </TableRow>
                 ))}
                 <TableRow>
                   <TableCell />
-                  <TableCell />
-                  <TableCell sx={{ fontWeight: "bold" }}>Total:</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                    Total:
+                  </TableCell>
                   <TableCell align="right" sx={{ fontWeight: "bold" }}>
                     ${totalAmount.toFixed(2)}
                   </TableCell>
@@ -152,6 +163,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           }}
         >
           <Button
+          className="no-print"
             variant="outlined"
             sx={{
               pl: 2,
@@ -168,6 +180,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             Print
           </Button>
           <Button
+          className="no-print"
             variant="contained"
             sx={{
               pl: 2,
