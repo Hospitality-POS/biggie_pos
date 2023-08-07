@@ -99,7 +99,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             <img
               src="/android-chrome-512x512.png"
               alt="Restaurant Logo"
-              style={{ width: "100px", height: "50px" }}
+              style={{ width: "100px", height: "80px" }}
             />
           </Box>
           <Box sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -175,7 +175,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               },
             }}
             onClick={handlePrint}
-            startIcon={<LocalPrintshopIcon />}
+            endIcon={<LocalPrintshopIcon />}
           >
             Print
           </Button>
