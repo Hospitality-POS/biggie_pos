@@ -15,12 +15,12 @@ const TableCard: React.FC<Item> = ({ item }) => {
   const cardStyles = {
     boxShadow: "none",
     bgcolor: "transparent",
-    color: item.isOccupied ? "white" : "black",
+    color: item.isOccupied ? "black" : "white",
   };
 
   const imageStyles = {
     border: "none",
-    opacity: item.isOccupied ? 1 : 0.5,
+    opacity: item.isOccupied ? 0.5 : 1,
   };
 
   const handleCreate = () => {

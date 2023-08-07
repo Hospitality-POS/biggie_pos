@@ -12,11 +12,17 @@ import {
   InputLabel,
   FormControl,
   IconButton,
+  Input,
+  InputAdornment,
 } from "@mui/material";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { CloseRounded } from "@mui/icons-material";
 
+interface Category {
+  _id: string;
+  name: string;
+}
 interface AddNewProductModalProps {
   open: boolean;
   onClose: () => void;
@@ -54,14 +60,16 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
   const [image, setImage] = React.useState<File | null>(null);
   const [quantity, setQuantity] = React.useState(0);
   const [min_viable_quantity, setMinViableQuantity] = React.useState(0);
-  const [category, setCategory] = React.useState("");
+  const [category, setCategory] = React.useState<string>("");
 
   const fetchCategories = async () => {
-    const response = await axios.get("http://localhost:3000/categories"); // Replace with your actual API endpoint for fetching categories
+    const response = await axios.get<Category[]>(
+      "http://localhost:3000/categories"
+    );
     return response.data;
   };
 
-  const { data: categories } = useQuery(["categories"], () =>
+  const { data: categories } = useQuery<Category[]>(["categories"], () =>
     fetchCategories()
   );
 
@@ -75,7 +83,12 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
       category,
       image: image || null,
     };
-    
+
+    const formData = new FormData();
+    formData.append("image", image);
+    for (const key in productData) {
+      formData.append(key, productData[key]);
+    }
 
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const accessToken = user.Token;
@@ -86,6 +99,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "multipart/form-data",
           },
         }
       );
@@ -108,11 +122,8 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setImage(e.target.files[0]);
-    } else {
-      setImage(null);
-    }
+    const file = e.target.files && e.target.files[0];
+    setImage(file || null);
   };
 
   return (
@@ -132,15 +143,16 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
               marginBottom: "16px",
               borderRadius: "4px",
               textAlign: "center",
-               display: "flex",
+              display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
             }}
+            // encType="multipart/form-data"
           >
             <Typography variant="h6" component="h2" color="white">
               Add a new Dish
             </Typography>
-             <IconButton onClick={() => onClose()}>
+            <IconButton onClick={() => onClose()}>
               <CloseRounded fontSize="large" color="inherit" />
             </IconButton>
           </div>
@@ -193,7 +205,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
                 fullWidth
                 margin="normal"
               />
-              <div
+              {/* <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -206,7 +218,25 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
                   accept="image/*"
                   onChange={handleImageChange}
                 />
-              </div>
+              </div> */}
+              <FormControl fullWidth margin="normal">
+                {/* <InputLabel htmlFor="image">Image</InputLabel> */}
+                <Input
+                  type="file"
+                  id="image"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  endAdornment={
+                    <InputAdornment position="end">
+                      <label htmlFor="image">
+                        <IconButton component="span">
+                          <CloseRounded fontSize="small" />
+                        </IconButton>
+                      </label>
+                    </InputAdornment>
+                  }
+                />
+              </FormControl>
             </Grid>
             <Grid item xs={6}>
               <TextField
