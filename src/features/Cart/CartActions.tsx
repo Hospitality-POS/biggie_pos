@@ -87,3 +87,16 @@ export const deleteCartItem = createAsyncThunk(
     }
   }
 );
+
+
+export const deleteAllCartItems = createAsyncThunk(
+  "cart/deleteAllCartItems",
+  async (cartId: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.delete(`${baseUrl}/cart/${cartId}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);

@@ -12,8 +12,9 @@ import {
   CardMedia,
   Badge,
 } from "@mui/material";
+import ClearIcon from '@mui/icons-material/Clear';
 import CartItemCard from "./CartItemCard";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import React, { Key, useState } from "react";
 import PrintIcon from "@mui/icons-material/Print";
 import AddCardIcon from "@mui/icons-material/AddCard";
@@ -24,6 +25,7 @@ import classes from "./Cart.module.css";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { deleteAllCartItems } from "../../features/Cart/CartActions";
 
 interface CartDrawerProps {
   tableData: any;
@@ -42,13 +44,17 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
     (state: any) => state.cart
   );
   const { user } = useSelector((state: any) => state.auth);
+  const dispatch = useDispatch()
 
   const onCloseM = () => {
     setOpenM(false);
   };
 
-  const cartId = cartDetails?._id
-  const {data}=useQuery(["cart", cartId], async() => await axios.get(`http://localhost:3000/cart/cart/${cartId}`))
+  const cartId = cartDetails?._id;
+  const { data } = useQuery(
+    ["cart", cartId],
+    async () => await axios.get(`http://localhost:3000/cart/cart/${cartId}`)
+  );
 
   return (
     <Drawer
@@ -57,7 +63,12 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
       onClose={handleCartClose}
       style={{ height: "100vh", overflowY: "auto" }}
     >
-      <PrintBillModal openM={openM} onCloseM={onCloseM} cartDetails={cartDetails} totalAmount={totalAmount}/>
+      <PrintBillModal
+        openM={openM}
+        onCloseM={onCloseM}
+        cartDetails={cartDetails}
+        totalAmount={totalAmount}
+      />
       <Box sx={{ width: "430px", mt: 2 }}>
         <Grid
           item
@@ -193,6 +204,31 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               >
                 Print Bill
               </Button>
+              <Button
+                variant="contained"
+                onClick={()=>dispatch(deleteAllCartItems(cartId))}
+                endIcon={<ClearIcon />}
+                sx={{
+                  pl: 1,
+                  bgcolor: "#6c1c2c",
+                  "&:hover": {
+                    bgcolor: "#bc8c7c",
+                    color: "#ffff",
+                  },
+                }}
+              >
+                Clear All
+              </Button>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                mt: 2,
+                columnGap: 2,
+                bottom: 0,
+              }}
+            >
               <Button
                 variant="contained"
                 onClick={handlePaymentOpen}

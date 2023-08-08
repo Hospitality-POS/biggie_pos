@@ -6,6 +6,7 @@ import {
   addItemToCart,
   updateCartItems,
   deleteCartItem,
+  deleteAllCartItems,
 } from "./CartActions";
 
 interface CartDetails {
@@ -143,6 +144,19 @@ const cartSlice = createSlice({
       })
       .addCase(deleteCartItem.rejected, (state, action) => {
         state.error = action.error;
+      })
+       .addCase(deleteAllCartItems.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteAllCartItems.fulfilled, (state) => {
+        state.loading = false;
+        state.cartItems = [];
+        state.totalAmount = 0;
+      })
+      .addCase(deleteAllCartItems.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
