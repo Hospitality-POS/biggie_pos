@@ -147,7 +147,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
         <Table aria-label="order-list">
           <TableHead style={{ backgroundColor: "#6c1c2c", }}>
             <TableRow>
-              <TableCell sx={{color: "white"}}>
+              <TableCell sx={{color: "white", fontSize:"16px"}}>
                 Order No
                 {sortColumn === "order_no" && (
                   <Tooltip
@@ -165,7 +165,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
                   </Tooltip>
                 )}
               </TableCell>
-              <TableCell  sx={{color: "white"}}>
+              <TableCell  sx={{color: "white", fontSize:"16px"}}>
                 Created At
                 {sortColumn === "createdAt" && (
                   <Tooltip
@@ -183,7 +183,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
                   </Tooltip>
                 )}
               </TableCell>
-              <TableCell  sx={{color: "white"}}>Updated By</TableCell>
+              <TableCell  sx={{color: "white", fontSize:"16px"}}>Updated By</TableCell>
               <TableCell  sx={{color: "white"}}>
                 <Tooltip title="Sort">
                   <IconButton onClick={handleSortMenuClick}>
