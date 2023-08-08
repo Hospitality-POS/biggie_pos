@@ -7,6 +7,7 @@ import { Suspense, lazy } from "react";
 import Spinner from "../components/spinner/Spinner";
 import Private from "../components/layout/private/Private";
 import Store from "../pages/store/Store";
+import Settings from "../pages/Settings/Settings";
 
 const Layout = lazy(() => import("../components/layout/Layout"));
 // const Staff = lazy(() => import("../pages/staff/Staff"));
@@ -41,6 +42,14 @@ function Routers() {
             element={
               <Private>
                 <Store />
+              </Private>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <Private>
+                <Settings/>
               </Private>
             }
           />

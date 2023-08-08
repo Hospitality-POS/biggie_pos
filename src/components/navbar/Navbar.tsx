@@ -27,6 +27,7 @@ import { reset } from "../../features/Auth/AuthSlice";
 import StoreIcon from "@mui/icons-material/Store";
 import { logoutUser } from "../../features/Auth/AuthActions";
 import SettingsIcon from '@mui/icons-material/Settings';
+import { fetchOrders } from "../../features/Order/OrderActions";
 const pages = ["Staff", "Tables", "Restaurant", "Kitchen", "Bar", "Store", "Settings"];
 const settings = ["Dashboard", "Logout"];
 
@@ -38,7 +39,7 @@ function Navbar() {
     null
   );
   const { user } = useSelector((state) => state.auth);
-
+ 
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -68,9 +69,12 @@ function Navbar() {
     else if (page === "Kitchen") navigate("/kitchen");
     else if (page === "Tables") navigate("/tables");
     else if (page === "Store") navigate("/store");
-    else if (page === "Settings") navigate("/settings");
+    else if (page === "Settings") {
+      navigate("/settings");
+      dispatch(fetchOrders());
+    }
   };
-
+  
   const Search = styled("div")(({ theme }) => ({
     position: "relative",
     borderRadius: theme.shape.borderRadius,

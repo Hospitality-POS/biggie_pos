@@ -20,15 +20,17 @@ const initialState: OrderState = {
   orders: [],
   loading: false,
   error: null,
-  openModal: false
+  openModal: false,
 };
 
 const orderSlice = createSlice({
   name: "order",
   initialState,
-  reducers: { closeModal(state) {
+  reducers: {
+    closeModal(state) {
       state.openModal = false;
-    },},
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(createOrder.pending, (state) => {
@@ -36,12 +38,12 @@ const orderSlice = createSlice({
       })
       .addCase(createOrder.fulfilled, (state, action) => {
         state.loading = false;
-        state.openModal = true
-        state.orders.push(action.payload);     
+        state.openModal = true;
+        state.orders.push(action.payload);
       })
       .addCase(createOrder.rejected, (state, action) => {
         state.loading = false;
-        state.openModal=false
+        state.openModal = false;
         state.error = action.payload as string;
       })
       .addCase(fetchOrders.pending, (state) => {
@@ -61,7 +63,7 @@ const orderSlice = createSlice({
       .addCase(updateOrder.fulfilled, (state, action) => {
         state.loading = false;
         const updatedOrder = action.payload;
-        const index = state.orders.findIndex((order) => order.order_no === updatedOrder.order_no);
+        const index = state.orders.findIndex((order) => order._id === updatedOrder._id);
         if (index !== -1) {
           state.orders[index] = updatedOrder;
         }
@@ -86,8 +88,10 @@ const orderSlice = createSlice({
       })
       .addCase(deleteOrder.fulfilled, (state, action) => {
         state.loading = false;
-        const orderNoToDelete = action.payload;
-        state.orders = state.orders.filter((order) => order.order_no !== orderNoToDelete);
+        const orderNoToDeleteId = action.payload;
+        console.log(orderNoToDeleteId);
+        
+      state.orders = state.orders.filter((item) => item._id !== orderNoToDeleteId);
       })
       .addCase(deleteOrder.rejected, (state, action) => {
         state.loading = false;
@@ -95,8 +99,6 @@ const orderSlice = createSlice({
       });
   },
 });
-
-
 
 export const { closeModal } = orderSlice.actions;
 
