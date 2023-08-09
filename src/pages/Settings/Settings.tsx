@@ -1,5 +1,4 @@
-import { Typography } from "@mui/material";
-import React, { useState } from "react";
+import React from "react";
 import { useSelector } from "react-redux";
 import OrderList from "../../components/Order/OrderList";
 
@@ -9,11 +8,9 @@ interface SettingsProps {
 
 const Settings: React.FC<SettingsProps> = (props) => {
   const { orders } = useSelector((state: any) => state.order);
-  
 
   return (
-    <div className="settings-page">
-      <Typography>Settings</Typography>
+    <div>
       <div style={{ padding: "20px" }}>
         <OrderList orders={orders} />
       </div>
