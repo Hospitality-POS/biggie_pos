@@ -14,10 +14,11 @@ import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCartItems } from "../../features/Cart/CartActions";
+import axios from "axios";
 
 const RestaurantPage = () => {
   const { user } = useSelector((state) => state.auth);
-  const {cartDetails} = useSelector((state:any)=>state.cart)
+  const { cartDetails } = useSelector((state: any) => state.cart);
   const [selectedCard, setSelectedCard] = useState(null);
   const { id } = useParams();
 
@@ -48,17 +49,26 @@ const RestaurantPage = () => {
     retryDelay: 1000,
   });
 
-  const categories = [
-    { id: 1, name: "Appetizers", icon: "/chip.png", itemCount: 10 },
-    { id: 2, name: "Main Courses", icon: "/chip3.png", itemCount: 15 },
-    { id: 3, name: "Desserts", icon: "", itemCount: 8 },
-    { id: 4, name: "Drinks", icon: "", itemCount: 12 },
-    { id: 5, name: "Desserts", icon: "/chip2.png", itemCount: 8 },
-    { id: 6, name: "Main Courses", icon: "", itemCount: 15 },
-    { id: 7, name: "Desserts", icon: "", itemCount: 8 },
-    { id: 8, name: "Drinks", icon: "", itemCount: 12 },
-    { id: 9, name: "Main Courses", icon: "/chip.png", itemCount: 15 },
-  ];
+  const fetchCategories = async () => {
+    const response = await axios.get("http://localhost:3000/categories");
+    return response.data;
+  };
+
+  const { data: categories } = useQuery(["categories"], () =>
+    fetchCategories()
+  );
+
+  // const categories = [
+  //   { id: 1, name: "Appetizers", icon: "/chip.png", itemCount: 10 },
+  //   { id: 2, name: "Main Courses", icon: "/chip3.png", itemCount: 15 },
+  //   { id: 3, name: "Desserts", icon: "", itemCount: 8 },
+  //   { id: 4, name: "Drinks", icon: "", itemCount: 12 },
+  //   { id: 5, name: "Desserts", icon: "/chip2.png", itemCount: 8 },
+  //   { id: 6, name: "Main Courses", icon: "", itemCount: 15 },
+  //   { id: 7, name: "Desserts", icon: "", itemCount: 8 },
+  //   { id: 8, name: "Drinks", icon: "", itemCount: 12 },
+  //   { id: 9, name: "Main Courses", icon: "/chip.png", itemCount: 15 },
+  // ];
 
   const [cartOpen, setCartOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -67,8 +77,7 @@ const RestaurantPage = () => {
 
   const handleCartOpen = () => {
     setCartOpen(true);
-    dispatch(fetchCartItems(cartDetails?._id))
-    
+    dispatch(fetchCartItems(cartDetails?._id));
   };
 
   const handleCartClose = () => {
@@ -206,24 +215,26 @@ const RestaurantPage = () => {
                   transition: "transform 0.5s ease-in-out",
                 }}
               >
-                {categories.map((category, index) => (
-                  <CategoryCard
-                    style={{
-                      flex: `0 0 ${100 / categories.length}%`,
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      border: "1px solid black",
-                    }}
-                    key={index}
-                    handleSelectedCard={handleSelectCard}
-                    selectedCard={selectedCard}
-                    icon={category.icon}
-                    name={category.name}
-                    itemCount={category.itemCount}
-                    id={category.id}
-                  />
-                ))}
+                {categories.map(
+                  (category: { product_count: number; _id: string; name: string }) => (
+                    <CategoryCard
+                      style={{
+                        flex: `0 0 ${100 / categories.length}%`,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        border: "1px solid black",
+                      }}
+                      key={category._id}
+                      handleSelectedCard={handleSelectCard}
+                      selectedCard={selectedCard}
+                      icon={"/chip.png"}
+                      name={category.name}
+                      itemCount={category.product_count}
+                      id={category._id}
+                    />
+                  )
+                )}
               </div>
             </div>
           </Grid>

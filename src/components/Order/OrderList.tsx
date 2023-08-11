@@ -148,7 +148,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
           <TableHead style={{ backgroundColor: "#6c1c2c", }}>
             <TableRow>
               <TableCell sx={{color: "white", fontSize:"16px"}}>
-                Order No
+                Order No.
                 {sortColumn === "order_no" && (
                   <Tooltip
                     title={`Sort ${
@@ -229,17 +229,17 @@ const OrderList: React.FC<Props> = ({ orders }) => {
               .slice(page * rowsPerPage, (page + 1) * rowsPerPage)
               .map((order) => (
                 <TableRow key={order._id}>
-                  <TableCell>{order.order_no}</TableCell>
+                  <TableCell sx={{fontWeight: "bold"}}>{order.order_no}</TableCell>
                   <TableCell>
                     {moment(order.createdAt).format("MMMM Do YYYY, h:mm a")}
                   </TableCell>
                   <TableCell>{order.updated_by.username}</TableCell>
                   <TableCell>
-                    <Tooltip title="Edit">
+                    {/* <Tooltip title="Edit">
                       <IconButton onClick={() => onEdit(order._id)}>
                         <Edit />
                       </IconButton>
-                    </Tooltip>
+                    </Tooltip> */}
                     <Tooltip title="Delete">
                       <IconButton onClick={() => onDelete(order._id)}>
                         <Delete />

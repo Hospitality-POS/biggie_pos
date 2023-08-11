@@ -217,33 +217,23 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                   },
                 }}
               >
-                Clear All
+                Clear
               </Button>
-            </Box>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                mt: 2,
-                columnGap: 2,
-                bottom: 0,
-              }}
-            >
-              <Button
-                variant="contained"
-                onClick={handlePaymentOpen}
-                endIcon={<AddCardIcon />}
-                sx={{
-                  pl: 2,
-                  bgcolor: "#6c1c2c",
-                  "&:hover": {
-                    bgcolor: "#bc8c7c",
-                    color: "#ffff",
-                  },
-                }}
-              >
-                Proceed to Payment
-              </Button>
+                <Button
+                  variant="contained"
+                  onClick={handlePaymentOpen}
+                  endIcon={<AddCardIcon />}
+                  sx={{
+                    pl: 2,
+                    bgcolor: "#6c1c2c",
+                    "&:hover": {
+                      bgcolor: "#bc8c7c",
+                      color: "#ffff",
+                    },
+                  }}
+                >
+                  Pay Now
+                </Button>
             </Box>
           </Grid>
         ) : (

@@ -28,7 +28,7 @@ import StoreIcon from "@mui/icons-material/Store";
 import { logoutUser } from "../../features/Auth/AuthActions";
 import SettingsIcon from '@mui/icons-material/Settings';
 import { fetchOrders } from "../../features/Order/OrderActions";
-const pages = ["Staff", "Tables", "Restaurant", "Kitchen", "Bar", "Store", "Settings"];
+const pages = ["Staff", "Tables", "Restaurant",  "Store", "Settings","Kitchen", "Bar"];
 const settings = ["Dashboard", "Logout"];
 
 function Navbar() {
@@ -38,7 +38,8 @@ function Navbar() {
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
   );
-  const { user } = useSelector((state) => state.auth);
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const { user } = useSelector((state:any) => state.auth);
  
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -54,9 +55,11 @@ function Navbar() {
     setAnchorElNav(null);
   };
 
+
   const handleCloseUserMenu = () => {
     setAnchorElUser(null);
   };
+  
   const handleLogout = () => {
     dispatch(logoutUser());
     dispatch(reset());
@@ -64,9 +67,9 @@ function Navbar() {
 
   const handleTabClick = (page: string) => {
     if (page === "Restaurant") navigate("/tables");
-    else if (page === "Bar") navigate("/bar");
+    // else if (page === "Bar") navigate("/bar");
     else if (page === "Staff") navigate("/staffs");
-    else if (page === "Kitchen") navigate("/kitchen");
+    // else if (page === "Kitchen") navigate("/kitchen");
     else if (page === "Tables") navigate("/tables");
     else if (page === "Store") navigate("/store");
     else if (page === "Settings") {
@@ -182,15 +185,18 @@ function Navbar() {
                     >
                       Restaurant
                     </Typography>
-                  ) : page === "Bar" ? (
-                    <Typography
-                      textAlign="center"
-                      fontSize="inherit"
-                      onClick={() => navigate("/bar")}
-                    >
-                      Bar
-                    </Typography>
-                  ) : page === "Staff" ? (
+                  ) :
+                  //  page === "Bar" ? (
+                  //   <Typography
+                  //     textAlign="center"
+                  //     fontSize="inherit"
+                  //     onClick={() => navigate("/bar")}
+                  //   >
+                  //     Bar
+                  //   </Typography>
+                  // )
+                  //  : 
+                   page === "Staff" ? (
                     <Typography
                       textAlign="center"
                       fontSize="inherit"
@@ -198,15 +204,17 @@ function Navbar() {
                     >
                       Staff
                     </Typography>
-                  ) : page === "Kitchen" ? (
-                    <Typography
-                      textAlign="center"
-                      fontSize="inherit"
-                      onClick={() => navigate("/kitchen")}
-                    >
-                      Kitchen
-                    </Typography>
-                  ) : page === "Tables" ? (
+                  ) :
+                  //  page === "Kitchen" ? (
+                  //   <Typography
+                  //     textAlign="center"
+                  //     fontSize="inherit"
+                  //     onClick={() => navigate("/kitchen")}
+                  //   >
+                  //     Kitchen
+                  //   </Typography>
+                  // ) :
+                   page === "Tables" ? (
                     <Typography
                       textAlign="center"
                       fontSize="inherit"
@@ -270,22 +278,26 @@ function Navbar() {
                           />
                           <Typography fontSize="inherit">Restaurant</Typography>
                         </>
-                      ) : page === "Bar" && user ? (
-                        <>
-                          <SportsBarIcon style={{ fontSize: "16px" }} />
-                          <Typography fontSize="inherit">Bar</Typography>
-                        </>
-                      ) : page === "Staff" && !user ? (
+                      ) : 
+                      // page === "Bar" && user ? (
+                      //   <>
+                      //     <SportsBarIcon style={{ fontSize: "16px" }} />
+                      //     <Typography fontSize="inherit">Bar</Typography>
+                      //   </>
+                      // ) :
+                       page === "Staff" && !user ? (
                         <>
                           <PeopleIcon style={{ fontSize: "16px" }} />
                           <Typography fontSize="inherit">Staff</Typography>
                         </>
-                      ) : page === "Kitchen" && user ? (
-                        <>
-                          <SoupKitchenIcon style={{ fontSize: "16px" }} />
-                          <Typography fontSize="inherit">Kitchen</Typography>
-                        </>
-                      ) : page === "Tables" && user ? (
+                      ) : 
+                      // page === "Kitchen" && user ? (
+                      //   <>
+                      //     <SoupKitchenIcon style={{ fontSize: "16px" }} />
+                      //     <Typography fontSize="inherit">Kitchen</Typography>
+                      //   </>
+                      // ) : 
+                      page === "Tables" && user ? (
                         <>
                           <TableBarIcon style={{ fontSize: "16px" }} />
                           <Typography fontSize="inherit">Tables</Typography>
