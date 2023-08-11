@@ -9,7 +9,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import Container from "@mui/material/Container";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import FilterFramesIcon from '@mui/icons-material/FilterFrames';
+import FilterFramesIcon from "@mui/icons-material/FilterFrames";
 import Button from "@mui/material/Button";
 import Tooltip from "@mui/material/Tooltip";
 import MenuItem from "@mui/material/MenuItem";
@@ -27,11 +27,19 @@ import { useDispatch, useSelector } from "react-redux";
 import { reset } from "../../features/Auth/AuthSlice";
 import StoreIcon from "@mui/icons-material/Store";
 import { logoutUser } from "../../features/Auth/AuthActions";
-import SettingsIcon from '@mui/icons-material/Settings';
+import SettingsIcon from "@mui/icons-material/Settings";
 import { fetchOrders } from "../../features/Order/OrderActions";
 // import { IconButton } from '@mui/material';
-const pages = ["Staff", "Tables", "Restaurant",  "Store", "Orders","Kitchen", "Bar"];
-const settings = ["Dashboard", "Logout"];
+const pages = [
+  "Staff",
+  "Tables",
+  "Restaurant",
+  "Store",
+  "Orders",
+  "Kitchen",
+  "Bar",
+];
+const settings = ["Dashboard", "Profile", "Logout"];
 
 function Navbar() {
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(
@@ -41,8 +49,8 @@ function Navbar() {
     null
   );
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
-  const { user } = useSelector((state:any) => state.auth);
- 
+  const { user } = useSelector((state: any) => state.auth);
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -57,11 +65,10 @@ function Navbar() {
     setAnchorElNav(null);
   };
 
-
   const handleCloseUserMenu = () => {
     setAnchorElUser(null);
   };
-  
+
   const handleLogout = () => {
     dispatch(logoutUser());
     dispatch(reset());
@@ -79,7 +86,7 @@ function Navbar() {
       dispatch(fetchOrders());
     }
   };
-  
+
   const Search = styled("div")(({ theme }) => ({
     position: "relative",
     borderRadius: theme.shape.borderRadius,
@@ -123,7 +130,7 @@ function Navbar() {
     <AppBar position="static">
       <Container maxWidth="xl" sx={{ bgcolor: "#6c1c2c" }}>
         <Toolbar disableGutters>
-          {/* <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} /> */}
+          
           <img
             src="/android-chrome-192x192.png"
             alt="logo"
@@ -131,22 +138,7 @@ function Navbar() {
             width={120}
           />
 
-          {/* <Typography
-            variant="h6"
-            noWrap
-            component="a"
-            sx={{
-              mr: 2,
-              display: { xs: "none", md: "flex" },
-              fontFamily: "monospace",
-              fontWeight: 700,
-              letterSpacing: ".2rem",
-              color: "inherit",
-              textDecoration: "none",
-            }}
-          >
-            BigSmoke
-          </Typography> */}
+        
 
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
             <IconButton
@@ -187,8 +179,7 @@ function Navbar() {
                     >
                       Restaurant
                     </Typography>
-                  ) :
-                  //  page === "Bar" ? (
+                  ) : //  page === "Bar" ? (
                   //   <Typography
                   //     textAlign="center"
                   //     fontSize="inherit"
@@ -197,8 +188,8 @@ function Navbar() {
                   //     Bar
                   //   </Typography>
                   // )
-                  //  : 
-                   page === "Staff" ? (
+                  //  :
+                  page === "Staff" ? (
                     <Typography
                       textAlign="center"
                       fontSize="inherit"
@@ -206,7 +197,7 @@ function Navbar() {
                     >
                       Staff
                     </Typography>
-                  ) :
+                  ) : 
                   //  page === "Kitchen" ? (
                   //   <Typography
                   //     textAlign="center"
@@ -216,7 +207,7 @@ function Navbar() {
                   //     Kitchen
                   //   </Typography>
                   // ) :
-                   page === "Tables" ? (
+                  page === "Tables" ? (
                     <Typography
                       textAlign="center"
                       fontSize="inherit"
@@ -280,25 +271,23 @@ function Navbar() {
                           />
                           <Typography fontSize="inherit">Restaurant</Typography>
                         </>
-                      ) : 
-                      // page === "Bar" && user ? (
+                      ) : // page === "Bar" && user ? (
                       //   <>
                       //     <SportsBarIcon style={{ fontSize: "16px" }} />
                       //     <Typography fontSize="inherit">Bar</Typography>
                       //   </>
                       // ) :
-                       page === "Staff" && !user ? (
+                      page === "Staff" && !user ? (
                         <>
                           <PeopleIcon style={{ fontSize: "16px" }} />
                           <Typography fontSize="inherit">Staff</Typography>
                         </>
-                      ) : 
-                      // page === "Kitchen" && user ? (
+                      ) : // page === "Kitchen" && user ? (
                       //   <>
                       //     <SoupKitchenIcon style={{ fontSize: "16px" }} />
                       //     <Typography fontSize="inherit">Kitchen</Typography>
                       //   </>
-                      // ) : 
+                      // ) :
                       page === "Tables" && user ? (
                         <>
                           <TableBarIcon style={{ fontSize: "16px" }} />
@@ -323,7 +312,7 @@ function Navbar() {
             </Tabs>
           </Box>
 
-          <Box sx={{ flexGrow: 0}}>
+          <Box sx={{ flexGrow: 0 }}>
             {user && (
               <Tooltip title="Open settings">
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
@@ -362,15 +351,19 @@ function Navbar() {
                     </Typography>
                   ) : setting === "Dashboard" && user?.isAdmin ? (
                     <Typography textAlign="center">Dashboard</Typography>
+                  ) : setting === "Profile" ? (
+                    <Typography textAlign="center">Profile</Typography>
                   ) : (
                     ""
                   )}
                 </MenuItem>
               ))}
             </Menu>
-            <IconButton>
-              <MenuIcon />
-            </IconButton>
+            {user?.isAdmin && (
+              <IconButton style={{ color: "white" }}>
+                <MenuIcon />
+              </IconButton>
+            )}
           </Box>
         </Toolbar>
       </Container>
