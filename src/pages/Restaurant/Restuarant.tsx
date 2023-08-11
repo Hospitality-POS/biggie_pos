@@ -171,7 +171,7 @@ const RestaurantPage = () => {
                       color: "#bc8c7c",
                     },
                   }}
-                  disabled={categories.length === 1}
+                  disabled={categories?.length === 1}
                 >
                   <NavigateBeforeIcon />
                 </Button>

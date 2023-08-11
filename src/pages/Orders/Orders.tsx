@@ -2,11 +2,11 @@ import React from "react";
 import { useSelector } from "react-redux";
 import OrderList from "../../components/Order/OrderList";
 
-interface SettingsProps {
+interface OrdersProps {
   // Define any props you might need here
 }
 
-const Settings: React.FC<SettingsProps> = (props) => {
+const Orders: React.FC<OrdersProps> = (props) => {
   const { orders } = useSelector((state: any) => state.order);
 
   return (
@@ -18,4 +18,4 @@ const Settings: React.FC<SettingsProps> = (props) => {
   );
 };
 
-export default Settings;
+export default Orders;

@@ -15,9 +15,9 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Button,
 } from "@mui/material";
 import {
-  Edit,
   Delete,
   ArrowUpward,
   ArrowDownward,
@@ -25,6 +25,11 @@ import {
 } from "@mui/icons-material";
 import moment from "moment";
 import { useDispatch } from "react-redux";
+// import { deleteOrder } from "../../features/Order/OrderActions";
+import SearchIcon from "@mui/icons-material/Search";
+import { CSVLink } from "react-csv";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import { deleteOrder } from "../../features/Order/OrderActions";
 
 interface Order {
@@ -47,9 +52,8 @@ const OrderList: React.FC<Props> = ({ orders }) => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(5);
-  const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(
-    null
-  );
+  const [sortMenuAnchor, setSortMenuAnchor] =
+    useState<null | HTMLElement>(null);
   const dispatch = useDispatch();
 
   const sortedOrders = [...orders].sort((a, b) => {
@@ -76,7 +80,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
   });
 
   const handleChangePage = (
-    event: React.MouseEvent<HTMLButtonElement> | null,
+    _event: React.MouseEvent<HTMLButtonElement> | null,
     newPage: number
   ) => {
     setPage(newPage);
@@ -89,14 +93,13 @@ const OrderList: React.FC<Props> = ({ orders }) => {
     setPage(0);
   };
 
-  const onEdit = (id: string) => {
-    console.log("edit modal");
-  };
+  // const onEdit = (id: string) => {
+  //   console.log("edit modal");
+  // };
 
-  const onDelete = (id: string) => {
+   const onDelete = (id: string) => {
     dispatch(deleteOrder(id));
   };
-
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
   };
@@ -119,6 +122,61 @@ const OrderList: React.FC<Props> = ({ orders }) => {
     setSortMenuAnchor(null);
   };
 
+  const handleExportCSV = () => {
+    const csvData = filteredOrders.map((order) => ({
+      OrderNo: order.order_no,
+      CreatedAt: moment(order.createdAt).format("MMMM Do YYYY, h:mm a"),
+      UpdatedBy: order.updated_by.username,
+    }));
+
+    const csvHeaders = [
+      { label: "Order No", key: "OrderNo" },
+      { label: "Created At", key: "CreatedAt" },
+      { label: "Served By", key: "UpdatedBy" },
+    ];
+
+    return (
+      <CSVLink
+        data={csvData}
+        headers={csvHeaders}
+        filename={"orders.csv"}
+        style={{ textDecoration: "none" }}
+      >
+        Export CSV
+      </CSVLink>
+    );
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Orders Report", 10, 10);
+
+    const tableData = filteredOrders.map((order) => [
+      order.order_no,
+      moment(order.createdAt).format("MMMM Do YYYY, h:mm a"),
+      order.updated_by.username,
+    ]);
+
+    // Define columns for the table
+    const headers = ["Order No", "Created At", "Updated By"];
+
+    // Set the y position for the table header
+    const tableY = 20;
+
+    // Set the y position for the table data
+    const dataY = tableY + 10;
+
+    // Generate the table
+    doc.autoTable({
+      head: [headers],
+      body: tableData,
+      startY: dataY,
+    });
+
+    // Save the PDF
+    doc.save("orders.pdf");
+  };
+
   return (
     <div>
       <div style={{ display: "flex", columnGap: 20 }}>
@@ -128,6 +186,13 @@ const OrderList: React.FC<Props> = ({ orders }) => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{ marginBottom: 16 }}
+          InputProps={{
+            startAdornment: (
+              <span style={{ marginRight: 5, opacity: 0.5, marginTop: 5 }}>
+                <SearchIcon />
+              </span>
+            ),
+          }}
         />
         <TextField
           label="Filter by Date"
@@ -145,9 +210,9 @@ const OrderList: React.FC<Props> = ({ orders }) => {
       </div>
       <TableContainer component={Paper}>
         <Table aria-label="order-list">
-          <TableHead style={{ backgroundColor: "#6c1c2c", }}>
+          <TableHead style={{ backgroundColor: "#6c1c2c" }}>
             <TableRow>
-              <TableCell sx={{color: "white", fontSize:"16px"}}>
+              <TableCell sx={{ color: "white", fontSize: "16px" }}>
                 Order No.
                 {sortColumn === "order_no" && (
                   <Tooltip
@@ -157,15 +222,15 @@ const OrderList: React.FC<Props> = ({ orders }) => {
                   >
                     <IconButton onClick={() => handleSort("order_no")}>
                       {sortDirection === "asc" ? (
-                        <ArrowUpward  sx={{color: "white"}} />
+                        <ArrowUpward sx={{ color: "white" }} />
                       ) : (
-                        <ArrowDownward  sx={{color: "white"}}/>
+                        <ArrowDownward sx={{ color: "white" }} />
                       )}
                     </IconButton>
                   </Tooltip>
                 )}
               </TableCell>
-              <TableCell  sx={{color: "white", fontSize:"16px"}}>
+              <TableCell sx={{ color: "white", fontSize: "16px" }}>
                 Created At
                 {sortColumn === "createdAt" && (
                   <Tooltip
@@ -175,19 +240,21 @@ const OrderList: React.FC<Props> = ({ orders }) => {
                   >
                     <IconButton onClick={() => handleSort("createdAt")}>
                       {sortDirection === "asc" ? (
-                        <ArrowUpward  sx={{color: "white"}}/>
+                        <ArrowUpward sx={{ color: "white" }} />
                       ) : (
-                        <ArrowDownward  sx={{color: "white"}}/>
+                        <ArrowDownward sx={{ color: "white" }} />
                       )}
                     </IconButton>
                   </Tooltip>
                 )}
               </TableCell>
-              <TableCell  sx={{color: "white", fontSize:"16px"}}>Updated By</TableCell>
-              <TableCell  sx={{color: "white"}}>
+              <TableCell sx={{ color: "white", fontSize: "16px" }}>
+                Served By
+              </TableCell>
+              <TableCell sx={{ color: "white" }}>
                 <Tooltip title="Sort">
                   <IconButton onClick={handleSortMenuClick}>
-                    <MoreVert  sx={{color: "white"}} />
+                    <MoreVert sx={{ color: "white" }} />
                   </IconButton>
                 </Tooltip>
                 <Menu
@@ -229,17 +296,14 @@ const OrderList: React.FC<Props> = ({ orders }) => {
               .slice(page * rowsPerPage, (page + 1) * rowsPerPage)
               .map((order) => (
                 <TableRow key={order._id}>
-                  <TableCell sx={{fontWeight: "bold"}}>{order.order_no}</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    {order.order_no}
+                  </TableCell>
                   <TableCell>
                     {moment(order.createdAt).format("MMMM Do YYYY, h:mm a")}
                   </TableCell>
                   <TableCell>{order.updated_by.username}</TableCell>
                   <TableCell>
-                    {/* <Tooltip title="Edit">
-                      <IconButton onClick={() => onEdit(order._id)}>
-                        <Edit />
-                      </IconButton>
-                    </Tooltip> */}
                     <Tooltip title="Delete">
                       <IconButton onClick={() => onDelete(order._id)}>
                         <Delete />
@@ -260,6 +324,10 @@ const OrderList: React.FC<Props> = ({ orders }) => {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </TableContainer>
+      <div style={{ marginTop: 5, display: "flex", columnGap: 5, marginBottom: 0 }}>
+        <Button variant="outlined">{handleExportCSV()}</Button>
+        <Button variant="outlined" onClick={handleExportPDF}>Export PDF</Button>
+      </div>
     </div>
   );
 };

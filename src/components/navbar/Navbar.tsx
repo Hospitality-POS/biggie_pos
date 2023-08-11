@@ -9,6 +9,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import Container from "@mui/material/Container";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import FilterFramesIcon from '@mui/icons-material/FilterFrames';
 import Button from "@mui/material/Button";
 import Tooltip from "@mui/material/Tooltip";
 import MenuItem from "@mui/material/MenuItem";
@@ -28,7 +29,8 @@ import StoreIcon from "@mui/icons-material/Store";
 import { logoutUser } from "../../features/Auth/AuthActions";
 import SettingsIcon from '@mui/icons-material/Settings';
 import { fetchOrders } from "../../features/Order/OrderActions";
-const pages = ["Staff", "Tables", "Restaurant",  "Store", "Settings","Kitchen", "Bar"];
+// import { IconButton } from '@mui/material';
+const pages = ["Staff", "Tables", "Restaurant",  "Store", "Orders","Kitchen", "Bar"];
 const settings = ["Dashboard", "Logout"];
 
 function Navbar() {
@@ -72,8 +74,8 @@ function Navbar() {
     // else if (page === "Kitchen") navigate("/kitchen");
     else if (page === "Tables") navigate("/tables");
     else if (page === "Store") navigate("/store");
-    else if (page === "Settings") {
-      navigate("/settings");
+    else if (page === "Orders") {
+      navigate("/Orders");
       dispatch(fetchOrders());
     }
   };
@@ -230,13 +232,13 @@ function Navbar() {
                     >
                       Store
                     </Typography>
-                  ) : page === "Settings" ? (
+                  ) : page === "Orders" ? (
                     <Typography
                       textAlign="center"
                       fontSize="inherit"
-                      onClick={() => navigate("/store")}
+                      onClick={() => navigate("/Orders")}
                     >
-                      Settings
+                      Orders
                     </Typography>
                   ) : (
                     ""
@@ -307,10 +309,10 @@ function Navbar() {
                           <StoreIcon style={{ fontSize: "16px" }} />
                           <Typography fontSize="inherit">Store</Typography>
                         </>
-                      ) : page === "Settings" && user?.isAdmin ? (
+                      ) : page === "Orders" && user?.isAdmin ? (
                         <>
-                          <SettingsIcon style={{ fontSize: "16px" }} />
-                          <Typography fontSize="inherit">Settings</Typography>
+                          <FilterFramesIcon style={{ fontSize: "16px" }} />
+                          <Typography fontSize="inherit">Orders</Typography>
                         </>
                       ) : null}
                     </>
@@ -321,7 +323,7 @@ function Navbar() {
             </Tabs>
           </Box>
 
-          <Box sx={{ flexGrow: 0 }}>
+          <Box sx={{ flexGrow: 0}}>
             {user && (
               <Tooltip title="Open settings">
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
@@ -366,6 +368,9 @@ function Navbar() {
                 </MenuItem>
               ))}
             </Menu>
+            <IconButton>
+              <MenuIcon />
+            </IconButton>
           </Box>
         </Toolbar>
       </Container>
