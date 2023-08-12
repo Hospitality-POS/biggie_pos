@@ -10,16 +10,13 @@ import Container from "@mui/material/Container";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import FilterFramesIcon from "@mui/icons-material/FilterFrames";
-import Button from "@mui/material/Button";
 import Tooltip from "@mui/material/Tooltip";
 import MenuItem from "@mui/material/MenuItem";
 import SearchIcon from "@mui/icons-material/Search";
 import InputBase from "@mui/material/InputBase";
 import { styled, alpha } from "@mui/material/styles";
 import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
-import SportsBarIcon from "@mui/icons-material/SportsBar";
 import PeopleIcon from "@mui/icons-material/People";
-import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
 import { useNavigate } from "react-router-dom";
 import TableBarIcon from "@mui/icons-material/TableBar";
 import Avvvatars from "avvvatars-react";
@@ -27,7 +24,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { reset } from "../../features/Auth/AuthSlice";
 import StoreIcon from "@mui/icons-material/Store";
 import { logoutUser } from "../../features/Auth/AuthActions";
-import SettingsIcon from "@mui/icons-material/Settings";
 import { fetchOrders } from "../../features/Order/OrderActions";
 // import { IconButton } from '@mui/material';
 const pages = [
@@ -49,6 +45,7 @@ function Navbar() {
     null
   );
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  
   const { user } = useSelector((state: any) => state.auth);
 
   const dispatch = useDispatch();
