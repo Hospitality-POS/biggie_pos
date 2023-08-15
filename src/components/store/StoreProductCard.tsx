@@ -38,6 +38,10 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
     setModalOpen(true);
   };
 
+  const transformImagePath=(absolutePath: string)=> {
+    const filename = absolutePath.split("\\").pop(); 
+    return `\\uploads\\${filename}`;
+  }
   const handleCloseModal = () => {
     setModalOpen(false);
   };
@@ -59,7 +63,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
           component="img"
           height="145"
           sx={{ objectFit: "cover" }}
-          image={img ? img : "/food.jpg"}
+          image={img ? transformImagePath(img) : "/food.jpg"}
           alt={name}
         />
         <CardContent

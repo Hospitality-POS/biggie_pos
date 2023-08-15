@@ -151,7 +151,7 @@ const Store: React.FC = () => {
                 bowls={product.quantity}
                 price={product.price}
                 name={product.name}
-                img={product.img}
+                img={product.image}
                 product={product}
                 productId={product._id}
               />

@@ -1,3 +1,4 @@
+import React from "react";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CardMedia from "@mui/material/CardMedia";
@@ -7,12 +8,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { addItemToCart } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
 
-function formatPrice(price: { toLocaleString: () => any }) {
+function formatPrice(price: number) {
   return price.toLocaleString();
 }
 
 interface ProductCardProps {
   menu: {
+    quantity: any;
     _id: string;
     name: string;
     price: number;
@@ -22,7 +24,12 @@ interface ProductCardProps {
   table_id: string;
 }
 
-function ProductCard({ menu }: ProductCardProps) {
+function transformImagePath(absolutePath: string) {
+  const filename = absolutePath.split("\\").pop(); 
+  return `\\uploads\\${filename}`;
+}
+
+const ProductCard: React.FC<ProductCardProps> = ({ menu }) =>{
   const { user } = useSelector((state: any) => state.auth);
   const { cartDetails } = useSelector((state: any) => state.cart);
   const dispatch = useDispatch();
@@ -42,6 +49,7 @@ function ProductCard({ menu }: ProductCardProps) {
       })
     );
   };
+
   return (
     <Card
       sx={{ maxWidth: 345, width: "200px", height: "250px" }}
@@ -52,7 +60,7 @@ function ProductCard({ menu }: ProductCardProps) {
           component="img"
           height="150px"
           width="120px"
-          image={menu.image ? menu.image : "/food.jpg"}
+          image={menu.image ? transformImagePath(menu.image) : "/food.jpg"}
           alt="Product"
         />
         <CardContent>

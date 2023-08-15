@@ -63,6 +63,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
     productData?.category?._id || ""
   );
 
+
   const dispatch = useDispatch();
   const fetchCategories = async () => {
     const response = await axios.get("http://localhost:3000/categories");
@@ -79,28 +80,42 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
     }
   );
 
-  const handleUpdate = () => {
-    const newProductData = {
-      _id: productData?._id,
-      name,
-      price,
-      desc,
-      quantity,
-      min_viable_quantity: min_viable_quantity,
-      category,
-      image: image || null,
-    };
+  const handleUpdate = async () => {
+    try {
+      const newProductData = {
+        _id: productData?._id,
+        name,
+        price,
+        desc,
+        quantity,
+        min_viable_quantity: min_viable_quantity,
+        category,
+        image: image || null,
+      };
+      const formData = new FormData();
+      formData.append("image", image);
+      for (const key in newProductData) {
+        formData.append(key, newProductData[key]);
+      }
 
-    dispatch(updateProduct(newProductData));
+      const response = await axios.put(
+        `http://localhost:3000/products/${productData._id}`,
+        formData
+      );
 
-    setName("");
-    setPrice(0);
-    setDescription("");
-    setImage(null);
-    setQuantity(0);
-    setMinViableQuantity(0);
-    setCategory("");
-    onClose();
+      dispatch(updateProduct(newProductData));
+
+      setName("");
+      setPrice(0);
+      setDescription("");
+      setImage(null);
+      setQuantity(0);
+      setMinViableQuantity(0);
+      setCategory("");
+      onClose();
+    } catch (error) {
+      console.error("Error updating product:", error);
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,6 +204,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
                 fullWidth
                 margin="normal"
               />
+
               <div
                 style={{
                   display: "flex",
