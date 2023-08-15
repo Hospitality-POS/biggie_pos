@@ -15,27 +15,14 @@ import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCartItems } from "../../features/Cart/CartActions";
 import axios from "axios";
+import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 
 const RestaurantPage = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state: any) => state.auth);
   const { cartDetails } = useSelector((state: any) => state.cart);
+  const { products, loading } = useSelector((state: any) => state.product);
   const [selectedCard, setSelectedCard] = useState(null);
   const { id } = useParams();
-
-  const fetchData = async () => {
-    try {
-      const response = await fetch(`http://localhost:3000/product/products`);
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      throw error;
-    }
-  };
-
-  const { isLoading, isError, error, data } = useQuery(["products"], () =>
-    fetchData()
-  );
 
   const { data: tableData } = useQuery({
     queryKey: ["table_name"],
@@ -57,18 +44,6 @@ const RestaurantPage = () => {
   const { data: categories } = useQuery(["categories"], () =>
     fetchCategories()
   );
-
-  // const categories = [
-  //   { id: 1, name: "Appetizers", icon: "/chip.png", itemCount: 10 },
-  //   { id: 2, name: "Main Courses", icon: "/chip3.png", itemCount: 15 },
-  //   { id: 3, name: "Desserts", icon: "", itemCount: 8 },
-  //   { id: 4, name: "Drinks", icon: "", itemCount: 12 },
-  //   { id: 5, name: "Desserts", icon: "/chip2.png", itemCount: 8 },
-  //   { id: 6, name: "Main Courses", icon: "", itemCount: 15 },
-  //   { id: 7, name: "Desserts", icon: "", itemCount: 8 },
-  //   { id: 8, name: "Drinks", icon: "", itemCount: 12 },
-  //   { id: 9, name: "Main Courses", icon: "/chip.png", itemCount: 15 },
-  // ];
 
   const [cartOpen, setCartOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -93,6 +68,7 @@ const RestaurantPage = () => {
   };
   const handleSelectCard = (card: React.SetStateAction<null>) => {
     setSelectedCard(card);
+    dispatch(fetchProductsByCategory(card));
   };
   const handleNext = () => {
     setCurrentIndex((currentIndex + 1) % categories.length);
@@ -102,7 +78,7 @@ const RestaurantPage = () => {
     setCurrentIndex((currentIndex - 1 + categories.length) % categories.length);
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <>
         <div>
@@ -142,10 +118,6 @@ const RestaurantPage = () => {
         </div>
       </>
     );
-  }
-
-  if (isError) {
-    return <div>An error has occurred: {error.message}</div>;
   }
 
   return (
@@ -190,7 +162,7 @@ const RestaurantPage = () => {
                       color: "#bc8c7c",
                     },
                   }}
-                  disabled={categories.length === 1}
+                  disabled={categories?.length === 1}
                 >
                   <NavigateNextIcon />
                 </Button>
@@ -208,18 +180,22 @@ const RestaurantPage = () => {
                 style={{
                   display: "flex",
                   gap: "20px",
-                  width: `${categories.length * 100}%`,
+                  width: `${categories?.length * 100}%`,
                   transform: `translateX(-${
-                    currentIndex * (100 / categories.length)
+                    currentIndex * (100 / categories?.length)
                   }%)`,
                   transition: "transform 0.5s ease-in-out",
                 }}
               >
-                {categories.map(
-                  (category: { product_count: number; _id: string; name: string }) => (
+                {categories?.map(
+                  (category: {
+                    product_count: number;
+                    _id: string;
+                    name: string;
+                  }) => (
                     <CategoryCard
                       style={{
-                        flex: `0 0 ${100 / categories.length}%`,
+                        flex: `0 0 ${100 / categories?.length}%`,
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
@@ -256,7 +232,7 @@ const RestaurantPage = () => {
           paddingLeft: "4px",
         }}
       >
-        {data?.products.map((menu: { _id: React.Key | null | undefined }) => (
+        {products?.map((menu: { _id: React.Key | null | undefined }) => (
           <ProductCard key={menu._id} menu={menu} handleCart={handleCartOpen} />
         ))}
       </section>

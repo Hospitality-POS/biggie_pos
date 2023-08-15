@@ -17,22 +17,32 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import StoreProductCardSkeleton from "../../components/store/StoreProductSkeletonCard";
 import AddNewProductModal from "../../components/store/AddNewProductModal";
 import axios from "axios";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchProducts, fetchProductsByCategory } from "../../features/Product/ProductAction";
 
 const Store: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const { isLoading, isError, error, data } = useQuery({
-    queryKey: ["product"],
-    queryFn: () =>
-      fetch("http://localhost:3000/product/products").then((res) => res.json()),
-    retry: 3,
-    retryDelay: 1000,
-    refetchInterval: 1000,
-    refetchIntervalInBackground: true
-  });
+  const { products, loading, error } = useSelector(
+    (state: any) => state.product
+  );
+  const dispatch = useDispatch();
+  // const { isLoading, isError, error, data } = useQuery({
+  //   queryKey: ["product"],
+  //   queryFn: () =>
+  //     fetch("http://localhost:3000/product/products").then((res) => res.json()),
+  //   retry: 3,
+  //   retryDelay: 1000,
+  //   refetchInterval: 1000,
+  //   refetchIntervalInBackground: true
+  // });
   const [value, setValue] = React.useState(0);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
+  };
+
+  const handleCategories = (id: string) => {
+    dispatch(fetchProductsByCategory(id));
   };
   const onAdd = () => {
     setOpen(true);
@@ -53,7 +63,7 @@ const Store: React.FC = () => {
     fetchCategories()
   );
 
-  if (isError) {
+  if (error) {
     return <div>An error has occurred: {error.message}</div>;
   }
 
@@ -78,7 +88,11 @@ const Store: React.FC = () => {
         >
           {categoriesData &&
             categoriesData.map((category: any) => (
-              <Tab key={category._id} label={category.name} />
+              <Tab
+                key={category._id}
+                label={category.name}
+                onClick={()=>handleCategories(category._id)}
+              />
             ))}
         </Tabs>
       </Box>
@@ -127,11 +141,11 @@ const Store: React.FC = () => {
 
         <AddNewProductModal open={open} onClose={onClose} onSave={onSave} />
 
-        {isLoading
+        {loading
           ? [...Array(11)].map((_, index) => (
               <StoreProductCardSkeleton key={index} />
             ))
-          : data?.products.map((product: any) => (
+          : products?.map((product: any) => (
               <StoreProductCard
                 key={product._id}
                 bowls={product.quantity}
@@ -139,6 +153,7 @@ const Store: React.FC = () => {
                 name={product.name}
                 img={product.img}
                 product={product}
+                productId={product._id}
               />
             ))}
       </div>
@@ -161,6 +176,7 @@ const Store: React.FC = () => {
             Discard Changes
           </Button>
           <Button
+          onClick={()=>dispatch(fetchProducts())}
             variant="contained"
             sx={{
               p: 1,

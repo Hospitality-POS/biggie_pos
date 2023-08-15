@@ -16,6 +16,8 @@ import {
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { CloseRounded } from "@mui/icons-material";
+import { useDispatch } from "react-redux";
+import { updateProduct } from "../../features/Product/ProductAction";
 
 interface EditProductModalProps {
   productData: any;
@@ -58,9 +60,10 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
     productData.min_viable_quantity || 0
   );
   const [category, setCategory] = React.useState(
-    productData.category._id || ""
+    productData?.category?._id || ""
   );
 
+  const dispatch = useDispatch();
   const fetchCategories = async () => {
     const response = await axios.get("http://localhost:3000/categories");
     return response.data;
@@ -76,8 +79,9 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
     }
   );
 
-  const handleUpdate = async () => {
+  const handleUpdate = () => {
     const newProductData = {
+      _id: productData?._id,
       name,
       price,
       desc,
@@ -87,34 +91,16 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
       image: image || null,
     };
 
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const accessToken = user.Token;
-    try {
-      await axios.put(
-        `http://localhost:3000/product/products/${productData._id}`,
-        newProductData,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+    dispatch(updateProduct(newProductData));
 
-      // const newProduct = response.data;
-
-      // console.log("New product created:", newProduct);
-
-      setName("");
-      setPrice(0);
-      setDescription("");
-      setImage(null);
-      setQuantity(0);
-      setMinViableQuantity(0);
-      setCategory("");
-      onClose();
-    } catch (error) {
-      console.error("Error creating product:", error);
-    }
+    setName("");
+    setPrice(0);
+    setDescription("");
+    setImage(null);
+    setQuantity(0);
+    setMinViableQuantity(0);
+    setCategory("");
+    onClose();
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,7 +131,6 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              
             }}
           >
             <Typography variant="h6" component="h2" color="white">

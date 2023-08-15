@@ -18,6 +18,8 @@ import {
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { CloseRounded } from "@mui/icons-material";
+import { useDispatch } from "react-redux";
+import { createProduct } from "../../features/Product/ProductAction";
 
 interface Category {
   _id: string;
@@ -72,7 +74,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
   const { data: categories } = useQuery<Category[]>(["categories"], () =>
     fetchCategories()
   );
-
+  const dispatch = useDispatch();
   const handleSave = async () => {
     const productData = {
       name,
@@ -90,35 +92,16 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
       formData.append(key, productData[key]);
     }
 
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const accessToken = user.Token;
-    try {
-      const response = await axios.post(
-        "http://localhost:3000/product/products",
-        productData,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+    dispatch(createProduct(productData));
 
-      const newProduct = response.data;
-
-      // console.log("New product created:", newProduct);
-
-      setName("");
-      setPrice(0);
-      setDescription("");
-      setImage(null);
-      setQuantity(0);
-      setMinViableQuantity(0);
-      setCategory("");
-      onClose();
-    } catch (error) {
-      console.error("Error creating product:", error);
-    }
+    setName("");
+    setPrice(0);
+    setDescription("");
+    setImage(null);
+    setQuantity(0);
+    setMinViableQuantity(0);
+    setCategory("");
+    onClose();
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,7 +173,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
                           | null
                           | undefined;
                       }) => (
-                        <MenuItem key={category._id} value={category._id}>
+                        <MenuItem key={category._id} value={category?._id}>
                           {category.name}
                         </MenuItem>
                       )

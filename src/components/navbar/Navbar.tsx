@@ -25,6 +25,7 @@ import { reset } from "../../features/Auth/AuthSlice";
 import StoreIcon from "@mui/icons-material/Store";
 import { logoutUser } from "../../features/Auth/AuthActions";
 import { fetchOrders } from "../../features/Order/OrderActions";
+import { fetchProducts } from "../../features/Product/ProductAction";
 // import { IconButton } from '@mui/material';
 const pages = [
   "Staff",
@@ -45,7 +46,7 @@ function Navbar() {
     null
   );
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
-  
+
   const { user } = useSelector((state: any) => state.auth);
 
   const dispatch = useDispatch();
@@ -77,8 +78,10 @@ function Navbar() {
     else if (page === "Staff") navigate("/staffs");
     // else if (page === "Kitchen") navigate("/kitchen");
     else if (page === "Tables") navigate("/tables");
-    else if (page === "Store") navigate("/store");
-    else if (page === "Orders") {
+    else if (page === "Store") {
+      navigate("/store");
+      dispatch(fetchProducts());
+    } else if (page === "Orders") {
       navigate("/Orders");
       dispatch(fetchOrders());
     }
@@ -127,15 +130,12 @@ function Navbar() {
     <AppBar position="static">
       <Container maxWidth="xl" sx={{ bgcolor: "#6c1c2c" }}>
         <Toolbar disableGutters>
-          
           <img
             src="/android-chrome-192x192.png"
             alt="logo"
             height={70}
             width={120}
           />
-
-        
 
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
             <IconButton
@@ -194,8 +194,7 @@ function Navbar() {
                     >
                       Staff
                     </Typography>
-                  ) : 
-                  //  page === "Kitchen" ? (
+                  ) : //  page === "Kitchen" ? (
                   //   <Typography
                   //     textAlign="center"
                   //     fontSize="inherit"

@@ -3,6 +3,7 @@ import classes from "./table.module.css";
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { createCart } from "../../features/Cart/CartActions";
+import { fetchProducts } from "../../features/Product/ProductAction";
 
 interface Item {
   item: any;
@@ -30,6 +31,7 @@ const TableCard: React.FC<Item> = ({ item }) => {
         created_by: user.id,
       };
       dispatch(createCart(cartDetails));
+      dispatch(fetchProducts())
     }
   };
 
