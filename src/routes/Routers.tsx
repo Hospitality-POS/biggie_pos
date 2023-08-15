@@ -1,17 +1,14 @@
 import { Routes, Route } from "react-router-dom";
-// import Layout from "../components/layout/Layout";
-import Staff from "../pages/staff/Staff";
-import Table from "../pages/Tables/Table";
-import RestaurantPage from "../pages/Restaurant/Restuarant";
 import { Suspense, lazy } from "react";
 import Spinner from "../components/spinner/Spinner";
 import Private from "../components/layout/private/Private";
-import Store from "../pages/store/Store";
-import Orders from "../pages/Orders/Orders";
 
 const Layout = lazy(() => import("../components/layout/Layout"));
-// const Staff = lazy(() => import("../pages/staff/Staff"));
-// const RestaurantPage = lazy(() => import("../pages/Restaurant/Restuarant"));
+const Staff = lazy(() => import("../pages/staff/Staff"));
+const Table = lazy(() => import("../pages/Tables/Table"));
+const RestaurantPage = lazy(() => import("../pages/Restaurant/Restuarant"));
+const Store = lazy(() => import("../pages/store/Store"));
+const Orders = lazy(() => import("../pages/Orders/Orders"));
 
 function Routers() {
   return (
@@ -20,41 +17,10 @@ function Routers() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Staff />} />
           <Route path="/staff" element={<Staff />} />
-          <Route
-            path="/tables"
-            element={
-              <Private>
-                <Table />
-              </Private>
-            }
-          />
-
-          <Route
-            path="/restaurant/:id"
-            element={
-              <Private>
-                <RestaurantPage />
-              </Private>
-            }
-          />
-          <Route
-            path="/store"
-            element={
-              <Private>
-                <Store />
-              </Private>
-            }
-          />
-          <Route
-            path="/Orders"
-            element={
-              <Private>
-                <Orders/>
-              </Private>
-            }
-          />
-          <Route path="/bar" element={""} />
-          <Route path="/kitchen" element={""} />
+          <Route path="/tables" element={<Private><Table /></Private>} />
+          <Route path="/restaurant/:id" element={<Private><RestaurantPage /></Private>} />
+          <Route path="/store" element={<Private><Store /></Private>} />
+          <Route path="/Orders" element={<Private><Orders /></Private>} />
           <Route path="*" element={<Spinner />} />
         </Route>
       </Routes>
