@@ -235,7 +235,7 @@ function Navbar() {
               ))}
             </Menu>
           </Box>
-          <Search>
+          {/* <Search>
             <SearchIconWrapper>
               <SearchIcon />
             </SearchIconWrapper>
@@ -243,7 +243,7 @@ function Navbar() {
               placeholder="Search…"
               inputProps={{ "aria-label": "search" }}
             />
-          </Search>
+          </Search> */}
           <Box
             sx={{
               flexGrow: 1,
