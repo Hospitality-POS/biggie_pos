@@ -52,8 +52,12 @@ const OrderList: React.FC<Props> = ({ orders }) => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(5);
-  const [sortMenuAnchor, setSortMenuAnchor] =
-    useState<null | HTMLElement>(null);
+  const [servedByFilter, setServedByFilter] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(
+    null
+  );
   const dispatch = useDispatch();
 
   const sortedOrders = [...orders].sort((a, b) => {
@@ -70,12 +74,14 @@ const OrderList: React.FC<Props> = ({ orders }) => {
     return 0;
   });
 
-  const filteredOrders = sortedOrders.filter((order) => {
-    const matchesSearch = order.order_no
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
+ const filteredOrders = sortedOrders.filter((order) => {
+    const matchesSearch =
+      order.order_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.updated_by.username.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDate =
-      !selectedDate || moment(order.createdAt).isSame(selectedDate, "day");
+      (!startDate || moment(order.createdAt).isSameOrAfter(startDate, "day")) &&
+      (!endDate || moment(order.createdAt).isSameOrBefore(endDate, "day"));
+
     return matchesSearch && matchesDate;
   });
 
@@ -97,7 +103,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
   //   console.log("edit modal");
   // };
 
-   const onDelete = (id: string) => {
+  const onDelete = (id: string) => {
     dispatch(deleteOrder(id));
   };
   const handleDateChange = (date: string) => {
@@ -181,7 +187,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
     <div>
       <div style={{ display: "flex", columnGap: 20 }}>
         <TextField
-          label="Search Order No"
+          label="Search Order or Served By"
           variant="outlined"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -194,12 +200,27 @@ const OrderList: React.FC<Props> = ({ orders }) => {
             ),
           }}
         />
+  
+
         <TextField
-          label="Filter by Date"
+          label="Start Date"
           variant="outlined"
           type="date"
-          value={selectedDate}
-          onChange={(e) => handleDateChange(e.target.value)}
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          InputLabelProps={{
+            shrink: true,
+          }}
+          InputProps={{
+            style: { marginBottom: 16, width: 200 },
+          }}
+        />
+        <TextField
+          label="End Date"
+          variant="outlined"
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
           InputLabelProps={{
             shrink: true,
           }}
@@ -324,9 +345,13 @@ const OrderList: React.FC<Props> = ({ orders }) => {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </TableContainer>
-      <div style={{ marginTop: 5, display: "flex", columnGap: 5, marginBottom: 0 }}>
+      <div
+        style={{ marginTop: 5, display: "flex", columnGap: 5, marginBottom: 0 }}
+      >
         <Button variant="outlined">{handleExportCSV()}</Button>
-        <Button variant="outlined" onClick={handleExportPDF}>Export PDF</Button>
+        <Button variant="outlined" onClick={handleExportPDF}>
+          Export PDF
+        </Button>
       </div>
     </div>
   );
