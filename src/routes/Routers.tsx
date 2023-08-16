@@ -3,10 +3,12 @@ import { Suspense, lazy } from "react";
 import Spinner from "../components/spinner/Spinner";
 import Private from "../components/layout/private/Private";
 import UsersList from "../pages/Settings/UsersList";
+import Staff from "../pages/staff/Staff";
+import Table from "../pages/Tables/Table";
 
 const Layout = lazy(() => import("../components/layout/Layout"));
-const Staff = lazy(() => import("../pages/staff/Staff"));
-const Table = lazy(() => import("../pages/Tables/Table"));
+// const Staff = lazy(() => import("../pages/staff/Staff"));
+// const Table = lazy(() => import("../pages/Tables/Table"));
 const RestaurantPage = lazy(() => import("../pages/Restaurant/Restuarant"));
 const Store = lazy(() => import("../pages/store/Store"));
 const Orders = lazy(() => import("../pages/Orders/Orders"));

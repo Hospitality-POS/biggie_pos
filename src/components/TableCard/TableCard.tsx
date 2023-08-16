@@ -39,7 +39,7 @@ const TableCard: React.FC<Item> = ({ item }) => {
     <Card
       sx={cardStyles}
       className={classes.container}
-      onClick={handleCreate} // Corrected the usage of onClick event
+      onClick={handleCreate} 
     >
       <div className={classes.cardContent}>
         <CardMedia

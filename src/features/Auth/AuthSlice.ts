@@ -5,13 +5,10 @@ interface User {
   username: string;
 }
 
-interface users {
-  username: string;
-}
 
 interface AuthState {
   user: User | null;
-  users: users[];
+  users: User[];
   token: string | null;
   message: string;
   isSuccess: boolean;
@@ -56,13 +53,13 @@ export const authSlice = createSlice({
       })
       .addCase(
         loginUser.fulfilled,
-        (state, action: PayloadAction<{ user: User; token: string }>) => {
+        (state, action: PayloadAction<{ user: User; Token: string }>) => {
           state.isLoading = false;
           state.isSuccess = true;
           state.isError = false;
           state.message = "Login successful";
           state.user = action.payload.user;
-          state.token = action.payload.token;
+          state.token = action.payload.Token;
         }
       )
       .addCase(logoutUser.fulfilled, (state) => {

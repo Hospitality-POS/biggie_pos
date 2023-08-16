@@ -48,8 +48,8 @@ function Navbar() {
   );
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  // const { user } = useSelector((state: any) => state.auth);
-  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const { user } = useSelector((state: any) => state.auth);
+  // const user = JSON.parse(localStorage.getItem("user") || "null");
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -72,6 +72,7 @@ function Navbar() {
   const handleLogout = () => {
     dispatch(logoutUser());
     dispatch(reset());
+    navigate('/staff')
   };
 
   const handleSidebarOpen = () => {
@@ -85,7 +86,7 @@ function Navbar() {
   const handleTabClick = (page: string) => {
     if (page === "Restaurant") navigate("/tables");
     // else if (page === "Bar") navigate("/bar");
-    else if (page === "Staff") navigate("/staffs");
+    else if (page === "Staff") navigate("/staff");
     // else if (page === "Kitchen") navigate("/kitchen");
     else if (page === "Tables") navigate("/tables");
     else if (page === "Store") {
@@ -97,45 +98,8 @@ function Navbar() {
     }
   };
 
-  const Search = styled("div")(({ theme }) => ({
-    position: "relative",
-    borderRadius: theme.shape.borderRadius,
-    backgroundColor: alpha(theme.palette.common.white, 0.15),
-    "&:hover": {
-      backgroundColor: alpha(theme.palette.common.white, 0.25),
-    },
-    marginRight: theme.spacing(2),
-    marginLeft: 0,
-    width: "100%",
-    [theme.breakpoints.up("sm")]: {
-      marginLeft: theme.spacing(3),
-      width: "auto",
-    },
-  }));
 
-  const SearchIconWrapper = styled("div")(({ theme }) => ({
-    padding: theme.spacing(0, 2),
-    height: "100%",
-    position: "absolute",
-    pointerEvents: "none",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  }));
 
-  const StyledInputBase = styled(InputBase)(({ theme }) => ({
-    color: "inherit",
-    "& .MuiInputBase-input": {
-      padding: theme.spacing(1, 1, 1, 0),
-      // vertical padding + font size from searchIcon
-      paddingLeft: `calc(1em + ${theme.spacing(4)})`,
-      transition: theme.transitions.create("width"),
-      width: "100%",
-      [theme.breakpoints.up("md")]: {
-        width: "20ch",
-      },
-    },
-  }));
   return (
     <AppBar position="static">
       <Container maxWidth="xl" sx={{ bgcolor: "#6c1c2c" }}>

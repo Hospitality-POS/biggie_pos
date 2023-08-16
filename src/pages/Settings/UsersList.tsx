@@ -89,7 +89,7 @@ function UsersList() {
 
   return (
     <div>
-      <Box display="flex" columnGap={2} alignItems="center" mb={2} mt={2} paddingLeft={2}>
+      <Box display="flex" columnGap={2} alignItems="center" mb={2} mt={2} sx={{paddingLeft: 2}}>
         <TextField
           label="Search"
           value={filter}
