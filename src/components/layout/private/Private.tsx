@@ -1,32 +1,36 @@
-import jwtDecode from 'jwt-decode';
-import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
-import { logoutUser } from '../../../features/Auth/AuthActions';
-import { useEffect } from 'react';
+import jwtDecode from "jwt-decode";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { logoutUser } from "../../../features/Auth/AuthActions";
+import React, { useEffect } from "react";
 
-const Private: React.FC =({children})=> {
-    const {user} = useSelector((state:any)=>state.auth)
+interface PrivateProps {
+  children: React.ReactNode;
+}
+
+const Private: React.FC<PrivateProps> = ({ children }) => {
   const navigate = useNavigate();
-  const dispatch = useDispatch()
-
+  const dispatch = useDispatch();
+  
   useEffect(() => {
-    const token = user?.Token
-
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    const token = user?.Token;
+    console.log("Checking token...");
     if (token) {
       const decodedToken = jwtDecode<{ exp: number }>(token);
 
       if (decodedToken.exp * 1000 < Date.now()) {
-       
-        dispatch(logoutUser())
-        navigate('/staff');
+        console.log("Token expired, logging out...");
+        dispatch(logoutUser());
+        navigate("/staff");
       }
     } else {
-      
-      navigate('/staff');
+      console.log("No token found, navigating to /staff...");
+      navigate("/staff");
     }
-  }, [dispatch, navigate, user?.Token]);
+  }, [dispatch, navigate]);
 
-  return children;
-}
+  return <>{children}</>;
+};
 
-export default Private
+export default Private;

@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import Spinner from "../components/spinner/Spinner";
 import Private from "../components/layout/private/Private";
+import UsersList from "../pages/Settings/UsersList";
 
 const Layout = lazy(() => import("../components/layout/Layout"));
 const Staff = lazy(() => import("../pages/staff/Staff"));
@@ -20,6 +21,7 @@ function Routers() {
           <Route path="/tables" element={<Private><Table /></Private>} />
           <Route path="/restaurant/:id" element={<Private><RestaurantPage /></Private>} />
           <Route path="/store" element={<Private><Store /></Private>} />
+          <Route path="/users" element={<Private><UsersList /></Private>} />
           <Route path="/Orders" element={<Private><Orders /></Private>} />
           <Route path="*" element={<Spinner />} />
         </Route>

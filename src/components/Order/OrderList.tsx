@@ -16,6 +16,11 @@ import {
   ListItemIcon,
   ListItemText,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
 } from "@mui/material";
 import {
   Delete,
@@ -53,8 +58,10 @@ const OrderList: React.FC<Props> = ({ orders }) => {
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(5);
   const [servedByFilter, setServedByFilter] = useState<string>("");
+    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [openDeleteDialog, setOpenDeleteDialog] = useState<boolean>(false);
   const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(
     null
   );
@@ -104,11 +111,13 @@ const OrderList: React.FC<Props> = ({ orders }) => {
   // };
 
   const onDelete = (id: string) => {
-    dispatch(deleteOrder(id));
+    // dispatch(deleteOrder(id));
+    setSelectedOrderId(id);
+    setOpenDeleteDialog(true);
   };
-  const handleDateChange = (date: string) => {
-    setSelectedDate(date);
-  };
+  // const handleDateChange = (date: string) => {
+  //   setSelectedDate(date);
+  // };
 
   const handleSort = (column: string) => {
     if (column === sortColumn) {
@@ -163,26 +172,30 @@ const OrderList: React.FC<Props> = ({ orders }) => {
       order.updated_by.username,
     ]);
 
-    // Define columns for the table
     const headers = ["Order No", "Created At", "Updated By"];
-
-    // Set the y position for the table header
     const tableY = 20;
-
-    // Set the y position for the table data
     const dataY = tableY + 10;
 
-    // Generate the table
     doc.autoTable({
       head: [headers],
       body: tableData,
       startY: dataY,
     });
 
-    // Save the PDF
     doc.save("orders.pdf");
   };
 
+  const handleCloseDeleteDialog = () => {
+    setOpenDeleteDialog(false);
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedOrderId) {
+      dispatch(deleteOrder(selectedOrderId));
+      setSelectedOrderId(null);
+      setOpenDeleteDialog(false);
+    }
+  };
   return (
     <div>
       <div style={{ display: "flex", columnGap: 20 }}>
@@ -192,13 +205,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{ marginBottom: 16 }}
-          InputProps={{
-            startAdornment: (
-              <span style={{ marginRight: 5, opacity: 0.5, marginTop: 5 }}>
-                <SearchIcon />
-              </span>
-            ),
-          }}
+          InputProps={{ endAdornment: <SearchIcon /> }}
         />
   
 
@@ -335,6 +342,22 @@ const OrderList: React.FC<Props> = ({ orders }) => {
               ))}
           </TableBody>
         </Table>
+        <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this order?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDelete} color="primary">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"

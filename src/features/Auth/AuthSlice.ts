@@ -1,12 +1,17 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { loginUser, logoutUser } from "./AuthActions";
+import { loginUser, logoutUser, fetchAllUsers } from "./AuthActions";
 
 interface User {
-   username: string;
+  username: string;
+}
+
+interface users {
+  username: string;
 }
 
 interface AuthState {
   user: User | null;
+  users: users[];
   token: string | null;
   message: string;
   isSuccess: boolean;
@@ -14,10 +19,11 @@ interface AuthState {
   isError: boolean;
 }
 
-const user = JSON.parse(localStorage.getItem('user'))
+const user = JSON.parse(localStorage.getItem('user'));
 
 const initialState: AuthState = {
-  user: user? user : null,
+  user: user ? user : null,
+  users: [],
   token: null,
   message: "",
   isSuccess: false,
@@ -55,20 +61,34 @@ export const authSlice = createSlice({
           state.isSuccess = true;
           state.isError = false;
           state.message = "Login successful";
-          state.user = action.payload;
+          state.user = action.payload.user;
           state.token = action.payload.token;
         }
       )
       .addCase(logoutUser.fulfilled, (state) => {
-                state.user = null
-            });
+        state.user = null;
+      })
+      .addCase(fetchAllUsers.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(
+        fetchAllUsers.fulfilled,
+        (state, action: PayloadAction<User[]>) => {
+          state.isLoading = false;
+          state.isSuccess = true;
+          state.isError = false;
+          state.message = "Fetch users successful";
+          state.users = action.payload;
+        }
+      )
+      .addCase(fetchAllUsers.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload as string;
+      });
   },
 });
 
+export const { reset } = authSlice.actions;
 
-
-export const {
-    reset
-} = authSlice.actions
-
-export default authSlice.reducer
+export default authSlice.reducer;

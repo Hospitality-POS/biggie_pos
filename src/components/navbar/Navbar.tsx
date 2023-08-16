@@ -12,10 +12,8 @@ import Tab from "@mui/material/Tab";
 import FilterFramesIcon from "@mui/icons-material/FilterFrames";
 import Tooltip from "@mui/material/Tooltip";
 import MenuItem from "@mui/material/MenuItem";
-import SearchIcon from "@mui/icons-material/Search";
 import InputBase from "@mui/material/InputBase";
 import { styled, alpha } from "@mui/material/styles";
-import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
 import PeopleIcon from "@mui/icons-material/People";
 import { useNavigate } from "react-router-dom";
 import TableBarIcon from "@mui/icons-material/TableBar";
@@ -25,7 +23,10 @@ import { reset } from "../../features/Auth/AuthSlice";
 import StoreIcon from "@mui/icons-material/Store";
 import { logoutUser } from "../../features/Auth/AuthActions";
 import { fetchOrders } from "../../features/Order/OrderActions";
+import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
 import { fetchProducts } from "../../features/Product/ProductAction";
+import SettingsModal from "../Settings/SettingsModal";
+
 // import { IconButton } from '@mui/material';
 const pages = [
   "Staff",
@@ -47,7 +48,8 @@ function Navbar() {
   );
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  const { user } = useSelector((state: any) => state.auth);
+  // const { user } = useSelector((state: any) => state.auth);
+  const user = JSON.parse(localStorage.getItem("user") || "null");
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -70,6 +72,14 @@ function Navbar() {
   const handleLogout = () => {
     dispatch(logoutUser());
     dispatch(reset());
+  };
+
+  const handleSidebarOpen = () => {
+    setSidebarOpen(true);
+  };
+
+  const handleSidebarClose = () => {
+    setSidebarOpen(false);
   };
 
   const handleTabClick = (page: string) => {
@@ -356,13 +366,23 @@ function Navbar() {
               ))}
             </Menu>
             {user?.isAdmin && (
-              <IconButton style={{ color: "white" }}>
+              <IconButton
+                size="large"
+                aria-label="account of current user"
+                aria-controls="menu-appbar"
+                aria-haspopup="true"
+                color="inherit"
+                style={{ color: "white" }}
+                onClick={handleSidebarOpen}
+              >
                 <MenuIcon />
               </IconButton>
             )}
           </Box>
         </Toolbar>
       </Container>
+      <SettingsModal sidebarOpen={sidebarOpen} handleSidebarClose={handleSidebarClose} />
+      
     </AppBar>
   );
 }

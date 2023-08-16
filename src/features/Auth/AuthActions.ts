@@ -33,3 +33,16 @@ export const logoutUser = createAsyncThunk(
         }
     }
 )
+
+
+export const fetchAllUsers = createAsyncThunk(
+  "user/fetchAllUsers",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${baseUrl}/all`);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);

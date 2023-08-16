@@ -18,7 +18,7 @@ const Staff = () => {
 
   if (isLoading) {
     return (
-      <>
+      <div>
         <div className={classes.staffheader}>
           <Typography mt={2} variant="h6" ml={2} gutterBottom>
             Registered Staff
@@ -30,7 +30,7 @@ const Staff = () => {
             <SkeletonCard key={index} />
           ))}
         </div>
-      </>
+      </div>
     );
   }
 
