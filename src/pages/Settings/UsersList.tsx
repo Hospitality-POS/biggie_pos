@@ -89,20 +89,18 @@ function UsersList() {
 
   return (
     <div>
-      <Box display="flex" alignItems="center" mb={2}>
+      <Box display="flex" columnGap={2} alignItems="center" mb={2} mt={2} paddingLeft={2}>
         <TextField
           label="Search"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          fullWidth
-          margin="normal"
           InputProps={{ endAdornment: <SearchIcon /> }}
         />
-        <Button startIcon={<AddIcon />} variant="outlined">
+        <Button startIcon={<AddIcon />} variant="outlined" style={{padding: 14}}>
           Add New User
         </Button>
       </Box>
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{padding: "0 2 2 0"}}>
         <Table>
           <TableHead>
             <TableRow>
