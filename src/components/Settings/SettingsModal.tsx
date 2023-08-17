@@ -21,6 +21,7 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { fetchAllUsers } from "../../features/Auth/AuthActions";
+import { fetchAllProductInventories } from "../../features/Inventory/product/productInventoryActions";
 
 interface SettingsModalProps {
   sidebarOpen: boolean;
@@ -33,6 +34,8 @@ function SettingsModal({
 }: SettingsModalProps) {
     const dispatch = useDispatch()
     const navigate = useNavigate()
+
+    
   return (
     <Drawer anchor="right" open={sidebarOpen} onClose={handleSidebarClose}>
       <Box
@@ -52,49 +55,55 @@ function SettingsModal({
         </Box>
 
         <List>
-          <ListItem  onClick={() => navigate("/Inventory")}>
+          <ListItem button onClick={() => {navigate("/Inventory"), dispatch(fetchAllProductInventories())}}>
             <ListItemIcon>
               <InventoryIcon />
             </ListItemIcon>
             <ListItemText primary="Inventory" />
           </ListItem>
-          <ListItem  onClick={() => {navigate("/users"), dispatch(fetchAllUsers())}}>
+          <ListItem button onClick={() => {navigate("/users"), dispatch(fetchAllUsers())}}>
             <ListItemIcon>
               <PeopleIcon />
             </ListItemIcon>
             <ListItemText primary="People/Users" />
           </ListItem>
-          <ListItem  onClick={() => navigate("/Tables")}>
+          <ListItem button onClick={() => navigate("/Tables")}>
             <ListItemIcon>
               <TableBarIcon />
             </ListItemIcon>
             <ListItemText primary="Tables" />
           </ListItem>
-          <ListItem  onClick={() => navigate("/Categories")}>
+          <ListItem button onClick={() => navigate("/Categories")}>
             <ListItemIcon>
               <CategoryIcon />
             </ListItemIcon>
             <ListItemText primary="Categories" />
           </ListItem>
-          <ListItem  onClick={() => navigate("/Supplies")}>
+          <ListItem button onClick={() => navigate("/Categories")}>
+            <ListItemIcon>
+              <CategoryIcon />
+            </ListItemIcon>
+            <ListItemText primary="Payment Methods" />
+          </ListItem>
+          <ListItem button onClick={() => navigate("/Supplier")}>
             <ListItemIcon>
               <LocalShippingIcon />
             </ListItemIcon>
-            <ListItemText primary="Supplies" />
+            <ListItemText primary="Supplier" />
           </ListItem>
-          <ListItem  onClick={() => navigate("/Reports")}>
+          <ListItem button onClick={() => navigate("/Reports")}>
             <ListItemIcon>
               <AssessmentIcon />
             </ListItemIcon>
             <ListItemText primary="Reports" />
           </ListItem>
-          <ListItem  onClick={() => navigate("/Printed Bills")}>
+          <ListItem button onClick={() => navigate("/Printed Bills")}>
             <ListItemIcon>
               <ReceiptIcon />
             </ListItemIcon>
             <ListItemText primary="Printed Bills" />
           </ListItem>
-          <ListItem  onClick={() => navigate("/Help")}>
+          <ListItem button onClick={() => navigate("/Help")}>
             <ListItemIcon>
               <HelpOutlineIcon />
             </ListItemIcon>

@@ -5,6 +5,7 @@ import Private from "../components/layout/private/Private";
 import UsersList from "../pages/Settings/UsersList";
 import Staff from "../pages/staff/Staff";
 import Table from "../pages/Tables/Table";
+import Inventory from "../pages/Settings/Inventory";
 
 const Layout = lazy(() => import("../components/layout/Layout"));
 // const Staff = lazy(() => import("../pages/staff/Staff"));
@@ -24,6 +25,7 @@ function Routers() {
           <Route path="/restaurant/:id" element={<Private><RestaurantPage /></Private>} />
           <Route path="/store" element={<Private><Store /></Private>} />
           <Route path="/users" element={<Private><UsersList /></Private>} />
+          <Route path="/Inventory" element={<Private><Inventory /></Private>} />
           <Route path="/Orders" element={<Private><Orders /></Private>} />
           <Route path="*" element={<Spinner />} />
         </Route>
