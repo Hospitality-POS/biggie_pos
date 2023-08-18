@@ -459,6 +459,8 @@ const Inventory: React.FC = () => {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </TableContainer>
+      
+      {/*make this a separate component #DeleteInventoryDialog  */}
       <Dialog open={deleteConfirmationOpen} onClose={handleDeleteCancel}>
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
