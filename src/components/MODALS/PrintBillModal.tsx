@@ -66,120 +66,92 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
   return (
     <Modal open={openM} onClose={onCloseM}>
-      <Box
-        className="receiptM"
-        // style={{
-        //   position: "absolute",
-        //   top: "50%",
-        //   left: "50%",
-        //   transform: "translate(-50%, -50%)",
-        //   maxWidth: "60vw",
-        //   width: "600px",
-        //   height: "80vh",
-        //   bgcolor: "white",
-        //   borderRadius: "4px",
-        //   overflowY: "auto",
-        // }}
-      >
-       
-          {/* <img
+      <Box className="receiptM">
+        <div className="receipt" id="receipt">
+          <div className="logo-print">
+            <img
               src="/android-chrome-512x512.png"
+              className="image--logo reciept"
               alt="Restaurant Logo"
-              style={{ width: "100px", height: "80px" }}
-            /> */}
-          <div className="receipt" id="receipt">
-            <div className="logo-print">
-              <img
-                src="/android-chrome-512x512.png"
-                className="image--logo reciept"
-                alt="Restaurant Logo"
-                style={{ width: "50px" }}
-              />
-            </div>
-
-            <p style={{ textAlign: "center", padding: "10px" }}>
-              BigSmoke, KAREN
-            </p>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "-15px",
-              }}
-            >
-              <p>Served By : {data?.data.created_by.username}</p>
-              <p> Order No: {data?.data.order_no} </p>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "-15px",
-              }}
-            >
-              <p> Table No : {data?.data.table_id.name} </p>
-              <p> Date : {new Date().toLocaleDateString()} </p>
-            </div>
-
-            <TableContainer component={Paper} sx={{ mt: 2, width: "100%" }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell align="right">Qty</TableCell>
-                    <TableCell>Item</TableCell>
-                    <TableCell align="right">Price</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {cartItems?.map((item: CartItem) => (
-                    <TableRow key={item._id}>
-                      <TableCell align="right">{item.quantity}</TableCell>
-                      <TableCell component="th" scope="row">
-                        {item.product_id.name}
-                      </TableCell>
-                      <TableCell align="right">
-                        ksh.{item.price.toFixed(2)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* <div
-                style={{
-                  backgroundColor: "#000",
-                  borderTop: "1px dotted #000",
-                }}
-              ></div> */}
-
-            <p className="tot" style={{ marginBottom: "-5px" }}>
-              Total: <span>Ksh. {totalAmount.toFixed(2)} </span>
-            </p>
-
-            <p className="tot" style={{ marginBottom: "-5px" }}>
-              {" "}
-              Till No. : 7034311{" "}
-            </p>
-
-            <p className="tot" style={{ marginBottom: "-5px" }}>
-              Phone No. : 07034531
-            </p>
-
-            <p className="tot" style={{ marginBottom: "-5px" }}>
-              Email : ribracks@gmail.com
-            </p>
-
-            <p className="greeting" style={{ marginBottom: "-5px" }}>
-              {" "}
-              Thank you for your support!{" "}
-            </p>
-            <p style={{ textAlign: "center", marginBottom: "-15px" }}>
-              Generated on {new Date().toLocaleDateString()}{" "}
-            </p>
+              style={{ width: "50px" }}
+            />
           </div>
-      
+
+          <p style={{ textAlign: "center", padding: "10px" }}>
+            BigSmoke, KAREN
+          </p>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "-15px",
+            }}
+          >
+            <p>Served By : {data?.data.created_by.username}</p>
+            <p> Order No: {data?.data.order_no} </p>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "-15px",
+            }}
+          >
+            <p> Table No : {data?.data.table_id.name} </p>
+            <p> Date : {new Date().toLocaleDateString()} </p>
+          </div>
+
+          <TableContainer component={Paper} sx={{ mt: 2, width: "100%" }}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell align="right">Qty</TableCell>
+                  <TableCell>Item</TableCell>
+                  <TableCell align="right">Price</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {cartItems?.map((item: CartItem) => (
+                  <TableRow key={item._id}>
+                    <TableCell align="right">{item.quantity}</TableCell>
+                    <TableCell component="th" scope="row">
+                      {item.product_id.name}
+                    </TableCell>
+                    <TableCell align="right">
+                      ksh.{item.price.toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <p className="tot" style={{ marginBottom: "-5px" }}>
+            Total: <span>Ksh. {totalAmount.toFixed(2)} </span>
+          </p>
+
+          <p className="tot" style={{ marginBottom: "-5px" }}>
+            {" "}
+            Till No. : 7034311{" "}
+          </p>
+
+          <p className="tot" style={{ marginBottom: "-5px" }}>
+            Phone No. : 07034531
+          </p>
+
+          <p className="tot" style={{ marginBottom: "-5px" }}>
+            Email : ribracks@gmail.com
+          </p>
+
+          <p className="greeting" style={{ marginBottom: "-5px" }}>
+            {" "}
+            Thank you for your support!{" "}
+          </p>
+          <p style={{ textAlign: "center", marginBottom: "-15px" }}>
+            Generated on {new Date().toLocaleDateString()}{" "}
+          </p>
+        </div>
 
         <Box
           sx={{
