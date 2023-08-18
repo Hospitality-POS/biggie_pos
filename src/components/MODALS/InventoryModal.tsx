@@ -61,8 +61,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   );
 
   const handleAddNewProduct = (data: NewProduct) => {
-    // console.log("dta",data);
-    
+   
     const newProductData: NewProduct = { ...data, category_id: data.category_id };
     onAddProduct(newProductData);
     reset();
