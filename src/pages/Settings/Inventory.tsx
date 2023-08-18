@@ -400,7 +400,7 @@ const Inventory: React.FC = () => {
                           }
                         />
                       ) : (
-                        product.price
+                        product.price?.toLocaleString()
                       )}
                     </TableCell>
                     <TableCell>{product.category_id.name}</TableCell>
