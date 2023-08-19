@@ -51,6 +51,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) =>{
   };
 
   return (
+    // todo: add box shadow to the product card
     <Card
       sx={{ maxWidth: 345, width: "200px", height: "250px" }}
       onClick={handleAddToCart}
