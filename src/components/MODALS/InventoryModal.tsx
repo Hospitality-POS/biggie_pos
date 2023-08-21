@@ -24,8 +24,9 @@ interface NewProduct {
   name: string;
   quantity: number;
   cost: number;
+  price: number;
   min_viable_quantity: number;
-  category_id: string; 
+  category_id: string;
   description: string;
 }
 
@@ -40,16 +41,17 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   onClose,
   onAddProduct,
 }) => {
-  const { handleSubmit, control, formState, reset, setValue  } = useForm<NewProduct>({
-    defaultValues: {
-      name: "",
-      quantity: 0,
-      cost: 0,
-      min_viable_quantity: 0,
-      category_id: "",
-      description: "",
-    },
-  });
+  const { handleSubmit, control, formState, reset, setValue } =
+    useForm<NewProduct>({
+      defaultValues: {
+        name: "",
+        quantity: 0,
+        cost: 0,
+        min_viable_quantity: 0,
+        category_id: "",
+        description: "",
+      },
+    });
 
   const fetchCategories = async () => {
     const response = await axios.get("http://localhost:3000/categories");
@@ -61,8 +63,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   );
 
   const handleAddNewProduct = (data: NewProduct) => {
-   
-    const newProductData: NewProduct = { ...data, category_id: data.category_id };
+    const newProductData: NewProduct = {
+      ...data,
+      category_id: data.category_id,
+      price: data.cost
+    };
+    // console.log(newProductData);
+    
     onAddProduct(newProductData);
     reset();
     onClose();
@@ -70,7 +77,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
   const handleClose = () => {
     reset();
-    setValue("min_viable_quantity", 0); 
+    setValue("min_viable_quantity", 0);
     onClose();
   };
 
@@ -79,11 +86,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   };
 
   return (
-    <Dialog
-      open={open}
-      maxWidth="md"
-       onClose={handleClose}
-    >
+    <Dialog open={open} maxWidth="md" onClose={handleClose}>
       <DialogTitle
         style={{
           backgroundColor: "#6c1c2c",
@@ -93,7 +96,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         }}
       >
         Add New Product
-        <IconButton onClick={onClose}>
+        <IconButton onClick={handleClose}>
           <CloseIcon />
         </IconButton>
       </DialogTitle>
@@ -170,7 +173,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                       labelId="category-label"
                       label="Category"
                       {...field}
-                      onChange={e => handleCategoryChange(e.target.value)}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
                     >
                       {categories?.map((category: any) => (
                         <MenuItem key={category._id} value={category._id}>
@@ -221,7 +224,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button
+          {/* <Button
             onClick={() => {
               reset();
               onClose();
@@ -229,10 +232,21 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             color="primary"
           >
             Cancel
-          </Button>
+          </Button> */}
           <Button
             type="submit"
-            color="primary"
+            variant="outlined"
+            sx={{
+              pl: 2,
+              color: "#6c1c2c",
+              borderColor: "#6c1c2c",
+
+              "&:hover": {
+                borderColor: "#bc8c7c",
+                color: "#bc8c7c",
+              },
+            }}
+            fullWidth
             disabled={formState.isSubmitting}
           >
             Add

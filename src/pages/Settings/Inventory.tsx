@@ -31,6 +31,7 @@ import { useDispatch, useSelector } from "react-redux";
 import InfoIcon from "@mui/icons-material/Info";
 import {
     createProductInventory,
+  deleteProductInventory,
   fetchAllProductInventories,
   updateProductInventory,
 } from "../../features/Inventory/product/productInventoryActions";
@@ -148,10 +149,8 @@ const Inventory: React.FC = () => {
   };
 
   const handleDeleteConfirm = () => {
-    const updatedProducts = data?.filter(
-      (_: any, i: number | null) => i !== deletingIndex
-    );
-    //   setProducts(updatedProducts);
+ 
+    dispatch(deleteProductInventory(deletingIndex))
     setDeleteConfirmationOpen(false);
     setDeletingIndex(null);
   };
