@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 interface PrivateProps {
   children: React.ReactNode;
@@ -8,16 +8,23 @@ interface PrivateProps {
 
 const Private: React.FC<PrivateProps> = ({ children }) => {
   const user = useSelector((state: any) => state.auth.user);
+
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!user || !user.Token) {
-      console.log("No token found, navigating to /staff...");
-      navigate("/staff");
-    }
-  }, [user, navigate]);
+  // useEffect(() => {
+    // if (!user) {
+    //   console.log("No token found, navigating to /staff...");
+      // navigate("/staff");
+      // window.location.reload();
+    // }
+  // }, [user, navigate]);
 
-  return <>{children}</>;
+  // return <>{children}</>;
+
+  if (user) return children
+
+  return <Navigate to='/staff' />
+
 };
 
 export default Private;

@@ -15,6 +15,7 @@ import EditProductModal from "./EditProductModal";
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import { useDispatch } from "react-redux";
 import { deleteProduct } from "../../features/Product/ProductAction";
+import { MenuBook } from "@mui/icons-material";
 
 interface StoreProductCardProps {
   img: string;
@@ -116,6 +117,21 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
             onClick={handleEditClick}
           >
             <BorderColorOutlinedIcon fontSize="inherit" />
+          </IconButton>
+            <IconButton
+            sx={{
+              flex: 1,
+              borderRadius: 0,
+              p: 2,
+              bgcolor: "#6c1c2c",
+              "&:hover": {
+                bgcolor: "#bc8c7c",
+                color: "#ffff",
+              },
+            }}
+            // onClick={handleEditClick}
+          >
+            <MenuBook fontSize="inherit" />
           </IconButton>
           <IconButton
             sx={{

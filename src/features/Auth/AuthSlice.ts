@@ -58,7 +58,7 @@ export const authSlice = createSlice({
           state.isSuccess = true;
           state.isError = false;
           state.message = "Login successful";
-          state.user = action.payload.user;
+          state.user = action.payload;
           state.token = action.payload.Token;
         }
       )
