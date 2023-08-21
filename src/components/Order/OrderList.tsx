@@ -83,8 +83,8 @@ const OrderList: React.FC<Props> = ({ orders }) => {
 
  const filteredOrders = sortedOrders.filter((order) => {
     const matchesSearch =
-      order.order_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.updated_by.username.toLowerCase().includes(searchQuery.toLowerCase());
+      order?.order_no.toLowerCase().includes(searchQuery?.toLowerCase()) ||
+      order?.updated_by.username.toLowerCase().includes(searchQuery?.toLowerCase());
     const matchesDate =
       (!startDate || moment(order.createdAt).isSameOrAfter(startDate, "day")) &&
       (!endDate || moment(order.createdAt).isSameOrBefore(endDate, "day"));

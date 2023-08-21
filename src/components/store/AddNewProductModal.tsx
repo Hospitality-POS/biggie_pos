@@ -45,6 +45,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
   const [quantity, setQuantity] = useState(0);
   const [min_viable_quantity, setMinViableQuantity] = useState(0);
   const [category, setCategory] = useState<string>("");
+  
 
   const fetchCategories = async () => {
     const response = await axios.get<Category[]>(

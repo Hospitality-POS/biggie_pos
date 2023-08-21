@@ -42,6 +42,8 @@ const productSlice = createSlice({
       .addCase(createProduct.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        console.log(action.payload);
+        
       })
       .addCase(fetchProducts.pending, (state) => {
         state.loading = true;

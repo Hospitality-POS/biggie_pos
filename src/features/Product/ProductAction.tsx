@@ -31,7 +31,9 @@ export const createProduct = createAsyncThunk(
       dispatch(fetchProducts())
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.message || error.toString());
+
+      
+      return rejectWithValue(error.response.data.error || error.toString());
     }
   }
 );

@@ -18,7 +18,11 @@ import StoreProductCardSkeleton from "../../components/store/StoreProductSkeleto
 import AddNewProductModal from "../../components/store/AddNewProductModal";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchProducts, fetchProductsByCategory } from "../../features/Product/ProductAction";
+import {
+  fetchProducts,
+  fetchProductsByCategory,
+} from "../../features/Product/ProductAction";
+import ErrorDialog from "../../components/MODALS/Dialogs/ErrorDialog";
 
 const Store: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -36,6 +40,9 @@ const Store: React.FC = () => {
   //   refetchIntervalInBackground: true
   // });
   const [value, setValue] = React.useState(0);
+
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -64,7 +71,16 @@ const Store: React.FC = () => {
   );
 
   if (error) {
-    return <div>An error has occurred: {error.message}</div>;
+    return (
+      <ErrorDialog
+        error={error}
+        onClose={() => {
+          setErrorDialogOpen(false);
+          setErrorMessage("");
+          dispatch(fetchProducts())
+        }}
+      />
+    );
   }
 
   return (
@@ -91,7 +107,7 @@ const Store: React.FC = () => {
               <Tab
                 key={category._id}
                 label={category.name}
-                onClick={()=>handleCategories(category._id)}
+                onClick={() => handleCategories(category._id)}
               />
             ))}
         </Tabs>
@@ -176,7 +192,7 @@ const Store: React.FC = () => {
             Discard Changes
           </Button>
           <Button
-          onClick={()=>dispatch(fetchProducts())}
+            onClick={() => dispatch(fetchProducts())}
             variant="contained"
             sx={{
               p: 1,

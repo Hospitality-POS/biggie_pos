@@ -20,6 +20,7 @@ import { useForm, Controller } from "react-hook-form";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 
+
 interface NewProduct {
   name: string;
   quantity: number;

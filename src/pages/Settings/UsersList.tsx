@@ -19,12 +19,13 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  TablePagination,
 } from "@mui/material";
-import SearchIcon from '@mui/icons-material/Search';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from "@mui/icons-material/Search";
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
-
+import AddUserDialog from "../../components/MODALS/Dialogs/AddUserDialog";
 
 interface User {
   fullname: string;
@@ -36,12 +37,15 @@ interface User {
 }
 
 function UsersList() {
-  const { users } = useSelector((state: any) => state.auth); 
+  const { users } = useSelector((state: any) => state.auth);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [filter, setFilter] = useState<string>("");
   const [orderBy, setOrderBy] = useState<string>("id");
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [openDeleteDialog, setOpenDeleteDialog] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(0);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(5);
+  const [openAddUserDialog, setOpenAddUserDialog] = useState<boolean>(false);
 
   const filteredUsers = users.filter(
     (user: User) =>
@@ -76,42 +80,68 @@ function UsersList() {
     setOpenDeleteDialog(false);
     setSelectedUserId(null);
   };
- const handleEditUser = (id: number) => {
-    console.log("edit user with id:", id);
-  };
 
+  const handleEditUser = (id: number) => {
+    console.log("edit user with id:", id);
+    // Implement your logic to edit the user
+  };
 
   const handleConfirmDelete = () => {
     if (selectedUserId !== null) {
+      // Implement your logic to delete the user
       handleCloseDeleteDialog();
     }
   };
 
+  const handleAddUser = () => {
+    setOpenAddUserDialog(true);
+  };
+
+  const handleCloseAddUserDialog = () => {
+    setOpenAddUserDialog(false);
+  };
+
+  const handleConfirmAddUser = () => {
+    handleCloseAddUserDialog();
+  };
+
   return (
     <div>
-      <Box display="flex" columnGap={2} alignItems="center" mb={2} mt={2} sx={{paddingLeft: 2}}>
+      <Box
+        display="flex"
+        columnGap={2}
+        alignItems="center"
+        mb={2}
+        mt={2}
+        sx={{ paddingLeft: 2 }}
+      >
         <TextField
           label="Search"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           InputProps={{ endAdornment: <SearchIcon /> }}
         />
-        <Button startIcon={<AddIcon />} variant="outlined" style={{padding: 14}}>
+        <Button
+          startIcon={<AddIcon />}
+          variant="outlined"
+          style={{ padding: 14 }}
+          onClick={handleAddUser}
+        >
           Add New User
         </Button>
       </Box>
-      <TableContainer component={Paper} sx={{padding: "0 2 2 0"}}>
+      <TableContainer component={Paper} sx={{ padding: "0 2 2 0" }}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Avatar</TableCell>
+              <TableCell>Profile Name</TableCell>
               <TableCell>
                 <TableSortLabel
                   active={orderBy === "name"}
                   direction={orderBy === "name" ? order : "asc"}
                   onClick={() => handleSort("name")}
                 >
-                  Name
+                  Fullname
                 </TableSortLabel>
               </TableCell>
               <TableCell>Email</TableCell>
@@ -121,36 +151,48 @@ function UsersList() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {sortedUsers.map(
-              (user) => (
-                <TableRow key={user._id}>
+            {sortedUsers
+              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              .map((user) => (
+                <TableRow key={user.id}>
                   <TableCell>
                     <Avatar
                       alt={user.username}
                       src={`https://via.placeholder.com/40`}
                     />
+                    {user.fullname}
                   </TableCell>
                   <TableCell>{user.fullname}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.phone}</TableCell>
                   <TableCell>{user.isAdmin ? "Admin" : "user"}</TableCell>
                   <TableCell>
-                    <IconButton onClick={() => handleDeleteUser(user?._id)}>
+                    <IconButton onClick={() => handleDeleteUser(user.id)}>
                       <DeleteIcon />
                     </IconButton>
-                    {/* Add edit and other action buttons */}
-                    <IconButton onClick={() => handleEditUser(user?._id)}>
+                    <IconButton onClick={() => handleEditUser(user.id)}>
                       <EditIcon />
                     </IconButton>
                   </TableCell>
                 </TableRow>
-              )
-            )}
+              ))}
           </TableBody>
         </Table>
       </TableContainer>
 
-      {/* Delete Confirmation Dialog */}
+      <TablePagination
+        rowsPerPageOptions={[5, 10, 25]}
+        component="div"
+        count={filteredUsers.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={(event, newPage) => setPage(newPage)}
+        onRowsPerPageChange={(event) => {
+          setRowsPerPage(parseInt(event.target.value, 10));
+          setPage(0);
+        }}
+      />
+
       <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>
@@ -167,6 +209,15 @@ function UsersList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* add user */}
+      <AddUserDialog
+        open={openAddUserDialog}
+        onClose={handleCloseAddUserDialog}
+        onAddUser={(user) => {
+          console.log("Adding user:", user);
+        }}
+      />
     </div>
   );
 }

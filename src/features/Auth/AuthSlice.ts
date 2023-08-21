@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { loginUser, logoutUser, fetchAllUsers } from "./AuthActions";
+import { loginUser, logoutUser, fetchAllUsers, createUser } from "./AuthActions";
 
 interface User {
   username: string;
@@ -82,6 +82,21 @@ export const authSlice = createSlice({
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload as string;
+      })
+       .addCase(createUser.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(createUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload as string;
+      })
+      .addCase(createUser.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+        state.message = "User created successfully";
+        state.users.push(action.payload); 
       });
   },
 });

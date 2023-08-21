@@ -63,13 +63,14 @@ const PaymentDrawer: React.FC<paymentProps> = ({
   }
 
 
-  const handlePayment = () => {
+  const handlePayment = (methodId: any) => {    
     const orderDetails = {
       cart_id: cartDetails?._id,
       order_amount: totalAmount,
       table_id: id,
       updated_by: user.id,
       order_no: cartDetails?.order_no,
+      method_id: methodId
     };
     dispatch(createOrder(orderDetails));
     if (!error) {
@@ -203,7 +204,8 @@ const PaymentDrawer: React.FC<paymentProps> = ({
             endIcon={
               loading ? <CircularProgress size={20} /> : <RecommendIcon />
             }
-            onClick={handlePayment}
+            onClick={()=>handlePayment(selectedMethod)}
+            disabled={!selectedMethod}
             sx={{
               pl: 2,
               bgcolor: "#6c1c2c",

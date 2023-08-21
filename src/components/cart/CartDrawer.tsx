@@ -177,7 +177,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               Total : {totalAmount}
             </Typography>
             <Typography variant="body1" fontWeight="bold" pl={2}>
-              Served By: {data?.data.created_by.username}
+              Served By: {data?.data?.created_by.username}
             </Typography>
             <Box
               sx={{

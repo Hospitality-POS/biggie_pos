@@ -14,7 +14,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { useDispatch } from "react-redux";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useRef } from 'react';
 import {
   deleteCartItem,
   updateCartItems,
@@ -27,32 +28,43 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
   const [quantity, setQuantity] = useState(cartItem.quantity);
 
-  const handleAddQuantity = () => {
-    const newQuantity = quantity + 1;
-    setQuantity(newQuantity);
-
-    const updatedCartItem = {
-      ...cartItem,
-      quantity: newQuantity,
-      price: cartItem.price * newQuantity,
-    };
-    dispatch(updateCartItems([updatedCartItem]));
+ const handleAddQuantity = () => {
+    setQuantity((prevQuantity) => prevQuantity + 1);
+    dispatch(
+      updateCartItems({
+        ...cartItem,
+        product_id: cartItem.product_id._id,
+        quantity,
+        price: cartItem.price * quantity,
+      })
+    );
   };
 
   const handleReduceQuantity = () => {
     if (quantity > 1) {
-      const newQuantity = quantity - 1;
-      setQuantity(newQuantity);
-      const updatedCartItem = {
+      setQuantity((prevQuantity) => prevQuantity - 1);
+      dispatch(
+      updateCartItems({
         ...cartItem,
-        quantity: newQuantity,
-        price: cartItem.price * newQuantity,
-      };
-      dispatch(updateCartItems([updatedCartItem]));
-    } else {
-      dispatch(deleteCartItem(cartItem._id));
+        product_id: cartItem.product_id._id,
+        quantity,
+        price: cartItem.price * quantity,
+      })
+    );
     }
   };
+
+  // useEffect(() => {
+  //   dispatch(
+  //     updateCartItems({
+  //       ...cartItem,
+  //       product_id: cartItem.product_id._id,
+  //       quantity,
+  //       price: cartItem.price * quantity,
+  //     })
+  //   );
+  // }, [quantity, dispatch, cartItem]);
+
 
   return (
     <Card sx={{ mb: 1, boxShadow: "none", backgroundColor: "#F8F8F8" }}>
@@ -71,8 +83,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               >
                 <RemoveIcon />
               </IconButton>
-
-              <Typography variant="body1">{cartItem.quantity}</Typography>
+              <Typography variant="body1">{quantity}</Typography>
               <IconButton
                 size="small"
                 sx={{ borderRadius: 50, border: 1 }}
@@ -84,7 +95,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
           </Grid>
           <Grid item xs={3}>
             <Typography variant="body1" fontSize="16px" ml={3}>
-              ksh.{cartItem.price}
+              ksh.{cartItem.price * quantity}
             </Typography>
           </Grid>
         </Grid>
@@ -128,3 +139,4 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 };
 
 export default CartItemCard;
+

@@ -46,3 +46,15 @@ export const fetchAllUsers = createAsyncThunk(
     }
   }
 );
+
+export const createUser = createAsyncThunk(
+  "user/createUser",
+  async (_userDetails: UserDetails, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(`${baseUrl}/register`, _userDetails);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
