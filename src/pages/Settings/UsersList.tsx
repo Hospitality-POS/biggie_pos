@@ -116,26 +116,37 @@ function UsersList() {
         sx={{ paddingLeft: 2 }}
       >
         <TextField
-          label="Search"
+          label="Search User"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           InputProps={{ endAdornment: <SearchIcon /> }}
         />
         <Button
           startIcon={<AddIcon />}
-          variant="outlined"
-          style={{ padding: 14 }}
+          variant="contained"
+          style={{ padding: 14, backgroundColor: "#6c1c2c" }}
           onClick={handleAddUser}
         >
           Add New User
         </Button>
       </Box>
-      <TableContainer component={Paper} sx={{ padding: "0 2 2 0" }}>
+      <TableContainer
+        component={Paper}
+        style={{
+          width: "100%",
+          marginTop: "1rem",
+          overflowX: "auto",
+          paddingLeft: 10,
+          paddingRight: 10,
+        }}
+      >
         <Table>
           <TableHead>
-            <TableRow>
-              <TableCell>Profile Name</TableCell>
-              <TableCell>
+            <TableRow style={{ backgroundColor: "#6c1c2c" }}>
+              <TableCell style={{ color: "white", paddingLeft: 40 }}>
+                Profile Name
+              </TableCell>
+              <TableCell style={{ color: "white" }}>
                 <TableSortLabel
                   active={orderBy === "name"}
                   direction={orderBy === "name" ? order : "asc"}
@@ -144,10 +155,10 @@ function UsersList() {
                   Fullname
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Phone</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Action</TableCell>
+              <TableCell style={{ color: "white" }}>Email</TableCell>
+              <TableCell style={{ color: "white" }}>Phone</TableCell>
+              <TableCell style={{ color: "white" }}>Role</TableCell>
+              <TableCell style={{ color: "white" }}>Action</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -155,7 +166,7 @@ function UsersList() {
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
               .map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell>
+                  <TableCell style={{ display: "flex", alignItems: "center", columnGap: 5 }}>
                     <Avatar
                       alt={user.username}
                       src={`https://via.placeholder.com/40`}
