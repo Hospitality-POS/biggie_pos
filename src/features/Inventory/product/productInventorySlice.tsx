@@ -1,11 +1,11 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
   getProductInventory,
   updateProductInventory,
   deleteProductInventory,
   fetchAllProductInventories,
-  createProductInventory, // Import the new action
-} from './productInventoryActions';
+  createProductInventory, 
+} from "./productInventoryActions";
 
 interface ProductInventory {
   _id: string;
@@ -18,7 +18,7 @@ interface ProductInventory {
 }
 
 interface ProductInventoryState {
-  data: ProductInventory[] | null;
+  data: ProductInventory[];
   loading: boolean;
   error: string | null;
 }
@@ -30,12 +30,12 @@ const initialState: ProductInventoryState = {
 };
 
 const productInventorySlice = createSlice({
-  name: 'productInventory',
+  name: "productInventory",
   initialState,
   reducers: {},
-  extraReducers: builder => {
+  extraReducers: (builder) => {
     builder
-      .addCase(fetchAllProductInventories.pending, state => {
+      .addCase(fetchAllProductInventories.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
@@ -45,10 +45,9 @@ const productInventorySlice = createSlice({
       })
       .addCase(fetchAllProductInventories.rejected, (state, action) => {
         state.loading = false;
-        state.data = null;
         state.error = action.payload as string;
       })
-      .addCase(getProductInventory.pending, state => {
+      .addCase(getProductInventory.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
@@ -58,42 +57,49 @@ const productInventorySlice = createSlice({
       })
       .addCase(getProductInventory.rejected, (state, action) => {
         state.loading = false;
-        state.data = null;
         state.error = action.payload as string;
       })
-      .addCase(updateProductInventory.pending, state => {
+      .addCase(updateProductInventory.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateProductInventory.fulfilled, (state, action) => {
         state.loading = false;
-        state.data = action.payload;
+        // state.data = action.payload;
+        const updatedData = action.payload;
+        const index = state.data.findIndex(
+          (dataItem) => dataItem._id === updatedData._id
+        );
+        if (index !== -1) {
+          state.data[index] = updatedData;
+        }
       })
       .addCase(updateProductInventory.rejected, (state, action) => {
         state.loading = false;
-        state.data = null;
         state.error = action.payload as string;
       })
-      .addCase(deleteProductInventory.pending, state => {
+      .addCase(deleteProductInventory.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(deleteProductInventory.fulfilled, (state, action) => {
         state.loading = false;
-        state.data = null;
+        const dataToDeleteId = action.payload;
+
+        state.data = state.data.filter((item) => item._id !== dataToDeleteId);
       })
       .addCase(deleteProductInventory.rejected, (state, action) => {
         state.loading = false;
-        state.data = null;
+
         state.error = action.payload as string;
       })
-      .addCase(createProductInventory.pending, state => {
+      .addCase(createProductInventory.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createProductInventory.fulfilled, (state, action) => {
         state.loading = false;
-        state.data = action.payload;
+        state.data.push(action.payload);
       })
       .addCase(createProductInventory.rejected, (state, action) => {
         state.loading = false;

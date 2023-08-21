@@ -44,7 +44,7 @@ interface Product {
 }
 
 const Inventory: React.FC = () => {
-  const { data = [] } = useSelector((state: any) => state.productInventory);
+  const { data } = useSelector((state: any) => state.productInventory);
 
   //   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
@@ -206,7 +206,7 @@ const Inventory: React.FC = () => {
   const isSelected = (_id: number) => selected.indexOf(_id) !== -1;
 
   const filteredProducts = data
-  ? data.filter((product: any) => {
+  ? [...data].filter((product: any) => {
       if (product && product.name && product.category_id) {
         const searchString = searchValue.toLowerCase();
         const includesSearch = (property: string) =>

@@ -1,5 +1,11 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { createOrder, deleteOrder, fetchOrders, fetchOrdersByDateRange, updateOrder } from "./OrderActions";
+import {
+  createOrder,
+  deleteOrder,
+  fetchOrders,
+  fetchOrdersByDateRange,
+  updateOrder,
+} from "./OrderActions";
 
 interface Order {
   table_id: string;
@@ -63,7 +69,9 @@ const orderSlice = createSlice({
       .addCase(updateOrder.fulfilled, (state, action) => {
         state.loading = false;
         const updatedOrder = action.payload;
-        const index = state.orders.findIndex((order) => order._id === updatedOrder._id);
+        const index = state.orders.findIndex(
+          (order) => order._id === updatedOrder._id
+        );
         if (index !== -1) {
           state.orders[index] = updatedOrder;
         }
@@ -89,9 +97,10 @@ const orderSlice = createSlice({
       .addCase(deleteOrder.fulfilled, (state, action) => {
         state.loading = false;
         const orderNoToDeleteId = action.payload;
-        console.log(orderNoToDeleteId);
-        
-      state.orders = state.orders.filter((item) => item._id !== orderNoToDeleteId);
+
+        state.orders = state.orders.filter(
+          (item) => item._id !== orderNoToDeleteId
+        );
       })
       .addCase(deleteOrder.rejected, (state, action) => {
         state.loading = false;
