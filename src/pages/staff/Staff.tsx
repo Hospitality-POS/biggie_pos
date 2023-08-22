@@ -3,17 +3,45 @@ import StaffCard from "../../components/staffCard/StaffCard";
 // import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Divider, Typography } from "@mui/material";
 import classes from "./staffs.module.css";
-import { Key } from "react";
+import { Key, useEffect } from "react";
 import SkeletonCard from "../../components/staffCard/SkeletonCard";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchAllUsers } from "../../features/Auth/AuthActions";
+import React from "react"
 
 const Staff = () => {
-  const { isLoading, isError, error, data } = useQuery({
+//   const {users:data, loading: isLoading, error:isError}=useSelector((state:any)=>state.auth)
+//   const dispatch = useDispatch()
+ 
+//   useEffect(() => {
+//     dispatch(fetchAllUsers());
+// }, [dispatch]);
+const { isLoading, isError, data } = useQuery({
     queryKey: ["staff"],
-    queryFn: () =>
-      fetch("http://localhost:3000/users/all").then((res) => res.json()),
-    retry: 3,
-    retryDelay: 1000,
+    queryFn: async () => {
+      try {
+        const response = await fetch("http://localhost:3000/users/all");
+        const responseData = await response.json();
+
+        // Store data in localStorage
+        localStorage.setItem("staffData", JSON.stringify(responseData));
+
+        return responseData;
+      } catch (error) {
+        throw error;
+      }
+    },
+    initialData: JSON.parse(localStorage.getItem("staffData")),
+    retry: false,
   });
+
+  // const { isLoading, isError, error, data } = useQuery({
+  //   queryKey: ["staff"],
+  //   queryFn: () =>
+  //     fetch("http://localhost:3000/users/all").then((res) => res.json()),
+  //   retry: 3,
+  //   retryDelay: 1000,
+  // });
   
 
   if (isLoading) {
@@ -47,7 +75,7 @@ const Staff = () => {
       </div>
       <Divider />
       <div className="cards">
-        {data.map((item: { _id: Key | null | undefined }) => (
+        {data?.map((item: { _id: Key | null | undefined }) => (
           <StaffCard key={item._id} item={item} />
         ))}
         {/* <ReactQueryDevtools initialIsOpen={false} /> */}
