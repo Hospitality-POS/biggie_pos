@@ -175,7 +175,7 @@ function UsersList() {
                   </TableCell>
                   <TableCell>{user.fullname}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.phone}</TableCell>
+                  <TableCell>0{user.phone}</TableCell>
                   <TableCell>{user.isAdmin ? "Admin" : "user"}</TableCell>
                   <TableCell>
                     <IconButton onClick={() => handleDeleteUser(user.id)}>
