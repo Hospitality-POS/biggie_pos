@@ -41,7 +41,7 @@ const RestaurantPage = () => {
     return response.data;
   };
 
-  const { data: categories } = useQuery(["categories"], () =>
+  const { data: categories, isLoading } = useQuery(["categories"], () =>
     fetchCategories()
   );
 
@@ -78,7 +78,7 @@ const RestaurantPage = () => {
     setCurrentIndex((currentIndex - 1 + categories.length) % categories.length);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <>
         <div>
@@ -98,6 +98,31 @@ const RestaurantPage = () => {
               <SkeletonCategoryCard key={index} />
             ))}
           </section>
+        </div>
+      </>
+    );
+  }
+
+  if (loading) {
+    return (
+      <>
+        <div>
+          {/* <Typography variant="h6" gutterBottom mt={1} pl={4}>
+            Categories
+          </Typography>
+          <section
+            className="cards"
+            style={{
+              display: "flex",
+              gap: "20px",
+              marginTop: "10px",
+              paddingLeft: "4px",
+            }}
+          >
+            {[...Array(8)].map((_, index) => (
+              <SkeletonCategoryCard key={index} />
+            ))}
+          </section> */}
 
           <Typography variant="h6" gutterBottom mt={2} pl={4}>
             Special Menu for you
