@@ -63,7 +63,7 @@ const { isLoading, isError, data } = useQuery({
   }
 
   if (isError) {
-    return <div>An error has occurred: {error.message}</div>;
+    return <div>An error has occurred: {error?.message}</div>;
   }
 
   return (
