@@ -102,7 +102,7 @@ function Navbar() {
 
   return (
     <AppBar position="static">
-      <Container maxWidth="xl" sx={{ bgcolor: "#6c1c2c" }}>
+      <Container maxWidth="100px" sx={{ bgcolor: "#6c1c2c" }}>
         <Toolbar disableGutters>
           <img
             src="/android-chrome-192x192.png"
