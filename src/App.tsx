@@ -1,18 +1,22 @@
-
-import Navbar from './components/navbar/Navbar';
-import Staff from './pages/staff/Staff';
-import Routers from './routes/Routers';
+import Routers from "./routes/Routers";
 
 const App = () => {
-  
 
+  if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.ts').then((registration) => {
+      console.log('ServiceWorker registered with scope:', registration.scope);
+    }).catch((error) => {
+      console.error('ServiceWorker registration failed:', error);
+    });
+  });
+}
   return (
     <div>
-      <Routers/>
-      {/* <Staff /> */}
-      {/* <Navbar /> */}
+      <Routers />
     </div>
   );
 };
 
 export default App;
+

@@ -1,7 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      manifest: 'C:\FSS\biggie_pos\public\site.webmanifest',
+      workbox: {
+        cleanupOutdatedCaches: true,
+        sourcemap: true,
+      },
+    }),
+  ],
 })
