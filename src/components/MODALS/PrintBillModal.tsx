@@ -1,5 +1,7 @@
 import React, { Key } from "react";
 import { useSelector } from "react-redux";
+
+import {QRCodeCanvas} from 'qrcode.react';
 import {
   Button,
   Modal,
@@ -64,17 +66,20 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
     onCloseM();
   };
 
+  
+
   return (
     <Modal open={openM} onClose={onCloseM}>
       <Box className="receiptM">
         <div className="receipt" id="receipt">
           <div className="logo-print">
-            <img
+            <Typography variant="body1">FOOD SUPPORT SERVICES</Typography>
+            {/* <img
               src="/android-chrome-512x512.png"
               className="image--logo reciept"
               alt="Restaurant Logo"
               style={{ width: "50px" }}
-            />
+            /> */}
           </div>
 
           <p style={{ textAlign: "center", padding: "10px" }}>
@@ -143,7 +148,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           <p className="tot" style={{ marginBottom: "-5px" }}>
             Email : ribracks@gmail.com
           </p>
+          <div className="qrcoded">
 
+           <QRCodeCanvas value='https://www.instagram.com/bigsmokekaren/' size={180} className="qrcode"/>
+          </div>
           <p className="greeting" style={{ marginBottom: "-5px" }}>
             {" "}
             Thank you for your support!{" "}
@@ -201,3 +209,4 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 };
 
 export default PrintBillModal;
+

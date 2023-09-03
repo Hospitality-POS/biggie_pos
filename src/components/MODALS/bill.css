@@ -137,12 +137,20 @@ footer {
 }
 
 .logo-print {
-  width: 100%;
+  /* width: 100%; */
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: scale(2);
-  padding: 10px;
+  /* transform: scale(2); */
+  /* padding: 10px; */
+}
+.qrcoded{
+  display: flex;
+  padding-top: 10px;
+  width: inherit;
+  /* border: 1px solid red; */
+  align-items: center;
+  justify-content: center;
 }
 
 @media print {
