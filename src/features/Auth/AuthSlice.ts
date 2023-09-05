@@ -1,31 +1,40 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { loginUser, logoutUser, fetchAllUsers, createUser } from "./AuthActions";
+import {
+  loginUser,
+  logoutUser,
+  fetchAllUsers,
+  createUser,
+  deleteUser,
+} from "./AuthActions";
 
 interface User {
   username: string;
 }
-
 
 interface AuthState {
   user: User | null;
   users: User[];
   token: string | null;
   message: string;
+  newmessage: string;
   isSuccess: boolean;
   isLoading: boolean;
   isError: boolean;
+  IsError: boolean;
 }
 
-const user = JSON.parse(localStorage.getItem('user'));
+const user = JSON.parse(localStorage.getItem("user"));
 
 const initialState: AuthState = {
   user: user ? user : null,
   users: [],
   token: null,
   message: "",
+  newmessage: "",
   isSuccess: false,
   isLoading: false,
   isError: false,
+  IsError: false,
 };
 
 export const authSlice = createSlice({
@@ -38,6 +47,10 @@ export const authSlice = createSlice({
       state.isSuccess = false;
       state.message = "";
       state.user = null;
+    },
+    resetMessage: (state) => {
+      state.newmessage = "";
+      state.IsError = false;
     },
   },
   extraReducers: (builder) => {
@@ -83,24 +96,38 @@ export const authSlice = createSlice({
         state.isError = true;
         state.message = action.payload as string;
       })
-       .addCase(createUser.pending, (state) => {
+      .addCase(createUser.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(createUser.rejected, (state, action) => {
         state.isLoading = false;
-        state.isError = true;
-        state.message = action.payload as string;
+        state.IsError = true;
+        state.newmessage = action.payload as string;
       })
       .addCase(createUser.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.isError = false;
-        state.message = "User created successfully";
-        state.users.push(action.payload); 
+        state.IsError = false;
+        state.newmessage = "User created successfully";
+        state.users.push(action.payload);
+      })
+      .addCase(deleteUser.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(deleteUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload as string;
+      })
+      .addCase(deleteUser.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.message = "User deleted successfully";
+        state.users = state.users.filter((user) => user.username !== action.payload);
       });
   },
 });
 
-export const { reset } = authSlice.actions;
+export const { reset, resetMessage } = authSlice.actions;
 
 export default authSlice.reducer;

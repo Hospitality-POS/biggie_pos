@@ -49,9 +49,24 @@ export const fetchAllUsers = createAsyncThunk(
 
 export const createUser = createAsyncThunk(
   "user/createUser",
-  async (_userDetails: UserDetails, { rejectWithValue }) => {
+  async (_userDetails: UserDetails, { rejectWithValue, dispatch }) => {
     try {
       const response = await axios.post(`${baseUrl}/register`, _userDetails);
+      dispatch(fetchAllUsers())
+      return response.data;
+    } catch (error: any) {    
+      return rejectWithValue(error.response.data.message);
+    }
+  }
+);
+
+export const deleteUser = createAsyncThunk(
+  "user/deleteUser",
+  async (userId: string, { rejectWithValue, dispatch }) => {
+    try {
+      const response = await axios.delete(`${baseUrl}/${userId}`);
+      // Optionally, you can dispatch another action after successful deletion, like fetching updated user data.
+      dispatch(fetchAllUsers());
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
