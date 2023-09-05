@@ -20,7 +20,6 @@ import { useForm, Controller } from "react-hook-form";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 
-
 interface NewProduct {
   name: string;
   quantity: number;
@@ -67,10 +66,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     const newProductData: NewProduct = {
       ...data,
       category_id: data.category_id,
-      price: data.cost
+      price: data.cost,
     };
     // console.log(newProductData);
-    
+
     onAddProduct(newProductData);
     reset();
     onClose();
@@ -94,6 +93,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           color: "white",
           display: "flex",
           justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
         Add New Product

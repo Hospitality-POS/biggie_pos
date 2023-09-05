@@ -26,6 +26,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import AddUserDialog from "../../components/MODALS/Dialogs/AddUserDialog";
+import { createUser, deleteUser } from "../../features/Auth/AuthActions";
 
 interface User {
   fullname: string;
@@ -37,7 +38,7 @@ interface User {
 }
 
 function UsersList() {
-  const { users } = useSelector((state: any) => state.auth);
+  const { users, IsError } = useSelector((state: any) => state.auth);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [filter, setFilter] = useState<string>("");
   const [orderBy, setOrderBy] = useState<string>("id");
@@ -46,12 +47,13 @@ function UsersList() {
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(5);
   const [openAddUserDialog, setOpenAddUserDialog] = useState<boolean>(false);
+  const dispatch = useDispatch();
 
-  const filteredUsers = users.filter(
+  const filteredUsers = users ? users.filter(
     (user: User) =>
-      user.fullname.toLowerCase().includes(filter.toLowerCase()) ||
-      user.email.toLowerCase().includes(filter.toLowerCase())
-  );
+      user.fullname?.toLowerCase().includes(filter.toLowerCase()) ||
+      user.email?.toLowerCase().includes(filter.toLowerCase())
+  ) : [];
 
   const handleSort = (property: string) => {
     const isAsc = orderBy === property && order === "asc";
@@ -72,9 +74,9 @@ function UsersList() {
   );
 
   const handleDeleteUser = (userId: number) => {
-    setOpenDeleteDialog(true);
-    setSelectedUserId(userId);
-  };
+  setOpenDeleteDialog(true);
+  setSelectedUserId(userId);
+};
 
   const handleCloseDeleteDialog = () => {
     setOpenDeleteDialog(false);
@@ -88,7 +90,7 @@ function UsersList() {
 
   const handleConfirmDelete = () => {
     if (selectedUserId !== null) {
-      // Implement your logic to delete the user
+      dispatch(deleteUser(selectedUserId))
       handleCloseDeleteDialog();
     }
   };
@@ -97,12 +99,17 @@ function UsersList() {
     setOpenAddUserDialog(true);
   };
 
+  // if (IsError) {
+  //   setOpenAddUserDialog(true);
+  // }
   const handleCloseAddUserDialog = () => {
     setOpenAddUserDialog(false);
   };
 
-  const handleConfirmAddUser = () => {
-    handleCloseAddUserDialog();
+   const handleConfirmAddUser = () => {
+    if (!IsError) {
+      handleCloseAddUserDialog();
+    }
   };
 
   return (
@@ -164,9 +171,15 @@ function UsersList() {
           <TableBody>
             {sortedUsers
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell style={{ display: "flex", alignItems: "center", columnGap: 5 }}>
+              .map((user: { _id: React.Key | null | undefined; username: string | undefined; fullname: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined; email: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; phone: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; isAdmin: any; id: number; }) => (
+                <TableRow key={user._id}>
+                  <TableCell
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      columnGap: 5,
+                    }}
+                  >
                     <Avatar
                       alt={user.username}
                       src={`https://via.placeholder.com/40`}
@@ -178,7 +191,7 @@ function UsersList() {
                   <TableCell>0{user.phone}</TableCell>
                   <TableCell>{user.isAdmin ? "Admin" : "user"}</TableCell>
                   <TableCell>
-                    <IconButton onClick={() => handleDeleteUser(user.id)}>
+                    <IconButton onClick={() => handleDeleteUser(user._id)}>
                       <DeleteIcon />
                     </IconButton>
                     <IconButton onClick={() => handleEditUser(user.id)}>
@@ -223,10 +236,10 @@ function UsersList() {
 
       {/* add user */}
       <AddUserDialog
-        open={openAddUserDialog}
+        open={openAddUserDialog || IsError}
         onClose={handleCloseAddUserDialog}
         onAddUser={(user) => {
-          console.log("Adding user:", user);
+          console.log(user); 
         }}
       />
     </div>
