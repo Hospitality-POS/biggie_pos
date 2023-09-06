@@ -31,7 +31,7 @@ const TableCard: React.FC<Item> = ({ item }) => {
         created_by: user.id,
       };
       dispatch(createCart(cartDetails));
-      dispatch(fetchProducts())
+      // dispatch(fetchProducts())
     }
   };
 

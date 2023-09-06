@@ -1,6 +1,11 @@
-import React, { useState } from "react";
-
-import { Button, Grid, Typography } from "@mui/material";
+import React, { useEffect, useState } from "react";
+import {
+  Button,
+  CircularProgress,
+  Divider,
+  Grid,
+  Typography,
+} from "@mui/material";
 import ProductCard from "../../components/product/productCard";
 import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
@@ -15,6 +20,7 @@ import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCartItems } from "../../features/Cart/CartActions";
 import axios from "axios";
+import { Paper } from "@mui/material";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 
 const RestaurantPage = () => {
@@ -41,14 +47,22 @@ const RestaurantPage = () => {
     return response.data;
   };
 
-  const { data: categories, isLoading } = useQuery(["categories"], () =>
-    fetchCategories()
+  const { data: categories, isLoading: categoriesLoading } = useQuery(
+    ["categories"],
+    () => fetchCategories()
   );
 
   const [cartOpen, setCartOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [categoryChosen, setCategoryChosen] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    // When the component mounts, set isLoadingData to false
+    setIsLoadingData(false);
+  }, []);
 
   const handleCartOpen = () => {
     setCartOpen(true);
@@ -66,10 +80,13 @@ const RestaurantPage = () => {
   const handlePaymentClose = () => {
     setPaymentOpen(false);
   };
+
   const handleSelectCard = (card: React.SetStateAction<null>) => {
     setSelectedCard(card);
     dispatch(fetchProductsByCategory(card));
+    setCategoryChosen(true);
   };
+
   const handleNext = () => {
     setCurrentIndex((currentIndex + 1) % categories.length);
   };
@@ -78,203 +95,216 @@ const RestaurantPage = () => {
     setCurrentIndex((currentIndex - 1 + categories.length) % categories.length);
   };
 
-  if (isLoading) {
-    return (
-      <>
-        <div>
-          <Typography variant="h6" gutterBottom mt={1} pl={4}>
-            Categories
-          </Typography>
-          <section
-            className="cards"
-            style={{
-              display: "flex",
-              gap: "20px",
-              marginTop: "10px",
-              paddingLeft: "4px",
-            }}
-          >
-            {[...Array(8)].map((_, index) => (
-              <SkeletonCategoryCard key={index} />
-            ))}
-          </section>
-        </div>
-      </>
-    );
-  }
-
-  if (loading) {
-    return (
-      <>
-        <div>
-          {/* <Typography variant="h6" gutterBottom mt={1} pl={4}>
-            Categories
-          </Typography>
-          <section
-            className="cards"
-            style={{
-              display: "flex",
-              gap: "20px",
-              marginTop: "10px",
-              paddingLeft: "4px",
-            }}
-          >
-            {[...Array(8)].map((_, index) => (
-              <SkeletonCategoryCard key={index} />
-            ))}
-          </section> */}
-
-          <Typography variant="h6" gutterBottom mt={2} pl={4}>
-            Special Menu for you
-          </Typography>
-          <section
-            className="cards"
-            style={{
-              display: "flex",
-              gap: "20px",
-              marginTop: "10px",
-              paddingLeft: "4px",
-            }}
-          >
-            {[...Array(12)].map((_, index) => (
-              <SkeletonProductCard key={index} />
-            ))}
-          </section>
-        </div>
-      </>
-    );
-  }
+  const areProductsAvailable = products && products.length > 0;
 
   return (
     <>
-      <Grid item xs={12}>
-        <Grid container justifyContent="space-between" mt={2}>
-          <Typography variant="h6" gutterBottom mt={1} pl={4}>
-            Categories
-          </Typography>
-          <Grid item>
-            <Grid container spacing={2} pr={5}>
-              <Grid item>
-                <Button
-                  size="small"
-                  onClick={handlePrev}
-                  variant="outlined"
-                  sx={{
-                    color: "#6c1c2c",
-                    borderColor: "#6c1c2c",
-
-                    "&:hover": {
-                      borderColor: "#bc8c7c",
-                      color: "#bc8c7c",
-                    },
-                  }}
-                  disabled={categories?.length === 1}
-                >
-                  <NavigateBeforeIcon />
-                </Button>
-              </Grid>
-              <Grid item>
-                <Button
-                  size="small"
-                  onClick={handleNext}
-                  variant="outlined"
-                  sx={{
-                    color: "#6c1c2c",
-                    borderColor: "#6c1c2c",
-
-                    "&:hover": {
-                      borderColor: "#bc8c7c",
-                      color: "#bc8c7c",
-                    },
-                  }}
-                  disabled={categories?.length === 1}
-                >
-                  <NavigateNextIcon />
-                </Button>
-              </Grid>
-            </Grid>
-          </Grid>
-        </Grid>
-      </Grid>
-
-      <Grid item xs={12}>
-        <Grid container justifyContent="center">
-          <Grid item>
-            <div style={{ display: "flex", overflow: "hidden", width: "100%" }}>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "20px",
-                  width: `${categories?.length * 100}%`,
-                  transform: `translateX(-${
-                    currentIndex * (100 / categories?.length)
-                  }%)`,
-                  transition: "transform 0.5s ease-in-out",
-                }}
-              >
-                {categories?.map(
-                  (category: {
-                    product_count: number;
-                    _id: string;
-                    name: string;
-                  }) => (
-                    <CategoryCard
-                      style={{
-                        flex: `0 0 ${100 / categories?.length}%`,
+      <Grid container spacing={3}>
+        {/* Left Column */}
+        <Grid item xs={8}>
+          <Paper elevation={3} style={{ padding: "16px", height: "100vh" }}>
+            <div>
+              {/* Categories Loading Indicator */}
+              {categoriesLoading && (
+                <div>
+                  <section
+                    className="cards"
+                    style={{
+                      display: "flex",
+                      gap: "20px",
+                      marginTop: "10px",
+                      paddingLeft: "4px",
+                    }}
+                  >
+                    {[...Array(8)].map((_, index) => (
+                      <SkeletonCategoryCard key={index} />
+                    ))}
+                  </section>
+                </div>
+              )}
+              {!categoriesLoading && (
+                <>
+                  <Grid
+                    container
+                    justifyContent="center"
+                    gap={2}
+                    sx={{ display: "flex" }}
+                  >
+                    <Grid item>
+                      <div
+                        style={{
+                          display: "flex",
+                          overflow: "hidden",
+                          width: "100%",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "20px",
+                            width: `${categories?.length * 100}%`,
+                            transform: `translateX(-${
+                              currentIndex * (100 / categories?.length)
+                            }%)`,
+                            transition: "transform 0.5s ease-in-out",
+                          }}
+                        >
+                          {categories?.map(
+                            (category: {
+                              product_count: number;
+                              _id: string;
+                              name: string;
+                            }) => (
+                              <CategoryCard
+                                style={{
+                                  flex: `0 0 ${100 / categories?.length}%`,
+                                  display: "flex",
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                  border: "1px solid black",
+                                }}
+                                key={category._id}
+                                handleSelectedCard={handleSelectCard}
+                                selectedCard={selectedCard}
+                                icon={"/chip.png"}
+                                name={category.name}
+                                itemCount={category.product_count}
+                                id={category._id}
+                              />
+                            )
+                          )}
+                        </div>
+                      </div>
+                    </Grid>
+                    <Grid
+                      item
+                      gap={2}
+                      sx={{
                         display: "flex",
-                        justifyContent: "center",
+                        flexDirection: "column",
                         alignItems: "center",
-                        border: "1px solid black",
+                        justifyContent: "center",
                       }}
-                      key={category._id}
-                      handleSelectedCard={handleSelectCard}
-                      selectedCard={selectedCard}
-                      icon={"/chip.png"}
-                      name={category.name}
-                      itemCount={category.product_count}
-                      id={category._id}
-                    />
-                  )
-                )}
-              </div>
+                    >
+                      <Grid item>
+                        <Button
+                          size="small"
+                          onClick={handlePrev}
+                          variant="outlined"
+                          sx={{
+                            color: "#6c1c2c",
+                            borderColor: "#6c1c2c",
+                            "&:hover": {
+                              borderColor: "#bc8c7c",
+                              color: "#bc8c7c",
+                            },
+                          }}
+                          disabled={categories?.length === 1}
+                        >
+                          <NavigateBeforeIcon />
+                        </Button>
+                      </Grid>
+                      <Grid item>
+                        <Button
+                          size="small"
+                          onClick={handleNext}
+                          variant="outlined"
+                          sx={{
+                            color: "#6c1c2c",
+                            borderColor: "#6c1c2c",
+                            "&:hover": {
+                              borderColor: "#bc8c7c",
+                              color: "#bc8c7c",
+                            },
+                          }}
+                          disabled={categories?.length === 1}
+                        >
+                          <NavigateNextIcon />
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </Grid>
+                </>
+              )}
+              <Divider sx={{ mt: 2, mb: 2 }} />
+              {/* Products Loading Indicator */}
+              {loading && (
+                <section
+                  className="cards"
+                  style={{
+                    display: "flex",
+                    gap: "20px",
+                      alignItems: "flex-start",
+                    marginTop: "10px",
+                    paddingLeft: "4px",
+                  }}
+                >
+                  {[...Array(6)].map((_, index) => (
+                    <SkeletonProductCard key={index} />
+                  ))}
+                </section>
+              )}
+
+              {/* Render Products */}
+              {!loading && (
+                <section
+                  className="cards"
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "20px",
+                    paddingLeft: "4px",
+                  }}
+                >
+                  {areProductsAvailable ? (
+                    products.map(
+                      (menu: { _id: React.Key | null | undefined }) => (
+                        <ProductCard
+                          key={menu._id}
+                          menu={menu}
+                          handleCart={handleCartOpen}
+                        />
+                      )
+                    )
+                  ) : categoryChosen ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        height: "100%",
+                      }}
+                    >
+                      <Typography variant="body1" gutterBottom mt={2} pl={4}>
+                        This category has no items
+                      </Typography>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        height: "100%",
+                      }}
+                    >
+                      <Typography variant="body1" gutterBottom mt={2} pl={4}>
+                        No category chosen
+                      </Typography>
+                    </div>
+                  )}
+                </section>
+              )}
             </div>
-          </Grid>
+          </Paper>
+        </Grid>
+        {/* Right Column */}
+        <Grid item xs={4}>
+          <CartDrawer tableData={tableData} />
         </Grid>
       </Grid>
-
-      {/* </section> */}
-
-      <Typography variant="h6" gutterBottom mt={2} pl={4}>
-        Special Menu for you
-      </Typography>
-
-      <section
-        className="cards"
-        style={{
-          display: "flex",
-          gap: "20px",
-          marginTop: "10px",
-          paddingLeft: "4px",
-        }}
-      >
-        {products?.map((menu: { _id: React.Key | null | undefined }) => (
-          <ProductCard key={menu._id} menu={menu} handleCart={handleCartOpen} />
-        ))}
-      </section>
-
-      <CartDrawer
-        tableData={tableData}
-        cartOpen={cartOpen}
-        handleCartClose={handleCartClose}
-        handlePaymentOpen={handlePaymentOpen}
-      />
-
-      <PaymentDrawer
-        paymentOpen={paymentOpen}
-        handlePaymentClose={handlePaymentClose}
-      />
-
-      <AddToCartIcon OpenCart={handleCartOpen} />
     </>
   );
 };

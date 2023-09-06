@@ -1,14 +1,12 @@
-import React from "react";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardMedia from "@mui/material/CardMedia";
+import React, { useState } from "react";
+import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
-import { CardActionArea } from "@mui/material";
+import Button from "@mui/material/Button";
 import { useDispatch, useSelector } from "react-redux";
-import { addItemToCart } from "../../features/Cart/CartActions";
+import { addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
 
-function formatPrice(price: number) {
+function formatPrice(price) {
   return price.toLocaleString();
 }
 
@@ -19,23 +17,16 @@ interface ProductCardProps {
     name: string;
     price: number;
     desc: string;
-    image?: string;
   };
-  table_id: string;
 }
 
-function transformImagePath(absolutePath: string) {
-  const filename = absolutePath.split("\\").pop(); 
-  return `\\uploads\\${filename}`;
-}
-
-const ProductCard: React.FC<ProductCardProps> = ({ menu }) =>{
+const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const { user } = useSelector((state: any) => state.auth);
   const { cartDetails } = useSelector((state: any) => state.cart);
+  const [quantity, setQuantity] = useState(0);
+
   const dispatch = useDispatch();
-
   const { id } = useParams();
-
   const handleAddToCart = () => {
     dispatch(
       addItemToCart({
@@ -48,49 +39,71 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) =>{
         table_id: id,
       })
     );
+    console.log("Quantity added to cart:", quantity);
+  };
+
+  const handleIncrement = () => {
+    setQuantity(quantity + 1);
+    dispatch(fetchCartItems(cartDetails?._id));
+  };
+
+  const handleDecrement = () => {
+    if (quantity > 0) {
+      setQuantity(quantity - 1);
+    }
+    dispatch(fetchCartItems(cartDetails?._id));
   };
 
   return (
-    // todo: add box shadow to the product card
-    <Card
-      sx={{ maxWidth: 345, width: "200px", height: "250px" }}
-      onClick={handleAddToCart}
-    >
-      <CardActionArea>
-        <CardMedia
-          component="img"
-          height="150px"
-          width="120px"
-          image={menu.image ? transformImagePath(menu.image) : "/food.jpg"}
-          alt="Product"
-        />
-        <CardContent>
-          <div>
-            <Typography
-              gutterBottom
-              variant="h6"
-              fontSize={18}
-              component="span"
-              color="text.secondary"
-            >
-              {menu.name}
-            </Typography>
-          </div>
-          <div>
-            <Typography
-              variant="body1"
-              color="text.primary"
-              fontWeight={"bold"}
-              fontSize={18}
-              mt={1}
-            >
-              Ksh. {formatPrice(menu.price)}
-            </Typography>
-          </div>
-        </CardContent>
-      </CardActionArea>
-    </Card>
+    <Paper elevation={3} style={{ padding: "16px", maxWidth: "200px" }}>
+      <Typography variant="h6" gutterBottom style={{ fontWeight: "bold" }}>
+        {menu.name}
+      </Typography>
+      <Typography variant="body1" fontSize={18} mb={2} style={{ opacity: 0.7 }}>
+        Ksh. {formatPrice(menu.price)}
+      </Typography>
+      <div>
+        <Button
+          variant="outlined"
+          onClick={handleDecrement}
+          sx={{
+            color: "#6c1c2c",
+            borderColor: "#6c1c2c",
+            "&:hover": {
+              borderColor: "#bc8c7c",
+              color: "#bc8c7c",
+            },
+          }}
+          disabled={quantity === 0}
+        >
+          -
+        </Button>
+        <span style={{ margin: "0 10px", fontWeight: "bold" }}>{quantity}</span>
+        <Button
+          variant="outlined"
+          onClick={() => (handleIncrement(), handleAddToCart())}
+          sx={{
+            color: "#6c1c2c",
+            borderColor: "#6c1c2c",
+            "&:hover": {
+              borderColor: "#bc8c7c",
+              color: "#bc8c7c",
+            },
+          }}
+        >
+          +
+        </Button>
+      </div>
+      {/* <Button
+        variant="contained"
+        color="primary"
+        onClick={handleAddToCart}
+        style={{ marginTop: "10px" }}
+      >
+        Add to Cart
+      </Button> */}
+    </Paper>
   );
-}
+};
 
 export default ProductCard;

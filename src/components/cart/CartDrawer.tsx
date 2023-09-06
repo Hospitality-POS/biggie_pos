@@ -1,8 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Box,
   Button,
-  Drawer,
   Typography,
   Card,
   CardContent,
@@ -11,8 +9,9 @@ import {
   IconButton,
   CardMedia,
   Badge,
+  Paper,
 } from "@mui/material";
-import ClearIcon from '@mui/icons-material/Clear';
+import ClearIcon from "@mui/icons-material/Clear";
 import CartItemCard from "./CartItemCard";
 import { useDispatch, useSelector } from "react-redux";
 import React, { Key, useState } from "react";
@@ -26,25 +25,19 @@ import PrintBillModal from "../MODALS/PrintBillModal";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { deleteAllCartItems } from "../../features/Cart/CartActions";
+import PaymentDrawer from "../payment/PaymentDrawer";
 
 interface CartDrawerProps {
   tableData: any;
-  cartOpen: boolean | undefined;
-  handleCartClose: () => void;
-  handlePaymentOpen: () => void;
 }
-const CartDrawer: React.FC<CartDrawerProps> = ({
-  cartOpen,
-  handleCartClose,
-  handlePaymentOpen,
-  tableData,
-}) => {
+
+const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
   const [openM, setOpenM] = useState(false);
   const { cartDetails, totalAmount, cartItems } = useSelector(
     (state: any) => state.cart
   );
   const { user } = useSelector((state: any) => state.auth);
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
 
   const onCloseM = () => {
     setOpenM(false);
@@ -57,19 +50,14 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
   );
 
   return (
-    <Drawer
-      anchor="right"
-      open={cartOpen}
-      onClose={handleCartClose}
-      style={{ height: "100vh", overflowY: "auto" }}
-    >
+    <Paper elevation={3} style={{ padding: "16px", maxHeight: "100vh", overflow: "hidden", overflowY: "auto"  }}>
       <PrintBillModal
         openM={openM}
         onCloseM={onCloseM}
         cartDetails={cartDetails}
         totalAmount={totalAmount}
       />
-      <Box sx={{ width: "430px", mt: 2 }}>
+      <Box sx={{ width: "400px" }}>
         <Grid
           item
           xs={12}
@@ -82,7 +70,6 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
           <Grid
             item
             xs={12}
-            pl={2}
             sx={{
               display: "flex",
               columnGap: 2,
@@ -132,12 +119,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               {tableData?.name}
             </Button>
           </Grid>
-
-          <IconButton onClick={handleCartClose}>
-            <CloseRounded fontSize="large" />
-          </IconButton>
         </Grid>
-
         <Card sx={{ mb: 2, boxShadow: "none" }}>
           <CardContent>
             <Grid container spacing={2} alignItems="center">
@@ -160,29 +142,31 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
           </CardContent>
           <Divider />
         </Card>
-
-        <Box sx={{ maxHeight: "calc(100vh - 250px)", overflowY: "auto" }}>
+        <div
+          style={{
+            maxHeight: "calc(100vh - 300px)", 
+            overflowY: "auto",
+          }}
+        >
           {cartItems?.map((item: { _id: Key | null | undefined }) => (
             <CartItemCard key={item._id} cartItem={item} />
           ))}
-        </Box>
-
+        </div>
         {cartItems?.length ? (
           <Grid
             item
             xs={12}
             sx={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
           >
-            <Typography variant="body1" fontWeight="bold" pl={2}>
+            <Typography variant="body1" fontWeight="bold">
               Total : {totalAmount}
             </Typography>
-            <Typography variant="body1" fontWeight="bold" pl={2}>
+            <Typography variant="body1" fontWeight="bold">
               Served By: {data?.data?.created_by.username}
             </Typography>
             <Box
               sx={{
                 display: "flex",
-                justifyContent: "center",
                 mt: 2,
                 columnGap: 2,
                 bottom: 0,
@@ -206,7 +190,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               </Button>
               <Button
                 variant="contained"
-                onClick={()=>dispatch(deleteAllCartItems(cartId))}
+                onClick={() => dispatch(deleteAllCartItems(cartId))}
                 endIcon={<ClearIcon />}
                 sx={{
                   pl: 1,
@@ -219,35 +203,11 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
               >
                 Clear
               </Button>
-                <Button
-                  variant="contained"
-                  onClick={handlePaymentOpen}
-                  endIcon={<AddCardIcon />}
-                  sx={{
-                    pl: 2,
-                    bgcolor: "#6c1c2c",
-                    "&:hover": {
-                      bgcolor: "#bc8c7c",
-                      color: "#ffff",
-                    },
-                  }}
-                >
-                  Pay Now
-                </Button>
             </Box>
           </Grid>
         ) : (
           <Card className={classes.cardm}>
-            <Badge
-              badgeContent="Empty"
-              color="error"
-              overlap="circular"
-              anchorOrigin={{
-                vertical: "top",
-                horizontal: "right",
-              }}
-              className={classes.badge}
-            >
+            <div>
               <CardMedia
                 component="img"
                 alt="Basket"
@@ -255,11 +215,15 @@ const CartDrawer: React.FC<CartDrawerProps> = ({
                 image="/basket.png"
                 sx={{ width: 100 }}
               />
-            </Badge>
+              <Typography variant="body1" gutterBottom>
+                No items added
+              </Typography>
+            </div>
           </Card>
         )}
       </Box>
-    </Drawer>
+      {cartItems?.length ? <PaymentDrawer /> : ""}
+    </Paper>
   );
 };
 
