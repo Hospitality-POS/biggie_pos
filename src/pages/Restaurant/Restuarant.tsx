@@ -233,7 +233,7 @@ const RestaurantPage = () => {
                   className="cards"
                   style={{
                     display: "flex",
-                    gap: "20px",
+                    gap: "10px",
                       alignItems: "flex-start",
                     marginTop: "10px",
                     paddingLeft: "4px",
@@ -252,7 +252,7 @@ const RestaurantPage = () => {
                   style={{
                     display: "flex",
                     alignItems: "flex-start",
-                    gap: "20px",
+                    gap: "10px",
                     paddingLeft: "4px",
                   }}
                 >
@@ -291,7 +291,7 @@ const RestaurantPage = () => {
                       }}
                     >
                       <Typography variant="body1" gutterBottom mt={2} pl={4}>
-                        No category chosen
+                        Choose a category
                       </Typography>
                     </div>
                   )}

@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
 
-function formatPrice(price) {
+function formatPrice(price: number) {
   return price.toLocaleString();
 }
 
@@ -27,6 +27,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
   const dispatch = useDispatch();
   const { id } = useParams();
+
   const handleAddToCart = () => {
     dispatch(
       addItemToCart({
@@ -39,7 +40,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         table_id: id,
       })
     );
-    console.log("Quantity added to cart:", quantity);
   };
 
   const handleIncrement = () => {
@@ -55,13 +55,42 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   };
 
   return (
-    <Paper elevation={3} style={{ padding: "16px", maxWidth: "200px" }}>
-      <Typography variant="h6" gutterBottom style={{ fontWeight: "bold" }}>
+    <Paper
+      elevation={3}
+      style={{
+        display: "flex", 
+        flexDirection: "column", 
+        justifyContent: "space-between",
+        padding: "16px",
+        maxWidth: "200px",
+        maxHeight: "180px",
+        height: "180px",
+        overflow: "hidden",
+      }}
+    >
+      <div>
+
+      <Typography
+        variant="h6"
+        gutterBottom
+        style={{
+          fontWeight: "inherit",
+          whiteSpace: "normal",
+          wordWrap: "break-word",
+          textOverflow: "ellipsis",
+        }}
+      >
         {menu.name}
       </Typography>
-      <Typography variant="body1" fontSize={18} mb={2} style={{ opacity: 0.7 }}>
+      <Typography
+        variant="body1"
+        fontSize={18}
+        mb={2}
+        style={{ opacity: 0.7, marginTop: "auto" }} 
+      >
         Ksh. {formatPrice(menu.price)}
       </Typography>
+      </div>
       <div>
         <Button
           variant="outlined"
@@ -81,7 +110,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         <span style={{ margin: "0 10px", fontWeight: "bold" }}>{quantity}</span>
         <Button
           variant="outlined"
-          onClick={() => (handleIncrement(), handleAddToCart())}
+          onClick={() => {
+            handleIncrement();
+            handleAddToCart();
+          }}
           sx={{
             color: "#6c1c2c",
             borderColor: "#6c1c2c",
@@ -94,14 +126,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
           +
         </Button>
       </div>
-      {/* <Button
-        variant="contained"
-        color="primary"
-        onClick={handleAddToCart}
-        style={{ marginTop: "10px" }}
-      >
-        Add to Cart
-      </Button> */}
     </Paper>
   );
 };
