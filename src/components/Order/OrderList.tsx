@@ -172,7 +172,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
       order.updated_by.username,
     ]);
 
-    const headers = ["Order No", "Created At", "Updated By"];
+    const headers = ["Order No.", "Created At", "Created By"];
     const tableY = 20;
     const dataY = tableY + 10;
 
@@ -182,7 +182,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
       startY: dataY,
     });
 
-    doc.save("orders.pdf");
+    doc.save(`orders-${Date.now()}.pdf`);
   };
 
   const handleCloseDeleteDialog = () => {
