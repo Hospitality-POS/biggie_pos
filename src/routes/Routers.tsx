@@ -8,6 +8,7 @@ import Table from "../pages/Tables/Table";
 import Inventory from "../pages/Settings/Inventory";
 import Reports from "../pages/Settings/Reports";
 import SupplierTable from "../pages/Settings/Supplier";
+import MainCategory from "../pages/main_category/Main_category";
 
 const Layout = lazy(() => import("../components/layout/Layout"));
 // const Staff = lazy(() => import("../pages/staff/Staff"));
@@ -24,7 +25,9 @@ function Routers() {
           <Route index element={<Staff />} />
           <Route path="/staff" element={<Staff />} />
           <Route path="/tables" element={<Private><Table /></Private>} />
+          <Route path="/main-category" element={<Private><MainCategory /></Private>} />
           <Route path="/restaurant/:id" element={<Private><RestaurantPage /></Private>} />
+          <Route path="/kitchen/:id" element={<Private></Private>} />
           <Route path="/store" element={<Private><Store /></Private>} />
           <Route path="/users" element={<Private><UsersList /></Private>} />
           <Route path="/reports" element={<Private><Reports /></Private>} />
