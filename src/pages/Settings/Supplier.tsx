@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogActions,
   Typography,
+  Avatar,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
@@ -109,7 +110,7 @@ const SupplierTable = () => {
     });
   return (
     <Paper>
-       <Typography mt={2} variant="h6" ml={2} gutterBottom>
+      <Typography mt={2} variant="h6" ml={2} gutterBottom>
         List of all the suppliers
       </Typography>
       <Box
@@ -120,13 +121,6 @@ const SupplierTable = () => {
         mt={2}
         sx={{ paddingLeft: 2 }}
       >
-        <TextField
-          label="Search Supplier"
-          value={filter}
-          InputProps={{ endAdornment: <SearchIcon /> }}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-
         <Button
           startIcon={<AddIcon />}
           variant="contained"
@@ -135,6 +129,12 @@ const SupplierTable = () => {
         >
           Add New Supplier
         </Button>
+        <TextField
+          label="Search Supplier"
+          value={filter}
+          InputProps={{ endAdornment: <SearchIcon /> }}
+          onChange={(e) => setFilter(e.target.value)}
+        />
       </Box>
       <TableContainer
         style={{
@@ -177,7 +177,7 @@ const SupplierTable = () => {
                   onClick={() => handleSort("email")}
                 >
                   <Box display="flex" alignItems="center">
-                    <EmailIcon style={{ marginRight: "4px" }} /> 
+                    <EmailIcon style={{ marginRight: "4px" }} />
                     Email
                     {orderBy === "email" && (
                       <ArrowDropDownIcon
@@ -192,13 +192,13 @@ const SupplierTable = () => {
               </TableCell>
               <TableCell style={{ color: "white" }}>
                 <Box display="flex" alignItems="center">
-                  <PhoneIcon style={{ marginRight: "4px" }} /> 
+                  <PhoneIcon style={{ marginRight: "4px" }} />
                   Phone
                 </Box>
               </TableCell>
               <TableCell style={{ color: "white" }}>
                 <Box display="flex" alignItems="center">
-                  <ActionsIcon style={{ marginRight: "4px" }} /> 
+                  <ActionsIcon style={{ marginRight: "4px" }} />
                   Actions
                 </Box>
               </TableCell>
@@ -248,7 +248,16 @@ const SupplierTable = () => {
                     | undefined;
                 }) => (
                   <TableRow key={supplier._id}>
-                    <TableCell>{supplier.name}</TableCell>
+                    <TableCell
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        columnGap: 5,
+                      }}
+                    >
+                      <Avatar alt={supplier.name} src={supplier.name} />
+                      {supplier.name}
+                    </TableCell>
                     <TableCell>{supplier.email}</TableCell>
                     <TableCell>0{supplier.phone}</TableCell>
                     <TableCell>

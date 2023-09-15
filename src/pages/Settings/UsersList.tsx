@@ -135,12 +135,6 @@ function UsersList() {
         mt={2}
         sx={{ paddingLeft: 2 }}
       >
-        <TextField
-          label="Search User"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          InputProps={{ endAdornment: <SearchIcon /> }}
-        />
         <Button
           startIcon={<AddIcon />}
           variant="contained"
@@ -149,6 +143,12 @@ function UsersList() {
         >
           Add New User
         </Button>
+        <TextField
+          label="Search User"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          InputProps={{ endAdornment: <SearchIcon /> }}
+        />
       </Box>
       <TableContainer
         component={Paper}
@@ -330,7 +330,7 @@ function UsersList() {
                     >
                       <Avatar
                         alt={user.username}
-                        src={`https://via.placeholder.com/40`}
+                        src={user.username}
                       />
                       {user.fullname}
                     </TableCell>
