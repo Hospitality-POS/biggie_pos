@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -11,104 +11,256 @@ import {
   Button,
   TableSortLabel,
   TablePagination,
-} from '@mui/material';
-import Search  from '@mui/icons-material/Search';
-import axios from 'axios';
+  IconButton,
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import BusinessIcon from "@mui/icons-material/Business";
+import PhoneIcon from "@mui/icons-material/Phone";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import EmailIcon from "@mui/icons-material/Email";
+import ActionsIcon from "@mui/icons-material/MoreVert";
+import { useSelector, useDispatch } from "react-redux";
+import { deleteSupplier } from "../../features/Supplier/SupplierActions";
+import AddSupplierDialog from "../../components/MODALS/Dialogs/AddSupplierDialog";
 
 const SupplierTable = () => {
-  const [suppliers, setSuppliers] = useState([]);
-  const [filteredSuppliers, setFilteredSuppliers] = useState([]);
-  const [filterName, setFilterName] = useState('');
-  const [filterEmail, setFilterEmail] = useState('');
-  const [orderBy, setOrderBy] = useState('name');
-  const [order, setOrder] = useState('asc');
+  const dispatch = useDispatch();
+  const { suppliers } = useSelector((state: any) => state.supplier);
+
+  const [filter, setFilter] = useState<string>("");
+  const [orderBy, setOrderBy] = useState<string>("name");
+  const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [addSupplierDialogOpen, setAddSupplierDialogOpen] = useState(false);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
 
-  useEffect(() => {
-    // Fetch suppliers from the server or your API
-    axios.get('/api/suppliers').then((response) => {
-      setSuppliers(response.data);
-      setFilteredSuppliers(response.data);
-    });
-  }, []);
-
-  const handleFilter = () => {
-    const filtered = suppliers.filter(
-      (supplier) =>
-        supplier.name.toLowerCase().includes(filterName.toLowerCase()) &&
-        supplier.email.toLowerCase().includes(filterEmail.toLowerCase())
-    );
-    setFilteredSuppliers(filtered);
-    setPage(0);
-  };
-
-  const handleSort = (property) => {
-    const isAsc = orderBy === property && order === 'asc';
-    setOrder(isAsc ? 'desc' : 'asc');
+  const handleSort = (property: React.SetStateAction<string>) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
     setOrderBy(property);
   };
 
-  const handleChangePage = (event, newPage) => {
+  const handleChangePage = (
+    _event: any,
+    newPage: React.SetStateAction<number>
+  ) => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event) => {
+  const handleChangeRowsPerPage = (event: { target: { value: string } }) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
+  const handleDeleteClick = (supplier: React.SetStateAction<null>) => {
+    setDeleteCandidate(supplier);
+    setDeleteConfirmationOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteCandidate) {
+      dispatch(deleteSupplier(deleteCandidate._id));
+      setDeleteConfirmationOpen(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmationOpen(false);
+  };
+
+  const handleOpenAddSupplierDialog = () => {
+    setAddSupplierDialogOpen(true);
+  };
+  const handleAddSupplier = (_newSupplier) => {
+    // You can update your state or perform any necessary actions here
+    // For example, you can add the newSupplier to your existing suppliers
+    // and update the table accordingly.
+  };
+
+  // Filter suppliers based on user input
+  const filteredSuppliers = suppliers
+    ? suppliers.filter(
+        (supplier: { name: string; email: string }) =>
+          supplier.name?.toLowerCase().includes(filter.toLowerCase()) ||
+          supplier.email?.toLowerCase().includes(filter.toLowerCase())
+      )
+    : [];
+
+  // Sort filtered suppliers
+  const sortedSuppliers = filteredSuppliers
+    .slice()
+    .sort((a: { [x: string]: string }, b: { [x: string]: string }) => {
+      const compareValueA = a[orderBy] || ""; // Handle null values
+      const compareValueB = b[orderBy] || "";
+      const comparison = compareValueA.localeCompare(compareValueB);
+
+      return order === "asc" ? comparison : -comparison;
+    });
   return (
     <Paper>
-      <TextField
-        label="Name"
-        value={filterName}
-        onChange={(e) => setFilterName(e.target.value)}
-      />
-      <TextField
-        label="Email"
-        value={filterEmail}
-        onChange={(e) => setFilterEmail(e.target.value)}
-      />
-      <Button variant="contained" color="primary" onClick={handleFilter}>
-        <Search />
-        Filter
-      </Button>
-      <TableContainer>
+      <Box
+        display="flex"
+        columnGap={2}
+        alignItems="center"
+        mb={2}
+        mt={2}
+        sx={{ paddingLeft: 2 }}
+      >
+        <TextField
+          label="Search Supplier"
+          value={filter}
+          InputProps={{ endAdornment: <SearchIcon /> }}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+
+        <Button
+          startIcon={<AddIcon />}
+          variant="contained"
+          style={{ padding: 14, backgroundColor: "#6c1c2c" }}
+          onClick={handleOpenAddSupplierDialog}
+        >
+          Add New Supplier
+        </Button>
+      </Box>
+      <TableContainer
+        style={{
+          width: "100%",
+          marginTop: "1rem",
+          overflowX: "auto",
+          paddingLeft: 20,
+          paddingRight: 20,
+        }}
+      >
         <Table>
           <TableHead>
-            <TableRow>
-              <TableCell>
+            <TableRow style={{ backgroundColor: "#6c1c2c" }}>
+              <TableCell style={{ color: "white" }}>
                 <TableSortLabel
-                  active={orderBy === 'name'}
-                  direction={orderBy === 'name' ? order : 'asc'}
-                  onClick={() => handleSort('name')}
+                  style={{ color: "white" }}
+                  active={orderBy === "name"}
+                  direction={orderBy === "name" ? order : "asc"}
+                  onClick={() => handleSort("name")}
                 >
-                  Name
+                  <Box display="flex" alignItems="center">
+                    <BusinessIcon style={{ marginRight: "4px" }} /> {/* Icon */}
+                    Supplier's Name
+                    {orderBy === "name" && (
+                      <ArrowDropDownIcon
+                        style={{
+                          transform:
+                            order === "asc" ? "rotate(0deg)" : "rotate(180deg)",
+                        }}
+                      />
+                    )}
+                  </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell>
+              <TableCell style={{ color: "white" }}>
                 <TableSortLabel
-                  active={orderBy === 'email'}
-                  direction={orderBy === 'email' ? order : 'asc'}
-                  onClick={() => handleSort('email')}
+                  style={{ color: "white" }}
+                  active={orderBy === "email"}
+                  direction={orderBy === "email" ? order : "asc"}
+                  onClick={() => handleSort("email")}
                 >
-                  Email
+                  <Box display="flex" alignItems="center">
+                    <EmailIcon style={{ marginRight: "4px" }} /> {/* Icon */}
+                    Email
+                    {orderBy === "email" && (
+                      <ArrowDropDownIcon
+                        style={{
+                          transform:
+                            order === "asc" ? "rotate(0deg)" : "rotate(180deg)",
+                        }}
+                      />
+                    )}
+                  </Box>
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Phone</TableCell>
+              <TableCell style={{ color: "white" }}>
+                <Box display="flex" alignItems="center">
+                  <PhoneIcon style={{ marginRight: "4px" }} /> {/* Icon */}
+                  Phone
+                </Box>
+              </TableCell>
+              <TableCell style={{ color: "white" }}>
+                <Box display="flex" alignItems="center">
+                  <ActionsIcon style={{ marginRight: "4px" }} /> {/* Icon */}
+                  Actions
+                </Box>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredSuppliers
+            {sortedSuppliers
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((supplier) => (
-                <TableRow key={supplier._id}>
-                  <TableCell>{supplier.name}</TableCell>
-                  <TableCell>{supplier.email}</TableCell>
-                  <TableCell>{supplier.phone}</TableCell>
-                </TableRow>
-              ))}
+              .map(
+                (supplier: {
+                  _id: React.Key | null | undefined;
+                  name:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                  email:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                  phone:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                }) => (
+                  <TableRow key={supplier._id}>
+                    <TableCell>{supplier.name}</TableCell>
+                    <TableCell>{supplier.email}</TableCell>
+                    <TableCell>0{supplier.phone}</TableCell>
+                    <TableCell>
+                      <IconButton color="primary">
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDeleteClick(supplier)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                )
+              )}
           </TableBody>
         </Table>
       </TableContainer>
@@ -120,6 +272,35 @@ const SupplierTable = () => {
         page={page}
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirmationOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete :{" "}
+          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>the supplier
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/*add supplier  */}
+      <AddSupplierDialog
+        open={addSupplierDialogOpen}
+        onClose={() => setAddSupplierDialogOpen(false)}
+        onAddSupplier={handleAddSupplier}
       />
     </Paper>
   );

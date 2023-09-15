@@ -22,6 +22,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { fetchAllUsers } from "../../features/Auth/AuthActions";
 import { fetchAllProductInventories } from "../../features/Inventory/product/productInventoryActions";
+import { fetchSuppliers } from "../../features/Supplier/SupplierActions";
 
 interface SettingsModalProps {
   sidebarOpen: boolean;
@@ -85,7 +86,7 @@ function SettingsModal({
             </ListItemIcon>
             <ListItemText primary="Payment Methods" />
           </ListItem>
-          <ListItem button onClick={() => navigate("/Supplier")}>
+          <ListItem button onClick={() => {navigate("/Supplier"), dispatch(fetchSuppliers())}}>
             <ListItemIcon>
               <LocalShippingIcon />
             </ListItemIcon>

@@ -4,6 +4,7 @@ import CartSlice from "./features/Cart/CartSlice";
 import OrderSlice from "./features/Order/OrderSlice";
 import ProductSlice from "./features/Product/ProductSlice";
 import productInventorySlice from "./features/Inventory/product/productInventorySlice";
+import SupplierSlice from "./features/Supplier/SupplierSlice";
 
 
 const rootReducer = combineReducers({
@@ -11,7 +12,8 @@ const rootReducer = combineReducers({
   cart: CartSlice,
   order: OrderSlice,
   product: ProductSlice,
-  productInventory: productInventorySlice
+  productInventory: productInventorySlice,
+  supplier: SupplierSlice
 });
 
 export const store = configureStore({
