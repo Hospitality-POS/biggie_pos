@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
@@ -108,6 +109,9 @@ const SupplierTable = () => {
     });
   return (
     <Paper>
+       <Typography mt={2} variant="h6" ml={2} gutterBottom>
+        List of all the suppliers
+      </Typography>
       <Box
         display="flex"
         columnGap={2}
@@ -173,7 +177,7 @@ const SupplierTable = () => {
                   onClick={() => handleSort("email")}
                 >
                   <Box display="flex" alignItems="center">
-                    <EmailIcon style={{ marginRight: "4px" }} /> {/* Icon */}
+                    <EmailIcon style={{ marginRight: "4px" }} /> 
                     Email
                     {orderBy === "email" && (
                       <ArrowDropDownIcon
@@ -188,13 +192,13 @@ const SupplierTable = () => {
               </TableCell>
               <TableCell style={{ color: "white" }}>
                 <Box display="flex" alignItems="center">
-                  <PhoneIcon style={{ marginRight: "4px" }} /> {/* Icon */}
+                  <PhoneIcon style={{ marginRight: "4px" }} /> 
                   Phone
                 </Box>
               </TableCell>
               <TableCell style={{ color: "white" }}>
                 <Box display="flex" alignItems="center">
-                  <ActionsIcon style={{ marginRight: "4px" }} /> {/* Icon */}
+                  <ActionsIcon style={{ marginRight: "4px" }} /> 
                   Actions
                 </Box>
               </TableCell>
