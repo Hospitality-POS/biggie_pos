@@ -6,6 +6,8 @@ import ProductSlice from "./features/Product/ProductSlice";
 import productInventorySlice from "./features/Inventory/product/productInventorySlice";
 import SupplierSlice from "./features/Supplier/SupplierSlice";
 import TableSlice from "./features/Table/TableSlice";
+import CategorySlice from "./features/Category/CategorySlice";
+
 
 
 
@@ -16,7 +18,8 @@ const rootReducer = combineReducers({
   product: ProductSlice,
   productInventory: productInventorySlice,
   supplier: SupplierSlice,
-  Tables: TableSlice
+  Tables: TableSlice,
+  Categories: CategorySlice
 });
 
 export const store = configureStore({

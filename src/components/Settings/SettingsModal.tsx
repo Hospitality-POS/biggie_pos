@@ -24,6 +24,7 @@ import { fetchAllUsers } from "../../features/Auth/AuthActions";
 import { fetchAllProductInventories } from "../../features/Inventory/product/productInventoryActions";
 import { fetchSuppliers } from "../../features/Supplier/SupplierActions";
 import { fetchTables } from "../../features/Table/TableActions";
+import { fetchCategories } from "../../features/Category/CategoryActions";
 
 interface SettingsModalProps {
   sidebarOpen: boolean;
@@ -75,13 +76,13 @@ function SettingsModal({
             </ListItemIcon>
             <ListItemText primary="Tables" />
           </ListItem>
-          <ListItem button onClick={() => navigate("/Categories")}>
+          <ListItem button onClick={() => {navigate("/Category-settings"), dispatch(fetchCategories())}}>
             <ListItemIcon>
               <CategoryIcon />
             </ListItemIcon>
             <ListItemText primary="Categories" />
           </ListItem>
-          <ListItem button onClick={() => navigate("/Categories")}>
+          <ListItem button onClick={() => navigate("/payment-settings")}>
             <ListItemIcon>
               <CategoryIcon />
             </ListItemIcon>
