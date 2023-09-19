@@ -23,6 +23,7 @@ import { useDispatch } from "react-redux";
 import { fetchAllUsers } from "../../features/Auth/AuthActions";
 import { fetchAllProductInventories } from "../../features/Inventory/product/productInventoryActions";
 import { fetchSuppliers } from "../../features/Supplier/SupplierActions";
+import { fetchTables } from "../../features/Table/TableActions";
 
 interface SettingsModalProps {
   sidebarOpen: boolean;
@@ -68,7 +69,7 @@ function SettingsModal({
             </ListItemIcon>
             <ListItemText primary="People/Users" />
           </ListItem>
-          <ListItem button onClick={() => navigate("/Tables")}>
+          <ListItem button onClick={() => {navigate("/table-settings"), dispatch(fetchTables())}}>
             <ListItemIcon>
               <TableBarIcon />
             </ListItemIcon>

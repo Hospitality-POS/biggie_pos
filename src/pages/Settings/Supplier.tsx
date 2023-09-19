@@ -18,7 +18,7 @@ import {
   DialogContent,
   DialogActions,
   Typography,
-  Avatar,
+  Avatar as Avata,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
@@ -255,7 +255,10 @@ const SupplierTable = () => {
                         columnGap: 5,
                       }}
                     >
-                      <Avatar alt={supplier.name} src={supplier.name} />
+                      <Avata
+                       alt={supplier.name} 
+                       src={supplier.name} 
+                       />
                       {supplier.name}
                     </TableCell>
                     <TableCell>{supplier.email}</TableCell>

@@ -9,6 +9,7 @@ import Inventory from "../pages/Settings/Inventory";
 import Reports from "../pages/Settings/Reports";
 import SupplierTable from "../pages/Settings/Supplier";
 import MainCategory from "../pages/main_category/Main_category";
+import TableSettings from "../pages/Settings/TableSettings";
 
 const Layout = lazy(() => import("../components/layout/Layout"));
 // const Staff = lazy(() => import("../pages/staff/Staff"));
@@ -32,6 +33,7 @@ function Routers() {
           <Route path="/users" element={<Private><UsersList /></Private>} />
           <Route path="/reports" element={<Private><Reports /></Private>} />
           <Route path="/supplier" element={<Private><SupplierTable /></Private>} />
+          <Route path="/table-settings" element={<Private><TableSettings /></Private>} />
           <Route path="/Inventory" element={<Private><Inventory /></Private>} />
           <Route path="/Orders" element={<Private><Orders /></Private>} />
           <Route path="*" element={<Spinner />} />
