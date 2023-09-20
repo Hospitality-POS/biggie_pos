@@ -7,6 +7,7 @@ import productInventorySlice from "./features/Inventory/product/productInventory
 import SupplierSlice from "./features/Supplier/SupplierSlice";
 import TableSlice from "./features/Table/TableSlice";
 import CategorySlice from "./features/Category/CategorySlice";
+import PaymentMethodSlice from "./features/Payment/PaymentMethodSlice";
 
 
 
@@ -19,7 +20,8 @@ const rootReducer = combineReducers({
   productInventory: productInventorySlice,
   supplier: SupplierSlice,
   Tables: TableSlice,
-  Categories: CategorySlice
+  Categories: CategorySlice,
+  PaymentMethods: PaymentMethodSlice
 });
 
 export const store = configureStore({

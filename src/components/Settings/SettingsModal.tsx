@@ -13,6 +13,7 @@ import ReceiptIcon from "@mui/icons-material/Receipt";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import CategoryIcon from "@mui/icons-material/Category";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import PaymentIcon from "@mui/icons-material/Payment";
 import PeopleIcon from "@mui/icons-material/People";
 import SettingsIcon from "@mui/icons-material/Settings";
 import TableBarIcon from "@mui/icons-material/TableBar";
@@ -25,6 +26,7 @@ import { fetchAllProductInventories } from "../../features/Inventory/product/pro
 import { fetchSuppliers } from "../../features/Supplier/SupplierActions";
 import { fetchTables } from "../../features/Table/TableActions";
 import { fetchCategories } from "../../features/Category/CategoryActions";
+import { fetchPaymentsMethod } from "../../features/Payment/PaymentMethodActions";
 
 interface SettingsModalProps {
   sidebarOpen: boolean;
@@ -82,9 +84,9 @@ function SettingsModal({
             </ListItemIcon>
             <ListItemText primary="Categories" />
           </ListItem>
-          <ListItem button onClick={() => navigate("/payment-settings")}>
+          <ListItem button onClick={() => {navigate("/payment-settings"),dispatch(fetchPaymentsMethod())}}>
             <ListItemIcon>
-              <CategoryIcon />
+              <PaymentIcon />
             </ListItemIcon>
             <ListItemText primary="Payment Methods" />
           </ListItem>
