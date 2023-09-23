@@ -28,6 +28,7 @@ interface NewProduct {
   min_viable_quantity: number;
   category_id: string;
   description: string;
+  supplier: string;
 }
 
 interface InventoryModalProps {
@@ -50,8 +51,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         min_viable_quantity: 0,
         category_id: "",
         description: "",
+        supplier:"",
       },
     });
+
+  const getToken = () => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    return user ? user.Token : null;
+  };
 
   const fetchCategories = async () => {
     const response = await axios.get("http://localhost:3000/categories");
@@ -62,6 +69,17 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     fetchCategories()
   );
 
+  const fetchSuppliers = async () => {
+    const token = getToken();
+    const response = await axios.get("http://localhost:3000/suppliers", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  };
+
+  const { data: suppliers } = useQuery(["suppliers"], () => fetchSuppliers());
   const handleAddNewProduct = (data: NewProduct) => {
     const newProductData: NewProduct = {
       ...data,
@@ -190,6 +208,33 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                   </FormHelperText>
                 )}
               </FormControl>
+              <FormControl fullWidth margin="dense" variant="outlined">
+                <InputLabel id="supplier-label">Supplier</InputLabel>
+                <Controller
+                  name="supplier_id"
+                  control={control}
+                  rules={{ required: "Supplier name is required" }}
+                  render={({ field }) => (
+                    <Select
+                      labelId="supplier-label"
+                      label="supplier"
+                      {...field}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                    >
+                      {suppliers?.map((supplier: any) => (
+                        <MenuItem key={supplier._id} value={supplier._id}>
+                          {supplier.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  )}
+                />
+                {formState.errors.supplier_id && (
+                  <FormHelperText error>
+                    {formState.errors.supplier_id.message}
+                  </FormHelperText>
+                )}
+              </FormControl>
               <Controller
                 name="description"
                 control={control}
@@ -225,15 +270,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
           </Grid>
         </DialogContent>
         <DialogActions>
-          {/* <Button
-            onClick={() => {
-              reset();
-              onClose();
-            }}
-            color="primary"
-          >
-            Cancel
-          </Button> */}
           <Button
             type="submit"
             variant="outlined"

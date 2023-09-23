@@ -27,14 +27,12 @@ import PaymentIcon from "@mui/icons-material/Payment";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ActionsIcon from "@mui/icons-material/MoreVert";
 import { useSelector, useDispatch } from "react-redux";
-
-import AddPaymentSettingDialog from "../../components/MODALS/Dialogs/AddPaymentMethodDialog";
 import { deletePaymentMethod } from "../../features/Payment/PaymentMethodActions";
+import AddPaymentSettingDialog from "../../components/MODALS/Dialogs/AddPaymentMethodDialog";
 
-
-const payments = () => {
+const Payments = () => {
   const dispatch = useDispatch();
-  const { payments } = useSelector((state:any) => state.PaymentMethods);
+  const paymentMethods = useSelector((state: any) => state.PaymentMethods.paymentMethods); // Use "paymentMethods" instead of "payments"
   const [filter, setFilter] = useState("");
   const [orderBy, setOrderBy] = useState("name");
   const [order, setOrder] = useState("asc");
@@ -44,23 +42,23 @@ const payments = () => {
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState(null);
 
-  const handleSort = (property) => {
+  const handleSort = (property: React.SetStateAction<string>) => {
     const isAsc = orderBy === property && order === "asc";
     setOrder(isAsc ? "desc" : "asc");
     setOrderBy(property);
   };
 
-  const handleChangePage = (_, newPage) => {
+  const handleChangePage = (_: any, newPage: React.SetStateAction<number>) => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event) => {
+  const handleChangeRowsPerPage = (event: { target: { value: string; }; }) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  const handleDeleteClick = (paymentSetting) => {
-    setDeleteCandidate(paymentSetting);
+  const handleDeleteClick = (paymentMethod: React.SetStateAction<null>) => {
+    setDeleteCandidate(paymentMethod);
     setDeleteConfirmationOpen(true);
   };
 
@@ -79,24 +77,24 @@ const payments = () => {
     setAddPaymentSettingDialogOpen(true);
   };
 
-  const handleAddPaymentSetting = (newPaymentSetting) => {
+  const handleAddPaymentSetting = (newPaymentSetting: any) => {
     // You can update your state or perform any necessary actions here
-    // For example, you can add the newPaymentSetting to your existing payments
+    // For example, you can add the newPaymentSetting to your existing paymentMethods
     // and update the table accordingly.
   };
 
-  // Filter payments based on user input
-  const filteredpayments = payments
-    ? payments.filter(
-        (payment) =>
-          payment.name.toLowerCase().includes(filter.toLowerCase())
+  // Filter paymentMethods based on user input
+  const filteredPaymentMethods = paymentMethods
+    ? paymentMethods.filter(
+        (paymentMethod: { name: string; }) =>
+          paymentMethod.name.toLowerCase().includes(filter.toLowerCase())
       )
     : [];
 
-  // Sort filtered payments
-  const sortedpayments = filteredpayments
+  // Sort filtered paymentMethods
+  const sortedPaymentMethods = filteredPaymentMethods
     .slice()
-    .sort((a, b) => {
+    .sort((a: { [x: string]: string; }, b: { [x: string]: string; }) => {
       const compareValueA = a[orderBy] || "";
       const compareValueB = b[orderBy] || "";
       const comparison = compareValueA.localeCompare(compareValueB);
@@ -174,10 +172,10 @@ const payments = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {sortedpayments
+            {sortedPaymentMethods
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((paymentSetting) => (
-                <TableRow key={paymentSetting.id}>
+              .map((paymentMethod: { _id: React.Key | null | undefined; name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }) => (
+                <TableRow key={paymentMethod._id}>
                   <TableCell
                     style={{
                       display: "flex",
@@ -188,7 +186,7 @@ const payments = () => {
                     <IconButton>
                       <PaymentIcon />
                     </IconButton>
-                    {paymentSetting.name}
+                    {paymentMethod.name}
                   </TableCell>
                   <TableCell>
                     <IconButton color="primary">
@@ -196,7 +194,7 @@ const payments = () => {
                     </IconButton>
                     <IconButton
                       color="error"
-                      onClick={() => handleDeleteClick(paymentSetting)}
+                      onClick={() => handleDeleteClick(paymentMethod)}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -209,7 +207,7 @@ const payments = () => {
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
         component="div"
-        count={filteredpayments.length}
+        count={filteredPaymentMethods.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}
@@ -225,8 +223,8 @@ const payments = () => {
       >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete :{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>the payment method
+          Are you sure you want to delete:{" "}
+          <i>{deleteCandidate ? deleteCandidate.name : ""}</i> the payment method
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} color="primary">
@@ -248,4 +246,4 @@ const payments = () => {
   );
 };
 
-export default payments;
+export default Payments;
