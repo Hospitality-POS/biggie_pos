@@ -85,7 +85,7 @@ export const deleteTable = createAsyncThunk(
           Authorization: `Bearer ${token}`,
         },
       });
-      dispatch(fetchSuppliers())
+      dispatch(fetchTables())
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || error.toString());
