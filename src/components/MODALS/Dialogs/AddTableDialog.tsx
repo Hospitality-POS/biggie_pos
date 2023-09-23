@@ -12,15 +12,19 @@ import {
   InputAdornment,
   Alert,
   AlertTitle,
+  Select,
+  MenuItem,
+  InputLabel,
 } from "@mui/material";
-import { useForm, Controller } from "react-hook-form";
 import CloseIcon from "@mui/icons-material/Close";
-import BusinessIcon from "@mui/icons-material/Business";
-import LocationOnIcon from "@mui/icons-material/LocationOn"; // Icon for locatedAt
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import { useForm, Controller } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import TableIcon from "@mui/icons-material/TableChart";
 import { createTable } from "../../../features/Table/TableActions";
 import { resetTableMessage } from "../../../features/Table/TableSlice";
-import TableIcon from "@mui/icons-material/TableChart"; 
 
 interface Table {
   name: string;
@@ -48,13 +52,12 @@ const AddTableDialog: React.FC<AddTableDialogProps> = ({
   const [newTable, setNewTable] = useState<Table>({
     name: "",
     locatedAt: "",
-    isOccupied: false, 
+    isOccupied: false,
   });
 
   const { newTableMessage, isError, isLoading } = useSelector(
     (state: any) => state.Tables
   );
-  
 
   const dispatch = useDispatch();
 
@@ -68,15 +71,32 @@ const AddTableDialog: React.FC<AddTableDialogProps> = ({
 
   const handleConfirmAddTable = (data: Table) => {
     dispatch(resetTableMessage());
-    dispatch(createTable(data));
-    onAddTable(data);
-    handleClose();
+    dispatch(createTable(data))
+    createTableMutation.mutate(data);
   };
 
   const handleClose = () => {
     reset();
     onClose();
   };
+
+  const fetchLocations = async () => {
+    const response = await axios.get("http://localhost:3000/tables/tables/unique-locatedAt");
+    return response.data;
+  };
+
+  const { data: locationData, isLoading: isLocationLoading } = useQuery(
+    ["locations"],
+    fetchLocations
+  );
+
+  // todo: confirm the fn of this line 
+  const createTableMutation = useMutation(createTable, {
+    onSuccess: (data) => {
+      onAddTable(data);
+      handleClose();
+    },
+  });
 
   return (
     <Dialog open={open} maxWidth="md" onClose={handleClose}>
@@ -149,22 +169,32 @@ const AddTableDialog: React.FC<AddTableDialogProps> = ({
               rules={{ required: "Location is required" }}
               defaultValue={newTable.locatedAt}
               render={({ field }) => (
-                <TextField
-                  label="Location"
-                  variant="outlined"
-                  {...field}
-                  fullWidth
-                  margin="dense"
-                  error={!!errors.locatedAt}
-                  helperText={errors.locatedAt?.message}
-                  InputProps={{
-                    startAdornment: (
+                <div>
+                  <InputLabel>Location</InputLabel>
+                  <Select
+                    label="Location"
+                    {...field}
+                    fullWidth
+                    margin="dense"
+                    error={!!errors.locatedAt}
+                    helperText={errors.locatedAt?.message}
+                    startAdornment={
                       <InputAdornment position="start">
                         <LocationOnIcon />
                       </InputAdornment>
-                    ),
-                  }}
-                />
+                    }
+                  >
+                    {isLocationLoading ? (
+                      <MenuItem disabled>Loading locations...</MenuItem>
+                    ) : (
+                      locationData?.map((location: string) => (
+                        <MenuItem key={location} value={location}>
+                          {location}
+                        </MenuItem>
+                      ))
+                    )}
+                  </Select>
+                </div>
               )}
             />
           </Grid>

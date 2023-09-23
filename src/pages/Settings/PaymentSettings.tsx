@@ -80,7 +80,9 @@ const payments = () => {
   };
 
   const handleAddPaymentSetting = (newPaymentSetting) => {
-   
+    // You can update your state or perform any necessary actions here
+    // For example, you can add the newPaymentSetting to your existing payments
+    // and update the table accordingly.
   };
 
   // Filter payments based on user input
