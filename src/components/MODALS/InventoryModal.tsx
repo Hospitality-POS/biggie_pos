@@ -27,8 +27,8 @@ interface NewProduct {
   price: number;
   min_viable_quantity: number;
   category_id: string;
+  supplier_id: string; // Add supplier_id field
   description: string;
-  supplier: string;
 }
 
 interface InventoryModalProps {
@@ -50,8 +50,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         cost: 0,
         min_viable_quantity: 0,
         category_id: "",
+        supplier_id: "", // Initialize supplier_id
         description: "",
-        supplier:"",
       },
     });
 
@@ -80,14 +80,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   };
 
   const { data: suppliers } = useQuery(["suppliers"], () => fetchSuppliers());
+
   const handleAddNewProduct = (data: NewProduct) => {
     const newProductData: NewProduct = {
       ...data,
       category_id: data.category_id,
       price: data.cost,
     };
-    // console.log(newProductData);
-
     onAddProduct(newProductData);
     reset();
     onClose();
@@ -213,13 +212,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 <Controller
                   name="supplier_id"
                   control={control}
-                  rules={{ required: "Supplier name is required" }}
+                  rules={{ required: "Supplier is required" }}
                   render={({ field }) => (
                     <Select
                       labelId="supplier-label"
-                      label="supplier"
+                      label="Supplier"
                       {...field}
-                      onChange={(e) => handleCategoryChange(e.target.value)}
                     >
                       {suppliers?.map((supplier: any) => (
                         <MenuItem key={supplier._id} value={supplier._id}>
