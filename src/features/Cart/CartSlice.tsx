@@ -124,6 +124,7 @@ const cartSlice = createSlice({
         if (index !== -1) {
           state.cartItems[index] = updatedData;
         }
+        // todo: make this a reducer
         state.totalAmount = state.cartItems.reduce(
           (total, item) => total + parseFloat(item.price),
           0
