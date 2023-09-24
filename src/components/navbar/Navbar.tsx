@@ -31,9 +31,9 @@ import SettingsModal from "../Settings/SettingsModal";
 const pages = [
   "Staff",
   "Tables",
-  "Restaurant",
   "Store",
   "Orders",
+  "Restaurant",
   "Kitchen",
   "Bar",
 ];
@@ -84,9 +84,10 @@ function Navbar() {
   };
 
   const handleTabClick = (page: string) => {
-    if (page === "Restaurant") navigate("/tables");
+    // if (page === "Restaurant") navigate("/tables");
     // else if (page === "Bar") navigate("/bar");
-    else if (page === "Staff") navigate("/staff");
+    // else
+     if (page === "Staff") navigate("/staff");
     // else if (page === "Kitchen") navigate("/kitchen");
     else if (page === "Tables") navigate("/tables");
     else if (page === "Store") {
@@ -234,14 +235,16 @@ function Navbar() {
                   key={page}
                   label={
                     <>
-                      {page === "Restaurant" && user ? (
-                        <>
-                          <RestaurantOutlinedIcon
-                            style={{ fontSize: "16px" }}
-                          />
-                          <Typography fontSize="inherit">Restaurant</Typography>
-                        </>
-                      ) : // page === "Bar" && user ? (
+                      {
+                      // page === "Restaurant" && user ? (
+                      //   <>
+                      //     <RestaurantOutlinedIcon
+                      //       style={{ fontSize: "16px" }}
+                      //     />
+                      //     <Typography fontSize="inherit">Restaurant</Typography>
+                      //   </>
+                      // ) :
+                       // page === "Bar" && user ? (
                       //   <>
                       //     <SportsBarIcon style={{ fontSize: "16px" }} />
                       //     <Typography fontSize="inherit">Bar</Typography>
