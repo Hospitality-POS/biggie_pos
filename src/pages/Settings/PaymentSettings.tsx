@@ -32,7 +32,7 @@ import AddPaymentSettingDialog from "../../components/MODALS/Dialogs/AddPaymentM
 
 const Payments = () => {
   const dispatch = useDispatch();
-  const paymentMethods = useSelector((state: any) => state.PaymentMethods.paymentMethods); // Use "paymentMethods" instead of "payments"
+  const {payments: paymentMethods} = useSelector((state: any) => state.PaymentMethods); 
   const [filter, setFilter] = useState("");
   const [orderBy, setOrderBy] = useState("name");
   const [order, setOrder] = useState("asc");
