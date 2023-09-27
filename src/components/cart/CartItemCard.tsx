@@ -33,7 +33,6 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     dispatch(
       updateCartItems({
         ...cartItem,
-        
         product_id: cartItem.product_id._id,
         quantity,
         price: cartItem.price * quantity,
