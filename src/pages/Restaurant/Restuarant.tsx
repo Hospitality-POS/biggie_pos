@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
+  AppBar,
   Button,
   CircularProgress,
   Divider,
   Grid,
+  Tab,
+  Tabs,
   Typography,
 } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
@@ -22,6 +25,13 @@ import { fetchCartItems } from "../../features/Cart/CartActions";
 import axios from "axios";
 import { Paper } from "@mui/material";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
+
+function a11yProps(index) {
+  return {
+    id: `full-width-tab-${index}`,
+    "aria-controls": `full-width-tabpanel-${index}`,
+  };
+}
 
 const RestaurantPage = () => {
   const { user } = useSelector((state: any) => state.auth);
@@ -57,6 +67,16 @@ const RestaurantPage = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [categoryChosen, setCategoryChosen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [value, setValue] = React.useState(0);
+
+  const handleChange = (event, newValue) => {
+    setValue(newValue);
+  };
+
+  const handleChangeIndex = (index) => {
+    setValue(index);
+  };
+
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -103,6 +123,20 @@ const RestaurantPage = () => {
         {/* Left Column */}
         <Grid item xs={8}>
           <Paper elevation={3} style={{ padding: "16px", height: "100vh" }}>
+            <AppBar position="static" sx={{mb: 2}}>
+              <Tabs
+                value={value}
+                onChange={handleChange}
+                indicatorColor="secondary"
+                textColor="inherit"
+                variant="fullWidth"
+                aria-label="full width tabs example"
+              >
+                <Tab label="Restaurant" {...a11yProps(0)} />
+                <Tab label="BAR" {...a11yProps(1)} />
+                <Tab label="Kitchen" {...a11yProps(2)} />
+              </Tabs>
+            </AppBar>
             <div>
               {/* Categories Loading Indicator */}
               {categoriesLoading && (
@@ -234,7 +268,7 @@ const RestaurantPage = () => {
                   style={{
                     display: "flex",
                     gap: "10px",
-                      alignItems: "flex-start",
+                    alignItems: "flex-start",
                     marginTop: "10px",
                     paddingLeft: "4px",
                   }}
