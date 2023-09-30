@@ -123,7 +123,7 @@ const RestaurantPage = () => {
         {/* Left Column */}
         <Grid item xs={8}>
           <Paper elevation={3} style={{ padding: "16px", height: "100vh" }}>
-            <AppBar position="static" sx={{mb: 2}}>
+            <AppBar position="static" sx={{mb: 2, bgcolor: "#6c1c2c"}} >
               <Tabs
                 value={value}
                 onChange={handleChange}
