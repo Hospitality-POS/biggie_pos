@@ -71,31 +71,31 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       <CardContent>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={6}>
-            <Typography variant="body1">{cartItem?.product_id.name}</Typography>
+            <Typography variant="body1">{cartItem?.product_id?.name}</Typography>
           </Grid>
           <Grid item xs={3} ml={-2}>
             <Box sx={{ display: "flex", alignItems: "center", columnGap: 1 }}>
-              <IconButton
+              {/* <IconButton
                 size="small"
                 sx={{ borderRadius: 50, border: 1 }}
                 disabled={quantity === 1}
                 onClick={handleReduceQuantity}
               >
                 <RemoveIcon />
-              </IconButton>
-              <Typography variant="body1">{quantity}</Typography>
-              <IconButton
+              </IconButton> */}
+              <Typography variant="body1" ml={4}>x {cartItem.quantity}</Typography>
+              {/* <IconButton
                 size="small"
                 sx={{ borderRadius: 50, border: 1 }}
                 onClick={handleAddQuantity}
               >
                 <AddIcon />
-              </IconButton>
+              </IconButton> */}
             </Box>
           </Grid>
           <Grid item xs={3}>
-            <Typography variant="body1" fontSize="16px" ml={3}>
-              ksh.{cartItem.price * quantity}
+            <Typography variant="body1" fontSize="16px" ml={1}>
+              ksh.{cartItem.price}
             </Typography>
           </Grid>
         </Grid>

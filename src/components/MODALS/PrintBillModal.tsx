@@ -121,10 +121,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                   <TableRow key={item._id}>
                     <TableCell align="right">{item.quantity}</TableCell>
                     <TableCell component="th" scope="row">
-                      {item.product_id.name}
+                      {item?.product_id?.name}
                     </TableCell>
                     <TableCell align="right">
-                      ksh.{item.price.toFixed(2)}
+                      ksh.{item?.price?.toFixed(2)}
                     </TableCell>
                   </TableRow>
                 ))}

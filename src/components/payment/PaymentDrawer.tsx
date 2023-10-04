@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import MobileScreenShareIcon from "@mui/icons-material/MobileScreenShare";
+import CreditCardOffIcon from '@mui/icons-material/CreditCardOff';
 import { grey } from "@mui/material/colors";
 import RecommendIcon from "@mui/icons-material/Recommend";
 import CloseIcon from "@mui/icons-material/Close";
@@ -117,7 +118,9 @@ const PaymentDrawer: React.FC<paymentProps> = ({
                 <MobileScreenShareIcon fontSize="large" />
               ) : method.name === "Card" ? (
                 <CreditCardIcon fontSize="large" />
-              ) : (
+              ) : method.name === "Debt" ? (
+                <CreditCardOffIcon fontSize="large" />
+              ) :(
                 ""
               )}
             </Typography>

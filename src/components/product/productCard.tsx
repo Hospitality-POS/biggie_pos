@@ -5,6 +5,7 @@ import Button from "@mui/material/Button";
 import { useDispatch, useSelector } from "react-redux";
 import { addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
+import { addItem, subtractItem } from "../../features/Cart/CartSlice";
 
 function formatPrice(price: number) {
   return price.toLocaleString();
@@ -40,10 +41,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         table_id: id,
       })
     );
+    
+    
   };
-
+  
   const handleIncrement = () => {
-    setQuantity(quantity + 1);
+    dispatch(addItem(menu._id))   
     dispatch(fetchCartItems(cartDetails?._id));
   };
 
@@ -51,6 +54,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
     if (quantity > 0) {
       setQuantity(quantity - 1);
     }
+    dispatch(subtractItem(menu._id))
     dispatch(fetchCartItems(cartDetails?._id));
   };
 

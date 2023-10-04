@@ -23,7 +23,7 @@ interface CartItem {
 interface CartState {
   cartDetails: CartDetails | null;
   cartItems: CartItem[];
-  totalAmount: number; // New field to store the total amount of all cart items
+  totalAmount: number;
   loading: boolean;
   error: string | null;
 }
@@ -40,13 +40,57 @@ const cartSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
+    addItem(state, action: PayloadAction<CartItem>) {
+      // Check if the item is already in the cart
+      const existingItem = state.cartItems.find(
+        (item) => item.productId === action.payload.productId
+      );
+
+      if (existingItem) {
+        // If the item exists, increase its quantity
+        existingItem.quantity += action.payload.quantity;
+      } else {
+        // If the item is not in the cart, add it
+        state.cartItems.push(action.payload);
+      }
+
+      // Recalculate the total amount
+      state.totalAmount = state.cartItems.reduce(
+        (total, item) => total + parseFloat(item.price) * item.quantity,
+        0
+      );
+    },
+    subtractItem(state, action: PayloadAction<CartItem>) {
+      // Find the item in the cart
+      const existingItem = state.cartItems.find(
+        (item) => item.productId === action.payload.productId
+      );
+
+      if (existingItem) {
+        // Decrease the item's quantity, but ensure it's greater than zero
+        if (existingItem.quantity > 1) {
+          existingItem.quantity -= action.payload.quantity;
+        } else {
+          // If the quantity reaches zero or less, remove the item from the cart
+          state.cartItems = state.cartItems.filter(
+            (item) => item.productId !== action.payload.productId
+          );
+        }
+
+        // Recalculate the total amount
+        state.totalAmount = state.cartItems.reduce(
+          (total, item) => total + parseFloat(item.price) * item.quantity,
+          0
+        );
+      }
+    },
     removeCartItem(state, action: PayloadAction<string>) {
       state.cartItems = state.cartItems.filter(
-        (item) => item._id !== action.payload
+        (item) => item.productId !== action.payload
       );
 
       state.totalAmount = state.cartItems.reduce(
-        (total, item) => total + parseFloat(item.price),
+        (total, item) => total + parseFloat(item.price) * item.quantity,
         0
       );
     },
@@ -94,7 +138,6 @@ const cartSlice = createSlice({
           (total, item) => total + parseFloat(item.price),
           0
         );
-        
       })
       .addCase(fetchCartItems.rejected, (state, action) => {
         state.loading = false;
@@ -144,7 +187,7 @@ const cartSlice = createSlice({
         if (deletedItemIndex !== -1) {
           state.cartItems.splice(deletedItemIndex, 1);
         }
-        
+
         state.totalAmount = state.cartItems.reduce(
           (total, item) => total + parseFloat(item.price),
           0
@@ -169,6 +212,6 @@ const cartSlice = createSlice({
   },
 });
 
-export const { removeCartItem } = cartSlice.actions;
+export const { removeCartItem, addItem, subtractItem } = cartSlice.actions;
 
 export default cartSlice.reducer;
