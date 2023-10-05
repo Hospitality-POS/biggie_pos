@@ -7,7 +7,7 @@ import { addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
 import { addItem, subtractItem } from "../../features/Cart/CartSlice";
 
-function formatPrice(price: number) {
+function formatPrice(price) {
   return price.toLocaleString();
 }
 
@@ -30,6 +30,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const { id } = useParams();
 
   const handleAddToCart = () => {
+    // Dispatch an action to add the item to the cart
     dispatch(
       addItemToCart({
         cart_id: cartDetails._id,
@@ -41,94 +42,79 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         table_id: id,
       })
     );
-    
-    
   };
-  
+
   const handleIncrement = () => {
-    dispatch(addItem(menu._id))   
+    // Dispatch an action to increment the item quantity in the cart
+    dispatch(addItem(menu._id));
+    // Fetch updated cart items after incrementing
     dispatch(fetchCartItems(cartDetails?._id));
   };
 
   const handleDecrement = () => {
     if (quantity > 0) {
       setQuantity(quantity - 1);
+      // Dispatch an action to decrement the item quantity in the cart
+      dispatch(subtractItem(menu._id));
+      // Fetch updated cart items after decrementing
+      dispatch(fetchCartItems(cartDetails?._id));
     }
-    dispatch(subtractItem(menu._id))
-    dispatch(fetchCartItems(cartDetails?._id));
   };
 
   return (
     <Paper
       elevation={3}
+      onClick={() => {
+        handleIncrement();
+        handleAddToCart();
+      }}
       style={{
-        display: "flex", 
-        flexDirection: "column", 
-        justifyContent: "space-between",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        justifyContent: "center",
         padding: "16px",
         maxWidth: "200px",
-        maxHeight: "180px",
-        height: "180px",
+        maxHeight: "150px",
+        height: "150px",
+        width: "150px",
         overflow: "hidden",
+        cursor: "pointer",
+        backgroundColor: "#6c1c2c",
+        transition: "background-color 0.3s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = "grey";
+        e.currentTarget.style.color = "white";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = "#6c1c2c";
+         e.currentTarget.style.color = "Black";
       }}
     >
       <div>
-
-      <Typography
-        variant="h6"
-        gutterBottom
-        style={{
-          fontWeight: "inherit",
-          whiteSpace: "normal",
-          wordWrap: "break-word",
-          textOverflow: "ellipsis",
-        }}
-      >
-        {menu.name}
-      </Typography>
-      <Typography
-        variant="body1"
-        fontSize={18}
-        mb={2}
-        style={{ opacity: 0.7, marginTop: "auto" }} 
-      >
-        Ksh. {formatPrice(menu.price)}
-      </Typography>
-      </div>
-      <div>
-        <Button
-          variant="outlined"
-          onClick={handleDecrement}
-          sx={{
-            color: "#6c1c2c",
-            borderColor: "#6c1c2c",
-            "&:hover": {
-              borderColor: "#bc8c7c",
-              color: "#bc8c7c",
-            },
-          }}
-          disabled={quantity === 0}
-        >
-          -
-        </Button>
-        <span style={{ margin: "0 10px", fontWeight: "bold" }}>{quantity}</span>
-        <Button
-          variant="outlined"
-          onClick={() => {
-            handleIncrement();
-            handleAddToCart();
-          }}
-          sx={{
-            color: "#6c1c2c",
-            borderColor: "#6c1c2c",
-            "&:hover": {
-              borderColor: "#bc8c7c",
-              color: "#bc8c7c",
-            },
+        <Typography
+          variant="h6"
+          gutterBottom
+          style={{
+            fontWeight: "inherit",
+            whiteSpace: "normal",
+            wordWrap: "break-word",
+            color: "white",
+            textOverflow: "ellipsis",
           }}
         >
-          +
-        </Button>
+          {menu.name}
+        </Typography>
+        <Typography
+          variant="body1"
+          fontSize={18}
+          mb={2}
+          style={{ opacity: 0.7, marginTop: "auto", color: "white" }}
+         
+        >
+          Ksh. {formatPrice(menu.price)}
+        </Typography>
       </div>
     </Paper>
   );
