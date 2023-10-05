@@ -128,12 +128,12 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
                   Item
                 </Typography>
               </Grid>
-              <Grid item xs={3}>
-                <Typography variant="body1" fontWeight="bold" pl={1}>
+              <Grid item xs={3} ml={-5}>
+                <Typography variant="body1" fontWeight="bold">
                   Qty
                 </Typography>
               </Grid>
-              <Grid item xs={3}>
+              <Grid item xs={3} ml={-2}>
                 <Typography variant="body1" fontWeight="bold">
                   Price
                 </Typography>
@@ -222,7 +222,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
           </Card>
         )}
       </Box>
-      {cartItems?.length ? <PaymentDrawer /> : ""}
+      {user.isAdmin && cartItems?.length > 0 && <PaymentDrawer />}
     </Paper>
   );
 };

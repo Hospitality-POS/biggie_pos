@@ -15,7 +15,7 @@ import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { useDispatch } from "react-redux";
 import React, { useEffect, useState } from "react";
-import { useRef } from 'react';
+import { useRef } from "react";
 import {
   deleteCartItem,
   updateCartItems,
@@ -28,7 +28,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
   const [quantity, setQuantity] = useState(cartItem.quantity);
 
- const handleAddQuantity = () => {
+  const handleAddQuantity = () => {
     setQuantity((prevQuantity) => prevQuantity + 1);
     dispatch(
       updateCartItems({
@@ -44,13 +44,13 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     if (quantity > 1) {
       setQuantity((prevQuantity) => prevQuantity - 1);
       dispatch(
-      updateCartItems({
-        ...cartItem,
-        product_id: cartItem.product_id._id,
-        quantity,
-        price: cartItem.price * quantity,
-      })
-    );
+        updateCartItems({
+          ...cartItem,
+          product_id: cartItem.product_id._id,
+          quantity,
+          price: cartItem.price * quantity,
+        })
+      );
     }
   };
 
@@ -65,15 +65,16 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   //   );
   // }, [quantity, dispatch, cartItem]);
 
-
   return (
     <Card sx={{ mb: 1, boxShadow: "none", backgroundColor: "#F8F8F8" }}>
       <CardContent>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={6}>
-            <Typography variant="body1">{cartItem?.product_id?.name}</Typography>
+          <Grid item xs={4}>
+            <Typography variant="body1">
+              {cartItem?.product_id?.name}
+            </Typography>
           </Grid>
-          <Grid item xs={3} ml={-2}>
+          <Grid item xs={3}>
             <Box sx={{ display: "flex", alignItems: "center", columnGap: 1 }}>
               {/* <IconButton
                 size="small"
@@ -83,7 +84,9 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               >
                 <RemoveIcon />
               </IconButton> */}
-              <Typography variant="body1" ml={4}>x {cartItem.quantity}</Typography>
+              <Typography variant="body1" ml={4}>
+                x {cartItem.quantity}
+              </Typography>
               {/* <IconButton
                 size="small"
                 sx={{ borderRadius: 50, border: 1 }}
@@ -93,21 +96,34 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               </IconButton> */}
             </Box>
           </Grid>
-          <Grid item xs={3}>
+          <Grid item xs={2} ml={-3}>
             <Typography variant="body1" fontSize="16px" ml={1}>
               ksh.{cartItem.price}
             </Typography>
           </Grid>
+        <Grid item xs={2} ml={4}>
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            sx={{ height: 30, borderRadius: "8px" }}
+          >
+            <DeleteIcon
+              color="error"
+              onClick={() => dispatch(deleteCartItem(cartItem._id))}
+            />
+          </Button>
         </Grid>
-        <Grid
+        </Grid>
+        {/* <Grid
           item
           display="flex"
           justifyContent="space-between"
           alignItems="center"
           mt={2}
           columnGap={1}
-        >
-          <TextField
+        > */}
+        {/* <TextField
             placeholder={cartItem.desc}
             variant="outlined"
             size="small"
@@ -119,19 +135,8 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 </IconButton>
               ),
             }}
-          />
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            sx={{ height: 40, borderRadius: "8px" }}
-          >
-            <DeleteIcon
-              color="error"
-              onClick={() => dispatch(deleteCartItem(cartItem._id))}
-            />
-          </Button>
-        </Grid>
+          /> */}
+        {/* </Grid> */}
       </CardContent>
       <Divider />
     </Card>
@@ -139,4 +144,3 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 };
 
 export default CartItemCard;
-
