@@ -1,4 +1,4 @@
-import { Card, CardMedia } from "@mui/material";
+import { Card, CardMedia, Typography, Box } from "@mui/material";
 import classes from "./table.module.css";
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -17,11 +17,23 @@ const TableCard: React.FC<Item> = ({ item }) => {
     boxShadow: "none",
     bgcolor: "transparent",
     color: item.isOccupied ? "black" : "white",
+    position: "relative", // Added to create a relative positioning context
+    textAlign: "center",
   };
 
   const imageStyles = {
     border: "none",
     opacity: item.isOccupied ? 0.5 : 1,
+    maxWidth: "100%", // Adjust the image size
+  };
+
+  const textOverlayStyles = {
+    position: "absolute",
+    top: "47%", // Center vertically
+    left: "50%", // Center horizontally
+    width: "100%",
+    transform: "translate(-50%, -50%)", // Center text within the card
+    zIndex: 1, // Place text above the image
   };
 
   const handleCreate = () => {
@@ -36,22 +48,20 @@ const TableCard: React.FC<Item> = ({ item }) => {
   };
 
   return (
-    <Card
-      sx={cardStyles}
-      className={classes.container}
-      onClick={handleCreate} 
-    >
-      <div className={classes.cardContent}>
-        <CardMedia
-          sx={imageStyles}
-          component="img"
-          alt="Table"
-          height="120"
-          image="/table.png"
-          className={classes.image}
-        />
-        <div className={classes.name}>{item.name}</div>
-      </div>
+    <Card sx={cardStyles} className={classes.container} onClick={handleCreate}>
+      <CardMedia
+        sx={imageStyles}
+        component="img"
+        alt="Table"
+        height="auto"
+        image="/table.png"
+        className={classes.image}
+      />
+      <Box sx={textOverlayStyles}>
+        <Typography variant="h6">{item.name}</Typography>
+        <Typography variant="body1">Amount: ksh. 2,000</Typography>
+        <Typography variant="body2">mike kamau</Typography>
+      </Box>
     </Card>
   );
 };
