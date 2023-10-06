@@ -1,15 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { Button, Modal, TextField, Grid, IconButton, CircularProgress } from "@mui/material";
+import React, { useState, useEffect } from "react";
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, TextField, Grid, IconButton, CircularProgress } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { loginUser } from "../../features/Auth/AuthActions";
 import classes from "./staff.module.css";
 import LoginIcon from "@mui/icons-material/Login";
 import BackspaceIcon from "@mui/icons-material/Backspace";
-import {useNavigate } from "react-router-dom";
-
+import { useNavigate } from "react-router-dom";
 
 interface StaffModalProps {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -35,7 +32,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
   const { isError, isSuccess, isLoading, message } = useSelector(
     (state: any) => state.auth
   );
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const handleClickShowPassword = () => {
@@ -44,17 +41,17 @@ const StaffModal: React.FC<StaffModalProps> = ({
 
   const handleClose = () => {
     setOpen(false);
-    setNotificationOpen(false)
+    setNotificationOpen(false);
   };
 
   const handleNumberClick = (number: string | number) => {
     setPin((prevPin) => prevPin + number);
-    setNotificationOpen(false)
+    setNotificationOpen(false);
   };
 
   const handleClearPin = () => {
     setPin("");
-    setNotificationOpen(false)
+    setNotificationOpen(false);
   };
 
   const handleLogin = () => {
@@ -73,7 +70,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
       setNotificationOpen(true);
       setNotificationType("success");
       setNotificationMessage("Login successful");
-      navigate("/tables")
+      navigate("/tables");
     }
   }, [isLoading, isError, isSuccess, message, setOpen, navigate]);
 
@@ -83,8 +80,12 @@ const StaffModal: React.FC<StaffModalProps> = ({
 
   return (
     <>
-      <Modal open={open} onClose={handleClose} className={classes.modal}>
-        <div className={classes.modalContent}>
+      <Dialog open={open} onClose={handleClose} maxWidth="xs" className={classes.modal}>
+        {/* <DialogTitle>Login</DialogTitle> */}
+        <DialogContent>
+          <DialogContentText sx={{mb: 1}}>
+            Enter your PIN to login.
+          </DialogContentText>
           <TextField
             label="Enter PIN"
             variant="filled"
@@ -93,7 +94,8 @@ const StaffModal: React.FC<StaffModalProps> = ({
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             fullWidth
-             error={notificationOpen} 
+            sx={{mb: 3}}
+            error={notificationOpen}
             helperText={notificationOpen ? "Invalid PIN" : ""}
             InputProps={{
               endAdornment: (
@@ -119,27 +121,26 @@ const StaffModal: React.FC<StaffModalProps> = ({
               </Grid>
             ))}
           </Grid>
-          <div className={classes.pinbutton}>
-            <Button
-              variant="outlined"
-              onClick={handleLogin}
-              className={classes.loginButton}
-              sx={{ display: "flex", alignContent: "center" }}
-            >
-              Login {isLoading ? <CircularProgress size={20} thickness={8} sx={{ ml: 1 }}/>:<LoginIcon fontSize="small" sx={{ ml: 1 }} />}
-            </Button>
-            <Button
-              onClick={handleClearPin}
-              variant="outlined"
-              color="warning"
-              sx={{ display: "flex", alignContent: "center" }}
-            >
-              Clear <BackspaceIcon fontSize="small" sx={{ ml: 1 }} />
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="outlined"
+            onClick={handleLogin}
+            className={classes.loginButton}
+            sx={{ display: "flex", alignContent: "center" }}
+          >
+            Login {isLoading ? <CircularProgress size={20} thickness={8} sx={{ ml: 1 }} /> : <LoginIcon fontSize="small" sx={{ ml: 1 }} />}
+          </Button>
+          <Button
+            onClick={handleClearPin}
+            variant="outlined"
+            color="warning"
+            sx={{ display: "flex", alignContent: "center" }}
+          >
+            Clear <BackspaceIcon fontSize="small" sx={{ ml: 1 }} />
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };
