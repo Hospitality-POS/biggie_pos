@@ -240,7 +240,7 @@ const Payments = () => {
       <AddPaymentSettingDialog
         open={addPaymentSettingDialogOpen}
         onClose={() => setAddPaymentSettingDialogOpen(false)}
-        onAddPaymentSetting={handleAddPaymentSetting}
+        onAddPaymentMethod={handleAddPaymentSetting}
       />
     </Paper>
   );
