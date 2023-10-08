@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, TextField, Grid, IconButton, CircularProgress } from "@mui/material";
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, TextField, Grid, IconButton, CircularProgress } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import { loginUser } from "../../features/Auth/AuthActions";
@@ -7,13 +7,14 @@ import classes from "./staff.module.css";
 import LoginIcon from "@mui/icons-material/Login";
 import BackspaceIcon from "@mui/icons-material/Backspace";
 import { useNavigate } from "react-router-dom";
+import { createCart } from "../../features/Cart/CartActions";
 
 interface StaffModalProps {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setPin: React.Dispatch<React.SetStateAction<string>>;
   pin: string;
   open: boolean;
-  username: string;
+  item: string;
 }
 
 const StaffModal: React.FC<StaffModalProps> = ({
@@ -21,15 +22,14 @@ const StaffModal: React.FC<StaffModalProps> = ({
   setPin,
   pin,
   open,
-  username,
+  item
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notificationType, setNotificationType] = useState<
     "error" | "success" | ""
   >("");
-  const [, setNotificationMessage] = useState("");
-  const { isError, isSuccess, isLoading, message } = useSelector(
+  const { isError, isSuccess, isLoading, user } = useSelector(
     (state: any) => state.auth
   );
   const navigate = useNavigate();
@@ -55,8 +55,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
   };
 
   const handleLogin = () => {
-    dispatch(loginUser({ username, pin }));
-    // handleClose();
+    dispatch(loginUser({ pin }));
   };
 
   useEffect(() => {
@@ -65,25 +64,24 @@ const StaffModal: React.FC<StaffModalProps> = ({
     } else if (isError) {
       setNotificationOpen(true);
       setNotificationType("error");
-      setNotificationMessage("Invalid Pin, Please try again!");
     } else if (isSuccess) {
       setNotificationOpen(true);
       setNotificationType("success");
-      setNotificationMessage("Login successful");
-      navigate("/tables");
+      navigate(`/restaurant/${item._id}`);
+      if (user) {
+      const cartDetails = {
+        table_id: item._id,
+        created_by: user.id,
+      };
+     dispatch(createCart(cartDetails));
     }
-  }, [isLoading, isError, isSuccess, message, setOpen, navigate]);
-
-  const handleNotificationClose = () => {
-    setNotificationOpen(false);
-  };
+  } },[isLoading, isError, isSuccess, setOpen, navigate]);
 
   return (
     <>
       <Dialog open={open} onClose={handleClose} maxWidth="xs" className={classes.modal}>
-        {/* <DialogTitle>Login</DialogTitle> */}
         <DialogContent>
-          <DialogContentText sx={{mb: 1}}>
+          <DialogContentText sx={{ mb: 1 }}>
             Enter your PIN to login.
           </DialogContentText>
           <TextField
@@ -94,7 +92,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             fullWidth
-            sx={{mb: 3}}
+            sx={{ mb: 3 }}
             error={notificationOpen}
             helperText={notificationOpen ? "Invalid PIN" : ""}
             InputProps={{

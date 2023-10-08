@@ -72,7 +72,7 @@ function Navbar() {
   const handleLogout = () => {
     dispatch(logoutUser());
     dispatch(reset());
-    navigate('/staff')
+    navigate('/tables')
   };
 
   const handleSidebarOpen = () => {

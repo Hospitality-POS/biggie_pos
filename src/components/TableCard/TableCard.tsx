@@ -1,9 +1,10 @@
 import { Card, CardMedia, Typography, Box } from "@mui/material";
 import classes from "./table.module.css";
-import React from "react";
+import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { createCart } from "../../features/Cart/CartActions";
 import { fetchProducts } from "../../features/Product/ProductAction";
+import StaffModal from "../staffCard/StaffModal";
 
 interface Item {
   item: any;
@@ -12,6 +13,12 @@ interface Item {
 const TableCard: React.FC<Item> = ({ item }) => {
   const { user } = useSelector((state: any) => state.auth);
   const dispatch = useDispatch();
+  const [open, setOpen] = useState(false);
+  const [pin, setPin] = useState("");
+
+  const handleOpen = () => {
+    setOpen(true);
+  };
 
   const cardStyles = {
     boxShadow: "none",
@@ -36,19 +43,19 @@ const TableCard: React.FC<Item> = ({ item }) => {
     zIndex: 1, // Place text above the image
   };
 
-  const handleCreate = () => {
+  const handleCreate = async() => {
     if (user) {
       const cartDetails = {
         table_id: item._id,
         created_by: user.id,
       };
-      dispatch(createCart(cartDetails));
+     dispatch(createCart(cartDetails));
       // dispatch(fetchProducts())
     }
   };
 
-  return (
-    <Card sx={cardStyles} className={classes.container} onClick={handleCreate}>
+  return (<>
+    <Card sx={cardStyles} className={classes.container} onClick={()=>{handleCreate(),handleOpen()}}>
       <CardMedia
         sx={imageStyles}
         component="img"
@@ -59,10 +66,13 @@ const TableCard: React.FC<Item> = ({ item }) => {
       />
       <Box sx={textOverlayStyles}>
         <Typography variant="h6">{item.name}</Typography>
-        <Typography variant="body1">Amount: ksh. 2,000</Typography>
+        <Typography variant="body1">Amount: ksh. 3,000</Typography>
         <Typography variant="body2">mike kamau</Typography>
       </Box>
     </Card>
+          <StaffModal setOpen={setOpen} setPin={setPin} pin={pin} open={open} item={item} />
+  </>
+
   );
 };
 

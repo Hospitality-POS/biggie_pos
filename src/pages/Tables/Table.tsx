@@ -116,22 +116,22 @@ function Table() {
         className="cards"
         style={{
           display: "flex",
-          gap: "20px",
+          gap: "10px",
           justifyContent: "center",
-          marginTop: "10px",
+          marginTop: "5px",
           flexWrap: "wrap",
           width: "100%",
           bottom: 0
         }}
       >
         {data.map((item: { _id: Key | null | undefined }) => (
-          <Link
-            key={item._id}
-            to={`/restaurant/${item._id}`}
-            style={{ textDecoration: "none" }}
-          >
+          // <Link
+          //   key={item._id}
+          //   to={`/restaurant/${item._id}`}
+          //   style={{ textDecoration: "none" }}
+          // >
             <TableCard key={item._id} item={item} />
-          </Link>
+          // </Link>
         ))}
       </div>
     </div>

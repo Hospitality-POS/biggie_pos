@@ -28,6 +28,7 @@ import { fetchCartItems } from "../../features/Cart/CartActions";
 import axios from "axios";
 import { Paper } from "@mui/material";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
+import VerticalTabs from "./Sidetabs";
 
 function a11yProps(index) {
   return {
@@ -140,9 +141,9 @@ const RestaurantPage = () => {
                 <Tab icon={<SoupKitchenIcon/>} iconPosition="start"   label="Kitchen" {...a11yProps(2)} />
               </Tabs>
             </AppBar>
-            <div>
+            <div style={{height: "inherit"}}>
               {/* Categories Loading Indicator */}
-              {categoriesLoading && (
+              {/* {categoriesLoading && (
                 <div>
                   <section
                     className="cards"
@@ -237,7 +238,7 @@ const RestaurantPage = () => {
                             },
                           }}
                           disabled={categories?.length === 1}
-                        >
+                          >
                           <NavigateBeforeIcon />
                         </Button>
                       </Grid>
@@ -262,10 +263,12 @@ const RestaurantPage = () => {
                     </Grid>
                   </Grid>
                 </>
-              )}
+              )} */}
               <Divider sx={{ mt: 2, mb: 2 }} />
+              <VerticalTabs/>
+              
               {/* Products Loading Indicator */}
-              {loading && (
+              {/* {loading && (
                 <section
                   className="cards"
                   style={{
@@ -280,10 +283,10 @@ const RestaurantPage = () => {
                     <SkeletonProductCard key={index} />
                   ))}
                 </section>
-              )}
+              )} */}
 
               {/* Render Products */}
-              {!loading && (
+              {/* {!loading && (
                 <section
                   className="cards"
                   style={{
@@ -333,7 +336,7 @@ const RestaurantPage = () => {
                     </div>
                   )}
                 </section>
-              )}
+              )} */}
             </div>
           </Paper>
         </Grid>

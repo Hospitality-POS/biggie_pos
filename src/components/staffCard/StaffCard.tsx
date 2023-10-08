@@ -46,7 +46,7 @@ const StaffCard: React.FC<itemProps> = ({ item }) => {
 
       {/* Modal */}
 
-      <StaffModal setOpen={setOpen} setPin={setPin} pin={pin} open={open}  username={item.username} />
+      <StaffModal setOpen={setOpen} setPin={setPin} pin={pin} open={open} />
     </div>
   );
 };

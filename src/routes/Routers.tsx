@@ -25,9 +25,9 @@ function Routers() {
     <Suspense fallback={<Spinner />}>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Staff />} />
+          <Route index element={<Table />} />
           <Route path="/staff" element={<Staff />} />
-          <Route path="/tables" element={<Private><Table /></Private>} />
+          <Route path="/tables" element={<Table />} />
           <Route path="/main-category" element={<Private><MainCategory /></Private>} />
           <Route path="/restaurant/:id" element={<Private><RestaurantPage /></Private>} />
           <Route path="/kitchen/:id" element={<Private></Private>} />
