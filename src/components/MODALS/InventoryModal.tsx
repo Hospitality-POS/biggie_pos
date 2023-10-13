@@ -50,7 +50,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         cost: 0,
         min_viable_quantity: 0,
         category_id: "",
-        supplier_id: "", // Initialize supplier_id
+        supplier_id: "", 
         description: "",
       },
     });

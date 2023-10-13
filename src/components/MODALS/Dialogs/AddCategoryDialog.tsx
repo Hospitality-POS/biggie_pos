@@ -12,6 +12,11 @@ import {
   InputAdornment,
   Alert,
   AlertTitle,
+  FormControl,
+  Select,
+  InputLabel,
+  MenuItem,
+  FormHelperText,
 } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import CloseIcon from "@mui/icons-material/Close";
@@ -19,10 +24,12 @@ import CategoryIcon from "@mui/icons-material/Category";
 import { useDispatch, useSelector } from "react-redux";
 import { resetCategoryMessage } from "../../../features/Category/CategorySlice";
 import { createCategory } from "../../../features/Category/CategoryActions";
-
+import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 
 interface Category {
   name: string;
+  subcategory_id: string;
 }
 
 interface AddCategoryDialogProps {
@@ -39,12 +46,14 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
   const {
     handleSubmit,
     control,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     reset,
-  } = useForm<Category>();
-  const [newCategory, setNewCategory] = useState<Category>({
-    name: "",
-  });
+    setValue,
+  } = useForm<Category>({ defaultValues: { name: "", subcategory_id: "" } });
+
+  const handleSubCategoryChange = (subCategoryId: string) => {
+    setValue("subcategory_id", subCategoryId);
+  };
 
   const { newCategoryMessage, IsError, isLoading } = useSelector(
     (state: any) => state.Categories
@@ -52,17 +61,13 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
 
   const dispatch = useDispatch();
 
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = event.target;
-    setNewCategory((prevCategory) => ({
-      ...prevCategory,
-      [name]: value,
-    }));
-  };
-
   const handleConfirmAddCategory = (data: Category) => {
     dispatch(resetCategoryMessage());
-    dispatch(createCategory(data));
+    const newCategory: Category = {
+      name: data.name,
+      sub_category: data.subcategory_id,
+    };
+    dispatch(createCategory(newCategory));
     onAddCategory(data);
     handleClose();
   };
@@ -71,6 +76,17 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
     reset();
     onClose();
   };
+
+  const fetchSubCategories = async () => {
+    const response = await axios.get(
+      "http://localhost:3000/categories/sub-categories"
+    );
+    return response.data;
+  };
+
+  const { data: subcategories } = useQuery(["subcategories"], () =>
+    fetchSubCategories()
+  );
 
   return (
     <Dialog open={open} maxWidth="md" onClose={handleClose}>
@@ -100,64 +116,97 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
       </DialogTitle>
 
       {IsError && (
-        <Alert severity="error" onClose={() => dispatch(resetCategoryMessage())}>
+        <Alert
+          severity="error"
+          onClose={() => dispatch(resetCategoryMessage())}
+        >
           <AlertTitle>Error</AlertTitle>
           <strong>{newCategoryMessage}</strong>
         </Alert>
       )}
-      <DialogContent>
-        <DialogContentText style={{ padding: 4 }}>
-          Fill in the details for the new category
-        </DialogContentText>
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <Controller
-              name="name"
-              control={control}
-              rules={{ required: "Name is required" }}
-              defaultValue={newCategory.name}
-              render={({ field }) => (
-                <TextField
-                  label="Name"
-                  variant="outlined"
-                  {...field}
-                  fullWidth
-                  margin="dense"
-                  error={!!errors.name}
-                  helperText={errors.name?.message}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <CategoryIcon />
-                      </InputAdornment>
-                    ),
-                  }}
+
+      <form onSubmit={handleSubmit(handleConfirmAddCategory)}>
+        <DialogContent>
+          <DialogContentText style={{ padding: 4 }}>
+            Fill in the details for the new category
+          </DialogContentText>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Controller
+                name="name"
+                control={control}
+                rules={{ required: "Name is required" }}
+                render={({ field }) => (
+                  <TextField
+                    label="Name"
+                    variant="outlined"
+                    {...field}
+                    fullWidth
+                    margin="dense"
+                    error={!!errors.name}
+                    helperText={errors.name?.message}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <CategoryIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+
+              <FormControl fullWidth margin="dense" variant="outlined">
+                <InputLabel id="subcategory-label">Subcategory</InputLabel>
+                <Controller
+                  name="subcategory_id"
+                  control={control}
+                  rules={{ required: "Subcategory is required" }}
+                  render={({ field }) => (
+                    <Select
+                      labelId="subcategory-label"
+                      label="Subcategory"
+                      {...field}
+                      onChange={(e) => handleSubCategoryChange(e.target.value)}
+                    >
+                      {subcategories?.map((subcategory: any) => (
+                        <MenuItem key={subcategory._id} value={subcategory._id}>
+                          {subcategory.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  )}
                 />
-              )}
-            />
+                {errors.subcategory_id && (
+                  <FormHelperText error>
+                    {errors.subcategory_id.message}
+                  </FormHelperText>
+                )}
+              </FormControl>
+            </Grid>
           </Grid>
-        </Grid>
-      </DialogContent>
-      <DialogActions>
-        <Button
-          type="submit"
-          variant="outlined"
-          sx={{
-            pl: 2,
-            color: "#6c1c2c",
-            borderColor: "#6c1c2c",
-            "&:hover": {
-              borderColor: "#bc8c7c",
-              color: "#bc8c7c",
-            },
-          }}
-          fullWidth
-          onClick={handleSubmit(handleConfirmAddCategory)}
-          disabled={isLoading}
-        >
-          {isLoading ? "Adding Category..." : "Add Category"}
-        </Button>
-      </DialogActions>
+        </DialogContent>
+
+        <DialogActions>
+          <Button
+            type="submit"
+            variant="outlined"
+            sx={{
+              pl: 2,
+              color: "#6c1c2c",
+              borderColor: "#6c1c2c",
+              "&:hover": {
+                borderColor: "#bc8c7c",
+                color: "#bc8c7c",
+              },
+            }}
+            fullWidth
+            disabled={isSubmitting || isLoading}
+          >
+            {isLoading ? "Adding Category..." : "Add Category"}
+          </Button>
+        </DialogActions>
+      </form>
     </Dialog>
   );
 };

@@ -26,9 +26,10 @@ export const fetchCategories = createAsyncThunk(
 // Create an async thunk to create a new category
 export const createCategory = createAsyncThunk(
   "category/createCategory",
-  async (newCategory: Category, { rejectWithValue }) => {
+  async (newCategory: Category, { rejectWithValue, dispatch }) => {
     try {
       const response = await axios.post(baseUrl, newCategory);
+      dispatch(fetchCategories())
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || error.toString());

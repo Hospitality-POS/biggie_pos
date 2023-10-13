@@ -177,7 +177,7 @@ const CategorySettings = () => {
                   onClick={() => handleSort("product_count")} // Handle sorting for product_count
                 >
                   <Box display="flex" alignItems="center">
-                    Product Count
+                    SubCategory
                     {orderBy === "product_count" && (
                       <ArrowDropDownIcon
                         style={{
@@ -200,7 +200,9 @@ const CategorySettings = () => {
           <TableBody>
             {sortedCategories
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((category: { _id: React.Key | null | undefined; name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; product_count: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }) => (
+              .map((category: {
+                sub_category: any; _id: React.Key | null | undefined; name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; product_count: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; 
+}) => (
                 <TableRow key={category._id}>
                   <TableCell
                     style={{
@@ -214,7 +216,7 @@ const CategorySettings = () => {
                     </IconButton>
                     {category.name}
                   </TableCell>
-                  <TableCell>{category.product_count}</TableCell>
+                  <TableCell>{category?.sub_category?.name}</TableCell>
                   <TableCell>
                     <IconButton color="primary">
                       <EditIcon />
