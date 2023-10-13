@@ -16,23 +16,12 @@ interface Product {
 
 export const createProduct = createAsyncThunk(
   "product/createProduct",
-  async (product: Product, { rejectWithValue, dispatch}) => {
+  async (product: Product, { rejectWithValue, dispatch }) => {
     try {
-       
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const accessToken = user.Token;
-
-      const headers = {
-        Authorization: `Bearer ${accessToken}`,
-         "Content-Type": "multipart/form-data",
-
-      };
-      const response = await axios.post(`${baseUrl}`, product,{headers});
-      dispatch(fetchProducts())
+      const response = await axios.post(`${baseUrl}`, product);
+      dispatch(fetchProducts());
       return response.data;
     } catch (error: any) {
-
-      
       return rejectWithValue(error.response.data.error || error.toString());
     }
   }
@@ -55,13 +44,15 @@ export const updateProduct = createAsyncThunk(
   async (product: Product, { rejectWithValue, dispatch }) => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const accessToken = user.Token;
+      const accessToken = user.Token;
 
       const headers = {
         Authorization: `Bearer ${accessToken}`,
       };
-      const response = await axios.put(`${baseUrl}/${product._id}`, product, {headers});
-      dispatch(fetchProducts())
+      const response = await axios.put(`${baseUrl}/${product._id}`, product, {
+        headers,
+      });
+      dispatch(fetchProducts());
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

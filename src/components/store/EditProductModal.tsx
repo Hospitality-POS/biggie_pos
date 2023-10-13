@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Box,
   Button,
@@ -14,16 +14,34 @@ import {
   InputLabel,
   FormControl,
   Grid,
+  Typography,
+  Alert,
+  InputAdornment,
 } from "@mui/material";
 import { CloseRounded } from "@mui/icons-material";
+import { useForm, Controller } from "react-hook-form";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import { updateProduct } from "../../features/Product/ProductAction";
+import DnsIcon from "@mui/icons-material/Dns";
+import CategoryIcon from "@mui/icons-material/Category";
+import PriceChangeIcon from "@mui/icons-material/PriceChange";
+import ProductionQuantityLimitsIcon from "@mui/icons-material/ProductionQuantityLimits";
+import FastfoodIcon from '@mui/icons-material/Fastfood';
 
 interface Category {
   _id: string;
   name: string;
+}
+
+interface ProductData {
+  name: string;
+  price: number;
+  description: string;
+  quantity: number;
+  min_viable_quantity: number;
+  category: string;
 }
 
 interface EditProductModalProps {
@@ -37,74 +55,41 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
   productData,
   onClose,
 }) => {
-  const [name, setName] = useState(productData.name || "");
-  const [price, setPrice] = useState(productData.price || 0);
-  const [desc, setDescription] = useState(productData.desc || "");
-  const [image, setImage] = useState<File | null>(null);
-  const [quantity, setQuantity] = useState(productData.quantity || 0);
-  const [min_viable_quantity, setMinViableQuantity] = useState(
-    productData.min_viable_quantity || 0
-  );
-  const [category, setCategory] = useState(productData?.category?._id || "");
+  const {
+    handleSubmit,
+    control,
+    reset,
+    formState: { isDirty },
+  } = useForm<ProductData>();
 
-  const dispatch = useDispatch();
   const fetchCategories = async () => {
-    const response = await axios.get("http://localhost:3000/categories");
+    const response = await axios.get<Category[]>(
+      "http://localhost:3000/categories"
+    );
     return response.data;
   };
 
-  const { data: categories } = useQuery(
+  const { data: categories } = useQuery<Category[]>(
     ["categories"],
-    () => fetchCategories(),
-    {
-      refetchInterval: 1000,
-    }
+    fetchCategories
   );
 
-  const handleUpdate = async () => {
-    try {
-      const newProductData = {
-        _id: productData?._id,
-        name,
-        price,
-        desc,
-        quantity,
-        min_viable_quantity: min_viable_quantity,
-        category,
-        image: image || null,
-      };
-      const formData = new FormData();
-      formData.append("image", image);
-      for (const key in newProductData) {
-        formData.append(key, newProductData[key]);
-      }
+  const dispatch = useDispatch();
 
-      const response = await axios.put(
-        `http://localhost:3000/products/${productData._id}`,
-        formData
-      );
+  const handleUpdate = (data: ProductData) => {
+    const newProductData = {
+      _id: productData?._id,
+      ...data,
+    };
 
-      dispatch(updateProduct(newProductData));
-
-      setName("");
-      setPrice(0);
-      setDescription("");
-      setImage(null);
-      setQuantity(0);
-      setMinViableQuantity(0);
-      setCategory("");
-      onClose();
-    } catch (error) {
-      console.error("Error updating product:", error);
+    if (!isDirty) {
+      return;
     }
-  };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setImage(e.target.files[0]);
-    } else {
-      setImage(null);
-    }
+    dispatch(updateProduct(newProductData));
+
+    reset();
+    onClose();
   };
 
   return (
@@ -118,125 +103,179 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
           color: "white",
         }}
       >
-        Update Dish{" "}
+       
+        <div
+          style={{
+            gap: "10px",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <FastfoodIcon />
+           Update Dish
+        </div>
         <IconButton onClick={onClose}>
           <CloseRounded fontSize="inherit" color="inherit" />
         </IconButton>
       </DialogTitle>
+      {isDirty && (
+        <Alert severity="info">
+          Make sure to make changes for you to update - {productData.name} dish.
+        </Alert>
+      )}
       <DialogContent>
-        <Grid container spacing={2}>
-          <Grid item xs={6}>
-            <TextField
-              label="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              fullWidth
-              margin="normal"
-            />
-            <FormControl fullWidth margin="normal">
-              <InputLabel id="category">Category</InputLabel>
-              <Select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as string)}
-                label="Category"
-              >
-                <MenuItem value="">Select category</MenuItem>
-                {categories &&
-                  categories.map(
-                    (category: {
-                      _id: React.Key | readonly string[] | null | undefined;
-                      name:
-                        | string
-                        | number
-                        | boolean
-                        | React.ReactElement<
-                            any,
-                            string | React.JSXElementConstructor<any>
-                          >
-                        | Iterable<React.ReactNode>
-                        | React.ReactPortal
-                        | null
-                        | undefined;
-                    }) => (
-                      <MenuItem key={category._id} value={category._id}>
-                        {category.name}
-                      </MenuItem>
-                    )
-                  )}
-              </Select>
-            </FormControl>
-            <TextField
-              label="Price"
-              type="number"
-              value={price}
-              onChange={(e) => setPrice(parseFloat(e.target.value))}
-              fullWidth
-              margin="normal"
-            />
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                marginBottom: 20,
-              }}
-            >
-              <label htmlFor="image">Image</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
+        <form onSubmit={handleSubmit(handleUpdate)}>
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <Controller
+                name="name"
+                control={control}
+                defaultValue={productData.name || ""}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Name"
+                    fullWidth
+                    margin="normal"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <DnsIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
               />
-            </div>
+              <Controller
+                name="category"
+                control={control}
+                defaultValue={productData?.category?._id || ""}
+                render={({ field }) => (
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel id="category">Category</InputLabel>
+                    <Select
+                      {...field}
+                      label="Category"
+                      startAdornment={
+                        <InputAdornment position="start">
+                          <CategoryIcon />
+                        </InputAdornment>
+                      }
+                    >
+                      <MenuItem value="">Select category</MenuItem>
+                      {categories &&
+                        categories.map((category) => (
+                          <MenuItem key={category._id} value={category._id}>
+                            {category.name}
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
+                )}
+              />
+              <Controller
+                name="price"
+                control={control}
+                defaultValue={productData.price || 0}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Price"
+                    type="number"
+                    fullWidth
+                    margin="normal"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PriceChangeIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <Controller
+                name="quantity"
+                control={control}
+                defaultValue={productData.quantity || 0}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Quantity"
+                    type="number"
+                    fullWidth
+                    margin="normal"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <ProductionQuantityLimitsIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+              <Controller
+                name="min_viable_quantity"
+                control={control}
+                defaultValue={productData.min_viable_quantity || 0}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Min Viable Quantity"
+                    type="number"
+                    fullWidth
+                    margin="normal"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <ProductionQuantityLimitsIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+              <Controller
+                name="description"
+                control={control}
+                defaultValue={productData.desc || ""}
+                render={({ field }) => (
+                  <TextareaAutosize
+                    {...field}
+                    placeholder="Description"
+                    minRows={3.5}
+                    maxRows={3.5}
+                    style={{ width: "100%", marginTop: 15 }}
+                  />
+                )}
+              />
+            </Grid>
           </Grid>
-          <Grid item xs={6}>
-            <TextField
-              label="Quantity"
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(parseInt(e.target.value))}
+          <DialogActions>
+            <Button
+              type="submit"
+              variant="outlined"
+              sx={{
+                pl: 2,
+                color: "#6c1c2c",
+                borderColor: "#6c1c2c",
+                "&:hover": {
+                  borderColor: "#bc8c7c",
+                  color: "#bc8c7c",
+                },
+              }}
               fullWidth
-              margin="normal"
-            />
-            <TextField
-              label="Min Viable Quantity"
-              type="number"
-              value={min_viable_quantity}
-              onChange={(e) => setMinViableQuantity(parseInt(e.target.value))}
-              fullWidth
-              margin="normal"
-            />
-            <TextareaAutosize
-              placeholder="Description"
-              value={desc}
-              onChange={(e) => setDescription(e.target.value)}
-              minRows={3.5}
-              maxRows={3.5}
-              style={{ width: "100%", marginTop: 15 }}
-            />
-          </Grid>
-        </Grid>
-        
+            >
+              Update
+            </Button>
+          </DialogActions>
+        </form>
       </DialogContent>
-      <DialogActions>
-        {/* <Button onClick={onClose} color="primary">
-          Cancel
-        </Button> */}
-        <Button onClick={handleUpdate}  variant="outlined"
-          sx={{
-            pl: 2,
-            color: "#6c1c2c",
-            borderColor: "#6c1c2c",
-
-            "&:hover": {
-              borderColor: "#bc8c7c",
-              color: "#bc8c7c",
-            },
-          }}
-          fullWidth>
-          Update
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 };
