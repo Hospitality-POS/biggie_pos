@@ -141,7 +141,9 @@ const RestaurantPage = () => {
                 <Tab icon={<SoupKitchenIcon/>} iconPosition="start"   label="Kitchen" {...a11yProps(2)} />
               </Tabs>
             </AppBar>
-            <div style={{height: "inherit"}}>
+              <Divider sx={{ mt: 2, mb: 2 }} />
+            <div style={{display: "flex", flexDirection:"row",   }}>
+            <div style={{height: "inherit",}}>
               {/* Categories Loading Indicator */}
               {/* {categoriesLoading && (
                 <div>
@@ -264,7 +266,6 @@ const RestaurantPage = () => {
                   </Grid>
                 </>
               )} */}
-              <Divider sx={{ mt: 2, mb: 2 }} />
               <VerticalTabs/>
               
               {/* Products Loading Indicator */}
@@ -282,11 +283,14 @@ const RestaurantPage = () => {
                   {[...Array(6)].map((_, index) => (
                     <SkeletonProductCard key={index} />
                   ))}
-                </section>
-              )} */}
+                  </section>
+                )} */}
 
+                </div>
               {/* Render Products */}
-              {/* {!loading && (
+              <div>
+
+              {!loading && (
                 <section
                   className="cards"
                   style={{
@@ -336,7 +340,8 @@ const RestaurantPage = () => {
                     </div>
                   )}
                 </section>
-              )} */}
+              )}
+              </div>
             </div>
           </Paper>
         </Grid>

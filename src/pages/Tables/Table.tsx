@@ -14,6 +14,7 @@ import { useSelector } from "react-redux";
 
 function Table() {
   const {openModal}= useSelector((state:any)=>state.order)
+  // const {tables: data, loading: isLoading, error, isError  } = useSelector((stat:any)=>state.Tables)
   const [value, setValue] = React.useState("in-doors");
 
   const fetchTables = async (locatedAt: string) => {
@@ -24,8 +25,8 @@ function Table() {
   const { isLoading, isError, error, data } = useQuery({
     queryKey: ["tables", value],
     queryFn:  () => fetchTables(value),
-    retry: 3,
-    retryDelay: 1000,
+    retry: 1,
+    retryDelay: 100,
   });
   const handleChange = (event: React.SyntheticEvent, newValue: string) => {
     setValue(newValue);

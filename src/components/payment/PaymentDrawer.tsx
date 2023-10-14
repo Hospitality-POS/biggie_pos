@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import MobileScreenShareIcon from "@mui/icons-material/MobileScreenShare";
-import CreditCardOffIcon from '@mui/icons-material/CreditCardOff';
+import CreditCardOffIcon from "@mui/icons-material/CreditCardOff";
 import { grey } from "@mui/material/colors";
 import RecommendIcon from "@mui/icons-material/Recommend";
 import CloseIcon from "@mui/icons-material/Close";
@@ -20,6 +20,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { createOrder } from "../../features/Order/OrderActions";
 import { useNavigate, useParams } from "react-router-dom";
 import { createCart } from "../../features/Cart/CartActions";
+import { logoutUser } from "../../features/Auth/AuthActions";
+import { reset } from "../../features/Auth/AuthSlice";
 
 interface paymentProps {
   paymentOpen: boolean;
@@ -71,6 +73,8 @@ const PaymentDrawer: React.FC<paymentProps> = ({
     dispatch(createOrder(orderDetails));
     if (!error) {
       dispatch(createCart(id));
+      dispatch(logoutUser());
+      dispatch(reset());
       navigate("/tables");
     }
   };
@@ -94,7 +98,8 @@ const PaymentDrawer: React.FC<paymentProps> = ({
             elevation={selectedMethod === method._id ? 3 : 1}
             onClick={() => handleSelectMethod(method._id)}
             sx={{
-              backgroundColor: selectedMethod === method._id ? "#6c1c2c" : grey[100],
+              backgroundColor:
+                selectedMethod === method._id ? "#6c1c2c" : grey[100],
               cursor: "pointer",
               borderRadius: "10px",
               transition: "background-color 0.3s ease",
@@ -120,7 +125,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
                 <CreditCardIcon fontSize="large" />
               ) : method.name === "Debt" ? (
                 <CreditCardOffIcon fontSize="large" />
-              ) :(
+              ) : (
                 ""
               )}
             </Typography>
