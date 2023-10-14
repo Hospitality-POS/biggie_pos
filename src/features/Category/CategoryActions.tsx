@@ -23,6 +23,19 @@ export const fetchCategories = createAsyncThunk(
   }
 );
 
+// Create an async thunk to fetch all maincategories
+export const fetchMainCategories = createAsyncThunk(
+  "category/fetchMainCategories",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${baseUrl}/main-categories`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
 // Create an async thunk to create a new category
 export const createCategory = createAsyncThunk(
   "category/createCategory",
@@ -45,6 +58,36 @@ export const updateCategory = createAsyncThunk(
       const response = await axios.put(
         `${baseUrl}/${updatedCategory._id}`,
         updatedCategory
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+// fetch subcategories
+export const fetchsubcategories = createAsyncThunk(
+  "category/subcategories",
+  async (subcategoryId, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(
+        `${baseUrl}/main-categories/${subcategoryId}/sub-categories`
+      );
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+// fetch categories using subcategory id
+export const fetchCategoriesByID = createAsyncThunk(
+  "category/CategoriesByID",
+  async (subcategoryId, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(
+        `${baseUrl}/${subcategoryId}`
       );
       return response.data;
     } catch (error) {

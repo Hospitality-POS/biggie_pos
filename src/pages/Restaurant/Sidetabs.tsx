@@ -1,7 +1,10 @@
 import { AppBar, Tab, Tabs } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import React from "react";
+import { useSelector } from "react-redux";
 
-function a11yProps(index) {
+function a11yProps(index: any) {
   return {
     id: `full-width-tab-${index}`,
     "aria-controls": `full-width-tabpanel-${index}`,
@@ -9,6 +12,9 @@ function a11yProps(index) {
 }
 
 const VerticalTabs = () => {
+  const { subCategory: Subcategories } = useSelector(
+    (state: any) => state.Categories
+  );
   const [value, setValue] = React.useState(0);
 
   const handleChange = (event, newValue) => {
@@ -44,27 +50,34 @@ const VerticalTabs = () => {
               height: 450,
             }}
           >
-            <Tab
-              // icon={<TapasIcon />}
-              iconPosition="start"
-              label="BEAVARAGES"
-              {...a11yProps(0)}
-              sx={{ transform: "rotate(-90deg)" }}
-            />
-            <Tab
-              // icon={<LocalBarIcon />}
-              iconPosition="start"
-              label="FOOD"
-              {...a11yProps(1)}
-              sx={{ transform: "rotate(-90deg)" }}
-            />
-            <Tab
-              // icon={<SoupKitchenIcon />}
-              iconPosition="start"
-              label="NON F/B"
-              {...a11yProps(2)}
-              sx={{ transform: "rotate(-90deg)" }}
-            />
+            {Subcategories?.map(
+              (
+                subcateg: {
+                  _id: React.Key | null | undefined;
+                  name:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                },
+                index: any
+              ) => (
+                <Tab
+                  key={subcateg._id}
+                  iconPosition="start"
+                  label={subcateg.name}
+                  {...a11yProps(index)}
+                  sx={{ transform: "rotate(-90deg)" }}
+                />
+              )
+            )}
           </div>
         </Tabs>
       </AppBar>
