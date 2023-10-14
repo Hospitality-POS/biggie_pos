@@ -2,7 +2,8 @@ import { AppBar, Tab, Tabs } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import React from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchCategoriesByID } from "../../features/Category/CategoryActions";
 
 function a11yProps(index: any) {
   return {
@@ -15,7 +16,13 @@ const VerticalTabs = () => {
   const { subCategory: Subcategories } = useSelector(
     (state: any) => state.Categories
   );
+  const dispatch = useDispatch()
   const [value, setValue] = React.useState(0);
+  const [subCategoryId, setSubCategoryId] = React.useState("")
+
+  const handleChanegSubCategoryId =(subcategoryID)=>{
+    dispatch(fetchCategoriesByID(subcategoryID))
+  }
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
@@ -27,7 +34,7 @@ const VerticalTabs = () => {
 
   return (
     <>
-      <AppBar
+      {Subcategories && Subcategories.length > 0 && (<AppBar
         position="static"
         sx={{ bgcolor: "#6c1c2c", width: 80, height: 450 }}
       >
@@ -71,6 +78,7 @@ const VerticalTabs = () => {
               ) => (
                 <Tab
                   key={subcateg._id}
+                  onClick={()=> handleChanegSubCategoryId(subcateg._id)}
                   iconPosition="start"
                   label={subcateg.name}
                   {...a11yProps(index)}
@@ -80,7 +88,7 @@ const VerticalTabs = () => {
             )}
           </div>
         </Tabs>
-      </AppBar>
+      </AppBar>)}
     </>
   );
 };

@@ -66,8 +66,8 @@ const TableCard: React.FC<Item> = ({ item }) => {
       />
       <Box sx={textOverlayStyles}>
         <Typography variant="h6">{item.name}</Typography>
-        <Typography variant="body1">Amount: ksh. 3,000</Typography>
-        <Typography variant="body2">mike kamau</Typography>
+        {/* <Typography variant="body1">Amount: ksh. 3,000</Typography> */}
+        {/* <Typography variant="body2">mike kamau</Typography> */}
       </Box>
     </Card>
           <StaffModal setOpen={setOpen} setPin={setPin} pin={pin} open={open} item={item} />
