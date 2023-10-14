@@ -12,7 +12,7 @@ import CircleIcon from "@mui/icons-material/Circle";
 import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
 import EditProductModal from "./EditProductModal";
 
-import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import { useDispatch } from "react-redux";
 import { deleteProduct } from "../../features/Product/ProductAction";
 import { MenuBook } from "@mui/icons-material";
@@ -31,42 +31,37 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
   price,
   bowls,
   product,
-  productId
+  productId,
 }) => {
   const [modalOpen, setModalOpen] = React.useState(false);
-  const dispatch= useDispatch()
+  const dispatch = useDispatch();
   const handleEditClick = () => {
     setModalOpen(true);
   };
 
-  const transformImagePath=(absolutePath: string)=> {
-    const filename = absolutePath.split("\\").pop(); 
+  const transformImagePath = (absolutePath: string) => {
+    const filename = absolutePath.split("\\").pop();
     return `\\uploads\\${filename}`;
-  }
+  };
   const handleCloseModal = () => {
     setModalOpen(false);
   };
   const handleDeleteClick = (id) => {
-    dispatch(deleteProduct(id))
+    dispatch(deleteProduct(id));
   };
 
   return (
     <>
       <Card
+      
         sx={{
           maxWidth: 200,
-          height: 300,
+          height: 200,
           display: "flex",
           flexDirection: "column",
+          bgcolor: "#EDEADE",
         }}
       >
-        <CardMedia
-          component="img"
-          height="145"
-          sx={{ objectFit: "cover" }}
-          image={img ? transformImagePath(img) : "/food.jpg"}
-          alt={name}
-        />
         <CardContent
           sx={{
             flexGrow: 1,
@@ -96,37 +91,41 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
           >
             Ksh.{price?.toLocaleString()}
             <CircleIcon sx={{ fontSize: 8, mt: 1, color: "#6c1c2c" }} /> {bowls}{" "}
-            Bowl{bowls <= 1 ? " " : "s"}
+            Item{bowls <= 1 ? " " : "s"}
           </Typography>
         </CardContent>
-        <Box sx={{ display: "flex",
-    
-    alignItems: "center", 
-    marginTop: 1, }}>
+        <Box
+          sx={{
+            display: "flex",
+
+            alignItems: "center",
+            marginTop: 1,
+          }}
+        >
           <IconButton
             sx={{
               flex: 1,
               borderRadius: 0,
               p: 2,
               bgcolor: "#6c1c2c",
+              color: "#ffff",
               "&:hover": {
                 bgcolor: "#bc8c7c",
-                color: "#ffff",
               },
             }}
             onClick={handleEditClick}
           >
             <BorderColorOutlinedIcon fontSize="inherit" />
           </IconButton>
-            <IconButton
+          <IconButton
             sx={{
               flex: 1,
               borderRadius: 0,
               p: 2,
               bgcolor: "#6c1c2c",
+              color: "#ffff",
               "&:hover": {
                 bgcolor: "#bc8c7c",
-                color: "#ffff",
               },
             }}
             // onClick={handleEditClick}
@@ -138,13 +137,13 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
               flex: 1,
               borderRadius: 0,
               p: 2,
-              bgcolor: "#ff3333", 
+              bgcolor: "#ff3333",
+              color: "#ffff",
               "&:hover": {
                 bgcolor: "#cc0000",
-                color: "#ffffff",
               },
             }}
-            onClick={()=>handleDeleteClick(productId)}
+            onClick={() => handleDeleteClick(productId)}
           >
             <DeleteSweepIcon fontSize="inherit" />
           </IconButton>
