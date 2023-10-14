@@ -87,7 +87,7 @@ export const fetchCategoriesByID = createAsyncThunk(
   async (subcategoryId, { rejectWithValue }) => {
     try {
       const response = await axios.get(
-        `${baseUrl}/${subcategoryId}`
+        `${baseUrl}/sub-categories/${subcategoryId}/categories`
       );
       return response.data;
     } catch (error) {

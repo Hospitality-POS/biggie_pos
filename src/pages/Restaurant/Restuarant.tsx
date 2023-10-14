@@ -1,27 +1,31 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
+  AlertTitle,
   AppBar,
   Button,
   CircularProgress,
   Divider,
   Grid,
+  IconButton,
   Tab,
   Tabs,
   Typography,
 } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
-import TapasIcon from '@mui/icons-material/Tapas';
+import TapasIcon from "@mui/icons-material/Tapas";
 import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
-import SoupKitchenIcon from '@mui/icons-material/SoupKitchen';
+import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
 import SkeletonCategoryCard from "../../components/category/skeletonCategoryCard";
 import AddToCartIcon from "../../components/cart/AddToCartIcon";
 import PaymentDrawer from "../../components/payment/PaymentDrawer";
 import CartDrawer from "../../components/cart/CartDrawer";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import LocalBarIcon from '@mui/icons-material/LocalBar';
+import LocalBarIcon from "@mui/icons-material/LocalBar";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
+import BackspaceIcon from "@mui/icons-material/Backspace";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCartItems } from "../../features/Cart/CartActions";
@@ -42,7 +46,14 @@ const RestaurantPage = () => {
   const { user } = useSelector((state: any) => state.auth);
   const { cartDetails } = useSelector((state: any) => state.cart);
   const { products, loading } = useSelector((state: any) => state.product);
+  const { category: categories, loading: categoriesLoading } = useSelector(
+    (state: any) => state.Categories
+  );
+  const { subCategory: Subcategories } = useSelector(
+    (state: any) => state.Categories
+  );
   const [selectedCard, setSelectedCard] = useState(null);
+  const [showCategories, setShowCategories] = useState(true);
   const { id } = useParams();
 
   const { data: tableData } = useQuery({
@@ -57,32 +68,27 @@ const RestaurantPage = () => {
     retryDelay: 1000,
   });
 
-  const fetchCategories = async () => {
-    const response = await axios.get("http://localhost:3000/categories");
-    return response.data;
-  };
-
-  const { data: categories, isLoading: categoriesLoading } = useQuery(
-    ["categories"],
-    () => fetchCategories()
-  );
-
   const fetchMainCategories = async () => {
-    const response = await axios.get("http://localhost:3000/categories/main-categories");
+    const response = await axios.get(
+      "http://localhost:3000/categories/main-categories"
+    );
     return response.data;
   };
 
-  const { data: Maincategories, isLoading: MaincategoriesLoading } = useQuery(
-    ["Maincategories"],
-    () => fetchMainCategories()
+  const { data: Maincategories } = useQuery(["Maincategories"], () =>
+    fetchMainCategories()
   );
+
+  const handleBack = () => {
+    setShowCategories(true);
+  };
 
   const [cartOpen, setCartOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [categoryChosen, setCategoryChosen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [mainCategoryId, setMainCategoryId] = useState("")
+  const [mainCategoryId, setMainCategoryId] = useState("");
   const [value, setValue] = React.useState(0);
 
   const handleChange = (event: any, newValue: React.SetStateAction<number>) => {
@@ -93,10 +99,12 @@ const RestaurantPage = () => {
     setValue(index);
   };
 
-  const handleChangeMainCategory=(maincategoryid: React.SetStateAction<string>) => {
+  const handleChangeMainCategory = (
+    maincategoryid: React.SetStateAction<string>
+  ) => {
     // setMainCategoryId(maincategoryid)
-    dispatch(fetchsubcategories(maincategoryid))
-  }
+    dispatch(fetchsubcategories(maincategoryid));
+  };
 
   const dispatch = useDispatch();
 
@@ -126,6 +134,7 @@ const RestaurantPage = () => {
     setSelectedCard(card);
     dispatch(fetchProductsByCategory(card));
     setCategoryChosen(true);
+    setShowCategories(false);
   };
 
   const handleNext = () => {
@@ -144,8 +153,8 @@ const RestaurantPage = () => {
         {/* Left Column */}
         <Grid item xs={8}>
           <Paper elevation={3} style={{ padding: "16px", height: "100vh" }}>
-            <AppBar position="static" sx={{mb: 2, bgcolor: "#6c1c2c"}} >
-               <Tabs
+            <AppBar position="static" sx={{ mb: 2, bgcolor: "#6c1c2c" }}>
+              <Tabs
                 value={value}
                 onChange={handleChange}
                 indicatorColor="secondary"
@@ -153,219 +162,213 @@ const RestaurantPage = () => {
                 variant="fullWidth"
                 aria-label="full width tabs example"
               >
-                {Maincategories?.map((categ: { _id: React.Key | null | undefined; name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }, index: any) => (
-                  <Tab
-                    key={categ._id}
-                    onClick={()=>handleChangeMainCategory(categ._id)}
-                    iconPosition="start"
-                    label={categ.name}
-                    {...a11yProps(index)}
-                  />
-                ))}
+                {Maincategories?.map(
+                  (
+                    categ: {
+                      _id: React.Key | null | undefined;
+                      name:
+                        | string
+                        | number
+                        | boolean
+                        | React.ReactElement<
+                            any,
+                            string | React.JSXElementConstructor<any>
+                          >
+                        | Iterable<React.ReactNode>
+                        | React.ReactPortal
+                        | null
+                        | undefined;
+                    },
+                    index: any
+                  ) => (
+                    <Tab
+                      key={categ._id}
+                      onClick={() => handleChangeMainCategory(categ._id)}
+                      iconPosition="start"
+                      label={categ.name}
+                      {...a11yProps(index)}
+                    />
+                  )
+                )}
               </Tabs>
             </AppBar>
-              <Divider sx={{ mt: 2, mb: 2 }} />
-            <div style={{display: "flex", flexDirection:"row",   }}>
-            <div style={{height: "inherit",}}>
-              {/* Categories Loading Indicator */}
-              {/* {categoriesLoading && (
-                <div>
-                  <section
-                    className="cards"
-                    style={{
-                      display: "flex",
-                      gap: "20px",
-                      marginTop: "10px",
-                      paddingLeft: "4px",
-                    }}
-                  >
-                    {[...Array(8)].map((_, index) => (
-                      <SkeletonCategoryCard key={index} />
-                    ))}
-                  </section>
+            <Divider sx={{ mt: 2, mb: 2 }} />
+            {Subcategories.length ? (
+              <div style={{ display: "flex", flexDirection: "row" }}>
+                <div style={{ height: "inherit" }}>
+                  <VerticalTabs />
                 </div>
-              )}
-              {!categoriesLoading && (
-                <>
-                  <Grid
-                    container
-                    justifyContent="center"
-                    gap={2}
-                    sx={{ display: "flex" }}
-                  >
-                    <Grid item>
+                <div style={{ width: "100%" }}>
+                  {showCategories ? (
+                    <section
+                      className="cards"
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "flex-start",
+                        gap: "10px",
+                        paddingLeft: "4px",
+                        marginLeft: "10px",
+                        marginTop: 4,
+                      }}
+                    >
+                      {categories.length ? (
+                        categories.map(
+                          (category: {
+                            product_count: number;
+                            _id: string;
+                            name: string;
+                          }) => (
+                            <CategoryCard
+                              style={{
+                                flex: `0 0 ${100 / categories?.length}%`,
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                border: "1px solid black",
+                              }}
+                              key={category._id}
+                              handleSelectedCard={handleSelectCard}
+                              selectedCard={selectedCard}
+                              icon={"/chip.png"}
+                              name={category.name}
+                              itemCount={1}
+                              id={category._id}
+                            />
+                          )
+                        )
+                      ) : (
+                        <>
+                          <Alert
+                            variant="filled"
+                            severity="info"
+                            sx={{ width: "100%", bgcolor: "#bc8c7c" }}
+                          >
+                            <AlertTitle>Sorry</AlertTitle>
+                            Empty categories!
+                          </Alert>
+                        </>
+                      )}
+                    </section>
+                  ) : (
+                    <div style={{ width: "inherit" }}>
                       <div
                         style={{
                           display: "flex",
-                          overflow: "hidden",
-                          width: "100%",
+                          alignItems: "flex-end",
+                          justifyContent: "flex-end",
                         }}
                       >
-                        <div
+                        <IconButton
+                          onClick={handleBack}
+                          sx={{
+                            color: "#6c1c2c",
+                            "&:hover": {
+                              color: "#bc8c7c",
+                            },
+                          }}
+                        >
+                          <BackspaceIcon />
+                        </IconButton>
+                      </div>
+                      {loading && (
+                        <section
+                          className="cards"
                           style={{
                             display: "flex",
-                            gap: "20px",
-                            width: `${categories?.length * 100}%`,
-                            transform: `translateX(-${
-                              currentIndex * (100 / categories?.length)
-                            }%)`,
-                            transition: "transform 0.5s ease-in-out",
+                            alignItems: "flex-start",
+                            justifyContent: "flex-start",
+                            gap: "10px",
+                            marginLeft: 4,
+                            paddingLeft: "4px",
                           }}
                         >
-                          {categories?.map(
-                            (category: {
-                              product_count: number;
-                              _id: string;
-                              name: string;
-                            }) => (
-                              <CategoryCard
-                                style={{
-                                  flex: `0 0 ${100 / categories?.length}%`,
-                                  display: "flex",
-                                  justifyContent: "center",
-                                  alignItems: "center",
-                                  border: "1px solid black",
-                                }}
-                                key={category._id}
-                                handleSelectedCard={handleSelectCard}
-                                selectedCard={selectedCard}
-                                icon={"/chip.png"}
-                                name={category.name}
-                                itemCount={category.product_count}
-                                id={category._id}
-                              />
+                          {[...Array(6)].map((_, index) => (
+                            <SkeletonProductCard key={index} />
+                          ))}
+                        </section>
+                      )}
+                      {!loading && (
+                        <section
+                          className="cards"
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            justifyContent: "flex-start",
+                            gap: "10px",
+                            marginLeft: 4,
+                            paddingLeft: "4px",
+                            width: "inherit",
+                          }}
+                        >
+                          {areProductsAvailable ? (
+                            products.map(
+                              (menu: { _id: React.Key | null | undefined }) => (
+                                <ProductCard
+                                  key={menu._id}
+                                  menu={menu}
+                                  handleCart={handleCartOpen}
+                                />
+                              )
                             )
+                          ) : categoryChosen ? (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                height: "100%",
+                                width: "inherit",
+                              }}
+                            >
+                              <Alert
+                                variant="filled"
+                                severity="info"
+                                sx={{ width: "100%", bgcolor: "#bc8c7c" }}
+                              >
+                                <AlertTitle>Sorry</AlertTitle>
+                                This category has no items!
+                              </Alert>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                height: "100%",
+                              }}
+                            >
+                              <Typography
+                                variant="body1"
+                                gutterBottom
+                                mt={2}
+                                pl={4}
+                              >
+                                Choose a category
+                              </Typography>
+                            </div>
                           )}
-                        </div>
-                      </div>
-                    </Grid>
-                    <Grid
-                      item
-                      gap={2}
-                      sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Grid item>
-                        <Button
-                          size="small"
-                          onClick={handlePrev}
-                          variant="outlined"
-                          sx={{
-                            color: "#6c1c2c",
-                            borderColor: "#6c1c2c",
-                            "&:hover": {
-                              borderColor: "#bc8c7c",
-                              color: "#bc8c7c",
-                            },
-                          }}
-                          disabled={categories?.length === 1}
-                          >
-                          <NavigateBeforeIcon />
-                        </Button>
-                      </Grid>
-                      <Grid item>
-                        <Button
-                          size="small"
-                          onClick={handleNext}
-                          variant="outlined"
-                          sx={{
-                            color: "#6c1c2c",
-                            borderColor: "#6c1c2c",
-                            "&:hover": {
-                              borderColor: "#bc8c7c",
-                              color: "#bc8c7c",
-                            },
-                          }}
-                          disabled={categories?.length === 1}
-                        >
-                          <NavigateNextIcon />
-                        </Button>
-                      </Grid>
-                    </Grid>
-                  </Grid>
-                </>
-              )} */}
-              <VerticalTabs/>
-              
-              {/* Products Loading Indicator */}
-              {/* {loading && (
-                <section
-                  className="cards"
-                  style={{
-                    display: "flex",
-                    gap: "10px",
-                    alignItems: "flex-start",
-                    marginTop: "10px",
-                    paddingLeft: "4px",
-                  }}
-                >
-                  {[...Array(6)].map((_, index) => (
-                    <SkeletonProductCard key={index} />
-                  ))}
-                  </section>
-                )} */}
-
-                </div>
-              {/* Render Products */}
-              <div>
-
-              {!loading && (
-                <section
-                  className="cards"
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "10px",
-                    paddingLeft: "4px",
-                  }}
-                >
-                  {areProductsAvailable ? (
-                    products.map(
-                      (menu: { _id: React.Key | null | undefined }) => (
-                        <ProductCard
-                          key={menu._id}
-                          menu={menu}
-                          handleCart={handleCartOpen}
-                        />
-                      )
-                    )
-                  ) : categoryChosen ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        height: "100%",
-                      }}
-                    >
-                      <Typography variant="body1" gutterBottom mt={2} pl={4}>
-                        This category has no items
-                      </Typography>
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        height: "100%",
-                      }}
-                    >
-                      <Typography variant="body1" gutterBottom mt={2} pl={4}>
-                        Choose a category
-                      </Typography>
+                        </section>
+                      )}
                     </div>
                   )}
-                </section>
-              )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <Alert
+                  variant="filled"
+                  severity="info"
+                  sx={{ width: "100%", bgcolor: "#bc8c7c" }}
+                >
+                  <AlertTitle>Sorry</AlertTitle>
+                  This category has no items!
+                </Alert>
+              </>
+            )}
           </Paper>
         </Grid>
         {/* Right Column */}
