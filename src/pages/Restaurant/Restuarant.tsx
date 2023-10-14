@@ -29,8 +29,9 @@ import axios from "axios";
 import { Paper } from "@mui/material";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 import VerticalTabs from "./Sidetabs";
+import { fetchsubcategories } from "../../features/Category/CategoryActions";
 
-function a11yProps(index) {
+function a11yProps(index: any) {
   return {
     id: `full-width-tab-${index}`,
     "aria-controls": `full-width-tabpanel-${index}`,
@@ -66,20 +67,36 @@ const RestaurantPage = () => {
     () => fetchCategories()
   );
 
+  const fetchMainCategories = async () => {
+    const response = await axios.get("http://localhost:3000/categories/main-categories");
+    return response.data;
+  };
+
+  const { data: Maincategories, isLoading: MaincategoriesLoading } = useQuery(
+    ["Maincategories"],
+    () => fetchMainCategories()
+  );
+
   const [cartOpen, setCartOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [categoryChosen, setCategoryChosen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [mainCategoryId, setMainCategoryId] = useState("")
   const [value, setValue] = React.useState(0);
 
-  const handleChange = (event, newValue) => {
+  const handleChange = (event: any, newValue: React.SetStateAction<number>) => {
     setValue(newValue);
   };
 
-  const handleChangeIndex = (index) => {
+  const handleChangeIndex = (index: React.SetStateAction<number>) => {
     setValue(index);
   };
+
+  const handleChangeMainCategory=(maincategoryid: React.SetStateAction<string>) => {
+    // setMainCategoryId(maincategoryid)
+    dispatch(fetchsubcategories(maincategoryid))
+  }
 
   const dispatch = useDispatch();
 
@@ -128,7 +145,7 @@ const RestaurantPage = () => {
         <Grid item xs={8}>
           <Paper elevation={3} style={{ padding: "16px", height: "100vh" }}>
             <AppBar position="static" sx={{mb: 2, bgcolor: "#6c1c2c"}} >
-              <Tabs
+               <Tabs
                 value={value}
                 onChange={handleChange}
                 indicatorColor="secondary"
@@ -136,9 +153,15 @@ const RestaurantPage = () => {
                 variant="fullWidth"
                 aria-label="full width tabs example"
               >
-                <Tab icon={<TapasIcon/>} iconPosition="start" label="Restaurant" {...a11yProps(0)} />
-                <Tab icon={<LocalBarIcon/>}  iconPosition="start" label="BAR" {...a11yProps(1)} />
-                <Tab icon={<SoupKitchenIcon/>} iconPosition="start"   label="Kitchen" {...a11yProps(2)} />
+                {Maincategories?.map((categ: { _id: React.Key | null | undefined; name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }, index: any) => (
+                  <Tab
+                    key={categ._id}
+                    onClick={()=>handleChangeMainCategory(categ._id)}
+                    iconPosition="start"
+                    label={categ.name}
+                    {...a11yProps(index)}
+                  />
+                ))}
               </Tabs>
             </AppBar>
               <Divider sx={{ mt: 2, mb: 2 }} />

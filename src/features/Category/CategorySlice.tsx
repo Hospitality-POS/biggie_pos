@@ -1,15 +1,30 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { createCategory, deleteCategory, fetchCategories, updateCategory } from "./CategoryActions";
+import { createCategory, deleteCategory, fetchCategories, fetchCategoriesByID, fetchMainCategories, fetchsubcategories, updateCategory } from "./CategoryActions";
 
 
 interface Category {
   _id: string;
   name: string;
-  product_count: number;
+}
+interface MainCategory {
+  _id: string;
+  name: string;
+}
+interface SubCategory {
+  _id: string;
+  name: string;
+}
+
+interface category {
+  _id: string;
+  name: string;
 }
 
 interface CategoryState {
   categories: Category[];
+  mainCategory: MainCategory[];
+  subCategory: SubCategory[];
+  category: category[];
   loading: boolean;
   error: string | null;
   newCategoryMessage: string;
@@ -19,6 +34,9 @@ interface CategoryState {
 
 const initialState: CategoryState = {
   categories: [],
+  category:[],
+  mainCategory:[],
+  subCategory:[],
   loading: false,
   error: null,
   newCategoryMessage: "",
@@ -99,6 +117,45 @@ export const categorySlice = createSlice({
         state.categories = state.categories.filter((category) => category._id !== action.payload);
       })
       .addCase(deleteCategory.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(fetchMainCategories.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMainCategories.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isSuccess = true;
+        state.mainCategory = action.payload;
+      })
+      .addCase(fetchMainCategories.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(fetchsubcategories.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchsubcategories.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isSuccess = true;
+        state.subCategory = action.payload;
+      })
+      .addCase(fetchsubcategories.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(fetchCategoriesByID.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchCategoriesByID.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isSuccess = true;
+        state.category = action.payload;
+      })
+      .addCase(fetchCategoriesByID.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
