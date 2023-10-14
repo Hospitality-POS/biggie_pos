@@ -122,7 +122,7 @@ const Store: React.FC = () => {
           sx={{
             width: 200,
             boxShadow: "none",
-            height: 300,
+            height: 200,
             display: "flex",
             flexDirection: "column",
             border: "2px dashed #6c1c2c",

@@ -5,13 +5,13 @@ const StoreProductCardSkeleton: React.FC = () => {
   return (
     <Card
       sx={{
-        width: 200,
-        height: 300,
+        width: 180,
+        height: 200,
         display: "flex",
         flexDirection: "column",
       }}
     >
-      <Skeleton variant="rectangular" height={150}  />
+      <Skeleton variant="rectangular" height={150} width={180} />
       <CardContent
         sx={{
           flexGrow: 1,
@@ -21,15 +21,8 @@ const StoreProductCardSkeleton: React.FC = () => {
           alignItems: "center",
         }}
       >
-        <Skeleton variant="text" width="60%" />
-        <Skeleton variant="text" width="40%" />
+        
       </CardContent>
-      <Skeleton
-        variant="rectangular"
-        height={48}
-        width="100%"
-        sx={{ borderRadius: 0 }}
-      />
     </Card>
   );
 };
