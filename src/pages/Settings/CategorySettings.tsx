@@ -27,12 +27,15 @@ import CategoryIcon from "@mui/icons-material/Category";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ActionsIcon from "@mui/icons-material/MoreVert";
 import { useSelector, useDispatch } from "react-redux";
-import { deleteCategory } from "../../features/Category/CategoryActions";
+import {
+  deleteCategory,
+  fetchCategories,
+} from "../../features/Category/CategoryActions";
 import AddCategoryDialog from "../../components/MODALS/Dialogs/AddCategoryDialog";
 
 const CategorySettings = () => {
   const dispatch = useDispatch();
-  const { categories } = useSelector((state:any) => state.Categories);
+  const { categories } = useSelector((state: any) => state.Categories);
   const [filter, setFilter] = useState("");
   const [orderBy, setOrderBy] = useState("name");
   const [order, setOrder] = useState("asc");
@@ -52,7 +55,7 @@ const CategorySettings = () => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: { target: { value: string; }; }) => {
+  const handleChangeRowsPerPage = (event: { target: { value: string } }) => {
     setRowsPerPage(parseInt(event.target.value, 5));
     setPage(0);
   };
@@ -85,28 +88,33 @@ const CategorySettings = () => {
 
   // Filter categories based on user input
   const filteredCategories = categories
-    ? categories.filter(
-        (category: { name: string; }) =>
-          category.name.toLowerCase().includes(filter.toLowerCase())
+    ? categories.filter((category: { name: string }) =>
+        category.name.toLowerCase().includes(filter.toLowerCase())
       )
     : [];
 
   // Sort filtered categories
-   const sortedCategories = filteredCategories
-    .slice()
-    .sort((a, b) => {
-      const compareValueA = a[orderBy];
-      const compareValueB = b[orderBy];
+  const sortedCategories = filteredCategories.slice().sort((a, b) => {
+    const compareValueA = a[orderBy];
+    const compareValueB = b[orderBy];
 
-      if (orderBy === "product_count") {
-        return order === "asc"
-          ? compareValueA - compareValueB
-          : compareValueB - compareValueA;
-      } else {
-        const comparison = compareValueA.localeCompare(compareValueB);
-        return order === "asc" ? comparison : -comparison;
-      }
-    });
+    if (orderBy === "product_count") {
+      return order === "asc"
+        ? compareValueA - compareValueB
+        : compareValueB - compareValueA;
+    } else {
+      const comparison = compareValueA.localeCompare(compareValueB);
+      return order === "asc" ? comparison : -comparison;
+    }
+  });
+
+  const dispatchFetchAllCategories = () => {
+    dispatch(fetchCategories());
+  };
+
+  useEffect(() => {
+    dispatchFetchAllCategories();
+  }, []);
 
   return (
     <Paper>
@@ -200,36 +208,63 @@ const CategorySettings = () => {
           <TableBody>
             {sortedCategories
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((category: {
-                sub_category: any; _id: React.Key | null | undefined; name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; product_count: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; 
-}) => (
-                <TableRow key={category._id}>
-                  <TableCell
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      columnGap: 5,
-                    }}
-                  >
-                    <IconButton>
-                      <CategoryIcon />
-                    </IconButton>
-                    {category.name}
-                  </TableCell>
-                  <TableCell>{category?.sub_category?.name}</TableCell>
-                  <TableCell>
-                    <IconButton color="primary">
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => handleDeleteClick(category)}
+              .map(
+                (category: {
+                  sub_category: any;
+                  _id: React.Key | null | undefined;
+                  name:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                  product_count:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                }) => (
+                  <TableRow key={category._id}>
+                    <TableCell
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        columnGap: 5,
+                      }}
                     >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+                      <IconButton>
+                        <CategoryIcon />
+                      </IconButton>
+                      {category.name}
+                    </TableCell>
+                    <TableCell>{category?.sub_category?.name}</TableCell>
+                    <TableCell>
+                      <IconButton color="primary">
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDeleteClick(category)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                )
+              )}
           </TableBody>
         </Table>
       </TableContainer>

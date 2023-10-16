@@ -29,7 +29,7 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import LocationOnIcon from "@mui/icons-material/LocationOn"; // Icon for Located At
 import ActionsIcon from "@mui/icons-material/MoreVert";
 import { useSelector, useDispatch } from "react-redux";
-import { deleteTable } from "../../features/Table/TableActions";
+import { deleteTable, fetchTables } from "../../features/Table/TableActions";
 import AddTableDialog from "../../components/MODALS/Dialogs/AddTableDialog";
 
 const TableSettings = () => {
@@ -104,6 +104,14 @@ const TableSettings = () => {
 
       return order === "asc" ? comparison : -comparison;
     });
+
+    const dispatchFetchTables = () => {
+    dispatch(fetchTables());
+  };
+
+  useEffect(() => {
+    dispatchFetchTables();
+  }, []);
 
   return (
     <Paper>
