@@ -30,7 +30,7 @@ import InventoryModal from "../../components/MODALS/InventoryModal";
 import { useDispatch, useSelector } from "react-redux";
 import InfoIcon from "@mui/icons-material/Info";
 import {
-    createProductInventory,
+  createProductInventory,
   deleteProductInventory,
   fetchAllProductInventories,
   updateProductInventory,
@@ -41,7 +41,6 @@ import ViewProductDialog from "../../components/MODALS/Dialogs/ViewProductDialog
 interface Product {
   name: string;
   quantity: number;
-
 }
 
 const Inventory: React.FC = () => {
@@ -71,8 +70,6 @@ const Inventory: React.FC = () => {
 
   const dispatch = useDispatch();
 
- 
-
   const handleViewProductOpen = (product: Product) => {
     setSelectedProduct(product);
     setViewProductDialogOpen(true);
@@ -85,8 +82,8 @@ const Inventory: React.FC = () => {
 
   const handleAddNewProduct = (newProduct: Product) => {
     // console.log(newProduct);
-    
-    dispatch(createProductInventory(newProduct))
+
+    dispatch(createProductInventory(newProduct));
   };
 
   const handleEdit = (_id: number) => {
@@ -149,8 +146,7 @@ const Inventory: React.FC = () => {
   };
 
   const handleDeleteConfirm = () => {
- 
-    dispatch(deleteProductInventory(deletingIndex))
+    dispatch(deleteProductInventory(deletingIndex));
     setDeleteConfirmationOpen(false);
     setDeletingIndex(null);
   };
@@ -205,21 +201,21 @@ const Inventory: React.FC = () => {
   const isSelected = (_id: number) => selected.indexOf(_id) !== -1;
 
   const filteredProducts = data
-  ? [...data].filter((product: any) => {
-      if (product && product.name && product.category_id) {
-        const searchString = searchValue.toLowerCase();
-        const includesSearch = (property: string) =>
-          property.toLowerCase().includes(searchString);
-        
-        return (
-          includesSearch(product.name) ||
-          includesSearch(product.category_id.name) ||
-          includesSearch(product.code.toString()) 
-        );
-      }
-      return false;
-    })
-  : [];
+    ? [...data].filter((product: any) => {
+        if (product && product.name && product.category_id) {
+          const searchString = searchValue.toLowerCase();
+          const includesSearch = (property: string) =>
+            property.toLowerCase().includes(searchString);
+
+          return (
+            includesSearch(product.name) ||
+            includesSearch(product.category_id.name) ||
+            includesSearch(product.code.toString())
+          );
+        }
+        return false;
+      })
+    : [];
 
   const sortedProducts = filteredProducts
     .slice()
@@ -234,6 +230,14 @@ const Inventory: React.FC = () => {
   const emptyRows =
     rowsPerPage -
     Math.min(rowsPerPage, sortedProducts.length - page * rowsPerPage);
+
+  const dispatchFetchInventory = () => {
+    dispatch(fetchAllProductInventories());
+  };
+
+  useEffect(() => {
+    dispatchFetchInventory();
+  }, []);
 
   return (
     <div style={{ padding: 20 }}>
@@ -337,110 +341,178 @@ const Inventory: React.FC = () => {
           <TableBody>
             {sortedProducts
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((product: { _id: React.Key | null | undefined; code: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; quantity: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; price: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; category_id: { name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }; }) => {
-                const isItemSelected = isSelected(product._id);
-                const labelId = `enhanced-table-checkbox-${product._id}`;
-                const isEditingThisRow = editingProductId === product._id;
-                return (
-                  <TableRow
-                    hover
-                    key={product._id}
-                    role="checkbox"
-                    tabIndex={-1}
-                    selected={isItemSelected}
-                  >
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        checked={isItemSelected}
-                        onClick={() => handleCheckboxToggle(product._id)}
-                        inputProps={{ "aria-labelledby": labelId }}
-                      />
-                    </TableCell>
-                    <TableCell>{product.code}</TableCell>
-                    <TableCell>
-                      {isEditingThisRow ? (
-                        <TextField
-                          value={editedProduct?.name || ""}
-                          onChange={(e) =>
-                            setEditedProduct({
-                              ...editedProduct,
-                              name: e.target.value,
-                            })
-                          }
+              .map(
+                (product: {
+                  _id: React.Key | null | undefined;
+                  code:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                  name:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                  quantity:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                  price:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                  category_id: {
+                    name:
+                      | string
+                      | number
+                      | boolean
+                      | React.ReactElement<
+                          any,
+                          string | React.JSXElementConstructor<any>
+                        >
+                      | Iterable<React.ReactNode>
+                      | React.ReactPortal
+                      | null
+                      | undefined;
+                  };
+                }) => {
+                  const isItemSelected = isSelected(product._id);
+                  const labelId = `enhanced-table-checkbox-${product._id}`;
+                  const isEditingThisRow = editingProductId === product._id;
+                  return (
+                    <TableRow
+                      hover
+                      key={product._id}
+                      role="checkbox"
+                      tabIndex={-1}
+                      selected={isItemSelected}
+                    >
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={isItemSelected}
+                          onClick={() => handleCheckboxToggle(product._id)}
+                          inputProps={{ "aria-labelledby": labelId }}
                         />
-                      ) : (
-                        product.name
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isEditingThisRow ? (
-                        <TextField
-                          value={editedProduct?.quantity || ""}
-                          onChange={(e) =>
-                            setEditedProduct({
-                              ...editedProduct,
-                              quantity: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        product.quantity
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isEditingThisRow ? (
-                        <TextField
-                          value={editedProduct?.price || ""}
-                          onChange={(e) =>
-                            setEditedProduct({
-                              ...editedProduct,
-                              price: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        product.price?.toLocaleString()
-                      )}
-                    </TableCell>
-                    <TableCell>{product.category_id.name}</TableCell>
-                    <TableCell>
-                      {editingProductId === product._id ? (
-                        <>
-                          <IconButton
-                            onClick={() => handleEditConfirm(product._id)}
-                          >
-                            <CheckIcon />
-                          </IconButton>
-                          <IconButton onClick={handleEditCancel}>
-                            <CloseIcon />
-                          </IconButton>
-                        </>
-                      ) : (
-                        <>
-                          <IconButton
-                            onClick={() =>
-                              handleAcceptDeliveryOpen(product._id)
+                      </TableCell>
+                      <TableCell>{product.code}</TableCell>
+                      <TableCell>
+                        {isEditingThisRow ? (
+                          <TextField
+                            value={editedProduct?.name || ""}
+                            onChange={(e) =>
+                              setEditedProduct({
+                                ...editedProduct,
+                                name: e.target.value,
+                              })
                             }
-                          >
-                            <AddIcon />
-                          </IconButton>
-                          <IconButton onClick={() => handleEdit(product._id)}>
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton onClick={() => handleDelete(product._id)}>
-                            <DeleteIcon />
-                          </IconButton>
-                          <IconButton
-                            onClick={() => handleViewProductOpen(product)}
-                          >
-                            <InfoIcon />
-                          </IconButton>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                          />
+                        ) : (
+                          product.name
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditingThisRow ? (
+                          <TextField
+                            value={editedProduct?.quantity || ""}
+                            onChange={(e) =>
+                              setEditedProduct({
+                                ...editedProduct,
+                                quantity: e.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          product.quantity
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isEditingThisRow ? (
+                          <TextField
+                            value={editedProduct?.price || ""}
+                            onChange={(e) =>
+                              setEditedProduct({
+                                ...editedProduct,
+                                price: e.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          product.price?.toLocaleString()
+                        )}
+                      </TableCell>
+                      <TableCell>{product.category_id.name}</TableCell>
+                      <TableCell>
+                        {editingProductId === product._id ? (
+                          <>
+                            <IconButton
+                              onClick={() => handleEditConfirm(product._id)}
+                            >
+                              <CheckIcon />
+                            </IconButton>
+                            <IconButton onClick={handleEditCancel}>
+                              <CloseIcon />
+                            </IconButton>
+                          </>
+                        ) : (
+                          <>
+                            <IconButton
+                              onClick={() =>
+                                handleAcceptDeliveryOpen(product._id)
+                              }
+                            >
+                              <AddIcon />
+                            </IconButton>
+                            <IconButton onClick={() => handleEdit(product._id)}>
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton
+                              onClick={() => handleDelete(product._id)}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                            <IconButton
+                              onClick={() => handleViewProductOpen(product)}
+                            >
+                              <InfoIcon />
+                            </IconButton>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+              )}
             {emptyRows > 0 && (
               <TableRow style={{ height: 53 * emptyRows }}>
                 <TableCell colSpan={7} />
@@ -458,7 +530,7 @@ const Inventory: React.FC = () => {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </TableContainer>
-      
+
       {/*make this a separate component #DeleteInventoryDialog  */}
       <Dialog open={deleteConfirmationOpen} onClose={handleDeleteCancel}>
         <DialogTitle>Confirm Delete</DialogTitle>
@@ -477,7 +549,7 @@ const Inventory: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-       <AcceptDeliveryDialog
+      <AcceptDeliveryDialog
         open={acceptDeliveryOpen}
         onClose={handleAcceptDeliveryCancel}
         onConfirm={handleAcceptDeliveryConfirm}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -27,18 +27,24 @@ import PaymentIcon from "@mui/icons-material/Payment";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ActionsIcon from "@mui/icons-material/MoreVert";
 import { useSelector, useDispatch } from "react-redux";
-import { deletePaymentMethod } from "../../features/Payment/PaymentMethodActions";
+import {
+  deletePaymentMethod,
+  fetchPaymentsMethod,
+} from "../../features/Payment/PaymentMethodActions";
 import AddPaymentSettingDialog from "../../components/MODALS/Dialogs/AddPaymentMethodDialog";
 
 const Payments = () => {
   const dispatch = useDispatch();
-  const {payments: paymentMethods} = useSelector((state: any) => state.PaymentMethods); 
+  const { payments: paymentMethods } = useSelector(
+    (state: any) => state.PaymentMethods
+  );
   const [filter, setFilter] = useState("");
   const [orderBy, setOrderBy] = useState("name");
   const [order, setOrder] = useState("asc");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [addPaymentSettingDialogOpen, setAddPaymentSettingDialogOpen] = useState(false);
+  const [addPaymentSettingDialogOpen, setAddPaymentSettingDialogOpen] =
+    useState(false);
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState(null);
 
@@ -52,7 +58,7 @@ const Payments = () => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: { target: { value: string; }; }) => {
+  const handleChangeRowsPerPage = (event: { target: { value: string } }) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
@@ -85,16 +91,15 @@ const Payments = () => {
 
   // Filter paymentMethods based on user input
   const filteredPaymentMethods = paymentMethods
-    ? paymentMethods.filter(
-        (paymentMethod: { name: string; }) =>
-          paymentMethod.name.toLowerCase().includes(filter.toLowerCase())
+    ? paymentMethods.filter((paymentMethod: { name: string }) =>
+        paymentMethod.name.toLowerCase().includes(filter.toLowerCase())
       )
     : [];
 
   // Sort filtered paymentMethods
   const sortedPaymentMethods = filteredPaymentMethods
     .slice()
-    .sort((a: { [x: string]: string; }, b: { [x: string]: string; }) => {
+    .sort((a: { [x: string]: string }, b: { [x: string]: string }) => {
       const compareValueA = a[orderBy] || "";
       const compareValueB = b[orderBy] || "";
       const comparison = compareValueA.localeCompare(compareValueB);
@@ -102,6 +107,14 @@ const Payments = () => {
       return order === "asc" ? comparison : -comparison;
     });
 
+  const dispatchFetchPayments = () => {
+    dispatch(fetchPaymentsMethod());
+  };
+
+  useEffect(() => {
+    dispatchFetchPayments();
+  }, []);
+  
   return (
     <Paper>
       <Typography mt={2} variant="h6" ml={2} gutterBottom>
@@ -174,33 +187,49 @@ const Payments = () => {
           <TableBody>
             {sortedPaymentMethods
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((paymentMethod: { _id: React.Key | null | undefined; name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }) => (
-                <TableRow key={paymentMethod._id}>
-                  <TableCell
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      columnGap: 5,
-                    }}
-                  >
-                    <IconButton>
-                      <PaymentIcon />
-                    </IconButton>
-                    {paymentMethod.name}
-                  </TableCell>
-                  <TableCell>
-                    <IconButton color="primary">
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => handleDeleteClick(paymentMethod)}
+              .map(
+                (paymentMethod: {
+                  _id: React.Key | null | undefined;
+                  name:
+                    | string
+                    | number
+                    | boolean
+                    | React.ReactElement<
+                        any,
+                        string | React.JSXElementConstructor<any>
+                      >
+                    | Iterable<React.ReactNode>
+                    | React.ReactPortal
+                    | null
+                    | undefined;
+                }) => (
+                  <TableRow key={paymentMethod._id}>
+                    <TableCell
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        columnGap: 5,
+                      }}
                     >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+                      <IconButton>
+                        <PaymentIcon />
+                      </IconButton>
+                      {paymentMethod.name}
+                    </TableCell>
+                    <TableCell>
+                      <IconButton color="primary">
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleDeleteClick(paymentMethod)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                )
+              )}
           </TableBody>
         </Table>
       </TableContainer>
@@ -224,7 +253,8 @@ const Payments = () => {
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           Are you sure you want to delete:{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""}</i> the payment method
+          <i>{deleteCandidate ? deleteCandidate.name : ""}</i> the payment
+          method
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} color="primary">

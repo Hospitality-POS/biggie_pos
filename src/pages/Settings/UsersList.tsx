@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Table,
@@ -29,12 +29,16 @@ import EditIcon from "@mui/icons-material/Edit";
 import BusinessIcon from "@mui/icons-material/Business";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
-import GroupIcon from '@mui/icons-material/Group';
+import GroupIcon from "@mui/icons-material/Group";
 import SupervisorAccountIcon from "@mui/icons-material/SupervisorAccount";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import AddUserDialog from "../../components/MODALS/Dialogs/AddUserDialog";
-import { createUser, deleteUser } from "../../features/Auth/AuthActions";
+import {
+  createUser,
+  deleteUser,
+  fetchAllUsers,
+} from "../../features/Auth/AuthActions";
 
 interface User {
   fullname: string;
@@ -122,6 +126,14 @@ function UsersList() {
     }
   };
 
+  const dispatchFetchAllUsers = () => {
+    dispatch(fetchAllUsers());
+  };
+
+  useEffect(() => {
+    dispatchFetchAllUsers();
+  }, []);
+
   return (
     <div>
       <Typography variant="h6" pt={2} pl={2} gutterBottom>
@@ -171,7 +183,7 @@ function UsersList() {
                   onClick={() => handleSort("ProfileName")}
                 >
                   <Box display="flex" alignItems="center">
-                    <GroupIcon style={{ marginRight: "4px" }} /> 
+                    <GroupIcon style={{ marginRight: "4px" }} />
                     Profile Name
                     {orderBy === "ProfileName" && (
                       <ArrowDropDownIcon
@@ -328,10 +340,7 @@ function UsersList() {
                         columnGap: 5,
                       }}
                     >
-                      <Avatar
-                        alt={user.username}
-                        src={user.username}
-                      />
+                      <Avatar alt={user.username} src={user.username} />
                       {user.fullname}
                     </TableCell>
                     <TableCell>{user.fullname}</TableCell>

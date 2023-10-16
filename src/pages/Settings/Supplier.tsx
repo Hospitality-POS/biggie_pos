@@ -30,7 +30,10 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import EmailIcon from "@mui/icons-material/Email";
 import ActionsIcon from "@mui/icons-material/MoreVert";
 import { useSelector, useDispatch } from "react-redux";
-import { deleteSupplier } from "../../features/Supplier/SupplierActions";
+import {
+  deleteSupplier,
+  fetchSuppliers,
+} from "../../features/Supplier/SupplierActions";
 import AddSupplierDialog from "../../components/MODALS/Dialogs/AddSupplierDialog";
 
 const SupplierTable = () => {
@@ -108,6 +111,15 @@ const SupplierTable = () => {
 
       return order === "asc" ? comparison : -comparison;
     });
+
+  const dispatchFetchSuppliers = () => {
+    dispatch(fetchSuppliers());
+  };
+
+  useEffect(() => {
+    dispatchFetchSuppliers();
+  }, []);
+
   return (
     <Paper>
       <Typography mt={2} variant="h6" ml={2} gutterBottom>
@@ -255,10 +267,7 @@ const SupplierTable = () => {
                         columnGap: 5,
                       }}
                     >
-                      <Avata
-                       alt={supplier.name} 
-                       src={supplier.name} 
-                       />
+                      <Avata alt={supplier.name} src={supplier.name} />
                       {supplier.name}
                     </TableCell>
                     <TableCell>{supplier.email}</TableCell>
