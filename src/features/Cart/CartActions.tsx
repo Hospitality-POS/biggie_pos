@@ -13,6 +13,10 @@ interface CartItem {
   cartId: string;
   cart_id: string;
 }
+
+interface tabledata {
+  tableId: string
+}
 interface UpdatedCartItems {
   cart_id: string;
   _id: string;
@@ -36,10 +40,10 @@ export const createCart = createAsyncThunk(
 
 export const getCart = createAsyncThunk(
   "cart/getCart",
-  async (cartId: CartItem, { rejectWithValue }) => {
+  async (tableId: tabledata, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${baseUrl}/cart/${cartId}`);
-      console.log("dtail", response.data);
+      console.log("waaat", tableId);
+      const response = await axios.get(`${baseUrl}/cart/${tableId}`);
       
       return response.data;
     } catch (error: any) {
