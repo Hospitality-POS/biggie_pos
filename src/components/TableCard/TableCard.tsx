@@ -1,7 +1,7 @@
 import { Card, CardMedia, Typography, Box } from "@mui/material";
 import classes from "./table.module.css";
 import React, { useState } from "react";
-import { createCart } from "../../features/Cart/CartActions";
+import { createCart, getCart } from "../../features/Cart/CartActions";
 import StaffModal from "../staffCard/StaffModal";
 import { useAppDispatch, useAppSelector } from "../../store";
 
@@ -58,6 +58,7 @@ const TableCard: React.FC<itemProps> = ({ item }) => {
         created_by: user.id,
       };
      dispatch(createCart(cartDetails));
+     dispatch(getCart(item._id))
     }
   };
 
@@ -73,8 +74,8 @@ const TableCard: React.FC<itemProps> = ({ item }) => {
       />
       <Box sx={textOverlayStyles}>
         <Typography variant="h6">{item.name}</Typography>
-        {/* <Typography variant="body1">Amount: ksh. 3,000</Typography> */}
-        {/* <Typography variant="body2">mike kamau</Typography> */}
+        <Typography variant="body1">Amount: {item.cart_amount}</Typography>
+        <Typography variant="body2">{item.served_by? item.served_by : ""}</Typography> 
       </Box>
     </Card>
           <StaffModal setOpen={setOpen} setPin={setPin} pin={pin} open={open} item={item} />

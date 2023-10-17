@@ -148,35 +148,31 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
 
   const cartId = cartDetails?._id;
 
-  const dispatchFetchCart = useCallback(() => {
-    return dispatch(getCart(cartId));
-  }, [cartId, dispatch]);
+  // const dispatchFetchCart = useCallback(() => {
+  //   return dispatch(getCart(cartId));
+  // }, [cartId, dispatch]);
 
   const dispatchfetchsubcateg = useCallback(async()=>{
     return dispatch(fetchsubcategories("6525f7b62d06da587b70d5d5"));
   },[dispatch])
 
   const dispatchfetctaldata=useCallback(()=>{
-    return dispatch(fetchTableById(cartDetails?.table_id))
+    return dispatch(fetchTableById(cartDetails?.table_id._id))
   },[cartDetails?.table_id, dispatch])
 
   const dispatchFetchCartdetails = useCallback(()=>{
-    const cartrefetch: Cartrefetch = {
-      table_id: id,
-      created_by: user?.id
-    }
-    return dispatch(createCart(cartrefetch))
-  },[dispatch, id, user?.id])
+    return dispatch(getCart(cartDetails?.table_id))
+  },[dispatch, cartDetails?.table_id])
   
   
   useEffect(() => {
-    if (cartDetails?._id) {
-      dispatchFetchCart();
-    }
+    // if (cartDetails?._id) {
+    //   dispatchFetchCart();
+    // }
     dispatchFetchCartdetails()
     dispatchfetchsubcateg()
     dispatchfetctaldata()
-  }, [cartDetails?._id, dispatchFetchCart, dispatchFetchCartdetails, dispatchfetchsubcateg, dispatchfetctaldata]);
+  }, [cartDetails?._id, dispatchFetchCartdetails, dispatchfetchsubcateg, dispatchfetctaldata]);
 
   return (
     <>
