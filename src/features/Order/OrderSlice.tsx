@@ -13,6 +13,11 @@ interface Order {
   order_no: string;
   order_amount: string;
   cart_id: string;
+  updated_by: string;
+  _id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface OrderState {

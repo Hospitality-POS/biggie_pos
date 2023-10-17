@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   AlertTitle,
@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
 import TapasIcon from "@mui/icons-material/Tapas";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
 import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
@@ -28,12 +28,14 @@ import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import BackspaceIcon from "@mui/icons-material/Backspace";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchCartItems } from "../../features/Cart/CartActions";
+import { createCart, fetchCartItems, getCart } from "../../features/Cart/CartActions";
 import axios from "axios";
 import { Paper } from "@mui/material";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 import VerticalTabs from "./Sidetabs";
 import { fetchsubcategories } from "../../features/Category/CategoryActions";
+import { useAppDispatch, useAppSelector } from "../../store";
+import { fetchTableById } from "../../features/Table/TableActions";
 
 function a11yProps(index: any) {
   return {
@@ -42,31 +44,37 @@ function a11yProps(index: any) {
   };
 }
 
-const RestaurantPage = () => {
-  const { user } = useSelector((state: any) => state.auth);
-  const { cartDetails } = useSelector((state: any) => state.cart);
-  const { products, loading } = useSelector((state: any) => state.product);
-  const { category: categories, loading: categoriesLoading } = useSelector(
-    (state: any) => state.Categories
-  );
-  const { subCategory: Subcategories } = useSelector(
-    (state: any) => state.Categories
-  );
+interface Cartrefetch {
+    table_id: string ;
+    created_by: string;
+}
+
+const RestaurantPage: React.FC = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  const { cartDetails } = useAppSelector((state) => state.cart);
+    const { tableData } = useAppSelector((state) => state.Tables);
+
+  const { products, loading } = useAppSelector((state) => state.product);
+  const { category: categories } = useAppSelector((state) => state.Categories);
+  const { subCategory: Subcategories } = useAppSelector((state) => state.Categories);
+  const dispatch = useAppDispatch();
   const [selectedCard, setSelectedCard] = useState(null);
   const [showCategories, setShowCategories] = useState(true);
   const { id } = useParams();
+  
 
-  const { data: tableData } = useQuery({
-    queryKey: ["table_name"],
-    queryFn: () =>
-      fetch(`http://localhost:3000/tables/${id}`, {
-        headers: {
-          Authorization: `Bearer ${user.Token}`,
-        },
-      }).then((res) => res.json()),
-    retry: 3,
-    retryDelay: 1000,
-  });
+const queryClient = useQueryClient();
+
+
+queryClient.invalidateQueries({ queryKey: ['table_name'] })
+queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
+
+  // const { data: tableData } = useQuery({
+  //   queryKey: ["table_name"],
+  //   queryFn: () =>
+  //     fetch(`http://localhost:3000/tables/${cartDetails?.table_id}`).then((res) => res.json()),
+  // });
+
 
   const fetchMainCategories = async () => {
     const response = await axios.get(
@@ -106,8 +114,6 @@ const RestaurantPage = () => {
     dispatch(fetchsubcategories(maincategoryid));
   };
 
-  const dispatch = useDispatch();
-
   useEffect(() => {
     // When the component mounts, set isLoadingData to false
     setIsLoadingData(false);
@@ -130,29 +136,54 @@ const RestaurantPage = () => {
     setPaymentOpen(false);
   };
 
-  const handleSelectCard = (card: React.SetStateAction<null>) => {
+  const handleSelectCard = (card: any) => {
     setSelectedCard(card);
+    console.log("thisis", card);
     dispatch(fetchProductsByCategory(card));
     setCategoryChosen(true);
     setShowCategories(false);
   };
 
-  const handleNext = () => {
-    setCurrentIndex((currentIndex + 1) % categories.length);
-  };
-
-  const handlePrev = () => {
-    setCurrentIndex((currentIndex - 1 + categories.length) % categories.length);
-  };
-
   const areProductsAvailable = products && products.length > 0;
+
+  const cartId = cartDetails?._id;
+
+  const dispatchFetchCart = useCallback(() => {
+    return dispatch(getCart(cartId));
+  }, [cartId, dispatch]);
+
+  const dispatchfetchsubcateg = useCallback(async()=>{
+    return dispatch(fetchsubcategories("6525f7b62d06da587b70d5d5"));
+  },[dispatch])
+
+  const dispatchfetctaldata=useCallback(()=>{
+    return dispatch(fetchTableById(cartDetails?.table_id))
+  },[cartDetails?.table_id, dispatch])
+
+  const dispatchFetchCartdetails = useCallback(()=>{
+    const cartrefetch: Cartrefetch = {
+      table_id: id,
+      created_by: user?.id
+    }
+    return dispatch(createCart(cartrefetch))
+  },[dispatch, id, user?.id])
+  
+  
+  useEffect(() => {
+    if (cartDetails?._id) {
+      dispatchFetchCart();
+    }
+    dispatchFetchCartdetails()
+    dispatchfetchsubcateg()
+    dispatchfetctaldata()
+  }, [cartDetails?._id, dispatchFetchCart, dispatchFetchCartdetails, dispatchfetchsubcateg, dispatchfetctaldata]);
 
   return (
     <>
       <Grid container spacing={3}>
         {/* Left Column */}
         <Grid item xs={8}>
-          <Paper elevation={3} style={{ padding: "16px", height: "100vh" }}>
+          <Paper elevation={3} style={{ padding: "16px", height: "90vh" }}>
             <AppBar position="static" sx={{ mb: 2, bgcolor: "#6c1c2c" }}>
               <Tabs
                 value={value}
@@ -209,16 +240,12 @@ const RestaurantPage = () => {
                         gap: "10px",
                         paddingLeft: "4px",
                         marginLeft: "10px",
-                        marginTop: 4,
+                        marginTop: 38,
                       }}
                     >
                       {categories.length ? (
                         categories.map(
-                          (category: {
-                            product_count: number;
-                            _id: string;
-                            name: string;
-                          }) => (
+                          (category: { _id: string; name: string }) => (
                             <CategoryCard
                               style={{
                                 flex: `0 0 ${100 / categories?.length}%`,
@@ -261,6 +288,7 @@ const RestaurantPage = () => {
                       >
                         <IconButton
                           onClick={handleBack}
+
                           sx={{
                             color: "#6c1c2c",
                             "&:hover": {
@@ -268,7 +296,7 @@ const RestaurantPage = () => {
                             },
                           }}
                         >
-                          <BackspaceIcon />
+                          <BackspaceIcon fontSize="large"/>
                         </IconButton>
                       </div>
                       {loading && (
@@ -303,7 +331,9 @@ const RestaurantPage = () => {
                         >
                           {areProductsAvailable ? (
                             products.map(
-                              (menu: { _id: React.Key | null | undefined }) => (
+                              (menu: {
+                                _id: React.Key | null | undefined | string;
+                              }) => (
                                 <ProductCard
                                   key={menu._id}
                                   menu={menu}
@@ -373,7 +403,7 @@ const RestaurantPage = () => {
         </Grid>
         {/* Right Column */}
         <Grid item xs={4}>
-          <CartDrawer tableData={tableData} />
+          <CartDrawer tableData={cartDetails?.table_id} />
         </Grid>
       </Grid>
     </>

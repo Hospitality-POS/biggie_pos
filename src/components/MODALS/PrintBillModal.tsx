@@ -35,7 +35,7 @@ interface PrintBillProps {
   openM: boolean;
   onCloseM: () => void;
   cartDetails: {
-    _id: Key | null | undefined;
+    _id: string;
     table_id: string;
     created_by: string;
     order_no: string;
@@ -117,7 +117,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {cartItems?.map((item: CartItem) => (
+                {cartItems?.map((item: { _id: React.Key | null | undefined; quantity: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; product_id: { name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }; price: number; }) => (
                   <TableRow key={item._id}>
                     <TableCell align="right">{item.quantity}</TableCell>
                     <TableCell component="th" scope="row">

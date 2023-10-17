@@ -1,3 +1,4 @@
+import React, { Key, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -6,51 +7,91 @@ import {
   CardContent,
   Grid,
   Divider,
-  IconButton,
   CardMedia,
-  Badge,
   Paper,
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import CartItemCard from "./CartItemCard";
-import { useDispatch, useSelector } from "react-redux";
-import React, { Key, useState } from "react";
 import PrintIcon from "@mui/icons-material/Print";
-import AddCardIcon from "@mui/icons-material/AddCard";
-import { CloseRounded } from "@mui/icons-material";
 import TableBarIcon from "@mui/icons-material/TableBar";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { deleteAllCartItems } from "../../features/Cart/CartActions";
+import {
+  deleteAllCartItems,
+  fetchCartItems,
+  getCart,
+} from "../../features/Cart/CartActions";
 import PaymentDrawer from "../payment/PaymentDrawer";
+import SkeletonCartItemCard from "./SkeletonCartItemCard";
+import { useAppDispatch, useAppSelector } from "../../store";
 
 interface CartDrawerProps {
-  tableData: any;
+  tableData: {
+    name: string;
+  };
 }
 
+
+function formatTotal(totalAmount: { toLocaleString: () => number | string}) {
+  return totalAmount.toLocaleString();
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
 const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
   const [openM, setOpenM] = useState(false);
-  const { cartDetails, totalAmount, cartItems } = useSelector(
-    (state: any) => state.cart
+  const { cartDetails, totalAmount, cartItems: data, loading } = useAppSelector(
+    (state) => state.cart
   );
-  const { user } = useSelector((state: any) => state.auth);
-  const dispatch = useDispatch();
+  const { user } = useAppSelector((state) => state.auth);
+
+  const dispatch = useAppDispatch();
+  const { tableData: td } = useAppSelector((state) => state.Tables);
 
   const onCloseM = () => {
     setOpenM(false);
   };
 
-  const cartId = cartDetails?._id;
-  const { data } = useQuery(
-    ["cart", cartId],
-    async () => await axios.get(`http://localhost:3000/cart/cart/${cartId}`)
+  const cartId: string | undefined  = cartDetails?._id;
+
+  // const { data } = useQuery(
+  //   ["cart", cartId],
+  //   async () => await axios.get(`http://localhost:3000/cart/cart/${cartId}`)
+
+  // );
+
+  console.log("waaat", cartDetails);
+  
+  const CartItemCardMemo = React.memo(CartItemCard);
+
+  const memoizedData = useMemo(() => data, [data]);
+  const formattedTotal = useMemo(() => formatTotal(totalAmount), [totalAmount]);
+  const orderNumber = useMemo(
+    () => cartDetails?.order_no,
+    [cartDetails?.order_no]
   );
 
+  const dispatchFetchCart = useCallback(async () => {
+    dispatch(getCart(cartId));
+    dispatch(fetchCartItems(cartId));
+  }, [cartId, dispatch]);
+
+  useEffect(() => {
+    dispatchFetchCart();
+  }, [dispatchFetchCart]);
+
   return (
-    <Paper elevation={3} style={{ padding: "16px", maxHeight: "100vh", overflow: "hidden", overflowY: "auto"  }}>
+    <Paper
+      elevation={3}
+      style={{
+        padding: "16px",
+        height: "89vh",
+        overflow: "hidden",
+        overflowY: "auto",
+      }}
+    >
       <PrintBillModal
         openM={openM}
         onCloseM={onCloseM}
@@ -90,7 +131,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
               }}
               startIcon={<BookmarkBorderIcon />}
             >
-              {cartDetails?.order_no}
+              {orderNumber}
             </Button>
           </Grid>
           <Grid
@@ -116,7 +157,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
               }}
               startIcon={<TableBarIcon />}
             >
-              {tableData?.name}
+              {td?.name}
             </Button>
           </Grid>
         </Grid>
@@ -144,26 +185,36 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
         </Card>
         <div
           style={{
-            maxHeight: "calc(100vh - 300px)", 
+            maxHeight: "calc(100vh - 300px)",
             overflowY: "auto",
           }}
         >
-          {cartItems?.map((item: { _id: Key | null | undefined }) => (
-            <CartItemCard key={item._id} cartItem={item} />
-          ))}
+          {loading
+            ? Array.from({ length: data.length }, (_, index) => (
+                <SkeletonCartItemCard key={index} />
+              ))
+            : data?.map((item: { _id: Key | null | undefined | string }) => (
+                <CartItemCardMemo key={item._id} cartItem={item} />
+              ))}
         </div>
-        {cartItems?.length ? (
+        {memoizedData?.length ? (
           <Grid
             item
             xs={12}
             sx={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
           >
             <Typography variant="body1" fontWeight="bold">
-              Total : {totalAmount}
+              Total :{" "}
+              {totalAmount ? (
+                formattedTotal
+              ) : (
+                <Typography>Calculating...</Typography>
+              )}
             </Typography>
             <Typography variant="body1" fontWeight="bold">
-              Served By: {data?.data?.created_by.username}
+              Served By: {cartDetails?.created_by.username}
             </Typography>
+
             <Box
               sx={{
                 display: "flex",
@@ -222,7 +273,9 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
           </Card>
         )}
       </Box>
-      {user.isAdmin && cartItems?.length > 0 && <PaymentDrawer />}
+      {user?.isAdmin && data?.length > 0 && <PaymentDrawer paymentOpen={false} handlePaymentClose={function (): void {
+        throw new Error("Function not implemented.");
+      } } />}
     </Paper>
   );
 };

@@ -8,7 +8,9 @@ import {
 } from "./AuthActions";
 
 interface User {
+  id: string;
   username: string;
+  isAdmin: boolean;
 }
 
 interface AuthState {
@@ -66,7 +68,7 @@ export const authSlice = createSlice({
       })
       .addCase(
         loginUser.fulfilled,
-        (state, action: PayloadAction<{ user: User; Token: string }>) => {
+        (state, action: any) => {
           state.isLoading = false;
           state.isSuccess = true;
           state.isError = false;

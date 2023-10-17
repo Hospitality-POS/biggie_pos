@@ -10,7 +10,9 @@ import {
   Button,
   TextField,
 } from "@mui/material";
-import FilterListIcon from '@mui/icons-material/FilterList';
+import FilterListIcon from "@mui/icons-material/FilterList";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import axios from "axios";
 
 // Dummy data for reports
 const generateReport = (type: string, startDate: string, endDate: string) => {
@@ -39,7 +41,7 @@ const Reports: React.FC = () => {
   };
 
   const generateReportHandler = () => {
-     if (!startDate || !endDate) {
+    if (!startDate || !endDate) {
       return;
     }
     if (activeTab === 0) {
@@ -52,12 +54,32 @@ const Reports: React.FC = () => {
     // Add more conditions for other report types as needed
   };
 
-
   const isGenerateButtonDisabled = !startDate || !endDate;
+  const fetchSalesReportDate = { startDate, endDate };
+
+  const fetchSalesReport = async () => {
+    const res = await axios.get(
+      `http://localhost:3000/orders/date-range-sales/items/`,
+      {
+        fetchSalesReportDate,
+      }
+    );
+    return res.data;
+  };
+
+  const { isLoading, isError, error, data } = useQuery({
+    queryKey: ["sales-report"],
+    queryFn: () => fetchSalesReport(),
+  });
+
+  console.log("sales cliked", data);
+
   return (
     <Grid container spacing={2} padding={2}>
       <Grid item xs={8}>
-        <Typography variant="h5" gutterBottom>Generate Reports</Typography>
+        <Typography variant="h5" gutterBottom>
+          Generate Reports
+        </Typography>
         <AppBar position="static" color="default">
           <Tabs value={activeTab} onChange={handleTabChange}>
             <Tab label="Sale" />
@@ -65,9 +87,13 @@ const Reports: React.FC = () => {
             <Tab label="Suppliers" />
           </Tabs>
         </AppBar>
-       
+
         <Box mt={2}>
-          <Button variant="outlined" onClick={generateReportHandler} disabled={isGenerateButtonDisabled}>
+          <Button
+            variant="outlined"
+            onClick={generateReportHandler}
+            disabled={isGenerateButtonDisabled}
+          >
             Generate Report
           </Button>
         </Box>
@@ -85,12 +111,20 @@ const Reports: React.FC = () => {
         {/* Filters */}
         <Paper>
           {/* Add your filter components here */}
-          <Typography variant="h6" paddingLeft={2} gutterBottom sx={{display: "flex", alignItems: "center", gap:1}}>
-            <FilterListIcon/>
+          <Typography
+            variant="h6"
+            paddingLeft={2}
+            gutterBottom
+            sx={{ display: "flex", alignItems: "center", gap: 1 }}
+          >
+            <FilterListIcon />
             Filters
           </Typography>
           {/* Add filter components */}
-          <Box mt={2} sx={{ display: "flex", gap: 2, paddingLeft: 2 , paddingBottom: 2}}>
+          <Box
+            mt={2}
+            sx={{ display: "flex", gap: 2, paddingLeft: 2, paddingBottom: 2 }}
+          >
             <TextField
               label="Start Date"
               type="date"

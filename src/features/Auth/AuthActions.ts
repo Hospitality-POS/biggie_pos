@@ -8,9 +8,12 @@ interface UserDetails {
   pin: string;
 }
 
+interface UserPinDetails {
+  pin: string;
+}
 export const loginUser = createAsyncThunk(
   "authUser/loginUser",
-  async (_userDetails: UserDetails, { rejectWithValue }) => {
+  async (_userDetails: UserPinDetails, { rejectWithValue }) => {
     try {
         // console.log(_userDetails);
         
@@ -28,7 +31,7 @@ export const logoutUser = createAsyncThunk(
         try {
             const response = await localStorage.removeItem('user')
             return response
-        } catch (error) {
+        } catch (error:any) {
             return error.message
         }
     }

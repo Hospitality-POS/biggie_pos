@@ -4,7 +4,7 @@ import axios from "axios";
 const baseUrl = "http://localhost:3000/orders";
 
 interface OrderDetails {
-  _id: any;
+  _id: string;
   table_id: string,
   created_by: string,
   order_no: string,

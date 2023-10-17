@@ -20,15 +20,10 @@ const getToken = () => {
 export const fetchTables = createAsyncThunk(
   "table/fetchTables",
   async (_, { rejectWithValue }) => {
-    const token = getToken(); // Get the token
     try {
-      const response = await axios.get(`${baseUrl}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(`${baseUrl}`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -68,7 +63,7 @@ export const updateTable = createAsyncThunk(
         }
       );
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -87,7 +82,20 @@ export const deleteTable = createAsyncThunk(
       });
       dispatch(fetchTables())
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+// Create an async thunk to fetch a table by ID
+export const fetchTableById = createAsyncThunk(
+  "table/fetchTableById",
+  async (tableId: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${baseUrl}/${tableId}`);
+      return response.data;
+    } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
     }
   }

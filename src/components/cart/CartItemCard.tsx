@@ -11,20 +11,22 @@ import {
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
-import { useDispatch } from "react-redux";
-import React, { useEffect, useState } from "react";
-import { useRef } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   deleteCartItem,
   updateCartItems,
 } from "../../features/Cart/CartActions";
+import { useAppDispatch } from "../../store";
 interface cartItemCardProps {
   cartItem: any;
 }
+
+function formatQuantity(quantity: { toLocaleString: () => any; }) {
+  return quantity?.toLocaleString();
+}
+
 const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   const [quantity, setQuantity] = useState(cartItem.quantity);
 
@@ -54,16 +56,13 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     }
   };
 
-  // useEffect(() => {
-  //   dispatch(
-  //     updateCartItems({
-  //       ...cartItem,
-  //       product_id: cartItem.product_id._id,
-  //       quantity,
-  //       price: cartItem.price * quantity,
-  //     })
-  //   );
-  // }, [quantity, dispatch, cartItem]);
+ 
+  const formattedPrice = useMemo(() => {
+    return `${cartItem.price}`;
+  }, [cartItem.price]);
+  
+  const formattedQuantity = useMemo(() => formatQuantity(cartItem.quantity), [cartItem.quantity]);
+
 
   return (
     <Card sx={{ mb: 1, boxShadow: "none", backgroundColor: "#F8F8F8" }}>
@@ -76,29 +75,16 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
           </Grid>
           <Grid item xs={3}>
             <Box sx={{ display: "flex", alignItems: "center", columnGap: 1 }}>
-              {/* <IconButton
-                size="small"
-                sx={{ borderRadius: 50, border: 1 }}
-                disabled={quantity === 1}
-                onClick={handleReduceQuantity}
-              >
-                <RemoveIcon />
-              </IconButton> */}
+              
               <Typography variant="body1" ml={4}>
-                x {cartItem.quantity}
+                x {formattedQuantity}
               </Typography>
-              {/* <IconButton
-                size="small"
-                sx={{ borderRadius: 50, border: 1 }}
-                onClick={handleAddQuantity}
-              >
-                <AddIcon />
-              </IconButton> */}
+              
             </Box>
           </Grid>
           <Grid item xs={2} ml={-3}>
             <Typography variant="body1" fontSize="16px" ml={1}>
-              ksh.{cartItem.price}
+              ksh.{formattedPrice}
             </Typography>
           </Grid>
         <Grid item xs={2} ml={4}>
@@ -143,4 +129,4 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   );
 };
 
-export default CartItemCard;
+export default React.memo(CartItemCard);

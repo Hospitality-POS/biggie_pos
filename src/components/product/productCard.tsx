@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -6,14 +6,18 @@ import { useDispatch, useSelector } from "react-redux";
 import { addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
 import { addItem, subtractItem } from "../../features/Cart/CartSlice";
+import { useAppDispatch, useAppSelector } from "../../store";
 
-function formatPrice(price) {
-  return price.toLocaleString();
+function formatPrice(price: number) {
+  return price?.toLocaleString();
+}
+function formatQuantity(quantity: number) {
+  return quantity?.toLocaleString();
 }
 
 interface ProductCardProps {
   menu: {
-    quantity: any;
+    quantity: number;
     _id: string;
     name: string;
     price: number;
@@ -22,51 +26,55 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
-  const { user } = useSelector((state: any) => state.auth);
-  const { cartDetails } = useSelector((state: any) => state.cart);
+  const { user } = useAppSelector((state) => state.auth);
+  const { cartDetails, loading } = useAppSelector((state) => state.cart);
   const [quantity, setQuantity] = useState(0);
 
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { id } = useParams();
 
+  const formattedQuantity = useMemo(() => formatQuantity(menu.quantity), [menu.quantity]);
+
   const handleAddToCart = () => {
-    // Dispatch an action to add the item to the cart
+    if(!loading){
     dispatch(
       addItemToCart({
-        cart_id: cartDetails._id,
-        product_id: menu._id,
+        cart_id: cartDetails?._id,
+        product_id: menu?._id,
         price: menu.price,
-        created_by: user.id,
-        quantity: menu.quantity,
+        created_by: user?.id,
+        quantity: formattedQuantity,
         desc: menu.desc,
-        table_id: id,
+        table_id: cartDetails?.table_id,
       })
     );
+    }
   };
 
   const handleIncrement = () => {
-    // Dispatch an action to increment the item quantity in the cart
     dispatch(addItem(menu._id));
-    // Fetch updated cart items after incrementing
     dispatch(fetchCartItems(cartDetails?._id));
   };
 
   const handleDecrement = () => {
     if (quantity > 0) {
       setQuantity(quantity - 1);
-      // Dispatch an action to decrement the item quantity in the cart
       dispatch(subtractItem(menu._id));
-      // Fetch updated cart items after decrementing
       dispatch(fetchCartItems(cartDetails?._id));
     }
   };
+
+  const formattedPrice = useMemo(() => formatPrice(menu.price), [menu.price]);
+
 
   return (
     <Paper
       elevation={3}
       onClick={() => {
+         if (!loading) {
         handleIncrement();
         handleAddToCart();
+         }
       }}
       style={{
         display: "flex",
@@ -89,7 +97,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.backgroundColor = "#6c1c2c";
-         e.currentTarget.style.color = "Black";
+        e.currentTarget.style.color = "Black";
       }}
     >
       <div>
@@ -111,13 +119,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
           fontSize={18}
           mb={2}
           style={{ opacity: 0.7, marginTop: "auto", color: "white" }}
-         
         >
-          Ksh. {formatPrice(menu.price)}
+          Ksh. {formattedPrice}
         </Typography>
       </div>
     </Paper>
   );
 };
 
-export default ProductCard;
+export default React.memo(ProductCard);

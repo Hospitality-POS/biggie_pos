@@ -8,6 +8,7 @@ import SupplierSlice from "./features/Supplier/SupplierSlice";
 import TableSlice from "./features/Table/TableSlice";
 import CategorySlice from "./features/Category/CategorySlice";
 import PaymentMethodSlice from "./features/Payment/PaymentMethodSlice";
+import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 
 
 
@@ -27,3 +28,10 @@ const rootReducer = combineReducers({
 export const store = configureStore({
   reducer: rootReducer,
 });
+
+export type RootState = ReturnType<typeof store.getState> 
+
+type AppDispatch = typeof store.dispatch
+export const useAppDispatch: ()=> AppDispatch = useDispatch;
+
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;

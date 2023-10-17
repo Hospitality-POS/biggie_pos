@@ -1,14 +1,21 @@
-import React from "react";
-import { useSelector } from "react-redux";
+import React, { useCallback, useEffect } from "react";
 import OrderList from "../../components/Order/OrderList";
 import { Typography } from "@mui/material";
+import { fetchOrders } from "../../features/Order/OrderActions";
+import { useAppDispatch, useAppSelector } from "../../store";
 
-interface OrdersProps {
-  // Define any props you might need here
-}
 
-const Orders: React.FC<OrdersProps> = (props) => {
-  const { orders } = useSelector((state: any) => state.order);
+
+const Orders: React.FC = () => {
+  const { orders } = useAppSelector((state) => state.order);
+  const dispatch = useAppDispatch()
+  const dispatchFetchOrders = useCallback(async() => {
+    dispatch(fetchOrders());
+  },[dispatch]);
+
+  useEffect(() => {
+    dispatchFetchOrders();
+  }, [dispatchFetchOrders]);
 
   return (
     <div>

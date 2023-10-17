@@ -9,19 +9,37 @@ import {
   deleteAllCartItems,
 } from "./CartActions";
 
+
+  
 interface CartDetails {
-  table_id: string;
-  created_by: string;
+  _id: string;
+  table_id: {
+    _id: string;
+    name: string;
+  };
+  created_by: {
+    _id: string;
+    username: string;
+  };
+  items: string[];
+  order_no: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
 }
 
+
 interface CartItem {
-  cartId: string;
+  _id: string;
+  name: string;
+  cartId: string | undefined;
   productId: string;
   quantity: number;
 }
 
 interface CartState {
-  cartDetails: CartDetails | null;
+  cartDetails: CartDetails;
   cartItems: CartItem[];
   totalAmount: number;
   loading: boolean;
@@ -29,7 +47,23 @@ interface CartState {
 }
 
 const initialState: CartState = {
-  cartDetails: null,
+cartDetails: {
+    _id: '',
+    table_id: {
+      _id: '',
+      name: '',
+    },
+    created_by: {
+      _id: '',
+      username: '',
+    },
+    items: [],
+    order_no: '',
+    status: '',
+    createdAt: '',
+    updatedAt: '',
+    __v: 0,
+  },
   cartItems: [],
   totalAmount: 0,
   loading: false,
@@ -56,7 +90,7 @@ const cartSlice = createSlice({
 
       // Recalculate the total amount
       state.totalAmount = state.cartItems.reduce(
-        (total, item) => total + parseFloat(item.price) * item.quantity,
+        (total, item: any) => total + parseFloat(item.price) * item.quantity,
         0
       );
     },
@@ -79,7 +113,7 @@ const cartSlice = createSlice({
 
         // Recalculate the total amount
         state.totalAmount = state.cartItems.reduce(
-          (total, item) => total + parseFloat(item.price) * item.quantity,
+          (total, item: any) => total + parseFloat(item.price) * item.quantity,
           0
         );
       }
@@ -90,7 +124,7 @@ const cartSlice = createSlice({
       );
 
       state.totalAmount = state.cartItems.reduce(
-        (total, item) => total + parseFloat(item.price) * item.quantity,
+        (total, item: any) => total + parseFloat(item.price) * item.quantity,
         0
       );
     },
@@ -103,11 +137,12 @@ const cartSlice = createSlice({
       })
       .addCase(createCart.fulfilled, (state, action) => {
         state.loading = false;
-        state.cartDetails = action.payload;
+        state.cartDetails = action.payload as CartDetails;
+        console.log("payla", action.payload);
       })
       .addCase(createCart.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload as string;
       })
       .addCase(getCart.pending, (state) => {
         state.loading = true;
@@ -116,15 +151,17 @@ const cartSlice = createSlice({
       .addCase(getCart.fulfilled, (state, action) => {
         state.loading = false;
         state.cartItems = action.payload;
+
         // Calculate the total amount of all cart items using reduce
         state.totalAmount = action.payload.reduce(
-          (total, item) => total + parseFloat(item.price) * item.quantity,
+          (total: any, item: any) =>
+            total + parseFloat(item.price) * item.quantity,
           0
         );
       })
       .addCase(getCart.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload as string;
       })
       .addCase(fetchCartItems.pending, (state) => {
         state.loading = true;
@@ -132,27 +169,27 @@ const cartSlice = createSlice({
       })
       .addCase(fetchCartItems.fulfilled, (state, action) => {
         state.loading = false;
-        state.cartItems = action.payload;
+        state.cartItems = action.payload as any;
         // Calculate the total amount of all cart items using reduce
         state.totalAmount = action.payload.reduce(
-          (total, item) => total + parseFloat(item.price),
+          (total: any, item: any) => total + parseFloat(item.price),
           0
         );
       })
       .addCase(fetchCartItems.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload as string;
       })
       .addCase(addItemToCart.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(addItemToCart.fulfilled, (state, action) => {
+      .addCase(addItemToCart.fulfilled, (state) => {
         state.loading = false;
       })
       .addCase(addItemToCart.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload as string;
       })
       .addCase(updateCartItems.pending, (state) => {
         state.loading = true;
@@ -162,20 +199,21 @@ const cartSlice = createSlice({
         state.loading = false;
         const updatedData = action.payload;
         const index = state.cartItems.findIndex(
-          (dataItem) => dataItem._id === updatedData._id
+          (dataItem: { _id: boolean | string }) =>
+            dataItem._id === updatedData._id
         );
         if (index !== -1) {
           state.cartItems[index] = updatedData;
         }
         // todo: make this a reducer
         state.totalAmount = state.cartItems.reduce(
-          (total, item) => total + parseFloat(item.price),
+          (total, item: any) => total + parseFloat(item.price),
           0
         );
       })
       .addCase(updateCartItems.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload as string;
       })
       .addCase(deleteCartItem.fulfilled, (state, action) => {
         state.loading = false;
@@ -189,12 +227,12 @@ const cartSlice = createSlice({
         }
 
         state.totalAmount = state.cartItems.reduce(
-          (total, item) => total + parseFloat(item.price),
+          (total, item: any) => total + parseFloat(item.price),
           0
         );
       })
       .addCase(deleteCartItem.rejected, (state, action) => {
-        state.error = action.error;
+        state.error = action.error as string;
       })
       .addCase(deleteAllCartItems.pending, (state) => {
         state.loading = true;
@@ -207,7 +245,7 @@ const cartSlice = createSlice({
       })
       .addCase(deleteAllCartItems.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload as string;
       });
   },
 });
