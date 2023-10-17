@@ -1,18 +1,26 @@
 import { Card, CardMedia, Typography, Box } from "@mui/material";
 import classes from "./table.module.css";
 import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { createCart } from "../../features/Cart/CartActions";
-import { fetchProducts } from "../../features/Product/ProductAction";
 import StaffModal from "../staffCard/StaffModal";
+import { useAppDispatch, useAppSelector } from "../../store";
 
-interface Item {
-  item: any;
+interface Table {
+    isOccupied: boolean;
+    _id: string;
+    name: string
+  
 }
 
-const TableCard: React.FC<Item> = ({ item }) => {
-  const { user } = useSelector((state: any) => state.auth);
-  const dispatch = useDispatch();
+
+interface itemProps {
+  item: Table;
+}
+
+
+const TableCard: React.FC<itemProps> = ({ item }) => {
+  const { user } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [pin, setPin] = useState("");
 
@@ -24,23 +32,23 @@ const TableCard: React.FC<Item> = ({ item }) => {
     boxShadow: "none",
     bgcolor: "transparent",
     color: item.isOccupied ? "black" : "white",
-    position: "relative", // Added to create a relative positioning context
+    position: "relative", 
     textAlign: "center",
   };
 
   const imageStyles = {
     border: "none",
     opacity: item.isOccupied ? 0.5 : 1,
-    maxWidth: "100%", // Adjust the image size
+    maxWidth: "100%", 
   };
 
   const textOverlayStyles = {
     position: "absolute",
-    top: "47%", // Center vertically
-    left: "50%", // Center horizontally
+    top: "47%", 
+    left: "50%", 
     width: "100%",
-    transform: "translate(-50%, -50%)", // Center text within the card
-    zIndex: 1, // Place text above the image
+    transform: "translate(-50%, -50%)",
+    zIndex: 1, 
   };
 
   const handleCreate = async() => {
@@ -50,7 +58,6 @@ const TableCard: React.FC<Item> = ({ item }) => {
         created_by: user.id,
       };
      dispatch(createCart(cartDetails));
-      // dispatch(fetchProducts())
     }
   };
 

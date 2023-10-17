@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, TextField, Grid, IconButton, CircularProgress } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { useDispatch, useSelector } from "react-redux";
 import { loginUser } from "../../features/Auth/AuthActions";
 import classes from "./staff.module.css";
 import LoginIcon from "@mui/icons-material/Login";
 import BackspaceIcon from "@mui/icons-material/Backspace";
 import { useNavigate } from "react-router-dom";
 import { createCart } from "../../features/Cart/CartActions";
+import { useAppDispatch, useAppSelector } from "../../store";
 
 interface StaffModalProps {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setPin: React.Dispatch<React.SetStateAction<string>>;
   pin: string;
   open: boolean;
-  item: string;
+  item: {
+    _id: string
+  };
 }
 
 const StaffModal: React.FC<StaffModalProps> = ({
@@ -26,14 +28,14 @@ const StaffModal: React.FC<StaffModalProps> = ({
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const [notificationType, setNotificationType] = useState<
-    "error" | "success" | ""
-  >("");
-  const { isError, isSuccess, isLoading, user } = useSelector(
-    (state: any) => state.auth
+  // const [notificationType, setNotificationType] = useState<
+  //   "error" | "success" | ""
+  // >("");
+  const { isError, isSuccess, isLoading, user } = useAppSelector(
+    (state) => state.auth
   );
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   const handleClickShowPassword = () => {
     setShowPassword((show) => !show);
@@ -60,13 +62,13 @@ const StaffModal: React.FC<StaffModalProps> = ({
 
   useEffect(() => {
     if (isLoading) {
-      setNotificationType("");
+      // setNotificationType("");
     } else if (isError) {
       setNotificationOpen(true);
-      setNotificationType("error");
+      // setNotificationType("error");
     } else if (isSuccess) {
       setNotificationOpen(true);
-      setNotificationType("success");
+      // setNotificationType("success");
       navigate(`/restaurant/${item._id}`);
       if (user) {
       const cartDetails = {
@@ -75,7 +77,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
       };
      dispatch(createCart(cartDetails));
     }
-  } },[isLoading, isError, isSuccess, setOpen, navigate]);
+  } },[isLoading, isError, isSuccess, setOpen, navigate, item._id, user, dispatch]);
 
   return (
     <>

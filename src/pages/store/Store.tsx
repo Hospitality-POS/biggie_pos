@@ -10,7 +10,7 @@ import {
   Tabs,
   Typography,
 } from "@mui/material";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import StoreProductCard from "../../components/store/StoreProductCard";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
@@ -30,15 +30,7 @@ const Store: React.FC = () => {
     (state: any) => state.product
   );
   const dispatch = useDispatch();
-  // const { isLoading, isError, error, data } = useQuery({
-  //   queryKey: ["product"],
-  //   queryFn: () =>
-  //     fetch("http://localhost:3000/product/products").then((res) => res.json()),
-  //   retry: 3,
-  //   retryDelay: 1000,
-  //   refetchInterval: 1000,
-  //   refetchIntervalInBackground: true
-  // });
+ 
   const [value, setValue] = React.useState(0);
 
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
@@ -48,9 +40,12 @@ const Store: React.FC = () => {
     setValue(newValue);
   };
 
+  
   const handleCategories = (id: string) => {
     dispatch(fetchProductsByCategory(id));
   };
+  
+
   const onAdd = () => {
     setOpen(true);
   };
@@ -61,15 +56,24 @@ const Store: React.FC = () => {
     setOpen(false);
   };
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     const response = await axios.get("http://localhost:3000/categories");
     return response.data;
-  };
+  }, []);
 
   const { data: categoriesData } = useQuery(["categories"], () =>
     fetchCategories()
   );
 
+  const dispatchFetchProducts = () => {
+    dispatch(fetchProducts());
+  };
+
+  useEffect(() => {
+    dispatchFetchProducts();
+  }, []);
+
+    const memoizedCategoriesData = useMemo(() => categoriesData, [categoriesData]);
   if (error) {
     return (
       <ErrorDialog
@@ -102,8 +106,8 @@ const Store: React.FC = () => {
           }}
           aria-label="scrollable auto tabs example"
         >
-          {categoriesData &&
-            categoriesData.map((category: any) => (
+          {memoizedCategoriesData &&
+            memoizedCategoriesData.map((category: any) => (
               <Tab
                 key={category._id}
                 label={category.name}

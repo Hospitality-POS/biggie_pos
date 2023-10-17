@@ -1,5 +1,5 @@
 import { Box, Divider, Tab, Tabs, Typography } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import classes from "../staff/staffs.module.css";
 import TableCard from "../../components/TableCard/TableCard";
 import React, { Key, useEffect, useState } from "react";
@@ -35,6 +35,12 @@ function Table() {
 
   const { locatedAt } = useParams();
   const [uniqueLocatedAtValues, setUniqueLocatedAtValues] = useState([]);
+
+  const queryClient = useQueryClient();
+
+
+queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
+
 
   const { isLoading: isLoadingUniqueLocatedAt, data: uniqueLocatedAtData , isError:isErrorTabs} = useQuery({
     queryKey: ["uniqueLocatedAtValues"],
@@ -125,7 +131,7 @@ function Table() {
           bottom: 0
         }}
       >
-        {data.map((item: { _id: Key | null | undefined }) => (
+        {data.map((item: { _id: string, isOccupied: boolean, name: string }) => (
           // <Link
           //   key={item._id}
           //   to={`/restaurant/${item._id}`}

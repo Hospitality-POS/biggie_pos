@@ -1,42 +1,50 @@
 import { AppBar, Tab, Tabs } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
-import React from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useCallback, useEffect } from "react";
 import { fetchCategoriesByID } from "../../features/Category/CategoryActions";
+import { useAppDispatch, useAppSelector } from "../../store";
 
-function a11yProps(index: any) {
+function a11yProps(index: number) {
   return {
     id: `full-width-tab-${index}`,
     "aria-controls": `full-width-tabpanel-${index}`,
   };
 }
 
-const VerticalTabs = () => {
-  const { subCategory: Subcategories } = useSelector(
-    (state: any) => state.Categories
+const VerticalTabs: React.FC = () => {
+  const { subCategory: Subcategories } = useAppSelector(
+    (state) => state.Categories
   );
-  const dispatch = useDispatch()
+  const dispatch = useAppDispatch()
   const [value, setValue] = React.useState(0);
   const [subCategoryId, setSubCategoryId] = React.useState("")
 
-  const handleChanegSubCategoryId =(subcategoryID)=>{
+  const handleChanegSubCategoryId =(subcategoryID: React.Key | null | undefined)=>{
     dispatch(fetchCategoriesByID(subcategoryID))
   }
 
-  const handleChange = (event, newValue) => {
+  const handleChange = (event: any, newValue: React.SetStateAction<number>) => {
     setValue(newValue);
   };
 
-  const handleChangeIndex = (index) => {
+  const handleChangeIndex = (index: React.SetStateAction<number>) => {
     setValue(index);
   };
 
+  const subId = "6525f8292d06da587b70d5db"
+
+  const fetchproductsbysub = useCallback(async()=>{
+    return dispatch(fetchCategoriesByID(subId))
+  },[dispatch])
+
+  useEffect(()=>{
+    fetchproductsbysub()
+  },[fetchproductsbysub])
+  
   return (
     <>
       {Subcategories && Subcategories.length > 0 && (<AppBar
         position="static"
-        sx={{ bgcolor: "#6c1c2c", width: 80, height: 450 }}
+        sx={{ bgcolor: "#6c1c2c", width: 80, height: 450, mt: 5}}
       >
         <Tabs
           orientation="vertical"

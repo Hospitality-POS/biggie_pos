@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { createTable, deleteTable, fetchTables, updateTable } from "./TableActions";
+import { createTable, deleteTable, fetchTableById, fetchTables, updateTable } from "./TableActions";
 
 
 interface Table {
@@ -10,6 +10,7 @@ interface Table {
 
 interface TableState {
   tables: Table[];
+  tableData: Table;
   loading: boolean;
   error: string | null;
   isSuccess: boolean;
@@ -19,6 +20,11 @@ interface TableState {
 
 const initialState: TableState = {
   tables: [],
+  tableData: {
+  _id: '',
+  name: '',
+  locatedAt: ''
+},
   loading: false,
   error: null,
   newTableMessage: "",
@@ -115,6 +121,22 @@ export const tableSlice = createSlice({
         }
       )
       .addCase(deleteTable.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(fetchTableById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(
+        fetchTableById.fulfilled,
+        (state, action: PayloadAction<Table>) => {
+          state.loading = false;
+          state.isSuccess = true;
+          state.tableData = action.payload;
+        }
+      )
+      .addCase(fetchTableById.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
