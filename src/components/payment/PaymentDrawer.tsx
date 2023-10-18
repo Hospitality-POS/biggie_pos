@@ -7,6 +7,14 @@ import {
   CardActions,
   CircularProgress,
   Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  DialogActions,
+  MenuItem,
+  IconButton,
+  DialogContentText,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
@@ -22,6 +30,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { createCart } from "../../features/Cart/CartActions";
 import { logoutUser } from "../../features/Auth/AuthActions";
 import { reset } from "../../features/Auth/AuthSlice";
+import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
+import { useAppDispatch, useAppSelector } from "../../store";
 
 interface paymentProps {
   paymentOpen: boolean;
@@ -31,13 +41,17 @@ const PaymentDrawer: React.FC<paymentProps> = ({
   paymentOpen,
   handlePaymentClose,
 }) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
-  const { cartDetails, totalAmount } = useSelector((state: any) => state.cart);
+  const { cartDetails, totalAmount } = useAppSelector((state: any) => state.cart);
   const { loading, error } = useSelector((state: any) => state.order);
   const { user } = useSelector((state: any) => state.auth);
   const [selectedMethod, setSelectedMethod] = useState<null | string>(null);
+  const [secondMethod, setSecondMethod] = useState<null | string>(null);
+  const [openModal, setOpenModal] = useState(false);
+  const [amount1, setAmount1] = useState(0);
+  const [amount2, setAmount2] = useState(0);
 
   const {
     isLoading,
@@ -49,8 +63,35 @@ const PaymentDrawer: React.FC<paymentProps> = ({
       fetch("http://localhost:3000/payment-methods/").then((res) => res.json()),
   });
 
+  // const handleSelectMethod = (method: string) => {
+  //   setSelectedMethod(method === selectedMethod ? null : method);
+  // };
+
   const handleSelectMethod = (method: string) => {
-    setSelectedMethod(method === selectedMethod ? null : method);
+    if (!selectedMethod) {
+      setSelectedMethod(method);
+    } else if (!secondMethod) {
+      setSecondMethod(method);
+      setOpenModal(true);
+    }
+  };
+
+  const handleModalClose = () => {
+    setOpenModal(false);
+    setSelectedMethod(null);
+    setSecondMethod(null);
+    setAmount1(0);
+    setAmount2(0);
+  };
+
+  const handleSplitConfirm = () => {
+    if (amount1 > totalAmount || amount2 > totalAmount) {
+      // Add your logic for handling the case when the entered amount exceeds the total amount
+      return;
+    }
+    // Add your logic for handling the split payment confirmation
+    console.log("Method 1:", selectedMethod, "Amount 1:", amount1);
+    console.log("Method 2:", secondMethod, "Amount 2:", amount2);
   };
 
   if (isLoading) {
@@ -61,21 +102,43 @@ const PaymentDrawer: React.FC<paymentProps> = ({
     return <div>An error occurred while fetching payment methods.</div>;
   }
 
+  // const handlePayment = (methodId: string) => {
+  //   const orderDetails = {
+  //     cart_id: cartDetails?._id,
+  //     order_amount: totalAmount,
+  //     table_id: id,
+  //     updated_by: user.id,
+  //     order_no: cartDetails?.order_no,
+  //     method_id: methodId,
+  //   };
+  //   dispatch(createOrder(orderDetails));
+  //   if (!error) {
+  //     dispatch(createCart(id));
+  //     dispatch(logoutUser());
+  //     dispatch(reset());
+  //     navigate("/tables");
+  //   }
+  // };
   const handlePayment = (methodId: string) => {
-    const orderDetails = {
-      cart_id: cartDetails?._id,
-      order_amount: totalAmount,
-      table_id: id,
-      updated_by: user.id,
-      order_no: cartDetails?.order_no,
-      method_id: methodId,
-    };
-    dispatch(createOrder(orderDetails));
-    if (!error) {
-      dispatch(createCart(id));
-      dispatch(logoutUser());
-      dispatch(reset());
-      navigate("/tables");
+    if (secondMethod) {
+      // logic to open the modal for splitting the bill
+      setOpenModal(true);
+    } else {
+      const orderDetails = {
+        cart_id: cartDetails?._id,
+        order_amount: totalAmount,
+        table_id: id,
+        updated_by: user.id,
+        order_no: cartDetails?.order_no,
+        method_id: methodId,
+      };
+      dispatch(createOrder(orderDetails));
+      if (!error) {
+        dispatch(createCart(id));
+        dispatch(logoutUser());
+        dispatch(reset());
+        navigate("/tables");
+      }
     }
   };
 
@@ -115,16 +178,34 @@ const PaymentDrawer: React.FC<paymentProps> = ({
             <Typography
               variant="inherit"
               fontSize="large"
+              sx={{
+                display: "flex",
+                justifyContent: "cente",
+                alignContent: "center",
+                flexDirection: "column",
+              }}
               color={selectedMethod === method._id ? "white" : "inherit"}
             >
               {method.name === "Cash" ? (
-                <LocalAtmIcon fontSize="large" />
+                <>
+                  <LocalAtmIcon fontSize="large" />
+                  <Typography variant="body1">Cash</Typography>
+                </>
               ) : method.name === "M-Pesa" ? (
-                <MobileScreenShareIcon fontSize="large" />
+                <>
+                  <MobileScreenShareIcon fontSize="large" />
+                  <Typography variant="body1">mpesa</Typography>
+                </>
               ) : method.name === "Card" ? (
-                <CreditCardIcon fontSize="large" />
+                <>
+                  <CreditCardIcon fontSize="large" />{" "}
+                  <Typography variant="body1">card</Typography>
+                </>
               ) : method.name === "Debt" ? (
-                <CreditCardOffIcon fontSize="large" />
+                <>
+                  <CreditCardOffIcon fontSize="large" />
+                  <Typography variant="body1">Debt</Typography>
+                </>
               ) : (
                 ""
               )}
@@ -171,6 +252,21 @@ const PaymentDrawer: React.FC<paymentProps> = ({
           Confirm Payment
         </Button>
       </CardActions>
+
+      <SplitBillDialog
+        open={openModal}
+        handleModalClose={handleModalClose}
+        data={data}
+        selectedMethod={selectedMethod}
+        secondMethod={secondMethod}
+        amount1={amount1}
+        amount2={amount2}
+        setSelectedMethod={setSelectedMethod}
+        setSecondMethod={setSecondMethod}
+        setAmount1={setAmount1}
+        setAmount2={setAmount2}
+        handleSplitConfirm={handleSplitConfirm}
+      />
     </Box>
   );
 };
