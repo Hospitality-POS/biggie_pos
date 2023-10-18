@@ -22,6 +22,7 @@ import PrintDisabledIcon from "@mui/icons-material/PrintDisabled";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import "./bill.css";
+import { useParams } from "react-router-dom";
 
 interface CartItem {
   _id: Key | null | undefined;
@@ -55,10 +56,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { cartItems } = useSelector((state: any) => state.cart);
 
-  const cartId = cartDetails?._id;
+  const {id}=useParams()
+
   const { data } = useQuery(
-    ["cart", cartId],
-    async () => await axios.get(`http://localhost:3000/cart/cart/${cartId}`)
+    ["cart", id],
+    async () => await axios.get(`http://localhost:3000/cart/cart/${id}`)
   );
 
   const handlePrint = () => {

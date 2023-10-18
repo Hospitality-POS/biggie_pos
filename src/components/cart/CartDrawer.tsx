@@ -17,8 +17,6 @@ import TableBarIcon from "@mui/icons-material/TableBar";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
 import PrintBillModal from "../MODALS/PrintBillModal";
-import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import {
   deleteAllCartItems,
   fetchCartItems,
@@ -27,25 +25,23 @@ import {
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
-
-interface CartDrawerProps {
-  tableData: {
-    name: string;
-  };
-}
-
+import { useParams } from "react-router-dom";
+import Spinner from "../spinner/Spinner";
+import CartLoader from "../spinner/cartLoader";
 
 function formatTotal(totalAmount: { toLocaleString: () => number | string}) {
   return totalAmount.toLocaleString();
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
+const CartDrawer: React.FC = () => {
   const [openM, setOpenM] = useState(false);
+   const [loadingData, setLoadingData] = useState(false);
   const { cartDetails, totalAmount, cartItems: data, loading } = useAppSelector(
     (state) => state.cart
   );
   const { user } = useAppSelector((state) => state.auth);
+
+  const {id}=useParams()
 
   const dispatch = useAppDispatch();
   const { tableData: td } = useAppSelector((state) => state.Tables);
@@ -54,16 +50,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
     setOpenM(false);
   };
 
-  const cartId: string | undefined  = cartDetails?._id;
-
-  // const { data } = useQuery(
-  //   ["cart", cartId],
-  //   async () => await axios.get(`http://localhost:3000/cart/cart/${cartId}`)
-
-  // );
-
-  console.log("waaat", cartDetails);
-  
+ 
   const CartItemCardMemo = React.memo(CartItemCard);
 
   const memoizedData = useMemo(() => data, [data]);
@@ -73,10 +60,21 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
     [cartDetails?.order_no]
   );
 
+  // const dispatchFetchCart = useCallback(() => {
+  //   return dispatch(getCart(id));
+  // }, [dispatch, id]);
+
   const dispatchFetchCart = useCallback(async () => {
-    dispatch(getCart(cartId));
-    dispatch(fetchCartItems(cartId));
-  }, [cartId, dispatch]);
+    setLoadingData(true); 
+    try {
+      await dispatch(getCart(id)); 
+    } catch (error) {
+      console.log("cart eror", error);
+      
+    } finally {
+      setLoadingData(false);
+    }
+  }, [dispatch, id]);
 
   useEffect(() => {
     dispatchFetchCart();
@@ -189,13 +187,15 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
             overflowY: "auto",
           }}
         >
-          {loading
+          {loading 
             ? Array.from({ length: data.length }, (_, index) => (
                 <SkeletonCartItemCard key={index} />
               ))
             : data?.map((item: { _id: Key | null | undefined | string }) => (
                 <CartItemCardMemo key={item._id} cartItem={item} />
               ))}
+            {loadingData && loading ? <CartLoader/>: ''}
+              
         </div>
         {memoizedData?.length ? (
           <Grid
@@ -241,7 +241,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ tableData }) => {
               </Button>
               <Button
                 variant="contained"
-                onClick={() => dispatch(deleteAllCartItems(cartId))}
+                onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
                 endIcon={<ClearIcon />}
                 sx={{
                   pl: 1,

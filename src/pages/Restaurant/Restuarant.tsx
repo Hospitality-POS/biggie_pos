@@ -36,6 +36,7 @@ import VerticalTabs from "./Sidetabs";
 import { fetchsubcategories } from "../../features/Category/CategoryActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchTableById } from "../../features/Table/TableActions";
+import CartLoader from "../../components/spinner/cartLoader";
 
 function a11yProps(index: any) {
   return {
@@ -114,14 +115,11 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
     dispatch(fetchsubcategories(maincategoryid));
   };
 
-  useEffect(() => {
-    // When the component mounts, set isLoadingData to false
-    setIsLoadingData(false);
-  }, []);
+  
 
   const handleCartOpen = () => {
     setCartOpen(true);
-    dispatch(fetchCartItems(cartDetails?._id));
+    dispatch(getCart(id));
   };
 
   const handleCartClose = () => {
@@ -138,7 +136,7 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
 
   const handleSelectCard = (card: any) => {
     setSelectedCard(card);
-    console.log("thisis", card);
+    // console.log("thisis", card);
     dispatch(fetchProductsByCategory(card));
     setCategoryChosen(true);
     setShowCategories(false);
@@ -152,27 +150,53 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
   //   return dispatch(getCart(cartId));
   // }, [cartId, dispatch]);
 
-  const dispatchfetchsubcateg = useCallback(async()=>{
-    return dispatch(fetchsubcategories("6525f7b62d06da587b70d5d5"));
-  },[dispatch])
+  // const dispatchfetchsubcateg = useCallback(async()=>{
+  //   return dispatch(fetchsubcategories("6525f7b62d06da587b70d5d5"));
+  // },[dispatch])
 
-  const dispatchfetctaldata=useCallback(()=>{
-    return dispatch(fetchTableById(cartDetails?.table_id._id))
-  },[cartDetails?.table_id, dispatch])
+  const dispatchfetchsubcateg = useCallback(async () => {
+    setIsLoadingData(true);
+    try {
+      await dispatch(fetchsubcategories("6525f7b62d06da587b70d5d5"));
+    } catch (error) {
+      // Handle error if necessary
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [dispatch]);
 
-  const dispatchFetchCartdetails = useCallback(()=>{
-    return dispatch(getCart(cartDetails?.table_id))
-  },[dispatch, cartDetails?.table_id])
+  // const dispatchfetctaldata=useCallback(()=>{
+  //   return dispatch(fetchTableById(id))
+  // },[dispatch, id])
+
+  const dispatchfetctaldata = useCallback(async () => {
+    setIsLoadingData(true);
+    try {
+      await dispatch(fetchTableById(id));
+    } catch (error) {
+      // Handle error if necessary
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [dispatch, id]);
+
+  // const dispatchFetchCartdetails = useCallback(()=>{
+  //   return dispatch(getCart(id))
+  // },[dispatch, id])
   
   
   useEffect(() => {
     // if (cartDetails?._id) {
     //   dispatchFetchCart();
     // }
-    dispatchFetchCartdetails()
+    // dispatchFetchCartdetails()
     dispatchfetchsubcateg()
     dispatchfetctaldata()
-  }, [cartDetails?._id, dispatchFetchCartdetails, dispatchfetchsubcateg, dispatchfetctaldata]);
+  }, [cartDetails._id, dispatchfetchsubcateg, dispatchfetctaldata]);
+
+  useEffect(() => {
+    setIsLoadingData(false);
+  }, []);
 
   return (
     <>
@@ -217,11 +241,12 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
                     />
                   )
                 )}
-              </Tabs>
+                </Tabs>
             </AppBar>
             <Divider sx={{ mt: 2, mb: 2 }} />
             {Subcategories.length ? (
               <div style={{ display: "flex", flexDirection: "row" }}>
+                {/* {isLoadingData? <CartLoader/>:""} */}
                 <div style={{ height: "inherit" }}>
                   <VerticalTabs />
                 </div>
@@ -262,6 +287,7 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
                         )
                       ) : (
                         <>
+                        <CartLoader/>
                           <Alert
                             variant="filled"
                             severity="info"
@@ -399,7 +425,7 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
         </Grid>
         {/* Right Column */}
         <Grid item xs={4}>
-          <CartDrawer tableData={cartDetails?.table_id} />
+          <CartDrawer />
         </Grid>
       </Grid>
     </>

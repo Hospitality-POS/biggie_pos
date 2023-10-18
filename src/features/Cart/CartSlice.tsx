@@ -35,6 +35,7 @@ interface CartItem {
   name: string;
   cartId: string | undefined;
   productId: string;
+  product_id: string;
   quantity: number;
 }
 
@@ -137,8 +138,6 @@ const cartSlice = createSlice({
       })
       .addCase(createCart.fulfilled, (state, action) => {
         state.loading = false;
-        state.cartDetails = action.payload as CartDetails;
-        console.log("payla", action.payload);
       })
       .addCase(createCart.rejected, (state, action) => {
         state.loading = false;
@@ -150,10 +149,11 @@ const cartSlice = createSlice({
       })
       .addCase(getCart.fulfilled, (state, action) => {
         state.loading = false;
-        state.cartItems = action.payload;
+        state.cartDetails = action.payload;
+        state.cartItems = action.payload.items
 
         // Calculate the total amount of all cart items using reduce
-        state.totalAmount = action.payload.reduce(
+        state.totalAmount = action.payload.items.reduce(
           (total: any, item: any) =>
             total + parseFloat(item.price) * item.quantity,
           0

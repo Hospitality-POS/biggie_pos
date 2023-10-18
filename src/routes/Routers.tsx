@@ -26,12 +26,10 @@ function Routers() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Table />} />
-          <Route path="/staff" element={<Staff />} />
           <Route path="/tables" element={<Table />} />
           <Route path="/main-category" element={<Private><MainCategory /></Private>} />
-          <Route path="/restaurant/:id" element={<Private><RestaurantPage /></Private>} />
-          <Route path="/kitchen/:id" element={<Private></Private>} />
-          <Route path="/store" element={<Private><Store /></Private>} />
+          <Route path="/dashboard/:id" element={<Private><RestaurantPage /></Private>} />
+          <Route path="/store" element={<Private><Store/></Private>} />
           <Route path="/users" element={<Private><UsersList /></Private>} />
           <Route path="/reports" element={<Private><Reports /></Private>} />
           <Route path="/supplier" element={<Private><SupplierTable /></Private>} />
