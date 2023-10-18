@@ -100,3 +100,17 @@ export const fetchTableById = createAsyncThunk(
     }
   }
 );
+
+
+// Create an async thunk to fetch a table by ID
+export const fetchTableByLocatedAt = createAsyncThunk(
+  "table/fetchTableByLocatedAt",
+  async (locatedAt: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${baseUrl}/locatedAt/${locatedAt}`);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);

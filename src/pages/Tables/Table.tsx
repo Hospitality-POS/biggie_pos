@@ -2,42 +2,48 @@ import { Box, Divider, Tab, Tabs, Typography } from "@mui/material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import classes from "../staff/staffs.module.css";
 import TableCard from "../../components/TableCard/TableCard";
-import React, { Key, useEffect, useState } from "react";
+import React, { Key, useCallback, useEffect, useState } from "react";
 import TableCardSkeleton from "../../components/TableCard/TableCardSkeleton";
-import { Link, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import DeckIcon from '@mui/icons-material/Deck';
 import SuccessModal from "../../components/MODALS/SuccessModal";
-import { useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "../../store";
+import { fetchTableByLocatedAt } from "../../features/Table/TableActions";
+import StaffModal from "../../components/staffCard/StaffModal";
+import Spinner from "../../components/spinner/Spinner";
 
 
 
 
 function Table() {
-  const {openModal}= useSelector((state:any)=>state.order)
+  const {openModal}= useAppSelector((state)=>state.order)
+  const { tables: data, loading: isLoading, error: isError} = useAppSelector((state)=>state.Tables)
+   const { user, loading: userLoading, error: userError } = useAppSelector(
+    (state) => state.auth
+  );
+  const dispatch = useAppDispatch()
   // const {tables: data, loading: isLoading, error, isError  } = useSelector((stat:any)=>state.Tables)
   const [value, setValue] = React.useState("in-doors");
+  const [selectedId, setSelectedId]=React.useState('')
 
-  const fetchTables = async (locatedAt: string) => {
-    const res = await fetch(`http://localhost:3000/tables/locatedAt/${locatedAt}`);
-    return await res.json();
-  };
-
-  const { isLoading, isError, error, data } = useQuery({
-    queryKey: ["tables", value],
-    queryFn:  () => fetchTables(value),
-    retry: 1,
-    retryDelay: 100,
-  });
-  const handleChange = (event: React.SyntheticEvent, newValue: string) => {
+  const handleChange = (_event: React.SyntheticEvent, newValue: string) => {
     setValue(newValue);
   };
-
+  
 
   const { locatedAt } = useParams();
   const [uniqueLocatedAtValues, setUniqueLocatedAtValues] = useState([]);
-
+  
   const queryClient = useQueryClient();
+  
+  const fetchTable = useCallback(()=>{
+    return dispatch(fetchTableByLocatedAt(value))
+  },[dispatch, value])
 
+  useEffect(()=>{
+    fetchTable()
+  },[fetchTable])
+  
 
 queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
 
@@ -50,12 +56,44 @@ queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
     retryDelay: 1000,
   });
 
+
+  const [open, setOpen] = useState(false);
+    const [pin, setPin] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState(null)
+
+ const handleOpen = (productId: React.SetStateAction<null>) => {
+    setOpen(true);
+    setSelectedProductId(productId);
+  };
+
+
+  
+  
+
   useEffect(() => {
     setValue(locatedAt || "in-doors");
     if (!isLoadingUniqueLocatedAt && uniqueLocatedAtData) {
       setUniqueLocatedAtValues(uniqueLocatedAtData);
     }
   }, [locatedAt, isLoadingUniqueLocatedAt, uniqueLocatedAtData]);
+
+  const navigate = useNavigate()
+   const handleSelectTable = (tableId: string) => {
+    // console.log("sels", tableId);
+    
+    if(user){
+      setSelectedId(tableId)
+      navigate(`/dashboard/${tableId}`)
+    }
+  };
+
+  if (userLoading || isLoading || isLoadingUniqueLocatedAt) {
+    return (
+      <>
+        <Spinner/>
+      </>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -87,7 +125,7 @@ queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
   }
 
   if (isError || isErrorTabs) {
-    return <div>An error has occurred: {error.message}</div>;
+    return <div>An error has occurred: {isError}</div>;
   }
 
   return (
@@ -131,16 +169,18 @@ queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
           bottom: 0
         }}
       >
-        {data.map((item: { _id: string, isOccupied: boolean, name: string }) => (
-          // <Link
-          //   key={item._id}
-          //   to={`/restaurant/${item._id}`}
-          //   style={{ textDecoration: "none" }}
-          // >
-            <TableCard key={item._id} item={item} />
-          // </Link>
+        {data.map((item) => (
+            <TableCard key={item._id} item={item}  openModal={handleOpen}/>
         ))}
       </div>
+      {selectedProductId && (
+      <StaffModal
+        setOpen={setOpen}
+        setPin={setPin}
+        pin={pin}
+        open={open}
+        tbl={selectedProductId}
+      />)}
     </div>
   );
 }

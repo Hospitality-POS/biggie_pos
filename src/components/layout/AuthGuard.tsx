@@ -22,10 +22,10 @@ const ProtectedPage: React.FC = ({ children }) => {
 
       if (decodedToken.exp * 1000 < Date.now()) {
         dispatch(logoutUser()); 
-        navigate('/staff');
+        navigate('/tables');
       }
     } else {
-      navigate('/staff');
+      navigate('/tables');
     }
   }, [dispatch, navigate, user?.Token]);
 

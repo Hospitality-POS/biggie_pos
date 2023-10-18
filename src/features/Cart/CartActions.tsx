@@ -14,9 +14,6 @@ interface CartItem {
   cart_id: string;
 }
 
-interface tabledata {
-  tableId: string
-}
 interface UpdatedCartItems {
   cart_id: string;
   _id: string;
@@ -40,10 +37,11 @@ export const createCart = createAsyncThunk(
 
 export const getCart = createAsyncThunk(
   "cart/getCart",
-  async (tableId: tabledata, { rejectWithValue }) => {
+  async (tableId: string, { rejectWithValue }) => {
     try {
-      console.log("waaat", tableId);
+      // console.log("waaat", tableId);
       const response = await axios.get(`${baseUrl}/cart/${tableId}`);
+      // console.log("res get me", response.data);
       
       return response.data;
     } catch (error: any) {
@@ -66,13 +64,13 @@ export const fetchCartItems = createAsyncThunk(
 
 export const addItemToCart = createAsyncThunk(
   "cart/addItemToCart",
-  async (cartItem: CartItem, { rejectWithValue, dispatch }) => {
+  async (cartItem: CartInfo, { rejectWithValue, dispatch }) => {    
     try {
       const response = await axios.post(
         `${baseUrl}/add-item-to-cart`,
         cartItem
       );
-      dispatch(fetchCartItems(cartItem.cart_id))
+      dispatch(getCart(cartItem.table_id))
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

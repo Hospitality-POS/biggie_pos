@@ -14,15 +14,15 @@ function formatPrice(price: number) {
 function formatQuantity(quantity: number) {
   return quantity?.toLocaleString();
 }
-
-interface ProductCardProps {
-  menu: {
-    quantity: number;
+interface menudetails {
+  quantity: number;
     _id: string;
     name: string;
     price: number;
     desc: string;
-  };
+}
+interface ProductCardProps {
+  menu: menudetails;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
@@ -40,12 +40,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
     dispatch(
       addItemToCart({
         cart_id: cartDetails?._id,
-        product_id: menu?._id,
+        product_id: menu._id,
         price: menu.price,
         created_by: user?.id,
         quantity: formattedQuantity,
         desc: menu.desc,
-        table_id: cartDetails?.table_id,
+        table_id: id,
       })
     );
     }

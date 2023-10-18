@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, TextField, Grid, IconButton, CircularProgress } from "@mui/material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  TextField,
+  Grid,
+  IconButton,
+  CircularProgress,
+} from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { loginUser } from "../../features/Auth/AuthActions";
 import classes from "./staff.module.css";
@@ -14,9 +24,7 @@ interface StaffModalProps {
   setPin: React.Dispatch<React.SetStateAction<string>>;
   pin: string;
   open: boolean;
-  item: {
-    _id: string
-  };
+  tbl: string;
 }
 
 const StaffModal: React.FC<StaffModalProps> = ({
@@ -24,13 +32,10 @@ const StaffModal: React.FC<StaffModalProps> = ({
   setPin,
   pin,
   open,
-  item
+  tbl,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  // const [notificationType, setNotificationType] = useState<
-  //   "error" | "success" | ""
-  // >("");
   const { isError, isSuccess, isLoading, user } = useAppSelector(
     (state) => state.auth
   );
@@ -69,19 +74,27 @@ const StaffModal: React.FC<StaffModalProps> = ({
     } else if (isSuccess) {
       setNotificationOpen(true);
       // setNotificationType("success");
-      navigate(`/restaurant/${item._id}`);
+      // navigate(`/dashboard/${item._id}`);
       if (user) {
-      const cartDetails = {
-        table_id: item._id,
-        created_by: user.id,
-      };
-     dispatch(createCart(cartDetails));
+        const cartDetails = {
+          table_id: tbl,
+          created_by: user.id,
+        };
+        dispatch(createCart(cartDetails));
+        setOpen(false);
+        navigate(`/dashboard/${tbl}`)
+      }
     }
-  } },[isLoading, isError, isSuccess, setOpen, navigate, item._id, user, dispatch]);
+  }, [isLoading, isError, isSuccess, setOpen, navigate, user, dispatch, tbl]);
 
   return (
     <>
-      <Dialog open={open} onClose={handleClose} maxWidth="xs" className={classes.modal}>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="xs"
+        className={classes.modal}
+      >
         <DialogContent>
           <DialogContentText sx={{ mb: 1 }}>
             Enter your PIN to login.
@@ -129,7 +142,12 @@ const StaffModal: React.FC<StaffModalProps> = ({
             className={classes.loginButton}
             sx={{ display: "flex", alignContent: "center" }}
           >
-            Login {isLoading ? <CircularProgress size={20} thickness={8} sx={{ ml: 1 }} /> : <LoginIcon fontSize="small" sx={{ ml: 1 }} />}
+            Login{" "}
+            {isLoading ? (
+              <CircularProgress size={20} thickness={8} sx={{ ml: 1 }} />
+            ) : (
+              <LoginIcon fontSize="small" sx={{ ml: 1 }} />
+            )}
           </Button>
           <Button
             onClick={handleClearPin}
