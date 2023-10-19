@@ -3,11 +3,13 @@ import OrderList from "../../components/Order/OrderList";
 import { Typography } from "@mui/material";
 import { fetchOrders } from "../../features/Order/OrderActions";
 import { useAppDispatch, useAppSelector } from "../../store";
+import Spinner from "../../components/spinner/Spinner";
+import CartLoader from "../../components/spinner/cartLoader";
 
 
 
 const Orders: React.FC = () => {
-  const { orders } = useAppSelector((state) => state.order);
+  const { orders, loading, error } = useAppSelector((state) => state.order);
   const dispatch = useAppDispatch()
   const dispatchFetchOrders = useCallback(async() => {
     dispatch(fetchOrders());
@@ -23,7 +25,7 @@ const Orders: React.FC = () => {
         <Typography variant="h6" gutterBottom>
         List of all the Orders
       </Typography>
-        <OrderList orders={orders} />
+        {loading && error ? <CartLoader/>:<OrderList orders={orders} />}
       </div>
     </div>
   );
