@@ -14,6 +14,8 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Dialog,
+  DialogContent,
   // IconButton,
 } from "@mui/material";
 // import { CloseOutlined } from "@mui/icons-material";
@@ -59,8 +61,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   
 
   return (
-    <Modal open={openM} onClose={onCloseM}>
-      <Box className="receiptM" ref={componentRef}>
+    <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
+      <DialogContent className="receiptM" ref={componentRef}>
         <div className="receipt" id="receipt">
           <div className="logo-print">
             <Typography variant="body1">FOOD SUPPORT SERVICES</Typography>
@@ -82,8 +84,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               marginBottom: "-15px",
             }}
           >
+            <p style={{textTransform: "uppercase"}}> Order No: {cartDetails?.order_no} </p>
             <p>Served By : {cartDetails?.created_by.username}</p>
-            <p> Order No: {cartDetails?.order_no} </p>
           </div>
 
           <div
@@ -193,8 +195,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             Cancel
           </Button>
         </Box>
-      </Box>
-    </Modal>
+     </DialogContent>
+    </Dialog>
   );
 };
 

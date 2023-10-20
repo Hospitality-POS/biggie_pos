@@ -8,6 +8,7 @@ import SupplierSlice from "./features/Supplier/SupplierSlice";
 import TableSlice from "./features/Table/TableSlice";
 import CategorySlice from "./features/Category/CategorySlice";
 import PaymentMethodSlice from "./features/Payment/PaymentMethodSlice";
+import reportSlice from "./features/Report/ReportSlice";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 
 
@@ -22,7 +23,8 @@ const rootReducer = combineReducers({
   supplier: SupplierSlice,
   Tables: TableSlice,
   Categories: CategorySlice,
-  PaymentMethods: PaymentMethodSlice
+  PaymentMethods: PaymentMethodSlice,
+  Report: reportSlice
 });
 
 export const store = configureStore({

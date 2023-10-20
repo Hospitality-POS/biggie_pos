@@ -56,7 +56,7 @@ const RestaurantPage: React.FC = () => {
     const { tableData } = useAppSelector((state) => state.Tables);
 
   const { products, loading } = useAppSelector((state) => state.product);
-  const { category: categories } = useAppSelector((state) => state.Categories);
+  const { category: categories, loading: categLoading } = useAppSelector((state) => state.Categories);
   const { subCategory: Subcategories } = useAppSelector((state) => state.Categories);
   const dispatch = useAppDispatch();
   const [selectedCard, setSelectedCard] = useState(null);
@@ -67,14 +67,9 @@ const RestaurantPage: React.FC = () => {
 const queryClient = useQueryClient();
 
 
-queryClient.invalidateQueries({ queryKey: ['table_name'] })
 queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
 
-  // const { data: tableData } = useQuery({
-  //   queryKey: ["table_name"],
-  //   queryFn: () =>
-  //     fetch(`http://localhost:3000/tables/${cartDetails?.table_id}`).then((res) => res.json()),
-  // });
+  
 
 
   const fetchMainCategories = async () => {
@@ -94,7 +89,7 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
 
   const [cartOpen, setCartOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // const [currentIndex, setCurrentIndex] = useState(0);
   const [categoryChosen, setCategoryChosen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [mainCategoryId, setMainCategoryId] = useState("");
@@ -144,15 +139,7 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
 
   const areProductsAvailable = products && products.length > 0;
 
-  const cartId = cartDetails?._id;
-
-  // const dispatchFetchCart = useCallback(() => {
-  //   return dispatch(getCart(cartId));
-  // }, [cartId, dispatch]);
-
-  // const dispatchfetchsubcateg = useCallback(async()=>{
-  //   return dispatch(fetchsubcategories("6525f7b62d06da587b70d5d5"));
-  // },[dispatch])
+  // const cartId = cartDetails?._id;
 
   const dispatchfetchsubcateg = useCallback(async () => {
     setIsLoadingData(true);
@@ -165,10 +152,6 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
     }
   }, [dispatch]);
 
-  // const dispatchfetctaldata=useCallback(()=>{
-  //   return dispatch(fetchTableById(id))
-  // },[dispatch, id])
-
   const dispatchfetctaldata = useCallback(async () => {
     setIsLoadingData(true);
     try {
@@ -179,17 +162,9 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
       setIsLoadingData(false);
     }
   }, [dispatch, id]);
-
-  // const dispatchFetchCartdetails = useCallback(()=>{
-  //   return dispatch(getCart(id))
-  // },[dispatch, id])
-  
+ 
   
   useEffect(() => {
-    // if (cartDetails?._id) {
-    //   dispatchFetchCart();
-    // }
-    // dispatchFetchCartdetails()
     dispatchfetchsubcateg()
     dispatchfetctaldata()
   }, [cartDetails._id, dispatchfetchsubcateg, dispatchfetctaldata]);
@@ -246,9 +221,9 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
             <Divider sx={{ mt: 2, mb: 2 }} />
             {Subcategories.length ? (
               <div style={{ display: "flex", flexDirection: "row" }}>
-                {/* {isLoadingData? <CartLoader/>:""} */}
+                {isLoadingData && categLoading? <CartLoader/>:""}
                 <div style={{ height: "inherit" }}>
-                  <VerticalTabs />
+                  <VerticalTabs handleSub={handleBack}/>
                 </div>
                 <div style={{ width: "100%" }}>
                   {showCategories ? (

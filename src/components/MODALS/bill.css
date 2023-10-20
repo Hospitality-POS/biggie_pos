@@ -16,6 +16,7 @@
   margin-top: 20px;
   max-height: 80vh;
   padding: 10px;
+  padding-right: 20px;
   overflow-y: auto;
   overflow-x: hidden;
    overflow-y: auto;
@@ -139,6 +140,7 @@ footer {
   align-items: center;
   justify-content: center;
 }
+
 
 @media print {
   body {
