@@ -1,154 +1,141 @@
 .receipt {
-  width: 360px;
+  width: 80mm;
   height: fit-content;
   background-color: white;
   margin: 0 auto;
   box-shadow: 1px 1px 2px 2px;
-  padding: 20px;
-  transform: scale(1);
+  padding: 10px;
+  overflow-y: auto;
 }
 
 .receiptM {
-  width: 360px;
+  width: 80mm;
   height: fit-content;
   background-color: white;
-  max-width: 100vw;
-  width: 600px;
-  height: 80vh;
   margin: 0 auto;
-  margin-top: 60px;
+  margin-top: 20px;
+  max-height: 80vh;
   padding: 10px;
   overflow-y: auto;
   overflow-x: hidden;
+   overflow-y: auto;
 }
 
-/* Heading */
 .name {
   text-transform: uppercase;
   text-align: center;
   color: #6c8b8e;
-  letter-spacing: 10px;
-  font-size: 1.8em;
-  margin-top: 10px;
+  letter-spacing: 4px;
+  font-size: 14px;
+  margin-top: 5px;
 }
 
-/* Big thank */
 .greeting {
-  font-size: 21px;
+  font-size: 14px;
   text-transform: capitalize;
   text-align: center;
   color: #000;
-  margin: 35px 0;
-  letter-spacing: 1.2px;
-}
-
-/* Order info */
-.order p {
-  font-size: 13px;
-  color: #000;
-  padding-left: 10px;
-  letter-spacing: 0.7px;
-}
-
-/* Our line */
-hr {
-  border: 0.7px solid #ddd;
   margin: 15px 0;
+  letter-spacing: 0.8px;
+}
+
+.order p {
+  font-size: 10px;
+  color: #000;
+  padding-left: 5px;
+  letter-spacing: 0.5px;
+}
+
+hr {
+  border: 0.5px solid #ddd;
+  margin: 10px 0;
   color: #000;
 }
 
-/* Order details */
 .details {
-  padding-left: 10px;
-  margin-bottom: 35px;
+  padding-left: 5px;
+  margin-bottom: 20px;
   overflow: hidden;
 }
 
 .details h3 {
   font-weight: 400;
   color: #000;
-  font-size: 1.5em;
-  margin-bottom: 15px;
+  font-size: 12px;
+  margin-bottom: 10px;
 }
 
-/* Image and the info of the order */
 .product {
   float: left;
-  width: 83%;
+  width: 70%;
 }
 
 .product img {
-  width: 65px;
+  width: 40px;
   float: left;
 }
 
 .product .info {
   float: left;
-  margin-left: 15px;
+  margin-left: 8px;
 }
 
 .product .info h4 {
   color: #000;
   font-weight: 400;
   text-transform: uppercase;
-  margin-top: 10px;
+  margin-top: 5px;
+  font-size: 10px;
 }
 
 .product .info p {
-  font-size: 12px;
+  font-size: 8px;
   color: #000;
 }
 
-/* Net price */
 .details > p {
   color: #000;
-  margin-top: 25px;
-  font-size: 15px;
+  margin-top: 15px;
+  font-size: 12px;
 }
 
-/* Total price */
 .totalprice p {
-  padding-left: 10px;
+  padding-left: 5px;
 }
 
 .totalprice .sub,
 .totalprice .del {
-  font-size: 13px;
+  font-size: 10px;
   color: #000;
 }
 
 .totalprice span {
   float: right;
-  margin-right: 17px;
+  margin-right: 8px;
 }
 
 .totalprice .tot {
   color: #000;
-  font-size: 15px;
+  font-size: 12px;
 }
 
-/* Footer */
 footer {
-  font-size: 10px;
+  font-size: 8px;
   text-align: center;
-  margin-top: 135px;
-  /* You can make it with position try it */
+  margin-top: 60px;
   color: #000;
 }
 
 .logo-print {
-  /* width: 100%; */
   display: flex;
   align-items: center;
   justify-content: center;
-  /* transform: scale(2); */
-  /* padding: 10px; */
 }
-.qrcoded{
+
+.qrcoded {
   display: flex;
-  padding-top: 10px;
-  width: inherit;
-  /* border: 1px solid red; */
+  padding-top: 5px;
+  width: 100%;
   align-items: center;
   justify-content: center;
 }
@@ -156,14 +143,8 @@ footer {
 @media print {
   body {
     color: #000;
-    /* black */
     background-color: #fff;
-    /* white */
-    /* margin-top: 0; */
-    font-size: 16px;
-    margin-bottom: 0;
-    margin: 0 auto;
-    width: fit-content;
+    font-size: 12px;
     font-weight: bold;
   }
 
@@ -174,20 +155,12 @@ footer {
 
   .receipt {
     padding-top: 1;
-    /* box-shadow: none; */
-    transform: scale(1.05);
+     overflow-y: hidden;
+    /* transform: scale(1); */
   }
-  .receiptM{
-      padding-top: 0;
-      padding: 0;
-      overflow: hidden;
-    /* transform: scale(1.05); */
-  }
-
-  .td--cate {
-    color: #000;
-  }
-  .catte {
-    font-size: 16px;
+  .receiptM {
+    padding-top: 0;
+    padding: 0;
+    overflow: hidden;
   }
 }

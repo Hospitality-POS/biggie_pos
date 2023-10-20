@@ -1,4 +1,4 @@
-import React, { Key } from "react";
+import React, { Key, useRef } from "react";
 import { useSelector } from "react-redux";
 
 import {QRCodeCanvas} from 'qrcode.react';
@@ -23,56 +23,44 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import "./bill.css";
 import { useParams } from "react-router-dom";
+import { useReactToPrint } from 'react-to-print';
 
-interface CartItem {
-  _id: Key | null | undefined;
-  product_id: { name: string };
-  productName: string;
-  quantity: number;
-  price: number;
-}
+// interface CartItem {
+//   _id: Key | null | undefined;
+//   product_id: { name: string };
+//   productName: string;
+//   quantity: number;
+//   price: number;
+// }
 
 interface PrintBillProps {
   openM: boolean;
   onCloseM: () => void;
-  cartDetails: {
-    _id: string;
-    table_id: string;
-    created_by: string;
-    order_no: string;
-    order_amount: string;
-    cart_id: string;
-    cartItems: CartItem[];
-  };
+  cartDetails: any;
   totalAmount: number;
+  data: any;
 }
 
 const PrintBillModal: React.FC<PrintBillProps> = ({
   openM,
   onCloseM,
   cartDetails,
+  data,
   totalAmount,
 }) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { cartItems } = useSelector((state: any) => state.cart);
+ 
 
-  const {id}=useParams()
+  const componentRef = useRef<HTMLDivElement>(null);
 
-  const { data } = useQuery(
-    ["cart", id],
-    async () => await axios.get(`http://localhost:3000/cart/cart/${id}`)
-  );
-
-  const handlePrint = () => {
-    window.print();
-    onCloseM();
-  };
-
+  const handlePrint = useReactToPrint({
+    content: () => componentRef.current,
+    onAfterPrint: onCloseM
+  });
   
 
   return (
     <Modal open={openM} onClose={onCloseM}>
-      <Box className="receiptM">
+      <Box className="receiptM" ref={componentRef}>
         <div className="receipt" id="receipt">
           <div className="logo-print">
             <Typography variant="body1">FOOD SUPPORT SERVICES</Typography>
@@ -94,8 +82,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               marginBottom: "-15px",
             }}
           >
-            <p>Served By : {data?.data.created_by.username}</p>
-            <p> Order No: {data?.data.order_no} </p>
+            <p>Served By : {cartDetails?.created_by.username}</p>
+            <p> Order No: {cartDetails?.order_no} </p>
           </div>
 
           <div
@@ -105,7 +93,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               marginBottom: "-15px",
             }}
           >
-            <p> Table No : {data?.data.table_id.name} </p>
+            <p> Table No : {cartDetails?.table_id.name} </p>
             <p> Date : {new Date().toLocaleDateString()} </p>
           </div>
 
@@ -119,7 +107,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {cartItems?.map((item: { _id: React.Key | null | undefined; quantity: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; product_id: { name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }; price: number; }) => (
+                {data?.map((item: { _id: React.Key | null | undefined; quantity: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; product_id: { name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }; price: number; }) => (
                   <TableRow key={item._id}>
                     <TableCell align="right">{item.quantity}</TableCell>
                     <TableCell component="th" scope="row">

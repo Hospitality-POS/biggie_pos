@@ -32,11 +32,12 @@ import {
   fetchPaymentsMethod,
 } from "../../features/Payment/PaymentMethodActions";
 import AddPaymentSettingDialog from "../../components/MODALS/Dialogs/AddPaymentMethodDialog";
+import { useAppDispatch, useAppSelector } from "../../store";
 
 const Payments = () => {
-  const dispatch = useDispatch();
-  const { payments: paymentMethods } = useSelector(
-    (state: any) => state.PaymentMethods
+  const dispatch = useAppDispatch();
+  const { payments: paymentMethods } = useAppSelector(
+    (state) => state.PaymentMethods
   );
   const [filter, setFilter] = useState("");
   const [orderBy, setOrderBy] = useState("name");
@@ -46,7 +47,7 @@ const Payments = () => {
   const [addPaymentSettingDialogOpen, setAddPaymentSettingDialogOpen] =
     useState(false);
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-  const [deleteCandidate, setDeleteCandidate] = useState(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<any>(null);
 
   const handleSort = (property: React.SetStateAction<string>) => {
     const isAsc = orderBy === property && order === "asc";
