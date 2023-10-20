@@ -64,7 +64,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data.map((item: any, index:number) => (
+                {data?.map((item: any, index:number) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.id ? <>{index + 1}</> : ""}</TableCell>
                     <TableCell>{item.name}</TableCell>

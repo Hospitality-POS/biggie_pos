@@ -58,14 +58,42 @@ const SalesReportModal: React.FC<SalesReportProps> = ({ openM, onCloseM, startDa
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data.map((item: any, index: number) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell>
-                      Ksh. {getTotalAmount(item.orderItems).toFixed(2)}
-                    </TableCell>
-                  </TableRow>
+                {data?.map((item: any, index: number) => (
+                  <React.Fragment key={item.id}>
+                    <TableRow>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell>
+                        Ksh. {getTotalAmount(item.orderItems).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                    {item.orderItems?.length > 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3}>
+                          <TableContainer  sx={{ mt: 2, width: "100%" }}>
+                            <Table>
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Name</TableCell>
+                                  <TableCell>Qty</TableCell>
+                                  <TableCell>Price</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {item.orderItems.map((orderItem: any) => (
+                                  <TableRow key={orderItem.id}>
+                                    <TableCell>{orderItem.name}</TableCell>
+                                    <TableCell>{orderItem.quantity}</TableCell>
+                                    <TableCell>Ksh. {orderItem.amount.toFixed(2)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
@@ -127,7 +155,7 @@ export default SalesReportModal;
 
 function getTotalAmount(orderItems: any[]) {
   let total = 0;
-  orderItems.forEach((item) => {
+  orderItems?.forEach((item) => {
     total += item.total_amount;
   });
   return total;
