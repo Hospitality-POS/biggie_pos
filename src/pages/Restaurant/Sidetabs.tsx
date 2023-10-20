@@ -10,7 +10,11 @@ function a11yProps(index: number) {
   };
 }
 
-const VerticalTabs: React.FC = () => {
+interface verticalProps{
+  handleSub: ()=>void;
+}
+
+const VerticalTabs: React.FC<verticalProps> = ({handleSub}) => {
   const { subCategory: Subcategories } = useAppSelector(
     (state) => state.Categories
   );
@@ -20,6 +24,7 @@ const VerticalTabs: React.FC = () => {
 
   const handleChanegSubCategoryId =(subcategoryID: React.Key | null | undefined)=>{
     dispatch(fetchCategoriesByID(subcategoryID))
+    handleSub()
   }
 
   const handleChange = (event: any, newValue: React.SetStateAction<number>) => {

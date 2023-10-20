@@ -32,6 +32,7 @@ import { logoutUser } from "../../features/Auth/AuthActions";
 import { reset } from "../../features/Auth/AuthSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
+import BlockIcon from '@mui/icons-material/Block';
 
 interface paymentProps {
   paymentOpen: boolean;
@@ -235,6 +236,22 @@ const PaymentDrawer: React.FC<paymentProps> = ({
           clear
         </Button>
         <Button
+                variant="outlined"
+                // onClick={() => setOpenM(true)}
+                endIcon={<BlockIcon />}
+                sx={{
+                  pl: 2,
+                  color: "#6c1c2c",
+                  borderColor: "#6c1c2c",
+                  "&:hover": {
+                    borderColor: "#bc8c7c",
+                    color: "#bc8c7c",
+                  },
+                }}
+              >
+                Void Bill
+              </Button>
+        <Button
           variant="contained"
           color="primary"
           endIcon={loading ? <CircularProgress size={20} /> : <RecommendIcon />}
@@ -249,7 +266,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
             },
           }}
         >
-          Confirm Payment
+          Confirm
         </Button>
       </CardActions>
 

@@ -28,6 +28,7 @@ import { useAppDispatch, useAppSelector } from "../../store";
 import { useParams } from "react-router-dom";
 import Spinner from "../spinner/Spinner";
 import CartLoader from "../spinner/cartLoader";
+import SendIcon from '@mui/icons-material/Send';
 
 function formatTotal(totalAmount: { toLocaleString: () => number | string}) {
   return totalAmount.toLocaleString();
@@ -94,6 +95,7 @@ const CartDrawer: React.FC = () => {
         openM={openM}
         onCloseM={onCloseM}
         cartDetails={cartDetails}
+        data={data}
         totalAmount={totalAmount}
       />
       <Box sx={{ width: "400px" }}>
@@ -238,6 +240,22 @@ const CartDrawer: React.FC = () => {
                 }}
               >
                 Print Bill
+              </Button>
+               <Button
+                variant="outlined"
+                // onClick={() => setOpenM(true)}
+                endIcon={<SendIcon />}
+                sx={{
+                  pl: 2,
+                  color: "#6c1c2c",
+                  borderColor: "#6c1c2c",
+                  "&:hover": {
+                    borderColor: "#bc8c7c",
+                    color: "#bc8c7c",
+                  },
+                }}
+              >
+                Send 
               </Button>
               <Button
                 variant="contained"
