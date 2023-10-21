@@ -4,16 +4,14 @@ import classes from "../staff/staffs.module.css";
 import TableCard from "../../components/TableCard/TableCard";
 import React, { Key, useCallback, useEffect, useState } from "react";
 import TableCardSkeleton from "../../components/TableCard/TableCardSkeleton";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import DeckIcon from '@mui/icons-material/Deck';
 import SuccessModal from "../../components/MODALS/SuccessModal";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchTableByLocatedAt } from "../../features/Table/TableActions";
 import StaffModal from "../../components/staffCard/StaffModal";
-import Spinner from "../../components/spinner/Spinner";
-
-
-
+import Lottie from "lottie-react"
+import fssanimation from '../../components/Loaders/fss loader.json'
 
 function Table() {
   const {openModal}= useAppSelector((state)=>state.order)
@@ -87,13 +85,14 @@ queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
     }
   };
 
-  if (userLoading || isLoading || isLoadingUniqueLocatedAt) {
-    return (
-      <>
-        <Spinner/>
-      </>
+    if (userLoading || isLoading || isLoadingUniqueLocatedAt) {
+      return (
+      <div  style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <Lottie animationData={fssanimation} loop={true} height={20} width={20}/>
+      </div>
     );
-  }
+  }    
+    
 
   if (isLoading) {
     return (
