@@ -87,7 +87,7 @@ queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
 
     if (userLoading || isLoading || isLoadingUniqueLocatedAt) {
       return (
-      <div  style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+      <div  style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '90vh' }}>
         <Lottie animationData={fssanimation} loop={true} height={20} width={20}/>
       </div>
     );
@@ -140,13 +140,24 @@ queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
             <Tabs
               value={value}
               onChange={handleChange}
-              textColor="inherit"
-              indicatorColor="secondary"
+              // textColor="inherit"
+              // indicatorColor="secondary"
               aria-label="secondary tabs example"
                sx={{
             "& .MuiTabs-indicator": {
               backgroundColor: "#6c1c2c",
             },
+            "& .Mui-selected": {
+      color: '#6c1c2c', 
+    },
+    "& .MuiTab-textColorInherit.Mui-selected": {
+      color: '#6c1c2c', 
+    },
+    "& .MuiTab-textColorInherit": {
+      "&:hover": {
+        color: '#6c1c2c', 
+      },
+    },
           }}
             >
               {uniqueLocatedAtValues.map((locatedAtValue) => (
