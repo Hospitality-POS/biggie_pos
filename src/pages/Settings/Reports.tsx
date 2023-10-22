@@ -37,7 +37,7 @@ const Reports: React.FC = () => {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
-    setOpenM(false)
+    setOpenM(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -94,22 +94,55 @@ const Reports: React.FC = () => {
             Generate Reports
           </Typography>
           <AppBar position="static" color="default">
-            <Tabs value={activeTab} onChange={handleTabChange}>
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              indicatorColor="primary"
+              textColor="primary"
+              sx={{
+                "& .MuiTabs-indicator": {
+                  backgroundColor: "#6c1c2c",
+                },
+              }}
+            >
               <Tab label="Sale" />
               <Tab label="Purchase" />
-              <Tab label="Suppliers" />
+              {/* <Tab label="Suppliers" /> */}
             </Tabs>
           </AppBar>
 
           <Box mt={2}>
             <Button
-              variant="outlined"
+              variant="contained"
               onClick={generateReportHandler}
               disabled={isGenerateButtonDisabled}
+              sx={{
+                bgcolor: "#6c1c2c",
+                "&:hover": {
+                  bgcolor: "#bc8c7c",
+                  color: "#ffff",
+                },
+              }}
             >
               Generate Report
             </Button>
-            {activeTab === 1 ? <PurchaseReportModal openM={openM} onCloseM={onCloseM} startDate={startDate} endDate={endDate} /> : activeTab === 0 ? <SalesReportModal openM={openM} onCloseM={onCloseM} startDate={startDate} endDate={endDate}/>:""}
+            {activeTab === 1 ? (
+              <PurchaseReportModal
+                openM={openM}
+                onCloseM={onCloseM}
+                startDate={startDate}
+                endDate={endDate}
+              />
+            ) : activeTab === 0 ? (
+              <SalesReportModal
+                openM={openM}
+                onCloseM={onCloseM}
+                startDate={startDate}
+                endDate={endDate}
+              />
+            ) : (
+              ""
+            )}
           </Box>
           <Box mt={2}>
             {report && (

@@ -1,38 +1,30 @@
-import * as React from "react";
-import Box from "@mui/material/Box";
-import Alert from "@mui/material/Alert";
-import IconButton from "@mui/material/IconButton";
-import Collapse from "@mui/material/Collapse";
-import CloseIcon from "@mui/icons-material/Close";
-import { useDispatch, useSelector } from "react-redux";
+import { useState } from "react";
+import Lottie from "lottie-react";
+import fssanimation from "../Loaders/new order confirmed.json";
+import { useAppDispatch } from "../../store";
 import { closeModal } from "../../features/Order/OrderSlice";
 
 export default function SuccesssModal() {
-  const {  openModal } = useSelector((state: any) => state.order);
+  const [animationVisible, setAnimationVisible] = useState(true);
 
-  const dispatch = useDispatch()
+  const dispatch = useAppDispatch()
+
+  const handleAnimationComplete = () => {
+    setAnimationVisible(false);
+    dispatch(closeModal())
+  };
 
   return (
-    <Box sx={{ width: "100%", mt: 2 }}>
-      <Collapse in={openModal}>
-        <Alert
-          action={
-            <IconButton
-              aria-label="close"
-              color="inherit"
-              size="small"
-              onClick={() => {
-                dispatch(closeModal())
-              }}
-            >
-              <CloseIcon fontSize="inherit" />
-            </IconButton>
-          }
-          sx={{ mb: 2 }}
-        >
-          {openModal && "Order placed successfully"}
-        </Alert>
-      </Collapse>
-    </Box>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '90vh' }}>
+      {animationVisible && (
+        <Lottie
+          animationData={fssanimation}
+          loop={false}
+          height={400}
+          width={400}
+          onComplete={handleAnimationComplete}
+        />
+      )}
+    </div>
   );
 }
