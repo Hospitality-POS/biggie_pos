@@ -160,15 +160,16 @@ function Navbar() {
                   //   </Typography>
                   // )
                   //  :
-                  page === "Staff" ? (
-                    <Typography
-                      textAlign="center"
-                      fontSize="inherit"
-                      onClick={() => navigate("/staff")}
-                    >
-                      Staff
-                    </Typography>
-                  ) : //  page === "Kitchen" ? (
+                  // page === "Staff" ? (
+                  //   <Typography
+                  //     textAlign="center"
+                  //     fontSize="inherit"
+                  //     onClick={() => navigate("/staff")}
+                  //   >
+                  //     Staff
+                  //   </Typography>
+                  // ) : 
+                  //  page === "Kitchen" ? (
                   //   <Typography
                   //     textAlign="center"
                   //     fontSize="inherit"
@@ -249,12 +250,13 @@ function Navbar() {
                       //     <Typography fontSize="inherit">Bar</Typography>
                       //   </>
                       // ) :
-                      page === "Staff" && !user ? (
-                        <>
-                          <PeopleIcon style={{ fontSize: "16px" }} />
-                          <Typography fontSize="inherit">Staff</Typography>
-                        </>
-                      ) : // page === "Kitchen" && user ? (
+                      // page === "Staff" && !user ? (
+                      //   <>
+                      //     <PeopleIcon style={{ fontSize: "16px" }} />
+                      //     <Typography fontSize="inherit">Staff</Typography>
+                      //   </>
+                      // ) : 
+                      // page === "Kitchen" && user ? (
                       //   <>
                       //     <SoupKitchenIcon style={{ fontSize: "16px" }} />
                       //     <Typography fontSize="inherit">Kitchen</Typography>
