@@ -29,7 +29,6 @@ import SettingsModal from "../Settings/SettingsModal";
 
 // import { IconButton } from '@mui/material';
 const pages = [
-  "Staff",
   "Tables",
   "Store",
   "Orders",
@@ -87,9 +86,9 @@ function Navbar() {
     // if (page === "Restaurant") navigate("/tables");
     // else if (page === "Bar") navigate("/bar");
     // else
-     if (page === "Staff") navigate("/staff");
+    //  if (page === "Staff") navigate("/staff");
     // else if (page === "Kitchen") navigate("/kitchen");
-    else if (page === "Tables") navigate("/tables");
+    if (page === "Tables") navigate("/tables");
     else if (page === "Store") {
       navigate("/store");
       dispatch(fetchProducts());
