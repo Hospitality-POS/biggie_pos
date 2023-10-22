@@ -28,7 +28,11 @@ import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import BackspaceIcon from "@mui/icons-material/Backspace";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { createCart, fetchCartItems, getCart } from "../../features/Cart/CartActions";
+import {
+  createCart,
+  fetchCartItems,
+  getCart,
+} from "../../features/Cart/CartActions";
 import axios from "axios";
 import { Paper } from "@mui/material";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
@@ -46,31 +50,30 @@ function a11yProps(index: any) {
 }
 
 interface Cartrefetch {
-    table_id: string ;
-    created_by: string;
+  table_id: string;
+  created_by: string;
 }
 
 const RestaurantPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
   const { cartDetails } = useAppSelector((state) => state.cart);
-    const { tableData } = useAppSelector((state) => state.Tables);
+  const { tableData } = useAppSelector((state) => state.Tables);
 
   const { products, loading } = useAppSelector((state) => state.product);
-  const { category: categories, loading: categLoading } = useAppSelector((state) => state.Categories);
-  const { subCategory: Subcategories } = useAppSelector((state) => state.Categories);
+  const { category: categories, loading: categLoading } = useAppSelector(
+    (state) => state.Categories
+  );
+  const { subCategory: Subcategories } = useAppSelector(
+    (state) => state.Categories
+  );
   const dispatch = useAppDispatch();
   const [selectedCard, setSelectedCard] = useState(null);
   const [showCategories, setShowCategories] = useState(true);
   const { id } = useParams();
-  
 
-const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
-
-queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
-
-  
-
+  queryClient.invalidateQueries({ queryKey: ["Maincategories"] });
 
   const fetchMainCategories = async () => {
     const response = await axios.get(
@@ -110,8 +113,6 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
     dispatch(fetchsubcategories(maincategoryid));
   };
 
-  
-
   const handleCartOpen = () => {
     setCartOpen(true);
     dispatch(getCart(id));
@@ -138,6 +139,7 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
   };
 
   const areProductsAvailable = products && products.length > 0;
+  const sortedProducts = products.slice().sort((a, b) => a.name.localeCompare(b.name));
 
   // const cartId = cartDetails?._id;
 
@@ -162,11 +164,10 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
       setIsLoadingData(false);
     }
   }, [dispatch, id]);
- 
-  
+
   useEffect(() => {
-    dispatchfetchsubcateg()
-    dispatchfetctaldata()
+    dispatchfetchsubcateg();
+    dispatchfetctaldata();
   }, [cartDetails._id, dispatchfetchsubcateg, dispatchfetctaldata]);
 
   useEffect(() => {
@@ -216,14 +217,14 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
                     />
                   )
                 )}
-                </Tabs>
+              </Tabs>
             </AppBar>
             <Divider sx={{ mt: 2, mb: 2 }} />
             {Subcategories.length ? (
               <div style={{ display: "flex", flexDirection: "row" }}>
-                {isLoadingData && categLoading? <CartLoader/>:""}
+                {isLoadingData && categLoading ? <CartLoader /> : ""}
                 <div style={{ height: "inherit" }}>
-                  <VerticalTabs handleSub={handleBack}/>
+                  <VerticalTabs handleSub={handleBack} />
                 </div>
                 <div style={{ width: "100%" }}>
                   {showCategories ? (
@@ -262,7 +263,7 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
                         )
                       ) : (
                         <>
-                        <CartLoader/>
+                          <CartLoader />
                           <Alert
                             variant="filled"
                             severity="info"
@@ -285,7 +286,6 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
                       >
                         <IconButton
                           onClick={handleBack}
-
                           sx={{
                             color: "#6c1c2c",
                             "&:hover": {
@@ -293,7 +293,7 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
                             },
                           }}
                         >
-                          <BackspaceIcon fontSize="large"/>
+                          <BackspaceIcon fontSize="large" />
                         </IconButton>
                       </div>
                       {loading && (
@@ -324,10 +324,12 @@ queryClient.invalidateQueries({ queryKey: ['Maincategories'] })
                             marginLeft: 4,
                             paddingLeft: "4px",
                             width: "inherit",
+                            maxHeight: "70vh",
+                            overflowY: "auto",
                           }}
                         >
                           {areProductsAvailable ? (
-                            products.map(
+                            sortedProducts.map(
                               (menu: {
                                 _id: React.Key | null | undefined | string;
                               }) => (
