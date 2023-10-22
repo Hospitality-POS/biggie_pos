@@ -102,12 +102,6 @@ function SettingsModal({
             </ListItemIcon>
             <ListItemText primary="Reports" />
           </ListItem>
-          <ListItem button onClick={() => navigate("/Printed Bills")}>
-            <ListItemIcon>
-              <ReceiptIcon />
-            </ListItemIcon>
-            <ListItemText primary="Printed Bills" />
-          </ListItem>
           <ListItem button onClick={() => navigate("/Help")}>
             <ListItemIcon>
               <HelpOutlineIcon />
