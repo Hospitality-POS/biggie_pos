@@ -13,9 +13,9 @@ import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
 import EditProductModal from "./EditProductModal";
 
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
-import { useDispatch } from "react-redux";
 import { deleteProduct } from "../../features/Product/ProductAction";
 import { MenuBook } from "@mui/icons-material";
+import { useAppDispatch } from "../../store";
 
 interface StoreProductCardProps {
   img: string;
@@ -27,26 +27,21 @@ interface StoreProductCardProps {
 }
 const StoreProductCard: React.FC<StoreProductCardProps> = ({
   name,
-  img,
   price,
   bowls,
   product,
   productId,
 }) => {
   const [modalOpen, setModalOpen] = React.useState(false);
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const handleEditClick = () => {
     setModalOpen(true);
   };
 
-  const transformImagePath = (absolutePath: string) => {
-    const filename = absolutePath.split("\\").pop();
-    return `\\uploads\\${filename}`;
-  };
   const handleCloseModal = () => {
     setModalOpen(false);
   };
-  const handleDeleteClick = (id) => {
+  const handleDeleteClick = (id: string) => {
     dispatch(deleteProduct(id));
   };
 

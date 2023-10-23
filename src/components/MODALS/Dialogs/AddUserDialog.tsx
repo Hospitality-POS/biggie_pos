@@ -10,7 +10,6 @@ import {
   DialogContentText,
   IconButton,
   InputAdornment,
-  Typography,
   Alert,
   MenuItem,
 } from "@mui/material";
@@ -23,9 +22,9 @@ import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import PhoneIcon from "@mui/icons-material/Phone";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import { useDispatch, useSelector } from "react-redux";
 import { createUser } from "../../../features/Auth/AuthActions";
 import { resetMessage } from "../../../features/Auth/AuthSlice";
+import { useAppDispatch, useAppSelector } from "../../../store";
 
 interface User {
   fullname: string;
@@ -64,11 +63,11 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
     isAdmin: "false",
   });
 
-  const { newmessage, IsError, isLoading } = useSelector(
-    (state: any) => state.auth
+  const { newmessage, IsError, isLoading } = useAppSelector(
+    (state) => state.auth
   );
 
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
