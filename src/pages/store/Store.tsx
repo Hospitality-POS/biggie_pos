@@ -17,26 +17,26 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import StoreProductCardSkeleton from "../../components/store/StoreProductSkeletonCard";
 import AddNewProductModal from "../../components/store/AddNewProductModal";
 import axios from "axios";
-import { useDispatch, useSelector } from "react-redux";
 import {
   fetchProducts,
   fetchProductsByCategory,
 } from "../../features/Product/ProductAction";
 import ErrorDialog from "../../components/MODALS/Dialogs/ErrorDialog";
+import { useAppDispatch, useAppSelector } from "../../store";
 
 const Store: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const { products, loading, error } = useSelector(
-    (state: any) => state.product
+  const { products, loading, error } = useAppSelector(
+    (state) => state.product
   );
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
  
   const [value, setValue] = React.useState(0);
 
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
 
@@ -65,13 +65,13 @@ const Store: React.FC = () => {
     fetchCategories()
   );
 
-  const dispatchFetchProducts = () => {
-    dispatch(fetchProducts());
-  };
-
+  
   useEffect(() => {
+    const dispatchFetchProducts = () => {
+      dispatch(fetchProducts());
+    };
     dispatchFetchProducts();
-  }, []);
+  }, [dispatch]);
 
     const memoizedCategoriesData = useMemo(() => categoriesData, [categoriesData]);
   if (error) {
@@ -165,7 +165,7 @@ const Store: React.FC = () => {
           ? [...Array(11)].map((_, index) => (
               <StoreProductCardSkeleton key={index} />
             ))
-          : products?.map((product: any) => (
+          : products?.map((product) => (
               <StoreProductCard
                 key={product._id}
                 bowls={product.quantity}

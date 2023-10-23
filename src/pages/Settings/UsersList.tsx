@@ -38,7 +38,10 @@ import {
   createUser,
   deleteUser,
   fetchAllUsers,
+  fetchUserById,
 } from "../../features/Auth/AuthActions";
+import { useAppDispatch, useAppSelector } from "../../store";
+import EditUserDialog from "../../components/MODALS/Dialogs/EditUserDialog";
 
 interface User {
   fullname: string;
@@ -50,7 +53,7 @@ interface User {
 }
 
 function UsersList() {
-  const { users, IsError } = useSelector((state: any) => state.auth);
+  const { users, IsError } = useAppSelector((state) => state.auth);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [filter, setFilter] = useState<string>("");
   const [orderBy, setOrderBy] = useState<string>("id");
@@ -59,11 +62,15 @@ function UsersList() {
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(5);
   const [openAddUserDialog, setOpenAddUserDialog] = useState<boolean>(false);
-  const dispatch = useDispatch();
+
+  const [openEditUserDialog, setOpenEditUserDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  const dispatch = useAppDispatch();
 
   const filteredUsers = users
     ? users.filter(
-        (user: User) =>
+        (user) =>
           user.fullname?.toLowerCase().includes(filter.toLowerCase()) ||
           user.email?.toLowerCase().includes(filter.toLowerCase())
       )
@@ -76,7 +83,7 @@ function UsersList() {
   };
 
   const sortedUsers = filteredUsers.sort(
-    (a: { name: string; id: number }, b: { name: string; id: number }) => {
+    (a, b) => {
       const isAsc = order === "asc";
       if (orderBy === "name") {
         return isAsc
@@ -97,9 +104,12 @@ function UsersList() {
     setSelectedUserId(null);
   };
 
-  const handleEditUser = (id: number) => {
-    console.log("edit user with id:", id);
-    // Implement your logic to edit the user
+  const handleEditUser = (userId: string) => {
+    console.log("user", userId);
+    dispatch(fetchUserById(userId))
+    setSelectedUser(userId);
+
+    setOpenEditUserDialog(true);
   };
 
   const handleConfirmDelete = () => {
@@ -126,13 +136,13 @@ function UsersList() {
     }
   };
 
-  const dispatchFetchAllUsers = () => {
-    dispatch(fetchAllUsers());
-  };
-
+  
   useEffect(() => {
+    const dispatchFetchAllUsers = () => {
+      dispatch(fetchAllUsers());
+    };
     dispatchFetchAllUsers();
-  }, []);
+  }, [dispatch]);
 
   return (
     <div>
@@ -291,47 +301,7 @@ function UsersList() {
             {sortedUsers
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
               .map(
-                (user: {
-                  _id: React.Key | null | undefined;
-                  username: string | undefined;
-                  fullname:
-                    | string
-                    | number
-                    | boolean
-                    | React.ReactElement<
-                        any,
-                        string | React.JSXElementConstructor<any>
-                      >
-                    | Iterable<React.ReactNode>
-                    | null
-                    | undefined;
-                  email:
-                    | string
-                    | number
-                    | boolean
-                    | React.ReactElement<
-                        any,
-                        string | React.JSXElementConstructor<any>
-                      >
-                    | Iterable<React.ReactNode>
-                    | React.ReactPortal
-                    | null
-                    | undefined;
-                  phone:
-                    | string
-                    | number
-                    | boolean
-                    | React.ReactElement<
-                        any,
-                        string | React.JSXElementConstructor<any>
-                      >
-                    | Iterable<React.ReactNode>
-                    | React.ReactPortal
-                    | null
-                    | undefined;
-                  isAdmin: any;
-                  id: number;
-                }) => (
+                (user) => (
                   <TableRow key={user._id}>
                     <TableCell
                       style={{
@@ -351,7 +321,7 @@ function UsersList() {
                       <IconButton onClick={() => handleDeleteUser(user._id)}>
                         <DeleteIcon />
                       </IconButton>
-                      <IconButton onClick={() => handleEditUser(user.id)}>
+                      <IconButton onClick={() => handleEditUser(user._id)}>
                         <EditIcon />
                       </IconButton>
                     </TableCell>
@@ -368,7 +338,7 @@ function UsersList() {
         count={filteredUsers.length}
         rowsPerPage={rowsPerPage}
         page={page}
-        onPageChange={(event, newPage) => setPage(newPage)}
+        onPageChange={(_event, newPage) => setPage(newPage)}
         onRowsPerPageChange={(event) => {
           setRowsPerPage(parseInt(event.target.value, 10));
           setPage(0);
@@ -399,6 +369,13 @@ function UsersList() {
         onAddUser={(user) => {
           console.log(user);
         }}
+
+      />
+      {/* Edit user */}
+        <EditUserDialog
+        open={openEditUserDialog}
+        onClose={() => setOpenEditUserDialog(false)}
+        userId={selectedUser}
       />
     </div>
   );

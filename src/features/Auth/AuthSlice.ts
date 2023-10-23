@@ -5,9 +5,19 @@ import {
   fetchAllUsers,
   createUser,
   deleteUser,
+  fetchUserById,
+  updateUser,
 } from "./AuthActions";
+import { ReactNode } from "react";
 
 interface User {
+  pin: string;
+  idNumber: string;
+  name: any;
+  _id: Key | null | undefined;
+  fullname: string;
+  email: string;
+  phone: ReactNode;
   id: string;
   username: string;
   isAdmin: boolean;
@@ -16,6 +26,7 @@ interface User {
 interface AuthState {
   user: User | null;
   users: User[];
+  selected: User;
   token: string | null;
   message: string;
   newmessage: string;
@@ -30,6 +41,7 @@ const user = JSON.parse(localStorage.getItem("user"));
 const initialState: AuthState = {
   user: user ? user : null,
   users: [],
+  selected: "",
   token: null,
   message: "",
   newmessage: "",
@@ -53,6 +65,9 @@ export const authSlice = createSlice({
     resetMessage: (state) => {
       state.newmessage = "";
       state.IsError = false;
+    },
+       updateUserDetails: (state, action: PayloadAction<User>) => {
+      state.selected = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -126,10 +141,43 @@ export const authSlice = createSlice({
         state.isSuccess = true;
         state.message = "User deleted successfully";
         state.users = state.users.filter((user) => user.username !== action.payload);
+      })
+      .addCase(fetchUserById.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(fetchUserById.fulfilled, (state, action: PayloadAction<User>) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+        state.message = "Fetch user by ID successful";
+        state.selected = action.payload;
+      })
+      .addCase(fetchUserById.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload as string;
+      })
+       .addCase(updateUser.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(updateUser.fulfilled, (state, action: PayloadAction<User>) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.isError = false;
+        state.message = "User updated successfully";
+        state.users = state.users.map((user) =>
+          user.id === action.payload.id ? action.payload : user
+        );
+        state.selected = action.payload;
+      })
+      .addCase(updateUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload as string;
       });
   },
 });
 
-export const { reset, resetMessage } = authSlice.actions;
+export const { reset, resetMessage, updateUserDetails } = authSlice.actions;
 
 export default authSlice.reducer;

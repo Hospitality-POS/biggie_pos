@@ -76,3 +76,28 @@ export const deleteUser = createAsyncThunk(
     }
   }
 );
+
+export const fetchUserById = createAsyncThunk(
+  "user/fetchUserById",
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(`${baseUrl}/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+export const updateUser = createAsyncThunk(
+  "user/updateUser",
+  async ({ userId, userDetails }: { userId: string; userDetails: UserDetails }, { rejectWithValue, dispatch }) => {
+    try {
+      const response = await axios.put(`${baseUrl}/${userId}`, userDetails);
+      dispatch(fetchAllUsers());
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response.data.message);
+    }
+  }
+);
