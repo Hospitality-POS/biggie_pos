@@ -8,6 +8,9 @@ import {
 } from "./ProductAction";
 
 interface Product {
+  quantity: number;
+  price: number;
+  image: string;
   _id: string;
   name: string;
   // other properties...

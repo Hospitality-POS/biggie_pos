@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Grid, DialogContentText, IconButton, InputAdornment, Alert, MenuItem } from "@mui/material";
 import { useForm, Controller } from "react-hook-form";
 import CloseIcon from "@mui/icons-material/Close";
@@ -12,6 +12,8 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { updateUser } from "../../../features/Auth/AuthActions";
 import { resetMessage } from "../../../features/Auth/AuthSlice";
 import { useAppDispatch, useAppSelector } from "../../../store";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 
 interface User {
@@ -45,6 +47,7 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
 //   console.log(selected);
 
   const { newmessage, IsError, isLoading } = useAppSelector((state) => state.auth);
+  const [showPassword, setShowPassword] = useState(false);
   const dispatch = useAppDispatch();
 
   const handleConfirmAddUser = (userDetails: User) => {
@@ -193,39 +196,52 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
                 )}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <Controller
-                name="pin"
-                control={control}
-                defaultValue={selected?.pin || ""}
-                rules={{
-                  required: "PIN is required",
-                  pattern: {
-                    value: /^[0-9]{4}$/,
-                    message: "PIN must be 4 digits",
-                  },
-                }}
-                render={({ field }) => (
-                  <TextField
-                    label="PIN"
-                    type="password"
-                    variant="outlined"
-                    {...field}
-                    fullWidth
-                    margin="dense"
-                    error={!!errors.pin}
-                    helperText={errors.pin?.message}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <VpnKeyIcon />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                )}
-              />
-            </Grid>
+           <Grid item xs={12} sm={6}>
+  <Controller
+    name="pin"
+    control={control}
+    defaultValue={selected?.pin || ""}
+    rules={{
+      required: "PIN is required",
+      pattern: {
+        value: /^[0-9]{4}$/,
+        message: "PIN must be 4 digits",
+      },
+    }}
+    render={({ field }) => (
+      <TextField
+        label="PIN"
+        type={showPassword ? "text" : "password"}
+        variant="outlined"
+        {...field}
+        fullWidth
+        margin="dense"
+        error={!!errors.pin}
+        helperText={errors.pin?.message}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <VpnKeyIcon />
+            </InputAdornment>
+          ),
+          endAdornment: (
+            <InputAdornment position="end">
+              {showPassword ? (
+                <IconButton onClick={() => setShowPassword(!showPassword)}>
+                  <VisibilityIcon />
+                </IconButton>
+              ) : (
+                <IconButton onClick={() => setShowPassword(!showPassword)}>
+                  <VisibilityOffIcon />
+                </IconButton>
+              )}
+            </InputAdornment>
+          ),
+        }}
+      />
+    )}
+  />
+</Grid>
             <Grid item xs={12} sm={6}>
               <Controller
                 name="phone"
