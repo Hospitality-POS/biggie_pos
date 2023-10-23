@@ -60,12 +60,6 @@ function SettingsModal({
         </Box>
 
         <List>
-          <ListItem button onClick={() => {navigate("/Inventory"), dispatch(fetchAllProductInventories())}}>
-            <ListItemIcon>
-              <InventoryIcon />
-            </ListItemIcon>
-            <ListItemText primary="Inventory" />
-          </ListItem>
           <ListItem button onClick={() => {navigate("/users"), dispatch(fetchAllUsers())}}>
             <ListItemIcon>
               <PeopleIcon />
@@ -89,6 +83,12 @@ function SettingsModal({
               <PaymentIcon />
             </ListItemIcon>
             <ListItemText primary="Payment Methods" />
+          </ListItem>
+          <ListItem button onClick={() => {navigate("/Inventory"), dispatch(fetchAllProductInventories())}}>
+            <ListItemIcon>
+              <InventoryIcon />
+            </ListItemIcon>
+            <ListItemText primary="Inventory" />
           </ListItem>
           <ListItem button onClick={() => {navigate("/Supplier"), dispatch(fetchSuppliers())}}>
             <ListItemIcon>
