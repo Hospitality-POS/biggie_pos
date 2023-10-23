@@ -29,6 +29,7 @@ import CategoryIcon from "@mui/icons-material/Category";
 import PriceChangeIcon from "@mui/icons-material/PriceChange";
 import ProductionQuantityLimitsIcon from "@mui/icons-material/ProductionQuantityLimits";
 import FastfoodIcon from '@mui/icons-material/Fastfood';
+import { useAppDispatch } from "../../store";
 
 interface Category {
   _id: string;
@@ -74,7 +75,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
     fetchCategories
   );
 
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   const handleUpdate = (data: ProductData) => {
     const newProductData = {

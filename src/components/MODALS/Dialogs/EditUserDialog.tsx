@@ -40,7 +40,7 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
   const {
     handleSubmit,
     control,
-    formState: { errors },
+    formState: { errors,isDirty  },
     reset,
   } = useForm<User>();
 
@@ -51,6 +51,9 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
   const dispatch = useAppDispatch();
 
   const handleConfirmAddUser = (userDetails: User) => {
+      if(!isDirty){
+        return
+      }
     dispatch(resetMessage());
     dispatch(updateUser({ userId, userDetails }));
     handleClose();
@@ -62,7 +65,7 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
   };
 
   useEffect(() => {
-    reset({
+      reset({
       fullname: selected?.fullname || "",
       username: selected?.username || "",
       email: selected?.email || "",
@@ -71,7 +74,8 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
       isAdmin: selected?.isAdmin || false,
       idNumber: selected?.idNumber || 0,
     });
-  }, [reset, selected]);
+}, [reset, selected]);
+
 
   return (
     <Dialog open={open} maxWidth="md" onClose={handleClose}>
@@ -104,6 +108,11 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
         <Alert severity="error" onClose={() => dispatch(resetMessage())}>
           <AlertTitle>Error</AlertTitle>
           <strong>{newmessage}</strong>
+        </Alert>
+      )}
+      {isDirty && (
+        <Alert severity="info">
+          Make sure to make changes for you to update user details.
         </Alert>
       )}
       <DialogContent>
