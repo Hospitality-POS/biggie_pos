@@ -311,7 +311,7 @@ function UsersList() {
                       }}
                     >
                       <Avatar alt={user.username} src={user.username} />
-                      {user.fullname}
+                      {user.username}
                     </TableCell>
                     <TableCell>{user.fullname}</TableCell>
                     <TableCell>{user.email}</TableCell>
