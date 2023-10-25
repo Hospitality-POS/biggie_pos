@@ -7,6 +7,8 @@ import {
   updateCartItems,
   deleteCartItem,
   deleteAllCartItems,
+  cartVoid,
+  cartSent,
 } from "./CartActions";
 
 
@@ -244,6 +246,30 @@ const cartSlice = createSlice({
         state.totalAmount = 0;
       })
       .addCase(deleteAllCartItems.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(cartSent.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(cartSent.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(cartSent.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(cartVoid.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(cartVoid.fulfilled, (state) => {
+        state.loading = false;
+        // state.cartItems = [];
+        // state.totalAmount = 0;
+      })
+      .addCase(cartVoid.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

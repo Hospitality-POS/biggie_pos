@@ -6,15 +6,17 @@ import {
   CardContent,
   Divider,
   Grid,
+  IconButton,
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   deleteCartItem,
   updateCartItems,
 } from "../../features/Cart/CartActions";
 import { useAppDispatch } from "../../store";
+import AddTaskIcon from '@mui/icons-material/AddTask';
 interface cartItemCardProps {
   cartItem: any;
 }
@@ -63,7 +65,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
 
   return (
-    <Card sx={{ mb: 1, boxShadow: "none", backgroundColor: "#F8F8F8" }}>
+    <Card sx={{ mb: 1, boxShadow: "none", backgroundColor: cartItem.sent ?  "#6c1c2c": "#F8F8F8", color: cartItem.sent ? "#fff":  "black" }}>
       <CardContent>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={4}>
@@ -86,7 +88,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
             </Typography>
           </Grid>
         <Grid item xs={2} ml={4}>
-          <Button
+         {cartItem.sent? <><IconButton><AddTaskIcon color="success" fontSize="small"/></IconButton></> :  <><Button
             variant="outlined"
             color="error"
             size="small"
@@ -95,32 +97,10 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
             <DeleteIcon
               color="error"
               onClick={() => dispatch(deleteCartItem(cartItem._id))}
-            />
-          </Button>
+           />
+          </Button></>}
         </Grid>
         </Grid>
-        {/* <Grid
-          item
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mt={2}
-          columnGap={1}
-        > */}
-        {/* <TextField
-            placeholder={cartItem.desc}
-            variant="outlined"
-            size="small"
-            fullWidth
-            InputProps={{
-              endAdornment: (
-                <IconButton size="small">
-                  <AddIcon />
-                </IconButton>
-              ),
-            }}
-          /> */}
-        {/* </Grid> */}
       </CardContent>
       <Divider />
     </Card>

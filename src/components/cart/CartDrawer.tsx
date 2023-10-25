@@ -18,6 +18,7 @@ import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import {
+  cartSent,
   deleteAllCartItems,
   fetchCartItems,
   getCart,
@@ -243,7 +244,7 @@ const CartDrawer: React.FC = () => {
               </Button>
                <Button
                 variant="outlined"
-                // onClick={() => setOpenM(true)}
+                onClick={() => dispatch(cartSent(cartDetails._id))}
                 endIcon={<SendIcon />}
                 sx={{
                   pl: 2,
