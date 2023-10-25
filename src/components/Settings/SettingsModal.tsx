@@ -9,7 +9,6 @@ import {
   Typography,
 } from "@mui/material";
 import AssessmentIcon from "@mui/icons-material/Assessment";
-import ReceiptIcon from "@mui/icons-material/Receipt";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import CategoryIcon from "@mui/icons-material/Category";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
@@ -20,13 +19,13 @@ import TableBarIcon from "@mui/icons-material/TableBar";
 import CloseIcon from '@mui/icons-material/Close';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
 import { fetchAllUsers } from "../../features/Auth/AuthActions";
 import { fetchAllProductInventories } from "../../features/Inventory/product/productInventoryActions";
 import { fetchSuppliers } from "../../features/Supplier/SupplierActions";
 import { fetchTables } from "../../features/Table/TableActions";
 import { fetchCategories } from "../../features/Category/CategoryActions";
 import { fetchPaymentsMethod } from "../../features/Payment/PaymentMethodActions";
+import { useAppDispatch } from "../../store";
 
 interface SettingsModalProps {
   sidebarOpen: boolean;
@@ -37,7 +36,7 @@ function SettingsModal({
   sidebarOpen,
   handleSidebarClose,
 }: SettingsModalProps) {
-    const dispatch = useDispatch()
+    const dispatch = useAppDispatch()
     const navigate = useNavigate()
 
     

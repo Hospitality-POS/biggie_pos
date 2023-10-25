@@ -29,7 +29,7 @@ export const createCart = createAsyncThunk(
     try {
       const response = await axios.post(`${baseUrl}/create-cart`, cartDetails);
       return response.data;
-    } catch (error: any ) {
+    } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -42,7 +42,7 @@ export const getCart = createAsyncThunk(
       // console.log("waaat", tableId);
       const response = await axios.get(`${baseUrl}/cart/${tableId}`);
       // console.log("res get me", response.data);
-      
+
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -64,13 +64,13 @@ export const fetchCartItems = createAsyncThunk(
 
 export const addItemToCart = createAsyncThunk(
   "cart/addItemToCart",
-  async (cartItem: CartInfo, { rejectWithValue, dispatch }) => {    
+  async (cartItem: CartInfo, { rejectWithValue, dispatch }) => {
     try {
       const response = await axios.post(
         `${baseUrl}/add-item-to-cart`,
         cartItem
       );
-      dispatch(getCart(cartItem.table_id))
+      dispatch(getCart(cartItem.table_id));
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -86,7 +86,7 @@ export const updateCartItems = createAsyncThunk(
         `${baseUrl}/cart-item/${updatedCartItems._id}`,
         updatedCartItems
       );
-        dispatch(fetchCartItems(updatedCartItems.cart_id))
+      dispatch(fetchCartItems(updatedCartItems.cart_id));
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -111,6 +111,35 @@ export const deleteAllCartItems = createAsyncThunk(
   async (cartId: string, { rejectWithValue }) => {
     try {
       const response = await axios.delete(`${baseUrl}/cart/${cartId}`);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+export const cartSent = createAsyncThunk(
+  "cart/cartSent",
+  async (cartId: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.put(`${baseUrl}/send-cart`, {
+        cart_id: cartId,
+      });
+      // dispatch(getCart())
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+export const cartVoid = createAsyncThunk(
+  "cart/cartVoid",
+  async (cartId: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.put(`${baseUrl}/void-cart`, {
+        cart_id: cartId,
+      });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
