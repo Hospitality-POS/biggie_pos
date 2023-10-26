@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Key, SetStateAction, useState } from "react";
 import {
   Box,
@@ -27,7 +28,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useDispatch, useSelector } from "react-redux";
 import { createOrder } from "../../features/Order/OrderActions";
 import { useNavigate, useParams } from "react-router-dom";
-import { createCart } from "../../features/Cart/CartActions";
+import { cartVoid, createCart } from "../../features/Cart/CartActions";
 import { logoutUser } from "../../features/Auth/AuthActions";
 import { reset } from "../../features/Auth/AuthSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
@@ -45,9 +46,9 @@ const PaymentDrawer: React.FC<paymentProps> = ({
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
-  const { cartDetails, totalAmount } = useAppSelector((state: any) => state.cart);
-  const { loading, error } = useSelector((state: any) => state.order);
-  const { user } = useSelector((state: any) => state.auth);
+  const { cartDetails, totalAmount } = useAppSelector((state) => state.cart);
+  const { loading, error } = useSelector((state) => state.order);
+  const { user } = useSelector((state) => state.auth);
   const [selectedMethod, setSelectedMethod] = useState<null | string>(null);
   const [secondMethod, setSecondMethod] = useState<null | string>(null);
   const [openModal, setOpenModal] = useState(false);
@@ -237,7 +238,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
         </Button>
         <Button
                 variant="outlined"
-                // onClick={() => setOpenM(true)}
+                onClick={() => dispatch(cartVoid(cartDetails._id))}
                 endIcon={<BlockIcon />}
                 sx={{
                   pl: 2,
