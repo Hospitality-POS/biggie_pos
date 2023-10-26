@@ -120,12 +120,12 @@ export const deleteAllCartItems = createAsyncThunk(
 
 export const cartSent = createAsyncThunk(
   "cart/cartSent",
-  async (cartId: string, { rejectWithValue }) => {
+  async (cartDetails: any, { rejectWithValue, dispatch }) => {
     try {
       const response = await axios.put(`${baseUrl}/send-cart`, {
-        cart_id: cartId,
+        cart_id: cartDetails._id,
       });
-      // dispatch(getCart())
+      dispatch(getCart(cartDetails.table_id._id))
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

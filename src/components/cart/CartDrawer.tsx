@@ -244,7 +244,7 @@ const CartDrawer: React.FC = () => {
               </Button>
                <Button
                 variant="outlined"
-                onClick={() => dispatch(cartSent(cartDetails._id))}
+                onClick={() => dispatch(cartSent(cartDetails))}
                 endIcon={<SendIcon />}
                 sx={{
                   pl: 2,
