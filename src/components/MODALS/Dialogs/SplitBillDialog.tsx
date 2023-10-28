@@ -9,7 +9,6 @@ import {
   Grid,
   DialogContentText,
   IconButton,
-  InputAdornment,
   MenuItem,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -74,11 +73,11 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
         </IconButton>
       </DialogTitle>
 
-      <DialogContent>
-        <DialogContentText style={{ padding: 4 }}>
-          Confirm that the Split bill is the same as total.
-        </DialogContentText>
-        <form onSubmit={handleSubmit(handleSplitConfirm)}>
+      {/* <form onSubmit={handleSubmit(handleSplitConfirm)}> */}
+        <DialogContent>
+          <DialogContentText style={{ padding: 4 }}>
+            Confirm that the Split bill is the same as total.
+          </DialogContentText>
           <Grid container spacing={2}>
             <Grid item xs={6}>
               <Controller
@@ -88,11 +87,11 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
                   <TextField
                     select
                     label="Payment Method 1"
-                    value={selectedMethod || ""}
                     fullWidth
                     margin="dense"
                     variant="outlined"
                     {...field}
+                    value={selectedMethod || ""}
                   >
                     {data.map((method: { _id: string; name: string }) => (
                       <MenuItem key={method._id} value={method._id}>
@@ -112,7 +111,7 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
                 onChange={(e) => setAmount1(parseInt(e.target.value))}
               />
             </Grid>
-            
+
             <Grid item xs={6}>
               <Controller
                 name="secondMethod"
@@ -121,11 +120,11 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
                   <TextField
                     select
                     label="Payment Method 2"
-                    value={secondMethod || ""}
                     fullWidth
                     margin="dense"
                     variant="outlined"
                     {...field}
+                    value={secondMethod || ""}
                   >
                     {data.map((method: { _id: string; name: string }) => (
                       <MenuItem key={method._id} value={method._id}>
@@ -145,44 +144,28 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
                 onChange={(e) => setAmount2(parseInt(e.target.value))}
               />
             </Grid>
-            <Grid item xs={12}>
-            </Grid>
+            <Grid item xs={12}></Grid>
           </Grid>
-        </form>
-      </DialogContent>
-      <DialogActions>
-        {/* <Button
-          variant="outlined"
-          sx={{
-            pl: 2,
-            color: "#6c1c2c",
-            borderColor: "#6c1c2c",
-            "&:hover": {
-              borderColor: "#bc8c7c",
-              color: "#bc8c7c",
-            },
-          }}
-          onClick={handleModalClose}
-        >
-          Cancel
-        </Button> */}
-        <Button
-          variant="contained"
-          sx={{
-            pl: 2,
-            color: "#fff",
-            bgcolor: "#6c1c2c",
-            "&:hover": {
-              bgcolor: "#bc8c7c",
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="contained"
+            sx={{
+              pl: 2,
               color: "#fff",
-            },
-          }}
-          fullWidth
-          onClick={handleSplitConfirm}
-        >
-          Confirm Split
-        </Button>
-      </DialogActions>
+              bgcolor: "#6c1c2c",
+              "&:hover": {
+                bgcolor: "#bc8c7c",
+                color: "#fff",
+              },
+            }}
+            fullWidth
+            onClick={handleSplitConfirm}
+          >
+            Confirm Split & confirm payment
+          </Button>
+        </DialogActions>
+      {/* </form> */}
     </Dialog>
   );
 };

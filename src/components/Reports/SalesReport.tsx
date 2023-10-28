@@ -53,8 +53,8 @@ const SalesReportModal: React.FC<SalesReportProps> = ({ openM, onCloseM, startDa
               <TableHead>
                 <TableRow>
                   <TableCell>No.</TableCell>
-                  <TableCell>Product Name</TableCell>
-                  <TableCell>Amount</TableCell>
+                  <TableCell>Product</TableCell>
+                  <TableCell>Amount (ksh)</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -64,7 +64,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({ openM, onCloseM, startDa
                       <TableCell>{index + 1}</TableCell>
                       <TableCell>{item.name}</TableCell>
                       <TableCell>
-                        Ksh. {getTotalAmount(item.orderItems).toFixed(2)}
+                        {getTotalAmount(item.orderItems).toFixed(2)}
                       </TableCell>
                     </TableRow>
                     {item.orderItems?.length > 0 && (
@@ -76,7 +76,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({ openM, onCloseM, startDa
                                 <TableRow>
                                   <TableCell>Name</TableCell>
                                   <TableCell>Qty</TableCell>
-                                  <TableCell>Price</TableCell>
+                                  <TableCell>Price (Ksh.)</TableCell>
                                 </TableRow>
                               </TableHead>
                               <TableBody>
@@ -84,7 +84,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({ openM, onCloseM, startDa
                                   <TableRow key={orderItem.id}>
                                     <TableCell>{orderItem.name}</TableCell>
                                     <TableCell>{orderItem.quantity}</TableCell>
-                                    <TableCell>Ksh. {orderItem.amount.toFixed(2)}</TableCell>
+                                    <TableCell> {orderItem.amount.toFixed(2)}</TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
