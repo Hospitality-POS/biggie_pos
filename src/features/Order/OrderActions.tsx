@@ -5,11 +5,13 @@ const baseUrl = "http://localhost:3000/orders";
 
 interface OrderDetails {
   _id: string;
-  table_id: string,
-  created_by: string,
-  order_no: string,
-  order_amount: string,
-  cart_id: string
+  table_id: string | undefined;
+  created_by: string;
+  order_no: string;
+  order_amount: number[];
+  cart_id: string;
+  updated_by: any;
+  method_id: (string | null)[];
 }
 
 interface DateRange {
@@ -29,15 +31,13 @@ export const createOrder = createAsyncThunk(
   }
 );
 
-
-
 export const fetchOrders = createAsyncThunk(
   "order/fetchOrders",
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(baseUrl);
       // console.log(response);
-      
+
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -45,12 +45,14 @@ export const fetchOrders = createAsyncThunk(
   }
 );
 
-
 export const updateOrder = createAsyncThunk(
   "order/updateOrder",
   async (orderDetails: OrderDetails, { rejectWithValue }) => {
     try {
-      const response = await axios.put(`${baseUrl}/${orderDetails._id}`, orderDetails);
+      const response = await axios.put(
+        `${baseUrl}/${orderDetails._id}`,
+        orderDetails
+      );
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -75,7 +77,6 @@ export const fetchOrdersByDateRange = createAsyncThunk(
     }
   }
 );
-
 
 export const deleteOrder = createAsyncThunk(
   "order/deleteOrder",

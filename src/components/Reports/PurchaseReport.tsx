@@ -60,7 +60,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                 <TableRow>
                   <TableCell>No.</TableCell>
                   <TableCell>Payment Method</TableCell>
-                  <TableCell>Amount</TableCell>
+                  <TableCell>Amount (Ksh.)</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -69,7 +69,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                     <TableCell>{item.id ? <>{index + 1}</> : ""}</TableCell>
                     <TableCell>{item.name}</TableCell>
                     <TableCell>
-                      Ksh. {item.amount.toFixed(2)}
+                      {item.amount.toFixed(2)}
                     </TableCell>
                   </TableRow>
                 ))}

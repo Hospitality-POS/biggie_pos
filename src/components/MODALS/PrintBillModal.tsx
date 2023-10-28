@@ -1,7 +1,7 @@
 import React, { Key, useRef } from "react";
 import { useSelector } from "react-redux";
 
-import {QRCodeCanvas} from 'qrcode.react';
+import { QRCodeCanvas } from "qrcode.react";
 import {
   Button,
   Modal,
@@ -25,7 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import "./bill.css";
 import { useParams } from "react-router-dom";
-import { useReactToPrint } from 'react-to-print';
+import { useReactToPrint } from "react-to-print";
 
 // interface CartItem {
 //   _id: Key | null | undefined;
@@ -50,15 +50,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   data,
   totalAmount,
 }) => {
- 
-
   const componentRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
-    onAfterPrint: onCloseM
+    onAfterPrint: onCloseM,
   });
-  
 
   return (
     <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
@@ -84,7 +81,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               marginBottom: "-15px",
             }}
           >
-            <p style={{textTransform: "uppercase"}}> Order No: {cartDetails?.order_no} </p>
+            <p style={{ textTransform: "uppercase" }}>
+              {" "}
+              Order No: {cartDetails?.order_no}{" "}
+            </p>
             <p>Served By : {cartDetails?.created_by.username}</p>
           </div>
 
@@ -98,52 +98,126 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             <p> Table No : {cartDetails?.table_id.name} </p>
             <p> Date : {new Date().toLocaleDateString()} </p>
           </div>
+<TableContainer component={Paper} sx={{ mt: 2, width: "100%" }}>
+  <Table style={{ tableLayout: "fixed" }}>
+    <TableHead>
+      <TableRow>
+        <TableCell style={{ borderBottom: "1px solid black", width: 40 }}>Qty</TableCell>
+        <TableCell style={{ borderBottom: "1px solid black", width: 140 }}>Item</TableCell>
+        <TableCell style={{ borderBottom: "1px solid black",width: 80 }}>Price (Ksh.)</TableCell>
+      </TableRow>
+    </TableHead>
+    <TableBody>
+      {data?.map((item: { _id: React.Key | null | undefined; quantity: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; product_id: { name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }; price: number; }) => (
+        <TableRow key={item._id} style={{ borderBottom: "1px solid black" }}>
+          <TableCell style={{ borderBottom: "none" }}>{item.quantity}</TableCell>
+          <TableCell component="th" scope="row" style={{ borderBottom: "none" }}>
+            {item?.product_id?.name}
+          </TableCell>
+          <TableCell style={{ borderBottom: "none" }}>{item?.price?.toFixed(2)}</TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
+</TableContainer>
 
-          <TableContainer component={Paper} sx={{ mt: 2, width: "100%" }}>
+          {/* <TableContainer component={Paper} sx={{ mt: 2, width: "100%" }}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell align="right">Qty</TableCell>
+                  <TableCell>Qty</TableCell>
                   <TableCell>Item</TableCell>
-                  <TableCell align="right">Price</TableCell>
+                  <TableCell>Price (Ksh.)</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data?.map((item: { _id: React.Key | null | undefined; quantity: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; product_id: { name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }; price: number; }) => (
-                  <TableRow key={item._id}>
-                    <TableCell align="right">{item.quantity}</TableCell>
-                    <TableCell component="th" scope="row">
-                      {item?.product_id?.name}
-                    </TableCell>
-                    <TableCell align="right">
-                      ksh.{item?.price?.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {data?.map(
+                  (item: {
+                    _id: React.Key | null | undefined;
+                    quantity:
+                      | string
+                      | number
+                      | boolean
+                      | React.ReactElement<
+                          any,
+                          string | React.JSXElementConstructor<any>
+                        >
+                      | Iterable<React.ReactNode>
+                      | React.ReactPortal
+                      | null
+                      | undefined;
+                    product_id: {
+                      name:
+                        | string
+                        | number
+                        | boolean
+                        | React.ReactElement<
+                            any,
+                            string | React.JSXElementConstructor<any>
+                          >
+                        | Iterable<React.ReactNode>
+                        | React.ReactPortal
+                        | null
+                        | undefined;
+                    };
+                    price: number;
+                  }) => (
+                    <TableRow key={item._id}>
+                      <TableCell>{item.quantity}</TableCell>
+                      <TableCell component="th" scope="row">
+                        {item?.product_id?.name}
+                      </TableCell>
+                      <TableCell>{item?.price?.toFixed(2)}</TableCell>
+                    </TableRow>
+                  )
+                )}
               </TableBody>
             </Table>
-          </TableContainer>
+          </TableContainer> */}
 
-          <p className="tot" style={{ marginBottom: "-5px" }}>
-            Total: <span>Ksh. {totalAmount.toFixed(2)} </span>
-          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              marginTop: 10,
+              justifyContent: "space-evenly",
+              width: "100%",
+            }}
+          >
+            <div style={{ marginBottom: "5px", flex: 1 }}>
 
-          <p className="tot" style={{ marginBottom: "-5px" }}>
-            {" "}
-            Till No. : 7034311{" "}
-          </p>
+              <p className="tot" style={{ margin: "0" }}>
+                Till No. : 7034311
+              </p>
+              <p className="tot" style={{ margin: "0" }}>
+                Phone No. : 07034531
+              </p>
+            </div>
 
-          <p className="tot" style={{ marginBottom: "-5px" }}>
-            Phone No. : 07034531
-          </p>
+            <div style={{ marginBottom: "5px", flex: 1 }}>
+              <p className="tot" style={{ margin: "0" }}>
+                Total: <span>Ksh. {totalAmount.toFixed(2)}</span>
+              </p>
 
-          <p className="tot" style={{ marginBottom: "-5px" }}>
-            Email : ribracks@gmail.com
-          </p>
-          <div className="qrcoded">
-
-           <QRCodeCanvas value='https://www.instagram.com/bigsmokekaren/' size={180} className="qrcode"/>
+              {/* <p className="tot" style={{ margin: "0" }}>
+                Email: ribracks@gmail.com
+              </p> */}
+            </div>
           </div>
+
+          <div className="qrcoded" style={{ marginTop: 4 }}>
+            <QRCodeCanvas
+              value="https://www.instagram.com/bigsmokekaren/"
+              size={80}
+              className="qrcode"
+            />
+          </div>
+      
+
+           <p className="greeting" style={{ margin: "0", fontSize: 7, paddingTop: 12}}>
+                Email: bigsmokekaren@gmail.com
+              </p>
+       
           <p className="greeting" style={{ marginBottom: "-5px" }}>
             {" "}
             Thank you for your support!{" "}
@@ -195,10 +269,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             Cancel
           </Button>
         </Box>
-     </DialogContent>
+      </DialogContent>
     </Dialog>
   );
 };
 
 export default PrintBillModal;
-

@@ -3,19 +3,10 @@ import { Key, SetStateAction, useState } from "react";
 import {
   Box,
   Button,
-  Drawer,
   Typography,
   CardActions,
   CircularProgress,
   Paper,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  TextField,
-  DialogActions,
-  MenuItem,
-  IconButton,
-  DialogContentText,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
@@ -25,7 +16,6 @@ import CreditCardOffIcon from "@mui/icons-material/CreditCardOff";
 import { grey } from "@mui/material/colors";
 import RecommendIcon from "@mui/icons-material/Recommend";
 import CloseIcon from "@mui/icons-material/Close";
-import { useDispatch, useSelector } from "react-redux";
 import { createOrder } from "../../features/Order/OrderActions";
 import { useNavigate, useParams } from "react-router-dom";
 import { cartVoid, createCart } from "../../features/Cart/CartActions";
@@ -47,8 +37,8 @@ const PaymentDrawer: React.FC<paymentProps> = ({
   const navigate = useNavigate();
   const { id } = useParams();
   const { cartDetails, totalAmount } = useAppSelector((state) => state.cart);
-  const { loading, error } = useSelector((state) => state.order);
-  const { user } = useSelector((state) => state.auth);
+  const { loading, error } = useAppSelector((state) => state.order);
+  const { user } = useAppSelector((state) => state.auth);
   const [selectedMethod, setSelectedMethod] = useState<null | string>(null);
   const [secondMethod, setSecondMethod] = useState<null | string>(null);
   const [openModal, setOpenModal] = useState(false);
@@ -94,6 +84,23 @@ const PaymentDrawer: React.FC<paymentProps> = ({
     // Add your logic for handling the split payment confirmation
     console.log("Method 1:", selectedMethod, "Amount 1:", amount1);
     console.log("Method 2:", secondMethod, "Amount 2:", amount2);
+    const twoMethods = [selectedMethod,secondMethod]
+    const twoAmounts = [amount1, amount2]
+    const orderDetails = {
+        cart_id: cartDetails?._id,
+        order_amount: twoAmounts,
+        table_id: id,
+        updated_by: user?.id,
+        order_no: cartDetails?.order_no,
+        method_id: twoMethods,
+      };
+      dispatch(createOrder(orderDetails));
+      if (!error) {
+        dispatch(createCart(id));
+        dispatch(logoutUser());
+        dispatch(reset());
+        navigate("/tables");
+      }
   };
 
   if (isLoading) {
@@ -130,7 +137,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
         cart_id: cartDetails?._id,
         order_amount: totalAmount,
         table_id: id,
-        updated_by: user.id,
+        updated_by: user?.id,
         order_no: cartDetails?.order_no,
         method_id: methodId,
       };
@@ -238,7 +245,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
         </Button>
         <Button
                 variant="outlined"
-                onClick={() => dispatch(cartVoid(cartDetails._id))}
+                onClick={() => dispatch(cartVoid(cartDetails))}
                 endIcon={<BlockIcon />}
                 sx={{
                   pl: 2,

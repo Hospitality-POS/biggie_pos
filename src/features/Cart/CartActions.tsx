@@ -8,11 +8,7 @@ interface CartInfo {
   created_by: string;
 }
 
-interface CartItem {
-  _id: string;
-  cartId: string;
-  cart_id: string;
-}
+
 
 interface UpdatedCartItems {
   cart_id: string;
@@ -135,11 +131,13 @@ export const cartSent = createAsyncThunk(
 
 export const cartVoid = createAsyncThunk(
   "cart/cartVoid",
-  async (cartId: string, { rejectWithValue }) => {
+  async (cartDetails: any, { rejectWithValue, dispatch }) => {
     try {
       const response = await axios.put(`${baseUrl}/void-cart`, {
-        cart_id: cartId,
+        cart_id: cartDetails._id,
       });
+            dispatch(getCart(cartDetails.table_id._id))
+
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
