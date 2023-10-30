@@ -20,14 +20,12 @@ import PrintBillModal from "../MODALS/PrintBillModal";
 import {
   cartSent,
   deleteAllCartItems,
-  fetchCartItems,
   getCart,
 } from "../../features/Cart/CartActions";
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { useParams } from "react-router-dom";
-import Spinner from "../spinner/Spinner";
 import CartLoader from "../spinner/cartLoader";
 import SendIcon from '@mui/icons-material/Send';
 
@@ -35,7 +33,11 @@ function formatTotal(totalAmount: { toLocaleString: () => number | string}) {
   return totalAmount.toLocaleString();
 }
 
-const CartDrawer: React.FC = () => {
+
+
+
+
+const CartDrawer: React.FC<MagicMotionProps> = () => {
   const [openM, setOpenM] = useState(false);
    const [loadingData, setLoadingData] = useState(false);
   const { cartDetails, totalAmount, cartItems: data, loading } = useAppSelector(
@@ -84,13 +86,13 @@ const CartDrawer: React.FC = () => {
 
   return (
     <Paper
-      elevation={3}
-      style={{
-        padding: "16px",
-        height: "89vh",
-        overflow: "hidden",
-        overflowY: "auto",
-      }}
+    elevation={3}
+    style={{
+      padding: "16px",
+      height: "89vh",
+      overflow: "hidden",
+      overflowY: "auto",
+    }}
     >
       <PrintBillModal
         openM={openM}
