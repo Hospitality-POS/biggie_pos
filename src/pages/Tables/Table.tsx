@@ -5,68 +5,73 @@ import TableCard from "../../components/TableCard/TableCard";
 import React, { Key, useCallback, useEffect, useState } from "react";
 import TableCardSkeleton from "../../components/TableCard/TableCardSkeleton";
 import { useNavigate, useParams } from "react-router-dom";
-import DeckIcon from '@mui/icons-material/Deck';
+import DeckIcon from "@mui/icons-material/Deck";
 import SuccessModal from "../../components/MODALS/SuccessModal";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchTableByLocatedAt } from "../../features/Table/TableActions";
 import StaffModal from "../../components/staffCard/StaffModal";
-import Lottie from "lottie-react"
-import fssanimation from '../../components/Loaders/fss loader.json'
+import Lottie from "lottie-react";
+import fssanimation from "../../components/Loaders/fss loader.json";
+import Spinner from "../../components/spinner/Spinner";
 
 function Table() {
-  const {openModal}= useAppSelector((state)=>state.order)
-  const { tables: data, loading: isLoading, error: isError} = useAppSelector((state)=>state.Tables)
-   const { user, loading: userLoading, error: userError } = useAppSelector(
-    (state) => state.auth
-  );
-  const dispatch = useAppDispatch()
+  const { openModal } = useAppSelector((state) => state.order);
+  const {
+    tables: data,
+    loading: isLoading,
+    error: isError,
+  } = useAppSelector((state) => state.Tables);
+  const {
+    user,
+    loading: userLoading,
+    error: userError,
+  } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
   // const {tables: data, loading: isLoading, error, isError  } = useSelector((stat:any)=>state.Tables)
   const [value, setValue] = React.useState("in-doors");
-  const [selectedId, setSelectedId]=React.useState('')
+  const [selectedId, setSelectedId] = React.useState("");
 
   const handleChange = (_event: React.SyntheticEvent, newValue: string) => {
     setValue(newValue);
   };
-  
 
   const { locatedAt } = useParams();
   const [uniqueLocatedAtValues, setUniqueLocatedAtValues] = useState([]);
-  
+
   const queryClient = useQueryClient();
-  
-  const fetchTable = useCallback(()=>{
-    return dispatch(fetchTableByLocatedAt(value))
-  },[dispatch, value])
 
-  useEffect(()=>{
-    fetchTable()
-  },[fetchTable])
-  
+  const fetchTable = useCallback(() => {
+    return dispatch(fetchTableByLocatedAt(value));
+  }, [dispatch, value]);
 
-queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
+  useEffect(() => {
+    fetchTable();
+  }, [fetchTable]);
 
+  queryClient.invalidateQueries({ queryKey: ["uniqueLocatedAtValues"] });
 
-  const { isLoading: isLoadingUniqueLocatedAt, data: uniqueLocatedAtData , isError:isErrorTabs} = useQuery({
+  const {
+    isLoading: isLoadingUniqueLocatedAt,
+    data: uniqueLocatedAtData,
+    isError: isErrorTabs,
+  } = useQuery({
     queryKey: ["uniqueLocatedAtValues"],
     queryFn: () =>
-      fetch("http://localhost:3000/tables/tables/unique-locatedAt").then((res) => res.json()),
+      fetch("http://localhost:3000/tables/tables/unique-locatedAt").then(
+        (res) => res.json()
+      ),
     retry: 3,
     retryDelay: 1000,
   });
 
-
   const [open, setOpen] = useState(false);
-    const [pin, setPin] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState(null)
+  const [pin, setPin] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState(null);
 
- const handleOpen = (productId: React.SetStateAction<null>) => {
+  const handleOpen = (productId: React.SetStateAction<null>) => {
     setOpen(true);
     setSelectedProductId(productId);
   };
-
-
-  
-  
 
   useEffect(() => {
     setValue(locatedAt || "in-doors");
@@ -75,24 +80,35 @@ queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
     }
   }, [locatedAt, isLoadingUniqueLocatedAt, uniqueLocatedAtData]);
 
-  const navigate = useNavigate()
-   const handleSelectTable = (tableId: string) => {
+  const navigate = useNavigate();
+  const handleSelectTable = (tableId: string) => {
     // console.log("sels", tableId);
-    
-    if(user){
-      setSelectedId(tableId)
-      navigate(`/dashboard/${tableId}`)
+
+    if (user) {
+      setSelectedId(tableId);
+      navigate(`/dashboard/${tableId}`);
     }
   };
 
-    if (userLoading || isLoading || isLoadingUniqueLocatedAt) {
-      return (
-      <div  style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '90vh' }}>
-        <Lottie animationData={fssanimation} loop={true} height={20} width={20}/>
+  if (userLoading || isLoading || isLoadingUniqueLocatedAt) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "90vh",
+        }}
+      >
+        <Lottie
+          animationData={fssanimation}
+          loop={true}
+          height={20}
+          width={20}
+        />
       </div>
     );
-  }    
-    
+  }
 
   if (isLoading) {
     return (
@@ -124,7 +140,26 @@ queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
   }
 
   if (isError || isErrorTabs) {
-    return <div>An error has occurred: {isError}</div>;
+    return (
+      <>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "90vh",
+          }}
+        >
+          <Lottie
+            animationData={fssanimation}
+            loop={true}
+            height={20}
+            width={20}
+          />
+        <div><Typography variant="h5" gutterBottom>An Error occurred, Please contact support!</Typography></div>
+        </div>
+      </>
+    );
   }
 
   return (
@@ -136,36 +171,40 @@ queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
           Tables List
         </Typography>
       </div>
-      <Box sx={{ width: "100%", pl: 3, }}>
-            <Tabs
-              value={value}
-              onChange={handleChange}
-              // textColor="inherit"
-              // indicatorColor="secondary"
-              aria-label="secondary tabs example"
-               sx={{
+      <Box sx={{ width: "100%", pl: 3 }}>
+        <Tabs
+          value={value}
+          onChange={handleChange}
+          // textColor="inherit"
+          // indicatorColor="secondary"
+          aria-label="secondary tabs example"
+          sx={{
             "& .MuiTabs-indicator": {
               backgroundColor: "#6c1c2c",
             },
             "& .Mui-selected": {
-      color: '#6c1c2c', 
-    },
-    "& .MuiTab-textColorInherit.Mui-selected": {
-      color: '#6c1c2c', 
-    },
-    "& .MuiTab-textColorInherit": {
-      "&:hover": {
-        color: '#6c1c2c', 
-      },
-    },
+              color: "#6c1c2c",
+            },
+            "& .MuiTab-textColorInherit.Mui-selected": {
+              color: "#6c1c2c",
+            },
+            "& .MuiTab-textColorInherit": {
+              "&:hover": {
+                color: "#6c1c2c",
+              },
+            },
           }}
-            >
-              {uniqueLocatedAtValues.map((locatedAtValue) => (
-            <Tab key={locatedAtValue} value={locatedAtValue} label={locatedAtValue} icon={<DeckIcon />} />
+        >
+          {uniqueLocatedAtValues.map((locatedAtValue) => (
+            <Tab
+              key={locatedAtValue}
+              value={locatedAtValue}
+              label={locatedAtValue}
+              icon={<DeckIcon />}
+            />
           ))}
-             
-            </Tabs>
-          </Box>
+        </Tabs>
+      </Box>
       <Divider />
       <div
         className="cards"
@@ -176,21 +215,22 @@ queryClient.invalidateQueries({ queryKey: ['uniqueLocatedAtValues'] })
           marginTop: "5px",
           flexWrap: "wrap",
           width: "100%",
-          bottom: 0
+          bottom: 0,
         }}
       >
         {data.map((item) => (
-            <TableCard key={item._id} item={item}  openModal={handleOpen}/>
+          <TableCard key={item._id} item={item} openModal={handleOpen} />
         ))}
       </div>
       {selectedProductId && (
-      <StaffModal
-        setOpen={setOpen}
-        setPin={setPin}
-        pin={pin}
-        open={open}
-        tbl={selectedProductId}
-      />)}
+        <StaffModal
+          setOpen={setOpen}
+          setPin={setPin}
+          pin={pin}
+          open={open}
+          tbl={selectedProductId}
+        />
+      )}
     </div>
   );
 }
