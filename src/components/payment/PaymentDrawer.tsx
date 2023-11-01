@@ -77,13 +77,11 @@ const PaymentDrawer: React.FC<paymentProps> = ({
   };
 
   const handleSplitConfirm = () => {
-    if (amount1 > totalAmount || amount2 > totalAmount) {
-      // Add your logic for handling the case when the entered amount exceeds the total amount
+    const totalAmountCheck = amount1 + amount2;
+    if (!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || totalAmountCheck !== totalAmount ) {
       return;
     }
-    // Add your logic for handling the split payment confirmation
-    console.log("Method 1:", selectedMethod, "Amount 1:", amount1);
-    console.log("Method 2:", secondMethod, "Amount 2:", amount2);
+
     const twoMethods = [selectedMethod,secondMethod]
     const twoAmounts = [amount1, amount2]
     const orderDetails = {
@@ -284,6 +282,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
         data={data}
         selectedMethod={selectedMethod}
         secondMethod={secondMethod}
+        totalAmount={totalAmount}
         amount1={amount1}
         amount2={amount2}
         setSelectedMethod={setSelectedMethod}

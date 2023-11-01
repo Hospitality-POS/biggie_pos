@@ -23,6 +23,7 @@ interface SplitBillDialogProps {
   secondMethod: string | null;
   amount1: number;
   amount2: number;
+  totalAmount: number;
   setSelectedMethod: (method: string) => void;
   setSecondMethod: (method: string) => void;
   setAmount1: (amount: number) => void;
@@ -38,13 +39,12 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
   secondMethod,
   amount1,
   amount2,
-  setSelectedMethod,
-  setSecondMethod,
+  totalAmount,
   setAmount1,
   setAmount2,
   handleSplitConfirm,
 }) => {
-  const { handleSubmit, control } = useForm();
+  const { control } = useForm();
 
   return (
     <Dialog open={open} onClose={handleModalClose} maxWidth="md">
@@ -74,97 +74,98 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
       </DialogTitle>
 
       {/* <form onSubmit={handleSubmit(handleSplitConfirm)}> */}
-        <DialogContent>
-          <DialogContentText style={{ padding: 4 }}>
-            Confirm that the Split bill is the same as total.
-          </DialogContentText>
-          <Grid container spacing={2}>
-            <Grid item xs={6}>
-              <Controller
-                name="selectedMethod"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    select
-                    label="Payment Method 1"
-                    fullWidth
-                    margin="dense"
-                    variant="outlined"
-                    {...field}
-                    value={selectedMethod || ""}
-                  >
-                    {data.map((method: { _id: string; name: string }) => (
-                      <MenuItem key={method._id} value={method._id}>
-                        {method.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
-              />
-              <TextField
-                type="number"
-                label="Amount 1"
-                value={amount1}
-                fullWidth
-                margin="dense"
-                variant="outlined"
-                onChange={(e) => setAmount1(parseInt(e.target.value))}
-              />
-            </Grid>
-
-            <Grid item xs={6}>
-              <Controller
-                name="secondMethod"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    select
-                    label="Payment Method 2"
-                    fullWidth
-                    margin="dense"
-                    variant="outlined"
-                    {...field}
-                    value={secondMethod || ""}
-                  >
-                    {data.map((method: { _id: string; name: string }) => (
-                      <MenuItem key={method._id} value={method._id}>
-                        {method.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
-              />
-              <TextField
-                type="number"
-                label="Amount 2"
-                value={amount2}
-                fullWidth
-                margin="dense"
-                variant="outlined"
-                onChange={(e) => setAmount2(parseInt(e.target.value))}
-              />
-            </Grid>
-            <Grid item xs={12}></Grid>
+      <DialogContent>
+        <DialogContentText style={{ padding: 4 }}>
+          Confirm that the Split bill is the same as total.
+        </DialogContentText>
+        <Grid container spacing={2}>
+          <Grid item xs={6}>
+            <Controller
+              name="selectedMethod"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  select
+                  label="Payment Method 1"
+                  fullWidth
+                  margin="dense"
+                  variant="outlined"
+                  {...field}
+                  value={selectedMethod || ""}
+                >
+                  {data.map((method: { _id: string; name: string }) => (
+                    <MenuItem key={method._id} value={method._id}>
+                      {method.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            />
+            <TextField
+              type="number"
+              label="Amount 1"
+              value={amount1}
+              fullWidth
+              margin="dense"
+              variant="outlined"
+              onChange={(e) => setAmount1(parseInt(e.target.value))}
+            />
           </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            variant="contained"
-            sx={{
-              pl: 2,
+
+          <Grid item xs={6}>
+            <Controller
+              name="secondMethod"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  select
+                  label="Payment Method 2"
+                  fullWidth
+                  margin="dense"
+                  variant="outlined"
+                  {...field}
+                  value={secondMethod || ""}
+                >
+                  {data.map((method: { _id: string; name: string }) => (
+                    <MenuItem key={method._id} value={method._id}>
+                      {method.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            />
+            <TextField
+              type="number"
+              label="Amount 2"
+              value={amount2}
+              fullWidth
+              margin="dense"
+              variant="outlined"
+              onChange={(e) => setAmount2(parseInt(e.target.value))}
+            />
+          </Grid>
+          <Grid item xs={12}></Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button
+          variant="contained"
+          sx={{
+            pl: 2,
+            color: "#fff",
+            bgcolor: "#6c1c2c",
+            "&:hover": {
+              bgcolor: "#bc8c7c",
               color: "#fff",
-              bgcolor: "#6c1c2c",
-              "&:hover": {
-                bgcolor: "#bc8c7c",
-                color: "#fff",
-              },
-            }}
-            fullWidth
-            onClick={handleSplitConfirm}
-          >
-            Confirm Split & confirm payment
-          </Button>
-        </DialogActions>
+            },
+          }}
+          fullWidth
+          onClick={handleSplitConfirm}
+          disabled={!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || amount1+amount2 !== totalAmount}
+        >
+          Confirm Split & confirm payment
+        </Button>
+      </DialogActions>
       {/* </form> */}
     </Dialog>
   );
