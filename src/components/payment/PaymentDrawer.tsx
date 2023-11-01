@@ -217,7 +217,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
                 </>
               ) : (
                 ""
-              )}
+              )}  
             </Typography>
           </Paper>
         ))}

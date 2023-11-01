@@ -12,10 +12,9 @@ import { fetchTableByLocatedAt } from "../../features/Table/TableActions";
 import StaffModal from "../../components/staffCard/StaffModal";
 import Lottie from "lottie-react";
 import fssanimation from "../../components/Loaders/fss loader.json";
-import Spinner from "../../components/spinner/Spinner";
 
 function Table() {
-  const { openModal } = useAppSelector((state) => state.order);
+  const { openModal, error: orderError } = useAppSelector((state) => state.order);
   const {
     tables: data,
     loading: isLoading,
@@ -38,7 +37,7 @@ function Table() {
   const { locatedAt } = useParams();
   const [uniqueLocatedAtValues, setUniqueLocatedAtValues] = useState([]);
 
-  const queryClient = useQueryClient();
+ 
 
   const fetchTable = useCallback(() => {
     return dispatch(fetchTableByLocatedAt(value));
@@ -48,7 +47,6 @@ function Table() {
     fetchTable();
   }, [fetchTable]);
 
-  queryClient.invalidateQueries({ queryKey: ["uniqueLocatedAtValues"] });
 
   const {
     isLoading: isLoadingUniqueLocatedAt,
@@ -139,7 +137,7 @@ function Table() {
     );
   }
 
-  if (isError || isErrorTabs) {
+  if (isError || isErrorTabs || orderError) {
     return (
       <>
         <div
