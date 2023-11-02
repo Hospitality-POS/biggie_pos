@@ -1,7 +1,4 @@
 import React, { Key, useRef } from "react";
-import { useSelector } from "react-redux";
-
-import { QRCodeCanvas } from "qrcode.react";
 import {
   Button,
   Dialog,
@@ -20,6 +17,8 @@ import LocalPrintshopIcon from "@mui/icons-material/LocalPrintshop";
 import PrintDisabledIcon from "@mui/icons-material/PrintDisabled";
 import { useReactToPrint } from "react-to-print";
 import { useAppSelector } from "../../store";
+import Spinner from "../spinner/Spinner";
+import "../MODALS/bill.css"
 
 interface PurchaseReportProps {
   openM: boolean;
@@ -36,11 +35,14 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
 }) => {
 
   const componentRef = useRef<HTMLDivElement>(null);
-    const {purchaseReport: data}=useAppSelector(state=>state.Report)
+    const {purchaseReport: data,loading}=useAppSelector(state=>state.Report)
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
     onAfterPrint: onCloseM,
   });
+  if(loading){
+    return <Spinner/>
+  }
 
   return (
     <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
@@ -86,7 +88,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
           sx={{
             mt: 2,
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-evenly",
             columnGap: 5,
           }}
         >

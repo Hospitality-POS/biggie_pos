@@ -68,7 +68,20 @@ const CartDrawer: React.FC<MagicMotionProps> = () => {
   //   return dispatch(getCart(id));
   // }, [dispatch, id]);
 
-  const dispatchFetchCart = useCallback(async () => {
+  // const dispatchFetchCart = useCallback(async () => {
+  //   setLoadingData(true); 
+  //   try {
+  //     await dispatch(getCart(id)); 
+  //   } catch (error) {
+  //     console.log("cart eror", error);
+      
+  //   } finally {
+  //     setLoadingData(false);
+  //   }
+  // }, [dispatch, id]);
+
+  useEffect(() => {
+    const dispatchFetchCart = async () => {
     setLoadingData(true); 
     try {
       await dispatch(getCart(id)); 
@@ -78,18 +91,18 @@ const CartDrawer: React.FC<MagicMotionProps> = () => {
     } finally {
       setLoadingData(false);
     }
-  }, [dispatch, id]);
+  }
 
-  useEffect(() => {
     dispatchFetchCart();
-  }, [dispatchFetchCart]);
+
+  }, [dispatch, id]);
 
   return (
     <Paper
-    elevation={3}
+    elevation={2}
     style={{
       padding: "16px",
-      height: "89vh",
+      height: "90vh",
       overflow: "hidden",
       overflowY: "auto",
     }}
@@ -101,14 +114,13 @@ const CartDrawer: React.FC<MagicMotionProps> = () => {
         data={data}
         totalAmount={totalAmount}
       />
-      <Box sx={{ width: "400px" }}>
+      <Box sx={{ display: "flex", flexDirection: "column", p: 2, }}>
         <Grid
           item
           xs={12}
           sx={{
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            justifyContent: "space-evenly", 
           }}
         >
           <Grid
@@ -116,8 +128,8 @@ const CartDrawer: React.FC<MagicMotionProps> = () => {
             xs={12}
             sx={{
               display: "flex",
-              columnGap: 2,
-              alignItems: "center",
+              // columnGap: 1,
+              alignItems: "flex-start",
               flexDirection: "column",
             }}
           >
@@ -140,7 +152,7 @@ const CartDrawer: React.FC<MagicMotionProps> = () => {
           <Grid
             item
             xs={12}
-            pl={2}
+            // pl={2}
             sx={{
               display: "flex",
               columnGap: 2,
@@ -278,7 +290,7 @@ const CartDrawer: React.FC<MagicMotionProps> = () => {
             </Box>
           </Grid>
         ) : (
-          <Card className={classes.cardm}>
+          <Card className={classes.cardm} sx={{boxShadow: "none"}}>
             <div>
               <CardMedia
                 component="img"

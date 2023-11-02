@@ -59,7 +59,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
   return (
     <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
-      <DialogContent className="receiptM" ref={componentRef}>
+      <DialogContent className="receiptM"  ref={componentRef}>
         <div className="receipt" id="receipt">
           <div className="logo-print">
             <Typography variant="body1">FOOD SUPPORT SERVICES</Typography>
@@ -100,11 +100,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           </div>
 <TableContainer component={Paper} sx={{ mt: 2, width: "100%" }}>
   <Table style={{ tableLayout: "fixed" }}>
-    <TableHead>
-      <TableRow>
-        <TableCell style={{ borderBottom: "1px solid black", width: 40 }}>Qty</TableCell>
-        <TableCell style={{ borderBottom: "1px solid black", width: 140 }}>Item</TableCell>
-        <TableCell style={{ borderBottom: "1px solid black",width: 80 }}>Price (Ksh.)</TableCell>
+    <TableHead sx={{borderBottom: "1px solid black",}}>
+      <TableRow sx={{ width: 20 }}>
+        <TableCell sx={{ width: 30 }}>Qty</TableCell>
+        <TableCell >Item</TableCell>
+        <TableCell >Price(.Ksh)</TableCell>
       </TableRow>
     </TableHead>
     <TableBody>
@@ -231,7 +231,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           sx={{
             mt: 2,
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-evenly",
             columnGap: 5,
           }}
         >

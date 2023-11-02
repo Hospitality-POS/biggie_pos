@@ -1,5 +1,5 @@
 .receipt {
-  width: 80mm;
+  width: 90mm;
   height: fit-content;
   background-color: white;
   margin: 0 auto;
@@ -127,7 +127,7 @@ footer {
   color: #000;
 }
 
-.logo-print {
+.logoprint {
   display: flex;
   align-items: center;
   justify-content: center;

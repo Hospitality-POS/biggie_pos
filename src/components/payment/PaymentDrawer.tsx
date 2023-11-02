@@ -18,7 +18,7 @@ import RecommendIcon from "@mui/icons-material/Recommend";
 import CloseIcon from "@mui/icons-material/Close";
 import { createOrder } from "../../features/Order/OrderActions";
 import { useNavigate, useParams } from "react-router-dom";
-import { cartVoid, createCart } from "../../features/Cart/CartActions";
+import { cartVoid, createCart, getCart } from "../../features/Cart/CartActions";
 import { logoutUser } from "../../features/Auth/AuthActions";
 import { reset } from "../../features/Auth/AuthSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
@@ -93,6 +93,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
         method_id: twoMethods,
       };
       dispatch(createOrder(orderDetails));
+      // dispatch(getCart(id))
       if (!error) {
         dispatch(createCart(id));
         dispatch(logoutUser());
