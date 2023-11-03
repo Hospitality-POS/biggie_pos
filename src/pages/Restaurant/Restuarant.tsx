@@ -58,7 +58,6 @@ const RestaurantPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
   const { cartDetails } = useAppSelector((state) => state.cart);
   const { tableData } = useAppSelector((state) => state.Tables);
-
   const { products, loading } = useAppSelector((state) => state.product);
   const { category: categories, loading: categLoading } = useAppSelector(
     (state) => state.Categories
@@ -69,6 +68,33 @@ const RestaurantPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const [selectedCard, setSelectedCard] = useState(null);
   const [showCategories, setShowCategories] = useState(true);
+  
+  const handleBack = () => {
+    setShowCategories(true);
+  };
+
+  const [cartOpen, setCartOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  // const [currentIndex, setCurrentIndex] = useState(0);
+  const [categoryChosen, setCategoryChosen] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [value, setValue] = React.useState(0);
+
+  const handleChange = (event: any, newValue: React.SetStateAction<number>) => {
+    setValue(newValue);
+  };
+
+  const handleChangeIndex = (index: React.SetStateAction<number>) => {
+    setValue(index);
+  };
+
+  const handleChangeMainCategory = (
+    maincategoryid: React.SetStateAction<string>
+    ) => {
+      // setMainCategoryId(maincategoryid)
+    dispatch(fetchsubcategories(maincategoryid));
+  };
+  
   const { id } = useParams();
 
   const queryClient = useQueryClient();
@@ -85,34 +111,6 @@ const RestaurantPage: React.FC = () => {
   const { data: Maincategories } = useQuery(["Maincategories"], () =>
     fetchMainCategories()
   );
-
-  const handleBack = () => {
-    setShowCategories(true);
-  };
-
-  const [cartOpen, setCartOpen] = useState(false);
-  const [paymentOpen, setPaymentOpen] = useState(false);
-  // const [currentIndex, setCurrentIndex] = useState(0);
-  const [categoryChosen, setCategoryChosen] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(true);
-  const [mainCategoryId, setMainCategoryId] = useState("");
-  const [value, setValue] = React.useState(0);
-
-  const handleChange = (event: any, newValue: React.SetStateAction<number>) => {
-    setValue(newValue);
-  };
-
-  const handleChangeIndex = (index: React.SetStateAction<number>) => {
-    setValue(index);
-  };
-
-  const handleChangeMainCategory = (
-    maincategoryid: React.SetStateAction<string>
-  ) => {
-    // setMainCategoryId(maincategoryid)
-    dispatch(fetchsubcategories(maincategoryid));
-  };
-
   const handleCartOpen = () => {
     setCartOpen(true);
     dispatch(getCart(id));
@@ -165,14 +163,14 @@ const RestaurantPage: React.FC = () => {
     }
   }, [dispatch, id]);
 
-  useEffect(() => {
-    dispatchfetchsubcateg();
-    dispatchfetctaldata();
-  }, [cartDetails._id, dispatchfetchsubcateg, dispatchfetctaldata]);
+    useEffect(() => {
+      dispatchfetchsubcateg();
+      dispatchfetctaldata();    
+    }, [cartDetails._id, dispatchfetchsubcateg, dispatchfetctaldata]);
 
-  useEffect(() => {
-    setIsLoadingData(false);
-  }, []);
+    useEffect(() => {
+      setIsLoadingData(false);
+    }, []);
 
   return (
     <>

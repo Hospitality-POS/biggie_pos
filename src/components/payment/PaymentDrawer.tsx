@@ -25,14 +25,7 @@ import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
 import BlockIcon from '@mui/icons-material/Block';
 
-interface paymentProps {
-  paymentOpen: boolean;
-  handlePaymentClose: () => void;
-}
-const PaymentDrawer: React.FC<paymentProps> = ({
-  paymentOpen,
-  handlePaymentClose,
-}) => {
+const PaymentDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -54,10 +47,6 @@ const PaymentDrawer: React.FC<paymentProps> = ({
     queryFn: () =>
       fetch("http://localhost:3000/payment-methods/").then((res) => res.json()),
   });
-
-  // const handleSelectMethod = (method: string) => {
-  //   setSelectedMethod(method === selectedMethod ? null : method);
-  // };
 
   const handleSelectMethod = (method: string) => {
     if (!selectedMethod) {
@@ -101,6 +90,29 @@ const PaymentDrawer: React.FC<paymentProps> = ({
         navigate("/tables");
       }
   };
+  
+  const handlePayment = (methodId: string) => {
+    if (secondMethod) {
+      // logic to open the modal for splitting the bill
+      setOpenModal(true);
+    } else {
+      const orderDetails = {
+        cart_id: cartDetails?._id,
+        order_amount: totalAmount,
+        table_id: id,
+        updated_by: user?.id,
+        order_no: cartDetails?.order_no,
+        method_id: methodId,
+      };
+      dispatch(createOrder(orderDetails));
+      if (!error) {
+        dispatch(createCart(id));
+        dispatch(logoutUser());
+        dispatch(reset());
+        navigate("/tables");
+      }
+    }
+  };
 
   if (isLoading) {
     return <div>Loading payment methods...</div>;
@@ -127,28 +139,6 @@ const PaymentDrawer: React.FC<paymentProps> = ({
   //     navigate("/tables");
   //   }
   // };
-  const handlePayment = (methodId: string) => {
-    if (secondMethod) {
-      // logic to open the modal for splitting the bill
-      setOpenModal(true);
-    } else {
-      const orderDetails = {
-        cart_id: cartDetails?._id,
-        order_amount: totalAmount,
-        table_id: id,
-        updated_by: user?.id,
-        order_no: cartDetails?.order_no,
-        method_id: methodId,
-      };
-      dispatch(createOrder(orderDetails));
-      if (!error) {
-        dispatch(createCart(id));
-        dispatch(logoutUser());
-        dispatch(reset());
-        navigate("/tables");
-      }
-    }
-  };
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -277,7 +267,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
         </Button>
       </CardActions>
 
-      <SplitBillDialog
+{selectedMethod !== secondMethod &&   (<SplitBillDialog
         open={openModal}
         handleModalClose={handleModalClose}
         data={data}
@@ -291,7 +281,7 @@ const PaymentDrawer: React.FC<paymentProps> = ({
         setAmount1={setAmount1}
         setAmount2={setAmount2}
         handleSplitConfirm={handleSplitConfirm}
-      />
+      />)}
     </Box>
   );
 };

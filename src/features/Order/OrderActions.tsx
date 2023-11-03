@@ -10,8 +10,8 @@ interface OrderDetails {
   order_no: string;
   order_amount: number[];
   cart_id: string;
-  updated_by: any;
   method_id: (string | null)[];
+  updated_by: string | undefined;
 }
 
 interface DateRange {

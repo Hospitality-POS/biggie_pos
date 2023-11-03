@@ -34,10 +34,7 @@ function formatTotal(totalAmount: { toLocaleString: () => number | string}) {
 }
 
 
-
-
-
-const CartDrawer: React.FC<MagicMotionProps> = () => {
+const CartDrawer: React.FC = () => {
   const [openM, setOpenM] = useState(false);
    const [loadingData, setLoadingData] = useState(false);
   const { cartDetails, totalAmount, cartItems: data, loading } = useAppSelector(
@@ -64,33 +61,17 @@ const CartDrawer: React.FC<MagicMotionProps> = () => {
     [cartDetails?.order_no]
   );
 
-  // const dispatchFetchCart = useCallback(() => {
-  //   return dispatch(getCart(id));
-  // }, [dispatch, id]);
-
-  // const dispatchFetchCart = useCallback(async () => {
-  //   setLoadingData(true); 
-  //   try {
-  //     await dispatch(getCart(id)); 
-  //   } catch (error) {
-  //     console.log("cart eror", error);
-      
-  //   } finally {
-  //     setLoadingData(false);
-  //   }
-  // }, [dispatch, id]);
-
   useEffect(() => {
     const dispatchFetchCart = async () => {
     setLoadingData(true); 
     try {
-      await dispatch(getCart(id)); 
+      await dispatch(getCart(id));  
     } catch (error) {
       console.log("cart eror", error);
       
     } finally {
       setLoadingData(false);
-    }
+    } 
   }
 
     dispatchFetchCart();
