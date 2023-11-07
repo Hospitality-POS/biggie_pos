@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Divider,
   Grid,
   IconButton,
@@ -21,8 +22,8 @@ interface cartItemCardProps {
   cartItem: any;
 }
 
-function formatQuantity(quantity: { toLocaleString: () => any; }) {
-  return quantity?.toLocaleString();
+function formatQuantity(quantity:number) {
+  return quantity.toString()
 }
 
 const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
@@ -65,7 +66,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
 
   return (
-    <Card sx={{ mb: 1, boxShadow: "none", backgroundColor: cartItem.sent ?  "#6c1c2c": "#F8F8F8", color: cartItem.sent ? "#fff":  "black" }}>
+    <Card key={cartItem._id} sx={{ mb: 1, boxShadow: "none", backgroundColor: cartItem.sent ?  "#6c1c2c": "#F8F8F8", color: cartItem.sent ? "#fff":  "black" }}>
       <CardContent>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={4}>
@@ -77,7 +78,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
             <Box sx={{ display: "flex", alignItems: "center", columnGap: 1 }}>
               
               <Typography variant="body1" ml={4}>
-                x {formattedQuantity}
+                x {cartItem.quantity?formattedQuantity:<CircularProgress size={20} thickness={8} sx={{ ml: 1 }} />}
               </Typography>
               
             </Box>
