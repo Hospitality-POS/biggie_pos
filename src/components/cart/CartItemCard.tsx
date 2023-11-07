@@ -11,10 +11,9 @@ import {
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   deleteCartItem,
-  updateCartItems,
 } from "../../features/Cart/CartActions";
 import { useAppDispatch } from "../../store";
 import AddTaskIcon from '@mui/icons-material/AddTask';
@@ -26,36 +25,37 @@ function formatQuantity(quantity:number) {
   return quantity.toString()
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const dispatch = useAppDispatch();
 
-  const [quantity, setQuantity] = useState(cartItem.quantity);
+  // const [quantity, setQuantity] = useState(cartItem.quantity);
 
-  const handleAddQuantity = () => {
-    setQuantity((prevQuantity) => prevQuantity + 1);
-    dispatch(
-      updateCartItems({
-        ...cartItem,
-        product_id: cartItem.product_id._id,
-        quantity,
-        price: cartItem.price * quantity,
-      })
-    );
-  };
+  // const handleAddQuantity = () => {
+  //   setQuantity((prevQuantity: number) => prevQuantity + 1);
+  //   dispatch(
+  //     updateCartItems({
+  //       ...cartItem,
+  //       product_id: cartItem.product_id._id,
+  //       quantity,
+  //       price: cartItem.price * quantity,
+  //     })
+  //   );
+  // };
 
-  const handleReduceQuantity = () => {
-    if (quantity > 1) {
-      setQuantity((prevQuantity) => prevQuantity - 1);
-      dispatch(
-        updateCartItems({
-          ...cartItem,
-          product_id: cartItem.product_id._id,
-          quantity,
-          price: cartItem.price * quantity,
-        })
-      );
-    }
-  };
+  // const handleReduceQuantity = () => {
+  //   if (quantity > 1) {
+  //     setQuantity((prevQuantity: number) => prevQuantity - 1);
+  //     dispatch(
+  //       updateCartItems({
+  //         ...cartItem,
+  //         product_id: cartItem.product_id._id,
+  //         quantity,
+  //         price: cartItem.price * quantity,
+  //       })
+  //     );
+  //   }
+  // };
 
  
   const formattedPrice = useMemo(() => {
@@ -78,7 +78,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
             <Box sx={{ display: "flex", alignItems: "center", columnGap: 1 }}>
               
               <Typography variant="body1" ml={4}>
-                x {cartItem.quantity?formattedQuantity:<CircularProgress size={20} thickness={8} sx={{ ml: 1 }} />}
+                x {cartItem.quantity?formattedQuantity:<CircularProgress size={20} thickness={8} sx={{ ml: 1 }} color="inherit" />}
               </Typography>
               
             </Box>

@@ -176,6 +176,34 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
                 )}
               />
               <Controller
+                name="category"
+                control={control}
+                defaultValue=""
+                rules={{ required: "Category is required" }}
+                render={({ field }) => (
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel id="category">Category</InputLabel>
+                    <Select
+                      {...field}
+                      label="Category"
+                      startAdornment={
+                        <InputAdornment position="start">
+                          <CategoryIcon />
+                        </InputAdornment>
+                      }
+                    >
+                      <MenuItem value="">Select category</MenuItem>
+                      {categories &&
+                        categories.map((category) => (
+                          <MenuItem key={category._id} value={category._id}>
+                            {category.name}
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
+                )}
+              />
+              <Controller
                 name="price"
                 control={control}
                 defaultValue={0}

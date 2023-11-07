@@ -26,16 +26,16 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CategoryIcon from "@mui/icons-material/Category";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import ActionsIcon from "@mui/icons-material/MoreVert";
-import { useSelector, useDispatch } from "react-redux";
 import {
   deleteCategory,
   fetchCategories,
 } from "../../features/Category/CategoryActions";
 import AddCategoryDialog from "../../components/MODALS/Dialogs/AddCategoryDialog";
+import { useAppDispatch, useAppSelector } from "../../store";
 
 const CategorySettings = () => {
-  const dispatch = useDispatch();
-  const { categories } = useSelector((state: any) => state.Categories);
+  const dispatch = useAppDispatch();
+  const { categories } = useAppSelector((state) => state.Categories);
   const [filter, setFilter] = useState("");
   const [orderBy, setOrderBy] = useState("name");
   const [order, setOrder] = useState("asc");
@@ -108,13 +108,13 @@ const CategorySettings = () => {
     }
   });
 
-  const dispatchFetchAllCategories = () => {
-    dispatch(fetchCategories());
-  };
-
+  
   useEffect(() => {
-    dispatchFetchAllCategories();
-  }, []);
+    const dispatchFetchAllCategories = () => {
+      dispatch(fetchCategories());
+    };    
+    dispatchFetchAllCategories()
+  }, [dispatch]);
 
   return (
     <Paper>
@@ -180,9 +180,9 @@ const CategorySettings = () => {
               <TableCell style={{ color: "white" }}>
                 <TableSortLabel
                   style={{ color: "white" }}
-                  active={orderBy === "product_count"} // Set the active state for sorting
+                  active={orderBy === "product_count"} 
                   direction={orderBy === "product_count" ? order : "asc"}
-                  onClick={() => handleSort("product_count")} // Handle sorting for product_count
+                  onClick={() => handleSort("product_count")}
                 >
                   <Box display="flex" alignItems="center">
                     SubCategory
@@ -208,35 +208,8 @@ const CategorySettings = () => {
           <TableBody>
             {sortedCategories
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map(
-                (category: {
-                  sub_category: any;
-                  _id: React.Key | null | undefined;
-                  name:
-                    | string
-                    | number
-                    | boolean
-                    | React.ReactElement<
-                        any,
-                        string | React.JSXElementConstructor<any>
-                      >
-                    | Iterable<React.ReactNode>
-                    | React.ReactPortal
-                    | null
-                    | undefined;
-                  product_count:
-                    | string
-                    | number
-                    | boolean
-                    | React.ReactElement<
-                        any,
-                        string | React.JSXElementConstructor<any>
-                      >
-                    | Iterable<React.ReactNode>
-                    | React.ReactPortal
-                    | null
-                    | undefined;
-                }) => (
+              .map((category) => (
+              <>
                   <TableRow key={category._id}>
                     <TableCell
                       style={{
@@ -263,8 +236,8 @@ const CategorySettings = () => {
                       </IconButton>
                     </TableCell>
                   </TableRow>
-                )
-              )}
+                </>
+                ))}
           </TableBody>
         </Table>
       </TableContainer>
