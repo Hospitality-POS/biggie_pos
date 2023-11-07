@@ -3,6 +3,7 @@ import { createCategory, deleteCategory, fetchCategories, fetchCategoriesByID, f
 
 
 interface Category {
+  sub_category: any;
   _id: string;
   name: string;
 }

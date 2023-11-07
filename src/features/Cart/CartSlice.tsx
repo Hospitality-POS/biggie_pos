@@ -138,7 +138,7 @@ const cartSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(createCart.fulfilled, (state, action) => {
+      .addCase(createCart.fulfilled, (state) => {
         state.loading = false;
       })
       .addCase(createCart.rejected, (state, action) => {
@@ -174,7 +174,7 @@ const cartSlice = createSlice({
         state.cartItems = action.payload as any;
         // Calculate the total amount of all cart items using reduce
         state.totalAmount = action.payload.reduce(
-          (total: any, item: any) => total + parseFloat(item.price),
+          (total: any, item: any) => total + parseFloat(item.price||0),
           0
         );
       })
