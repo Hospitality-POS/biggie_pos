@@ -18,6 +18,7 @@ import BackspaceIcon from "@mui/icons-material/Backspace";
 import { useNavigate } from "react-router-dom";
 import { createCart } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
+import useCheckIfUserIsLoggedIn from "../../hooks/useCheckIfUserIsLoggedIn";
 
 interface StaffModalProps {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -39,8 +40,10 @@ const StaffModal: React.FC<StaffModalProps> = ({
   const { isError, isSuccess, isLoading, user } = useAppSelector(
     (state) => state.auth
   );
-  const navigate = useNavigate();
+  const {error: cartError} = useAppSelector(state=>state.cart)
   const dispatch = useAppDispatch();
+  const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
+
 
   const handleClickShowPassword = () => {
     setShowPassword((show) => !show);
@@ -63,29 +66,16 @@ const StaffModal: React.FC<StaffModalProps> = ({
 
   const handleLogin = () => {
     dispatch(loginUser({ pin }));
+    checkIfUserIsLoggedIn(tbl,user,cartError,setOpen)
   };
 
-  useEffect(() => {
-    if (isLoading) {
-      // setNotificationType("");
-    } else if (isError) {
-      setNotificationOpen(true);
-      // setNotificationType("error");
-    } else if (isSuccess) {
-      setNotificationOpen(true);
-      // setNotificationType("success");
-      // navigate(`/dashboard/${item._id}`);
-      if (user) {
-        const cartDetails = {
-          table_id: tbl,
-          created_by: user.id,
-        };
-        dispatch(createCart(cartDetails));
-        setOpen(false);
-        navigate(`/dashboard/${tbl}`)
-      }
-    }
-  }, [isLoading, isError, isSuccess, setOpen, navigate, user, dispatch, tbl]);
+  // useEffect(() => {
+  //  if (isError) {
+  //     setNotificationOpen(true);
+  //   } else if (isSuccess) {
+  //     setNotificationOpen(true);
+  //   }
+  // }, [isLoading, isError, isSuccess]);
 
   return (
     <>

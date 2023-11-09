@@ -3,8 +3,6 @@ import {
   Alert,
   AlertTitle,
   AppBar,
-  Button,
-  CircularProgress,
   Divider,
   Grid,
   IconButton,
@@ -13,24 +11,13 @@ import {
   Typography,
 } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
-import TapasIcon from "@mui/icons-material/Tapas";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
-import SoupKitchenIcon from "@mui/icons-material/SoupKitchen";
-import SkeletonCategoryCard from "../../components/category/skeletonCategoryCard";
-import AddToCartIcon from "../../components/cart/AddToCartIcon";
-import PaymentDrawer from "../../components/payment/PaymentDrawer";
 import CartDrawer from "../../components/cart/CartDrawer";
-import NavigateNextIcon from "@mui/icons-material/NavigateNext";
-import LocalBarIcon from "@mui/icons-material/LocalBar";
-import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import BackspaceIcon from "@mui/icons-material/Backspace";
 import { useParams } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 import {
-  createCart,
-  fetchCartItems,
   getCart,
 } from "../../features/Cart/CartActions";
 import axios from "axios";
@@ -42,17 +29,13 @@ import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchTableById } from "../../features/Table/TableActions";
 import CartLoader from "../../components/spinner/cartLoader";
 
-function a11yProps(index: any) {
+function a11yProps(index) {
   return {
     id: `full-width-tab-${index}`,
     "aria-controls": `full-width-tabpanel-${index}`,
   };
 }
 
-interface Cartrefetch {
-  table_id: string;
-  created_by: string;
-}
 
 const RestaurantPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
