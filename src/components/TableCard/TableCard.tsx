@@ -1,6 +1,10 @@
 import { Card, CardMedia, Typography, Box } from "@mui/material";
 import classes from "./table.module.css";
 import React from "react";
+import { useAppDispatch, useAppSelector } from "../../store";
+import { clearcart } from "../../features/Cart/CartSlice";
+import useCheckIfUserIsLoggedIn from "../../hooks/useCheckIfUserIsLoggedIn";
+import { useNavigate } from "react-router-dom";
 
 interface Table {
   cart_amount: number;
@@ -16,9 +20,22 @@ interface itemProps {
 }
 
 const TableCard: React.FC<itemProps> = ({ item , openModal}) => {
+  const {user}= useAppSelector(state=>state.auth)
+  const {error}=useAppSelector(state=>state.cart)
  
+const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
+  const dispatch = useAppDispatch()
+   const navigate = useNavigate();
   const handleOpen = () => {
-    openModal(item._id)  
+
+    dispatch(clearcart())
+    checkIfUserIsLoggedIn(item._id,user,error,openModal)
+    if(!isUserLoggedIn){
+      openModal(item._id)  
+    }else{
+    navigate(`/dashboard/${item._id}`)
+    }
+      
   };
 
   const cardStyles = {
