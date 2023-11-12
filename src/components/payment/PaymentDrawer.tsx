@@ -122,23 +122,6 @@ const PaymentDrawer: React.FC = () => {
     return <div>An error occurred while fetching payment methods.</div>;
   }
 
-  // const handlePayment = (methodId: string) => {
-  //   const orderDetails = {
-  //     cart_id: cartDetails?._id,
-  //     order_amount: totalAmount,
-  //     table_id: id,
-  //     updated_by: user.id,
-  //     order_no: cartDetails?.order_no,
-  //     method_id: methodId,
-  //   };
-  //   dispatch(createOrder(orderDetails));
-  //   if (!error) {
-  //     dispatch(createCart(id));
-  //     dispatch(logoutUser());
-  //     dispatch(reset());
-  //     navigate("/tables");
-  //   }
-  // };
 
   return (
     <Box sx={{ mb: 2 }}>

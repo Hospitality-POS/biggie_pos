@@ -1,7 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-
-const baseUrl = "http://localhost:3000/orders";
+import { baseUrl } from "./baseUrl";
 
 interface OrderDetails {
   _id: string;

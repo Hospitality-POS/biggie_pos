@@ -28,6 +28,7 @@ import { useAppDispatch, useAppSelector } from "../../store";
 import { useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
 import SendIcon from '@mui/icons-material/Send';
+import { clearcart } from "../../features/Cart/CartSlice";
 
 function formatTotal(totalAmount: { toLocaleString: () => number | string}) {
   return totalAmount.toLocaleString();
@@ -42,7 +43,7 @@ const CartDrawer: React.FC = () => {
   );
   const { user } = useAppSelector((state) => state.auth);
 
-  const {id}=useParams()
+  const {id} =useParams()
 
   const dispatch = useAppDispatch();
   const { tableData: td } = useAppSelector((state) => state.Tables);
@@ -50,7 +51,9 @@ const CartDrawer: React.FC = () => {
   const onCloseM = () => {
     setOpenM(false);
   };
-
+  // const clearCartDetails = useCallback(() => {
+  //     dispatch(clearcart()); 
+  // },[dispatch]);
  
   const CartItemCardMemo = React.memo(CartItemCard);
 
@@ -75,8 +78,9 @@ const CartDrawer: React.FC = () => {
   }
 
     dispatchFetchCart();
+    // clearCartDetails();
 
-  }, [dispatch, id]);
+  }, [dispatch, id, td._id]);
 
   return (
     <Paper
