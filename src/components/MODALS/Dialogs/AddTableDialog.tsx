@@ -25,6 +25,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import TableIcon from "@mui/icons-material/TableChart";
 import { createTable } from "../../../features/Table/TableActions";
 import { resetTableMessage } from "../../../features/Table/TableSlice";
+import { useAppSelector } from "../../../store";
 
 interface Table {
   name: string;
@@ -55,8 +56,8 @@ const AddTableDialog: React.FC<AddTableDialogProps> = ({
     isOccupied: false,
   });
 
-  const { newTableMessage, isError, isLoading } = useSelector(
-    (state: any) => state.Tables
+  const { newTableMessage, isError, isLoading } = useAppSelector(
+    (state) => state.Tables
   );
 
   const dispatch = useDispatch();
@@ -81,7 +82,7 @@ const AddTableDialog: React.FC<AddTableDialogProps> = ({
   };
 
   const fetchLocations = async () => {
-    const response = await axios.get("http://localhost:3000/tables/tables/unique-locatedAt");
+    const response = await axios.get("http://localhost:3000/tables/location/locations");
     return response.data;
   };
 
@@ -187,9 +188,9 @@ const AddTableDialog: React.FC<AddTableDialogProps> = ({
                     {isLocationLoading ? (
                       <MenuItem disabled>Loading locations...</MenuItem>
                     ) : (
-                      locationData?.map((location: string) => (
-                        <MenuItem key={location} value={location}>
-                          {location}
+                      locationData?.map((location: { _id: React.Key | null | undefined; name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined; }) => (
+                        <MenuItem key={location._id} value={location._id}>
+                          {location?.name}
                         </MenuItem>
                       ))
                     )}

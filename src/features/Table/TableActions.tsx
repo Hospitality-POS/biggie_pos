@@ -9,7 +9,10 @@ interface table {
   name: string;
   locatedAt: string;
 }
-
+interface Location{
+  _id: string;
+  name: string;
+}
 // Function to get the token from localStorage
 const getToken = () => {
   const user = JSON.parse(localStorage.getItem("user"));
@@ -32,7 +35,7 @@ export const fetchTables = createAsyncThunk(
 // Create an async thunk to create a new supplier
 export const createTable = createAsyncThunk(
   "table/createTable",
-  async (newTable: table, { rejectWithValue }) => {
+  async (newTable: table, { rejectWithValue, dispatch }) => {
     const token = getToken(); // Get the token
     try {
       const response = await axios.post(`${baseUrl}`, newTable, {
@@ -40,6 +43,7 @@ export const createTable = createAsyncThunk(
           Authorization: `Bearer ${token}`,
         },
       });
+      dispatch(fetchTables())
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || error.toString());
@@ -108,6 +112,50 @@ export const fetchTableByLocatedAt = createAsyncThunk(
   async (locatedAt: string, { rejectWithValue }) => {
     try {
       const response = await axios.get(`${baseUrl}/locatedAt/${locatedAt}`);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+
+// Create an async thunk to create a new location
+export const createLocation = createAsyncThunk(
+  "table/createLocation",
+  async (newLocation: Location, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(`${baseUrl}/locations`,{ "locationName":newLocation});
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+
+// Create an async thunk to edit an existing location
+export const editLocation = createAsyncThunk(
+  "table/editLocation",
+  async (editedLocation: Location, { rejectWithValue }) => {
+    try {
+      const response = await axios.put(
+        `${baseUrl}/locations/${editedLocation._id}`,
+        { "locationName": editedLocation.locationName }
+      );
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+// Create an async thunk to delete a location
+export const deleteLocation = createAsyncThunk(
+  "table/deleteLocation",
+  async (locationId: string, { rejectWithValue }) => {
+    try {
+      const response = await axios.delete(`${baseUrl}/locations/${locationId}`);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
