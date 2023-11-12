@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Button,
   Dialog,
@@ -15,8 +15,6 @@ import { loginUser } from "../../features/Auth/AuthActions";
 import classes from "./staff.module.css";
 import LoginIcon from "@mui/icons-material/Login";
 import BackspaceIcon from "@mui/icons-material/Backspace";
-import { useNavigate } from "react-router-dom";
-import { createCart } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import useCheckIfUserIsLoggedIn from "../../hooks/useCheckIfUserIsLoggedIn";
 
@@ -40,10 +38,9 @@ const StaffModal: React.FC<StaffModalProps> = ({
   const { isError, isSuccess, isLoading, user } = useAppSelector(
     (state) => state.auth
   );
-  const {error: cartError} = useAppSelector(state=>state.cart)
+  const { error: cartError } = useAppSelector((state) => state.cart);
   const dispatch = useAppDispatch();
-  const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
-
+  const { checkIfUserIsLoggedIn, isUserLoggedIn } = useCheckIfUserIsLoggedIn();
 
   const handleClickShowPassword = () => {
     setShowPassword((show) => !show);
@@ -66,16 +63,11 @@ const StaffModal: React.FC<StaffModalProps> = ({
 
   const handleLogin = () => {
     dispatch(loginUser({ pin }));
-    checkIfUserIsLoggedIn(tbl,user,cartError,setOpen)
+    checkIfUserIsLoggedIn(tbl, user, cartError, setOpen);
+    if (!isUserLoggedIn) {
+      setOpen(false);
+    }
   };
-
-  // useEffect(() => {
-  //  if (isError) {
-  //     setNotificationOpen(true);
-  //   } else if (isSuccess) {
-  //     setNotificationOpen(true);
-  //   }
-  // }, [isLoading, isError, isSuccess]);
 
   return (
     <>

@@ -22,7 +22,7 @@ interface cartItemCardProps {
 }
 
 function formatQuantity(quantity:number) {
-  return quantity.toString()
+  return quantity?.toString()
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -85,7 +85,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
           </Grid>
           <Grid item xs={2} ml={-3}>
             <Typography variant="body1" fontSize="16px" ml={1}>
-              ksh.{formattedPrice}
+              ksh.{formattedPrice?formattedPrice:0}
             </Typography>
           </Grid>
         <Grid item xs={2} ml={4}>

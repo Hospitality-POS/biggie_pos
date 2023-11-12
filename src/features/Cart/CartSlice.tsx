@@ -131,6 +131,10 @@ const cartSlice = createSlice({
         0
       );
     },
+    clearcart(state){
+     state.cartDetails = initialState.cartDetails;
+      state.cartItems = initialState.cartItems;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -276,6 +280,6 @@ const cartSlice = createSlice({
   },
 });
 
-export const { removeCartItem, addItem, subtractItem } = cartSlice.actions;
+export const { removeCartItem, addItem, subtractItem, clearcart } = cartSlice.actions;
 
 export default cartSlice.reducer;
