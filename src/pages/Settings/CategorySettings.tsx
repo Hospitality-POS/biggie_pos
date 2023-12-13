@@ -97,71 +97,71 @@ const CategorySettings = () => {
 
 
 
-  const enLocale = {
-    tableForm: {
-      search: "Query",
-      reset: "Reset",
-      submit: "Submit",
-      collapsed: "Expand",
-      expand: "Collapse",
-      inputPlaceholder: "Please enter",
-      selectPlaceholder: "Please select",
-    },
-    alert: {
-      clear: "Clear",
-    },
-    tableToolBar: {
-      leftPin: "Pin to left",
-      rightPin: "Pin to right",
-      noPin: "Unpinned",
-      leftFixedTitle: "Fixed the left",
-      rightFixedTitle: "Fixed the right",
-      noFixedTitle: "Not Fixed",
-      reset: "Reset",
-      columnDisplay: "Column Display",
-      columnSetting: "Settings",
-      fullScreen: "Full Screen",
-      exitFullScreen: "Exit Full Screen",
-      reload: "Refresh",
-      density: "Density",
-      densityDefault: "Default",
-      densityLarger: "Larger",
-      densityMiddle: "Middle",
-      densitySmall: "Compact",
-    },
-    pagination: {
-      page: "Page",
-      prev: "Previous",
-      next: "Next",
-      first: "First",
-      last: "Last",
-      jumpTo: "Jump to",
-      jumpToConfirm: "Confirm",
-      pageSize: "Page Size",
-      total: "Total",
-      item: "item(s)",
-      range: "Page {0}-{1} of {2}",
-      pageSizeOptions: ["10", "20", "50", "100"],
-      showTotal: (total, range) =>
-        `Showing ${range[0]}-${range[1]} of ${total} items`,
-    },
-  };
+  // const enLocale = {
+  //   tableForm: {
+  //     search: "Query",
+  //     reset: "Reset",
+  //     submit: "Submit",
+  //     collapsed: "Expand",
+  //     expand: "Collapse",
+  //     inputPlaceholder: "Please enter",
+  //     selectPlaceholder: "Please select",
+  //   },
+  //   alert: {
+  //     clear: "Clear",
+  //   },
+  //   tableToolBar: {
+  //     leftPin: "Pin to left",
+  //     rightPin: "Pin to right",
+  //     noPin: "Unpinned",
+  //     leftFixedTitle: "Fixed the left",
+  //     rightFixedTitle: "Fixed the right",
+  //     noFixedTitle: "Not Fixed",
+  //     reset: "Reset",
+  //     columnDisplay: "Column Display",
+  //     columnSetting: "Settings",
+  //     fullScreen: "Full Screen",
+  //     exitFullScreen: "Exit Full Screen",
+  //     reload: "Refresh",
+  //     density: "Density",
+  //     densityDefault: "Default",
+  //     densityLarger: "Larger",
+  //     densityMiddle: "Middle",
+  //     densitySmall: "Compact",
+  //   },
+  //   pagination: {
+  //     page: "Page",
+  //     prev: "Previous",
+  //     next: "Next",
+  //     first: "First",
+  //     last: "Last",
+  //     jumpTo: "Jump to",
+  //     jumpToConfirm: "Confirm",
+  //     pageSize: "Page Size",
+  //     total: "Total",
+  //     item: "item(s)",
+  //     range: "Page {0}-{1} of {2}",
+  //     pageSizeOptions: ["10", "20", "50", "100"],
+  //     showTotal: (total, range) =>
+  //       `Showing ${range[0]}-${range[1]} of ${total} items`,
+  //   },
+  // };
 
-  const values = useContext(ProProvider);
-  const enUSIntl3 = createIntl("en_US", enLocale);
+  // const values = useContext(ProProvider);
+  // const enUSIntl3 = createIntl("en_US", enLocale);
 
-  const customLocale = {
-    items_per_page: "Items per page",
-    jump_to: "Jump to",
-    jump_to_confirm: "Confirm",
-    page: "Page",
-    prev_page: "Previous Page",
-    next_page: "Next Page",
-    prev_5: "Previous 5 Pages",
-    next_5: "Next 5 Pages",
-    prev_3: "Previous 3 Pages",
-    next_3: "Next 3 Pages",
-  };
+  // const customLocale = {
+  //   items_per_page: "Items per page",
+  //   jump_to: "Jump to",
+  //   jump_to_confirm: "Confirm",
+  //   page: "Page",
+  //   prev_page: "Previous Page",
+  //   next_page: "Next Page",
+  //   prev_5: "Previous 5 Pages",
+  //   next_5: "Next 5 Pages",
+  //   prev_3: "Previous 3 Pages",
+  //   next_3: "Next 3 Pages",
+  // };
 
   const handleSort = (property: React.SetStateAction<string>) => {
     const isAsc = orderBy === property && order === "asc";
@@ -234,7 +234,7 @@ const CategorySettings = () => {
   }, [dispatch]);
 
   return (
-    <>
+    <div style={{padding: "20px"}}>
     
       {/* <Typography mt={2} variant="h6" ml={2} gutterBottom>
         List of all categories
@@ -369,7 +369,7 @@ const CategorySettings = () => {
         onRowsPerPageChange={handleChangeRowsPerPage}
       /> */}
 
-      <ConfigProvider
+      {/* <ConfigProvider
         locale={{ locale: "enUS" }}
         theme={{
           token: {
@@ -378,7 +378,7 @@ const CategorySettings = () => {
           },
         }}
       >
-        <ProProvider.Provider value={{ ...values, intl: enUSIntl3 }}>
+        <ProProvider.Provider value={{ ...values, intl: enUSIntl3 }}> */}
           <ProTable
             rowKey="_id"
             pagination={{
@@ -429,7 +429,7 @@ const CategorySettings = () => {
               //   total: categories.length - 1,
               // });
               const data = await fetchAllCategories();
-              console.log("========", data);
+              // console.log("========", data);
               return {
                 data: data,
                 success: true,
@@ -457,8 +457,8 @@ const CategorySettings = () => {
             headerTitle="List of categories"
             toolBarRender={() => [<ModalA/>]}
           />
-        </ProProvider.Provider>
-      </ConfigProvider>
+        {/* </ProProvider.Provider>
+      </ConfigProvider> */}
 
       {/* Delete Confirmation Dialog */}
       <Dialog
@@ -488,7 +488,7 @@ const CategorySettings = () => {
         onClose={() => setAddCategoryDialogOpen(false)}
         onAddCategory={handleAddCategory}
       />
-    </>
+    </div>
   );
 };
 

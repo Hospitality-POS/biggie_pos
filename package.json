@@ -39,6 +39,7 @@
     "react-dom": "^18.2.0",
     "react-draggable": "^4.4.5",
     "react-hook-form": "^7.45.4",
+    "react-intl": "^6.5.5",
     "react-multi-carousel": "^2.8.4",
     "react-query": "^3.39.3",
     "react-redux": "^8.1.1",
