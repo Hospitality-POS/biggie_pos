@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -32,55 +32,7 @@ import {
 } from "../../features/Category/CategoryActions";
 import AddCategoryDialog from "../../components/MODALS/Dialogs/AddCategoryDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
-import {
-  ModalForm,
-  ProConfigProvider,
-  ProFormSelect,
-  ProFormText,
-  ProProvider,
-  ProTable,
-  TableDropdown,
-  createIntl,
-  enUSIntl,
-  useIntl,
-} from "@ant-design/pro-components";
-import { ConfigProvider, Space } from "antd";
-import enUS from "antd/es/calendar/locale/en_US";
-import dayjs from "dayjs";
-import { fetchAllCategories } from "../../services/categories";
 
-export const ModalA =() => {
-
-return (
-  <ModalForm
-    title="fff"
-    submitter={{render:(props, dom)=> {
-           return [
-             ...dom,
-              <Button
-                key="ok"
-                onClick={() => {
-                  props.submit();
-                }}
-              >
-                ok
-              </Button>,
-            ];
-    }}}
-    trigger={
- <Button>Add new subcategory</Button>
-    }
-   
-    autoFocusFirstInput
-    modalProps={{
-      destroyOnClose: true,
-      onCancel: () => console.log('run'),
-    }}
-  >
-  <p>Child</p>
-  </ModalForm>
-);
-};
 const CategorySettings = () => {
   const dispatch = useAppDispatch();
   const { categories } = useAppSelector((state) => state.Categories);
@@ -92,76 +44,6 @@ const CategorySettings = () => {
   const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState(null);
-  // console.log(enUSIntl);
-
-
-
-
-  const enLocale = {
-    tableForm: {
-      search: "Query",
-      reset: "Reset",
-      submit: "Submit",
-      collapsed: "Expand",
-      expand: "Collapse",
-      inputPlaceholder: "Please enter",
-      selectPlaceholder: "Please select",
-    },
-    alert: {
-      clear: "Clear",
-    },
-    tableToolBar: {
-      leftPin: "Pin to left",
-      rightPin: "Pin to right",
-      noPin: "Unpinned",
-      leftFixedTitle: "Fixed the left",
-      rightFixedTitle: "Fixed the right",
-      noFixedTitle: "Not Fixed",
-      reset: "Reset",
-      columnDisplay: "Column Display",
-      columnSetting: "Settings",
-      fullScreen: "Full Screen",
-      exitFullScreen: "Exit Full Screen",
-      reload: "Refresh",
-      density: "Density",
-      densityDefault: "Default",
-      densityLarger: "Larger",
-      densityMiddle: "Middle",
-      densitySmall: "Compact",
-    },
-    pagination: {
-      page: "Page",
-      prev: "Previous",
-      next: "Next",
-      first: "First",
-      last: "Last",
-      jumpTo: "Jump to",
-      jumpToConfirm: "Confirm",
-      pageSize: "Page Size",
-      total: "Total",
-      item: "item(s)",
-      range: "Page {0}-{1} of {2}",
-      pageSizeOptions: ["10", "20", "50", "100"],
-      showTotal: (total, range) =>
-        `Showing ${range[0]}-${range[1]} of ${total} items`,
-    },
-  };
-
-  const values = useContext(ProProvider);
-  const enUSIntl3 = createIntl("en_US", enLocale);
-
-  const customLocale = {
-    items_per_page: "Items per page",
-    jump_to: "Jump to",
-    jump_to_confirm: "Confirm",
-    page: "Page",
-    prev_page: "Previous Page",
-    next_page: "Next Page",
-    prev_5: "Previous 5 Pages",
-    next_5: "Next 5 Pages",
-    prev_3: "Previous 3 Pages",
-    next_3: "Next 3 Pages",
-  };
 
   const handleSort = (property: React.SetStateAction<string>) => {
     const isAsc = orderBy === property && order === "asc";
@@ -207,7 +89,7 @@ const CategorySettings = () => {
   // Filter categories based on user input
   const filteredCategories = categories
     ? categories.filter((category: { name: string }) =>
-        category?.name.toLowerCase().includes(filter?.toLowerCase())
+        category.name.toLowerCase().includes(filter.toLowerCase())
       )
     : [];
 
@@ -226,17 +108,17 @@ const CategorySettings = () => {
     }
   });
 
+  
   useEffect(() => {
     const dispatchFetchAllCategories = () => {
       dispatch(fetchCategories());
-    };
-    dispatchFetchAllCategories();
+    };    
+    dispatchFetchAllCategories()
   }, [dispatch]);
 
   return (
-    <>
-    
-      {/* <Typography mt={2} variant="h6" ml={2} gutterBottom>
+    <Paper>
+      <Typography mt={2} variant="h6" ml={2} gutterBottom>
         List of all categories
       </Typography>
       <Box
@@ -261,8 +143,8 @@ const CategorySettings = () => {
           InputProps={{ endAdornment: <SearchIcon /> }}
           onChange={(e) => setFilter(e.target.value)}
         />
-      </Box> */}
-      {/* <TableContainer
+      </Box>
+      <TableContainer
         style={{
           width: "100%",
           marginTop: "1rem",
@@ -367,98 +249,7 @@ const CategorySettings = () => {
         page={page}
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
-      /> */}
-
-      <ConfigProvider
-        locale={{ locale: "enUS" }}
-        theme={{
-          token: {
-            colorPrimary: "#6c1c2c",
-            colorBgContainer: "#f6ffed",
-          },
-        }}
-      >
-        <ProProvider.Provider value={{ ...values, intl: enUSIntl3 }}>
-          <ProTable
-            rowKey="_id"
-            pagination={{
-              showQuickJumper: true,
-               showTotal: (total, range) => (
-          <div>{`Showing ${range[0]}-${range[1]} of ${total} total items`}</div>
-        ),
-        
-            }}
-            loading={!categories}
-            columns={[
-              {
-                title: "Name",
-                dataIndex: "name",
-                hideInSearch: false,
-
-                renderFormItem: () => {
-                  return (
-                    <ProFormText
-                      width={"md"}
-                      name={"name"}
-                      placeholder={"Search Name"}
-                    />
-                  );
-                },
-              },
-              {
-                title: "Subcategory",
-                dataIndex: ["sub_category", "name"],
-                hideInSearch: false,
-
-                renderFormItem: () => {
-                  return (
-                    <ProFormText
-                      width={"md"}
-                      name={["sub_category", "name"]}
-                      placeholder={"Search subcategory"}
-                    />
-                  );
-                },
-              },
-            ]}
-            request={async (params) => {
-              // setFilter(params.name)
-              // return Promise.resolve({
-              //   data: !filter ? categories : filteredCategories,
-              //   success: true,
-              //   total: categories.length - 1,
-              // });
-              const data = await fetchAllCategories();
-              console.log("========", data);
-              return {
-                data: data,
-                success: true,
-                total: data.length - 1,
-              };
-            }}
-            tableAlertRender={({
-        selectedRowKeys,
-        selectedRows,
-        onCleanSelected}
-      )=>{
-        return <p>You have selected {selectedRowKeys.length}</p>
-
-            }}
-            rowSelection={{
-              alwaysShowAlert:false,
-              selections: false,
-            }}
-            search={{
-              searchText: "Search Category",
-              resetText: "Reset",
-              labelWidth: "auto",
-            }}
-            dateFormatter="string"
-            headerTitle="List of categories"
-            toolBarRender={() => [<ModalA/>]}
-          />
-        </ProProvider.Provider>
-      </ConfigProvider>
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog
@@ -488,7 +279,7 @@ const CategorySettings = () => {
         onClose={() => setAddCategoryDialogOpen(false)}
         onAddCategory={handleAddCategory}
       />
-    </>
+    </Paper>
   );
 };
 
