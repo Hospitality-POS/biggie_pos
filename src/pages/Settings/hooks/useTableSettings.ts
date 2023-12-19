@@ -13,7 +13,7 @@ const initialState = {
 export default function useTableSettings() {
 const [state,dispatch]=useReducer(tableSettingsReducer,initialState);
 
-function tableSettingsReducer(state,{action,payload}){
+function tableSettingsReducer(state: any,{action,payload}: any){
 
     switch(action){
         case 'SET_FILTER':
