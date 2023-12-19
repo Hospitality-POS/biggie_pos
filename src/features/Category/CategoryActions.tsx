@@ -7,7 +7,7 @@ const baseUrl = "http://localhost:3000/categories";
 interface Category {
   _id: string;
   name: string;
-  product_count: number;
+  product_count?: number;
 }
 
 // Create an async thunk to fetch all categories
