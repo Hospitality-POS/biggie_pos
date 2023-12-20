@@ -72,7 +72,7 @@ const CategorySettings = () => {
   };
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{padding: 20}}>
       <ProTable
         rowKey="_id"
         pagination={{
@@ -123,7 +123,7 @@ const CategorySettings = () => {
             return {
               data: data,
               success: true,
-              total: data.length-1,
+              total: data.length,
             };
            
           
