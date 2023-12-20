@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
@@ -7,7 +7,6 @@ import { resetCategoryMessage } from "../../../../features/Category/CategorySlic
 import { createCategory } from "../../../../features/Category/CategoryActions";
 import { message } from "antd";
 import { ProForm } from "@ant-design/pro-components";
-
 
 interface Category {
   _id?: string;
@@ -24,20 +23,21 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { isSuccess } = useAppSelector((state) => state.Categories);
   const [form] = ProForm.useForm();
+
   const dispatch = useDispatch();
-const waitTime = (time: number = 100) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(true);
-    }, time);
-  });
-};
+  const waitTime = (time: number = 100) => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(true);
+      }, time);
+    });
+  };
   const handleConfirmAddCategory = async (data: Category) => {
     dispatch(resetCategoryMessage());
     const newCategory: Category = {
-        name: data.name,
-        sub_category: data.subcategory_id,
-        subcategory_id: ""
+      name: data.name,
+      sub_category: data.subcategory_id,
+      subcategory_id: "",
     };
 
     try {
@@ -45,15 +45,15 @@ const waitTime = (time: number = 100) => {
       onAddCategory(data);
       setIsSubmitting(true);
       handleClose();
-        await waitTime(2000)
+      await waitTime(2000);
+    //   ref.current?.reload()
       if (isSuccess) {
         message.success("Successfully added new category");
-      } 
-
-      if(!isSuccess) {
-        message.error("Failed to add a new category");
       }
 
+      if (!isSuccess) {
+        message.error("Failed to add a new category");
+      }
     } catch (error) {
       setIsSubmitting(false);
       handleClose();
@@ -67,7 +67,9 @@ const waitTime = (time: number = 100) => {
 
   const fetchSubCategories = async () => {
     try {
-      const response = await axios.get("http://localhost:3000/categories/sub-categories");
+      const response = await axios.get(
+        "http://localhost:3000/categories/sub-categories"
+      );
       return response.data;
     } catch (error) {
       console.error("Error fetching subcategories", error);
@@ -75,7 +77,10 @@ const waitTime = (time: number = 100) => {
     }
   };
 
-  const { data: subcategories } = useQuery(["subcategories"], fetchSubCategories);
+  const { data: subcategories } = useQuery(
+    ["subcategories"],
+    fetchSubCategories
+  );
 
   const handleSubCategoryChange = (subCategoryId: string) => {
     // Do something with the sub-category change if needed

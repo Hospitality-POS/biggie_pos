@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { deleteCategory } from "../../../features/Category/CategoryActions";
 import { useAppSelector } from "../../../store";
+import { message } from "antd";
+import type { ActionType } from '@ant-design/pro-components';
 
 
 type TdeleteCandidate = {name: string, _id: string} | any;
@@ -22,11 +24,17 @@ const useCategorySettings = ({ onDeleteCandidate }: CategorySettingsProps) => {
     setDeleteConfirmationOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    if (deleteCandidate) {
-      dispatch(deleteCategory(deleteCandidate._id));
-      onDeleteCandidate(deleteCandidate);
-      setDeleteConfirmationOpen(false);
+  const handleDeleteConfirm = async(ref) => {
+    try {
+        if (deleteCandidate) {
+          dispatch(deleteCategory(deleteCandidate._id));
+          onDeleteCandidate(deleteCandidate);
+          setDeleteConfirmationOpen(false);
+          ref.current?.reload()
+          message.success("succesfuly deleted")
+        }
+    } catch (error) {
+        message.error("Failed to delete")
     }
   };
 

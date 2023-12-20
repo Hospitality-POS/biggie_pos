@@ -25,7 +25,7 @@ const AddProCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose,
     handleConfirmAddCategory,
     handleSubCategoryChange,
     handleClose,
-    setIsSubmitting
+    setIsSubmitting,
   } = useAddCategoryDialog({ onAddCategory });
 
   return (

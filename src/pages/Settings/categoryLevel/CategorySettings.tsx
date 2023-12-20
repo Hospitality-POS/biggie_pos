@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -6,7 +6,7 @@ import {
   DialogActions,
 } from "@mui/material";
 
-import { ProFormText, ProTable } from "@ant-design/pro-components";
+import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
 import { fetchAllCategories } from "../../../services/categories";
 import AddProCategoryDialog from "../../../components/MODALS/Dialogs/AddProCategoryModal";
 import { Tooltip, Button } from "antd";
@@ -14,6 +14,7 @@ import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import useCategorySettings from "../hooks/useCategorySettings";
 
 const CategorySettings = () => {
+  const actionRef = useRef<ActionType>()
   const onDeleteCandidate = (category: any) => {
     // Handle any logic needed when a category is deleted
   };
@@ -26,7 +27,7 @@ const CategorySettings = () => {
     deleteCandidate,
     loading,
     addCategoryDialogOpen,
-    setAddCategoryDialogOpen,
+    setAddCategoryDialogOpen
   } = useCategorySettings({ onDeleteCandidate });
 
   const handleAddCategory = () => {
@@ -117,6 +118,7 @@ const CategorySettings = () => {
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
+        actionRef={actionRef}
         rowSelection={{
           alwaysShowAlert: false,
           selections: false,
@@ -153,7 +155,7 @@ const CategorySettings = () => {
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={handleDeleteConfirm} danger>
+          <Button onClick={()=>handleDeleteConfirm(actionRef)} danger>
             Delete
           </Button>
         </DialogActions>
