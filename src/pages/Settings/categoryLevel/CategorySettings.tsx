@@ -7,11 +7,11 @@ import {
 } from "@mui/material";
 
 import { ProFormText, ProTable } from "@ant-design/pro-components";
-import { fetchAllCategories } from "../../services/categories";
-import AddProCategoryDialog from "../../components/MODALS/Dialogs/AddProCategoryModal";
+import { fetchAllCategories } from "../../../services/categories";
+import AddProCategoryDialog from "../../../components/MODALS/Dialogs/AddProCategoryModal";
 import { Tooltip, Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import useCategorySettings from "./hooks/useCategorySettings";
+import useCategorySettings from "../hooks/useCategorySettings";
 
 const CategorySettings = () => {
   const onDeleteCandidate = (category: any) => {
@@ -61,12 +61,12 @@ const CategorySettings = () => {
   };
 
   return (
-    <div style={{ padding: 20 }}>
+    <>
       <ProTable
         rowKey="_id"
         pagination={{
           pageSize: 5,
-          showQuickJumper: true,
+          showQuickJumper: false,
           showTotal: (total, range) => (
             <div>{`Showing ${range[0]}-${range[1]} of ${total} total items`}</div>
           ),
@@ -158,7 +158,7 @@ const CategorySettings = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </>
   );
 };
 

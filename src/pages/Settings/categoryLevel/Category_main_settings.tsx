@@ -1,35 +1,48 @@
-import React, { useState } from 'react';
-import { ProCard } from '@ant-design/pro-components';
-import CategorySettings from '../CategorySettings';
-
-const { TabPane } = ProCard;
+import React, { useState } from "react";
+import { ProCard } from "@ant-design/pro-components";
+import CategorySettings from "./CategorySettings";
 
 const Category2 = () => <div>Content for Category 2</div>;
 const MainCategory = () => <div>Main Category Content</div>;
 
 const CategoryMainSettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>('category1');
+  const [activeTab, setActiveTab] = useState<string>("category1");
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
   };
 
+  const tabsItems = [
+    {
+      key: "category2",
+      tab: "Category",
+      label: "Category",
+      children: <Category2 />,
+    },
+    {
+      key: "category1",
+      tab: "Sub-category",
+      label: "Sub-Category",
+      children: <CategorySettings />,
+    },
+    {
+      key: "mainCategory",
+      tab: "Main Category",
+      label: "Main Category",
+      children: <MainCategory />,
+    },
+  ];
+
   return (
     <ProCard
       tabs={{
         type: 'card',
+        items: tabsItems,
+        activeKey: activeTab,
+        onChange: handleTabChange,
       }}
-    >
-      <TabPane key="category2" tab="Category">
-        <Category2 />
-      </TabPane>
-      <TabPane key="category1" tab="Sub-category">
-        <CategorySettings/>
-      </TabPane>
-      <TabPane key="mainCategory" tab="Main Category">
-        <MainCategory />
-      </TabPane>
-    </ProCard>
+      title="Category Main Settings"
+    />
   );
 };
 

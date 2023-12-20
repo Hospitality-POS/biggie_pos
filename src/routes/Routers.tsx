@@ -10,7 +10,7 @@ import Reports from "../pages/Settings/Reports";
 import SupplierTable from "../pages/Settings/Supplier";
 import MainCategory from "../pages/main_category/Main_category";
 import TableSettings from "../pages/Settings/TableSettings";
-import CategorySettings from "../pages/Settings/CategorySettings";
+import CategorySettings from "../pages/Settings/categoryLevel/CategorySettings";
 import PaymentSettings from "../pages/Settings/PaymentSettings";
 import CategoryMainSettings from "../pages/Settings/categoryLevel/Category_main_settings";
 
