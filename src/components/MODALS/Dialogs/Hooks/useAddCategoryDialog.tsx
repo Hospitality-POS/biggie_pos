@@ -25,7 +25,13 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
   const { isSuccess } = useAppSelector((state) => state.Categories);
   const [form] = ProForm.useForm();
   const dispatch = useDispatch();
-
+const waitTime = (time: number = 100) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(true);
+    }, time);
+  });
+};
   const handleConfirmAddCategory = async (data: Category) => {
     dispatch(resetCategoryMessage());
     const newCategory: Category = {
@@ -39,12 +45,15 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
       onAddCategory(data);
       setIsSubmitting(true);
       handleClose();
-
+        await waitTime(2000)
       if (isSuccess) {
         message.success("Successfully added new category");
-      } else {
+      } 
+
+      if(!isSuccess) {
         message.error("Failed to add a new category");
       }
+
     } catch (error) {
       setIsSubmitting(false);
       handleClose();
