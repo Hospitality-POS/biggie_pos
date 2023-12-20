@@ -1,44 +1,33 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import {
-  deleteCategory,
-  fetchCategories,
-} from "../../features/Category/CategoryActions";
-import { useAppDispatch, useAppSelector } from "../../store";
+
 import { ProFormText, ProTable } from "@ant-design/pro-components";
 import { fetchAllCategories } from "../../services/categories";
 import AddProCategoryDialog from "../../components/MODALS/Dialogs/AddProCategoryModal";
 import { Tooltip, Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import useCategorySettings from "./hooks/useCategorySettings";
 
-type TdeleteCandidate = any;
 const CategorySettings = () => {
-  const dispatch = useAppDispatch();
-  const { loading } = useAppSelector((state) => state.Categories);
-  const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);
-  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-  const [deleteCandidate, setDeleteCandidate] = useState<TdeleteCandidate>("");
-
-  const handleDeleteClick = (category: React.SetStateAction<null>) => {
-    setDeleteCandidate(category);
-    setDeleteConfirmationOpen(true);
+  const onDeleteCandidate = (category: any) => {
+    // Handle any logic needed when a category is deleted
   };
 
-  const handleDeleteConfirm = () => {
-    if (deleteCandidate) {
-      dispatch(deleteCategory(deleteCandidate._id));
-      setDeleteConfirmationOpen(false);
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteConfirmationOpen(false);
-  };
+  const {
+    deleteConfirmationOpen,
+    handleDeleteClick,
+    handleDeleteConfirm,
+    handleDeleteCancel,
+    deleteCandidate,
+    loading,
+    addCategoryDialogOpen,
+    setAddCategoryDialogOpen,
+  } = useCategorySettings({ onDeleteCandidate });
 
   const handleAddCategory = () => {
     // You can update your state or perform any necessary actions here
@@ -51,7 +40,7 @@ const CategorySettings = () => {
   const actionColumn = {
     title: "Actions",
     dataIndex: "actions",
-     hideInSearch: true,
+    hideInSearch: true,
     render: (_, record: any) => [
       <Tooltip key="edit" title="Edit">
         <Button
@@ -72,7 +61,7 @@ const CategorySettings = () => {
   };
 
   return (
-    <div style={{padding: 20}}>
+    <div style={{ padding: 20 }}>
       <ProTable
         rowKey="_id"
         pagination={{
@@ -117,16 +106,13 @@ const CategorySettings = () => {
           actionColumn,
         ]}
         request={async () => {
-          
-            const data = await fetchAllCategories();
-            // console.log("========", data);
-            return {
-              data: data,
-              success: true,
-              total: data.length,
-            };
-           
-          
+          const data = await fetchAllCategories();
+          // console.log("========", data);
+          return {
+            data: data,
+            success: true,
+            total: data.length,
+          };
         }}
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
