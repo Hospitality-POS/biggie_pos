@@ -109,7 +109,7 @@ const CategorySettings = () => {
         request={async () => {
           const data = await fetchAllCategories();
           // console.log("========", data);
-          return {
+         return {
             data: data,
             success: true,
             total: data.length,
