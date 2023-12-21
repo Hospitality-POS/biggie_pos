@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
@@ -7,6 +7,7 @@ import { resetCategoryMessage } from "../../../../features/Category/CategorySlic
 import { createCategory } from "../../../../features/Category/CategoryActions";
 import { message } from "antd";
 import { ProForm } from "@ant-design/pro-components";
+
 
 interface Category {
   _id?: string;
@@ -25,13 +26,7 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
   const [form] = ProForm.useForm();
 
   const dispatch = useDispatch();
-  const waitTime = (time: number = 100) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(true);
-      }, time);
-    });
-  };
+ 
   const handleConfirmAddCategory = async (data: Category)  => {
     dispatch(resetCategoryMessage());
     const newCategory: Category = {
