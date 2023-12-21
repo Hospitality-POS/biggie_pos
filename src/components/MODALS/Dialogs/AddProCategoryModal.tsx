@@ -4,6 +4,7 @@ import { Button, Space } from "antd";
 import { ModalForm, ProFormSelect, ProFormText, ProForm } from "@ant-design/pro-form";
 import CategoryIcon from "@mui/icons-material/Category";
 import useAddCategoryDialog from "./Hooks/useAddCategoryDialog";
+import { ActionType } from "@ant-design/pro-components";
 
 interface Category {
   _id?: string;
@@ -15,9 +16,10 @@ interface AddCategoryDialogProps {
   open: boolean;
   onClose: () => void;
   onAddCategory: (category: Category) => void;
+  actionRef;
 }
 
-const AddProCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose, onAddCategory }) => {
+const AddProCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose, onAddCategory, actionRef }) => {
   const {
     isSubmitting,
     form,
@@ -39,7 +41,10 @@ const AddProCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose,
           </Space>
         }
         trigger={<Button onClick={() => setIsSubmitting(true)}>Add new subcategory</Button>}
-        onFinish={handleConfirmAddCategory}
+        onFinish={async(values)=>{
+        await  handleConfirmAddCategory(values)
+          actionRef.current.reload()
+        }}
         onOpenChange={(visible) => !visible && handleClose()}
         form={form}
         submitter={{

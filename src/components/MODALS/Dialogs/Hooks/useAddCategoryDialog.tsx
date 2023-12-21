@@ -32,7 +32,7 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
       }, time);
     });
   };
-  const handleConfirmAddCategory = async (data: Category) => {
+  const handleConfirmAddCategory = async (data: Category)  => {
     dispatch(resetCategoryMessage());
     const newCategory: Category = {
       name: data.name,
@@ -45,13 +45,10 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
       onAddCategory(data);
       setIsSubmitting(true);
       handleClose();
-      await waitTime(2000);
-    //   ref.current?.reload()
+
       if (isSuccess) {
         message.success("Successfully added new category");
-      }
-
-      if (!isSuccess) {
+      }else {
         message.error("Failed to add a new category");
       }
     } catch (error) {

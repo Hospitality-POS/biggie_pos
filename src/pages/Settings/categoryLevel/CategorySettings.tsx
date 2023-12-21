@@ -135,6 +135,7 @@ const CategorySettings = () => {
             open={addCategoryDialogOpen}
             onClose={() => setAddCategoryDialogOpen(false)}
             onAddCategory={handleAddCategory}
+            actionRef={actionRef}
           />,
         ]}
       />
