@@ -14,16 +14,16 @@ const CategoryMainSettings: React.FC = () => {
 
   const tabsItems = [
     {
-      key: "category2",
-      tab: "Category",
-      label: "Category",
-      children: <Category2 />,
-    },
-    {
       key: "category1",
       tab: "Sub-category",
       label: "Sub-Category",
       children: <CategorySettings />,
+    },
+    {
+      key: "category2",
+      tab: "Category",
+      label: "Category",
+      children: <Category2 />,
     },
     {
       key: "mainCategory",
