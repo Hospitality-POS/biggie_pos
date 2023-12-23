@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { deleteCategory } from "../../../features/Category/CategoryActions";
-import { useAppSelector } from "../../../store";
 import { message } from "antd";
 import type { ActionType } from '@ant-design/pro-components';
 
@@ -14,7 +13,6 @@ interface CategorySettingsProps {
 
 const useCategorySettings = ({ onDeleteCandidate }: CategorySettingsProps) => {
   const dispatch = useDispatch();
-  const { loading } = useAppSelector((state) => state.Categories);
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<TdeleteCandidate>("");
   const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);
@@ -48,7 +46,6 @@ const useCategorySettings = ({ onDeleteCandidate }: CategorySettingsProps) => {
     handleDeleteConfirm,
     handleDeleteCancel,
     deleteCandidate,
-    loading,
     addCategoryDialogOpen,
     setAddCategoryDialogOpen
   };

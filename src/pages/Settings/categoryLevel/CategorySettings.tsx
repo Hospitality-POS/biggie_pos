@@ -14,7 +14,7 @@ import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import useCategorySettings from "../hooks/useCategorySettings";
 
 const CategorySettings = () => {
-  const actionRef = useRef<ActionType>()
+  const actionRef = useRef<ActionType>();
   const onDeleteCandidate = (category: any) => {
     // Handle any logic needed when a category is deleted
   };
@@ -25,9 +25,8 @@ const CategorySettings = () => {
     handleDeleteConfirm,
     handleDeleteCancel,
     deleteCandidate,
-    loading,
     addCategoryDialogOpen,
-    setAddCategoryDialogOpen
+    setAddCategoryDialogOpen,
   } = useCategorySettings({ onDeleteCandidate });
 
   const handleAddCategory = () => {
@@ -72,7 +71,6 @@ const CategorySettings = () => {
             <div>{`Showing ${range[0]}-${range[1]} of ${total} total items`}</div>
           ),
         }}
-        loading={loading}
         columns={[
           {
             title: "Name",
@@ -106,10 +104,11 @@ const CategorySettings = () => {
           },
           actionColumn,
         ]}
-        request={async () => {
-          const data = await fetchAllCategories();
+        request={async (param) => {
+          const data = await fetchAllCategories(param);
           // console.log("========", data);
-         return {
+          // console.log(sorter, filter);
+          return {
             data: data,
             success: true,
             total: data.length,
@@ -156,7 +155,7 @@ const CategorySettings = () => {
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={()=>handleDeleteConfirm(actionRef)} danger>
+          <Button onClick={() => handleDeleteConfirm(actionRef)} danger>
             Delete
           </Button>
         </DialogActions>
