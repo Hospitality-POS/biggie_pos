@@ -73,7 +73,7 @@ const CategorySettings = () => {
         }}
         columns={[
           {
-            title: "Name",
+            title: "Category",
             dataIndex: "name",
             hideInSearch: false,
 
