@@ -8,7 +8,7 @@ import {
 
 import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
 import { fetchAllCategories } from "../../../services/categories";
-import AddProCategoryDialog from "../../../components/MODALS/Dialogs/AddProCategoryModal";
+import AddProCategoryDialog from "../../../components/MODALS/Dialogs/pro/AddProCategoryModal";
 import { Tooltip, Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import useCategorySettings from "../hooks/useCategorySettings";
