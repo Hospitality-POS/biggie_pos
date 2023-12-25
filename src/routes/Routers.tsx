@@ -9,11 +9,12 @@ import Inventory from "../pages/Settings/Inventory";
 import Reports from "../pages/Settings/Reports";
 import SupplierTable from "../pages/Settings/Supplier";
 import MainCategory from "../pages/main_category/Main_category";
-import TableSettings from "../pages/Settings/TableSettings";
+import TableSettings from "../pages/Settings/TableLevel/TableSettings";
 import CategorySettings from "../pages/Settings/categoryLevel/CategorySettings";
 import PaymentSettings from "../pages/Settings/PaymentSettings";
 import CategoryMainSettings from "../pages/Settings/categoryLevel/Category_main_settings";
 import EmptyPage from "./EmptyPage";
+import TableMainSettings from "../pages/Settings/TableLevel/Table_main_settings";
 
 
 const Layout = lazy(() => import("../components/layout/Layout"));
@@ -36,7 +37,7 @@ function Routers() {
           <Route path="/users" element={<Private><UsersList /></Private>} />
           <Route path="/reports" element={<Private><Reports /></Private>} />
           <Route path="/supplier" element={<Private><SupplierTable /></Private>} />
-          <Route path="/table-settings" element={<Private><TableSettings /></Private>} />
+          <Route path="/table-settings" element={<Private><TableMainSettings /></Private>} />
           <Route path="/category-settings" element={<Private><CategoryMainSettings /></Private>} />
           <Route path="/payment-settings" element={<Private><PaymentSettings /></Private>} />
           <Route path="/Inventory" element={<Private><Inventory /></Private>} />
