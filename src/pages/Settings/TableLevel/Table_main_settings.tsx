@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import TableSettings from "./TableSettings";
+import TableLocationSettings from "./Table_Locations";
 
 
 const Location = () => <div>Content for location</div>;
@@ -23,7 +24,7 @@ const TableMainSettings: React.FC = () => {
       key: "table2",
       tab: "loaction",
       label: "Add New Table Location",
-      children: <Location />,
+      children: <TableLocationSettings/>,
     },
   ];
 
