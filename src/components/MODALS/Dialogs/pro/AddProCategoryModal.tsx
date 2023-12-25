@@ -3,7 +3,7 @@ import React from "react";
 import { Button, Space } from "antd";
 import { ModalForm, ProFormSelect, ProFormText, ProForm } from "@ant-design/pro-form";
 import CategoryIcon from "@mui/icons-material/Category";
-import useAddCategoryDialog from "./Hooks/useAddCategoryDialog";
+import useAddCategoryDialog from "../Hooks/useAddCategoryDialog";
 import { ActionType } from "@ant-design/pro-components";
 
 interface Category {
