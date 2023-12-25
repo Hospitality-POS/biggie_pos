@@ -33,14 +33,14 @@ import {
   createLocation,
   deleteTable,
   fetchTables,
-} from "../../features/Table/TableActions";
-import AddTableDialog from "../../components/MODALS/Dialogs/AddTableDialog";
-import AddNewTableLocationDialog from "../../components/MODALS/Dialogs/AddNewTableLocation";
-import { useAppDispatch, useAppSelector } from "../../store";
-import { resetTableMessage } from "../../features/Table/TableSlice";
-import Spinner from "../../components/spinner/Spinner";
-import ScrollableTabsLocations from "./tablelocation/Locations";
-import useTableSettings from "./hooks/useTableSettings";
+} from "../../../features/Table/TableActions";
+import AddTableDialog from "../../../components/MODALS/Dialogs/AddTableDialog";
+import AddNewTableLocationDialog from "../../../components/MODALS/Dialogs/AddNewTableLocation";
+import { useAppDispatch, useAppSelector } from "../../../store";
+import { resetTableMessage } from "../../../features/Table/TableSlice";
+import Spinner from "../../../components/spinner/Spinner";
+import ScrollableTabsLocations from "../tablelocation/Locations";
+import useTableSettings from "../hooks/useTableSettings";
 
 const TableSettings = () => {
   const {state,dispatch:hookDispatch}=useTableSettings()
