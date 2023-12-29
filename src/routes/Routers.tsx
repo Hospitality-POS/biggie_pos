@@ -11,7 +11,7 @@ import SupplierTable from "../pages/Settings/supplierLevel/Supplier";
 import MainCategory from "../pages/main_category/Main_category";
 import TableSettings from "../pages/Settings/TableLevel/TableSettings";
 import CategorySettings from "../pages/Settings/categoryLevel/CategorySettings";
-import PaymentSettings from "../pages/Settings/PaymentSettings";
+import PaymentSettings from "../pages/Settings/paymentMethodLevel/PaymentSettings";
 import CategoryMainSettings from "../pages/Settings/categoryLevel/Category_main_settings";
 import EmptyPage from "./EmptyPage";
 import TableMainSettings from "../pages/Settings/TableLevel/Table_main_settings";
