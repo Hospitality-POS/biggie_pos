@@ -1,11 +1,10 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { deleteCategory } from "../../../features/Category/CategoryActions";
 import { message } from "antd";
-import type { ActionType } from '@ant-design/pro-components';
+import { Modal, notification } from "antd/lib";
 
-
-type TdeleteCandidate = {name: string, _id: string} | any;
+type TdeleteCandidate = { name: string; _id: string } | any;
 
 interface CategorySettingsProps {
   onDeleteCandidate: (category: TdeleteCandidate) => void;
@@ -22,17 +21,25 @@ const useCategorySettings = ({ onDeleteCandidate }: CategorySettingsProps) => {
     setDeleteConfirmationOpen(true);
   };
 
-  const handleDeleteConfirm = async(ref) => {
+  const handleDeleteConfirm = async (ref) => {
     try {
-        if (deleteCandidate) {
-          dispatch(deleteCategory(deleteCandidate._id));
-          onDeleteCandidate(deleteCandidate);
-          setDeleteConfirmationOpen(false);
-          ref.current?.reload()
-          message.success("succesfuly deleted")
-        }
+      if (deleteCandidate) {
+        dispatch(deleteCategory(deleteCandidate._id));
+        onDeleteCandidate(deleteCandidate);
+        setDeleteConfirmationOpen(false);
+        ref.current?.reload();
+
+        notification.success({
+          message: `Success`,
+          description: "Deleted Category successfuly",
+          placement: "bottomLeft",
+        });
+      }
     } catch (error) {
-        message.error("Failed to delete")
+      Modal.warning({
+        title: "Error",
+        content: "Failed to delete the category",
+      });
     }
   };
 
@@ -47,7 +54,7 @@ const useCategorySettings = ({ onDeleteCandidate }: CategorySettingsProps) => {
     handleDeleteCancel,
     deleteCandidate,
     addCategoryDialogOpen,
-    setAddCategoryDialogOpen
+    setAddCategoryDialogOpen,
   };
 };
 
