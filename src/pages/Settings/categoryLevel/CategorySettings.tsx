@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -8,10 +8,10 @@ import {
 
 import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
 import { fetchAllCategories } from "../../../services/categories";
-import AddProCategoryDialog from "../../../components/MODALS/Dialogs/pro/AddProCategoryModal";
 import { Tooltip, Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import useCategorySettings from "../hooks/useCategorySettings";
+import AddProCategoryModal from "../../../components/MODALS/Dialogs/pro/AddProCategoryModal";
 
 const CategorySettings = () => {
   const actionRef = useRef<ActionType>();
@@ -25,8 +25,6 @@ const CategorySettings = () => {
     handleDeleteConfirm,
     handleDeleteCancel,
     deleteCandidate,
-    addCategoryDialogOpen,
-    setAddCategoryDialogOpen,
   } = useCategorySettings({ onDeleteCandidate });
 
   const handleAddCategory = () => {
@@ -130,9 +128,7 @@ const CategorySettings = () => {
         dateFormatter="string"
         headerTitle="List of categories"
         toolBarRender={() => [
-          <AddProCategoryDialog
-            open={addCategoryDialogOpen}
-            onClose={() => setAddCategoryDialogOpen(false)}
+          <AddProCategoryModal
             onAddCategory={handleAddCategory}
             actionRef={actionRef}
           />,
