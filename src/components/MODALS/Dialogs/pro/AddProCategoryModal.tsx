@@ -1,7 +1,12 @@
 // AddProCategoryDialog.tsx
 import React from "react";
 import { Button, Space } from "antd";
-import { ModalForm, ProFormSelect, ProFormText, ProForm } from "@ant-design/pro-form";
+import {
+  ModalForm,
+  ProFormSelect,
+  ProFormText,
+  ProForm,
+} from "@ant-design/pro-form";
 import CategoryIcon from "@mui/icons-material/Category";
 import useAddCategoryDialog from "../Hooks/useAddCategoryDialog";
 import { ActionType } from "@ant-design/pro-components";
@@ -13,13 +18,14 @@ interface Category {
 }
 
 interface AddCategoryDialogProps {
-  open: boolean;
-  onClose: () => void;
   onAddCategory: (category: Category) => void;
-  actionRef;
+  actionRef: ActionType;
 }
 
-const AddProCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose, onAddCategory, actionRef }) => {
+const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
+  onAddCategory,
+  actionRef,
+}) => {
   const {
     isSubmitting,
     form,
@@ -40,17 +46,21 @@ const AddProCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose,
             Add New Category
           </Space>
         }
-        trigger={<Button onClick={() => setIsSubmitting(true)}>Add new subcategory</Button>}
-        onFinish={async(values)=>{
-        await  handleConfirmAddCategory(values)
-          actionRef.current.reload()
+        trigger={
+          <Button onClick={() => setIsSubmitting(true)}>
+            Add new Category
+          </Button>
+        }
+        onFinish={async (values) => {
+          await handleConfirmAddCategory(values);
+          actionRef.current.reload();
         }}
         onOpenChange={(visible) => !visible && handleClose()}
         form={form}
         submitter={{
           searchConfig: {
             resetText: "Cancel",
-            submitText: "OK",
+            submitText: "Add category",
           },
         }}
       >
@@ -69,10 +79,12 @@ const AddProCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose,
             label="Subcategory"
             rules={[{ required: true, message: "Subcategory is required" }]}
             placeholder="Select subcategory"
-            options={subcategories?.map((subcategory: { _id: string; name: string }) => ({
-              value: subcategory._id,
-              label: subcategory.name,
-            }))}
+            options={subcategories?.map(
+              (subcategory: { _id: string; name: string }) => ({
+                value: subcategory._id,
+                label: subcategory.name,
+              })
+            )}
             onChange={handleSubCategoryChange}
           />
         </ProForm.Group>
@@ -81,4 +93,4 @@ const AddProCategoryDialog: React.FC<AddCategoryDialogProps> = ({ open, onClose,
   );
 };
 
-export default AddProCategoryDialog;
+export default AddProCategoryModal;
