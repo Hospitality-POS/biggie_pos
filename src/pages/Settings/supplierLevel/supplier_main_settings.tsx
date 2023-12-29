@@ -4,7 +4,7 @@ import SupplierTable from './Supplier';
 function SupplierMainSettings() {
   return (
     <>
-    <ProCard title="List of all the suppliers" />
+    <ProCard title="Supplier Main Settings" />
     <SupplierTable/>
     </>
   )
