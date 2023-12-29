@@ -8,7 +8,7 @@ import {
   TableRow,
   Paper,
   TextField,
-  Button,
+  // Button,
   TableSortLabel,
   TablePagination,
   IconButton,
@@ -33,8 +33,12 @@ import { useSelector, useDispatch } from "react-redux";
 import {
   deleteSupplier,
   fetchSuppliers,
-} from "../../features/Supplier/SupplierActions";
-import AddSupplierDialog from "../../components/MODALS/Dialogs/AddSupplierDialog";
+} from "../../../features/Supplier/SupplierActions";
+import AddSupplierDialog from "../../../components/MODALS/Dialogs/AddSupplierDialog";
+import { ProCard, ProFormText, ProTable } from "@ant-design/pro-components";
+import { fetchAllTableLocation } from "../../../services/tables";
+import { Tooltip } from "antd/lib";
+import { Button } from "antd";
 
 const SupplierTable = () => {
   const dispatch = useDispatch();
@@ -120,9 +124,32 @@ const SupplierTable = () => {
     dispatchFetchSuppliers();
   }, []);
 
+  const actionColumn = {
+    title: "Actions",
+    dataIndex: "actions",
+    hideInSearch: true,
+    render: (_, record: any) => [
+      <Tooltip key="edit" title="Edit">
+        <Button
+          type="link"
+          icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
+          //   onClick={() => handleEditClick(record)}
+        />
+      </Tooltip>,
+      <Tooltip key="delete" title="Delete">
+        <Button
+          type="link"
+          danger
+          icon={<DeleteOutlined />}
+          //   onClick={() => handleDeleteClick(record)}
+        />
+      </Tooltip>,
+    ],
+  };
+
   return (
-    <Paper>
-      <Typography mt={2} variant="h6" ml={2} gutterBottom>
+    <>
+      {/* <Typography mt={2} variant="h6" ml={2} gutterBottom>
         List of all the suppliers
       </Typography>
       <Box
@@ -169,7 +196,7 @@ const SupplierTable = () => {
                 >
                   <Box display="flex" alignItems="center">
                     <BusinessIcon style={{ marginRight: "4px" }} /> {/* Icon */}
-                    Supplier's Name
+      {/* Supplier's Name
                     {orderBy === "name" && (
                       <ArrowDropDownIcon
                         style={{
@@ -297,6 +324,124 @@ const SupplierTable = () => {
         page={page}
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
+      /> */}
+
+      {/* Delete Confirmation Dialog */}
+      {/* <Dialog
+        open={deleteConfirmationOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete :{" "}
+          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>the supplier
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog> */}
+
+      {/*add supplier  */}
+      {/* <AddSupplierDialog
+        open={addSupplierDialogOpen}
+        onClose={() => setAddSupplierDialogOpen(false)}
+        onAddSupplier={handleAddSupplier}
+      /> */}
+
+      <ProTable
+        rowKey="_id"
+        pagination={{
+          pageSize: 5,
+          showQuickJumper: false,
+          showTotal: (total, range) => (
+            <div>{`Showing ${range[0]}-${range[1]} of ${total} total items`}</div>
+          ),
+        }}
+        columns={[
+          {
+            title: "Supplier",
+            dataIndex: "name",
+            hideInSearch: false,
+
+            renderFormItem: () => {
+              return (
+                <ProFormText
+                  width={"md"}
+                  name={"name"}
+                  placeholder={"Search Supplier"}
+                />
+              );
+            },
+          },
+          {
+            title: "Email",
+            dataIndex: "email",
+            hideInSearch: false,
+            renderFormItem: () => {
+              return (
+                <ProFormText
+                  width={"md"}
+                  name={"email"}
+                  placeholder={"Search Supplier email"}
+                />
+              );
+            },
+          },
+          {
+            title: "Phone",
+            dataIndex: "phone",
+            hideInSearch: false,
+            renderFormItem: () => {
+              return (
+                <ProFormText
+                  width={"md"}
+                  name={"phone"}
+                  placeholder={"Search Suppliers phone"}
+                />
+              );
+            },
+          },
+          actionColumn,
+        ]}
+        request={async (params) => {
+          const data = await fetchAllTableLocation(params);
+          // console.log("========", data);
+          // console.log(sorter, filter);
+          return {
+            data: data,
+            success: true,
+            total: data.length,
+          };
+        }}
+        tableAlertRender={({ selectedRowKeys }) => {
+          return <p>You have selected {selectedRowKeys.length}</p>;
+        }}
+        // actionRef={actionRef}
+        rowSelection={{
+          alwaysShowAlert: false,
+          selections: false,
+        }}
+        search={{
+          searchText: "Search Supplier",
+          resetText: "Reset",
+          labelWidth: "auto",
+        }}
+        dateFormatter="string"
+        headerTitle="List of Suppliers"
+        toolBarRender={() => [
+          <AddSupplierDialog
+            open={addSupplierDialogOpen}
+            onClose={() => setAddSupplierDialogOpen(false)}
+            onAddSupplier={handleAddSupplier}
+          />,
+        ]}
       />
 
       {/* Delete Confirmation Dialog */}
@@ -320,14 +465,7 @@ const SupplierTable = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/*add supplier  */}
-      <AddSupplierDialog
-        open={addSupplierDialogOpen}
-        onClose={() => setAddSupplierDialogOpen(false)}
-        onAddSupplier={handleAddSupplier}
-      />
-    </Paper>
+    </>
   );
 };
 
