@@ -7,7 +7,7 @@ import { resetCategoryMessage } from "../../../../features/Category/CategorySlic
 import { createCategory } from "../../../../features/Category/CategoryActions";
 import { message } from "antd";
 import { ProForm } from "@ant-design/pro-components";
-
+import { notification } from "antd/lib";
 
 interface Category {
   _id?: string;
@@ -20,14 +20,15 @@ interface UseAddCategoryDialogProps {
   onAddCategory: (category: Category) => void;
 }
 
+const BASE_URL = import.meta.env.VITE_API_URL;
+
 const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { isSuccess } = useAppSelector((state) => state.Categories);
   const [form] = ProForm.useForm();
-
   const dispatch = useDispatch();
- 
-  const handleConfirmAddCategory = async (data: Category)  => {
+
+  const handleConfirmAddCategory = async (data: Category) => {
     dispatch(resetCategoryMessage());
     const newCategory: Category = {
       name: data.name,
@@ -42,9 +43,17 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
       handleClose();
 
       if (isSuccess) {
-        message.success("Successfully added new category");
-      }else {
-        message.error("Failed to add a new category");
+        notification.success({
+          message: `Success`,
+          description: "Successfully added new category",
+          placement: "bottomLeft",
+        });
+      } else {
+        notification.error({
+          message: `Error`,
+          description: "Failed to add a new category",
+          placement: "bottomLeft",
+        });
       }
     } catch (error) {
       setIsSubmitting(false);
@@ -59,9 +68,7 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
 
   const fetchSubCategories = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:3000/categories/sub-categories"
-      );
+      const response = await axios.get(`${BASE_URL}/categories/sub-categories`);
       return response.data;
     } catch (error) {
       console.error("Error fetching subcategories", error);
@@ -85,7 +92,7 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
     handleConfirmAddCategory,
     handleSubCategoryChange,
     handleClose,
-    setIsSubmitting
+    setIsSubmitting,
   };
 };
 
