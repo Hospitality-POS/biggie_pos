@@ -2,9 +2,7 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios, { AxiosResponse } from "axios";
 
 
-//  todo: api_Config.ts export apis
-
-const baseUrl = "http://localhost:3000/tables";
+const baseUrl = `${import.meta.env.VITE_API_URL}/tables`;
 
 // Define the types for your supplier data
 interface Location{

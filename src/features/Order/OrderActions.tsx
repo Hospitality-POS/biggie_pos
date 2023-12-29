@@ -1,6 +1,5 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-import { baseUrl } from "./baseUrl";
 
 interface OrderDetails {
   _id: string;
@@ -17,6 +16,10 @@ interface DateRange {
   startDate: string;
   endDate: string;
 }
+
+
+const baseUrl = `${import.meta.env.VITE_API_URL}/orders`
+
 
 export const createOrder = createAsyncThunk(
   "order/createOrder",

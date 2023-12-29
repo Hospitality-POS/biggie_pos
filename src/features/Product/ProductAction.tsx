@@ -1,7 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
-const baseUrl = "http://localhost:3000/product/products";
+const baseUrl = `${import.meta.env.VITE_API_URL}/product/products`;
 
 interface Product {
   _id: string;
