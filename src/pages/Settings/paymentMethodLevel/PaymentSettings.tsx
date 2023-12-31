@@ -1,32 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  TextField,
-  // Button,
-  TableSortLabel,
-  TablePagination,
-  IconButton,
-  Box,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Typography,
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import AddIcon from "@mui/icons-material/Add";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import PaymentIcon from "@mui/icons-material/Payment";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import ActionsIcon from "@mui/icons-material/MoreVert";
-import { useSelector, useDispatch } from "react-redux";
 import {
   deletePaymentMethod,
   fetchPaymentsMethod,
@@ -45,30 +23,12 @@ const Payments = () => {
   const { payments: paymentMethods } = useAppSelector(
     (state) => state.PaymentMethods
   );
-  const [filter, setFilter] = useState("");
-  const [orderBy, setOrderBy] = useState("name");
-  const [order, setOrder] = useState("asc");
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  
   const [addPaymentSettingDialogOpen, setAddPaymentSettingDialogOpen] =
     useState(false);
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<any>(null);
 
-  const handleSort = (property: React.SetStateAction<string>) => {
-    const isAsc = orderBy === property && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
-  };
-
-  const handleChangePage = (_: any, newPage: React.SetStateAction<number>) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: { target: { value: string } }) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
 
   const handleDeleteClick = (paymentMethod: React.SetStateAction<null>) => {
     setDeleteCandidate(paymentMethod);
@@ -96,24 +56,8 @@ const Payments = () => {
     // and update the table accordingly.
   };
 
-  // Filter paymentMethods based on user input
-  const filteredPaymentMethods = paymentMethods
-    ? paymentMethods.filter((paymentMethod: { name: string }) =>
-        paymentMethod.name.toLowerCase().includes(filter.toLowerCase())
-      )
-    : [];
-
-  // Sort filtered paymentMethods
-  const sortedPaymentMethods = filteredPaymentMethods
-    .slice()
-    .sort((a: { [x: string]: string }, b: { [x: string]: string }) => {
-      const compareValueA = a[orderBy] || "";
-      const compareValueB = b[orderBy] || "";
-      const comparison = compareValueA.localeCompare(compareValueB);
-
-      return order === "asc" ? comparison : -comparison;
-    });
-
+ 
+  
   const dispatchFetchPayments = () => {
     dispatch(fetchPaymentsMethod());
   };
