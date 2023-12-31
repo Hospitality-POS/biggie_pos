@@ -20,9 +20,6 @@ import { fetchAllPaymentMethods } from "../../../services/paymentMethod";
 const Payments = () => {
   const actionRef = useRef<ActionType>()
   const dispatch = useAppDispatch();
-  const { payments: paymentMethods } = useAppSelector(
-    (state) => state.PaymentMethods
-  );
   
   const [addPaymentSettingDialogOpen, setAddPaymentSettingDialogOpen] =
     useState(false);
@@ -57,15 +54,6 @@ const Payments = () => {
   };
 
  
-  
-  const dispatchFetchPayments = () => {
-    dispatch(fetchPaymentsMethod());
-  };
-
-  useEffect(() => {
-    dispatchFetchPayments();
-  }, []);
-
 
   const actionColumn = {
     title: "Actions",
