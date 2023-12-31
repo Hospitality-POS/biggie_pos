@@ -28,19 +28,18 @@ export const useSupplierSettings = () => {
       if (deleteCandidate) {
         dispatch(deleteSupplier(deleteCandidate._id));
         setDeleteConfirmationOpen(false);
-        ref?.current?.reload && ref.current.reload();
+        ref?.current?.reload() && ref.current.reload();
         notification.success({
           message: `Success`,
           description: "Deleted supplier successfuly",
           placement: "bottomLeft",
         });
-        
       }
     } catch (error) {
-     Modal.warning({
-      title: 'Error',
-      content: 'Failed to delete the supplier',
-    });
+      Modal.warning({
+        title: "Error",
+        content: "Failed to delete the supplier",
+      });
     }
   };
 
