@@ -149,7 +149,7 @@ const Payments = () => {
   return (
     <>
       
-      <ProCard title="Payment Settings"/>
+      <ProCard title="Payment Method Settings"/>
 
       <ProTable
         rowKey="_id"
