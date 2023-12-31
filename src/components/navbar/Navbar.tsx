@@ -344,7 +344,7 @@ function Navbar() {
                 onClick={handleSidebarOpen}
               >
                 <SettingsIcon fontSize="large"/>
-              </IconButton>
+              </IconButton> 
             )}
           </Box>
         </Toolbar>
