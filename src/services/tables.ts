@@ -1,6 +1,9 @@
 import { ParamsType } from "@ant-design/pro-components";
 import axios from "axios";
 
+
+// todo: Implement UseQuery for fetching and querying urls
+
 const BASE_URL = import.meta.env.VITE_API_URL;
 let tableUrl = `${BASE_URL}/tables`;
 
