@@ -8,32 +8,32 @@ import {
   fetchUserById,
   updateUser,
 } from "./AuthActions";
-import { ReactNode } from "react";
+import { Key, ReactNode } from "react";
 
 interface User {
-  pin: string;
-  idNumber: string;
-  name: any;
-  _id: Key | null | undefined;
-  fullname: string;
-  email: string;
-  phone: ReactNode;
-  id: string;
-  username: string;
-  isAdmin: boolean;
+  pin?: string;
+  idNumber?: string;
+  name?: string;
+  _id?: Key | null | undefined;
+  fullname?: string;
+  email?: string;
+  phone?: ReactNode;
+  id?: string;
+  username?: string;
+  isAdmin?: boolean;
 }
 
 interface AuthState {
-  user: User | null;
-  users: User[];
-  selected: User;
-  token: string | null;
-  message: string;
-  newmessage: string;
-  isSuccess: boolean;
-  isLoading: boolean;
-  isError: boolean;
-  IsError: boolean;
+  user?: null | User;
+  users?: User[];
+  selected: unknown | User;
+  token?: string | null;
+  message?: string;
+  newmessage?: string;
+  isSuccess?: boolean;
+  isLoading?: boolean;
+  isError?: boolean;
+  IsError?: boolean;
 }
 
 const user = JSON.parse(localStorage.getItem("user"));

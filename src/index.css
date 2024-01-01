@@ -28,3 +28,22 @@ body {
     display: none;
   }
 }
+
+.ant-table-thead > tr > th {
+  color: white !important;
+  background-color: #6c1c2c !important;
+}
+.ant-btn-primary {
+    background-color: #6c1c2c !important;
+    color: white !important; 
+
+}
+input[type="checkbox" i]:active {
+      background-color: #6c1c2c !important;
+
+}
+
+
+:where(.css-dev-only-do-not-override-v3wdz2) a:hover {
+    color: #6c1c2c;
+}

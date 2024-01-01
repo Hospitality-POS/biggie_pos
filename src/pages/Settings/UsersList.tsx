@@ -147,7 +147,7 @@ function UsersList() {
   return (
     <div>
       <Typography variant="h6" pt={2} pl={2} gutterBottom>
-        List of all the Orders
+        List of all the users
       </Typography>
       <Box
         display="flex"

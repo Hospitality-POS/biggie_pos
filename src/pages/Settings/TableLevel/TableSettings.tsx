@@ -33,20 +33,22 @@ import {
   createLocation,
   deleteTable,
   fetchTables,
-} from "../../features/Table/TableActions";
-import AddTableDialog from "../../components/MODALS/Dialogs/AddTableDialog";
-import AddNewTableLocationDialog from "../../components/MODALS/Dialogs/AddNewTableLocation";
-import { useAppDispatch, useAppSelector } from "../../store";
-import { resetTableMessage } from "../../features/Table/TableSlice";
-import Spinner from "../../components/spinner/Spinner";
-import ScrollableTabsLocations from "./tablelocation/Locations";
+} from "../../../features/Table/TableActions";
+import AddTableDialog from "../../../components/MODALS/Dialogs/AddTableDialog";
+import AddNewTableLocationDialog from "../../../components/MODALS/Dialogs/AddNewTableLocation";
+import { useAppDispatch, useAppSelector } from "../../../store";
+import { resetTableMessage } from "../../../features/Table/TableSlice";
+import Spinner from "../../../components/spinner/Spinner";
+import ScrollableTabsLocations from "../tablelocation/Locations";
+import useTableSettings from "../hooks/useTableSettings";
 
 const TableSettings = () => {
+  const {state,dispatch:hookDispatch}=useTableSettings()
   const dispatch = useAppDispatch();
   const { tables, newTableMessage, loading, newTableMessageSucess } = useAppSelector((state) => state.Tables);
-  const [filter, setFilter] = useState("");
-  const [orderBy, setOrderBy] = useState("name");
-  const [order, setOrder] = useState("asc");
+  // const [filter, setFilter] = useState("");
+  // const [orderBy, setOrderBy] = useState("name");
+  // const [order, setOrder] = useState("asc");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [addTableDialogOpen, setAddTableDialogOpen] = useState(false);
@@ -65,9 +67,11 @@ const TableSettings = () => {
   };
 
   const handleSort = (property) => {
-    const isAsc = orderBy === property && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
+    const isAsc = state.orderBy === property && state.order === "asc";
+    // setOrder(isAsc ? "desc" : "asc");
+    hookDispatch({action:"SET_ORDER",payload: isAsc ? "desc" : "asc"})
+    hookDispatch({action: "SET_ORDERBY",payload:property})
+    // setOrderBy(property);
   };
 
   const handleChangePage = (_, newPage) => {
@@ -105,22 +109,23 @@ const TableSettings = () => {
     // and update the table accordingly.
   };
 
+
   // Filter tables based on user input
   const filteredTables = tables
     ? tables.filter(
         (table) =>
-          table.name.toLowerCase().includes(filter.toLowerCase()) ||
-          table.locatedAt.toLowerCase().includes(filter.toLowerCase()) // Change to locatedAt
+          table.name?.toLowerCase().includes(state.filter.toLowerCase()) ||
+          table.locatedAt?.toLowerCase().includes(state.filter.toLowerCase()) // Change to locatedAt
       )
     : [];
 
   // Sort filtered tables
   const sortedTables = filteredTables.slice().sort((a, b) => {
-    const compareValueA = a[orderBy] || ""; // Handle null values
-    const compareValueB = b[orderBy] || "";
+    const compareValueA = a[state.orderBy] || ""; // Handle null values
+    const compareValueB = b[state.orderBy] || "";
     const comparison = compareValueA.localeCompare(compareValueB);
 
-    return order === "asc" ? comparison : -comparison;
+    return state.order === "asc" ? comparison : -comparison;
   });
 
   useEffect(()=>{
@@ -183,9 +188,9 @@ const TableSettings = () => {
         <div style={{ paddingRight: 20 }}>
           <TextField
             label="Search Table"
-            value={filter}
+            value={state.filter}
             InputProps={{ endAdornment: <SearchIcon /> }}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => hookDispatch({action:"SET_FILTER",payload:e.target.value})}
           />
         </div>
       </Box>
@@ -205,19 +210,19 @@ const TableSettings = () => {
               <TableCell style={{ color: "white" }}>
                 <TableSortLabel
                   style={{ color: "white" }}
-                  active={orderBy === "name"}
-                  direction={orderBy === "name" ? order : "asc"}
+                  active={state.orderBy === "name"}
+                  direction={state.orderBy === "name" ? state.order : "asc"}
                   onClick={() => handleSort("name")}
                 >
                   <Box display="flex" alignItems="center">
                     <TableIcon style={{ marginRight: "4px" }} />{" "}
                     {/* Change to table icon */}
                     Table Name
-                    {orderBy === "name" && (
+                    {state.orderBy === "name" && (
                       <ArrowDropDownIcon
                         style={{
                           transform:
-                            order === "asc" ? "rotate(0deg)" : "rotate(180deg)",
+                            state.order === "asc" ? "rotate(0deg)" : "rotate(180deg)",
                         }}
                       />
                     )}
@@ -227,19 +232,19 @@ const TableSettings = () => {
               <TableCell style={{ color: "white" }}>
                 <TableSortLabel
                   style={{ color: "white" }}
-                  active={orderBy === "locatedAt"} // Change to locatedAt
-                  direction={orderBy === "locatedAt" ? order : "asc"} // Change to locatedAt
+                  active={state.orderBy === "locatedAt"} // Change to locatedAt
+                  direction={state.orderBy === "locatedAt" ? state.order : "asc"} // Change to locatedAt
                   onClick={() => handleSort("locatedAt")} // Change to locatedAt
                 >
                   <Box display="flex" alignItems="center">
                     <LocationOnIcon style={{ marginRight: "4px" }} />{" "}
                     {/* Icon for Located At */}
                     Located At
-                    {orderBy === "locatedAt" && (
+                    {state.orderBy === "locatedAt" && (
                       <ArrowDropDownIcon
                         style={{
                           transform:
-                            order === "asc" ? "rotate(0deg)" : "rotate(180deg)",
+                            state.order === "asc" ? "rotate(0deg)" : "rotate(180deg)",
                         }}
                       />
                     )}

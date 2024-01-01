@@ -1,7 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
-const baseUrl = "http://localhost:3000/orders";
+const baseUrl = `${import.meta.env.VITE_API_URL}/orders`;
 
 interface DateDetails {
   startDate: string;

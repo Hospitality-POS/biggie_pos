@@ -26,7 +26,7 @@ import { fetchOrders } from "../../features/Order/OrderActions";
 import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
 import { fetchProducts } from "../../features/Product/ProductAction";
 import SettingsModal from "../Settings/SettingsModal";
-
+import SettingsIcon from '@mui/icons-material/Settings';
 // import { IconButton } from '@mui/material';
 const pages = [
   "Tables",
@@ -343,8 +343,8 @@ function Navbar() {
                 style={{ color: "white" }}
                 onClick={handleSidebarOpen}
               >
-                <MenuIcon />
-              </IconButton>
+                <SettingsIcon fontSize="large"/>
+              </IconButton> 
             )}
           </Box>
         </Toolbar>

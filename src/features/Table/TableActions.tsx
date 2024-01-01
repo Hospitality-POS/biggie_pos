@@ -1,32 +1,32 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 
-const baseUrl = "http://localhost:3000/tables";
+
+const baseUrl = `${import.meta.env.VITE_API_URL}/tables`;
 
 // Define the types for your supplier data
-interface table {
-  _id: string;
-  name: string;
-  locatedAt: string;
-}
 interface Location{
+  locationName: string;
   _id: string;
   name: string;
+}
+interface table extends Location {
+  locatedAt: string;
 }
 // Function to get the token from localStorage
 const getToken = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   return user ? user.Token : null;
 };
-
+  
 // Create an async thunk to fetch all suppliers
 export const fetchTables = createAsyncThunk(
   "table/fetchTables",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${baseUrl}`);
+      const response: AxiosResponse<unknown, unknown>= await axios.get(`${baseUrl}`)
       return response.data;
-    } catch (error: any) {
+    } catch (error:any) {
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -45,7 +45,7 @@ export const createTable = createAsyncThunk(
       });
       dispatch(fetchTables())
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -57,7 +57,7 @@ export const updateTable = createAsyncThunk(
   async (updatedTable: table, { rejectWithValue }) => {
     const token = getToken(); // Get the token
     try {
-      const response = await axios.put(
+      const response: AxiosResponse<unknown, unknown> = await axios.put(
         `${baseUrl}/${updatedTable._id}`,
         updatedTable,
         {
@@ -79,7 +79,7 @@ export const deleteTable = createAsyncThunk(
   async (tableId: string, { rejectWithValue, dispatch }) => {
     const token = getToken(); // Get the token
     try {
-      const response = await axios.delete(`${baseUrl}/${tableId}`, {
+      const response: AxiosResponse<unknown, unknown> = await axios.delete(`${baseUrl}/${tableId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -97,7 +97,7 @@ export const fetchTableById = createAsyncThunk(
   "table/fetchTableById",
   async (tableId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${baseUrl}/${tableId}`);
+      const response: AxiosResponse<unknown, unknown> = await axios.get(`${baseUrl}/${tableId}`);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -111,7 +111,7 @@ export const fetchTableByLocatedAt = createAsyncThunk(
   "table/fetchTableByLocatedAt",
   async (locatedAt: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${baseUrl}/locatedAt/${locatedAt}`);
+      const response: AxiosResponse<unknown, unknown> = await axios.get(`${baseUrl}/locatedAt/${locatedAt}`);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -125,7 +125,7 @@ export const createLocation = createAsyncThunk(
   "table/createLocation",
   async (newLocation: Location, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${baseUrl}/locations`,{ "locationName":newLocation});
+      const response: AxiosResponse<unknown, unknown> = await axios.post(`${baseUrl}/locations`,{ "locationName":newLocation});
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -139,7 +139,7 @@ export const editLocation = createAsyncThunk(
   "table/editLocation",
   async (editedLocation: Location, { rejectWithValue }) => {
     try {
-      const response = await axios.put(
+      const response: AxiosResponse<unknown, unknown> = await axios.put(
         `${baseUrl}/locations/${editedLocation._id}`,
         { "locationName": editedLocation.locationName }
       );
@@ -155,7 +155,7 @@ export const deleteLocation = createAsyncThunk(
   "table/deleteLocation",
   async (locationId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.delete(`${baseUrl}/locations/${locationId}`);
+      const response: AxiosResponse<unknown, unknown> = await axios.delete(`${baseUrl}/locations/${locationId}`);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

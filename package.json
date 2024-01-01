@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/pro-components": "^2.6.43",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.13.7",
@@ -17,6 +18,7 @@
     "@reduxjs/toolkit": "^1.9.5",
     "@tanstack/react-query": "^4.29.19",
     "@tanstack/react-query-devtools": "^4.29.19",
+    "antd": "^5.11.3",
     "avvvatars-react": "^0.4.2",
     "axios": "^1.4.0",
     "cra-template-pwa-typescript": "^2.0.0",
@@ -37,6 +39,7 @@
     "react-dom": "^18.2.0",
     "react-draggable": "^4.4.5",
     "react-hook-form": "^7.45.4",
+    "react-intl": "^6.5.5",
     "react-multi-carousel": "^2.8.4",
     "react-query": "^3.39.3",
     "react-redux": "^8.1.1",

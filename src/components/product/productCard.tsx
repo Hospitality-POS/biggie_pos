@@ -8,12 +8,6 @@ import { useParams } from "react-router-dom";
 import { addItem, subtractItem } from "../../features/Cart/CartSlice";
 import { useAppDispatch, useAppSelector } from "../../store";
 
-function formatPrice(price: number) {
-  return price?.toLocaleString();
-}
-function formatQuantity(quantity: number) {
-  return quantity?.toLocaleString();
-}
 interface menudetails {
   quantity: number;
     _id: string;
@@ -23,6 +17,12 @@ interface menudetails {
 }
 interface ProductCardProps {
   menu: menudetails;
+}
+function formatPrice(price: number) {
+  return price?.toLocaleString();
+}
+function formatQuantity(quantity: number) {
+  return quantity?.toLocaleString();
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
