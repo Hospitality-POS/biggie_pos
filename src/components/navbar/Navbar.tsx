@@ -229,32 +229,6 @@ function Navbar() {
                   label={
                     <>
                       {
-                        // page === "Restaurant" && user ? (
-                        //   <>
-                        //     <RestaurantOutlinedIcon
-                        //       style={{ fontSize: "16px" }}
-                        //     />
-                        //     <Typography fontSize="inherit">Restaurant</Typography>
-                        //   </>
-                        // ) :
-                        // page === "Bar" && user ? (
-                        //   <>
-                        //     <SportsBarIcon style={{ fontSize: "16px" }} />
-                        //     <Typography fontSize="inherit">Bar</Typography>
-                        //   </>
-                        // ) :
-                        // page === "Staff" && !user ? (
-                        //   <>
-                        //     <PeopleIcon style={{ fontSize: "16px" }} />
-                        //     <Typography fontSize="inherit">Staff</Typography>
-                        //   </>
-                        // ) :
-                        // page === "Kitchen" && user ? (
-                        //   <>
-                        //     <SoupKitchenIcon style={{ fontSize: "16px" }} />
-                        //     <Typography fontSize="inherit">Kitchen</Typography>
-                        //   </>
-                        // ) :
                         page === "Tables" && user ? (
                           <>
                             <TableBarIcon style={{ fontSize: "16px" }} />
