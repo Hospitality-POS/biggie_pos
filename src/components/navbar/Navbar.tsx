@@ -28,6 +28,7 @@ import { fetchProducts } from "../../features/Product/ProductAction";
 import SettingsModal from "../Settings/SettingsModal";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { LogoutOutlined } from "@mui/icons-material";
+import { useAppDispatch, useAppSelector } from "../../store";
 // import { IconButton } from '@mui/material';
 const pages = ["Tables", "Store", "Orders", "Restaurant", "Kitchen", "Bar"];
 const settings = ["Dashboard", "Profile", "Logout"];
@@ -41,10 +42,10 @@ function Navbar() {
   );
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  const { user } = useSelector((state: any) => state.auth);
+  const { user } = useAppSelector(state => state.auth);
   // const user = JSON.parse(localStorage.getItem("user") || "null");
 
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -94,7 +95,7 @@ function Navbar() {
 
   return (
     <AppBar position="static">
-      <Container maxWidth="100px" sx={{ bgcolor: "#6c1c2c" }}>
+      <Container maxWidth="xl" sx={{ bgcolor: "#6c1c2c" }}>
         <Toolbar disableGutters>
           <img
             src="/android-chrome-192x192.png"
@@ -338,11 +339,14 @@ function Navbar() {
               </IconButton>
             )}
           </Box>
-
+              
           {/* logout icon */}
-          <Tooltip title="Logout">
-            <LogoutOutlined onClick={handleLogout} />
-          </Tooltip>
+          {user && (
+            <Tooltip title="Logout">
+              <LogoutOutlined onClick={handleLogout} />
+            </Tooltip>
+          )}
+             
         </Toolbar>
       </Container>
       <SettingsModal
