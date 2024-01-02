@@ -5,11 +5,7 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import {
-  ActionType,
-  ProFormText,
-  ProTable,
-} from "@ant-design/pro-components";
+import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
 import { Avatar, Tooltip } from "antd/lib";
 import { Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
@@ -20,7 +16,7 @@ import AddProSupplierModal from "../../../components/MODALS/Dialogs/pro/AddProSu
 import { useSupplierSettings } from "../hooks/useSuppliersettings";
 
 const SupplierTable = () => {
-   const actionRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>();
 
   const {
     deleteConfirmationOpen,
@@ -28,7 +24,7 @@ const SupplierTable = () => {
     handleDeleteClick,
     handleDeleteConfirm,
     handleDeleteCancel,
-    handleAddSupplier
+    handleAddSupplier,
   } = useSupplierSettings();
 
   const actionColumn = {
@@ -96,6 +92,8 @@ const SupplierTable = () => {
             title: "Email",
             dataIndex: "email",
             hideInSearch: false,
+            copyable: true,
+            ellipsis: true,
             render: (text) => (
               <div style={{ display: "flex", alignItems: "center" }}>
                 <MailOutlined />
@@ -116,6 +114,7 @@ const SupplierTable = () => {
             title: "Phone",
             dataIndex: "phone",
             hideInSearch: true,
+            ellipsis: true,
             render: (text) => (
               <div style={{ display: "flex", alignItems: "center" }}>
                 <PhoneOutlined />
@@ -143,11 +142,15 @@ const SupplierTable = () => {
           alwaysShowAlert: false,
           selections: false,
         }}
+        scroll={{ x: "inherit" }}
         search={{
           searchText: "Search Supplier",
           resetText: "Reset",
           labelWidth: "auto",
         }}
+        // expandable={{
+        //   expandedRowRender: (record: DataType) => <p>{record.email}</p>,
+        // }}
         dateFormatter="string"
         headerTitle="List of Suppliers"
         toolBarRender={() => [
