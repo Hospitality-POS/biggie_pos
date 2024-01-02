@@ -16,7 +16,7 @@ interface User {
   name?: string;
   _id?: Key | null | undefined;
   fullname?: string;
-  email?: string;
+  email: string;
   phone?: ReactNode;
   id?: string;
   username?: string;
