@@ -1,59 +1,39 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import {
-  deletePaymentMethod,
-  fetchPaymentsMethod,
-} from "../../../features/Payment/PaymentMethodActions";
 import AddPaymentSettingDialog from "../../../components/MODALS/Dialogs/AddPaymentMethodDialog";
-import { useAppDispatch, useAppSelector } from "../../../store";
-import { ActionType, ProCard, ProFormText, ProTable } from "@ant-design/pro-components";
+import {
+  ActionType,
+  ProCard,
+  ProFormText,
+  ProTable,
+} from "@ant-design/pro-components";
 import { Tooltip } from "antd/lib";
-import { Button } from 'antd';
+import { Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { fetchAllPaymentMethods } from "../../../services/paymentMethod";
+import usePaymentSettings from "../hooks/usePaymentSettings";
 
 const Payments = () => {
-  const actionRef = useRef<ActionType>()
-  const dispatch = useAppDispatch();
-  
-  const [addPaymentSettingDialogOpen, setAddPaymentSettingDialogOpen] =
-    useState(false);
-  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-  const [deleteCandidate, setDeleteCandidate] = useState<any>(null);
+  const {
+    deleteCandidate,
+    setDeleteCandidate,
+    addPaymentSettingDialogOpen,
+    setAddPaymentSettingDialogOpen,
+    deleteConfirmationOpen,
+    setDeleteConfirmationOpen,
+    handleDeleteCancel,
+    handleDeleteClick,
+    handleOpenAddPaymentSettingDialog,
+    handleAddPaymentSetting,
+    handleDeleteConfirm
+  } = usePaymentSettings();
 
-
-  const handleDeleteClick = (paymentMethod: React.SetStateAction<null>) => {
-    setDeleteCandidate(paymentMethod);
-    setDeleteConfirmationOpen(true);
-  };
-
-  const handleDeleteConfirm = () => {
-    if (deleteCandidate) {
-      dispatch(deletePaymentMethod(deleteCandidate._id));
-      setDeleteConfirmationOpen(false);
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteConfirmationOpen(false);
-  };
-
-  const handleOpenAddPaymentSettingDialog = () => {
-    setAddPaymentSettingDialogOpen(true);
-  };
-
-  const handleAddPaymentSetting = (newPaymentSetting: any) => {
-    // You can update your state or perform any necessary actions here
-    // For example, you can add the newPaymentSetting to your existing paymentMethods
-    // and update the table accordingly.
-  };
-
- 
+  const actionRef = useRef<ActionType>();
 
   const actionColumn = {
     title: "Actions",
@@ -72,7 +52,7 @@ const Payments = () => {
           type="link"
           danger
           icon={<DeleteOutlined />}
-          //   onClick={() => handleDeleteClick(record)}
+            onClick={() => handleDeleteClick(record)}
         />
       </Tooltip>,
     ],
@@ -80,8 +60,7 @@ const Payments = () => {
 
   return (
     <>
-      
-      <ProCard title="Payment Method Settings"/>
+      <ProCard title="Payment Method Settings" />
 
       <ProTable
         rowKey="_id"
@@ -108,7 +87,7 @@ const Payments = () => {
               );
             },
           },
-         
+
           actionColumn,
         ]}
         request={async (params) => {
@@ -145,8 +124,7 @@ const Payments = () => {
         ]}
       />
 
-
-       <Dialog
+      <Dialog
         open={deleteConfirmationOpen}
         onClose={handleDeleteCancel}
         maxWidth="xs"
