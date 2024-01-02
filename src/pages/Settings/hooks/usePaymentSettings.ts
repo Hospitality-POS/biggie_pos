@@ -1,26 +1,39 @@
 import { useState } from "react";
 import { useAppDispatch } from "../../../store";
 import { deletePaymentMethod } from "../../../features/Payment/PaymentMethodActions";
+import { Modal, notification } from "antd/lib";
 
+const usePaymentSettings = () => {
+  const dispatch = useAppDispatch();
 
-const usePaymentSettings =()=> {
-     const dispatch = useAppDispatch();
-  
   const [addPaymentSettingDialogOpen, setAddPaymentSettingDialogOpen] =
     useState(false);
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<any>(null);
-
 
   const handleDeleteClick = (paymentMethod: React.SetStateAction<null>) => {
     setDeleteCandidate(paymentMethod);
     setDeleteConfirmationOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    if (deleteCandidate) {
-      dispatch(deletePaymentMethod(deleteCandidate._id));
-      setDeleteConfirmationOpen(false);
+  const handleDeleteConfirm = async (ref) => {
+    try {
+      if (deleteCandidate) {
+        dispatch(deletePaymentMethod(deleteCandidate._id));
+        setDeleteConfirmationOpen(false);
+        ref.current?.reload();
+
+        notification.success({
+          message: `Success`,
+          description: "Deleted Category successfuly",
+          placement: "bottomLeft",
+        });
+      }
+    } catch (error) {
+      Modal.warning({
+        title: "Error",
+        content: "Failed to delete the category",
+      });
     }
   };
 
@@ -48,8 +61,8 @@ const usePaymentSettings =()=> {
     handleDeleteClick,
     handleOpenAddPaymentSettingDialog,
     handleAddPaymentSetting,
-    handleDeleteConfirm
-  }
-}
+    handleDeleteConfirm,
+  };
+};
 
-export default usePaymentSettings
+export default usePaymentSettings;
