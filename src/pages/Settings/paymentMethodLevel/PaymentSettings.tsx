@@ -5,7 +5,6 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import AddPaymentSettingDialog from "../../../components/MODALS/Dialogs/AddPaymentMethodDialog";
 import {
   ActionType,
   ProCard,
@@ -17,8 +16,10 @@ import { Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { fetchAllPaymentMethods } from "../../../services/paymentMethod";
 import usePaymentSettings from "../hooks/usePaymentSettings";
+import AddProPaymentMethodSettingsModal from "../../../components/MODALS/Dialogs/pro/AddProPaymentSettingsModal";
 
 const Payments = () => {
+  const paymentRef = useRef<ActionType>();
   const {
     deleteCandidate,
     setDeleteCandidate,
@@ -33,7 +34,6 @@ const Payments = () => {
     handleDeleteConfirm
   } = usePaymentSettings();
 
-  const actionRef = useRef<ActionType>();
 
   const actionColumn = {
     title: "Actions",
@@ -90,8 +90,8 @@ const Payments = () => {
 
           actionColumn,
         ]}
-        request={async (params) => {
-          const data = await fetchAllPaymentMethods(params);
+        request={async (param) => {
+          const data = await fetchAllPaymentMethods(param);
           // console.log("========", data);
           // console.log(sorter, filter);
           return {
@@ -103,7 +103,7 @@ const Payments = () => {
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
-        actionRef={actionRef}
+        actionRef={paymentRef}
         rowSelection={{
           alwaysShowAlert: false,
           selections: false,
@@ -116,9 +116,8 @@ const Payments = () => {
         dateFormatter="string"
         headerTitle="List of Payment Methods"
         toolBarRender={() => [
-          <AddPaymentSettingDialog
-            open={addPaymentSettingDialogOpen}
-            onClose={() => setAddPaymentSettingDialogOpen(false)}
+          <AddProPaymentMethodSettingsModal
+            actionRef={paymentRef}
             onAddPaymentMethod={handleAddPaymentSetting}
           />,
         ]}
@@ -140,7 +139,7 @@ const Payments = () => {
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={handleDeleteConfirm} danger>
+          <Button onClick={()=>handleDeleteConfirm(paymentRef)} danger>
             Delete
           </Button>
         </DialogActions>
