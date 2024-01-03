@@ -26,16 +26,11 @@ import { fetchOrders } from "../../features/Order/OrderActions";
 import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
 import { fetchProducts } from "../../features/Product/ProductAction";
 import SettingsModal from "../Settings/SettingsModal";
-import SettingsIcon from '@mui/icons-material/Settings';
+import SettingsIcon from "@mui/icons-material/Settings";
+import { LogoutOutlined } from "@mui/icons-material";
+import { useAppDispatch, useAppSelector } from "../../store";
 // import { IconButton } from '@mui/material';
-const pages = [
-  "Tables",
-  "Store",
-  "Orders",
-  "Restaurant",
-  "Kitchen",
-  "Bar",
-];
+const pages = ["Tables", "Store", "Orders", "Restaurant", "Kitchen", "Bar"];
 const settings = ["Dashboard", "Profile", "Logout"];
 
 function Navbar() {
@@ -47,10 +42,10 @@ function Navbar() {
   );
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  const { user } = useSelector((state: any) => state.auth);
+  const { user } = useAppSelector(state => state.auth);
   // const user = JSON.parse(localStorage.getItem("user") || "null");
 
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -71,7 +66,7 @@ function Navbar() {
   const handleLogout = () => {
     dispatch(logoutUser());
     dispatch(reset());
-    navigate('/tables')
+    navigate("/tables");
   };
 
   const handleSidebarOpen = () => {
@@ -98,11 +93,9 @@ function Navbar() {
     }
   };
 
-
-
   return (
     <AppBar position="static">
-      <Container maxWidth="100px" sx={{ bgcolor: "#6c1c2c" }}>
+      <Container maxWidth="100px" sx={{ bgcolor: "#6c1c2c"}}>
         <Toolbar disableGutters>
           <img
             src="/android-chrome-192x192.png"
@@ -168,7 +161,7 @@ function Navbar() {
                   //   >
                   //     Staff
                   //   </Typography>
-                  // ) : 
+                  // ) :
                   //  page === "Kitchen" ? (
                   //   <Typography
                   //     textAlign="center"
@@ -236,48 +229,23 @@ function Navbar() {
                   label={
                     <>
                       {
-                      // page === "Restaurant" && user ? (
-                      //   <>
-                      //     <RestaurantOutlinedIcon
-                      //       style={{ fontSize: "16px" }}
-                      //     />
-                      //     <Typography fontSize="inherit">Restaurant</Typography>
-                      //   </>
-                      // ) :
-                       // page === "Bar" && user ? (
-                      //   <>
-                      //     <SportsBarIcon style={{ fontSize: "16px" }} />
-                      //     <Typography fontSize="inherit">Bar</Typography>
-                      //   </>
-                      // ) :
-                      // page === "Staff" && !user ? (
-                      //   <>
-                      //     <PeopleIcon style={{ fontSize: "16px" }} />
-                      //     <Typography fontSize="inherit">Staff</Typography>
-                      //   </>
-                      // ) : 
-                      // page === "Kitchen" && user ? (
-                      //   <>
-                      //     <SoupKitchenIcon style={{ fontSize: "16px" }} />
-                      //     <Typography fontSize="inherit">Kitchen</Typography>
-                      //   </>
-                      // ) :
-                      page === "Tables" && user ? (
-                        <>
-                          <TableBarIcon style={{ fontSize: "16px" }} />
-                          <Typography fontSize="inherit">Tables</Typography>
-                        </>
-                      ) : page === "Store" && user?.isAdmin ? (
-                        <>
-                          <StoreIcon style={{ fontSize: "16px" }} />
-                          <Typography fontSize="inherit">Store</Typography>
-                        </>
-                      ) : page === "Orders" && user?.isAdmin ? (
-                        <>
-                          <FilterFramesIcon style={{ fontSize: "16px" }} />
-                          <Typography fontSize="inherit">Orders</Typography>
-                        </>
-                      ) : null}
+                        page === "Tables" && user ? (
+                          <>
+                            <TableBarIcon style={{ fontSize: "16px" }} />
+                            <Typography fontSize="inherit">Tables</Typography>
+                          </>
+                        ) : page === "Store" && user?.isAdmin ? (
+                          <>
+                            <StoreIcon style={{ fontSize: "16px" }} />
+                            <Typography fontSize="inherit">Store</Typography>
+                          </>
+                        ) : page === "Orders" && user?.isAdmin ? (
+                          <>
+                            <FilterFramesIcon style={{ fontSize: "16px" }} />
+                            <Typography fontSize="inherit">Orders</Typography>
+                          </>
+                        ) : null
+                      }
                     </>
                   }
                   onClick={() => handleTabClick(page)}
@@ -288,7 +256,7 @@ function Navbar() {
 
           <Box sx={{ flexGrow: 0 }}>
             {user && (
-              <Tooltip title="Open settings">
+              <Tooltip title="Current User">
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                   {/* <Avatar alt="Remy Sharp" src="/static/images/avatar/2.jpg" /> */}
                   <Avvvatars
@@ -319,11 +287,7 @@ function Navbar() {
             >
               {settings.map((setting) => (
                 <MenuItem key={setting} onClick={handleCloseUserMenu}>
-                  {setting === "Logout" ? (
-                    <Typography textAlign="center" onClick={handleLogout}>
-                      Logout
-                    </Typography>
-                  ) : setting === "Dashboard" && user?.isAdmin ? (
+                  {setting === "Dashboard" && user?.isAdmin ? (
                     <Typography textAlign="center">Dashboard</Typography>
                   ) : setting === "Profile" ? (
                     <Typography textAlign="center">Profile</Typography>
@@ -343,14 +307,26 @@ function Navbar() {
                 style={{ color: "white" }}
                 onClick={handleSidebarOpen}
               >
-                <SettingsIcon fontSize="large"/>
-              </IconButton> 
+                <Tooltip title="Open Settings">
+                  <SettingsIcon fontSize="large" />
+                </Tooltip>
+              </IconButton>
             )}
           </Box>
+              
+          {/* logout icon */}
+          {user && (
+            <Tooltip title="Logout">
+              <LogoutOutlined onClick={handleLogout} />
+            </Tooltip>
+          )}
+             
         </Toolbar>
       </Container>
-      <SettingsModal sidebarOpen={sidebarOpen} handleSidebarClose={handleSidebarClose} />
-      
+      <SettingsModal
+        sidebarOpen={sidebarOpen}
+        handleSidebarClose={handleSidebarClose}
+      />
     </AppBar>
   );
 }

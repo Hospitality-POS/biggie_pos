@@ -2,7 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
-import { useAppSelector } from "../../../../store";
+import { useAppDispatch, useAppSelector } from "../../../../store";
 import { resetCategoryMessage } from "../../../../features/Category/CategorySlice";
 import { createCategory } from "../../../../features/Category/CategoryActions";
 import { message } from "antd";
@@ -26,7 +26,7 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { isSuccess } = useAppSelector((state) => state.Categories);
   const [form] = ProForm.useForm();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   const handleConfirmAddCategory = async (data: Category) => {
     dispatch(resetCategoryMessage());

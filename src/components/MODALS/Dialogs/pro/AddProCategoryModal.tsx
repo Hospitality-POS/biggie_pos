@@ -19,7 +19,7 @@ interface Category {
 
 interface AddCategoryDialogProps {
   onAddCategory: (category: Category) => void;
-  actionRef: ActionType;
+  actionRef: any;
 }
 
 const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
