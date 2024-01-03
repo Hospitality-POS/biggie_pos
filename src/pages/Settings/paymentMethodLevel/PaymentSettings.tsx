@@ -18,7 +18,7 @@ import { fetchAllPaymentMethods } from "../../../services/paymentMethod";
 import usePaymentSettings from "../hooks/usePaymentSettings";
 import AddProPaymentMethodSettingsModal from "../../../components/MODALS/Dialogs/pro/AddProPaymentSettingsModal";
 
-const Payments = () => {
+const PaymentsMethodSettings = () => {
   const paymentRef = useRef<ActionType>();
   const {
     deleteCandidate,
@@ -31,9 +31,8 @@ const Payments = () => {
     handleDeleteClick,
     handleOpenAddPaymentSettingDialog,
     handleAddPaymentSetting,
-    handleDeleteConfirm
+    handleDeleteConfirm,
   } = usePaymentSettings();
-
 
   const actionColumn = {
     title: "Actions",
@@ -52,7 +51,7 @@ const Payments = () => {
           type="link"
           danger
           icon={<DeleteOutlined />}
-            onClick={() => handleDeleteClick(record)}
+          onClick={() => handleDeleteClick(record)}
         />
       </Tooltip>,
     ],
@@ -60,10 +59,9 @@ const Payments = () => {
 
   return (
     <>
-      <ProCard title="Payment Method Settings" />
-
       <ProTable
         rowKey="_id"
+        cardBordered
         pagination={{
           pageSize: 5,
           showQuickJumper: false,
@@ -76,15 +74,8 @@ const Payments = () => {
             title: "Method",
             dataIndex: "name",
             hideInSearch: false,
-
-            renderFormItem: () => {
-              return (
-                <ProFormText
-                  width={"md"}
-                  name={"method"}
-                  placeholder={"Search Payment method"}
-                />
-              );
+            fieldProps: {
+              placeholder: "Enter payment method",
             },
           },
 
@@ -92,8 +83,7 @@ const Payments = () => {
         ]}
         request={async (param) => {
           const data = await fetchAllPaymentMethods(param);
-          // console.log("========", data);
-          // console.log(sorter, filter);
+
           return {
             data: data,
             success: true,
@@ -139,7 +129,7 @@ const Payments = () => {
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={()=>handleDeleteConfirm(paymentRef)} danger>
+          <Button onClick={() => handleDeleteConfirm(paymentRef)} danger>
             Delete
           </Button>
         </DialogActions>
@@ -148,4 +138,4 @@ const Payments = () => {
   );
 };
 
-export default Payments;
+export default PaymentsMethodSettings;
