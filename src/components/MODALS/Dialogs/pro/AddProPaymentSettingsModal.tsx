@@ -4,6 +4,7 @@ import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import PaymentIcon from "@mui/icons-material/Payment";
 import useAddPaymentMethodSettingsModal from "../Hooks/useAddPaymentMethodSettingsModal";
 import { ActionType } from "@ant-design/pro-components";
+import { DollarOutlined, PlusOutlined } from "@ant-design/icons";
 
 interface PaymentMethod {
   name: string;
@@ -33,12 +34,12 @@ const AddProPaymentMethodSettingsModal: React.FC<
         layout="horizontal"
         title={
           <Space>
-            <PaymentIcon />
+            <DollarOutlined />
             Add New Method
           </Space>
         }
         trigger={
-          <Button onClick={() => setIsSubmitting(true)}>Add new Method</Button>
+          <Button onClick={() => setIsSubmitting(true)} key="button" icon={<PlusOutlined/>}>New</Button>
         }
         form={form}
         onFinish={async (values) => {
