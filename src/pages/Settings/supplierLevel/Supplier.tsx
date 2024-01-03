@@ -54,6 +54,7 @@ const SupplierTable = () => {
     <>
       <ProTable
         rowKey="_id"
+        cardBordered
         pagination={{
           pageSize: 5,
           showQuickJumper: false,
@@ -66,6 +67,10 @@ const SupplierTable = () => {
             title: "Supplier",
             dataIndex: "name",
             hideInSearch: false,
+            fieldProps: {
+              placeholder: "Enter Supplier name",
+            },
+
             render: (text, record) => (
               <div style={{ display: "flex", alignItems: "center" }}>
                 <Avatar
@@ -76,17 +81,6 @@ const SupplierTable = () => {
                 <span style={{ marginLeft: "8px" }}>{text}</span>
               </div>
             ),
-            renderFormItem: () => {
-              return (
-                <>
-                  <ProFormText
-                    width={"md"}
-                    name={"name"}
-                    placeholder={"Search Supplier"}
-                  />
-                </>
-              );
-            },
           },
           {
             title: "Email",
@@ -94,21 +88,16 @@ const SupplierTable = () => {
             hideInSearch: false,
             copyable: true,
             ellipsis: true,
+            fieldProps: {
+              placeholder: "Enter Supplier email",
+            },
+
             render: (text) => (
               <div style={{ display: "flex", alignItems: "center" }}>
                 <MailOutlined />
                 <span style={{ marginLeft: "8px" }}>{text}</span>
               </div>
             ),
-            renderFormItem: () => {
-              return (
-                <ProFormText
-                  width={"md"}
-                  name={"email"}
-                  placeholder={"Search Supplier email"}
-                />
-              );
-            },
           },
           {
             title: "Phone",
@@ -126,8 +115,6 @@ const SupplierTable = () => {
         ]}
         request={async (params) => {
           const data = await fetchAllSuppliers(params);
-          // console.log("========", params);
-          // console.log(sorter, filter);
           return {
             data: data,
             success: true,

@@ -1,33 +1,70 @@
-import { useReducer } from "react";
+import { useState } from "react";
+import { useAppDispatch } from "../../../store";
+import { deleteLocation } from "../../../features/Table/TableActions";
+import { Modal, notification } from "antd/lib";
 
-const initialState = {
-  filter: "",
-  orderBy: "name",
-  order: "asc",
-  page: 0,
-  rows: false,
-  deleteConfirmationOpen: false,
-  deleteCandidate: null,
-  addLocationDialogOpen: false,
+export const useTableSettings = () => {
+  // location
+
+  //   const [addLocationDialogOpen, setAddLocationDialogOpen] = useState(false);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
+
+  const dispatch = useAppDispatch();
+
+  const handleEditLocation = (locationId: any) => {
+    // Handle edit action for the location with the given ID
+    // console.log("Edit location:", locationId);
+    // handleCloseLocation();
+  };
+
+
+  const handleAddLocation = ()=>{
+    // pending
+  }
+
+  const handleDeleteClickLocation = (locationId) => {
+    setDeleteCandidate(locationId);
+    setDeleteConfirmationOpen(true);
+  };
+
+  const handleDeleteConfirmLocation = (ref) => {
+    try {
+      if (deleteCandidate) {
+        dispatch(deleteLocation(deleteCandidate._id));
+        handleCloseLocation();
+        setDeleteConfirmationOpen(false);
+
+        ref.current.reload();
+        notification.success({
+          message: `Success`,
+          description: "Deleted Location successfuly",
+          placement: "bottomLeft",
+        });
+      }
+    } catch (error) {
+      Modal.warning({
+        title: "Error",
+        content: "Failed to delete the selected location",
+      });
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmationOpen(false);
+  };
+
+  const handleCloseLocation = () => {
+    setDeleteConfirmationOpen(true);
+  };
+
+  return {
+    handleAddLocation,
+    deleteCandidate,
+    handleDeleteClickLocation,
+    handleEditLocation,
+    handleDeleteConfirmLocation,
+    deleteConfirmationOpen,
+    handleDeleteCancel,
+  };
 };
-export default function useTableSettings() {
-const [state,dispatch]=useReducer(tableSettingsReducer,initialState);
-
-function tableSettingsReducer(state: any,{action,payload}: any){
-
-    switch(action){
-        case 'SET_FILTER':
-        return {...state,filter:payload}
-    }
-    switch(action){
-        case 'SET_ORDERBY':        
-        return {...state,orderBy:payload}
-    }
-     switch(action){
-        case 'SET_ORDER':        
-        return {...state,order:payload}
-    }
-}
-
-  return {state,dispatch};
-}

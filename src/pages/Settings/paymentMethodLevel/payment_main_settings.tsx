@@ -1,19 +1,20 @@
 import { ProCard } from "@ant-design/pro-components";
-import SupplierTable from "./Supplier";
+import PaymentsMethodSettings from "./PaymentSettings";
 
-function SupplierMainSettings() {
+
+function PaymentMainSettings() {
   const tabsItems = [
     {
       key: "table1",
       tab: "Table",
-      label: "Add Supplier",
-      children: <SupplierTable />,
+      label: "Add Payment Method",
+      children: <PaymentsMethodSettings />,
     },
   ];
   return (
     <>
       <ProCard
-        title="Supplier Main Settings"
+        title="Payment Method Main Settings"
         tabs={{
           type: "card",
           items: tabsItems,
@@ -23,4 +24,4 @@ function SupplierMainSettings() {
   );
 }
 
-export default SupplierMainSettings;
+export default PaymentMainSettings;

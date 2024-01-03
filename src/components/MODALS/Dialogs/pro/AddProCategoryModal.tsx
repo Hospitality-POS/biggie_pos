@@ -10,6 +10,11 @@ import {
 import CategoryIcon from "@mui/icons-material/Category";
 import useAddCategoryDialog from "../Hooks/useAddCategoryDialog";
 import { ActionType } from "@ant-design/pro-components";
+import {
+  fetchAllCategories,
+  fetchSubCategories,
+} from "../../../../services/categories";
+import { ApartmentOutlined, PlusOutlined } from "@ant-design/icons";
 
 interface Category {
   _id?: string;
@@ -42,13 +47,13 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
         open={isSubmitting}
         title={
           <Space>
-            <CategoryIcon />
+            <ApartmentOutlined />
             Add New Category
           </Space>
         }
         trigger={
-          <Button onClick={() => setIsSubmitting(true)}>
-            Add new Category
+          <Button onClick={() => setIsSubmitting(true)} key="button" icon={<PlusOutlined/>}>
+            New
           </Button>
         }
         onFinish={async (values) => {
@@ -78,13 +83,15 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
             name="subcategory_id"
             label="Subcategory"
             rules={[{ required: true, message: "Subcategory is required" }]}
+            showSearch
             placeholder="Select subcategory"
-            options={subcategories?.map(
-              (subcategory: { _id: string; name: string }) => ({
-                value: subcategory._id,
-                label: subcategory.name,
-              })
-            )}
+            request={async () => {
+              const data = await fetchSubCategories();
+              const values = data.map((e) => {
+                return { label: e.name, value: e._id };
+              });
+              return values;
+            }}
             onChange={handleSubCategoryChange}
           />
         </ProForm.Group>

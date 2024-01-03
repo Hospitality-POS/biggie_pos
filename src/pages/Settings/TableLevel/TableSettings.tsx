@@ -40,7 +40,7 @@ import { useAppDispatch, useAppSelector } from "../../../store";
 import { resetTableMessage } from "../../../features/Table/TableSlice";
 import Spinner from "../../../components/spinner/Spinner";
 import ScrollableTabsLocations from "../tablelocation/Locations";
-import useTableSettings from "../hooks/useTableSettings";
+import useTableSettings from "../hooks/useTableSettingsReducer";
 
 const TableSettings = () => {
   const {state,dispatch:hookDispatch}=useTableSettings()
@@ -194,7 +194,7 @@ const TableSettings = () => {
           />
         </div>
       </Box>
-      <ScrollableTabsLocations/>
+      {/* <ScrollableTabsLocations/> */}
       <TableContainer
         style={{
           width: "100%",

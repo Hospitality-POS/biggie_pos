@@ -20,8 +20,6 @@ interface UseAddCategoryDialogProps {
   onAddCategory: (category: Category) => void;
 }
 
-const BASE_URL = import.meta.env.VITE_API_URL;
-
 const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { isSuccess } = useAppSelector((state) => state.Categories);
@@ -66,21 +64,6 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
     setIsSubmitting(false);
   };
 
-  const fetchSubCategories = async () => {
-    try {
-      const response = await axios.get(`${BASE_URL}/categories/sub-categories`);
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching subcategories", error);
-      return [];
-    }
-  };
-
-  const { data: subcategories } = useQuery(
-    ["subcategories"],
-    fetchSubCategories
-  );
-
   const handleSubCategoryChange = (subCategoryId: string) => {
     // Do something with the sub-category change if needed
   };
@@ -88,7 +71,6 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
   return {
     isSubmitting,
     form,
-    subcategories,
     handleConfirmAddCategory,
     handleSubCategoryChange,
     handleClose,

@@ -69,6 +69,7 @@ const CategorySettings = () => {
             <div>{`Showing ${range[0]}-${range[1]} of ${total} total items`}</div>
           ),
         }}
+        cardBordered
         columns={[
           {
             title: "Category",
@@ -104,8 +105,7 @@ const CategorySettings = () => {
         ]}
         request={async (param) => {
           const data = await fetchAllCategories(param);
-          // console.log("========", data);
-          // console.log(sorter, filter);
+          
           return {
             data: data,
             success: true,

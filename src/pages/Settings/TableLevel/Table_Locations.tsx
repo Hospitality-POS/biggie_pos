@@ -1,48 +1,35 @@
-import React, { useRef, useState } from "react";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from "@mui/material";
+import { useRef, useState } from "react";
 
 import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
-import { fetchAllCategories } from "../../../services/categories";
-import AddProCategoryDialog from "../../../components/MODALS/Dialogs/pro/AddProCategoryModal";
 import { Tooltip, Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import useCategorySettings from "../hooks/useCategorySettings";
 import {
   fetchAllTableLocation,
-  fetchAllTables,
+  getTableLocation,
+  useAllTableLocation,
 } from "../../../services/tables";
 import AddNewTableLocationDialog from "../../../components/MODALS/Dialogs/AddNewTableLocation";
-import { useAppDispatch } from "../../../store";
+import { useTableSettings } from "../hooks/useTableSettings";
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+} from "@mui/material";
+import AddProTableLocationModal from "../../../components/MODALS/Dialogs/pro/AddProTableLocationModal";
 
 const TableLocationSettings = () => {
-  const [addLocationDialogOpen, setAddLocationDialogOpen] = useState(false);
+  const locationRef = useRef<ActionType>();
 
-  const dispatch = useAppDispatch()
-
-  const handleOpenAddLocationDialog = () => {
-    setAddLocationDialogOpen(true);
-  };
-  const actionRef = useRef<ActionType>();
-  const onDeleteCandidate = (category: any) => {
-    // Handle any logic needed when a category is deleted
-  };
-
-
-   const handleAddLocation = (newLocation: string) => {
-    dispatch(createLocation(newLocation));
-    // console.log("New Location:", newLocation);
-    // You can update your state or perform any other actions here
-  };
-
-
-//   const handleEditClick = (record: React.SetStateAction<null>) => {
-//     console.log(record);
-//   };
+  const {
+    deleteCandidate,
+    handleAddLocation,
+    deleteConfirmationOpen,
+    handleDeleteClickLocation,
+    handleEditLocation,
+    handleDeleteConfirmLocation,
+    handleDeleteCancel,
+  } = useTableSettings();
 
   const actionColumn = {
     title: "Actions",
@@ -53,7 +40,7 @@ const TableLocationSettings = () => {
         <Button
           type="link"
           icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-        //   onClick={() => handleEditClick(record)}
+          // onClick={() => handleEditLocation(record)}
         />
       </Tooltip>,
       <Tooltip key="delete" title="Delete">
@@ -61,7 +48,7 @@ const TableLocationSettings = () => {
           type="link"
           danger
           icon={<DeleteOutlined />}
-        //   onClick={() => handleDeleteClick(record)}
+          onClick={() => handleDeleteClickLocation(record)}
         />
       </Tooltip>,
     ],
@@ -71,6 +58,7 @@ const TableLocationSettings = () => {
     <>
       <ProTable
         rowKey="_id"
+        cardBordered
         pagination={{
           pageSize: 5,
           showQuickJumper: false,
@@ -83,23 +71,14 @@ const TableLocationSettings = () => {
             title: "Table Location",
             dataIndex: "name",
             hideInSearch: false,
-
-            renderFormItem: () => {
-              return (
-                <ProFormText
-                  width={"md"}
-                  name={"location"}
-                  placeholder={"Search Table Location"}
-                />
-              );
+            fieldProps: {
+              placeholder: "Enter location name",
             },
           },
           actionColumn,
         ]}
         request={async (params) => {
-          const data = await fetchAllTableLocation(params);
-          // console.log("========", data);
-          // console.log(sorter, filter);
+          const data = await getTableLocation(params);
           return {
             data: data,
             success: true,
@@ -109,7 +88,7 @@ const TableLocationSettings = () => {
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
-        actionRef={actionRef}
+        actionRef={locationRef}
         rowSelection={{
           alwaysShowAlert: false,
           selections: false,
@@ -122,41 +101,34 @@ const TableLocationSettings = () => {
         dateFormatter="string"
         headerTitle="List of Table Locations"
         toolBarRender={() => [
-            // <AddProCategoryDialog
-            //   open={addCategoryDialogOpen}
-            //   onClose={() => setAddCategoryDialogOpen(false)}
-            //   onAddCategory={handleAddCategory}
-            //   actionRef={actionRef}
-            // />,
-          <AddNewTableLocationDialog
-            open={addLocationDialogOpen}
-            onClose={() => setAddLocationDialogOpen(false)}
+          <AddProTableLocationModal
             onAddLocation={handleAddLocation}
+            actionRef={locationRef}
           />,
         ]}
       />
 
       {/* Delete Confirmation Dialog */}
-      {/* <Dialog
-        // open={deleteConfirmationOpen}
-        // onClose={handleDeleteCancel}
+      <Dialog
+        open={deleteConfirmationOpen}
+        onClose={handleDeleteCancel}
         maxWidth="xs"
         fullWidth
       >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete :{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>the category
+          Are you sure you want to delete Loaction:{" "}
+          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={() => handleDeleteConfirm(actionRef)} danger>
+          <Button onClick={() => handleDeleteConfirmLocation(locationRef)} danger>
             Delete
           </Button>
         </DialogActions>
-      </Dialog> */}
+      </Dialog>
     </>
   );
 };
