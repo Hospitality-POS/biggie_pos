@@ -28,6 +28,7 @@ interface TableState {
   newTableMessage: string;
   newTableMessageSucess: string;
   isError: boolean;
+  isLocationError: boolean;
 }
 
 const initialState: TableState = {
@@ -45,6 +46,7 @@ const initialState: TableState = {
   newTableMessageSucess: "",
   isSuccess: false,
   isError: false,
+  isLocationError: false
 };
 
 export const tableSlice = createSlice({
@@ -165,12 +167,10 @@ export const tableSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(
-        createLocation.fulfilled,
-        (state, action: PayloadAction<Location>) => {
+      .addCase(createLocation.fulfilled, (state, _action: PayloadAction<Location>) => {
           state.loading = false;
           state.isSuccess = true;
-          state.isError = false;
+          state.isLocationError = false;
           state.newTableMessageSucess = "Location created successfully";
           // If you need to update the state with the new location data, you can do it here.
         }
@@ -178,7 +178,7 @@ export const tableSlice = createSlice({
       .addCase(createLocation.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
-        state.isError = true;
+        state.isLocationError = true;
         state.newTableMessage = "Failed to create new location!";
       })
       .addCase(editLocation.pending, (state) => {
