@@ -1,31 +1,16 @@
 import { ParamsType } from "@ant-design/pro-components";
 import axios from "axios";
 
-
-// todo: Implement UseQuery for fetching and querying urls
-
 const BASE_URL = import.meta.env.VITE_API_URL;
-let tableUrl = `${BASE_URL}/tables`;
+const tableUrl = `${BASE_URL}/tables`;
 
-export const fetchAllTables = async (
-  data: ParamsType & {
-    pageSize?: number | undefined;
-    current?: number | undefined;
-    keyword?: string | undefined;
-  }
-) => {
-  const response = await axios.get(tableUrl);
-
+export const getAllTables = async (data: ParamsType) => {
+  const response = await axios.get(tableUrl, { params: data });
   return response.data;
 };
 
-export const fetchAllTableLocation = async (
-  data: ParamsType & {
-    pageSize?: number | undefined;
-    current?: number | undefined;
-    keyword?: string | undefined;
-  }
-) => {
-  const response = await axios.get(`${tableUrl}/location/locations`);
+export const getTableLocation = async (data: ParamsType) => {
+  const url = `${tableUrl}/location/locations`;
+  const response = await axios.get(url, { params: { name: data.name } });
   return response.data;
 };
