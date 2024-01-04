@@ -5,7 +5,7 @@ import Private from "../components/layout/private/Private";
 import UsersList from "../pages/Settings/UsersList";
 import Table from "../pages/Tables/Table";
 import Inventory from "../pages/Settings/Inventory";
-import Reports from "../pages/Settings/Reports";
+import Reports from "../pages/Settings/reportsLevel/Reports";
 import MainCategory from "../pages/main_category/Main_category";
 import CategoryMainSettings from "../pages/Settings/categoryLevel/Category_main_settings";
 import EmptyPage from "./EmptyPage";
