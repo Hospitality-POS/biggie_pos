@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../../../store";
-import { createSupplier } from "../../../../features/Supplier/SupplierActions";
-import { resetSupplierMessage } from "../../../../features/Supplier/SupplierSlice";
 import { message, notification } from "antd/lib";
 import { ProForm } from "@ant-design/pro-components";
+import { useAppDispatch, useAppSelector } from "../../../store";
+import { resetSupplierMessage } from "../../../features/Supplier/SupplierSlice";
+import { createSupplier } from "../../../features/Supplier/SupplierActions";
 
 interface Supplier {
   _id?: string;

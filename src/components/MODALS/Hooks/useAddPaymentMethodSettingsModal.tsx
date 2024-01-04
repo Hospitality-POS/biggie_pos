@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useAppDispatch, useAppSelector } from "../../../../store";
-import { resetPaymentMessage } from "../../../../features/Payment/PaymentMethodSlice";
-import { createPaymentMethod } from "../../../../features/Payment/PaymentMethodActions";
 import { ProForm } from "@ant-design/pro-components";
 import { notification } from "antd/lib";
+import { useAppDispatch, useAppSelector } from "../../../store";
+import { resetPaymentMessage } from "../../../features/Payment/PaymentMethodSlice";
+import { createPaymentMethod } from "../../../features/Payment/PaymentMethodActions";
 
 interface PaymentMethod {
   _id?: string;
