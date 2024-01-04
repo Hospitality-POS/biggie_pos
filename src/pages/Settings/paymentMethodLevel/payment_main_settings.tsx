@@ -9,7 +9,7 @@ function PaymentMainSettings() {
     {
       key: "table1",
       tab: "Table",
-      label: "Add Payment Method",
+      label: "All Payment Methods",
       children: <PaymentsMethodSettings />,
     },
   ];
