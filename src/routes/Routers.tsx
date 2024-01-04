@@ -2,13 +2,11 @@ import { Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import Spinner from "../components/spinner/Spinner";
 import Private from "../components/layout/private/Private";
-import UsersList from "../pages/Settings/usersLevel/UsersList";
 import Table from "../pages/Tables/Table";
 import Inventory from "../pages/Settings/Inventory";
 import Reports from "../pages/Settings/reportsLevel/Reports";
 import MainCategory from "../pages/main_category/Main_category";
 import CategoryMainSettings from "../pages/Settings/categoryLevel/Category_main_settings";
-import EmptyPage from "./EmptyPage";
 import TableMainSettings from "../pages/Settings/TableLevel/Table_main_settings";
 import SupplierMainSettings from "../pages/Settings/supplierLevel/supplier_main_settings";
 import PaymentMainSettings from "../pages/Settings/paymentMethodLevel/payment_main_settings";
@@ -17,8 +15,6 @@ import NotFound from "./NotFound";
 
 
 const Layout = lazy(() => import("../components/layout/Layout"));
-// const Staff = lazy(() => import("../pages/staff/Staff"));
-// const Table = lazy(() => import("../pages/Tables/Table"));
 const RestaurantPage = lazy(() => import("../pages/Restaurant/Restuarant"));
 const Store = lazy(() => import("../pages/store/Store"));
 const Orders = lazy(() => import("../pages/Orders/Orders"));
