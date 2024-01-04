@@ -28,7 +28,8 @@ import { fetchProducts } from "../../features/Product/ProductAction";
 import SettingsModal from "../Settings/SettingsModal";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { useAppDispatch, useAppSelector } from "../../store";
-import { AppstoreOutlined, LogoutOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
+import { Avatar } from "antd/lib";
 // import { IconButton } from '@mui/material';
 const pages = ["Tables", "Store", "Orders", "Restaurant", "Kitchen", "Bar"];
 const settings = ["Dashboard", "Profile", "Logout"];
@@ -202,15 +203,6 @@ function Navbar() {
               ))}
             </Menu>
           </Box>
-          {/* <Search>
-            <SearchIconWrapper>
-              <SearchIcon />
-            </SearchIconWrapper>
-            <StyledInputBase
-              placeholder="Search…"
-              inputProps={{ "aria-label": "search" }}
-            />
-          </Search> */}
           <Box
             sx={{
               flexGrow: 1,
@@ -300,13 +292,7 @@ function Navbar() {
           {user && (
             <Tooltip title={user?.name}>
               <IconButton onClick={handleOpenUserMenu}>
-                <Avvvatars
-                  value={user?.email}
-                  shadow={true}
-                  style="character"
-                  borderSize={0.5}
-                  border={true}
-                />
+                <Avatar icon={<UserOutlined/>}/>
               </IconButton>
             </Tooltip>
           )}
@@ -315,7 +301,6 @@ function Navbar() {
             <Tooltip title="Logout">
               <LogoutOutlined
                 onClick={handleLogout}
-                style={{ marginRight: 5 }}
                 style={{ fontSize: "26px" }}
               />
             </Tooltip>
