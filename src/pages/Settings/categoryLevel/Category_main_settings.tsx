@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import CategorySettings from "./CategorySettings";
+import { Space } from "antd/lib";
+import { ApartmentOutlined } from "@ant-design/icons";
 
 const Category2 = () => <div>Content for Category 2</div>;
 const MainCategory = () => <div>Main Category Content</div>;
@@ -16,13 +18,13 @@ const CategoryMainSettings: React.FC = () => {
     {
       key: "category1",
       tab: "category",
-      label: "Category",
+      label: "All Categorys",
       children: <CategorySettings />,
     },
     {
       key: "category2",
       tab: "Sub-category",
-      label: "Sub-Category",
+      label: "All Sub-Categorys",
       children: <Category2 />,
     },
     {
@@ -35,13 +37,19 @@ const CategoryMainSettings: React.FC = () => {
 
   return (
     <ProCard
+      style={{ height: "90vh" }}
       tabs={{
-        type: 'card',
+        type: "card",
         items: tabsItems,
         activeKey: activeTab,
         onChange: handleTabChange,
       }}
-      title="Category Main Settings"
+      title={
+        <Space>
+          <ApartmentOutlined />
+          Category Main Settings
+        </Space>
+      }
     />
   );
 };

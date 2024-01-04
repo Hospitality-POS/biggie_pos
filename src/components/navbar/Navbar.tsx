@@ -27,8 +27,9 @@ import RestaurantOutlinedIcon from "@mui/icons-material/RestaurantOutlined";
 import { fetchProducts } from "../../features/Product/ProductAction";
 import SettingsModal from "../Settings/SettingsModal";
 import SettingsIcon from "@mui/icons-material/Settings";
-import { LogoutOutlined } from "@mui/icons-material";
 import { useAppDispatch, useAppSelector } from "../../store";
+import { AppstoreOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
+import { Avatar } from "antd/lib";
 // import { IconButton } from '@mui/material';
 const pages = ["Tables", "Store", "Orders", "Restaurant", "Kitchen", "Bar"];
 const settings = ["Dashboard", "Profile", "Logout"];
@@ -42,7 +43,7 @@ function Navbar() {
   );
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  const { user } = useAppSelector(state => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
   // const user = JSON.parse(localStorage.getItem("user") || "null");
 
   const dispatch = useAppDispatch();
@@ -95,7 +96,7 @@ function Navbar() {
 
   return (
     <AppBar position="static">
-      <Container maxWidth="100px" sx={{ bgcolor: "#6c1c2c"}}>
+      <Container maxWidth="100px" sx={{ bgcolor: "#6c1c2c" }}>
         <Toolbar disableGutters>
           <img
             src="/android-chrome-192x192.png"
@@ -202,15 +203,6 @@ function Navbar() {
               ))}
             </Menu>
           </Box>
-          {/* <Search>
-            <SearchIconWrapper>
-              <SearchIcon />
-            </SearchIconWrapper>
-            <StyledInputBase
-              placeholder="Search…"
-              inputProps={{ "aria-label": "search" }}
-            />
-          </Search> */}
           <Box
             sx={{
               flexGrow: 1,
@@ -228,24 +220,22 @@ function Navbar() {
                   key={page}
                   label={
                     <>
-                      {
-                        page === "Tables" && user ? (
-                          <>
-                            <TableBarIcon style={{ fontSize: "16px" }} />
-                            <Typography fontSize="inherit">Tables</Typography>
-                          </>
-                        ) : page === "Store" && user?.isAdmin ? (
-                          <>
-                            <StoreIcon style={{ fontSize: "16px" }} />
-                            <Typography fontSize="inherit">Store</Typography>
-                          </>
-                        ) : page === "Orders" && user?.isAdmin ? (
-                          <>
-                            <FilterFramesIcon style={{ fontSize: "16px" }} />
-                            <Typography fontSize="inherit">Orders</Typography>
-                          </>
-                        ) : null
-                      }
+                      {page === "Tables" && user ? (
+                        <>
+                          <TableBarIcon style={{ fontSize: "16px" }} />
+                          <Typography fontSize="inherit">Tables</Typography>
+                        </>
+                      ) : page === "Store" && user?.isAdmin ? (
+                        <>
+                          <StoreIcon style={{ fontSize: "16px" }} />
+                          <Typography fontSize="inherit">Store</Typography>
+                        </>
+                      ) : page === "Orders" && user?.isAdmin ? (
+                        <>
+                          <FilterFramesIcon style={{ fontSize: "16px" }} />
+                          <Typography fontSize="inherit">Orders</Typography>
+                        </>
+                      ) : null}
                     </>
                   }
                   onClick={() => handleTabClick(page)}
@@ -255,20 +245,6 @@ function Navbar() {
           </Box>
 
           <Box sx={{ flexGrow: 0 }}>
-            {user && (
-              <Tooltip title={user?.name}>
-                <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                  {/* <Avatar alt="Remy Sharp" src="/static/images/avatar/2.jpg" /> */}
-                  <Avvvatars
-                    value={user?.email}
-                    shadow={true}
-                    style="character"
-                    borderSize={0.5}
-                    border={true}
-                  />
-                </IconButton>
-              </Tooltip>
-            )}
             <Menu
               sx={{ mt: "45px" }}
               id="menu-appbar"
@@ -308,19 +284,27 @@ function Navbar() {
                 onClick={handleSidebarOpen}
               >
                 <Tooltip title="Open Settings">
-                  <SettingsIcon fontSize="large" />
+                  <AppstoreOutlined />
                 </Tooltip>
               </IconButton>
             )}
           </Box>
-              
+          {user && (
+            <Tooltip title={user?.name}>
+              <IconButton onClick={handleOpenUserMenu}>
+                <Avatar icon={<UserOutlined/>}/>
+              </IconButton>
+            </Tooltip>
+          )}
           {/* logout icon */}
           {user && (
             <Tooltip title="Logout">
-              <LogoutOutlined onClick={handleLogout} />
+              <LogoutOutlined
+                onClick={handleLogout}
+                style={{ fontSize: "26px" }}
+              />
             </Tooltip>
           )}
-             
         </Toolbar>
       </Container>
       <SettingsModal

@@ -1,22 +1,22 @@
 import { ProCard } from "@ant-design/pro-components";
-import SupplierTable from "./Supplier";
-import { SisternodeOutlined } from "@ant-design/icons";
+import { UsergroupAddOutlined } from "@ant-design/icons";
 import { Space } from "antd/lib";
+import UsersList from "./UsersList";
 
-function SupplierMainSettings() {
+function UsersMainSettings() {
   const tabsItems = [
     {
       key: "table1",
       tab: "Table",
-      label: "All Suppliers",
-      children: <SupplierTable />,
+      label: "All Users",
+      children: <UsersList />,
     },
   ];
   return (
     <>
       <ProCard
         style={{ height: "90vh" }}
-        title={<Space><SisternodeOutlined/>Supplier Main Settings</Space>}
+        title={<Space><UsergroupAddOutlined/>Users Main Settings</Space>}
         tabs={{
           type: "card",
           items: tabsItems,
@@ -26,4 +26,4 @@ function SupplierMainSettings() {
   );
 }
 
-export default SupplierMainSettings;
+export default UsersMainSettings;
