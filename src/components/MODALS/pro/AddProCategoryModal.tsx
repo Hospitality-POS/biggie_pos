@@ -13,7 +13,7 @@ import { ActionType } from "@ant-design/pro-components";
 import {
   fetchAllCategories,
   fetchSubCategories,
-} from "../../../../services/categories";
+} from "../../../services/categories";
 import { ApartmentOutlined, PlusOutlined } from "@ant-design/icons";
 
 interface Category {

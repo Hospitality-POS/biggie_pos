@@ -12,7 +12,7 @@ import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { fetchAllSuppliers } from "../../../services/supplier";
 import { UserOutlined } from "@ant-design/icons";
 import { MailOutlined, PhoneOutlined } from "@mui/icons-material";
-import AddProSupplierModal from "../../../components/MODALS/Dialogs/pro/AddProSupplierModal";
+import AddProSupplierModal from "../../../components/MODALS/pro/AddProSupplierModal";
 import { useSupplierSettings } from "../hooks/useSuppliersettings";
 
 const SupplierTable = () => {
