@@ -43,6 +43,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
     onAfterPrint: onCloseM,
   });
 
+
   return (
     <>
       {loading ? (
