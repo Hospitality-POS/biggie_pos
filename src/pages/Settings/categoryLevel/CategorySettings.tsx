@@ -75,30 +75,16 @@ const CategorySettings = () => {
             title: "Category",
             dataIndex: "name",
             hideInSearch: false,
-
-            renderFormItem: () => {
-              return (
-                <ProFormText
-                  width={"md"}
-                  name={"name"}
-                  placeholder={"Search Name"}
-                />
-              );
+            fieldProps: {
+              placeholder: "Enter category name",
             },
           },
           {
             title: "Subcategory",
             dataIndex: ["sub_category", "name"],
             hideInSearch: false,
-
-            renderFormItem: () => {
-              return (
-                <ProFormText
-                  width={"md"}
-                  name={["sub_category", "name"]}
-                  placeholder={"Search subcategory"}
-                />
-              );
+            fieldProps: {
+              placeholder: "Enter sub_category name",
             },
           },
           actionColumn,
