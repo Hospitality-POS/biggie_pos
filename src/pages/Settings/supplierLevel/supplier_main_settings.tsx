@@ -8,7 +8,7 @@ function SupplierMainSettings() {
     {
       key: "table1",
       tab: "Table",
-      label: "Add Supplier",
+      label: "All Suppliers",
       children: <SupplierTable />,
     },
   ];
