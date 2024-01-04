@@ -19,6 +19,7 @@ import { useReactToPrint } from "react-to-print";
 import { useAppSelector } from "../../store";
 import Spinner from "../spinner/Spinner";
 import "../MODALS/bill.css"
+import { Spin } from "antd/lib";
 
 interface PurchaseReportProps {
   openM: boolean;
@@ -41,7 +42,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
     onAfterPrint: onCloseM,
   });
   if(loading){
-    return <Spinner/>
+    return <Spin size="large" fullscreen tip="Generating Purchase report Please wait ..."/>
   }
 
   return (

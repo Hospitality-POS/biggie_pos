@@ -19,6 +19,7 @@ import { useReactToPrint } from "react-to-print";
 import { useAppSelector } from "../../store";
 import Spinner from "../spinner/Spinner";
 import "../MODALS/bill.css"
+import { Spin } from "antd/lib";
 
 interface SalesReportProps {
   openM: boolean;
@@ -45,7 +46,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
   return (
     <>
       {loading ? (
-        <Spinner />
+       <Spin size="large" fullscreen tip="Generating Sales report Please wait ..."/>
       ) : (
         <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
           <DialogContent className="receiptM" ref={componentRef}>
