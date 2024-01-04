@@ -2,7 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import Spinner from "../components/spinner/Spinner";
 import Private from "../components/layout/private/Private";
-import UsersList from "../pages/Settings/UsersList";
+import UsersList from "../pages/Settings/usersLevel/UsersList";
 import Table from "../pages/Tables/Table";
 import Inventory from "../pages/Settings/Inventory";
 import Reports from "../pages/Settings/reportsLevel/Reports";

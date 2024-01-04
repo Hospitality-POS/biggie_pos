@@ -33,15 +33,15 @@ import GroupIcon from "@mui/icons-material/Group";
 import SupervisorAccountIcon from "@mui/icons-material/SupervisorAccount";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import AddUserDialog from "../../components/MODALS/Dialogs/AddUserDialog";
+import AddUserDialog from "../../../components/MODALS/Dialogs/AddUserDialog";
 import {
   createUser,
   deleteUser,
   fetchAllUsers,
   fetchUserById,
-} from "../../features/Auth/AuthActions";
-import { useAppDispatch, useAppSelector } from "../../store";
-import EditUserDialog from "../../components/MODALS/Dialogs/EditUserDialog";
+} from "../../../features/Auth/AuthActions";
+import { useAppDispatch, useAppSelector } from "../../../store";
+import EditUserDialog from "../../../components/MODALS/Dialogs/EditUserDialog";
 
 interface User {
   fullname: string;
