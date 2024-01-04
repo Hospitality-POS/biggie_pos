@@ -18,13 +18,13 @@ const CategoryMainSettings: React.FC = () => {
     {
       key: "category1",
       tab: "category",
-      label: "Category",
+      label: "All Categorys",
       children: <CategorySettings />,
     },
     {
       key: "category2",
       tab: "Sub-category",
-      label: "Sub-Category",
+      label: "All Sub-Categorys",
       children: <Category2 />,
     },
     {
