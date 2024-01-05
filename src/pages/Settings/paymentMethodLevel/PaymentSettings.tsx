@@ -16,7 +16,7 @@ import { Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { fetchAllPaymentMethods } from "../../../services/paymentMethod";
 import usePaymentSettings from "../hooks/usePaymentSettings";
-import AddProPaymentMethodSettingsModal from "../../../components/MODALS/Dialogs/pro/AddProPaymentSettingsModal";
+import AddProPaymentMethodSettingsModal from "../../../components/MODALS/pro/AddProPaymentSettingsModal";
 
 const PaymentsMethodSettings = () => {
   const paymentRef = useRef<ActionType>();

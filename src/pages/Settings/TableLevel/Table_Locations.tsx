@@ -16,7 +16,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@mui/material";
-import AddProTableLocationModal from "../../../components/MODALS/Dialogs/pro/AddProTableLocationModal";
+import AddProTableLocationModal from "../../../components/MODALS/pro/AddProTableLocationModal";
 
 const TableLocationSettings = () => {
   const locationRef = useRef<ActionType>();

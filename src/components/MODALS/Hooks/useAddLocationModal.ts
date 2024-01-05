@@ -1,9 +1,10 @@
-import { ElementType, useState } from "react";
+import { useState } from "react";
 import { ProForm } from "@ant-design/pro-components";
-import { useAppDispatch, useAppSelector } from "../../../../store";
+
 import { notification } from "antd";
-import { createLocation } from "../../../../features/Table/TableActions";
-import { useAllTableLocation } from "../../../../services/tables";
+import { useAppDispatch, useAppSelector } from "../../../store";
+import { createLocation } from "../../../features/Table/TableActions";
+
 
 interface Location {
   _id?: string;

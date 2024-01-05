@@ -1,13 +1,9 @@
 import { useState } from "react";
-import axios from "axios";
-import { useQuery } from "@tanstack/react-query";
-import { useDispatch } from "react-redux";
-import { useAppDispatch, useAppSelector } from "../../../../store";
-import { resetCategoryMessage } from "../../../../features/Category/CategorySlice";
-import { createCategory } from "../../../../features/Category/CategoryActions";
-import { message } from "antd";
 import { ProForm } from "@ant-design/pro-components";
 import { notification } from "antd/lib";
+import { useAppDispatch, useAppSelector } from "../../../store";
+import { resetCategoryMessage } from "../../../features/Category/CategorySlice";
+import { createCategory } from "../../../features/Category/CategoryActions";
 
 interface Category {
   _id?: string;
