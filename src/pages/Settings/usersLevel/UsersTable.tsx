@@ -142,6 +142,7 @@ const UsersTable = () => {
     return (
       <ProDescriptions
         size="small"
+        style={{paddingLeft: 28}}
         tooltip="Contains more infomation about the user"
         actionRef={actionRefD}
         layout="horizontal"
