@@ -32,12 +32,14 @@ import {
   BoxPlotOutlined,
   CloseCircleOutlined,
   OrderedListOutlined,
+  PercentageOutlined,
   PrinterOutlined,
   SendOutlined,
   SmileFilled,
   SwapOutlined,
   SwitcherOutlined,
 } from "@ant-design/icons";
+import TransferBillModal from "@components/MODALS/pro/TransferBill";
 
 function formatTotal(totalAmount: { toLocaleString: () => number | string }) {
   return totalAmount.toLocaleString();
@@ -129,22 +131,10 @@ const CartDrawer: React.FC = () => {
             }}
             icon={<OrderedListOutlined />}
           >
-            {orderNumber}
+            {orderNumber?.toLocaleUpperCase()}
           </Button>
-          <Button
-            style={{
-              pl: 2,
-              color: "#6c1c2c",
-              borderColor: "#6c1c2c",
-              "&:hover": {
-                borderColor: "#bc8c7c",
-                color: "#bc8c7c",
-              },
-            }}
-            icon={<SwapOutlined />}
-          >
-            Transfer
-          </Button>
+
+          <TransferBillModal data={data}/>
 
           <Button type="primary" icon={<SwitcherOutlined />}>
             {td?.name}
@@ -186,17 +176,31 @@ const CartDrawer: React.FC = () => {
         {memoizedData?.length ? (
           <Space direction="vertical" style={{ width: "100%" }}>
             <Divider />
-            <Typography.Text strong>
-              Total : Ksh.
-              {totalAmount ? (
-                formattedTotal
-              ) : (
-                <Typography>Calculating...</Typography>
-              )}
-            </Typography.Text>
-            <Typography.Text strong>
-              Served By: <SmileFilled /> {cartDetails?.created_by.username}
-            </Typography.Text>
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "20px",
+                alignItems: "flex-end",
+              }}
+            >
+              <Typography.Text strong>
+                Served By: <SmileFilled /> {cartDetails?.created_by.username}
+              </Typography.Text>
+              <Typography.Text strong>
+                Total : Ksh.
+                {totalAmount ? (
+                  formattedTotal
+                ) : (
+                  <Typography>Calculating...</Typography>
+                )}
+              </Typography.Text>
+
+              <Button type="primary" icon={<PercentageOutlined />}>
+                Offer Discount?
+              </Button>
+            </div>
 
             <Space
               style={{
