@@ -27,6 +27,7 @@ import { useAppDispatch } from "../../../store";
 import { deleteUser, fetchUserById } from "../../../features/Auth/AuthActions";
 import EditUserDialog from "../../../components/MODALS/Dialogs/EditUserDialog";
 import { UserDescription } from "./UserDescription";
+import ExpandedRowContent from "./ExpandedRowContent";
 
 interface User {
   fullname: string;
@@ -114,43 +115,7 @@ const UsersTable = () => {
   };
 
   const expandedRowRender = (record) => {
-    const { pin, username, createdAt, phone } = record;
-    const formattedCreatedAt = new Date(createdAt).toLocaleString();
-
-    const data = [
-      {
-        title: "Username",
-        dataIndex: "username",
-        value: username,
-      },
-      {
-        title: "Pin",
-        dataIndex: "pin",
-        value: pin,
-      },
-      {
-        title: "Phone No.",
-        dataIndex: "phone",
-        value: phone
-      },
-      {
-        title: "Date created",
-        dataIndex: "createdAt",
-      },
-    ];
-
-    return (
-      <ProDescriptions
-        size="small"
-        style={{paddingLeft: 28}}
-        tooltip="Contains more infomation about the user"
-        actionRef={actionRefD}
-        layout="horizontal"
-        title="Additional Information"
-        dataSource={{ pin, username, createdAt: formattedCreatedAt, phone }}
-        columns={data}
-      />
-    );
+    return <ExpandedRowContent record={record}/>
   };
   return (
     <>
