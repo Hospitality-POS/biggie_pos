@@ -39,6 +39,7 @@ function Routers() {
           <Route path="/Orders" element={<Private><Orders /></Private>} />
           <Route path="*" element={<NotFound/>} />
         </Route>
+          <Route path="*" element={<NotFound/>} />
       </Routes>
     </Suspense>
   );

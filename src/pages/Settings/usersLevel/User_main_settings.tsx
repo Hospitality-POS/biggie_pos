@@ -2,6 +2,7 @@ import { ProCard } from "@ant-design/pro-components";
 import { UsergroupAddOutlined } from "@ant-design/icons";
 import { Space } from "antd/lib";
 import UsersList from "./UsersList";
+import UsersTable from "./UsersTable";
 
 function UsersMainSettings() {
   const tabsItems = [
@@ -10,6 +11,12 @@ function UsersMainSettings() {
       tab: "Table",
       label: "All Users",
       children: <UsersList />,
+    },
+      {
+      key: "table2",
+      tab: "Table",
+      label: "All Users",
+      children: <UsersTable />,
     },
   ];
   return (
