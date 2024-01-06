@@ -7,14 +7,11 @@ import {
   ProFormText,
   ProForm,
 } from "@ant-design/pro-form";
-import CategoryIcon from "@mui/icons-material/Category";
 import useAddCategoryDialog from "../Hooks/useAddCategoryDialog";
-import { ActionType } from "@ant-design/pro-components";
 import {
-  fetchAllCategories,
   fetchSubCategories,
 } from "../../../services/categories";
-import { ApartmentOutlined, PlusOutlined } from "@ant-design/icons";
+import { ApartmentOutlined } from "@ant-design/icons";
 
 interface Category {
   _id?: string;
