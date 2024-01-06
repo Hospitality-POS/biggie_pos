@@ -3,13 +3,9 @@ import { useRef, useState } from "react";
 import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
 import { Tooltip, Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import {
-  fetchAllTableLocation,
-  getTableLocation,
-  useAllTableLocation,
-} from "../../../services/tables";
+import { getAllTables } from "../../../services/tables";
 import AddNewTableLocationDialog from "../../../components/MODALS/Dialogs/AddNewTableLocation";
-import { useTableLocationSettings, useTableSettings } from "../hooks/useTableSettings";
+import { useTableSettings } from "../hooks/useTableSettings";
 import {
   Dialog,
   DialogActions,
@@ -17,19 +13,21 @@ import {
   DialogTitle,
 } from "@mui/material";
 import AddProTableLocationModal from "../../../components/MODALS/pro/AddProTableLocationModal";
+import { Badge } from "antd/lib";
+import AddEditProTableModal from "../../../components/MODALS/pro/AddEditProTableModal";
 
-const TableLocationSettings = () => {
-  const locationRef = useRef<ActionType>();
+const TableSetting = () => {
+  const tableRef = useRef<ActionType>();
 
   const {
-    deleteCandidate,
-    handleAddLocation,
-    deleteConfirmationOpen,
-    handleDeleteClickLocation,
-    handleEditLocation,
-    handleDeleteConfirmLocation,
+    handleAddTable,
+    deleteCandidateTable,
+    handleDeleteClick,
+    handleEdit,
+    handleDeleteConfirmTable,
+    deleteConfirmationOpenTable,
     handleDeleteCancel,
-  } = useTableLocationSettings();
+  } = useTableSettings();
 
   const actionColumn = {
     title: "Actions",
@@ -48,7 +46,7 @@ const TableLocationSettings = () => {
           type="link"
           danger
           icon={<DeleteOutlined />}
-          onClick={() => handleDeleteClickLocation(record)}
+          onClick={() => handleDeleteClick(record)}
         />
       </Tooltip>,
     ],
@@ -68,17 +66,47 @@ const TableLocationSettings = () => {
         }}
         columns={[
           {
-            title: "Table Location",
+            title: "Table",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {
-              placeholder: "Enter location name",
+              placeholder: "Enter table name",
             },
+          },
+          {
+            title: "Located At",
+            dataIndex: "locatedAt",
+            hideInSearch: false,
+            fieldProps: {
+              placeholder: "Enter table location name",
+            },
+          },
+          {
+            title: "status",
+            dataIndex: "isOccupied",
+            hideInSearch: true,
+            render: (status) => (
+              <Badge
+                status={status ? "success" : "error"}
+                text={status ? "Vacant" : "Occupied"}
+              />
+            ),
+          },
+          {
+            title: "Amount",
+            dataIndex: "cart_amount",
+            hideInSearch: true,
+          },
+          {
+            title: "Served By",
+            dataIndex: "served_by",
+            hideInSearch: true,
           },
           actionColumn,
         ]}
         request={async (params) => {
-          const data = await getTableLocation(params);
+          const data = await getAllTables(params);
+        //   console.log(data);
           return {
             data: data,
             success: true,
@@ -88,43 +116,43 @@ const TableLocationSettings = () => {
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
-        actionRef={locationRef}
+        actionRef={tableRef}
         rowSelection={{
           alwaysShowAlert: false,
           selections: false,
         }}
         search={{
-          searchText: "Search Table Location",
+          searchText: "Search Table",
           resetText: "Reset",
           labelWidth: "auto",
         }}
         dateFormatter="string"
         headerTitle="List of Table Locations"
         toolBarRender={() => [
-          <AddProTableLocationModal
-            onAddLocation={handleAddLocation}
-            actionRef={locationRef}
+          <AddEditProTableModal
+            onAddTable={handleAddTable}
+            actionRef={tableRef}
           />,
         ]}
       />
 
       {/* Delete Confirmation Dialog */}
       <Dialog
-        open={deleteConfirmationOpen}
+        open={deleteConfirmationOpenTable}
         onClose={handleDeleteCancel}
         maxWidth="xs"
         fullWidth
       >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete Loaction:{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>
+          Are you sure you want to delete Table:{" "}
+          <i>{deleteCandidateTable ? deleteCandidateTable.name : ""} </i>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={() => handleDeleteConfirmLocation(locationRef)} danger>
+          <Button onClick={() => handleDeleteConfirmTable(tableRef)} danger>
             Delete
           </Button>
         </DialogActions>
@@ -133,4 +161,4 @@ const TableLocationSettings = () => {
   );
 };
 
-export default TableLocationSettings;
+export default TableSetting;

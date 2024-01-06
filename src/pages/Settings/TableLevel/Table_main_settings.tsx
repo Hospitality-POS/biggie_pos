@@ -4,6 +4,7 @@ import TableSettings from "./TableSettings";
 import TableLocationSettings from "./Table_Locations";
 import { AppstoreAddOutlined } from "@ant-design/icons";
 import { Space } from "antd/lib";
+import TableSetting from "./Table_settings";
 
 const TableMainSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("table1");
@@ -17,7 +18,7 @@ const TableMainSettings: React.FC = () => {
       key: "table1",
       tab: "Table",
       label: "Add New Table",
-      children: <TableSettings />,
+      children: <TableSetting />,
     },
     {
       key: "table2",
