@@ -1,48 +1,51 @@
-import React from "react";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
-import CloseIcon from "@mui/icons-material/Close";
-import ErrorIcon from "@mui/icons-material/Error";
+import { CloseCircleOutlined } from "@ant-design/icons";
+// import Paragraph from "antd/es/skeleton/Paragraph";
+import { Button, Result, Typography } from "antd/lib";
 
-const dialogTitleStyle = {
-  position: "relative", // To make the CloseIcon position relative to the title
-};
-
-const errorIconStyle = {
-  margin: "0 auto",
-  fontSize: "60px", 
-  color: "red",
-  display: "block",
-  textAlign: "center", // To center the icon
-};
-
-const closeIconStyle = {
-  position: "absolute",
-  right: "8px",
-  top: "8px",
-  color: "grey",
-};
+const { Paragraph, Text } = Typography;
 
 const ErrorDialog = ({ error, onClose }) => {
   return (
-    <Dialog open={error !== null} onClose={onClose}>
-      <DialogTitle style={dialogTitleStyle}>
-      </DialogTitle>
-      <DialogContent>
-        <ErrorIcon style={errorIconStyle} />
-        <DialogContentText>{error}</DialogContentText>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} color="primary">
-          Close
+    <Result
+      title="Oops!"
+      status="500"
+      subTitle={
+        <>
+          <p>Check your internet connection!</p> <i>{error}</i>
+        </>
+      }
+      extra={
+        <Button type="primary" onClick={onClose}>
+          Reload page
         </Button>
-      </DialogActions>
-    </Dialog>
+      }
+      style={{ margin: "0 auto" }}
+    >
+      <div className="desc">
+        <Paragraph>
+          <Text
+            strong
+            style={{
+              fontSize: 16,
+            }}
+          >
+            The content you submitted has the following error:
+          </Text>
+          <Paragraph>
+            <CloseCircleOutlined style={{ color: "red" }} /> {error}{" "}
+            <a>Reflesh page &gt;</a>
+          </Paragraph>
+        </Paragraph>
+        <Paragraph>
+          <CloseCircleOutlined style={{ color: "red" }} /> Your account has been
+          suspended. <a>Thaw immediately &gt;</a>
+        </Paragraph>
+        <Paragraph>
+          <CloseCircleOutlined style={{ color: "red" }} /> Your account is not
+          yet eligible to view this pagee. <a>Register Unlock &gt;</a>
+        </Paragraph>
+      </div>
+    </Result>
   );
 };
 
