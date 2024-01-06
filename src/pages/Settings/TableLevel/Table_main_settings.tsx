@@ -17,13 +17,13 @@ const TableMainSettings: React.FC = () => {
     {
       key: "table1",
       tab: "Table",
-      label: "Add New Table",
+      label: "All Tables",
       children: <TableSetting />,
     },
     {
       key: "table2",
       tab: "loaction",
-      label: "Add New Table Location",
+      label: "All Table Locations",
       children: <TableLocationSettings />,
     },
   ];
