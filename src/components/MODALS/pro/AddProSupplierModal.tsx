@@ -3,7 +3,7 @@ import { Button, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import BusinessIcon from "@mui/icons-material/Business";
 import useAddSupplierDialog from "../Hooks/useAddSupplierDialog";
-import { ActionType } from '@ant-design/pro-components';
+import { ActionType } from "@ant-design/pro-components";
 import { PlusOutlined, SisternodeOutlined } from "@ant-design/icons";
 
 interface Supplier {
@@ -19,24 +19,22 @@ interface AddSupplierDialogProps {
 
 const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
   onAddSupplier,
-  actionRef
+  actionRef,
 }) => {
   const {
     isSubmitting,
     form,
     handleConfirmAddSupplier,
     handleClose,
-    setIsSubmitting
+    setIsSubmitting,
   } = useAddSupplierDialog({ onAddSupplier });
-
-
 
   return (
     <Space align="center" direction="vertical" size={"small"}>
       <ModalForm
+        width={750}
         open={isSubmitting}
-      
-      // todo: reuse this for editmodal
+        // todo: reuse this for editmodal
         // initialValues={props.data ?props.data :{}}
         title={
           <Space>
@@ -44,10 +42,18 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
             Add New Supplier
           </Space>
         }
-        trigger={<Button onClick={() => setIsSubmitting(true)} key="button" icon={<PlusOutlined/>}>New</Button>}
-        onFinish={async(values)=>{
-        await  handleConfirmAddSupplier(values)
-          actionRef.current.reload()
+        trigger={
+          <Button
+            onClick={() => setIsSubmitting(true)}
+            key="button"
+            icon={<SisternodeOutlined />}
+          >
+            New
+          </Button>
+        }
+        onFinish={async (values) => {
+          await handleConfirmAddSupplier(values);
+          actionRef.current.reload();
         }}
         onOpenChange={(visible) => !visible && handleClose()}
         form={form}
@@ -58,7 +64,6 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
           },
         }}
       >
-        
         <ProForm.Group>
           <ProFormText
             width="md"
@@ -72,11 +77,13 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
             width="md"
             name="email"
             label="Email"
-            rules={[{
-              required: true,
-              pattern: /^\S+@\S+\.\S+$/,
-              message: "Invalid email format",
-            }]}
+            rules={[
+              {
+                required: true,
+                pattern: /^\S+@\S+\.\S+$/,
+                message: "Invalid email format",
+              },
+            ]}
             placeholder="Enter supplier email"
           />
 
@@ -84,7 +91,13 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
             width="md"
             name="phone"
             label="Phone"
-            rules={[{ required: true, message: "Invalid phone no. include 10 digits only.", pattern: /^\d{10}$/,  }]}
+            rules={[
+              {
+                required: true,
+                message: "Invalid phone no. include 10 digits only.",
+                pattern: /^\d{10}$/,
+              },
+            ]}
             placeholder="Enter supplier phone"
           />
         </ProForm.Group>

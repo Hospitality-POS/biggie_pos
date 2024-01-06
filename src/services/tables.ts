@@ -5,7 +5,7 @@ const BASE_URL = import.meta.env.VITE_API_URL;
 const tableUrl = `${BASE_URL}/tables`;
 
 export const getAllTables = async (data: ParamsType) => {
-  const response = await axios.get(tableUrl, { params: data });
+  const response = await axios.get(tableUrl, { params: {name: data.name, locatedAt: data.locatedAt} });
   return response.data;
 };
 

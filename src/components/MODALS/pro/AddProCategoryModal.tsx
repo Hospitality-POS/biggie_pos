@@ -7,14 +7,11 @@ import {
   ProFormText,
   ProForm,
 } from "@ant-design/pro-form";
-import CategoryIcon from "@mui/icons-material/Category";
 import useAddCategoryDialog from "../Hooks/useAddCategoryDialog";
-import { ActionType } from "@ant-design/pro-components";
 import {
-  fetchAllCategories,
   fetchSubCategories,
 } from "../../../services/categories";
-import { ApartmentOutlined, PlusOutlined } from "@ant-design/icons";
+import { ApartmentOutlined } from "@ant-design/icons";
 
 interface Category {
   _id?: string;
@@ -34,7 +31,6 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
   const {
     isSubmitting,
     form,
-    subcategories,
     handleConfirmAddCategory,
     handleSubCategoryChange,
     handleClose,
@@ -44,6 +40,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
   return (
     <Space align="center" direction="vertical" size={"small"}>
       <ModalForm
+        width={750}
         open={isSubmitting}
         title={
           <Space>
@@ -52,7 +49,11 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
           </Space>
         }
         trigger={
-          <Button onClick={() => setIsSubmitting(true)} key="button" icon={<PlusOutlined/>}>
+          <Button
+            onClick={() => setIsSubmitting(true)}
+            key="button"
+            icon={<ApartmentOutlined />}
+          >
             New
           </Button>
         }
