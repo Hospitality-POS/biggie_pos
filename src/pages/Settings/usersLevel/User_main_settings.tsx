@@ -6,14 +6,14 @@ import UsersTable from "./UsersTable";
 
 function UsersMainSettings() {
   const tabsItems = [
-    {
-      key: "table1",
-      tab: "Table",
-      label: "All Users",
-      children: <UsersList />,
-    },
+    // {
+    //   key: "table1",
+    //   tab: "Table",
+    //   label: "All Users",
+    //   children: <UsersList />,
+    // },
       {
-      key: "table2",
+      key: "table1",
       tab: "Table",
       label: "All Users",
       children: <UsersTable />,
