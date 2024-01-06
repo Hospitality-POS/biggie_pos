@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Button, Space } from "antd";
 import {
   ModalForm,
@@ -6,13 +6,8 @@ import {
   ProForm,
   ProFormSelect,
 } from "@ant-design/pro-form";
-import useAddSupplierDialog from "../Hooks/useAddSupplierDialog";
 import {
-    EyeInvisibleOutlined,
-  EyeOutlined,
-  PlusOutlined,
-  SisternodeOutlined,
-  UsergroupAddOutlined,
+    UsergroupAddOutlined,
 } from "@ant-design/icons";
 import useAddEditUserModal from "../Hooks/useAddEditUserModal";
 
@@ -43,7 +38,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
     handleClose,
     setIsSubmitting,
   } = useAddEditUserModal({ onAddUser });
-  const [showPassword, setShowPassword] = useState(false);
+
 
   return (
     <Space align="center" direction="vertical" size={"small"}>
@@ -61,7 +56,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           <Button
             onClick={() => setIsSubmitting(true)}
             key="button"
-            icon={<PlusOutlined />}
+            icon={<UsergroupAddOutlined />}
           >
             New
           </Button>
