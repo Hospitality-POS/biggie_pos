@@ -27,6 +27,7 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
   return (
     <Space align="center" direction="vertical" size={"small"}>
       <ModalForm
+        width={550}
         layout="horizontal"
         open={isSubmitting}
         title={
@@ -36,8 +37,12 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
           </Space>
         }
         trigger={
-          <Button onClick={() => setIsSubmitting(true)} key="button" icon={<PlusOutlined/>}>
-           New
+          <Button
+            onClick={() => setIsSubmitting(true)}
+            key="button"
+            icon={<AimOutlined />}
+          >
+            New
           </Button>
         }
         onFinish={async (values) => {

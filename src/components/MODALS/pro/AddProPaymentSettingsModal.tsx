@@ -24,12 +24,13 @@ const AddProPaymentMethodSettingsModal: React.FC<
     setIsSubmitting,
     handleClose,
     handleConfirmAddPaymentMethod,
-    handlePaymentMethodChange
+    handlePaymentMethodChange,
   } = useAddPaymentMethodSettingsModal({ onAddPaymentMethod });
 
   return (
     <Space align="center" direction="vertical" size={"small"}>
       <ModalForm
+        width={550}
         open={isSubmitting}
         layout="horizontal"
         title={
@@ -39,7 +40,13 @@ const AddProPaymentMethodSettingsModal: React.FC<
           </Space>
         }
         trigger={
-          <Button onClick={() => setIsSubmitting(true)} key="button" icon={<PlusOutlined/>}>New</Button>
+          <Button
+            onClick={() => setIsSubmitting(true)}
+            key="button"
+            icon={<DollarOutlined />}
+          >
+            New
+          </Button>
         }
         form={form}
         onFinish={async (values) => {
