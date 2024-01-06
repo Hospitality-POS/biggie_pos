@@ -87,8 +87,8 @@ const TableSetting = () => {
             hideInSearch: true,
             render: (status) => (
               <Badge
-                status={status ? "success" : "error"}
-                text={status ? "Vacant" : "Occupied"}
+                status={status ? "error" : "success"}
+                text={status ? "Occupied" : "Vacant"}
               />
             ),
           },
