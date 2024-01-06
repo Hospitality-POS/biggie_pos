@@ -28,6 +28,7 @@ import { deleteUser, fetchUserById } from "../../../features/Auth/AuthActions";
 import EditUserDialog from "../../../components/MODALS/Dialogs/EditUserDialog";
 import { UserDescription } from "./UserDescription";
 import ExpandedRowContent from "./ExpandedRowContent";
+import AddEditProUserModal from "../../../components/MODALS/pro/AddEditProUserModal";
 
 interface User {
   fullname: string;
@@ -47,7 +48,6 @@ const UsersTable = () => {
   const [openEditUserDialog, setOpenEditUserDialog] = useState(false);
 
   const actionRef = useRef<ActionType>();
-  const actionRefD = useRef<ProDescriptionsActionType>();
 
   const dispatch = useAppDispatch();
 
@@ -222,17 +222,18 @@ const UsersTable = () => {
         dateFormatter="string"
         headerTitle="List of Users"
         toolBarRender={() => [
+          <AddEditProUserModal
+          actionRef={actionRef}
+          onAddUser={(user) => {
+              console.log(user);
+            }}
+          />,
           <AddUserDialog
             open={openAddUserDialog}
             onClose={handleCloseAddUserDialog}
             onAddUser={(user) => {
               console.log(user);
             }}
-          />,
-          <EditUserDialog
-            open={openEditUserDialog}
-            onClose={() => setOpenEditUserDialog(false)}
-            userId={selectedUser}
           />,
         ]}
       />
