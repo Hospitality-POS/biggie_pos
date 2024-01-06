@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -8,25 +8,17 @@ import {
 } from "@mui/material";
 import {
   ActionType,
-  ProDescriptions,
-  ProDescriptionsActionType,
-  ProFormText,
   ProTable,
 } from "@ant-design/pro-components";
-import { Avatar, Badge, Space, Tag, Tooltip } from "antd/lib";
+import { Avatar, Badge, Tag, Tooltip } from "antd/lib";
 import { Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { fetchAllSuppliers } from "../../../services/supplier";
 import { UserOutlined } from "@ant-design/icons";
-import { MailOutlined, PhoneOutlined } from "@mui/icons-material";
-import AddProSupplierModal from "../../../components/MODALS/pro/AddProSupplierModal";
-import { useSupplierSettings } from "../hooks/useSuppliersettings";
+import { MailOutlined } from "@mui/icons-material";
 import { fetchAllUsersList } from "../../../services/users";
-import AddUserDialog from "../../../components/MODALS/Dialogs/AddUserDialog";
-import { useAppDispatch } from "../../../store";
-import { deleteUser, fetchUserById } from "../../../features/Auth/AuthActions";
-import EditUserDialog from "../../../components/MODALS/Dialogs/EditUserDialog";
-import { UserDescription } from "./UserDescription";
+import ExpandedRowContent from "./ExpandedRowContent";
+import AddEditProUserModal from "../../../components/MODALS/pro/AddEditProUserModal";
+import useUserSettings from "../hooks/useUserSettings";
 
 interface User {
   fullname: string;
@@ -38,57 +30,19 @@ interface User {
 }
 
 const UsersTable = () => {
-  const [openAddUserDialog, setOpenAddUserDialog] = useState<boolean>(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [openDeleteDialog, setOpenDeleteDialog] = useState<boolean>(false);
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const onDeleteCandidate = (_user: User) => {
+    // Handle any logic needed when a category is deleted
+  };
 
-  const [openEditUserDialog, setOpenEditUserDialog] = useState(false);
+  const {
+    deleteConfirmationOpen,
+    handleDeleteClick,
+    handleDeleteConfirm,
+    handleDeleteCancel,
+    deleteCandidate,
+  } = useUserSettings({ onDeleteCandidate });
 
   const actionRef = useRef<ActionType>();
-  const actionRefD = useRef<ProDescriptionsActionType>();
-
-  const dispatch = useAppDispatch();
-
-  const handleDeleteUser = (userId: number) => {
-    setOpenDeleteDialog(true);
-    setSelectedUserId(userId);
-  };
-
-  const handleCloseDeleteDialog = () => {
-    setOpenDeleteDialog(false);
-    setSelectedUserId(null);
-  };
-
-  const handleEditUser = (userId: string) => {
-    console.log("user", userId);
-    dispatch(fetchUserById(userId));
-    setSelectedUser(userId);
-
-    setOpenEditUserDialog(true);
-  };
-
-  const handleConfirmDelete = () => {
-    if (selectedUserId !== null) {
-      dispatch(deleteUser(selectedUserId));
-      handleCloseDeleteDialog();
-    }
-  };
-
-  const handleAddUser = () => {
-    setOpenAddUserDialog(true);
-  };
-
-  // if (IsError) {
-  //   setOpenAddUserDialog(true);
-  // }
-  const handleCloseAddUserDialog = () => {
-    setOpenAddUserDialog(false);
-  };
-
-  const handleConfirmAddUser = () => {
-    handleCloseAddUserDialog();
-  };
 
   const actionColumn = {
     title: "Actions",
@@ -99,7 +53,7 @@ const UsersTable = () => {
         <Button
           type="link"
           icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-          onClick={() => handleEditUser(record._id)}
+          // onClick={() => handleEditUser(record._id)}
         />
       </Tooltip>,
       <Tooltip key="delete" title="Delete">
@@ -107,48 +61,14 @@ const UsersTable = () => {
           type="link"
           danger
           icon={<DeleteOutlined />}
-          onClick={() => handleDeleteUser(record)}
+          onClick={() => handleDeleteClick(record)}
         />
       </Tooltip>,
     ],
   };
 
   const expandedRowRender = (record) => {
-    const { pin, username, createdAt, phone } = record;
-    const formattedCreatedAt = new Date(createdAt).toLocaleString();
-
-    const data = [
-      {
-        title: "Username",
-        dataIndex: "username",
-        value: username,
-      },
-      {
-        title: "Pin",
-        dataIndex: "pin",
-        value: pin,
-      },
-      {
-        title: "Phone No.",
-        dataIndex: "phone",
-        value: phone
-      },
-      {
-        title: "Date created",
-        dataIndex: "createdAt",
-      },
-    ];
-
-    return (
-      <ProDescriptions
-        tooltip="Contains more infomation about the user"
-        actionRef={actionRefD}
-        layout="horizontal"
-        title="Additional Information"
-        dataSource={{ pin, username, createdAt: formattedCreatedAt, phone }}
-        columns={data}
-      />
-    );
+    return <ExpandedRowContent record={record} />;
   };
   return (
     <>
@@ -255,34 +175,29 @@ const UsersTable = () => {
         dateFormatter="string"
         headerTitle="List of Users"
         toolBarRender={() => [
-          <AddUserDialog
-            open={openAddUserDialog}
-            onClose={handleCloseAddUserDialog}
+          <AddEditProUserModal
+            actionRef={actionRef}
             onAddUser={(user) => {
               console.log(user);
             }}
-          />,
-          <EditUserDialog
-            open={openEditUserDialog}
-            onClose={() => setOpenEditUserDialog(false)}
-            userId={selectedUser}
           />,
         ]}
       />
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
+      <Dialog open={deleteConfirmationOpen} onClose={handleDeleteCancel}>
         <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>
           <DialogContentText>
             Are you sure you want to delete this user?
+            <i>{deleteCandidate ? deleteCandidate.name : ""} </i>
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDeleteDialog} color="primary">
+          <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={handleConfirmDelete} danger>
+          <Button onClick={() => handleDeleteConfirm(actionRef)} danger>
             Delete
           </Button>
         </DialogActions>

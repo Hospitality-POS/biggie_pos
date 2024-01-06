@@ -35,6 +35,9 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
     <Space align="center" direction="vertical" size={"small"}>
       <ModalForm
         open={isSubmitting}
+      
+      // todo: reuse this for editmodal
+        // initialValues={props.data ?props.data :{}}
         title={
           <Space>
             <SisternodeOutlined />
