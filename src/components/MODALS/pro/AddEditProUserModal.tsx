@@ -155,6 +155,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
             width="md"
             name="phone"
             label="Phone"
+            tooltip="Users Phone Number include 10 digits only"
             rules={[
               {
                 required: true,
