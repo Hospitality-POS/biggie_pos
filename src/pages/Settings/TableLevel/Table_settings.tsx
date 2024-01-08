@@ -96,6 +96,7 @@ const TableSetting = () => {
             title: "Amount",
             dataIndex: "cart_amount",
             hideInSearch: true,
+            valueType: "money"
           },
           {
             title: "Served By",
