@@ -1,7 +1,8 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
+import { BASE_URL } from "@utils/config";
 import axios from "axios";
 
-const baseUrl = `${import.meta.env.VITE_API_URL}/payment-methods`
+const baseUrl = `${BASE_URL}/payment-methods`
 
 // Define the types for your payment data
 interface Payment {

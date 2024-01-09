@@ -1,7 +1,8 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
+import { BASE_URL } from "@utils/config";
 import axios from "axios";
 
-const baseUrl = `${import.meta.env.VITE_API_URL}/product-inventory`;
+const baseUrl = `${BASE_URL}/product-inventory`;
 
 interface ProductInventory {
   _id: string;

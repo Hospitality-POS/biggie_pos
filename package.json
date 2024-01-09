@@ -48,6 +48,7 @@
     "react-to-print": "^2.14.15",
     "typeface-inter": "^3.18.1",
     "vite-plugin-pwa": "^0.16.4",
+    "vite-tsconfig-paths": "^4.2.3",
     "workbox-sw": "^7.0.0",
     "workbox-webpack-plugin": "^7.0.0",
     "yup": "^1.2.0"

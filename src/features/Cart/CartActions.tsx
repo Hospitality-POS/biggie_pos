@@ -1,7 +1,8 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
+import { BASE_URL } from "@utils/config";
 import axios from "axios";
 
-const baseUrl = `${import.meta.env.VITE_API_URL}/cart`;
+const baseUrl = `${BASE_URL}/cart`;
 
 interface CartInfo {
   table_id: string;

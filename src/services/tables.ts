@@ -1,7 +1,7 @@
 import { ParamsType } from "@ant-design/pro-components";
 import axios from "axios";
+import { BASE_URL } from "@utils/config";
 
-const BASE_URL = import.meta.env.VITE_API_URL;
 const tableUrl = `${BASE_URL}/tables`;
 
 export const getAllTables = async (data: ParamsType) => {
