@@ -15,9 +15,9 @@ import { Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { UserOutlined } from "@ant-design/icons";
 import { MailOutlined } from "@mui/icons-material";
-import { fetchAllUsersList } from "../../../services/users";
+import { fetchAllUsersList } from "@services/users";
 import ExpandedRowContent from "./ExpandedRowContent";
-import AddEditProUserModal from "../../../components/MODALS/pro/AddEditProUserModal";
+import AddEditProUserModal from "@components/MODALS/pro/AddEditProUserModal";
 import useUserSettings from "../hooks/useUserSettings";
 
 interface User {

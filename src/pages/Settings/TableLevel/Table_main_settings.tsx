@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
-import TableSettings from "./TableSettings";
 import TableLocationSettings from "./Table_Locations";
 import { AppstoreAddOutlined } from "@ant-design/icons";
 import { Space } from "antd/lib";

@@ -1,9 +1,6 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
-import { deleteCategory } from "../../../features/Category/CategoryActions";
-import { message } from "antd";
 import { Modal, notification } from "antd/lib";
-import { deleteUser } from "../../../features/Auth/AuthActions";
+import { deleteUser } from "@features/Auth/AuthActions";
 import { useAppDispatch } from "../../../store";
 
 type TdeleteCandidate = { name: string; _id: string } | any;
