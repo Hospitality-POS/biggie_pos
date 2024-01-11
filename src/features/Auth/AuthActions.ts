@@ -1,5 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
+import { notification } from "antd";
 import axios from "axios";
 
 const baseUrl = `${BASE_URL}/users`;
@@ -20,8 +21,10 @@ export const loginUser = createAsyncThunk(
         
       const response = await axios.post(`${baseUrl}/login`, _userDetails);
       localStorage.setItem('user', JSON.stringify(response.data))
+      notification.success({message:response.data.message})
       return response.data;
     } catch (error: any) {
+      notification.error({message: error.response.data.message })
       return rejectWithValue(error.message || error.toString());
     }
   }
