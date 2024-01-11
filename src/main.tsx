@@ -34,6 +34,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             colorPrimary: "#6c1c2c",
             colorBgContainer: "#f6ffed",
           },
+          components:{
+            Button:{
+              primaryShadow: "#f6ffed"
+            }
+          }
         }}>
             <App />
             </ConfigProvider>
