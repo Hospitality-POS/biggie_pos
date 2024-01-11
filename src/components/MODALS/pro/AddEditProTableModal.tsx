@@ -49,7 +49,7 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
         }
         onFinish={async (values) => {
           await handleConfirmAddTable(values);
-          actionRef.current.reload();
+          actionRef.current.reset();
         }}
         onOpenChange={(visible) => !visible && handleClose()}
         form={form}
