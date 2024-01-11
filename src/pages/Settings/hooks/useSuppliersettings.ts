@@ -1,6 +1,6 @@
 // useSupplierActions.js
 import { useState } from "react";
-import { deleteSupplier } from "../../../features/Supplier/SupplierActions";
+import { deleteSupplier } from "@features/Supplier/SupplierActions";
 import { useAppDispatch } from "../../../store";
 import { Modal, message, notification } from "antd/lib";
 

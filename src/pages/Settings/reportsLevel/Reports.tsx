@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { Button, DatePicker } from "antd";
 import { HddOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
-import PurchaseReportModal from "../../../components/Reports/PurchaseReport";
-import SalesReportModal from "../../../components/Reports/SalesReport";
+import PurchaseReportModal from "@components/Reports/PurchaseReport";
+import SalesReportModal from "@components/Reports/SalesReport";
 import { Space } from "antd";
 import { useReport } from "../hooks/useReport";
 

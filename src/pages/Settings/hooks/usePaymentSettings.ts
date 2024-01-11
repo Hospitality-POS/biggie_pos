@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAppDispatch } from "../../../store";
-import { deletePaymentMethod } from "../../../features/Payment/PaymentMethodActions";
+import { deletePaymentMethod } from "@features/Payment/PaymentMethodActions";
 import { Modal, notification } from "antd/lib";
 
 const usePaymentSettings = () => {

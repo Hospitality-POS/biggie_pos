@@ -1,4 +1,4 @@
-import Routers from "./routes/Routers";
+import Routers from "@routes/Routers";
 
 const App = () => {
 
@@ -12,9 +12,9 @@ const App = () => {
   });
 }
   return (
-    <div>
+    <>
       <Routers />
-    </div>
+    </>
   );
 };
 

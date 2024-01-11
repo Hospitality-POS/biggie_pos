@@ -7,11 +7,11 @@ import {
 } from "@mui/material";
 
 import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
-import { fetchAllCategories } from "../../../services/categories";
+import { fetchAllCategories } from "@services/categories";
 import { Tooltip, Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import useCategorySettings from "../hooks/useCategorySettings";
-import AddProCategoryModal from "../../../components/MODALS/pro/AddProCategoryModal";
+import AddProCategoryModal from "@components/MODALS/pro/AddProCategoryModal";
 
 const CategorySettings = () => {
   const actionRef = useRef<ActionType>();

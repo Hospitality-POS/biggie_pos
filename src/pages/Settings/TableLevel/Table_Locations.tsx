@@ -1,22 +1,19 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
-import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
+import { ActionType, ProTable } from "@ant-design/pro-components";
 import { Tooltip, Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import {
-  fetchAllTableLocation,
   getTableLocation,
-  useAllTableLocation,
-} from "../../../services/tables";
-import AddNewTableLocationDialog from "../../../components/MODALS/Dialogs/AddNewTableLocation";
-import { useTableLocationSettings, useTableSettings } from "../hooks/useTableSettings";
+} from "@services/tables";
+import { useTableLocationSettings } from "../hooks/useTableSettings";
 import {
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
 } from "@mui/material";
-import AddProTableLocationModal from "../../../components/MODALS/pro/AddProTableLocationModal";
+import AddProTableLocationModal from "@components/MODALS/pro/AddProTableLocationModal";
 
 const TableLocationSettings = () => {
   const locationRef = useRef<ActionType>();

@@ -9,10 +9,10 @@ import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
 import { Avatar, Tooltip } from "antd/lib";
 import { Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { fetchAllSuppliers } from "../../../services/supplier";
+import { fetchAllSuppliers } from "@services/supplier";
 import { UserOutlined } from "@ant-design/icons";
 import { MailOutlined, PhoneOutlined } from "@mui/icons-material";
-import AddProSupplierModal from "../../../components/MODALS/pro/AddProSupplierModal";
+import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
 import { useSupplierSettings } from "../hooks/useSuppliersettings";
 
 const SupplierTable = () => {

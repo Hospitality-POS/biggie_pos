@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import {
   generatePurchaseReport,
   generateSalesReport,
-} from "../../../features/Report/reportActions";
+} from "@features/Report/reportActions";
 import { useAppDispatch } from "../../../store";
 import { TimeRangePickerProps } from "antd/lib";
 

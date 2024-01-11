@@ -3,7 +3,7 @@ import { useAppDispatch } from "../../../store";
 import {
   deleteLocation,
   deleteTable,
-} from "../../../features/Table/TableActions";
+} from "@features/Table/TableActions";
 import { Modal, notification } from "antd/lib";
 
 export const useTableLocationSettings = () => {

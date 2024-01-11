@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
-import { deleteCategory } from "../../../features/Category/CategoryActions";
+import { deleteCategory } from "@features/Category/CategoryActions";
 import { message } from "antd";
 import { Modal, notification } from "antd/lib";
 

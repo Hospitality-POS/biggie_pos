@@ -1,18 +1,17 @@
 import React, { useEffect } from 'react';
 import jwtDecode from 'jwt-decode'; 
-import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logoutUser } from '../../features/Auth/AuthActions'; // Import your actions and types
-import { RootState } from '../../app/store'; // Import your RootState type
+import { useAppDispatch, useAppSelector } from 'src/store';
 
 // interface User {
 //   Token: string;
 // }
 
 const ProtectedPage: React.FC = ({ children }) => {
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user } = useAppSelector(state => state.auth);
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     const token = user?.Token;
