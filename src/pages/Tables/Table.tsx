@@ -9,9 +9,10 @@ import DeckIcon from "@mui/icons-material/Deck";
 import SuccessModal from "../../components/MODALS/SuccessModal";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchTableByLocatedAt } from "../../features/Table/TableActions";
-import StaffModal from "../../components/staffCard/StaffModal";
+// import StaffModal from "../../components/staffCard/StaffModal";
 import Lottie from "lottie-react";
 import fssanimation from "../../components/Loaders/fss loader.json";
+import StaffModal from "@components/staffCard/SampleLoginModal";
 
 function Table() {
   const { openModal, error: orderError } = useAppSelector((state) => state.order);
