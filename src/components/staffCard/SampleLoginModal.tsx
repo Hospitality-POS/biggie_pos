@@ -8,23 +8,14 @@ import { Button, Col, Row } from "antd/lib";
 import { ModalForm, ProFormText } from "@ant-design/pro-components";
 import { useLogin } from "./hook/useLogin";
 
-
-type StaffModalProps ={
+type StaffModalProps = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   open: boolean;
   tbl?: string;
-}
-const StaffModal: React.FC<StaffModalProps> = ({
-  setOpen,
-  open,
-  tbl,
-}) => {
- const {
-    handleLogin,
-    handleNumberClick,
-    handleClose,
-    form
-  } = useLogin(setOpen)
+};
+const StaffModal: React.FC<StaffModalProps> = ({ setOpen, open, tbl }) => {
+  const { handleLogin, handleNumberClick, handleClose, form } =
+    useLogin(setOpen);
 
   return (
     <>
@@ -36,7 +27,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
         form={form}
         onFinish={async (values) => {
           handleLogin(values.pin);
-          handleClose()
+          handleClose();
         }}
         onOpenChange={(visible) => !visible && handleClose()}
         submitter={{
@@ -51,9 +42,10 @@ const StaffModal: React.FC<StaffModalProps> = ({
           name="pin"
           label="Pin"
           tooltip="Users Login PIN 4 digits only"
-          // normalize={(value)=>{
-          //     console.log('xxxxxxxxxx',value)
-          // }}
+          normalize={(value) => {
+            const numericValue = value.replace(/[^0-9]/g, "");
+            return numericValue.slice(0, 4);
+          }}
           rules={[
             {
               required: true,
