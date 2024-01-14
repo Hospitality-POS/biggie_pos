@@ -1,8 +1,5 @@
 import React from "react";
-import { Form, Space, Modal } from "antd";
-import useCheckIfUserIsLoggedIn from "../../hooks/useCheckIfUserIsLoggedIn";
-import { useAppDispatch, useAppSelector } from "../../store";
-import { loginUser } from "../../features/Auth/AuthActions";
+import { Space } from "antd";
 import classes from "./staff.module.css";
 import { Button, Col, Row } from "antd/lib";
 import { ModalForm, ProFormText } from "@ant-design/pro-components";
@@ -11,11 +8,11 @@ import { useLogin } from "./hook/useLogin";
 type StaffModalProps = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   open: boolean;
-  tbl?: string;
+  tbl: string;
 };
 const StaffModal: React.FC<StaffModalProps> = ({ setOpen, open, tbl }) => {
   const { handleLogin, handleNumberClick, handleClose, form } =
-    useLogin(setOpen);
+    useLogin(setOpen, tbl);
 
   return (
     <>
