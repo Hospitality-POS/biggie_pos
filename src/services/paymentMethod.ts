@@ -1,11 +1,15 @@
 import { ParamsType } from "@ant-design/pro-components";
 import axios from "axios";
 import { BASE_URL } from "@utils/config";
+import { Modal } from "antd/lib";
 
 export const fetchAllPaymentMethods = async (data: ParamsType) => {
-  const url = `${BASE_URL}/payment-methods`;
+  try {
+    const url = `${BASE_URL}/payment-methods`;
 
-  const response = await axios.get(url, { params: { name: data.name } });
-  return response.data;
+    const response = await axios.get(url, { params: { name: data.name } });
+    return response.data;
+  } catch (error) {
+    Modal.error({ title: `${error?.message}`, content: "Please check your internet connection!" });
+  }
 };
-
