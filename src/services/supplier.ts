@@ -4,7 +4,7 @@ import axios from "axios";
 import { Modal } from "antd/lib";
 
 
-export const fetchAllSuppliers = async (data?: ParamsType) => {
+export const fetchAllSuppliers = async (data: ParamsType) => {
  try {
    const url = `${BASE_URL}/suppliers`;
  
