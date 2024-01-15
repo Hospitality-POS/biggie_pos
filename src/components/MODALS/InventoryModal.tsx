@@ -82,6 +82,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   const { data: suppliers } = useQuery(["suppliers"], () => fetchSuppliers());
 
   const handleAddNewProduct = (data: NewProduct) => {
+    console.log(data);
+    
     const newProductData: NewProduct = {
       ...data,
       category_id: data.category_id,
