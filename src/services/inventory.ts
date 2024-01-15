@@ -8,7 +8,7 @@ export const fetchAllInventory = async (data: ParamsType) => {
   const url = `${BASE_URL}/product-inventory`;
 
   const response = await axios.get(url, {
-    params: { name: data.name },
+    params: { name: data.name, code: data.code},
   });
   return response.data;
 };
