@@ -17,22 +17,23 @@ import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import usePaymentSettings from "../hooks/usePaymentSettings";
 import AddProPaymentMethodSettingsModal from "@components/MODALS/pro/AddProPaymentSettingsModal";
+import { fetchAllInventory } from "@services/inventory";
+import { useProductInventorySettings } from "../hooks/useProductInventorySettings";
+import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
 
 const  InventorySettings= () => {
   const paymentRef = useRef<ActionType>();
   const {
-    deleteCandidate,
-    setDeleteCandidate,
-    addPaymentSettingDialogOpen,
-    setAddPaymentSettingDialogOpen,
-    deleteConfirmationOpen,
-    setDeleteConfirmationOpen,
-    handleDeleteCancel,
-    handleDeleteClick,
-    handleOpenAddPaymentSettingDialog,
-    handleAddPaymentSetting,
+     handleDeleteClick,
     handleDeleteConfirm,
-  } = usePaymentSettings();
+    handleDeleteCancel,
+    deleteConfirmationOpen,
+    deleteCandidate,
+    handleAddInventory
+  } = useProductInventorySettings();
+
+
+  
 
   const actionColumn = {
     title: "Actions",
@@ -71,19 +72,40 @@ const  InventorySettings= () => {
         }}
         columns={[
           {
-            title: "Method",
+            title: "code",
+            dataIndex: "code",
+            hideInSearch: false,
+            fieldProps: {
+              placeholder: "Enter Code",
+            },
+          },
+          {
+            title: "Name",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {
-              placeholder: "Enter payment method",
+              placeholder: "Enter Product Name",
             },
           },
-
+          {
+            title: "Price",
+            dataIndex: "price",
+            hideInSearch: true,
+            valueType: "money"
+          },
+           {
+            title: "Quantity",
+            dataIndex: "quantity", 
+            hideInSearch: true,
+            valueType: "digit"
+          },
+         
           actionColumn,
         ]}
         request={async (param) => {
-          const data = await fetchAllPaymentMethods(param);
-
+          const data = await fetchAllInventory(param);
+          // console.log(data);
+          
           return {
             data: data,
             success: true,
@@ -104,11 +126,11 @@ const  InventorySettings= () => {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        headerTitle="List of Payment Methods"
+        headerTitle="List of Product Inventory"
         toolBarRender={() => [
-          <AddProPaymentMethodSettingsModal
+          <AddEditProInventoryModal
             actionRef={paymentRef}
-            onAddPaymentMethod={handleAddPaymentSetting}
+            onAddInventory={handleAddInventory}
           />,
         ]}
       />
@@ -121,15 +143,14 @@ const  InventorySettings= () => {
       >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete:{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""}</i> the payment
-          method
+          Are you sure you want to delete the inventory for :{" "}
+          <i>{deleteCandidate ? deleteCandidate?.name : ""}</i> product.
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={() => handleDeleteConfirm(paymentRef)} danger>
+          <Button onClick={async() => await handleDeleteConfirm(paymentRef)} danger>
             Delete
           </Button>
         </DialogActions>

@@ -1,8 +1,10 @@
 import { ProCard } from "@ant-design/pro-components";
 import PaymentsMethodSettings from "./PaymentSettings";
 import { Space } from "antd/lib";
-import { DollarCircleOutlined } from "@ant-design/icons";
+import { CalendarOutlined, DollarCircleOutlined } from "@ant-design/icons";
+import InventorySettings from "./InventorySettings";
 import Inventory from "../Inventory";
+
 
 
 function InventoryMainSettings() {
@@ -11,6 +13,12 @@ function InventoryMainSettings() {
       key: "table1",
       tab: "Table",
       label: "All Inventory",
+      children: <InventorySettings />,
+    },
+    {
+      key: "table2",
+      tab: "Table2",
+      label: "All Inventory 2",
       children: <Inventory />,
     },
   ];
@@ -18,7 +26,7 @@ function InventoryMainSettings() {
     <>
       <ProCard
        style={{ height: "90vh" }}
-       title={<Space><DollarCircleOutlined/>Inventory Main Settings</Space>}
+       title={<Space><CalendarOutlined/>Inventory Main Settings</Space>}
         tabs={{
           type: "card",
           items: tabsItems,

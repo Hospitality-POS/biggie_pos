@@ -1,5 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
+import { Modal, notification } from "antd/lib";
 import axios from "axios";
 
 const baseUrl = `${BASE_URL}/product-inventory`;
@@ -84,8 +85,15 @@ export const deleteProductInventory = createAsyncThunk(
   async (inventoryId: string, { rejectWithValue }) => {
     try {
       await axios.delete(`${baseUrl}/${inventoryId}`);
+      
       return inventoryId;
     } catch (error) {
+      // console.log(error);
+      
+      Modal.warning({
+        title: "Error",
+        content: "Failed to delete the product inventory",
+      });
       return rejectWithValue(error.message || error.toString());
     }
   }
