@@ -1,10 +1,23 @@
 import React from "react";
 import { Button, Space } from "antd";
-import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
+import {
+  ModalForm,
+  ProFormText,
+  ProForm,
+  ProFormTextArea,
+  ProFormDigit,
+  ProFormSelect,
+} from "@ant-design/pro-form";
 import BusinessIcon from "@mui/icons-material/Business";
 import useAddSupplierDialog from "../Hooks/useAddSupplierDialog";
 import { ActionType } from "@ant-design/pro-components";
-import { PlusOutlined, SisternodeOutlined } from "@ant-design/icons";
+import {
+  PlusOutlined,
+  ReconciliationOutlined,
+  SisternodeOutlined,
+} from "@ant-design/icons";
+import { fetchSubCategories } from "@services/categories";
+import { fetchAllSuppliers } from "@services/supplier";
 
 interface inventory {
   name: string;
@@ -38,15 +51,15 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         // initialValues={props.data ?props.data :{}}
         title={
           <Space>
-            <SisternodeOutlined />
-            Add New Supplier
+            <ReconciliationOutlined />
+            Add New Product Inventory
           </Space>
         }
         trigger={
           <Button
             onClick={() => setIsSubmitting(true)}
             key="button"
-            icon={<SisternodeOutlined />}
+            icon={<ReconciliationOutlined />}
           >
             New
           </Button>
@@ -60,7 +73,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         submitter={{
           searchConfig: {
             resetText: "Cancel",
-            submitText: "Add Supplier",
+            submitText: "Add Inventory",
           },
         }}
       >
@@ -70,35 +83,67 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
             name="name"
             label="Name"
             rules={[{ required: true, message: "Name is required" }]}
-            placeholder="Enter supplier name"
+            placeholder="Enter Product name"
           />
 
-          <ProFormText
+          <ProFormDigit
             width="md"
-            name="email"
-            label="Email"
+            name="quantinty"
+            label="Quantinty"
             rules={[
               {
                 required: true,
-                pattern: /^\S+@\S+\.\S+$/,
-                message: "Invalid email format",
+                message: "Invalid Quantinty format",
               },
             ]}
-            placeholder="Enter supplier email"
+            placeholder="Enter Product Quantinty"
           />
-
-          <ProFormText
+          <ProFormSelect
             width="md"
-            name="phone"
-            label="Phone"
-            rules={[
-              {
-                required: true,
-                message: "Invalid phone no. include 10 digits only.",
-                pattern: /^\d{10}$/,
-              },
-            ]}
+            name="subcategory_id"
+            label="Subcategory"
+            rules={[{ required: true, message: "Subcategory is required" }]}
+            showSearch
+            placeholder="Select subcategory"
+            request={async () => {
+              const data = await fetchSubCategories();
+              const values = data.map((e) => {
+                return { label: e.name, value: e._id };
+              });
+              return values;
+            }}
+            // onChange={handleSubCategoryChange}
+          />
+          <ProFormDigit
+            width="md"
+            name="min"
+            label="Minimum viable Quantity"
+ 
             placeholder="Enter supplier phone"
+          />
+          <ProFormSelect
+            width="md"
+            name="supplier_id"
+            label="Supplier"
+            rules={[{ required: true, message: "Supplier is required" }]}
+            showSearch
+            placeholder="Select the name of the Supplier"
+            request={async (param) => {
+              const data = await fetchAllSuppliers(param);
+              const values = data.map((e) => {
+                console.log(e);
+                
+                return { label: e.name, value: e._id };
+              });
+              return values;
+            }}
+            // onChange={handleSubCategoryChange}
+          />
+          <ProFormTextArea
+            width="md"
+            name="description"
+            label="Description"
+            placeholder="Enter Product description if any."
           />
         </ProForm.Group>
       </ModalForm>
