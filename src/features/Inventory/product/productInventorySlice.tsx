@@ -21,12 +21,14 @@ interface ProductInventoryState {
   data: ProductInventory[];
   loading: boolean;
   error: string | null;
+  isSuccess: boolean;
 }
 
 const initialState: ProductInventoryState = {
   data: [],
   loading: false,
   error: null,
+  isSuccess: false
 };
 
 const productInventorySlice = createSlice({
@@ -100,10 +102,12 @@ const productInventorySlice = createSlice({
       .addCase(createProductInventory.fulfilled, (state, action) => {
         state.loading = false;
         state.data.push(action.payload);
+        state.isSuccess= true
       })
       .addCase(createProductInventory.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        state.isSuccess =false
       });
   },
 });
