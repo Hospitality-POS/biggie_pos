@@ -1,63 +1,18 @@
 import React from "react";
-import { Form, Space, Modal } from "antd";
-import useCheckIfUserIsLoggedIn from "../../hooks/useCheckIfUserIsLoggedIn";
-import { useAppDispatch, useAppSelector } from "../../store";
-import { loginUser } from "../../features/Auth/AuthActions";
+import { Space } from "antd";
 import classes from "./staff.module.css";
 import { Button, Col, Row } from "antd/lib";
 import { ModalForm, ProFormText } from "@ant-design/pro-components";
+import { useLogin } from "./hook/useLogin";
 
-const StaffModal: React.FC<StaffModalProps> = ({
-  setOpen,
-  setPin,
-  pin,
-  open,
-  tbl,
-}) => {
-  const { isError, isSuccess, isLoading, user } = useAppSelector(
-    (state) => state.auth
-  );
-  const { error: cartError } = useAppSelector((state) => state.cart);
-  const dispatch = useAppDispatch();
-  const { checkIfUserIsLoggedIn, isUserLoggedIn } = useCheckIfUserIsLoggedIn();
-
-  const form = Form.useForm()[0];
-
-  const handleClose = () => {
-    setOpen(false);
-    form.setFieldsValue({
-      pin: "",
-    });
-  };
-
-  const keyedInputs: number[] = [];
-
-  const handleNumberClick = (value: number) => {
-    if (keyedInputs.length <= 3) {
-      keyedInputs.push(value);
-    }
-    form.setFieldsValue({
-      pin: keyedInputs
-        .reduce(
-          (accumulator, currentNumber) => accumulator * 10 + currentNumber,
-          0
-        )
-        .toString(),
-    });
-  };
-
-  const handleLogin = async (pin) => {
-    try {
-      await form.validateFields();
-      dispatch(loginUser({ pin }));
-      checkIfUserIsLoggedIn(tbl, user, cartError, setOpen);
-      if (!isUserLoggedIn) {
-        setOpen(false);
-      }
-    } catch (error) {
-      // Handle form validation error
-    }
-  };
+type StaffModalProps = {
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  open: boolean;
+  tbl: string;
+};
+const StaffModal: React.FC<StaffModalProps> = ({ setOpen, open, tbl }) => {
+  const { handleLogin, handleNumberClick, handleClose, form } =
+    useLogin(setOpen, tbl);
 
   return (
     <>
@@ -67,9 +22,9 @@ const StaffModal: React.FC<StaffModalProps> = ({
         open={open}
         width={600}
         form={form}
-        // trigger={}
         onFinish={async (values) => {
           handleLogin(values.pin);
+          handleClose();
         }}
         onOpenChange={(visible) => !visible && handleClose()}
         submitter={{
@@ -77,9 +32,6 @@ const StaffModal: React.FC<StaffModalProps> = ({
             resetText: "Cancel",
             submitText: "Login",
           },
-          // onReset: (values)=>{
-          //   values?.form?.resetFields()
-          // }
         }}
       >
         <ProFormText.Password
@@ -87,9 +39,10 @@ const StaffModal: React.FC<StaffModalProps> = ({
           name="pin"
           label="Pin"
           tooltip="Users Login PIN 4 digits only"
-          // normalize={(value)=>{
-          //     console.log('xxxxxxxxxx',value)
-          // }}
+          normalize={(value) => {
+            const numericValue = value.replace(/[^0-9]/g, "");
+            return numericValue.slice(0, 4);
+          }}
           rules={[
             {
               required: true,
