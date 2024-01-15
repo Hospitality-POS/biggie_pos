@@ -15,12 +15,6 @@ function InventoryMainSettings() {
       label: "All Inventory",
       children: <InventorySettings />,
     },
-    {
-      key: "table2",
-      tab: "Table2",
-      label: "All Inventory 2",
-      children: <Inventory />,
-    },
   ];
   return (
     <>
