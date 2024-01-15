@@ -12,6 +12,7 @@ import SupplierMainSettings from "@pages/Settings/supplierLevel/supplier_main_se
 import PaymentMainSettings from "@pages/Settings/paymentMethodLevel/payment_main_settings";
 import UsersMainSettings from "@pages/Settings/usersLevel/User_main_settings";
 import NotFound from "@routes/NotFound";
+import InventoryMainSettings from "@pages/Settings/invetoryLevel/Inventory_main_settings";
 
 
 const Layout = lazy(() => import("@components/layout/Layout"));
@@ -35,7 +36,7 @@ function Routers() {
           <Route path="/table-settings" element={<Private><TableMainSettings /></Private>} />
           <Route path="/category-settings" element={<Private><CategoryMainSettings /></Private>} />
           <Route path="/payment-settings" element={<Private><PaymentMainSettings /></Private>} />
-          <Route path="/Inventory" element={<Private><Inventory /></Private>} />
+          <Route path="/Inventory" element={<Private><InventoryMainSettings /></Private>} />
           <Route path="/Orders" element={<Private><Orders /></Private>} />
           <Route path="*" element={<NotFound/>} />
         </Route>
