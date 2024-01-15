@@ -26,7 +26,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
-import InventoryModal from "../../components/MODALS/InventoryModal";
+import InventoryModal from "../../../components/MODALS/InventoryModal";
 import { useDispatch, useSelector } from "react-redux";
 import InfoIcon from "@mui/icons-material/Info";
 import {
@@ -34,9 +34,9 @@ import {
   deleteProductInventory,
   fetchAllProductInventories,
   updateProductInventory,
-} from "../../features/Inventory/product/productInventoryActions";
-import AcceptDeliveryDialog from "../../components/MODALS/Dialogs/AcceptDeliveryDialog";
-import ViewProductDialog from "../../components/MODALS/Dialogs/ViewProductDialog";
+} from "../../../features/Inventory/product/productInventoryActions";
+import AcceptDeliveryDialog from "../../../components/MODALS/Dialogs/AcceptDeliveryDialog";
+import ViewProductDialog from "../../../components/MODALS/Dialogs/ViewProductDialog";
 
 interface Product {
   name: string;

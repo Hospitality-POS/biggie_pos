@@ -3,7 +3,7 @@ import PaymentsMethodSettings from "./PaymentSettings";
 import { Space } from "antd/lib";
 import { CalendarOutlined, DollarCircleOutlined } from "@ant-design/icons";
 import InventorySettings from "./InventorySettings";
-import Inventory from "../Inventory";
+import Inventory from "./Inventory";
 
 
 
