@@ -7,6 +7,7 @@ import {
   ProFormTextArea,
   ProFormDigit,
   ProFormSelect,
+  ProFormMoney,
 } from "@ant-design/pro-form";
 import BusinessIcon from "@mui/icons-material/Business";
 import useAddSupplierDialog from "../Hooks/useAddSupplierDialog";
@@ -18,11 +19,17 @@ import {
 } from "@ant-design/icons";
 import { fetchSubCategories } from "@services/categories";
 import { fetchAllSuppliers } from "@services/supplier";
+import { useAddEditProductInventory } from "../Hooks/useAddEditProductInventory";
 
 interface inventory {
   name: string;
-  email: string;
-  phone: string;
+  quantity: number;
+  cost: number;
+  price: number;
+  min_viable_quantity: number;
+  category_id: string;
+  supplier_id: string;
+  desc: string;
 }
 
 interface AddInventoryDialogProps {
@@ -37,10 +44,10 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
   const {
     isSubmitting,
     form,
-    handleConfirmAddSupplier,
+    handleConfirmAddProductInventory,
     handleClose,
     setIsSubmitting,
-  } = useAddSupplierDialog({ onAddInventory });
+  } = useAddEditProductInventory({ onAddInventory });
 
   return (
     <Space align="center" direction="vertical" size={"small"}>
@@ -65,7 +72,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
           </Button>
         }
         onFinish={async (values) => {
-          await handleConfirmAddSupplier(values);
+          await handleConfirmAddProductInventory(values);
           actionRef.current.reload();
         }}
         onOpenChange={(visible) => !visible && handleClose()}
@@ -88,8 +95,8 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
 
           <ProFormDigit
             width="md"
-            name="quantinty"
-            label="Quantinty"
+            name="quantity"
+            label="Quantity"
             rules={[
               {
                 required: true,
@@ -98,16 +105,28 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
             ]}
             placeholder="Enter Product Quantinty"
           />
+          <ProFormMoney
+            width="md"
+            name="cost"
+            label="Purchase cost"
+            rules={[
+              {
+                required: true,
+                message: "Invalid money format",
+              },
+            ]}
+            placeholder="Enter Product Quantinty"
+          />
           <ProFormSelect
             width="md"
-            name="subcategory_id"
+            name="category_id"
             label="Subcategory"
             rules={[{ required: true, message: "Subcategory is required" }]}
             showSearch
             placeholder="Select subcategory"
             request={async () => {
               const data = await fetchSubCategories();
-              const values = data.map((e) => {
+              const values = data.map((e: { name: string; _id: string }) => {
                 return { label: e.name, value: e._id };
               });
               return values;
@@ -116,9 +135,8 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
           />
           <ProFormDigit
             width="md"
-            name="min"
+            name="min_viable_quantity"
             label="Minimum viable Quantity"
- 
             placeholder="Enter supplier phone"
           />
           <ProFormSelect
@@ -130,14 +148,11 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
             placeholder="Select the name of the Supplier"
             request={async (param) => {
               const data = await fetchAllSuppliers(param);
-              const values = data.map((e) => {
-                console.log(e);
-                
+              const values = data.map((e: { name: string; _id: string }) => {
                 return { label: e.name, value: e._id };
               });
               return values;
             }}
-            // onChange={handleSubCategoryChange}
           />
           <ProFormTextArea
             width="md"
