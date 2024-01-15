@@ -1,13 +1,19 @@
-import { Outlet } from "react-router-dom"
-import Navbar from "../navbar/Navbar"
+import { Outlet } from "react-router-dom";
+import ProNavbar from "@components/navbar/ProNavbar";
+import Navbar from "@components/navbar/Navbar";
+import { PageContainer } from "@ant-design/pro-components";
+import { Button } from "antd/lib";
 
 function Layout() {
   return (
     <div>
-        <Navbar />
+      <Navbar />
+      {/* <ProNavbar /> */}
+      {/* <PageContainer> */}
         <Outlet />
+      {/* </PageContainer> */}
     </div>
-  )
+  );
 }
 
-export default Layout
+export default Layout;
