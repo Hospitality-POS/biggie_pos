@@ -31,7 +31,7 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
     };
 
     try {
-      dispatch(createCategory(newCategory));
+     dispatch(createCategory(newCategory));
       onAddCategory(data);
       setIsSubmitting(true);
       handleClose();
