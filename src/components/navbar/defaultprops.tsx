@@ -6,27 +6,28 @@ import {
   TabletFilled,
   UsergroupAddOutlined,
 } from '@ant-design/icons';
+import Table from '@pages/Tables/Table';
 
 export default {
   route: {
     path: '/',
     routes: [
       {
-        path: '/welcome',
-        name: '欢迎',
+        path: '/tables',
+        name: 'welcome',
         icon: <SmileFilled />,
-        component: './Welcome',
+        access:false
       },
       {
         path: '/admin',
-        name: '管理页',
+        name: 'Admin',
         icon: <CrownFilled />,
         access: 'canAdmin',
-        component: './Admin',
+        component: "./",
         routes: [
           {
             path: '/admin/sub-page1',
-            name: '一级页面',
+            name: 'Store',
             icon: 'https://gw.alipayobjects.com/zos/antfincdn/upvrAjAPQX/Logo_Tech%252520UI.svg',
             component: './Welcome',
           },
@@ -45,7 +46,7 @@ export default {
         ],
       },
       {
-        name: '列表页',
+        name: 'store',
         icon: <TabletFilled />,
         path: '/list',
         component: './ListTableList',
@@ -77,7 +78,7 @@ export default {
           },
           {
             path: '/list/sub-page2',
-            name: '二级列表页面',
+            name: 'orders',
             icon: <CrownFilled />,
             component: './Welcome',
           },
@@ -90,8 +91,8 @@ export default {
         ],
       },
       {
-        path: 'https://ant.design',
-        name: 'Ant Design 官网外链',
+        path: '/reports',
+        name: 'Reports',
         icon: <ChromeFilled />,
       },
     ],
@@ -108,19 +109,19 @@ export default {
       icon: <UsergroupAddOutlined />,
       title: 'Users/People',
       desc: 'Add, view or update users',
-      url: '/',
+      url: '/users',
     },
     {
       icon: <StopFilled/>,
       title: 'Category',
       desc: 'Add, view or update users',
-      url: '/',
+      url: '/category',
     },
     {
       icon: <UsergroupAddOutlined />,
       title: 'Users/People',
       desc: 'Add, view or update users',
-      url: '/',
+      url: '/table-settings',
     },
     {
       icon: <UsergroupAddOutlined />,
