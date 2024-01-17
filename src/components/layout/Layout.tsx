@@ -7,11 +7,11 @@ import { Button } from "antd/lib";
 function Layout() {
   return (
     <div>
-      <Navbar />
-      {/* <ProNavbar /> */}
-      {/* <PageContainer ghost={true}> */}
+      {/* <Navbar /> */}
+      <ProNavbar />
+      <PageContainer ghost={true}>
         <Outlet />
-      {/* </PageContainer> */}
+      </PageContainer>
     </div>
   );
 }
