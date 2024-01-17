@@ -19,7 +19,7 @@ function InventoryMainSettings() {
   return (
     <>
       <ProCard
-       style={{ height: "90vh" }}
+      //  style={{ height: "90vh" }}
        title={<Space><CalendarOutlined/>Inventory Main Settings</Space>}
         tabs={{
           type: "card",
