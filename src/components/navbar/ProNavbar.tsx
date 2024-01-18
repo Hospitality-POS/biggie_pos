@@ -2,16 +2,27 @@
 import { ProLayout } from "@ant-design/pro-components";
 import React, { useState } from "react";
 import defaultprops from "./defaultprops";
-import { Button, ConfigProvider, Dropdown } from "antd/lib";
-import { LogoutOutlined } from "@ant-design/icons";
+import { Avatar, Button, ConfigProvider, Dropdown } from "antd/lib";
+import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "src/store";
+import { logoutUser } from "@features/Auth/AuthActions";
+import { reset } from "@features/Auth/AuthSlice";
+import { Image, Space } from "antd";
 
 const ProNavbar = () => {
-  const [pathname, setPathname] = useState("/table");
-const navigation =useNavigate()
+  const dispatch = useAppDispatch()
+  const navigation =useNavigate()
+  const {user} = useAppSelector(state=>state.auth)
+ const handleLogout = () => {
+    dispatch(logoutUser());
+    dispatch(reset());
+    navigation("/tables");
+
+  };
   return (
     <ProLayout
-      logo="/android-chrome-512x512.png"
+      logo={<Image src="/android-chrome-512x512.png" height={50} preview={true} alt="fss-logo"/>}
       title=""
       colorPrimary="#6c1c2c"
       contentWidth="Fluid"
@@ -22,17 +33,21 @@ const navigation =useNavigate()
       fixedHeader={true}
       avatarProps={{
         src: "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg",
-        size: "small",
-        title: <div>Steve</div>,
+        shape: "circle",
+        alt: "image",
+        size: "large",
+        title: <div>{user ? user.name : ""}</div>,
         render: (_props, dom) => {
                 return (
                   <Dropdown
-                    menu={{
+                    menu={ {
+                      disabled: user ? false : true,
                       items: [
                         {
                           key: 'logout',
                           icon: <LogoutOutlined />,
                           label: 'Sign out',
+                          onClick: ()=>handleLogout(),
                         },
                       ],
                     }}
@@ -43,9 +58,6 @@ const navigation =useNavigate()
               },
       }}
       {...defaultprops}
-       location={{
-              pathname,
-            }}
       token={{
         bgLayout: "#f6ffed",
         colorPrimary: "#6c1c2c",
@@ -62,7 +74,7 @@ const navigation =useNavigate()
       menuItemRender={(item, dom) => (
               <div
                 onClick={() => {
-                  navigation(item.path || '/welcome');
+                  navigation(item?.path || '/');
                 }}
               >
                 {dom}

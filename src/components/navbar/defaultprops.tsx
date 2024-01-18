@@ -2,11 +2,8 @@ import {
   ChromeFilled,
   CrownFilled,
   SmileFilled,
-  StopFilled,
   TabletFilled,
-  UsergroupAddOutlined,
 } from '@ant-design/icons';
-import Table from '@pages/Tables/Table';
 
 export default {
   route: {
@@ -14,81 +11,18 @@ export default {
     routes: [
       {
         path: '/tables',
-        name: 'welcome',
+        name: 'Home',
         icon: <SmileFilled />,
-        access:false
       },
       {
-        path: '/admin',
-        name: 'Admin',
-        icon: <CrownFilled />,
-        access: 'canAdmin',
-        component: "./",
-        routes: [
-          {
-            path: '/admin/sub-page1',
-            name: 'Store',
-            icon: 'https://gw.alipayobjects.com/zos/antfincdn/upvrAjAPQX/Logo_Tech%252520UI.svg',
-            component: './Welcome',
-          },
-          {
-            path: '/admin/sub-page2',
-            name: '二级页面',
-            icon: <CrownFilled />,
-            component: './Welcome',
-          },
-          {
-            path: '/admin/sub-page3',
-            name: '三级页面',
-            icon: <CrownFilled />,
-            component: './Welcome',
-          },
-        ],
-      },
-      {
+        path: '/Store',
         name: 'store',
+        icon: <CrownFilled />,
+      },
+      {
+        name: 'orders',
         icon: <TabletFilled />,
-        path: '/list',
-        component: './ListTableList',
-        routes: [
-          {
-            path: '/list/sub-page',
-            name: '列表页面',
-            icon: <CrownFilled />,
-            routes: [
-              {
-                path: 'sub-sub-page1',
-                name: '一一级列表页面',
-                icon: <CrownFilled />,
-                component: './Welcome',
-              },
-              {
-                path: 'sub-sub-page2',
-                name: '一二级列表页面',
-                icon: <CrownFilled />,
-                component: './Welcome',
-              },
-              {
-                path: 'sub-sub-page3',
-                name: '一三级列表页面',
-                icon: <CrownFilled />,
-                component: './Welcome',
-              },
-            ],
-          },
-          {
-            path: '/list/sub-page2',
-            name: 'orders',
-            icon: <CrownFilled />,
-            component: './Welcome',
-          },
-          {
-            path: '/list/sub-page3',
-            name: '三级列表页面',
-            icon: <CrownFilled />,
-            component: './Welcome',
-          },
-        ],
+        path: '/Orders',
       },
       {
         path: '/reports',
@@ -106,53 +40,48 @@ export default {
 
   appList: [
     {
-      icon: <UsergroupAddOutlined />,
+      icon: '/people.png',
       title: 'Users/People',
       desc: 'Add, view or update users',
-      url: '/users',
+      url: '/users',      
     },
     {
-      icon: <StopFilled/>,
-      title: 'Category',
-      desc: 'Add, view or update users',
-      url: '/category',
+      icon: '/checklist.png',
+      title: 'Category Settings',
+      desc: 'Add, view or update Categories',
+      url: '/Category-settings',
     },
     {
-      icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
+      icon: '/circle-table.png',
+      title: 'Tables Settings',
+      desc: 'Add, view or update tables',
       url: '/table-settings',
     },
     {
-      icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
+      icon: '/material-management.png',
+      title: 'Inventory settings',
+      desc: 'Add, view or update Product inventory',
+      url: '/Inventory',
     },
 
     {
-      icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
+      icon: 'online-payment.png',
+      title: 'payment methods',
+      desc: 'Add, view or update payment methods',
+      url: '/payment-settings',
     },
     {
-     icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
+     icon: '/supply-chain.png',
+      title: 'suppliers',
+      desc: 'Add, view or update suppliers',
+      url: '/Supplier',
     },
     {
-      icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
+      icon: '/faq.png',
+      title: 'FAQs',
+      desc: 'Freuently asked questions?',
+      url: '/fss-faqs',
     },
-    {
-     icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
-    },
+  
   ],
 };
