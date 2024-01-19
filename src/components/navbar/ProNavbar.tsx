@@ -1,18 +1,19 @@
 // MainComponent.js
 import { ProLayout } from "@ant-design/pro-components";
 import React, { useState } from "react";
-import defaultprops from "./defaultprops";
 import { Avatar, Button, ConfigProvider, Dropdown } from "antd/lib";
 import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { logoutUser } from "@features/Auth/AuthActions";
 import { reset } from "@features/Auth/AuthSlice";
 import { Image, Space } from "antd";
+import useProLayoutNav from "./defaultprops";
 
 const ProNavbar = () => {
   const dispatch = useAppDispatch()
   const navigation =useNavigate()
+  const  navRoutes  = useProLayoutNav();
   const {user} = useAppSelector(state=>state.auth)
  const handleLogout = () => {
     dispatch(logoutUser());
@@ -22,7 +23,14 @@ const ProNavbar = () => {
   };
   return (
     <ProLayout
-      logo={<Image src="/android-chrome-512x512.png" height={50} preview={true} alt="fss-logo"/>}
+      logo={
+        <Image
+          src="/android-chrome-512x512.png"
+          height={50}
+          preview={true}
+          alt="fss-logo"
+        />
+      }
       title=""
       colorPrimary="#6c1c2c"
       contentWidth="Fluid"
@@ -38,26 +46,26 @@ const ProNavbar = () => {
         size: "large",
         title: <div>{user ? user.name : ""}</div>,
         render: (_props, dom) => {
-                return (
-                  <Dropdown
-                    menu={ {
-                      disabled: user ? false : true,
-                      items: [
-                        {
-                          key: 'logout',
-                          icon: <LogoutOutlined />,
-                          label: 'Sign out',
-                          onClick: ()=>handleLogout(),
-                        },
-                      ],
-                    }}
-                  >
-                    {dom}
-                  </Dropdown>
-                );
-              },
+          return (
+            <Dropdown
+              menu={{
+                disabled: user ? false : true,
+                items: [
+                  {
+                    key: "logout",
+                    icon: <LogoutOutlined />,
+                    label: "Sign out",
+                    onClick: () => handleLogout(),
+                  },
+                ],
+              }}
+            >
+              {dom}
+            </Dropdown>
+          );
+        },
       }}
-      {...defaultprops}
+      {...navRoutes}
       token={{
         bgLayout: "#f6ffed",
         colorPrimary: "#6c1c2c",
@@ -72,16 +80,8 @@ const ProNavbar = () => {
         },
       }}
       menuItemRender={(item, dom) => (
-              <div
-                onClick={() => {
-                  navigation(item?.path || '/');
-                }}
-              >
-                {dom}
-              </div>
-            )}
-           
-          
+        <NavLink to={item?.path || "/"}>{dom}</NavLink>
+      )}
     />
   );
 };
