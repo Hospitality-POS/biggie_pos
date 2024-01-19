@@ -81,7 +81,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
     return 0;
   });
 
- const filteredOrders = sortedOrders.filter((order) => {
+ const filteredOrders = sortedOrders?.filter((order) => {
     const matchesSearch =
       order?.order_no?.toLowerCase().includes(searchQuery?.toLowerCase()) ||
       order?.updated_by?.username?.toLowerCase().includes(searchQuery?.toLowerCase());
@@ -138,7 +138,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
   };
 
   const handleExportCSV = () => {
-    const csvData = filteredOrders.map((order) => ({
+    const csvData = filteredOrders?.map((order) => ({
       OrderNo: order.order_no,
       CreatedAt: moment(order.createdAt).format("MMMM Do YYYY, h:mm a"),
       UpdatedBy: order.updated_by.username,
@@ -166,7 +166,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
     const doc = new jsPDF();
     doc.text("Orders Report", 10, 10);
 
-    const tableData = filteredOrders.map((order) => [
+    const tableData = filteredOrders?.map((order) => [
       order.order_no,
       moment(order.createdAt).format("MMMM Do YYYY, h:mm a"),
       order.updated_by.username,
@@ -196,6 +196,10 @@ const OrderList: React.FC<Props> = ({ orders }) => {
       setOpenDeleteDialog(false);
     }
   };
+
+  if(!filteredOrders){
+    return "Loading ........................"
+  }
   return (
     <div>
       <div style={{ display: "flex", columnGap: 20 }}>
@@ -321,8 +325,8 @@ const OrderList: React.FC<Props> = ({ orders }) => {
           </TableHead>
           <TableBody>
             {filteredOrders
-              .slice(page * rowsPerPage, (page + 1) * rowsPerPage)
-              .map((order) => (
+              ?.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
+             ?.map((order) => (
                 <TableRow key={order._id}>
                   <TableCell sx={{ fontWeight: "bold" }}>
                     {order.order_no}
