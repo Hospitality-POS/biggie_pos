@@ -1,4 +1,10 @@
-import { Routes, Route } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  createBrowserRouter,
+  createRoutesFromElements,
+  RouterProvider,
+} from "react-router-dom";
 import { Suspense, lazy } from "react";
 import Spinner from "@components/spinner/Spinner";
 import Private from "@components/layout/private/Private";
@@ -13,35 +19,139 @@ import PaymentMainSettings from "@pages/Settings/paymentMethodLevel/payment_main
 import UsersMainSettings from "@pages/Settings/usersLevel/User_main_settings";
 import NotFound from "@routes/NotFound";
 import InventoryMainSettings from "@pages/Settings/invetoryLevel/Inventory_main_settings";
-
+// import Store from "@pages/store/Store";
+// import Orders from "@pages/Orders/Orders";
+// import RestaurantPage from "@pages/Restaurant/Restuarant";
 
 const Layout = lazy(() => import("@components/layout/Layout"));
 const RestaurantPage = lazy(() => import("@pages/Restaurant/Restuarant"));
 const Store = lazy(() => import("@pages/store/Store"));
 const Orders = lazy(() => import("@pages/Orders/Orders"));
 
+const routes = createBrowserRouter(
+  createRoutesFromElements(
+    <Route path="/" element={<Layout />}>
+      <Route index element={<Table />} />
+      <Route path="/tables" element={<Table />} />
+      <Route
+        path="/main-category"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <MainCategory />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/dashboard/:id"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <RestaurantPage />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/store"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <Store />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <UsersMainSettings />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <Reports />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/supplier"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <SupplierMainSettings />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/table-settings"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <TableMainSettings />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/category-settings"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <CategoryMainSettings />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/payment-settings"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <PaymentMainSettings />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/Inventory"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <InventoryMainSettings />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/orders"
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <Orders />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route path="*" element={<NotFound />} />
+    </Route>
+  )
+);
+
 function Routers() {
   return (
     <Suspense fallback={<Spinner />}>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Table />} />
-          <Route path="/tables" element={<Table />} />
-          <Route path="/main-category" element={<Private><MainCategory /></Private>} />
-          <Route path="/dashboard/:id" element={<Private><RestaurantPage /></Private>} />
-          <Route path="/store" element={<Private><Store/></Private>} />
-          <Route path="/users" element={<Private><UsersMainSettings /></Private>} />
-          <Route path="/reports" element={<Private><Reports /></Private>} />
-          <Route path="/supplier" element={<Private><SupplierMainSettings /></Private>} />
-          <Route path="/table-settings" element={<Private><TableMainSettings /></Private>} />
-          <Route path="/category-settings" element={<Private><CategoryMainSettings /></Private>} />
-          <Route path="/payment-settings" element={<Private><PaymentMainSettings /></Private>} />
-          <Route path="/Inventory" element={<Private><InventoryMainSettings /></Private>} />
-          <Route path="/Orders" element={<Private><Orders /></Private>} />
-          <Route path="*" element={<NotFound/>} />
-        </Route>
-          <Route path="*" element={<NotFound/>} />
-      </Routes>
+      <RouterProvider router={routes} />
     </Suspense>
   );
 }
