@@ -60,13 +60,13 @@ import { useAppSelector } from "src/store";
 
       {
         icon: "online-payment.png",
-        title: "payment methods",
+        title: "Payment methods",
         desc: "Add, view or update payment methods",
         url: "/payment-methods",
       },
       {
         icon: "/supply-chain.png",
-        title: "suppliers",
+        title: "Suppliers",
         desc: "Add, view or update suppliers",
         url: "/suppliers",
       },
