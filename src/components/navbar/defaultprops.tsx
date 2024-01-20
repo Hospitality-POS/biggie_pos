@@ -41,19 +41,19 @@ import { useAppSelector } from "src/store";
       },
       {
         icon: "/checklist.png",
-        title: "Category Settings",
+        title: "Category",
         desc: "Add, view or update Categories",
         url: "/Category-settings",
       },
       {
         icon: "/circle-table.png",
-        title: "Tables Settings",
+        title: "Tables",
         desc: "Add, view or update tables",
         url: "/table-settings",
       },
       {
         icon: "/material-management.png",
-        title: "Inventory settings",
+        title: "Inventory",
         desc: "Add, view or update Product inventory",
         url: "/Inventory",
       },
