@@ -130,7 +130,7 @@ const routes = createBrowserRouter(
         }
       />
       <Route
-        path="/supplier"
+        path="/suppliers"
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -160,7 +160,7 @@ const routes = createBrowserRouter(
         }
       />
       <Route
-        path="/payment-settings"
+        path="/payment-methods"
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -170,7 +170,7 @@ const routes = createBrowserRouter(
         }
       />
       <Route
-        path="/Inventory"
+        path="/inventory"
         element={
           <Suspense fallback={<Spinner />}>
             <Private>

@@ -55,20 +55,20 @@ import { useAppSelector } from "src/store";
         icon: "/material-management.png",
         title: "Inventory",
         desc: "Add, view or update Product inventory",
-        url: "/Inventory",
+        url: "/inventory",
       },
 
       {
         icon: "online-payment.png",
         title: "payment methods",
         desc: "Add, view or update payment methods",
-        url: "/payment-settings",
+        url: "/payment-methods",
       },
       {
         icon: "/supply-chain.png",
         title: "suppliers",
         desc: "Add, view or update suppliers",
-        url: "/Supplier",
+        url: "/suppliers",
       },
       {
         icon: "/faq.png",
