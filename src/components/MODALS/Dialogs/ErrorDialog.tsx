@@ -11,15 +11,15 @@ const ErrorDialog = ({ error, onClose }) => {
       status="500"
       subTitle={
         <>
-          <p>Check your internet connection!</p> <i>{error}</i>
+          <p>Check your internet connection!</p> <i>{error?error: "network error"}</i>
         </>
       }
       extra={
         <Button type="primary" onClick={onClose}>
-          Reload page
+          Refresh page
         </Button>
       }
-      style={{ margin: "0 auto" }}
+      style={{ marginTop: 0}}
     >
       <div className="desc">
         <Paragraph>
