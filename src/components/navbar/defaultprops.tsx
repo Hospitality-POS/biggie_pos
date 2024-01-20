@@ -1,4 +1,4 @@
-import { ChromeFilled, SmileFilled } from "@ant-design/icons";
+import {  ApiFilled, CalculatorFilled, FolderFilled, HomeFilled, SmileFilled } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 
   const useProLayoutNav = () => {
@@ -11,23 +11,23 @@ import { useAppSelector } from "src/store";
         {
           path: "/tables",
           name: "Home",
-          icon: <SmileFilled />,
+          icon: <HomeFilled />,
         },
 
         {
           path: "/orders",
-          name: "orders",
-          icon: <ChromeFilled />,
+          name: "Orders",
+          icon: <CalculatorFilled />,
         },
         {
           path: "/store",
-          name: "store",
-          icon: <ChromeFilled />,
+          name: "Store",
+          icon: <FolderFilled />,
         },
         {
           path: "/reports",
           name: "Reports",
-          icon: <ChromeFilled />,
+          icon: <ApiFilled />,
         },
       ],
     },
