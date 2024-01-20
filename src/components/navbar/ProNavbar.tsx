@@ -1,7 +1,7 @@
 // MainComponent.js
 import { ProLayout } from "@ant-design/pro-components";
 import React, { useState } from "react";
-import { Avatar, Button, ConfigProvider, Dropdown } from "antd/lib";
+import { Avatar, Button, ConfigProvider, Dropdown, Typography } from "antd/lib";
 import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
@@ -11,15 +11,14 @@ import { Image, Space } from "antd";
 import useProLayoutNav from "./defaultprops";
 
 const ProNavbar = () => {
-  const dispatch = useAppDispatch()
-  const navigation =useNavigate()
-  const  navRoutes  = useProLayoutNav();
-  const {user} = useAppSelector(state=>state.auth)
- const handleLogout = () => {
+  const dispatch = useAppDispatch();
+  const navigation = useNavigate();
+  const navRoutes = useProLayoutNav();
+  const { user } = useAppSelector((state) => state.auth);
+  const handleLogout = () => {
     dispatch(logoutUser());
     dispatch(reset());
     navigation("/tables");
-
   };
   return (
     <ProLayout
@@ -29,13 +28,14 @@ const ProNavbar = () => {
           height={50}
           preview={true}
           alt="fss-logo"
+          style={{padding: 5}}
         />
       }
       title=""
       colorPrimary="#6c1c2c"
       contentWidth="Fluid"
-      navTheme="realDark"
-      contentStyle={{ padding: 0, margin: 0 }}
+      navTheme="light"
+      contentStyle={{ padding: 0, margin: "0 auto"}}
       layout="top"
       splitMenus={false}
       fixedHeader={true}
@@ -44,7 +44,11 @@ const ProNavbar = () => {
         shape: "circle",
         alt: "image",
         size: "large",
-        title: <div>{user ? user.name : ""}</div>,
+        title: (
+          <Typography.Text strong={true} style={{ color: "white" }} code={true}>
+            {user ? user.name : ""}
+          </Typography.Text>
+        ),
         render: (_props, dom) => {
           return (
             <Dropdown
@@ -56,6 +60,7 @@ const ProNavbar = () => {
                     icon: <LogoutOutlined />,
                     label: "Sign out",
                     onClick: () => handleLogout(),
+                    danger: true,
                   },
                 ],
               }}
