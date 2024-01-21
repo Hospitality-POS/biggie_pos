@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
 import { deleteCategory } from "@features/Category/CategoryActions";
-import { message } from "antd";
 import { Modal, notification } from "antd/lib";
+import { useAppDispatch } from "src/store";
 
 type TdeleteCandidate = { name: string; _id: string } | any;
 
@@ -11,7 +10,7 @@ interface CategorySettingsProps {
 }
 
 const useCategorySettings = ({ onDeleteCandidate }: CategorySettingsProps) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [deleteCandidate, setDeleteCandidate] = useState<TdeleteCandidate>("");
   const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);

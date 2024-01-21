@@ -15,7 +15,7 @@ function SupplierMainSettings() {
   return (
     <>
       <ProCard
-        style={{ height: "90vh" }}
+        // style={{ height: "90vh" }}
         title={<Space><SisternodeOutlined/>Supplier Main Settings</Space>}
         tabs={{
           type: "card",

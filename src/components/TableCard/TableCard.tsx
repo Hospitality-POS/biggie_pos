@@ -44,6 +44,7 @@ const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
     color: item.isOccupied ? "black" : "white",
     position: "relative",
     textAlign: "center",
+    cursor: "pointer"
   };
 
   const imageStyles = {

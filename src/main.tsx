@@ -27,7 +27,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Provider store={store}>
-        <BrowserRouter>
+
           <QueryClientProvider client={queryClient}>
             <ConfigProvider locale={enUS} theme={{
           token: {
@@ -43,7 +43,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             <App />
             </ConfigProvider>
           </QueryClientProvider>
-        </BrowserRouter>
+
       </Provider>
     </ThemeProvider>
   </React.StrictMode>

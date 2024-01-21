@@ -107,7 +107,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
           />
           <ProFormMoney
             width="md"
-            name="cost"
+            name="price"
             label="Purchase cost"
             rules={[
               {
@@ -119,7 +119,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
           />
           <ProFormSelect
             width="md"
-            name="category_id"
+            name="subcategory_id"
             label="Subcategory"
             rules={[{ required: true, message: "Subcategory is required" }]}
             showSearch

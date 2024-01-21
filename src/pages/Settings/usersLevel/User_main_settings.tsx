@@ -22,7 +22,7 @@ function UsersMainSettings() {
   return (
     <>
       <ProCard
-        style={{ height: "90vh" }}
+        // style={{ height: "90vh" }}
         title={<Space><UsergroupAddOutlined/>Users Main Settings</Space>}
         tabs={{
           type: "card",

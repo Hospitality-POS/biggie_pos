@@ -16,7 +16,7 @@ function PaymentMainSettings() {
   return (
     <>
       <ProCard
-       style={{ height: "90vh" }}
+      //  style={{ height: "90vh" }}
        title={<Space><DollarCircleOutlined/>Payment Method Main Settings</Space>}
         tabs={{
           type: "card",

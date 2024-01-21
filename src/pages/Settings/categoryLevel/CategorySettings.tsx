@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -8,7 +8,7 @@ import {
 
 import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
 import { fetchAllCategories } from "@services/categories";
-import { Tooltip, Button } from "antd";
+import { Tooltip, Button, Space } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import useCategorySettings from "../hooks/useCategorySettings";
 import AddProCategoryModal from "@components/MODALS/pro/AddProCategoryModal";
@@ -26,7 +26,7 @@ const CategorySettings = () => {
     handleDeleteCancel,
     deleteCandidate,
   } = useCategorySettings({ onDeleteCandidate });
-
+  const [isEditing, setIsEditing] = useState(false)
   const handleAddCategory = () => {
     // You can update your state or perform any necessary actions here
     // For example, you can add the newCategory to your existing categories
@@ -34,27 +34,32 @@ const CategorySettings = () => {
   };
   const handleEditClick = (record: React.SetStateAction<null>) => {
     console.log(record);
+    setIsEditing(true)
   };
   const actionColumn = {
     title: "Actions",
     dataIndex: "actions",
     hideInSearch: true,
     render: (_, record: any) => [
-      <Tooltip key="edit" title="Edit">
-        <Button
-          type="link"
-          icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-          onClick={() => handleEditClick(record)}
-        />
-      </Tooltip>,
-      <Tooltip key="delete" title="Delete">
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeleteClick(record)}
-        />
-      </Tooltip>,
+      <Space>
+        <Tooltip key="edit" title="Edit">
+          <AddProCategoryModal
+            onAddCategory={handleAddCategory}
+            edit={true}
+            actionRef={actionRef}
+            data={record}
+          />
+        </Tooltip>
+        
+        <Tooltip key="delete" title="Delete">
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteClick(record)}
+          />
+        </Tooltip>
+      </Space>,
     ],
   };
 
@@ -116,7 +121,9 @@ const CategorySettings = () => {
         toolBarRender={() => [
           <AddProCategoryModal
             onAddCategory={handleAddCategory}
+            edit={false}
             actionRef={actionRef}
+            data={{}}
           />,
         ]}
       />

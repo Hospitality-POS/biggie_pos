@@ -1,157 +1,95 @@
-import {
-  ChromeFilled,
-  CrownFilled,
-  SmileFilled,
-  StopFilled,
-  TabletFilled,
-  UsergroupAddOutlined,
-} from '@ant-design/icons';
+import {  ApiFilled, CalculatorFilled, FolderFilled, HomeFilled, SmileFilled } from "@ant-design/icons";
+import { useAppSelector } from "src/store";
 
-export default {
-  route: {
-    path: '/',
-    routes: [
+  const useProLayoutNav = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  const state = user?.isAdmin;
+  const adminMenu = {
+    route: {
+      path: "/",
+      routes: [
+        {
+          path: "/tables",
+          name: "Home",
+          icon: <HomeFilled />,
+        },
+
+        {
+          path: "/orders",
+          name: "Orders",
+          icon: <CalculatorFilled />,
+        },
+        {
+          path: "/store",
+          name: "Store",
+          icon: <FolderFilled />,
+        },
+        {
+          path: "/reports",
+          name: "Reports",
+          icon: <ApiFilled />,
+        },
+      ],
+    },
+
+    appList: [
       {
-        path: '/welcome',
-        name: '欢迎',
-        icon: <SmileFilled />,
-        component: './Welcome',
+        icon: "/people.png",
+        title: "Users/People",
+        desc: "Add, view or update users",
+        url: "/users",
       },
       {
-        path: '/admin',
-        name: '管理页',
-        icon: <CrownFilled />,
-        access: 'canAdmin',
-        component: './Admin',
-        routes: [
-          {
-            path: '/admin/sub-page1',
-            name: '一级页面',
-            icon: 'https://gw.alipayobjects.com/zos/antfincdn/upvrAjAPQX/Logo_Tech%252520UI.svg',
-            component: './Welcome',
-          },
-          {
-            path: '/admin/sub-page2',
-            name: '二级页面',
-            icon: <CrownFilled />,
-            component: './Welcome',
-          },
-          {
-            path: '/admin/sub-page3',
-            name: '三级页面',
-            icon: <CrownFilled />,
-            component: './Welcome',
-          },
-        ],
+        icon: "/checklist.png",
+        title: "Category",
+        desc: "Add, view or update Categories",
+        url: "/Category-settings",
       },
       {
-        name: '列表页',
-        icon: <TabletFilled />,
-        path: '/list',
-        component: './ListTableList',
-        routes: [
-          {
-            path: '/list/sub-page',
-            name: '列表页面',
-            icon: <CrownFilled />,
-            routes: [
-              {
-                path: 'sub-sub-page1',
-                name: '一一级列表页面',
-                icon: <CrownFilled />,
-                component: './Welcome',
-              },
-              {
-                path: 'sub-sub-page2',
-                name: '一二级列表页面',
-                icon: <CrownFilled />,
-                component: './Welcome',
-              },
-              {
-                path: 'sub-sub-page3',
-                name: '一三级列表页面',
-                icon: <CrownFilled />,
-                component: './Welcome',
-              },
-            ],
-          },
-          {
-            path: '/list/sub-page2',
-            name: '二级列表页面',
-            icon: <CrownFilled />,
-            component: './Welcome',
-          },
-          {
-            path: '/list/sub-page3',
-            name: '三级列表页面',
-            icon: <CrownFilled />,
-            component: './Welcome',
-          },
-        ],
+        icon: "/circle-table.png",
+        title: "Tables",
+        desc: "Add, view or update tables",
+        url: "/table-settings",
       },
       {
-        path: 'https://ant.design',
-        name: 'Ant Design 官网外链',
-        icon: <ChromeFilled />,
+        icon: "/material-management.png",
+        title: "Inventory",
+        desc: "Add, view or update Product inventory",
+        url: "/inventory",
+      },
+
+      {
+        icon: "online-payment.png",
+        title: "Payment methods",
+        desc: "Add, view or update payment methods",
+        url: "/payment-methods",
+      },
+      {
+        icon: "/supply-chain.png",
+        title: "Suppliers",
+        desc: "Add, view or update suppliers",
+        url: "/suppliers",
+      },
+      {
+        icon: "/faq.png",
+        title: "FAQs",
+        desc: "Freuently asked questions?",
+        url: "/fss-faqs",
       },
     ],
-  },
-  
-  location: {
-    pathname: '/',
-  },
-
-
-
-  appList: [
-    {
-      icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
+  };
+  const userMenu = {
+    route: {
+      path: "/",
+      routes: [
+        {
+          path: "/tables",
+          name: "Home",
+          icon: <SmileFilled />,
+        },
+      ],
     },
-    {
-      icon: <StopFilled/>,
-      title: 'Category',
-      desc: 'Add, view or update users',
-      url: '/',
-    },
-    {
-      icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
-    },
-    {
-      icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
-    },
-
-    {
-      icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
-    },
-    {
-     icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
-    },
-    {
-      icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
-    },
-    {
-     icon: <UsergroupAddOutlined />,
-      title: 'Users/People',
-      desc: 'Add, view or update users',
-      url: '/',
-    },
-  ],
+  };
+  return  state ? adminMenu : userMenu;
 };
+export default useProLayoutNav

@@ -13,9 +13,13 @@ import { fetchTableByLocatedAt } from "../../features/Table/TableActions";
 import Lottie from "lottie-react";
 import fssanimation from "../../components/Loaders/fss loader.json";
 import StaffModal from "@components/staffCard/SampleLoginModal";
+import { Button, Result } from "antd";
+import ErrorDialog from "@components/MODALS/Dialogs/ErrorDialog";
 
 function Table() {
-  const { openModal, error: orderError } = useAppSelector((state) => state.order);
+  const { openModal, error: orderError } = useAppSelector(
+    (state) => state.order
+  );
   const {
     tables: data,
     loading: isLoading,
@@ -38,8 +42,6 @@ function Table() {
   const { locatedAt } = useParams();
   const [uniqueLocatedAtValues, setUniqueLocatedAtValues] = useState([]);
 
- 
-
   const fetchTable = useCallback(() => {
     return dispatch(fetchTableByLocatedAt(value));
   }, [dispatch, value]);
@@ -47,7 +49,6 @@ function Table() {
   useEffect(() => {
     fetchTable();
   }, [fetchTable]);
-
 
   const {
     isLoading: isLoadingUniqueLocatedAt,
@@ -93,10 +94,10 @@ function Table() {
     return (
       <div
         style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "90vh",
+          display: "grid",
+          placeContent: "center",
+          placeSelf: "auto",
+          marginTop: "80px",
         }}
       >
         <Lottie
@@ -107,7 +108,7 @@ function Table() {
         />
       </div>
     );
-  }
+  } 
 
   if (isLoading) {
     return (
@@ -136,28 +137,11 @@ function Table() {
         </div>
       </>
     );
-  }
+  } 
 
   if (isError || isErrorTabs || orderError) {
     return (
-      <>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "90vh",
-          }}
-        >
-          <Lottie
-            animationData={fssanimation}
-            loop={true}
-            height={20}
-            width={20}
-          />
-        <div><Typography variant="h5" gutterBottom>An Error occurred, Please contact support!</Typography></div>
-        </div>
-      </>
+      <ErrorDialog error={isError} onClose={()=> fetchTable()}/>
     );
   }
 
@@ -194,7 +178,7 @@ function Table() {
             },
           }}
         >
-          {uniqueLocatedAtValues.map((locatedAtValue) => (
+          {uniqueLocatedAtValues?.map((locatedAtValue) => (
             <Tab
               key={locatedAtValue}
               value={locatedAtValue}
@@ -217,7 +201,7 @@ function Table() {
           bottom: 0,
         }}
       >
-        {data.map((item) => (
+        {data?.map((item) => (
           <TableCard key={item._id} item={item} openModal={handleOpen} />
         ))}
       </div>

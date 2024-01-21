@@ -29,7 +29,7 @@ const TableMainSettings: React.FC = () => {
 
   return (
     <ProCard
-      style={{ height: "90vh" }}
+      // style={{ height: "90vh" }}
       tabs={{
         type: "card",
         items: tabsItems,

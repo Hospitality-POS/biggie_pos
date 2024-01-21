@@ -104,7 +104,7 @@ const  InventorySettings= () => {
         ]}
         request={async (param) => {
           const data = await fetchAllInventory(param);
-          // console.log(data);
+          console.log(data);
           
           return {
             data: data,

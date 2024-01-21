@@ -1,30 +1,76 @@
 // MainComponent.js
 import { ProLayout } from "@ant-design/pro-components";
 import React, { useState } from "react";
-import defaultprops from "./defaultprops";
-import { ConfigProvider } from "antd/lib";
+import { Avatar, Button, ConfigProvider, Dropdown, Typography } from "antd/lib";
+import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "src/store";
+import { logoutUser } from "@features/Auth/AuthActions";
+import { reset } from "@features/Auth/AuthSlice";
+import { Image, Space } from "antd";
+import useProLayoutNav from "./defaultprops";
 
 const ProNavbar = () => {
-  const [pathname, setPathname] = useState("/list/sub-page/sub-sub-page1");
-
+  const dispatch = useAppDispatch();
+  const navigation = useNavigate();
+  const navRoutes = useProLayoutNav();
+  const { user } = useAppSelector((state) => state.auth);
+  const handleLogout = () => {
+    dispatch(logoutUser());
+    dispatch(reset());
+    navigation("/tables");
+  };
   return (
     <ProLayout
-      logo="/android-chrome-512x512.png"
+      logo={
+        <Image
+          src="/android-chrome-512x512.png"
+          height={50}
+          preview={true}
+          alt="fss-logo"
+          style={{padding: 5}}
+        />
+      }
       title=""
       colorPrimary="#6c1c2c"
       contentWidth="Fluid"
       navTheme="light"
-      //   appListRender={}
-      contentStyle={{ padding: 0, margin: 0 }}
+      contentStyle={{ padding: 0, margin: "0 auto"}}
       layout="top"
       splitMenus={false}
       fixedHeader={true}
       avatarProps={{
         src: "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg",
-        size: "small",
-        title: <div>Steve</div>,
+        shape: "circle",
+        alt: "image",
+        size: "large",
+        title: (
+          <Typography.Text strong={true} style={{ color: "white" }} code={true}>
+            {user ? user.name : ""}
+          </Typography.Text>
+        ),
+        render: (_props, dom) => {
+          return (
+            <Dropdown
+              menu={{
+                disabled: user ? false : true,
+                items: [
+                  {
+                    key: "logout",
+                    icon: <LogoutOutlined />,
+                    label: "Sign out",
+                    onClick: () => handleLogout(),
+                    danger: true,
+                  },
+                ],
+              }}
+            >
+              {dom}
+            </Dropdown>
+          );
+        },
       }}
-      {...defaultprops}
+      {...navRoutes}
       token={{
         bgLayout: "#f6ffed",
         colorPrimary: "#6c1c2c",
@@ -38,7 +84,10 @@ const ProNavbar = () => {
           paddingInlinePageContainerContent: 0,
         },
       }}
-    ></ProLayout>
+      menuItemRender={(item, dom) => (
+        <NavLink to={item?.path || "/"}>{dom}</NavLink>
+      )}
+    />
   );
 };
 
