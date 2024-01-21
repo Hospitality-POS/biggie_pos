@@ -79,6 +79,7 @@ const PaymentDrawer: React.FC = () => {
         table_id: id,
         updated_by: user?.id,
         order_no: cartDetails?.order_no,
+        cart_items : cartDetails.items,
         method_id: twoMethods,
       };
       dispatch(createOrder(orderDetails));
@@ -102,6 +103,7 @@ const PaymentDrawer: React.FC = () => {
         table_id: id,
         updated_by: user?.id,
         order_no: cartDetails?.order_no,
+        cart_items : cartDetails.items,
         method_id: methodId,
       };
       dispatch(createOrder(orderDetails));
