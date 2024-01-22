@@ -65,6 +65,7 @@ const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
   return (
     <>
       <Card
+      key={item._id}
         sx={cardStyles}
         className={classes.container}
         onClick={() => {
@@ -83,7 +84,7 @@ const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
           <Typography variant="h6">{item.name}</Typography>
           <Typography variant="body1">Amount: {item.cart_amount}</Typography>
           <Typography variant="body2">
-            {item.served_by ? item.served_by : ""}
+            {item && item.served_by ? item.served_by : ""}
           </Typography>
         </Box>
       </Card>
