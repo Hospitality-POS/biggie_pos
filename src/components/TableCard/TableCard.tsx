@@ -1,10 +1,11 @@
 import { Card, CardMedia, Typography, Box } from "@mui/material";
 import classes from "./table.module.css";
-import React from "react";
+import React, { useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { clearcart } from "../../features/Cart/CartSlice";
 import useCheckIfUserIsLoggedIn from "../../hooks/useCheckIfUserIsLoggedIn";
 import { useNavigate } from "react-router-dom";
+import StaffModal from "@components/staffCard/LoginModal";
 
 interface Table {
   cart_amount: number;
@@ -26,8 +27,10 @@ const TableCard: React.FC<itemProps> = ({ item , openModal}) => {
 const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
   const dispatch = useAppDispatch()
    const navigate = useNavigate();
+   const [isStaffModalOpen, setStaffModalOpen] = useState(false);
+   
   const handleOpen = () => {
-
+        
     dispatch(clearcart())
     checkIfUserIsLoggedIn(item._id,user,error,openModal)
     if(!isUserLoggedIn){
@@ -65,11 +68,10 @@ const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
   return (
     <>
       <Card
-      key={item._id}
         sx={cardStyles}
         className={classes.container}
         onClick={() => {
-          handleOpen()
+          handleOpen();
         }}
       >
         <CardMedia
@@ -83,9 +85,7 @@ const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
         <Box sx={textOverlayStyles}>
           <Typography variant="h6">{item.name}</Typography>
           <Typography variant="body1">Amount: {item.cart_amount}</Typography>
-          <Typography variant="body2">
-            {item && item.served_by ? item.served_by : ""}
-          </Typography>
+          <Typography variant="body2">{item?.served_by}</Typography>
         </Box>
       </Card>
     </>
