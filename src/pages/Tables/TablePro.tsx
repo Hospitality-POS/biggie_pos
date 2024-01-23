@@ -73,10 +73,29 @@ export default function TablePro() {
     })
   );
 
-  if (isLoading || loading) {
+  if (isLoading) {
     return <Spin size="large" fullscreen tip="please wait ..." />;
   }
 
+  if(loading){
+    return (
+      <div
+        style={{
+          display: "grid",
+          placeContent: "center",
+          placeSelf: "auto",
+          marginTop: "80px",
+        }}
+      >
+        <Lottie
+          animationData={fssanimation}
+          loop={true}
+          height={20}
+          width={20}
+        />
+      </div>
+    );
+  }
   if (isError) {
     return <EmptyPage/>;
   }
