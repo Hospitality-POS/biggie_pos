@@ -15,7 +15,7 @@ export default function SuccesssModal() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '90vh' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
       {animationVisible && (
         <Lottie
           animationData={fssanimation}
