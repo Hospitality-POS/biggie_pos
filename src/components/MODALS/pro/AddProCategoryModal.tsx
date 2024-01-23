@@ -32,12 +32,10 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
   edit,data
 }) => {
   const {
-    isSubmitting,
     form,
     handleConfirmAddCategory,
     handleSubCategoryChange,
     handleClose,
-    setIsSubmitting,
   } = useAddCategoryDialog({ onAddCategory });
 
   return (
@@ -74,7 +72,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: "Add category",
+          submitText: edit? "Edit category" : "Add category",
         },
       }}
     >
