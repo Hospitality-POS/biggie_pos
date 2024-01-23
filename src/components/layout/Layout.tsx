@@ -9,7 +9,7 @@ function Layout() {
     <div>
       {/* <Navbar /> */}
       <ProNavbar />
-      <PageContainer ghost={true}>
+      <PageContainer ghost={true} >
         <Outlet />
       </PageContainer>
     </div>

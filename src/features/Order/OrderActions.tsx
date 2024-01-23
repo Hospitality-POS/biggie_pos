@@ -1,5 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
+import { Modal } from "antd/lib";
 import axios from "axios";
 
 interface OrderDetails {
@@ -29,6 +30,10 @@ export const createOrder = createAsyncThunk(
       const response = await axios.post(`${baseUrl}/create`, orderDetails);
       return response.data;
     } catch (error: any) {
+      Modal.error({
+        title: "Oops there is an Error!",
+        content: `${error.response.data.message}`,
+      });
       return rejectWithValue(error.message || error.toString());
     }
   }

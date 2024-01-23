@@ -23,3 +23,16 @@ export const getTableLocation = async (data: ParamsType) => {
     Modal.error({ title: `${error?.message}`, content: "Please check your internet connection!" });
   }
 };
+
+export const fetchTableUsequery = async () => {
+  try {
+    const response = await axios.get(
+      `${tableUrl}/tables/unique-locatedAt`
+    );
+  
+    return response.data;
+  } catch (error) {
+    console.log(error);
+    
+  }
+};

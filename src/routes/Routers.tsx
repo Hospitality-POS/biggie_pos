@@ -19,7 +19,7 @@ const Layout = lazy(() => import("@components/layout/Layout"));
 const RestaurantPage = lazy(() => import("@pages/Restaurant/Restuarant"));
 const Store = lazy(() => import("@pages/store/Store"));
 const Orders = lazy(() => import("@pages/Orders/Orders"));
-const Table = lazy(() => import("@pages/Tables/Table"));
+const Table = lazy(() => import("@pages/Tables/TablePro"));
 
 // App list - settings
 const PaymentMainSettings = lazy(
