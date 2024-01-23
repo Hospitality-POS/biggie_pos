@@ -8,37 +8,45 @@ import { useQuery } from "@tanstack/react-query";
 import { Flex, Spin } from "antd";
 import { Empty, Modal, Space } from "antd/lib";
 import axios from "axios";
+import Lottie from "lottie-react";
 import React, { useState } from "react";
 import { useAppSelector } from "src/store";
+import fssanimation from "../../components/Loaders/fss loader.json";
+import EmptyPage from "@routes/EmptyPage";
 
 export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
-  const { openModal: successmodal} = useAppSelector(
-    (state) => state.order)
+  const { openModal: successmodal, loading } = useAppSelector(
+    (state) => state.order
+  );
 
   const handleOpen = (productId: React.SetStateAction<null>) => {
     setOpen(true);
     setSelectedProductId(productId);
   };
 
-  
-
   const { data, isLoading, isError } = useQuery({
     queryKey: ["tables"],
     queryFn: fetchTableUsequery,
+    retry: 3
   });
 
-  if(successmodal){
-    return <SuccesssModal/>;
+  if (successmodal) {
+    return <SuccesssModal />;
   }
- 
+  
 
   const tabsItems = data?.map(
     (item: { _id: string; name: string; tables?: any[] }) => ({
       key: `${item._id}`,
       tab: "Table",
-      label: <Space><HolderOutlined  />{item.name}</Space>,
+      label: (
+        <Space>
+          <HolderOutlined />
+          {item.name}
+        </Space>
+      ),
       children:
         item?.tables && item?.tables.length > 0 ? (
           item.tables.map((T) => (
@@ -60,18 +68,17 @@ export default function TablePro() {
             </Space>
           ))
         ) : (
-         <Empty description='Empty tables'/>
+          <EmptyPage />
         ),
     })
   );
 
-
-  if (isLoading) {
+  if (isLoading || loading) {
     return <Spin size="large" fullscreen tip="please wait ..." />;
   }
 
   if (isError) {
-    return "ERROr";
+    return <EmptyPage/>;
   }
 
   return (
