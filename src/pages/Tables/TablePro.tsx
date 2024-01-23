@@ -1,62 +1,73 @@
+import { HolderOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
+import SuccesssModal from "@components/MODALS/SuccessModal";
 import TableCard from "@components/TableCard/TableCard";
+import StaffModal from "@components/staffCard/LoginModal";
+import { fetchTableUsequery } from "@services/tables";
 import { useQuery } from "@tanstack/react-query";
 import { Flex, Spin } from "antd";
-import { Space } from "antd/lib";
+import { Empty, Modal, Space } from "antd/lib";
 import axios from "axios";
 import React, { useState } from "react";
+import { useAppSelector } from "src/store";
 
 export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
+  const { openModal: successmodal} = useAppSelector(
+    (state) => state.order)
 
   const handleOpen = (productId: React.SetStateAction<null>) => {
     setOpen(true);
     setSelectedProductId(productId);
   };
 
-  const fetchTable = async () => {
-    const response = await axios.get(
-      "http://localhost:3000/tables/tables/unique-locatedAt"
-    );
-    //  console.log(response.data);
-
-    return response.data;
-  };
+  
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["tables"],
-    queryFn: fetchTable,
+    queryFn: fetchTableUsequery,
   });
+
+  if(successmodal){
+    return <SuccesssModal/>;
+  }
+ 
 
   const tabsItems = data?.map(
     (item: { _id: string; name: string; tables?: any[] }) => ({
       key: `${item._id}`,
       tab: "Table",
-      label: item.name,
-      children: item?.tables?.map((T) => (
-        <Space align="center">
-          <div
-            className="cards"
-            style={{
-              display: "flex",
-              gap: "10px",
-              justifyContent: "center",
-              marginTop: "5px",
-              flexWrap: "wrap",
-              width: "100%",
-              bottom: 0,
-            }}
-          >
-            <TableCard key={T._id} item={T} openModal={handleOpen} />
-          </div>
-        </Space>
-      )),
+      label: <Space><HolderOutlined  />{item.name}</Space>,
+      children:
+        item?.tables && item?.tables.length > 0 ? (
+          item.tables.map((T) => (
+            <Space align="center" key={T._id}>
+              <div
+                className="cards"
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  justifyContent: "center",
+                  marginTop: "5px",
+                  flexWrap: "wrap",
+                  width: "100%",
+                  bottom: 0,
+                }}
+              >
+                <TableCard key={T._id} item={T} openModal={handleOpen} />
+              </div>
+            </Space>
+          ))
+        ) : (
+         <Empty description='Empty tables'/>
+        ),
     })
   );
 
+
   if (isLoading) {
-    return <Spin size="large" fullscreen />;
+    return <Spin size="large" fullscreen tip="please wait ..." />;
   }
 
   if (isError) {
@@ -64,12 +75,17 @@ export default function TablePro() {
   }
 
   return (
-    <ProCard
-      title={<Space>Tables</Space>}
-      tabs={{
-        type: "card",
-        items: tabsItems,
-      }}
-    />
+    <>
+      <ProCard
+        title={<Space>Tables</Space>}
+        tabs={{
+          type: "card",
+          items: tabsItems,
+        }}
+      />
+      {selectedProductId && (
+        <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} />
+      )}
+    </>
   );
 }

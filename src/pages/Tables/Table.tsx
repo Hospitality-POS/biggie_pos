@@ -12,7 +12,7 @@ import { fetchTableByLocatedAt } from "../../features/Table/TableActions";
 // import StaffModal from "../../components/staffCard/StaffModal";
 import Lottie from "lottie-react";
 import fssanimation from "../../components/Loaders/fss loader.json";
-import StaffModal from "@components/staffCard/SampleLoginModal";
+import StaffModal from "@components/staffCard/LoginModal";
 import { Button, Result } from "antd";
 import ErrorDialog from "@components/MODALS/Dialogs/ErrorDialog";
 import axios from "axios";
@@ -207,7 +207,6 @@ function Table() {
       {selectedProductId && (
         <StaffModal
           setOpen={setOpen}
-          setPin={setPin}
           pin={pin}
           open={open}
           tbl={selectedProductId}
