@@ -26,7 +26,7 @@ export default function TablePro() {
     setSelectedProductId(productId);
   };
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError  } = useQuery({
     queryKey: ["tables"],
     queryFn: fetchTableUsequery,
     retry: 3,

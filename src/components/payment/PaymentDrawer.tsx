@@ -46,6 +46,7 @@ const PaymentDrawer: React.FC = () => {
     queryKey: ["paymentMethods"],
     queryFn: () =>
       fetch("http://localhost:3000/payment-methods/").then((res) => res.json()),
+      networkMode :"always"
   });
 
   const handleSelectMethod = (method: string) => {
