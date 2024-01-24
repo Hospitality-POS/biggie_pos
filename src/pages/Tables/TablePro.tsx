@@ -30,7 +30,7 @@ export default function TablePro() {
     queryKey: ["tables"],
     queryFn: fetchTableUsequery,
     retry: 3,
-    networkMode :"always"
+    networkMode: "always"
   });
 
   if (successmodal) {
