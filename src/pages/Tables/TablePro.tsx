@@ -29,7 +29,8 @@ export default function TablePro() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["tables"],
     queryFn: fetchTableUsequery,
-    retry: 3
+    retry: 3,
+    networkMode: "always"
   });
 
   if (successmodal) {
