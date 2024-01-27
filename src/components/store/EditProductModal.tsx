@@ -30,6 +30,7 @@ import PriceChangeIcon from "@mui/icons-material/PriceChange";
 import ProductionQuantityLimitsIcon from "@mui/icons-material/ProductionQuantityLimits";
 import FastfoodIcon from '@mui/icons-material/Fastfood';
 import { useAppDispatch } from "../../store";
+import { fetchAllCategories } from "@services/categories";
 
 interface Category {
   _id: string;
@@ -63,17 +64,12 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
     formState: { isDirty },
   } = useForm<ProductData>();
 
-  const fetchCategories = async () => {
-    const response = await axios.get<Category[]>(
-      "http://localhost:3000/categories"
-    );
-    return response.data;
-  };
-
-  const { data: categories } = useQuery<Category[]>(
-    ["categories"],
-    fetchCategories
-  );
+  const { data: categories } = useQuery({
+    queryKey: ["categories", " "],
+    queryFn: fetchAllCategories,
+    retry: 3,
+    networkMode: "always",
+  });
 
   const dispatch = useAppDispatch();
 

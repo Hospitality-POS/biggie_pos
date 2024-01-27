@@ -29,6 +29,7 @@ import PriceChangeIcon from "@mui/icons-material/PriceChange";
 import ProductionQuantityLimitsIcon from "@mui/icons-material/ProductionQuantityLimits";
 import FastfoodIcon from '@mui/icons-material/Fastfood';
 import DescriptionIcon from '@mui/icons-material/Description';
+import { fetchAllCategories } from "@services/categories";
 
 interface Category {
   _id: string;
@@ -68,14 +69,13 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
     reset,
   } = useForm<ProductData>({ defaultValues });
   
-  const fetchCategories = async () => {
-    const response = await axios.get<Category[]>(
-      "http://localhost:3000/categories"
-    );
-    return response.data;
-  };
+   const { data: categories } = useQuery({
+     queryKey: ["categories", " "],
+     queryFn: fetchAllCategories,
+     retry: 3,
+     networkMode: "always",
+   });
 
-  const { data: categories } = useQuery<Category[]>(["categories"], fetchCategories);
 
   const dispatch = useDispatch();
 
@@ -145,34 +145,6 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
                     error={!!errors.name}
                     helperText={errors.name?.message}
                   />
-                )}
-              />
-              <Controller
-                name="category"
-                control={control}
-                defaultValue=""
-                rules={{ required: "Category is required" }}
-                render={({ field }) => (
-                  <FormControl fullWidth margin="normal">
-                    <InputLabel id="category">Category</InputLabel>
-                    <Select
-                      {...field}
-                      label="Category"
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <CategoryIcon />
-                        </InputAdornment>
-                      }
-                    >
-                      <MenuItem value="">Select category</MenuItem>
-                      {categories &&
-                        categories.map((category) => (
-                          <MenuItem key={category._id} value={category._id}>
-                            {category.name}
-                          </MenuItem>
-                        ))}
-                    </Select>
-                  </FormControl>
                 )}
               />
               <Controller
