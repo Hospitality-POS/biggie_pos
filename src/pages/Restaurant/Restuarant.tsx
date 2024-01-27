@@ -17,17 +17,18 @@ import CategoryCard from "../../components/category/categoryCard";
 import CartDrawer from "../../components/cart/CartDrawer";
 import BackspaceIcon from "@mui/icons-material/Backspace";
 import { useParams } from "react-router-dom";
-import {
-  getCart,
-} from "../../features/Cart/CartActions";
+import { getCart } from "../../features/Cart/CartActions";
 import axios from "axios";
 import { Paper } from "@mui/material";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 import VerticalTabs from "./Sidetabs";
-import { fetchsubcategories } from "../../features/Category/CategoryActions";
+import {
+  fetchsubcategories,
+} from "../../features/Category/CategoryActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchTableById } from "../../features/Table/TableActions";
 import CartLoader from "../../components/spinner/cartLoader";
+import { fetchMainCategories } from "@services/categories";
 
 function a11yProps(index) {
   return {
@@ -35,7 +36,6 @@ function a11yProps(index) {
     "aria-controls": `full-width-tabpanel-${index}`,
   };
 }
-
 
 const RestaurantPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -51,7 +51,7 @@ const RestaurantPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const [selectedCard, setSelectedCard] = useState(null);
   const [showCategories, setShowCategories] = useState(true);
-  
+
   const handleBack = () => {
     setShowCategories(true);
   };
@@ -67,48 +67,36 @@ const RestaurantPage: React.FC = () => {
     setValue(newValue);
   };
 
-  const handleChangeIndex = (index: React.SetStateAction<number>) => {
-    setValue(index);
-  };
-
   const handleChangeMainCategory = (
     maincategoryid: React.SetStateAction<string>
-    ) => {
-      // setMainCategoryId(maincategoryid)
+  ) => {
+    // setMainCategoryId(maincategoryid)
     dispatch(fetchsubcategories(maincategoryid));
   };
-  
+
   const { id } = useParams();
 
-  const queryClient = useQueryClient();
+  // const queryClient = useQueryClient();
 
-  queryClient.invalidateQueries({ queryKey: ["Maincategories"] });
+  // queryClient.invalidateQueries({ queryKey: ["Maincategories"] });
 
-  const fetchMainCategories = async () => {
-    const response = await axios.get(
-      "http://localhost:3000/categories/main-categories"
-    );
-    return response.data;
-  };
+  // const fetchMainCategories = async () => {
+  //   const response = await axios.get(
+  //     "http://localhost:3000/categories/main-categories"
+  //   );
+  //   return response.data;
+  // };
 
-  const { data: Maincategories } = useQuery(["Maincategories"], () =>
-    fetchMainCategories()
-  );
+  const { data: Maincategories } = useQuery({
+    queryKey: ["Maincategories"],
+    queryFn: fetchMainCategories,
+    retry: 3,
+    networkMode: "always",
+  });
+  
   const handleCartOpen = () => {
     setCartOpen(true);
     dispatch(getCart(id));
-  };
-
-  const handleCartClose = () => {
-    setCartOpen(false);
-  };
-
-  const handlePaymentOpen = () => {
-    setPaymentOpen(true);
-  };
-
-  const handlePaymentClose = () => {
-    setPaymentOpen(false);
   };
 
   const handleSelectCard = (card: any) => {
@@ -120,7 +108,9 @@ const RestaurantPage: React.FC = () => {
   };
 
   const areProductsAvailable = products && products.length > 0;
-  const sortedProducts = products.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const sortedProducts = products
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // const cartId = cartDetails?._id;
 
@@ -146,14 +136,14 @@ const RestaurantPage: React.FC = () => {
     }
   }, [dispatch, id]);
 
-    useEffect(() => {
-      dispatchfetchsubcateg();
-      dispatchfetctaldata();    
-    }, [cartDetails._id, dispatchfetchsubcateg, dispatchfetctaldata]);
+  useEffect(() => {
+    dispatchfetchsubcateg();
+    dispatchfetctaldata();
+  }, [cartDetails._id, dispatchfetchsubcateg, dispatchfetctaldata]);
 
-    useEffect(() => {
-      setIsLoadingData(false);
-    }, []);
+  useEffect(() => {
+    setIsLoadingData(false);
+  }, []);
 
   return (
     <>
@@ -170,7 +160,7 @@ const RestaurantPage: React.FC = () => {
                 variant="fullWidth"
                 aria-label="full width tabs example"
               >
-                {Maincategories?.map(
+                {Maincategories?.length ? Maincategories?.map(
                   (
                     categ: {
                       _id: React.Key | null | undefined;
@@ -197,7 +187,7 @@ const RestaurantPage: React.FC = () => {
                       {...a11yProps(index)}
                     />
                   )
-                )}
+                ): ""}
               </Tabs>
             </AppBar>
             <Divider sx={{ mt: 2, mb: 2 }} />

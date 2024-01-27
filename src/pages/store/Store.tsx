@@ -23,14 +23,13 @@ import {
 } from "../../features/Product/ProductAction";
 import ErrorDialog from "../../components/MODALS/Dialogs/ErrorDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
+import { fetchAllCategories } from "@services/categories";
 
 const Store: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const { products, loading, error } = useAppSelector(
-    (state) => state.product
-  );
+  const { products, loading, error } = useAppSelector((state) => state.product);
   const dispatch = useAppDispatch();
- 
+
   const [value, setValue] = React.useState(0);
 
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
@@ -40,11 +39,9 @@ const Store: React.FC = () => {
     setValue(newValue);
   };
 
-  
   const handleCategories = (id: string) => {
     dispatch(fetchProductsByCategory(id));
   };
-  
 
   const onAdd = () => {
     setOpen(true);
@@ -61,11 +58,13 @@ const Store: React.FC = () => {
     return response.data;
   }, []);
 
-  const { data: categoriesData } = useQuery(["categories"], () =>
-    fetchCategories()
-  );
+  const { data: categoriesData} = useQuery({
+    queryKey: ["categories", " "],
+    queryFn: fetchAllCategories,
+    retry: 3,
+    networkMode: "always",
+  });
 
-  
   useEffect(() => {
     const dispatchFetchProducts = () => {
       dispatch(fetchProducts());
@@ -73,7 +72,10 @@ const Store: React.FC = () => {
     dispatchFetchProducts();
   }, [dispatch]);
 
-    const memoizedCategoriesData = useMemo(() => categoriesData, [categoriesData]);
+  const memoizedCategoriesData = useMemo(
+    () => categoriesData,
+    [categoriesData]
+  );
   if (error) {
     return (
       <ErrorDialog
@@ -81,7 +83,7 @@ const Store: React.FC = () => {
         onClose={() => {
           setErrorDialogOpen(false);
           setErrorMessage("");
-          dispatch(fetchProducts())
+          dispatch(fetchProducts());
         }}
       />
     );
@@ -106,14 +108,15 @@ const Store: React.FC = () => {
           }}
           aria-label="scrollable auto tabs example"
         >
-          {memoizedCategoriesData &&
-            memoizedCategoriesData.map((category: any) => (
-              <Tab
-                key={category._id}
-                label={category.name}
-                onClick={() => handleCategories(category._id)}
-              />
-            ))}
+          {memoizedCategoriesData?.length
+            ? memoizedCategoriesData?.map((category: any) => (
+                <Tab
+                  key={category._id}
+                  label={category.name}
+                  onClick={() => handleCategories(category._id)}
+                />
+              ))
+            : ""}
         </Tabs>
       </Box>
       <Divider sx={{ mb: 2 }} />
