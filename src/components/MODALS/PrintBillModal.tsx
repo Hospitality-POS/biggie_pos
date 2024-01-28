@@ -174,11 +174,30 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                     price: number;
                   }) => (
                     <TableRow key={item._id}>
-                      <TableCell sx={{ padding: 1 }}>{item.quantity}</TableCell>
-                      <TableCell component="th" scope="row" sx={{ padding: 1 }}>
+                      <TableCell
+                        sx={{
+                          padding: 1,
+                          fontSize: "0.8em",
+                          fontWeight: "600",
+                        }}
+                      >
+                        {item.quantity}
+                      </TableCell>
+                      <TableCell
+                        component="th"
+                        scope="row"
+                        sx={{ padding: 1, fontSize: "0.86em" }}
+                      >
                         {item?.product_id?.name}
                       </TableCell>
-                      <TableCell sx={{ padding: 1, textAlign: "right" }}>
+                      <TableCell
+                        sx={{
+                          padding: 1,
+                          textAlign: "right",
+                          fontSize: "0.8em",
+                          fontWeight: "600",
+                        }}
+                      >
                         {item?.price?.toFixed(2)}
                       </TableCell>
                     </TableRow>
@@ -219,7 +238,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               Phone:0703453145
             </Typography>
           </div> */}
-          <Typography variant="body1" sx={{textAlign:"center", fontWeight:"12px"}}>============================</Typography>
+          <Typography
+            variant="body1"
+            sx={{ textAlign: "center", fontWeight: "12px" }}
+          >
+            ============================
+          </Typography>
           <div className="qrcoded" style={{ marginTop: 4 }}>
             <QRCodeCanvas
               value="https://www.instagram.com/bigsmokekaren/"
@@ -227,16 +251,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               className="qrcode"
             />
           </div>
-            <Typography
-              variant="body1"
-              style={{
-                fontSize: "0.8em",
-                fontFamily: "monospace",
-                textAlign: "center",
-              }}
-            >
-              Thank you for your support!
-            </Typography>
+          <Typography
+            variant="body1"
+            style={{
+              fontSize: "0.8em",
+              fontFamily: "monospace",
+              textAlign: "center",
+            }}
+          >
+            Thank you for your support!
+          </Typography>
           <Typography
             variant="body1"
             style={{
