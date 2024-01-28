@@ -127,7 +127,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               variant="body1"
               style={{ fontSize: "1em", fontFamily: "monospace" }}
             >
-              Date: {new Date().toLocaleDateString()}
+              Date: {new Date().toLocaleDateString()} {new Date().getHours()}:
+              {new Date().getMinutes()}
             </Typography>
           </div>
           <TableContainer sx={{ mt: 3, width: "inherit" }}>
