@@ -59,21 +59,57 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
   return (
     <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
-      <DialogContent className="receiptM"  ref={componentRef}>
+      <DialogContent className="receiptM" ref={componentRef}>
         <div className="receipt" id="receipt">
-          <div className="logo-print">
-            <Typography variant="body1">FOOD SUPPORT SERVICES</Typography>
+          <div
+            className="logo-print"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              marginBottom: 15,
+            }}
+          >
             {/* <img
               src="/android-chrome-512x512.png"
               className="image--logo reciept"
               alt="Restaurant Logo"
               style={{ width: "50px" }}
             /> */}
+            <Typography variant="body1" style={{ fontFamily: "monospace" }}>
+              FOOD SUPPORT SERVICES
+            </Typography>
+            <Typography variant="body1" style={{ fontFamily: "monospace" }}>
+              BigSmoke Karen
+            </Typography>
+            <Typography
+              variant="body1"
+              style={{ fontSize: "1em", fontFamily: "monospace" }}
+            >
+              Phone:070345314
+            </Typography>
+            <Typography
+              variant="body1"
+              style={{ fontSize: "1em", fontFamily: "monospace" }}
+            >
+              Till:7034311
+            </Typography>
           </div>
 
-          <p style={{ textAlign: "center", padding: "10px" }}>
-            BigSmoke, KAREN
-          </p>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <Typography
+              variant="body1"
+              style={{ fontSize: "1em", fontFamily: "monospace" }}
+            >
+              {cartDetails?.order_no}
+            </Typography>
+            <Typography
+              variant="body1"
+              style={{ fontSize: "1em", fontFamily: "monospace" }}
+            >
+              Served By:{cartDetails?.created_by.username}
+            </Typography>
+          </div>
+
           <div
             style={{
               display: "flex",
@@ -81,53 +117,28 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               marginBottom: "-15px",
             }}
           >
-            <p style={{ textTransform: "uppercase" }}>
-              {" "}
-              Order No: {cartDetails?.order_no}{" "}
-            </p>
-            <p>Served By : {cartDetails?.created_by.username}</p>
+            <Typography
+              variant="body1"
+              style={{ fontSize: "1em", fontFamily: "monospace" }}
+            >
+              Table: {cartDetails?.table_id.name}
+            </Typography>
+            <Typography
+              variant="body1"
+              style={{ fontSize: "1em", fontFamily: "monospace" }}
+            >
+              Date: {new Date().toLocaleDateString()}
+            </Typography>
           </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "-15px",
-            }}
-          >
-            <p> Table No : {cartDetails?.table_id.name} </p>
-            <p> Date : {new Date().toLocaleDateString()} </p>
-          </div>
-<TableContainer component={Paper} sx={{ mt: 2, width: "100%" }}>
-  <Table style={{ tableLayout: "fixed" }}>
-    <TableHead sx={{borderBottom: "1px solid black",}}>
-      <TableRow sx={{ width: 20 }}>
-        <TableCell sx={{ width: 30 }}>Qty</TableCell>
-        <TableCell >Item</TableCell>
-        <TableCell >Price(.Ksh)</TableCell>
-      </TableRow>
-    </TableHead>
-    <TableBody>
-      {data?.map((item: { _id: React.Key | null | undefined; quantity: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; product_id: { name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }; price: number; }) => (
-        <TableRow key={item._id} style={{ borderBottom: "1px solid black" }}>
-          <TableCell style={{ borderBottom: "none" }}>{item.quantity}</TableCell>
-          <TableCell component="th" scope="row" style={{ borderBottom: "none" }}>
-            {item?.product_id?.name}
-          </TableCell>
-          <TableCell style={{ borderBottom: "none" }}>{item?.price?.toFixed(2)}</TableCell>
-        </TableRow>
-      ))}
-    </TableBody>
-  </Table>
-</TableContainer>
-
-          {/* <TableContainer component={Paper} sx={{ mt: 2, width: "100%" }}>
-            <Table>
+          <TableContainer sx={{ mt: 3, width: "inherit" }}>
+            <Table style={{ tableLayout: "fixed" }}>
               <TableHead>
                 <TableRow>
-                  <TableCell>Qty</TableCell>
-                  <TableCell>Item</TableCell>
-                  <TableCell>Price (Ksh.)</TableCell>
+                  <TableCell sx={{ padding: 1 }}>QTY</TableCell>
+                  <TableCell sx={{ padding: 1 }}>ITEM</TableCell>
+                  <TableCell sx={{ padding: 1, textAlign: "right" }}>
+                    PRICE(.Ksh)
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -163,48 +174,52 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                     price: number;
                   }) => (
                     <TableRow key={item._id}>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell component="th" scope="row">
+                      <TableCell sx={{ padding: 1 }}>{item.quantity}</TableCell>
+                      <TableCell component="th" scope="row" sx={{ padding: 1 }}>
                         {item?.product_id?.name}
                       </TableCell>
-                      <TableCell>{item?.price?.toFixed(2)}</TableCell>
+                      <TableCell sx={{ padding: 1, textAlign: "right" }}>
+                        {item?.price?.toFixed(2)}
+                      </TableCell>
                     </TableRow>
                   )
                 )}
               </TableBody>
             </Table>
-          </TableContainer> */}
+          </TableContainer>
 
-          <div
+          <Typography
+            variant="body1"
             style={{
-              display: "flex",
-              flexDirection: "row",
-              marginTop: 10,
-              justifyContent: "space-evenly",
-              width: "100%",
+              fontSize: "1.2em",
+              fontFamily: "monospace",
+              textAlign: "center",
             }}
           >
-            <div style={{ marginBottom: "5px", flex: 1 }}>
-
-              <p className="tot" style={{ margin: "0" }}>
-                Till No. : 7034311
-              </p>
-              <p className="tot" style={{ margin: "0" }}>
-                Phone No. : 07034531
-              </p>
-            </div>
-
-            <div style={{ marginBottom: "5px", flex: 1 }}>
-              <p className="tot" style={{ margin: "0" }}>
-                Total: <span>Ksh. {totalAmount.toFixed(2)}</span>
-              </p>
-
-              {/* <p className="tot" style={{ margin: "0" }}>
-                Email: ribracks@gmail.com
-              </p> */}
-            </div>
-          </div>
-
+            Total: Ksh.{totalAmount.toFixed(2)}
+          </Typography>
+          {/* <div
+            style={{
+              display: "flex",
+              // flexDirection: "row",
+              // marginTop: 10,
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography
+              variant="body1"
+              style={{ fontSize: "1em", fontFamily: "monospace" }}
+            >
+              Till:7034311
+            </Typography>
+            <Typography
+              variant="body1"
+              style={{ fontSize: "1em", fontFamily: "monospace" }}
+            >
+              Phone:0703453145
+            </Typography>
+          </div> */}
+          <Typography variant="body1" sx={{textAlign:"center", fontWeight:"12px"}}>============================</Typography>
           <div className="qrcoded" style={{ marginTop: 4 }}>
             <QRCodeCanvas
               value="https://www.instagram.com/bigsmokekaren/"
@@ -212,19 +227,36 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               className="qrcode"
             />
           </div>
-      
-
-           <p className="greeting" style={{ margin: "0", fontSize: 7, paddingTop: 12}}>
-                Email: bigsmokekaren@gmail.com
-              </p>
-       
-          <p className="greeting" style={{ marginBottom: "-5px" }}>
-            {" "}
-            Thank you for your support!{" "}
-          </p>
-          <p style={{ textAlign: "center", marginBottom: "-15px" }}>
-            Generated on {new Date().toLocaleDateString()}{" "}
-          </p>
+            <Typography
+              variant="body1"
+              style={{
+                fontSize: "0.8em",
+                fontFamily: "monospace",
+                textAlign: "center",
+              }}
+            >
+              Thank you for your support!
+            </Typography>
+          <Typography
+            variant="body1"
+            style={{
+              fontSize: "0.8em",
+              fontFamily: "monospace",
+              textAlign: "center",
+            }}
+          >
+            Info email: bigsmokekaren@gmail.com
+          </Typography>
+          <Typography
+            variant="body1"
+            style={{
+              fontSize: "0.8em",
+              fontFamily: "monospace",
+              textAlign: "center",
+            }}
+          >
+            Generated on {new Date().toLocaleDateString()}
+          </Typography>
         </div>
 
         <Box
