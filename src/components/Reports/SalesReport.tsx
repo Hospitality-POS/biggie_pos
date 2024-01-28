@@ -18,7 +18,7 @@ import PrintDisabledIcon from "@mui/icons-material/PrintDisabled";
 import { useReactToPrint } from "react-to-print";
 import { useAppSelector } from "../../store";
 import Spinner from "../spinner/Spinner";
-import "../MODALS/bill.css"
+import "../MODALS/bill.css";
 import { Spin } from "antd/lib";
 
 interface SalesReportProps {
@@ -42,7 +42,6 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
     content: () => componentRef.current,
     onAfterPrint: onCloseM,
   });
-
 
   return (
     <>
@@ -72,7 +71,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                 From: {startDate} to {endDate}
               </p>
 
-              <TableContainer sx={{ mt: 2, width: "70mm" }}>
+              <TableContainer sx={{ mt: 2, width: "inherit" }}>
                 <Table>
                   <TableHead>
                     <TableRow>
@@ -128,17 +127,26 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                                     {item.orderItems.map((orderItem: any) => (
                                       <TableRow key={orderItem.id}>
                                         <TableCell
-                                          sx={{ borderBottom: "none" , padding: 1}}
+                                          sx={{
+                                            borderBottom: "none",
+                                            padding: 1,
+                                          }}
                                         >
                                           {orderItem.quantity.toFixed(1)}
                                         </TableCell>
                                         <TableCell
-                                          sx={{ borderBottom: "none", padding: 1 }}
+                                          sx={{
+                                            borderBottom: "none",
+                                            padding: 1,
+                                          }}
                                         >
                                           {orderItem.name}
                                         </TableCell>
                                         <TableCell
-                                          sx={{ borderBottom: "none", padding: 1 }}
+                                          sx={{
+                                            borderBottom: "none",
+                                            padding: 1,
+                                          }}
                                         >
                                           {orderItem.amount.toFixed(2)}
                                         </TableCell>
@@ -155,10 +163,9 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                   </TableBody>
                 </Table>
               </TableContainer>
-
-              <p style={{ textAlign: "center", marginBottom: "-15px" }}>
-                Generated on {new Date().toLocaleDateString()}{" "}
-              </p>
+              <Typography variant="body1" sx={{ textAlign: "center" }}>
+                Generated on {new Date().toLocaleDateString()}
+              </Typography>
             </div>
 
             <Box

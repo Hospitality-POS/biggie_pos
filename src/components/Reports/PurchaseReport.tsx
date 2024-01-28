@@ -18,13 +18,13 @@ import PrintDisabledIcon from "@mui/icons-material/PrintDisabled";
 import { useReactToPrint } from "react-to-print";
 import { useAppSelector } from "../../store";
 import Spinner from "../spinner/Spinner";
-import "../MODALS/bill.css"
+import "../MODALS/bill.css";
 import { Spin } from "antd/lib";
 
 interface PurchaseReportProps {
   openM: boolean;
   onCloseM: () => void;
-  startDate:any;
+  startDate: any;
   endDate: any;
 }
 
@@ -32,17 +32,24 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
   openM,
   onCloseM,
   startDate,
-  endDate
+  endDate,
 }) => {
-
   const componentRef = useRef<HTMLDivElement>(null);
-    const {purchaseReport: data,loading}=useAppSelector(state=>state.Report)
+  const { purchaseReport: data, loading } = useAppSelector(
+    (state) => state.Report
+  );
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
     onAfterPrint: onCloseM,
   });
-  if(loading){
-    return <Spin size="large" fullscreen tip="Generating Purchase report Please wait ..."/>
+  if (loading) {
+    return (
+      <Spin
+        size="large"
+        fullscreen
+        tip="Generating Purchase report Please wait ..."
+      />
+    );
   }
 
   return (
@@ -91,9 +98,9 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
             </Table>
           </TableContainer>
 
-          <p style={{ textAlign: "center", marginBottom: "-15px" }}>
-            Generated on {new Date().toLocaleDateString()}{" "}
-          </p>
+          <Typography variant="body1" sx={{ textAlign: "center" }}>
+            Generated on {new Date().toLocaleDateString()}
+          </Typography>
         </div>
 
         <Box
