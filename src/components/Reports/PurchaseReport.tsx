@@ -49,29 +49,40 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
     <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
       <DialogContent className="receiptM" ref={componentRef}>
         <div className="receipt" id="receipt">
-          <div className="logo-print">
-            <Typography variant="body1">PURCHASE REPORT</Typography>
+          <div
+            className="logo-print"
+            style={{ display: "flex", flexDirection: "column" }}
+          >
+            <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
+              FOOD SUPPORT SERVICES
+            </Typography>
+            <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
+              PURCHASE REPORT
+            </Typography>
           </div>
-
           <p style={{ textAlign: "center", padding: "10px" }}>
             From: {startDate} to {endDate}
           </p>
 
-          <TableContainer component={Paper} sx={{ mt: 2, width: "100%" }}>
+          <TableContainer sx={{ mt: 2, width: "100%" }}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>No.</TableCell>
-                  <TableCell>Payment Method</TableCell>
-                  <TableCell>Amount (Ksh.)</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>NO.</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", padding: 0 }}>
+                    METHOD
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", textAlign: "right" }}>
+                    AMOUNT(Ksh.)
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data?.map((item: any, index:number) => (
+                {data?.map((item: any, index: number) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.id ? <>{index + 1}</> : ""}</TableCell>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ padding: "8px" }}>{item.name}</TableCell>
+                    <TableCell sx={{ textAlign: "right" }}>
                       {item.amount.toFixed(2)}
                     </TableCell>
                   </TableRow>

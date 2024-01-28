@@ -47,26 +47,49 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
   return (
     <>
       {loading ? (
-       <Spin size="large" fullscreen tip="Generating Sales report Please wait ..."/>
+        <Spin
+          size="large"
+          fullscreen
+          tip="Generating Sales report Please wait ..."
+        />
       ) : (
         <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
           <DialogContent className="receiptM" ref={componentRef}>
             <div className="receipt" id="receipt">
-              <div className="logo-print">
-                <Typography variant="body1">SALES REPORT</Typography>
+              <div
+                className="logo-print"
+                style={{ display: "flex", flexDirection: "column" }}
+              >
+                <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
+                  FOOD SUPPORT SERVICES
+                </Typography>
+                <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
+                  SALES REPORT
+                </Typography>
               </div>
 
-              <p style={{ textAlign: "center", padding: "5px" }}>
+              <p style={{ textAlign: "center", fontFamily: "monospace" }}>
                 From: {startDate} to {endDate}
               </p>
 
-              <TableContainer sx={{ mt: 2, width: "inherit" }}>
+              <TableContainer sx={{ mt: 2, width: "70mm" }}>
                 <Table>
                   <TableHead>
                     <TableRow>
                       {/* <TableCell>No.</TableCell> */}
-                      <TableCell sx={{ fontSize: "1em" }}>Product</TableCell>
-                      <TableCell sx={{ fontSize: "1em" }}>
+                      <TableCell
+                        sx={{ fontSize: "1em", padding: 0, fontWeight: "bold" }}
+                      >
+                        Product
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontSize: "1em",
+                          textAlign: "right",
+                          fontWeight: "bold",
+                          padding: 2,
+                        }}
+                      >
                         Amount(.ksh)
                       </TableCell>
                     </TableRow>
@@ -76,33 +99,47 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                       <React.Fragment key={item.id}>
                         <TableRow>
                           {/* <TableCell>{index + 1}</TableCell> */}
-                          <TableCell sx={{ fontWeight: "bold" }}>
+                          <TableCell sx={{ fontWeight: "bold", padding: 0 }}>
                             {item.name}
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ textAlign: "right" }}>
                             {getTotalAmount(item.orderItems).toFixed(2)}
                           </TableCell>
                         </TableRow>
                         {item.orderItems?.length > 0 && (
                           <TableRow>
-                            <TableCell colSpan={3}>
+                            <TableCell colSpan={2} sx={{ padding: 0 }}>
                               <TableContainer sx={{ width: "inherit" }}>
                                 <Table>
                                   <TableHead>
                                     <TableRow>
-                                      <TableCell sx={{width: 30}}>Qty</TableCell>
-                                      <TableCell>Name</TableCell>
-                                      <TableCell>Price(.Ksh)</TableCell>
+                                      <TableCell sx={{ padding: 1 }}>
+                                        QTY
+                                      </TableCell>
+                                      <TableCell sx={{ padding: 0 }}>
+                                        ITEM
+                                      </TableCell>
+                                      <TableCell sx={{ padding: 0 }}>
+                                        PRICE(.Ksh)
+                                      </TableCell>
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
                                     {item.orderItems.map((orderItem: any) => (
                                       <TableRow key={orderItem.id}>
-                                        <TableCell>
-                                          {orderItem.quantity}
+                                        <TableCell
+                                          sx={{ borderBottom: "none" , padding: 1}}
+                                        >
+                                          {orderItem.quantity.toFixed(1)}
                                         </TableCell>
-                                        <TableCell>{orderItem.name}</TableCell>
-                                        <TableCell>
+                                        <TableCell
+                                          sx={{ borderBottom: "none", padding: 1 }}
+                                        >
+                                          {orderItem.name}
+                                        </TableCell>
+                                        <TableCell
+                                          sx={{ borderBottom: "none", padding: 1 }}
+                                        >
                                           {orderItem.amount.toFixed(2)}
                                         </TableCell>
                                       </TableRow>

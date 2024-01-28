@@ -1,10 +1,9 @@
 .receipt {
-  width: 90mm;
+  width: 80mm;
   height: fit-content;
   background-color: white;
   margin: 0 auto;
   box-shadow: 1px 1px 2px 2px;
-  padding: 15px;
   overflow-y: auto;
 }
 
@@ -148,6 +147,7 @@ footer {
     background-color: #fff;
     font-size: 12px;
     font-weight: bold;
+    font-family: monospace;
   }
 
   .hidden-print,
@@ -159,11 +159,16 @@ footer {
     /* padding-top: 1; */
     box-shadow: none;
      overflow-y: hidden;
+     border: none;
+    font-family: monospace;
+
     /* transform: scale(1); */
   }
   .receiptM {
     padding-top: 0;
     padding: 0;
+    font-family: monospace;
+
     overflow: hidden;
     width: 90mm;
   }
