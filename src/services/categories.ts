@@ -3,7 +3,6 @@ import { BASE_URL } from "@utils/config";
 
 import axios from "axios";
 
-
 export const fetchAllCategories = async (data: ParamsType) => {
   const url = `${BASE_URL}/categories`;
 
@@ -16,4 +15,13 @@ export const fetchAllCategories = async (data: ParamsType) => {
 export const fetchSubCategories = async () => {
   const response = await axios.get(`${BASE_URL}/categories/sub-categories`);
   return response.data;
+};
+
+export const fetchMainCategories = async () => {
+  try {
+    const response = await axios.get(`${BASE_URL}/categories/main-categories`);   
+    return response.data;
+  } catch (error) {
+    console.log(error);
+  }
 };
