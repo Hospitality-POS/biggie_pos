@@ -53,11 +53,6 @@ const Store: React.FC = () => {
     setOpen(false);
   };
 
-  const fetchCategories = useCallback(async () => {
-    const response = await axios.get("http://localhost:3000/categories");
-    return response.data;
-  }, []);
-
   const { data: categoriesData} = useQuery({
     queryKey: ["categories", " "],
     queryFn: fetchAllCategories,
