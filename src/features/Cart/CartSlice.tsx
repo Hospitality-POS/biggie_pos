@@ -161,7 +161,7 @@ const cartSlice = createSlice({
         // Calculate the total amount of all cart items using reduce
         state.totalAmount = action.payload.items.reduce(
           (total: any, item: any) =>
-            total + parseFloat(item.price) * item.quantity,
+            total + parseFloat(item.price),
           0
         );
       })
