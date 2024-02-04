@@ -24,6 +24,7 @@ import { reset } from "../../features/Auth/AuthSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
 import BlockIcon from '@mui/icons-material/Block';
+import { PaymentOutlined } from "@mui/icons-material";
 
 const PaymentDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -191,8 +192,11 @@ const PaymentDrawer: React.FC = () => {
                   <Typography variant="body1">Debt</Typography>
                 </>
               ) : (
-                ""
-              )}  
+                <>
+                  <PaymentOutlined fontSize="large" />
+                  <Typography variant="body1">{method.name}</Typography>
+                </>
+              )}
             </Typography>
           </Paper>
         ))}
@@ -219,21 +223,21 @@ const PaymentDrawer: React.FC = () => {
           clear
         </Button>
         <Button
-                variant="outlined"
-                onClick={() => dispatch(cartVoid(cartDetails))}
-                endIcon={<BlockIcon />}
-                sx={{
-                  pl: 2,
-                  color: "#6c1c2c",
-                  borderColor: "#6c1c2c",
-                  "&:hover": {
-                    borderColor: "#bc8c7c",
-                    color: "#bc8c7c",
-                  },
-                }}
-              >
-                Void Bill
-              </Button>
+          variant="outlined"
+          onClick={() => dispatch(cartVoid(cartDetails))}
+          endIcon={<BlockIcon />}
+          sx={{
+            pl: 2,
+            color: "#6c1c2c",
+            borderColor: "#6c1c2c",
+            "&:hover": {
+              borderColor: "#bc8c7c",
+              color: "#bc8c7c",
+            },
+          }}
+        >
+          Void Bill
+        </Button>
         <Button
           variant="contained"
           color="primary"
@@ -253,21 +257,23 @@ const PaymentDrawer: React.FC = () => {
         </Button>
       </CardActions>
 
-{selectedMethod !== secondMethod &&   (<SplitBillDialog
-        open={openModal}
-        handleModalClose={handleModalClose}
-        data={data}
-        selectedMethod={selectedMethod}
-        secondMethod={secondMethod}
-        totalAmount={totalAmount}
-        amount1={amount1}
-        amount2={amount2}
-        setSelectedMethod={setSelectedMethod}
-        setSecondMethod={setSecondMethod}
-        setAmount1={setAmount1}
-        setAmount2={setAmount2}
-        handleSplitConfirm={handleSplitConfirm}
-      />)}
+      {selectedMethod !== secondMethod && (
+        <SplitBillDialog
+          open={openModal}
+          handleModalClose={handleModalClose}
+          data={data}
+          selectedMethod={selectedMethod}
+          secondMethod={secondMethod}
+          totalAmount={totalAmount}
+          amount1={amount1}
+          amount2={amount2}
+          setSelectedMethod={setSelectedMethod}
+          setSecondMethod={setSecondMethod}
+          setAmount1={setAmount1}
+          setAmount2={setAmount2}
+          handleSplitConfirm={handleSplitConfirm}
+        />
+      )}
     </Box>
   );
 };
