@@ -27,6 +27,7 @@ import {
   ArrowUpward,
   ArrowDownward,
   MoreVert,
+  DangerousOutlined,
 } from "@mui/icons-material";
 import moment from "moment";
 import { useDispatch } from "react-redux";
@@ -36,6 +37,8 @@ import { CSVLink } from "react-csv";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { deleteOrder } from "../../features/Order/OrderActions";
+import { QuestionCircleOutlined } from "@ant-design/icons";
+import { Typography } from "antd";
 
 interface Order {
   updated_by: any;
@@ -58,7 +61,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
   const [page, setPage] = useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(5);
   const [servedByFilter, setServedByFilter] = useState<string>("");
-    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [openDeleteDialog, setOpenDeleteDialog] = useState<boolean>(false);
@@ -81,10 +84,12 @@ const OrderList: React.FC<Props> = ({ orders }) => {
     return 0;
   });
 
- const filteredOrders = sortedOrders?.filter((order) => {
+  const filteredOrders = sortedOrders?.filter((order) => {
     const matchesSearch =
       order?.order_no?.toLowerCase().includes(searchQuery?.toLowerCase()) ||
-      order?.updated_by?.username?.toLowerCase().includes(searchQuery?.toLowerCase());
+      order?.updated_by?.username
+        ?.toLowerCase()
+        .includes(searchQuery?.toLowerCase());
     const matchesDate =
       (!startDate || moment(order.createdAt).isSameOrAfter(startDate, "day")) &&
       (!endDate || moment(order.createdAt).isSameOrBefore(endDate, "day"));
@@ -141,7 +146,7 @@ const OrderList: React.FC<Props> = ({ orders }) => {
     const csvData = filteredOrders?.map((order) => ({
       OrderNo: order.order_no,
       CreatedAt: moment(order.createdAt).format("MMMM Do YYYY, h:mm a"),
-      UpdatedBy: order.updated_by.username,
+      UpdatedBy: order?.updated_by?.username,
     }));
 
     const csvHeaders = [
@@ -197,8 +202,8 @@ const OrderList: React.FC<Props> = ({ orders }) => {
     }
   };
 
-  if(!filteredOrders){
-    return "Loading ........................"
+  if (!filteredOrders) {
+    return "Loading ........................";
   }
   return (
     <div>
@@ -211,7 +216,6 @@ const OrderList: React.FC<Props> = ({ orders }) => {
           style={{ marginBottom: 16 }}
           InputProps={{ endAdornment: <SearchIcon /> }}
         />
-  
 
         <TextField
           label="Start Date"
@@ -326,15 +330,27 @@ const OrderList: React.FC<Props> = ({ orders }) => {
           <TableBody>
             {filteredOrders
               ?.slice(page * rowsPerPage, (page + 1) * rowsPerPage)
-             ?.map((order) => (
+              ?.map((order) => (
                 <TableRow key={order._id}>
                   <TableCell sx={{ fontWeight: "bold" }}>
-                    {order.order_no}
+                    {order?.order_no}
                   </TableCell>
                   <TableCell>
-                    {moment(order.createdAt).format("MMMM Do YYYY, h:mm a")}
+                    {moment(order?.createdAt).format("MMMM Do YYYY, h:mm a")}
                   </TableCell>
-                  <TableCell>{order.updated_by.username}</TableCell>
+                  <TableCell>
+                    {order.updated_by?.username ? (
+                      order?.updated_by?.username
+                    ) : (
+                      <>
+                        <Tooltip title="This Admin might have been deleted from the system!">
+                          <Typography>
+                            N/A <QuestionCircleOutlined />
+                          </Typography>
+                        </Tooltip>
+                      </>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Tooltip title="Delete">
                       <IconButton onClick={() => onDelete(order._id)}>
@@ -347,21 +363,21 @@ const OrderList: React.FC<Props> = ({ orders }) => {
           </TableBody>
         </Table>
         <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this order?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmDelete} color="primary">
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <DialogTitle>Confirm Deletion</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to delete this order?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDeleteDialog} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmDelete} color="primary">
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
