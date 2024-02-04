@@ -75,38 +75,44 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               alt="Restaurant Logo"
               style={{ width: "50px" }}
             /> */}
-            <Typography variant="body1" style={{ fontFamily: "monospace" }}>
+            <Typography
+              variant="body1"
+              style={{ fontFamily: "monospace", fontSize: "1.3em" }}
+            >
               FOOD SUPPORT SERVICES
             </Typography>
-            <Typography variant="body1" style={{ fontFamily: "monospace" }}>
+            <Typography
+              variant="body1"
+              style={{ fontFamily: "monospace", fontSize: "1.2em" }}
+            >
               BigSmoke Karen
             </Typography>
             <Typography
               variant="body1"
-              style={{ fontSize: "1em", fontFamily: "monospace" }}
+              style={{ fontSize: "1.2em", fontFamily: "monospace" }}
             >
-              Phone:070345314
+              Phone: +254 70345314
             </Typography>
             <Typography
               variant="body1"
-              style={{ fontSize: "1em", fontFamily: "monospace" }}
+              style={{ fontSize: "1.2em", fontFamily: "monospace" }}
             >
-              Till:7034311
+              Till: 7034311
             </Typography>
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <Typography
               variant="body1"
-              style={{ fontSize: "1em", fontFamily: "monospace" }}
+              style={{ fontSize: "1.15em", fontFamily: "monospace" }}
             >
               {cartDetails?.order_no}
             </Typography>
             <Typography
               variant="body1"
-              style={{ fontSize: "1em", fontFamily: "monospace" }}
+              style={{ fontSize: "1.15em", fontFamily: "monospace" }}
             >
-              Served By:{cartDetails?.created_by.username}
+              Served By: {cartDetails?.created_by.username}
             </Typography>
           </div>
 
@@ -119,7 +125,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           >
             <Typography
               variant="body1"
-              style={{ fontSize: "1em", fontFamily: "monospace" }}
+              style={{ fontSize: "1.15em", fontFamily: "monospace" }}
             >
               Table: {cartDetails?.table_id.name}
             </Typography>
@@ -177,9 +183,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                     <TableRow key={item._id}>
                       <TableCell
                         sx={{
-                          padding: 1,
-                          fontSize: "0.8em",
+                          padding: 1.2,
+                          fontSize: "1em",
                           fontWeight: "600",
+                          width: "20%",
+                          textAlign: "center",
                         }}
                       >
                         {item.quantity}
@@ -187,7 +195,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                       <TableCell
                         component="th"
                         scope="row"
-                        sx={{ padding: 1, fontSize: "0.86em" }}
+                        sx={{
+                          padding: 1,
+                          fontSize: "1.2em",
+                          textOverflow: "ellipsis",
+                        }}
                       >
                         {item?.product_id?.name}
                       </TableCell>
@@ -195,7 +207,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                         sx={{
                           padding: 1,
                           textAlign: "right",
-                          fontSize: "0.8em",
+                          fontSize: "1em",
                           fontWeight: "600",
                         }}
                       >
@@ -218,27 +230,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           >
             Total: Ksh.{totalAmount.toFixed(2)}
           </Typography>
-          {/* <div
-            style={{
-              display: "flex",
-              // flexDirection: "row",
-              // marginTop: 10,
-              justifyContent: "space-between",
-            }}
-          >
-            <Typography
-              variant="body1"
-              style={{ fontSize: "1em", fontFamily: "monospace" }}
-            >
-              Till:7034311
-            </Typography>
-            <Typography
-              variant="body1"
-              style={{ fontSize: "1em", fontFamily: "monospace" }}
-            >
-              Phone:0703453145
-            </Typography>
-          </div> */}
+
           <Typography
             variant="body1"
             sx={{ textAlign: "center", fontWeight: "12px" }}
@@ -255,7 +247,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           <Typography
             variant="body1"
             style={{
-              fontSize: "0.8em",
+              fontSize: "0.9em",
               fontFamily: "monospace",
               textAlign: "center",
             }}
@@ -265,7 +257,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           <Typography
             variant="body1"
             style={{
-              fontSize: "0.8em",
+              fontSize: "0.9em",
               fontFamily: "monospace",
               textAlign: "center",
             }}
@@ -282,6 +274,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           >
             Generated on {new Date().toLocaleDateString()}
           </Typography>
+          {/* <Typography
+            variant="body1"
+            style={{
+              fontSize: "0.8em",
+              fontFamily: "monospace",
+              textAlign: "center",
+            }}
+          >
+            Powered by: FSS ltd.
+          </Typography> */}
         </div>
 
         <Box
