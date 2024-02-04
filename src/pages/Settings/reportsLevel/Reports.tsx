@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button, DatePicker } from "antd";
-import { HddOutlined } from "@ant-design/icons";
+import { HddOutlined, IssuesCloseOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import SalesReportModal from "@components/Reports/SalesReport";
@@ -104,7 +104,7 @@ const Reports: React.FC = () => {
     <ProCard
       style={{ height: "90vh" }}
       tabs={{
-        type: "card",
+        type: "line",
         activeKey: activeTab,
         onChange: handleTabChange,
         items: tabItems,
