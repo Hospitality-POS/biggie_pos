@@ -60,7 +60,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
         actions={[
           <SettingOutlined
             key="setting"
-            style={{ fontSize: "20px", color: "white" }}
+            style={{ fontSize: "25px", color: "white" }}
           />,
           <StoreModal edit={true} data={product} />,
           <DeleteFilled
@@ -73,7 +73,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
                 deleteProduct(productId);
               }
             }}
-            style={{ fontSize: "20px", color: "white" }}
+            style={{ fontSize: "25px", color: "white" }}
           />,
         ]}
       >
