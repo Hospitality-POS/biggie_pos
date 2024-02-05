@@ -71,7 +71,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
             From: {startDate} to {endDate}
           </p>
 
-          <TableContainer sx={{ mt: 2, width: "100%" }}>
+          <TableContainer sx={{ mt: 2, width: "100%", mb: 2 }}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -98,7 +98,20 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
             </Table>
           </TableContainer>
 
-          <Typography variant="body1" sx={{ textAlign: "center" }}>
+          <Typography
+            variant="body1"
+            style={{
+              fontSize: "1em",
+              fontFamily: "monospace",
+              textAlign: "center",
+            }}
+          >
+            Powered by: FSS ltd.
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{ textAlign: "center", fontSize: "0.7em" }}
+          >
             Generated on {new Date().toLocaleDateString()}
           </Typography>
         </div>

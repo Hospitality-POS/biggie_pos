@@ -51,7 +51,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     >
       <CardContent>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={4}>
+          <Grid item xs={3}>
             <Typography variant="body1">
               {cartItem?.product_id?.name}
             </Typography>
@@ -85,10 +85,10 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                   <AddTaskIcon color="success" fontSize="small" />
                 </IconButton>
                 {user?.isAdmin && (<Button
-                  variant="outlined"
-                  color="error"
+                  variant="contained"
+                  color="inherit"
                   size="small"
-                  sx={{ height: 30, borderRadius: "8px" }}
+                  sx={{ height: 35, borderRadius: "5px" }}
                 >
                   <DeleteIcon
                     color="error"

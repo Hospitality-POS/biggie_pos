@@ -71,7 +71,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                 From: {startDate} to {endDate}
               </p>
 
-              <TableContainer sx={{ mt: 2, width: "inherit" }}>
+              <TableContainer sx={{ mt: 2, width: "inherit", mb: 2 }}>
                 <Table>
                   <TableHead>
                     <TableRow>
@@ -163,9 +163,22 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Typography variant="body1" sx={{ textAlign: "center" }}>
-                Generated on {new Date().toLocaleDateString()}
+              <Typography
+                variant="body1"
+                style={{
+                  fontSize: "1em",
+                  fontFamily: "monospace",
+                  textAlign: "center",
+                }}
+              >
+                Powered by: FSS ltd.
               </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{ textAlign: "center", fontSize: "0.7em" }}
+                >
+                  Generated on {new Date().toLocaleDateString()}
+                </Typography>
             </div>
 
             <Box

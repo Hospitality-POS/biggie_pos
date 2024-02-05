@@ -6,6 +6,7 @@ import { clearcart } from "../../features/Cart/CartSlice";
 import useCheckIfUserIsLoggedIn from "../../hooks/useCheckIfUserIsLoggedIn";
 import { useNavigate } from "react-router-dom";
 import StaffModal from "@components/staffCard/LoginModal";
+import { Opacity } from "@mui/icons-material";
 
 interface Table {
   cart_amount: number;
@@ -47,12 +48,12 @@ const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
     color: item.isOccupied ? "black" : "white",
     position: "relative",
     textAlign: "center",
-    cursor: "pointer"
+    cursor: "pointer",
   };
 
   const imageStyles = {
     border: "none",
-    opacity: item.isOccupied ? 0.5 : 1,
+    Opacity: item.isOccupied ? 0.5 : 1,
     maxWidth: "100%",
   };
 
@@ -75,17 +76,23 @@ const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
         }}
       >
         <CardMedia
-          sx={imageStyles}
+          // sx={imageStyles}
           component="img"
           alt="Table"
           height="auto"
-          image="/table.png"
+          image={item.isOccupied ? "/table3.svg" : "/table.svg"}
           className={classes.image}
         />
         <Box sx={textOverlayStyles}>
-          <Typography variant="h6">{item.name}</Typography>
-          <Typography variant="body1">Amount: {item.cart_amount}</Typography>
-          <Typography variant="body2">{item?.served_by}</Typography>
+          <Typography variant="h5" fontWeight={"bold"}>
+            {item.name}
+          </Typography>
+          <Typography variant="body1" fontWeight={"bold"}>
+            Amount: {item.cart_amount}
+          </Typography>
+          <Typography variant="body2" fontWeight={"bold"}>
+            {item?.served_by}
+          </Typography>
         </Box>
       </Card>
     </>

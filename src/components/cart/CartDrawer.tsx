@@ -164,7 +164,7 @@ const CartDrawer: React.FC = () => {
         <Card sx={{ mb: 2, boxShadow: "none" }}>
           <CardContent>
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={6}>
+              <Grid item xs={5}>
                 <Typography variant="body1" fontWeight="bold">
                   Item
                 </Typography>
