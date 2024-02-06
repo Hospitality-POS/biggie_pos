@@ -13,6 +13,7 @@ import MainCategory from "@pages/main_category/Main_category";
 import NotFound from "@routes/NotFound";
 
 import { Spin } from "antd/lib";
+import EmptyPage from "./EmptyPage";
 
 const Layout = lazy(() => import("@components/layout/Layout"));
 
@@ -188,6 +189,7 @@ const routes = createBrowserRouter(
             </Private>
           </Suspense>
         }
+        // errorElement={<NotFound/>}
       />
       <Route path="*" element={<NotFound />} />
     </Route>
