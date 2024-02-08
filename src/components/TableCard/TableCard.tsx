@@ -45,7 +45,7 @@ const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
   const cardStyles = {
     boxShadow: "none",
     bgcolor: "transparent",
-    color: item.isOccupied ? "black" : "white",
+    color: item.isOccupied ? "white":"black",
     position: "relative",
     textAlign: "center",
     cursor: "pointer",
@@ -80,7 +80,7 @@ const {checkIfUserIsLoggedIn, isUserLoggedIn}=useCheckIfUserIsLoggedIn()
           component="img"
           alt="Table"
           height="auto"
-          image={item.isOccupied ? "/table3.svg" : "/table.svg"}
+          image={item.isOccupied ? "/table.svg" : "/table3.svg"}
           className={classes.image}
         />
         <Box sx={textOverlayStyles}>

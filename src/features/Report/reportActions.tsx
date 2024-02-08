@@ -18,7 +18,6 @@ export const generateSalesReport = createAsyncThunk(
           startDate: dated.startDate,
           endDate: dated.endDate,
         }});
-      console.log("ress sales",response.data);
       
       return response.data;
     } catch (error: any) {

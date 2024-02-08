@@ -43,6 +43,12 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
     onAfterPrint: onCloseM,
   });
 
+  const overallTotal = data?.reduce(
+    (accumulator: number, item: { orderItems: any[]; }) => accumulator + getTotalAmount(item.orderItems),
+    0
+  );
+ 
+  
   return (
     <>
       {loading ? (
@@ -160,6 +166,14 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                         )}
                       </React.Fragment>
                     ))}
+                    <TableRow>
+                      <TableCell
+                        colSpan={2}
+                        sx={{ fontWeight: "bold", textAlign: "center" }}
+                      >
+                        Overall Total: <span>{overallTotal?.toLocaleString()}</span> 
+                      </TableCell>
+                    </TableRow>
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -173,12 +187,12 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
               >
                 Powered by: FSS ltd.
               </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{ textAlign: "center", fontSize: "0.7em" }}
-                >
-                  Generated on {new Date().toLocaleDateString()}
-                </Typography>
+              <Typography
+                variant="body1"
+                sx={{ textAlign: "center", fontSize: "0.9em" }}
+              >
+                Generated on {new Date().toLocaleDateString()}
+              </Typography>
             </div>
 
             <Box
