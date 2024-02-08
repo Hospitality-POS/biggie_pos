@@ -85,7 +85,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data?.map((item: any, index: number) => (
+                {data?.payment_methods.map((item: any, index: number) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.id ? <>{index + 1}</> : ""}</TableCell>
                     <TableCell sx={{ padding: "8px" }}>{item.name}</TableCell>
@@ -94,6 +94,14 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                     </TableCell>
                   </TableRow>
                 ))}
+                <TableRow>
+                  <TableCell
+                    colSpan={3}
+                    sx={{ fontWeight: "bold", textAlign: "center" }}
+                  >
+                    Overall Total: {data?.totalCost.toLocaleString()}
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </TableContainer>
