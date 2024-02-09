@@ -27,7 +27,7 @@ import "./bill.css";
 import { useParams } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import Meta from "antd/es/card/Meta";
-import { BRAND_NAME, ENTITY_NAME, QR_Code } from "@utils/config";
+import { BRAND_NAME, ENTITY_NAME, PHONE_NO, QR_Code, TILL_NO } from "@utils/config";
 
 // interface CartItem {
 //   _id: Key | null | undefined;
@@ -81,25 +81,25 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               variant="body1"
               style={{ fontFamily: "monospace", fontSize: "1.3em" }}
             >
-            {BRAND_NAME}
+              {BRAND_NAME}
             </Typography>
             <Typography
               variant="body1"
               style={{ fontFamily: "monospace", fontSize: "1.2em" }}
-              >
+            >
               {ENTITY_NAME}
             </Typography>
             <Typography
               variant="body1"
               style={{ fontSize: "1.2em", fontFamily: "monospace" }}
             >
-              Phone: +254 70345314
+              Phone: {PHONE_NO}
             </Typography>
             <Typography
               variant="body1"
               style={{ fontSize: "1.2em", fontFamily: "monospace" }}
             >
-              Till: 7034311
+              Till: {TILL_NO}
             </Typography>
           </div>
 
@@ -143,9 +143,15 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             <Table style={{ tableLayout: "fixed" }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ padding: 1, fontWeight: "bold" }}>QTY</TableCell>
-                  <TableCell sx={{ padding: 1 , fontWeight: "bold"}}>ITEM</TableCell>
-                  <TableCell sx={{ padding: 1, textAlign: "right", fontWeight: "bold" }}>
+                  <TableCell sx={{ padding: 1, fontWeight: "bold" }}>
+                    QTY
+                  </TableCell>
+                  <TableCell sx={{ padding: 1, fontWeight: "bold" }}>
+                    ITEM
+                  </TableCell>
+                  <TableCell
+                    sx={{ padding: 1, textAlign: "right", fontWeight: "bold" }}
+                  >
                     PRICE(.Ksh)
                   </TableCell>
                 </TableRow>
@@ -242,11 +248,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             ============================
           </Typography>
           <div className="qrcoded" style={{ marginTop: 4 }}>
-            <QRCodeCanvas
-              value={QR_Code}
-              size={80}
-              className="qrcode"
-            />
+            <QRCodeCanvas value={QR_Code} size={80} className="qrcode" />
           </div>
           <Typography
             variant="body1"
@@ -254,7 +256,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               fontSize: "0.9em",
               fontFamily: "monospace",
               textAlign: "center",
-              marginTop:10
+              marginTop: 10,
             }}
           >
             Thank you for your support!
