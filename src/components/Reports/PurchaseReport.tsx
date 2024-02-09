@@ -20,6 +20,7 @@ import { useAppSelector } from "../../store";
 import Spinner from "../spinner/Spinner";
 import "../MODALS/bill.css";
 import { Spin } from "antd/lib";
+import { BRAND_NAME, COOP_NAME } from "@utils/config";
 
 interface PurchaseReportProps {
   openM: boolean;
@@ -61,7 +62,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
             style={{ display: "flex", flexDirection: "column" }}
           >
             <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
-              FOOD SUPPORT SERVICES
+              {BRAND_NAME}
             </Typography>
             <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
               PURCHASE REPORT
@@ -88,8 +89,10 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                 {data?.payment_methods.map((item: any, index: number) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.id ? <>{index + 1}</> : ""}</TableCell>
-                    <TableCell sx={{ padding: "8px" }}>{item.name}</TableCell>
-                    <TableCell sx={{ textAlign: "right" }}>
+                    <TableCell sx={{ padding: "8px", fontWeight: "bold" }}>
+                      {item.name}
+                    </TableCell>
+                    <TableCell sx={{ textAlign: "right", fontWeight: "bold" }}>
                       {item.amount.toFixed(2)}
                     </TableCell>
                   </TableRow>
@@ -114,7 +117,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
               textAlign: "center",
             }}
           >
-            Powered by: FSS ltd.
+            Powered by: {COOP_NAME}
           </Typography>
           <Typography
             variant="body1"

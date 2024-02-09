@@ -20,6 +20,7 @@ import { useAppSelector } from "../../store";
 import Spinner from "../spinner/Spinner";
 import "../MODALS/bill.css";
 import { Spin } from "antd/lib";
+import { BRAND_NAME, COOP_NAME } from "@utils/config";
 
 interface SalesReportProps {
   openM: boolean;
@@ -66,7 +67,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                 style={{ display: "flex", flexDirection: "column" }}
               >
                 <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
-                  FOOD SUPPORT SERVICES
+                  {BRAND_NAME}
                 </Typography>
                 <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
                   SALES REPORT
@@ -107,7 +108,9 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                           <TableCell sx={{ fontWeight: "bold", padding: 0 }}>
                             {item.name}
                           </TableCell>
-                          <TableCell sx={{ textAlign: "right" }}>
+                          <TableCell
+                            sx={{ textAlign: "right", fontWeight: "bold" }}
+                          >
                             {getTotalAmount(item.orderItems).toFixed(2)}
                           </TableCell>
                         </TableRow>
@@ -144,6 +147,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                                           sx={{
                                             borderBottom: "none",
                                             padding: 1,
+                                            fontWeight: "bold",
                                           }}
                                         >
                                           {orderItem.name}
@@ -171,7 +175,8 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                         colSpan={2}
                         sx={{ fontWeight: "bold", textAlign: "center" }}
                       >
-                        Overall Total: <span>{overallTotal?.toLocaleString()}</span> 
+                        Overall Total:{" "}
+                        <span>{overallTotal?.toLocaleString()}</span>
                       </TableCell>
                     </TableRow>
                   </TableBody>
@@ -185,7 +190,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                   textAlign: "center",
                 }}
               >
-                Powered by: FSS ltd.
+                Powered by: {COOP_NAME}
               </Typography>
               <Typography
                 variant="body1"
