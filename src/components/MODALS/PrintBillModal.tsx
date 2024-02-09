@@ -26,6 +26,8 @@ import axios from "axios";
 import "./bill.css";
 import { useParams } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
+import Meta from "antd/es/card/Meta";
+import { BRAND_NAME, ENTITY_NAME, QR_Code } from "@utils/config";
 
 // interface CartItem {
 //   _id: Key | null | undefined;
@@ -79,13 +81,13 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               variant="body1"
               style={{ fontFamily: "monospace", fontSize: "1.3em" }}
             >
-              FOOD SUPPORT SERVICES
+            {BRAND_NAME}
             </Typography>
             <Typography
               variant="body1"
               style={{ fontFamily: "monospace", fontSize: "1.2em" }}
-            >
-              BigSmoke Karen
+              >
+              {ENTITY_NAME}
             </Typography>
             <Typography
               variant="body1"
@@ -141,9 +143,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             <Table style={{ tableLayout: "fixed" }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ padding: 1 }}>QTY</TableCell>
-                  <TableCell sx={{ padding: 1 }}>ITEM</TableCell>
-                  <TableCell sx={{ padding: 1, textAlign: "right" }}>
+                  <TableCell sx={{ padding: 1, fontWeight: "bold" }}>QTY</TableCell>
+                  <TableCell sx={{ padding: 1 , fontWeight: "bold"}}>ITEM</TableCell>
+                  <TableCell sx={{ padding: 1, textAlign: "right", fontWeight: "bold" }}>
                     PRICE(.Ksh)
                   </TableCell>
                 </TableRow>
@@ -185,9 +187,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                         sx={{
                           padding: 1.2,
                           fontSize: "1em",
-                          fontWeight: "600",
                           width: "20%",
                           textAlign: "center",
+                          fontWeight: "bold",
                         }}
                       >
                         {item.quantity}
@@ -199,6 +201,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                           padding: 1,
                           fontSize: "1.2em",
                           textOverflow: "ellipsis",
+                          fontWeight: "bold",
                         }}
                       >
                         {item?.product_id?.name}
@@ -208,7 +211,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                           padding: 1,
                           textAlign: "right",
                           fontSize: "1em",
-                          fontWeight: "600",
+                          fontWeight: "bold",
                         }}
                       >
                         {item?.price?.toFixed(2)}
@@ -226,6 +229,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               fontSize: "1.2em",
               fontFamily: "monospace",
               textAlign: "center",
+              fontWeight: "bold",
             }}
           >
             Total: Ksh.{totalAmount.toFixed(2)}
@@ -239,7 +243,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           </Typography>
           <div className="qrcoded" style={{ marginTop: 4 }}>
             <QRCodeCanvas
-              value="https://www.instagram.com/bigsmokekaren/"
+              value={QR_Code}
               size={80}
               className="qrcode"
             />
@@ -250,6 +254,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               fontSize: "0.9em",
               fontFamily: "monospace",
               textAlign: "center",
+              marginTop:10
             }}
           >
             Thank you for your support!
