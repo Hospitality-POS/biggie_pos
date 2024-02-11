@@ -14,6 +14,7 @@ import NotFound from "@routes/NotFound";
 
 import { Spin } from "antd/lib";
 import EmptyPage from "./EmptyPage";
+import { COOP_NAME } from "@utils/config";
 
 const Layout = lazy(() => import("@components/layout/Layout"));
 
@@ -199,7 +200,7 @@ const routes = createBrowserRouter(
 function Routers() {
   return (
     <Suspense
-      fallback={<Spin size="large" fullscreen tip="welcome to FSS ltd." />}
+      fallback={<Spin size="large" fullscreen tip={`welcome to ${COOP_NAME}`} />}
     >
       <RouterProvider router={routes} />
     </Suspense>
