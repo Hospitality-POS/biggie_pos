@@ -153,7 +153,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/category-settings"
-        element={
+        element={           
           <Suspense fallback={<Spinner />}>
             <Private>
               <CategoryMainSettings />
@@ -200,7 +200,9 @@ const routes = createBrowserRouter(
 function Routers() {
   return (
     <Suspense
-      fallback={<Spin size="large" fullscreen tip={`welcome to ${COOP_NAME}`} />}
+      fallback={
+        <Spin size="large" fullscreen tip={`welcome to ${COOP_NAME}`} />
+      }
     >
       <RouterProvider router={routes} />
     </Suspense>
