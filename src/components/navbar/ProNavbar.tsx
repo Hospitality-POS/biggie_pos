@@ -25,17 +25,31 @@ const ProNavbar = () => {
       logo={
         <Image
           src="/android-chrome-512x512.png"
-          height={50}
+          height={60}   
           preview={true}
           alt="fss-logo"
-          style={{padding: 5}}
+          style={{ padding: 5 }}
         />
       }
       title=""
+      menuHeaderRender={(logo, title) => (
+        <div
+          id="customize_menu_header"
+          style={{
+            height: "32px",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          {logo}
+          {title}
+        </div>
+      )}
       colorPrimary="#6c1c2c"
       contentWidth="Fluid"
       navTheme="light"
-      contentStyle={{ padding: 0, margin: "0 auto"}}
+      contentStyle={{ padding: 0, margin: "0 auto" }}
       layout="top"
       splitMenus={false}
       fixedHeader={true}
