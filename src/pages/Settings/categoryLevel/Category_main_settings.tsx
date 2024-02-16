@@ -3,6 +3,8 @@ import { ProCard } from "@ant-design/pro-components";
 import CategorySettings from "./CategorySettings";
 import { Space } from "antd/lib";
 import { ApartmentOutlined } from "@ant-design/icons";
+import SubCategorySettings from "./Sub_category";
+import MainCategorySettings from "./Main_category";
 
 const Category2 = () => <div>Content for Category 2</div>;
 const MainCategory = () => <div>Main Category Content</div>;
@@ -24,14 +26,14 @@ const CategoryMainSettings: React.FC = () => {
     {
       key: "category2",
       tab: "Sub-category",
-      label: "All Sub-Categorys",
-      children: <Category2 />,
+      label: "Sub-Category",
+      children: <SubCategorySettings />,
     },
     {
       key: "mainCategory",
       tab: "Main Category",
       label: "Main Category",
-      children: <MainCategory />,
+      children: <MainCategorySettings />,
     },
   ];
 
