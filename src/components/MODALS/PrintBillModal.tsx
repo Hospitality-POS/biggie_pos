@@ -71,17 +71,17 @@
                 marginBottom: 15,
               }}
             >
-              {/* <img
-                src="/android-chrome-512x512.png"
+              <img
+                src="/logokil.png"
                 className="image--logo reciept"
                 alt="Restaurant Logo"
-                style={{ width: "50px" }}
-              /> */}
+                style={{ width: "70%" }}
+              />
               <Typography
                 variant="body1"
                 style={{ fontFamily: "monospace", fontSize: "1.3em" }}
               >
-                {BRAND_NAME}
+                {/* {BRAND_NAME} */}
               </Typography>
               <Typography
                 variant="body1"
@@ -114,7 +114,7 @@
                 variant="body1"
                 style={{ fontSize: "1.15em", fontFamily: "monospace" }}
               >
-                Served By: {cartDetails?.created_by.username}
+                Served By: {cartDetails?.created_by?.username}
               </Typography>
             </div>
 
