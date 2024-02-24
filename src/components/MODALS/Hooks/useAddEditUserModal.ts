@@ -4,8 +4,9 @@ import { ProForm } from "@ant-design/pro-components";
 import { useAppDispatch, useAppSelector } from "../../../store";
 import { resetSupplierMessage } from "../../../features/Supplier/SupplierSlice";
 import { createSupplier } from "../../../features/Supplier/SupplierActions";
-import { createUser } from "../../../features/Auth/AuthActions";
-import { resetMessage } from "../../../features/Auth/AuthSlice";
+import { createUser, updateUser } from "@features/Auth/AuthActions";
+import { resetMessage } from "@features/Auth/AuthSlice";
+import { updateUsers } from "@services/users";
 
 interface User {
   fullname: string;
@@ -63,6 +64,18 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
     }
   };
 
+  const handleConfirmEditUser = async (data) => {
+    // console.log("user edit", data);
+
+    try {
+      updateUsers(data)
+      handleClose();
+      
+    } catch (error) {
+      setIsSubmitting(false);
+      handleClose();
+    }
+  };
   return {
     isSubmitting,
     form,
@@ -70,6 +83,7 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
     handleConfirmAddUser,
     handleClose,
     setIsSubmitting,
+    handleConfirmEditUser,
   };
 };
 

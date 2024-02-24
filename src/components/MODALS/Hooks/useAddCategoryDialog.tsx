@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ProForm } from "@ant-design/pro-components";
+import { ParamsType, ProForm } from "@ant-design/pro-components";
 import { notification } from "antd/lib";
 import { useAppDispatch, useAppSelector } from "../../../store";
-import { resetCategoryMessage } from "../../../features/Category/CategorySlice";
-import { createCategory } from "../../../features/Category/CategoryActions";
+import { resetCategoryMessage } from "@features/Category/CategorySlice";
+import { createCategory, updateCategory } from "@features/Category/CategoryActions";
+import { editCategory } from "@services/categories";
 
 interface Category {
   _id?: string;
@@ -13,16 +14,20 @@ interface Category {
 }
 
 interface UseAddCategoryDialogProps {
-  onAddCategory: (category: Category) => void;
+  onAddCategory: (category: Category) => void;edit:boolean
 }
 
-const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
+const useAddCategoryDialog = ({
+  onAddCategory,
+  edit,
+}: UseAddCategoryDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { isSuccess } = useAppSelector((state) => state.Categories);
   const [form] = ProForm.useForm();
   const dispatch = useAppDispatch();
 
-  const handleConfirmAddCategory = async (data: Category) => {
+  const handleConfirmAddCategory = async (data) => {
+
     dispatch(resetCategoryMessage());
     const newCategory: Category = {
       name: data.name,
@@ -31,46 +36,57 @@ const useAddCategoryDialog = ({ onAddCategory }: UseAddCategoryDialogProps) => {
     };
 
     try {
-     dispatch(createCategory(newCategory));
+      dispatch(createCategory(newCategory));
       onAddCategory(data);
       setIsSubmitting(true);
       handleClose();
-
-      if (isSuccess) {
-        notification.success({
-          message: `Success`,
-          description: "Successfully added new category",
-          placement: "bottomLeft",
-        });
-      } else {
-        notification.error({
+      
+      // if (isSuccess) {
+      //   notification.success({
+      //     message: `Success`,
+      //     description: "Successfully added new category",
+      //     placement: "bottomLeft",
+      //   });
+      // } else {
+      //   notification.error({
+      //     message: `Error`,
+      //     description: "Failed to add a new category",
+      //     placement: "bottomLeft",
+      //   });
+      // }
+    } catch (error) {
+      handleClose();
+      setIsSubmitting(false);
+      notification.error({
           message: `Error`,
           description: "Failed to add a new category",
           placement: "bottomLeft",
         });
-      }
-    } catch (error) {
-      setIsSubmitting(false);
-      handleClose();
     }
   };
 
+  const handleConfirmEditCategory =async (data: ParamsType) => {
+      try {     
+        editCategory(data);
+        handleClose();
+      } catch (error) {
+        setIsSubmitting(false);
+        handleClose();
+      }
+  }
+    
   const handleClose = () => {
     form.resetFields();
     setIsSubmitting(false);
-  };
-
-  const handleSubCategoryChange = (subCategoryId: string) => {
-    // Do something with the sub-category change if needed
   };
 
   return {
     isSubmitting,
     form,
     handleConfirmAddCategory,
-    handleSubCategoryChange,
     handleClose,
     setIsSubmitting,
+    handleConfirmEditCategory,
   };
 };
 

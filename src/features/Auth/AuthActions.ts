@@ -95,9 +95,9 @@ export const fetchUserById = createAsyncThunk(
 
 export const updateUser = createAsyncThunk(
   "user/updateUser",
-  async ({ userId, userDetails }: { userId: string; userDetails: UserDetails }, { rejectWithValue, dispatch }) => {
+  async (userData: any, { rejectWithValue, dispatch }) => {
     try {
-      const response = await axios.put(`${baseUrl}/${userId}`, userDetails);
+      const response = await axios.put(`${baseUrl}/${userData._id}`, userData);
       dispatch(fetchAllUsers());
       return response.data;
     } catch (error: any) {
