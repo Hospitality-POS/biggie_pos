@@ -11,7 +11,7 @@ import {
   ProTable,
 } from "@ant-design/pro-components";
 import { Avatar, Badge, Tag, Tooltip } from "antd/lib";
-import { Button } from "antd";
+import { Button, Space } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { UserOutlined } from "@ant-design/icons";
 import { MailOutlined } from "@mui/icons-material";
@@ -49,21 +49,24 @@ const UsersTable = () => {
     dataIndex: "actions",
     hideInSearch: true,
     render: (_, record: any) => [
-      <Tooltip key="edit" title="Edit">
-        <Button
-          type="link"
-          icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-          // onClick={() => handleEditUser(record._id)}
-        />
-      </Tooltip>,
-      <Tooltip key="delete" title="Delete">
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeleteClick(record)}
-        />
-      </Tooltip>,
+      <Space>
+        <Tooltip key="edit" title="Edit">
+          <AddEditProUserModal
+            edit={true}
+            actionRef={actionRef}
+            data={record} 
+              />
+        </Tooltip>
+
+        <Tooltip key="delete" title="Delete">
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteClick(record)}
+          />
+        </Tooltip>
+      </Space>,
     ],
   };
 
