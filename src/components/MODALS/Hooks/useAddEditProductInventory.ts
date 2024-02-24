@@ -26,7 +26,7 @@ export const useAddEditProductInventory = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form] = ProForm.useForm();
   const handleConfirmAddProductInventory = async (data: NewProductInventory) => {
-    console.log("adfgsdfsdfg", data);
+    // console.log("adfgsdfsdfg", data);
     
     try {
       dispatch(createProductInventory(data));

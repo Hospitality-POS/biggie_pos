@@ -3,7 +3,7 @@ import { ProForm } from "@ant-design/pro-components";
 import { notification } from "antd/lib";
 import { useAppDispatch, useAppSelector } from "../../../store";
 import { resetPaymentMessage } from "../../../features/Payment/PaymentMethodSlice";
-import { createPaymentMethod } from "../../../features/Payment/PaymentMethodActions";
+import { createPaymentMethod } from "@features/Payment/PaymentMethodActions";
 
 interface PaymentMethod {
   _id?: string;
@@ -25,7 +25,6 @@ const useAddPaymentMethodSettingsModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleConfirmAddPaymentMethod = async (values: PaymentMethod) => {
-    dispatch(resetPaymentMessage());
     try {
       dispatch(createPaymentMethod(values));
       onAddPaymentMethod(values);
