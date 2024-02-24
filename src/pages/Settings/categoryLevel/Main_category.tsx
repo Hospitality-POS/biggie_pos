@@ -9,7 +9,7 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
+  DialogTitle,          
 } from "@mui/material";
 import AddProTableLocationModal from "@components/MODALS/pro/AddProTableLocationModal";
 import { fetchMainCategories, fetchSubCategories } from "@services/categories";

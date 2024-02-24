@@ -40,7 +40,7 @@ const CategorySettings = () => {
     title: "Actions",
     dataIndex: "actions",
     hideInSearch: true,
-    render: (_, record: any) => [
+    render: (_, record: any) => [      
       <Space>
         <Tooltip key="edit" title="Edit">
           <AddProCategoryModal
