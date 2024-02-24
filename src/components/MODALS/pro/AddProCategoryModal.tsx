@@ -8,9 +8,7 @@ import {
   ProForm,
 } from "@ant-design/pro-form";
 import useAddCategoryDialog from "../Hooks/useAddCategoryDialog";
-import {
-  fetchSubCategories,
-} from "../../../services/categories";
+import { fetchSubCategories } from "../../../services/categories";
 import { ApartmentOutlined, EditOutlined } from "@ant-design/icons";
 
 interface Category {
@@ -23,20 +21,26 @@ interface AddCategoryDialogProps {
   onAddCategory: (category: Category) => void;
   actionRef: any;
   edit: boolean;
-  data: { subcategory_id :string,sub_category:{name:string,_id:string}};
+  data: {
+    _id: string;
+    name: string;
+    subcategory_id: string;
+    sub_category: { name: string; _id: string };
+  };
 }
 
 const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
   onAddCategory,
   actionRef,
-  edit,data
+  edit,
+  data,
 }) => {
   const {
     form,
     handleConfirmAddCategory,
-    handleSubCategoryChange,
     handleClose,
-  } = useAddCategoryDialog({ onAddCategory });
+    handleConfirmEditCategory,
+  } = useAddCategoryDialog({ onAddCategory, edit });
 
   return (
     <ModalForm
@@ -48,7 +52,17 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
         </Space>
       }
       initialValues={
-        edit ? { ...data, subcategory_id: { value: data?.sub_category?._id,label:data?.sub_category?.name } } : {}
+        edit
+          ? {
+              ...data,
+              _id: data?._id,
+              // name: data?.name,
+              subcategory_id: {
+                value: data?.sub_category?._id,
+                label: data?.sub_category?.name,
+              },
+            }
+          : {}
       }
       trigger={
         edit ? (
@@ -64,15 +78,18 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
         )
       }
       onFinish={async (values) => {
-        await handleConfirmAddCategory(values);
+        edit
+          ? await handleConfirmEditCategory({ values, data }) 
+          : await handleConfirmAddCategory(values);
         actionRef.current.reload();
+        return true;
       }}
       onOpenChange={(visible) => !visible && handleClose()}
       form={form}
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: edit? "Edit category" : "Add category",
+          submitText: edit ? "Edit category" : "Add category",
         },
       }}
     >
@@ -94,12 +111,11 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
           placeholder="Select subcategory"
           request={async () => {
             const data = await fetchSubCategories();
-            const values = data.map((e) => {
+            const values = data.map((e: { name: any; _id: any }) => {
               return { label: e.name, value: e._id };
             });
             return values;
           }}
-          onChange={handleSubCategoryChange}
         />
       </ProForm.Group>
     </ModalForm>
