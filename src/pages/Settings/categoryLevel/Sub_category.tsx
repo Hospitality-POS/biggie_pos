@@ -13,19 +13,17 @@ import {
 } from "@mui/material";
 import AddProTableLocationModal from "@components/MODALS/pro/AddProTableLocationModal";
 import { fetchSubCategories } from "@services/categories";
+import useCategorySettings from "../hooks/useCategorySettings";
 
 const SubCategorySettings = () => {
   const locationRef = useRef<ActionType>();
-
   const {
-    deleteCandidate,
-    handleAddLocation,
     deleteConfirmationOpen,
-    handleDeleteClickLocation,
-    handleEditLocation,
-    handleDeleteConfirmLocation,
+    handleDeleteClick,
+    handleDeleteConfirm,
     handleDeleteCancel,
-  } = useTableLocationSettings();
+    deleteCandidate,
+  } = useCategorySettings({type: 'sub-category' });
 
   const actionColumn = {
     title: "Actions",
@@ -44,7 +42,7 @@ const SubCategorySettings = () => {
           type="link"
           danger
           icon={<DeleteOutlined />}
-          //   onClick={() => handleDeleteClickSubCategory(record)}
+          onClick={() => handleDeleteClick(record)}
         />
       </Tooltip>,
     ],
@@ -97,10 +95,7 @@ const SubCategorySettings = () => {
         dateFormatter="string"
         headerTitle="List of sub-category"
         toolBarRender={() => [
-          <AddProTableLocationModal
-            onAddLocation={handleAddLocation}
-            actionRef={locationRef}
-          />,
+         
         ]}
       />
 
@@ -120,10 +115,7 @@ const SubCategorySettings = () => {
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button
-            onClick={() => handleDeleteConfirmLocation(locationRef)}
-            danger
-          >
+          <Button onClick={() => handleDeleteConfirm(locationRef)} danger>
             Delete
           </Button>
         </DialogActions>

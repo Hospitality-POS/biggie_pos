@@ -25,7 +25,7 @@ const CategorySettings = () => {
     handleDeleteConfirm,
     handleDeleteCancel,
     deleteCandidate,
-  } = useCategorySettings({ onDeleteCandidate });
+  } = useCategorySettings({ type:"category" });
   const [isEditing, setIsEditing] = useState(false)
   const handleAddCategory = () => {
     // You can update your state or perform any necessary actions here

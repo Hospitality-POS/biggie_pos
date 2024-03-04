@@ -3,29 +3,24 @@ import { useRef } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import { Tooltip, Button } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { getTableLocation } from "@services/tables";
-import { useTableLocationSettings } from "../hooks/useTableSettings";
 import {
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,          
 } from "@mui/material";
-import AddProTableLocationModal from "@components/MODALS/pro/AddProTableLocationModal";
-import { fetchMainCategories, fetchSubCategories } from "@services/categories";
+import { fetchMainCategories } from "@services/categories";
+import useCategorySettings from "../hooks/useCategorySettings";
 
 const MainCategorySettings = () => {
-  const locationRef = useRef<ActionType>();
-
-  const {
-    deleteCandidate,
-    handleAddLocation,
-    deleteConfirmationOpen,
-    handleDeleteClickLocation,
-    handleEditLocation,
-    handleDeleteConfirmLocation,
-    handleDeleteCancel,
-  } = useTableLocationSettings();
+  const refmain = useRef<ActionType>();
+const {
+  deleteConfirmationOpen,
+  handleDeleteClick,
+  handleDeleteConfirm,
+  handleDeleteCancel,
+  deleteCandidate,
+} = useCategorySettings({ type: "main-category" });
 
   const actionColumn = {
     title: "Actions",
@@ -44,7 +39,7 @@ const MainCategorySettings = () => {
           type="link"
           danger
           icon={<DeleteOutlined />}
-          //   onClick={() => handleDeleteClickSubCategory(record)}
+          onClick={() => handleDeleteClick(record)}
         />
       </Tooltip>,
     ],
@@ -84,7 +79,7 @@ const MainCategorySettings = () => {
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
-        actionRef={locationRef}
+        actionRef={refmain}
         rowSelection={{
           alwaysShowAlert: false,
           selections: false,
@@ -97,10 +92,7 @@ const MainCategorySettings = () => {
         dateFormatter="string"
         headerTitle="List of Main-Category"
         toolBarRender={() => [
-          <AddProTableLocationModal
-            onAddLocation={handleAddLocation}
-            actionRef={locationRef}
-          />,
+          
         ]}
       />
 
@@ -120,10 +112,7 @@ const MainCategorySettings = () => {
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button
-            onClick={() => handleDeleteConfirmLocation(locationRef)}
-            danger
-          >
+          <Button onClick={() => handleDeleteConfirm(refmain)} danger>
             Delete
           </Button>
         </DialogActions>
