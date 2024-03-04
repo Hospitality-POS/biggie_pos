@@ -94,9 +94,7 @@ const SubCategorySettings = () => {
         }}
         dateFormatter="string"
         headerTitle="List of sub-category"
-        toolBarRender={() => [
-         
-        ]}
+        toolBarRender={() => []}
       />
 
       {/* Delete Confirmation Dialog */}
@@ -108,8 +106,8 @@ const SubCategorySettings = () => {
       >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete Loaction:{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>
+          Are you sure you want to delete :{" "}
+          <i>{deleteCandidate ? deleteCandidate.name : ""} sub-category</i>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} color="primary">
