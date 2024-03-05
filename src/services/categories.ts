@@ -47,3 +47,34 @@ export const editCategory = async (params: ParamsType) => {
     return (error as Error).message;
   }
 };
+
+
+export const deleteSubCategory =async(params: ParamsType)=>{
+  const url = `${BASE_URL}/categories/sub-categories`;
+try {
+    const response = await axios.delete(`${url}/${params}`);
+  
+    return response.data;
+  } catch (error) {
+     Modal.error({
+       title: `${(error as Error)?.message}`,
+       content: "Please check your internet connection!",
+     }); 
+    return (error as Error).message;
+  }
+}
+
+export const deleteMainCategory =async(params: ParamsType)=>{
+  const url = `${BASE_URL}/categories/main-categories`;
+try {
+    const response = await axios.delete(`${url}/${params}`);
+  
+    return response.data;
+  } catch (error) {
+     Modal.error({
+       title: `${(error as Error)?.message}`,
+       content: "Please check your internet connection!",
+     }); 
+    return (error as Error).message;
+  }
+}

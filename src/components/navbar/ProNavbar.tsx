@@ -2,7 +2,11 @@
 import { ProLayout } from "@ant-design/pro-components";
 import React, { useState } from "react";
 import { Avatar, Button, ConfigProvider, Dropdown, Typography } from "antd/lib";
-import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
+import {
+  LogoutOutlined,
+  PoweroffOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { logoutUser } from "@features/Auth/AuthActions";
@@ -25,7 +29,7 @@ const ProNavbar = () => {
       logo={
         <Image
           src="/android-chrome-512x512.png"
-          height={60}   
+          height={60}
           preview={true}
           alt="fss-logo"
           style={{ padding: 5 }}
@@ -60,27 +64,37 @@ const ProNavbar = () => {
         size: "large",
         title: (
           <Typography.Text strong={true} style={{ color: "white" }} code={true}>
-            {user ? user.name : ""}
+            {user && user.name}
           </Typography.Text>
         ),
         render: (_props, dom) => {
           return (
-            <Dropdown
-              menu={{
-                disabled: user ? false : true,
-                items: [
-                  {
-                    key: "logout",
-                    icon: <LogoutOutlined />,
-                    label: "Sign out",
-                    onClick: () => handleLogout(),
-                    danger: true,
-                  },
-                ],
-              }}
-            >
-              {dom}
-            </Dropdown>
+            <>
+              {user ? (
+                <>
+                  <Dropdown
+                    menu={{
+                      disabled: user ? false : true,
+                      items: [
+                        {
+                          key: "logout",
+                          icon: <UserOutlined />,
+                          label: "Profile",
+                        },
+                      ],
+                    }}
+                  >
+                    {dom}
+                  </Dropdown>
+                  <Button
+                    icon={<PoweroffOutlined />}
+                    onClick={handleLogout}
+                  />
+                </>
+              ) : (
+                ""
+              )}
+            </>
           );
         },
       }}

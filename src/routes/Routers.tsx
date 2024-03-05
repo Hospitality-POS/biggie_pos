@@ -83,6 +83,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/main-category"
+        errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -93,6 +94,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/dashboard/:id"
+        errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -103,6 +105,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/store"
+        errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -113,6 +116,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/users"
+        errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -123,6 +127,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/reports"
+        errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -133,6 +138,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/suppliers"
+        errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -143,6 +149,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/table-settings"
+        errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -153,7 +160,8 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/category-settings"
-        element={           
+        errorElement={<NotFound />}
+        element={
           <Suspense fallback={<Spinner />}>
             <Private>
               <CategoryMainSettings />
@@ -163,6 +171,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/payment-methods"
+        errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -173,6 +182,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/inventory"
+        errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
@@ -183,6 +193,7 @@ const routes = createBrowserRouter(
       />
       <Route
         path="/orders"
+        errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>
             <Private>

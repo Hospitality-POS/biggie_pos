@@ -13,19 +13,17 @@ import {
 } from "@mui/material";
 import AddProTableLocationModal from "@components/MODALS/pro/AddProTableLocationModal";
 import { fetchSubCategories } from "@services/categories";
+import useCategorySettings from "../hooks/useCategorySettings";
 
 const SubCategorySettings = () => {
   const locationRef = useRef<ActionType>();
-
   const {
-    deleteCandidate,
-    handleAddLocation,
     deleteConfirmationOpen,
-    handleDeleteClickLocation,
-    handleEditLocation,
-    handleDeleteConfirmLocation,
+    handleDeleteClick,
+    handleDeleteConfirm,
     handleDeleteCancel,
-  } = useTableLocationSettings();
+    deleteCandidate,
+  } = useCategorySettings({type: 'sub-category' });
 
   const actionColumn = {
     title: "Actions",
@@ -44,7 +42,7 @@ const SubCategorySettings = () => {
           type="link"
           danger
           icon={<DeleteOutlined />}
-          //   onClick={() => handleDeleteClickSubCategory(record)}
+          onClick={() => handleDeleteClick(record)}
         />
       </Tooltip>,
     ],
@@ -96,12 +94,7 @@ const SubCategorySettings = () => {
         }}
         dateFormatter="string"
         headerTitle="List of sub-category"
-        toolBarRender={() => [
-          <AddProTableLocationModal
-            onAddLocation={handleAddLocation}
-            actionRef={locationRef}
-          />,
-        ]}
+        toolBarRender={() => []}
       />
 
       {/* Delete Confirmation Dialog */}
@@ -113,17 +106,14 @@ const SubCategorySettings = () => {
       >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete Loaction:{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>
+          Are you sure you want to delete :{" "}
+          <i>{deleteCandidate ? deleteCandidate.name : ""} sub-category</i>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button
-            onClick={() => handleDeleteConfirmLocation(locationRef)}
-            danger
-          >
+          <Button onClick={() => handleDeleteConfirm(locationRef)} danger>
             Delete
           </Button>
         </DialogActions>
