@@ -5,6 +5,7 @@ import { Space } from "antd/lib";
 import { ApartmentOutlined } from "@ant-design/icons";
 import SubCategorySettings from "./Sub_category";
 import MainCategorySettings from "./Main_category";
+import { Typography } from "antd";
 
 const Category2 = () => <div>Content for Category 2</div>;
 const MainCategory = () => <div>Main Category Content</div>;
@@ -48,8 +49,8 @@ const CategoryMainSettings: React.FC = () => {
       }}
       title={
         <Space>
-          <ApartmentOutlined />
-          Category Main Settings
+          <ApartmentOutlined size={24} />
+          <Typography.Title level={4}>Category Main Settings</Typography.Title> 
         </Space>
       }
     />
