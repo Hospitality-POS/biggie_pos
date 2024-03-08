@@ -49,7 +49,7 @@ const CategoryMainSettings: React.FC = () => {
       }}
       title={
         <Space>
-          <ApartmentOutlined size={24} />
+          <ApartmentOutlined/>
           <Typography.Title level={4}>Category Main Settings</Typography.Title> 
         </Space>
       }
