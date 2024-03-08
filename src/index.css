@@ -47,3 +47,10 @@ input[type="checkbox" i]:active {
 :where(.css-dev-only-do-not-override-v3wdz2) a:hover {
     color: #6c1c2c;
 }
+
+
+.wrapper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 0.4em;
+}
