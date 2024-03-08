@@ -24,6 +24,7 @@ import {
 import ErrorDialog from "../../components/MODALS/Dialogs/ErrorDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchAllCategories } from "@services/categories";
+import { getAllProducts } from "@services/products";
 
 const Store: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -52,6 +53,7 @@ const Store: React.FC = () => {
   const onClose = () => {
     setOpen(false);
   };
+
 
   const { data: categoriesData} = useQuery({
     queryKey: ["categories", " "],
@@ -117,7 +119,7 @@ const Store: React.FC = () => {
       <Divider sx={{ mb: 2 }} />
 
       <div
-        className="cards"
+        className="cards wrapper"
         style={{ height: "calc(100vh - 280px)", overflowY: "auto" }}
       >
         <Card
@@ -176,39 +178,6 @@ const Store: React.FC = () => {
             ))}
       </div>
       <Divider />
-      <Grid item xs={12} sx={{ position: "sticky", bottom: 0 }}>
-        <Grid item sx={{ display: "flex", columnGap: 2, p: 2, ml: 1 }}>
-          <Button
-            variant="outlined"
-            sx={{
-              p: 1,
-              color: "#6c1c2c",
-              borderColor: "#6c1c2c",
-
-              "&:hover": {
-                borderColor: "#bc8c7c",
-                color: "#bc8c7c",
-              },
-            }}
-          >
-            Discard Changes
-          </Button>
-          <Button
-            onClick={() => dispatch(fetchProducts())}
-            variant="contained"
-            sx={{
-              p: 1,
-              bgcolor: "#6c1c2c",
-              "&:hover": {
-                bgcolor: "#bc8c7c",
-                color: "#ffff",
-              },
-            }}
-          >
-            Save Changes
-          </Button>
-        </Grid>
-      </Grid>
     </>
   );
 };

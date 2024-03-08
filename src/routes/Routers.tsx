@@ -19,6 +19,7 @@ import { COOP_NAME } from "@utils/config";
 const Layout = lazy(() => import("@components/layout/Layout"));
 
 const RestaurantPage = lazy(() => import("@pages/Restaurant/Restuarant"));
+const MainStore = lazy(() => import("@pages/store/MainStore"));
 const Store = lazy(() => import("@pages/store/Store"));
 const Orders = lazy(() => import("@pages/Orders/Orders"));
 const Table = lazy(() => import("@pages/Tables/TablePro"));
@@ -109,7 +110,7 @@ const routes = createBrowserRouter(
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
-              <Store />
+              <MainStore />
             </Private>
           </Suspense>
         }
