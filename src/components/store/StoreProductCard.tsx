@@ -5,17 +5,17 @@ import {
   CardContent,
   CardMedia,
   IconButton,
-  Typography,
 } from "@mui/material";
 import React from "react";
 import CircleIcon from "@mui/icons-material/Circle";
 import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
 import EditProductModal from "./EditProductModal";
-
-import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import { deleteProduct } from "../../features/Product/ProductAction";
 import { MenuBook } from "@mui/icons-material";
 import { useAppDispatch } from "../../store";
+import { Space, Typography } from "antd";
+import { ProCard } from "@ant-design/pro-components";
+import { DeleteFilled, EditOutlined, SettingOutlined } from "@ant-design/icons";
 
 interface StoreProductCardProps {
   img: string;
@@ -47,103 +47,46 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
 
   return (
     <>
-      <Card
-      
-        sx={{
-          maxWidth: 200,
-          height: 200,
-          display: "flex",
-          flexDirection: "column",
-          bgcolor: "#EDEADE",
-        }}
-      >
-        <CardContent
-          sx={{
-            flexGrow: 1,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Typography
-            variant="body1"
-            component="div"
-            sx={{ textAlign: "center" }}
-          >
-            {name}
-          </Typography>
-          <Typography
-            variant="subtitle1"
-            color="text.secondary"
-            sx={{
-              textAlign: "center",
-              alignContent: "baseline",
-              justifyContent: "center",
-              gap: 1,
-              display: "flex",
-            }}
-          >
-            Ksh.{price?.toLocaleString()}
-            <CircleIcon sx={{ fontSize: 8, mt: 1, color: "#6c1c2c" }} /> {bowls}{" "}
-            Item{bowls <= 1 ? " " : "s"}
-          </Typography>
-        </CardContent>
-        <Box
-          sx={{
-            display: "flex",
-
-            alignItems: "center",
-            marginTop: 1,
-          }}
-        >
-          <IconButton
-            sx={{
-              flex: 1,
-              borderRadius: 0,
-              p: 2,
-              bgcolor: "#6c1c2c",
-              color: "#ffff",
-              "&:hover": {
-                bgcolor: "#bc8c7c",
-              },
-            }}
+      <ProCard
+        hoverable
+        style={{ maxWidth: 200, width: 200 }}
+        bordered
+        bodyStyle={{ backgroundColor: "white" }}
+        actions={[
+          <SettingOutlined key="setting" style={{ fontSize: "20px" }} />,
+          <EditOutlined
+            key="edit"
             onClick={handleEditClick}
-          >
-            <BorderColorOutlinedIcon fontSize="inherit" />
-          </IconButton>
-          <IconButton
-            sx={{
-              flex: 1,
-              borderRadius: 0,
-              p: 2,
-              bgcolor: "#6c1c2c",
-              color: "#ffff",
-              "&:hover": {
-                bgcolor: "#bc8c7c",
-              },
-            }}
-            // onClick={handleEditClick}
-          >
-            <MenuBook fontSize="inherit" />
-          </IconButton>
-          <IconButton
-            sx={{
-              flex: 1,
-              borderRadius: 0,
-              p: 2,
-              bgcolor: "#ff3333",
-              color: "#ffff",
-              "&:hover": {
-                bgcolor: "#cc0000",
-              },
-            }}
+            style={{ fontSize: "20px" }}
+          />,
+          <DeleteFilled
+            key="delete"
             onClick={() => handleDeleteClick(productId)}
-          >
-            <DeleteSweepIcon fontSize="inherit" />
-          </IconButton>
-        </Box>
-      </Card>
+            style={{ fontSize: "20px" }}
+          />,
+        ]}
+      >
+        <Typography.Title
+          level={5}
+          ellipsis={{ rows: 1, expandable: true }}
+          style={{ textAlign: "center" }}
+        >
+          {name}
+        </Typography.Title>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 4 }}>
+          <Typography.Text ellipsis>
+            {" "}
+            Ksh.{price?.toLocaleString()}
+          </Typography.Text>
+          <Typography>
+            <CircleIcon style={{ fontSize: "10px", color: "#6c1c2c" }} />
+          </Typography>
+          <Typography.Text ellipsis>{bowls}</Typography.Text>
+          <Typography.Text> Item{bowls <= 1 ? " " : "s"}</Typography.Text>
+        </div>
+      </ProCard>
+
       <EditProductModal
         open={modalOpen}
         productData={product}
