@@ -1,19 +1,14 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
+import SetBearerHeaderToken from "@utils/SetBearerHeaderToken";
 import { BASE_URL } from "@utils/config";
 import axios from "axios";
+import { Product } from "src/interfaces/Product";
+
+const {headers} = SetBearerHeaderToken()
 
 const baseUrl = `${BASE_URL}/product/products`;
 
-interface Product {
-  _id: string;
-  name: string;
-  quantity: number;
-  price: number;
-  desc: string;
-  min_viable_quantity: number;
-  image: string;
-  category: string;
-}
+
 
 export const createProduct = createAsyncThunk(
   "product/createProduct",
@@ -44,12 +39,6 @@ export const updateProduct = createAsyncThunk(
   "product/updateProduct",
   async (product: Product, { rejectWithValue, dispatch }) => {
     try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const accessToken = user.Token;
-
-      const headers = {
-        Authorization: `Bearer ${accessToken}`,
-      };
       const response = await axios.put(`${baseUrl}/${product._id}`, product, {
         headers,
       });
