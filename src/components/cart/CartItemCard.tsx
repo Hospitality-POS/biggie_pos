@@ -8,7 +8,6 @@ import {
   Divider,
   Grid,
   IconButton,
-  Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import React, { useMemo } from "react";
@@ -16,6 +15,7 @@ import { deleteCartItem } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
 import { Space } from "antd/lib";
+import { Typography } from "antd";
 interface cartItemCardProps {
   cartItem: any;
 }
@@ -50,15 +50,15 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       }}
     >
       <CardContent>
-        <Grid container spacing={2} alignItems="center">
+        <Grid container spacing={3} alignItems="center">
           <Grid item xs={3}>
-            <Typography variant="body1">
+            <Typography.Text ellipsis={{rows:2, expandable:true  }}>
               {cartItem?.product_id?.name}
-            </Typography>
+            </Typography.Text>
           </Grid>
-          <Grid item xs={3}>
+          <Grid item xs={4}>
             <Box sx={{ display: "flex", alignItems: "center", columnGap: 1 }}>
-              <Typography variant="body1" ml={4}>
+              <Typography.Text strong>
                 x{" "}
                 {cartItem.quantity ? (
                   formattedQuantity
@@ -70,13 +70,13 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     color="inherit"
                   />
                 )}
-              </Typography>
+              </Typography.Text>
             </Box>
           </Grid>
           <Grid item xs={2} ml={-3}>
-            <Typography variant="body1" fontSize="16px" ml={1}>
+            <Typography.Text strong >
               ksh.{formattedPrice ? formattedPrice : 0}
-            </Typography>
+            </Typography.Text>
           </Grid>
           <Grid item xs={2} ml={4}>
             {cartItem.sent ? (
