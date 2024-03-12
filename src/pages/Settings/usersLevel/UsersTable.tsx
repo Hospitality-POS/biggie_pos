@@ -70,7 +70,7 @@ const UsersTable = () => {
     ],
   };
 
-  const expandedRowRender = (record) => {
+  const expandedRowRender = (record: any) => {
     return <ExpandedRowContent record={record} />;
   };
   return (
@@ -89,6 +89,7 @@ const UsersTable = () => {
           {
             title: "Name",
             dataIndex: "fullname",
+            key:"user-Name",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter User's name",
@@ -108,6 +109,7 @@ const UsersTable = () => {
           {
             title: "Email",
             dataIndex: "email",
+            key:"user-email2",
             hideInSearch: false,
             copyable: true,
             ellipsis: true,
@@ -147,8 +149,7 @@ const UsersTable = () => {
           actionColumn,
         ]}
         request={async (params) => {
-          const data = await fetchAllUsersList(params);
-
+          const data = await fetchAllUsersList(params);      
           return {
             data: data,
             success: true,
@@ -180,9 +181,6 @@ const UsersTable = () => {
         toolBarRender={() => [
           <AddEditProUserModal
             actionRef={actionRef}
-            onAddUser={(user) => {
-              console.log(user);
-            }}
           />,
         ]}
       />

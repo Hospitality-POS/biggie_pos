@@ -19,18 +19,16 @@ interface User {
 }
 
 interface useAddEditUserModalProps {
-  onAddUser: (user: User) => void;
+  onAddUser?: (user: User) => void;
 }
 
 const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
   const dispatch = useAppDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form] = ProForm.useForm();
 
   const { isSuccess } = useAppSelector((state) => state.auth);
 
   const handleClose = () => {
-    form.resetFields();
     setIsSubmitting(false);
   };
 
@@ -51,6 +49,7 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
           description: "Successfully added new User",
           placement: "bottomLeft",
         });
+        return true
       } else {
         notification.error({
           message: `Error`,
@@ -58,6 +57,7 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
           placement: "bottomLeft",
         });
       }
+      
     } catch (error) {
       setIsSubmitting(false);
       handleClose();
@@ -78,7 +78,6 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
   };
   return {
     isSubmitting,
-    form,
     handleInputChange,
     handleConfirmAddUser,
     handleClose,
