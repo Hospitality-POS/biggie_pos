@@ -26,6 +26,7 @@ const ProNavbar = () => {
   };
   return (
     <ProLayout
+      style={{ maxWidth: "1920px" }}
       logo={
         <Image
           src="/android-chrome-512x512.png"
@@ -86,10 +87,7 @@ const ProNavbar = () => {
                   >
                     {dom}
                   </Dropdown>
-                  <Button
-                    icon={<PoweroffOutlined />}
-                    onClick={handleLogout}
-                  />
+                  <Button icon={<PoweroffOutlined />} onClick={handleLogout} />
                 </>
               ) : (
                 ""
