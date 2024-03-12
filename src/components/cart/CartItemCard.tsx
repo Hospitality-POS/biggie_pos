@@ -9,13 +9,14 @@ import {
   Grid,
   IconButton,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+// import DeleteIcon from "@mui/icons-material/Delete";
 import React, { useMemo } from "react";
 import { deleteCartItem } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
 import { Space } from "antd/lib";
 import { Typography } from "antd";
+import { DeleteFilled } from "@ant-design/icons";
 interface cartItemCardProps {
   cartItem: any;
 }
@@ -56,7 +57,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               {cartItem?.product_id?.name}
             </Typography.Text>
           </Grid>
-          <Grid item xs={4}>
+          <Grid item xs={3}>
             <Box sx={{ display: "flex", alignItems: "center", columnGap: 1 }}>
               <Typography.Text strong>
                 x{" "}
@@ -73,12 +74,12 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               </Typography.Text>
             </Box>
           </Grid>
-          <Grid item xs={2} ml={-3}>
+          <Grid item xs={3} ml={-2}>
             <Typography.Text strong >
               ksh.{formattedPrice ? formattedPrice : 0}
             </Typography.Text>
           </Grid>
-          <Grid item xs={2} ml={4}>
+          <Grid item xs={3} ml={2}>
             {cartItem.sent ? (
               <Space>
                 <IconButton>
@@ -90,8 +91,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                   size="small"
                   sx={{ height: 35, borderRadius: "5px" }}
                 >
-                  <DeleteIcon
-                    color="error"
+                  <DeleteFilled
                     onClick={() => dispatch(deleteCartItem(cartItem._id))}
                   />
                 </Button>)}
@@ -104,8 +104,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                   size="small"
                   sx={{ height: 30, borderRadius: "8px" }}
                 >
-                  <DeleteIcon
-                    color="error"
+                  <DeleteFilled 
                     onClick={() => dispatch(deleteCartItem(cartItem._id))}
                   />
                 </Button>
