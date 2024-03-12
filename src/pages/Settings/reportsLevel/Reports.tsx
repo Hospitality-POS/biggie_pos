@@ -102,7 +102,6 @@ const Reports: React.FC = () => {
 
   return (
     <ProCard
-      style={{ height: "90vh" }}
       tabs={{
         type: "line",
         activeKey: activeTab,
