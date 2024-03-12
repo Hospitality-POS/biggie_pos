@@ -9,6 +9,7 @@ import {
   Divider,
   CardMedia,
   Paper,
+  CardActions,
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import CartItemCard from "./CartItemCard";
@@ -27,23 +28,25 @@ import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
-import SendIcon from '@mui/icons-material/Send';
+import SendIcon from "@mui/icons-material/Send";
 import { clearcart } from "../../features/Cart/CartSlice";
 
-function formatTotal(totalAmount: { toLocaleString: () => number | string}) {
+function formatTotal(totalAmount: { toLocaleString: () => number | string }) {
   return totalAmount.toLocaleString();
 }
 
-
 const CartDrawer: React.FC = () => {
   const [openM, setOpenM] = useState(false);
-   const [loadingData, setLoadingData] = useState(false);
-  const { cartDetails, totalAmount, cartItems: data, loading } = useAppSelector(
-    (state) => state.cart
-  );
+  const [loadingData, setLoadingData] = useState(false);
+  const {
+    cartDetails,
+    totalAmount,
+    cartItems: data,
+    loading,
+  } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
 
-  const {id} =useParams()
+  const { id } = useParams();
 
   const dispatch = useAppDispatch();
   const { tableData: td } = useAppSelector((state) => state.Tables);
@@ -52,9 +55,9 @@ const CartDrawer: React.FC = () => {
     setOpenM(false);
   };
   // const clearCartDetails = useCallback(() => {
-  //     dispatch(clearcart()); 
+  //     dispatch(clearcart());
   // },[dispatch]);
- 
+
   const CartItemCardMemo = React.memo(CartItemCard);
 
   const memoizedData = useMemo(() => data, [data]);
@@ -66,31 +69,28 @@ const CartDrawer: React.FC = () => {
 
   useEffect(() => {
     const dispatchFetchCart = async () => {
-    setLoadingData(true); 
-    try {
-      await dispatch(getCart(id));  
-    } catch (error) {
-      console.log("cart eror", error);
-      
-    } finally {
-      setLoadingData(false);
-    } 
-  }
+      setLoadingData(true);
+      try {
+        await dispatch(getCart(id));
+      } catch (error) {
+        console.log("cart eror", error);
+      } finally {
+        setLoadingData(false);
+      }
+    };
 
     dispatchFetchCart();
     // clearCartDetails();
-
   }, [dispatch, id, td._id]);
 
   return (
     <Paper
-    elevation={2}
-    style={{
-      padding: "16px",
-      height: "90vh",
-      overflow: "hidden",
-      overflowY: "auto",
-    }}
+      elevation={2}
+      style={{
+        padding: "12px",
+        overflow: "hidden",
+        overflowY: "auto",
+      }}
     >
       <PrintBillModal
         openM={openM}
@@ -99,13 +99,12 @@ const CartDrawer: React.FC = () => {
         data={data}
         totalAmount={totalAmount}
       />
-      <Box sx={{ display: "flex", flexDirection: "column", p: 2, }}>
+      <Box sx={{ display: "flex", flexDirection: "column", p: 2 }}>
         <Grid
           item
-          xs={12}
           sx={{
             display: "flex",
-            justifyContent: "space-evenly", 
+            justifyContent: "space-evenly",
           }}
         >
           <Grid
@@ -136,8 +135,6 @@ const CartDrawer: React.FC = () => {
           </Grid>
           <Grid
             item
-            xs={12}
-            // pl={2}
             sx={{
               display: "flex",
               columnGap: 2,
@@ -169,7 +166,7 @@ const CartDrawer: React.FC = () => {
                   Item
                 </Typography>
               </Grid>
-              <Grid item xs={3} ml={-5}>
+              <Grid item xs={3} ml={-12}>
                 <Typography variant="body1" fontWeight="bold">
                   Qty
                 </Typography>
@@ -185,25 +182,29 @@ const CartDrawer: React.FC = () => {
         </Card>
         <div
           style={{
-            maxHeight: "calc(100vh - 300px)",
+            maxHeight: "calc(100vh - 600px)",
             overflowY: "auto",
           }}
         >
-          {loading 
+          {loading
             ? Array.from({ length: data.length }, (_, index) => (
                 <SkeletonCartItemCard key={index} />
               ))
             : data?.map((item: { _id: Key | null | undefined | string }) => (
                 <CartItemCardMemo key={item._id} cartItem={item} />
               ))}
-            {loadingData && loading ? <CartLoader/>: ''}
-              
+          {loadingData && loading ? <CartLoader /> : ""}
         </div>
         {memoizedData?.length ? (
           <Grid
             item
-            xs={12}
-            sx={{ position: "sticky", bottom: 0, backgroundColor: "white" }}
+            // xs={12}
+            sx={{
+              position: "sticky",
+              bottom: 0,
+              backgroundColor: "white",
+              // mt: 2,
+            }}
           >
             <Typography variant="body1" fontWeight="bold">
               Total :{" "}
@@ -217,20 +218,13 @@ const CartDrawer: React.FC = () => {
               Served By: {cartDetails?.created_by.username}
             </Typography>
 
-            <Box
-              sx={{
-                display: "flex",
-                mt: 2,
-                columnGap: 2,
-                bottom: 0,
-              }}
-            >
+            <CardActions sx={{ width: "100%", justifyContent: "space-between" }}>
+
               <Button
                 variant="outlined"
                 onClick={() => setOpenM(true)}
                 endIcon={<PrintIcon />}
                 sx={{
-                  pl: 2,
                   color: "#6c1c2c",
                   borderColor: "#6c1c2c",
                   "&:hover": {
@@ -241,12 +235,11 @@ const CartDrawer: React.FC = () => {
               >
                 Print Bill
               </Button>
-               <Button
+              <Button
                 variant="outlined"
                 onClick={() => dispatch(cartSent(cartDetails))}
                 endIcon={<SendIcon />}
                 sx={{
-                  pl: 2,
                   color: "#6c1c2c",
                   borderColor: "#6c1c2c",
                   "&:hover": {
@@ -255,14 +248,13 @@ const CartDrawer: React.FC = () => {
                   },
                 }}
               >
-                Send 
+                Send
               </Button>
               <Button
                 variant="contained"
                 onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
                 endIcon={<ClearIcon />}
                 sx={{
-                  pl: 1,
                   bgcolor: "#6c1c2c",
                   "&:hover": {
                     bgcolor: "#bc8c7c",
@@ -272,10 +264,10 @@ const CartDrawer: React.FC = () => {
               >
                 Clear
               </Button>
-            </Box>
+            </CardActions>
           </Grid>
         ) : (
-          <Card className={classes.cardm} sx={{boxShadow: "none"}}>
+          <Card className={classes.cardm} sx={{ boxShadow: "none" }}>
             <div>
               <CardMedia
                 component="img"
@@ -291,9 +283,14 @@ const CartDrawer: React.FC = () => {
           </Card>
         )}
       </Box>
-      {user?.isAdmin && data?.length > 0 && <PaymentDrawer paymentOpen={false} handlePaymentClose={function (): void {
-        throw new Error("Function not implemented.");
-      } } />}
+      {user?.isAdmin && data?.length > 0 && (
+        <PaymentDrawer
+          paymentOpen={false}
+          handlePaymentClose={function (): void {
+            throw new Error("Function not implemented.");
+          }}
+        />
+      )}
     </Paper>
   );
 };

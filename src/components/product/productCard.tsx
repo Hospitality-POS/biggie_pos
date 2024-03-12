@@ -81,10 +81,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         flexDirection: "column",
         alignItems: "flex-start",
         justifyContent: "center",
-        padding: "16px",
-        maxWidth: "200px",
-        // maxHeight: "150px",
-        height: "180px",
+        padding: "10px",
+        // maxWidth: "200px",
+        height: "170px",
         width: "180px",
         overflow: "hidden",
         cursor: "pointer",
@@ -112,8 +111,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         >
           {menu.name}
         </Typography.Title>
-        <Typography.Text
-          style={{ opacity: 0.7, marginTop: "auto", color: "white" }}
+        <Typography.Text strong
+          style={{ opacity: 0.9, marginTop: "auto", color: "white" }}
         >
           Ksh. {formattedPrice}
         </Typography.Text>

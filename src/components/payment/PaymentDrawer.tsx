@@ -3,7 +3,6 @@ import { Key, SetStateAction, useState } from "react";
 import {
   Box,
   Button,
-  Typography,
   CardActions,
   CircularProgress,
   Paper,
@@ -23,8 +22,17 @@ import { logoutUser } from "../../features/Auth/AuthActions";
 import { reset } from "../../features/Auth/AuthSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
-import BlockIcon from '@mui/icons-material/Block';
+import BlockIcon from "@mui/icons-material/Block";
 import { PaymentOutlined } from "@mui/icons-material";
+import { Space, Typography } from "antd";
+import {
+  CreditCardOutlined,
+  DollarOutlined,
+  FileAddOutlined,
+  MobileOutlined,
+  WalletOutlined,
+} from "@ant-design/icons";
+import { ProCard } from "@ant-design/pro-components";
 
 const PaymentDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -47,7 +55,7 @@ const PaymentDrawer: React.FC = () => {
     queryKey: ["paymentMethods"],
     queryFn: () =>
       fetch("http://localhost:3000/payment-methods/").then((res) => res.json()),
-      networkMode :"always"
+    networkMode: "always",
   });
 
   const handleSelectMethod = (method: string) => {
@@ -69,31 +77,37 @@ const PaymentDrawer: React.FC = () => {
 
   const handleSplitConfirm = () => {
     const totalAmountCheck = amount1 + amount2;
-    if (!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || totalAmountCheck !== totalAmount ) {
+    if (
+      !amount1 ||
+      amount1 < 1 ||
+      !amount2 ||
+      amount2 < 1 ||
+      totalAmountCheck !== totalAmount
+    ) {
       return;
     }
 
-    const twoMethods = [selectedMethod,secondMethod]
-    const twoAmounts = [amount1, amount2]
+    const twoMethods = [selectedMethod, secondMethod];
+    const twoAmounts = [amount1, amount2];
     const orderDetails = {
-        cart_id: cartDetails?._id,
-        order_amount: twoAmounts,
-        table_id: id,
-        updated_by: user?.id,
-        order_no: cartDetails?.order_no,
-        cart_items : cartDetails.items,
-        method_id: twoMethods,
-      };
-      dispatch(createOrder(orderDetails));
-      // dispatch(getCart(id))
-      if (!error) {
-        dispatch(createCart(id));
-        dispatch(logoutUser());
-        dispatch(reset());
-        navigate("/tables");
-      }
+      cart_id: cartDetails?._id,
+      order_amount: twoAmounts,
+      table_id: id,
+      updated_by: user?.id,
+      order_no: cartDetails?.order_no,
+      cart_items: cartDetails.items,
+      method_id: twoMethods,
+    };
+    dispatch(createOrder(orderDetails));
+    // dispatch(getCart(id))
+    if (!error) {
+      dispatch(createCart(id));
+      dispatch(logoutUser());
+      dispatch(reset());
+      navigate("/tables");
+    }
   };
-  
+
   const handlePayment = (methodId: string) => {
     if (secondMethod) {
       // logic to open the modal for splitting the bill
@@ -105,7 +119,7 @@ const PaymentDrawer: React.FC = () => {
         table_id: id,
         updated_by: user?.id,
         order_no: cartDetails?.order_no,
-        cart_items : cartDetails.items,
+        cart_items: cartDetails.items,
         method_id: methodId,
       };
       dispatch(createOrder(orderDetails));
@@ -126,82 +140,108 @@ const PaymentDrawer: React.FC = () => {
     return <div>An error occurred while fetching payment methods.</div>;
   }
 
-
   return (
-    <Box sx={{ mb: 2 }}>
-      <Typography gutterBottom mt={1} variant="h6" fontWeight="light">
-        Payment Method
-      </Typography>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-evenly",
-          gap: 2,
-          mb: 2,
-        }}
+    <section>
+      <Typography.Title level={4}>Payment Method</Typography.Title>
+      <Space
+        style={{ display: "flex", justifyContent: "space-between", padding: 4, flexWrap:"wrap" }}
       >
         {data.map((method: { _id: string; name: string }) => (
-          <Paper
+          <ProCard
             key={method._id}
-            elevation={selectedMethod === method._id ? 3 : 1}
+            bordered
             onClick={() => handleSelectMethod(method._id)}
-            sx={{
-              backgroundColor:
-                selectedMethod === method._id ? "#6c1c2c" : grey[100],
+            style={{
+              backgroundColor: `${
+                selectedMethod === method._id ? "#6c1c2c" : grey[400]
+              }`,
               cursor: "pointer",
-              borderRadius: "10px",
               transition: "background-color 0.3s ease",
-              position: "relative",
-              width: "100px",
-              height: "70px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
             }}
           >
-            <Typography
-              variant="inherit"
-              fontSize="large"
-              sx={{
-                display: "flex",
-                justifyContent: "cente",
-                alignContent: "center",
-                flexDirection: "column",
+            <Space
+              style={{
+                color: `${selectedMethod === method._id ? "white" : "inherit"}`,
               }}
-              color={selectedMethod === method._id ? "white" : "inherit"}
             >
               {method.name === "Cash" ? (
                 <>
-                  <LocalAtmIcon fontSize="large" />
-                  <Typography variant="body1">Cash</Typography>
+                  <DollarOutlined style={{ fontSize: "26px" }} />
+                  <Typography.Text
+                    strong
+                    style={{
+                      color: `${
+                        selectedMethod === method._id ? "white" : "inherit"
+                      }`,
+                    }}
+                  >
+                    Cash
+                  </Typography.Text>
                 </>
               ) : method.name === "M-Pesa" ? (
                 <>
-                  <MobileScreenShareIcon fontSize="large" />
-                  <Typography variant="body1">mpesa</Typography>
+                  <MobileOutlined style={{ fontSize: "26px" }} />
+                  <Typography.Text
+                    strong
+                    style={{
+                      color: `${
+                        selectedMethod === method._id ? "white" : "inherit"
+                      }`,
+                    }}
+                  >
+                    mpesa
+                  </Typography.Text>
                 </>
               ) : method.name === "Card" ? (
                 <>
-                  <CreditCardIcon fontSize="large" />{" "}
-                  <Typography variant="body1">card</Typography>
+                  <CreditCardOutlined style={{ fontSize: "26px" }} />
+                  <Typography.Text
+                    strong
+                    style={{
+                      color: `${
+                        selectedMethod === method._id ? "white" : "inherit"
+                      }`,
+                    }}
+                  >
+                    card
+                  </Typography.Text>
                 </>
               ) : method.name === "Debt" ? (
                 <>
-                  <CreditCardOffIcon fontSize="large" />
-                  <Typography variant="body1">Debt</Typography>
+                  <WalletOutlined style={{ fontSize: "26px" }} />
+                  <Typography.Text
+                    strong
+                    style={{
+                      color: `${
+                        selectedMethod === method._id ? "white" : "inherit"
+                      }`,
+                    }}
+                  >
+                    Debt
+                  </Typography.Text>
                 </>
               ) : (
                 <>
-                  <PaymentOutlined fontSize="large" />
-                  <Typography variant="body1">{method.name}</Typography>
+                  <FileAddOutlined style={{ fontSize: "26px" }} />
+                  <Typography.Text
+                    strong
+                    style={{
+                      color: `${
+                        selectedMethod === method._id ? "white" : "inherit"
+                      }`,
+                    }}
+                  >
+                    {method.name}
+                  </Typography.Text>
                 </>
               )}
-            </Typography>
-          </Paper>
+            </Space>
+          </ProCard>
         ))}
-      </Box>
-      <CardActions sx={{ width: "100%", justifyContent: "space-between" }}>
+      </Space>
+      <Space
+        style={{ display: "flex", justifyContent: "space-between", padding: 4 }}
+      >
         <Button
           variant="outlined"
           color="primary"
@@ -255,7 +295,7 @@ const PaymentDrawer: React.FC = () => {
         >
           Confirm
         </Button>
-      </CardActions>
+      </Space>
 
       {selectedMethod !== secondMethod && (
         <SplitBillDialog
@@ -274,7 +314,7 @@ const PaymentDrawer: React.FC = () => {
           handleSplitConfirm={handleSplitConfirm}
         />
       )}
-    </Box>
+    </section>
   );
 };
 
