@@ -53,7 +53,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       <CardContent>
         <Grid container spacing={3} alignItems="center">
           <Grid item xs={3}>
-            <Typography.Text ellipsis={{rows:2, expandable:true  }}>
+            <Typography.Text ellipsis={{ rows: 2, expandable: true }}>
               {cartItem?.product_id?.name}
             </Typography.Text>
           </Grid>
@@ -75,7 +75,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
             </Box>
           </Grid>
           <Grid item xs={3} ml={-2}>
-            <Typography.Text strong >
+            <Typography.Text strong>
               ksh.{formattedPrice ? formattedPrice : 0}
             </Typography.Text>
           </Grid>
@@ -85,16 +85,18 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 <IconButton>
                   <AddTaskIcon color="success" fontSize="small" />
                 </IconButton>
-                {user?.isAdmin && (<Button
-                  variant="contained"
-                  color="inherit"
-                  size="small"
-                  sx={{ height: 35, borderRadius: "5px" }}
-                >
-                  <DeleteFilled
-                    onClick={() => dispatch(deleteCartItem(cartItem._id))}
-                  />
-                </Button>)}
+                {user?.isAdmin && (
+                  <Button
+                    variant="contained"
+                    color="inherit"
+                    size="small"
+                    sx={{ height: 35, borderRadius: "5px" }}
+                  >
+                    <DeleteFilled
+                      onClick={() => dispatch(deleteCartItem(cartItem._id))}
+                    />
+                  </Button>
+                )}
               </Space>
             ) : (
               <>
@@ -104,7 +106,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                   size="small"
                   sx={{ height: 30, borderRadius: "8px" }}
                 >
-                  <DeleteFilled 
+                  <DeleteFilled
                     onClick={() => dispatch(deleteCartItem(cartItem._id))}
                   />
                 </Button>

@@ -13,7 +13,7 @@ export const getAllProducts = async () => {
     return response.data;
   } catch (error) {
     Modal.error({
-      title: `${error?.message}`,
+      title: "Oops!",
       content: "Please check your internet connection!",
     });
   }
@@ -21,11 +21,11 @@ export const getAllProducts = async () => {
 
 export const deleteProduct = async (productId: string) => {
   try {
-    await axios.delete(`${productUrl}/${productId}`, { headers });
+    await axios.delete(`${productUrl}/products/${productId}`, { headers });
     return productId;
   } catch (error) {
     Modal.error({
-      title: `${error?.message}`,
+      title: "Oops!",
       content: "Please check your internet connection!",
     });
   }
