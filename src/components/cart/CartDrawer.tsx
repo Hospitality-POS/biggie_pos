@@ -1,9 +1,6 @@
 import React, { Key, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
-  Button,
-  Typography,
-  Card,
   CardContent,
   Grid,
   Divider,
@@ -30,6 +27,16 @@ import { useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
 import SendIcon from "@mui/icons-material/Send";
 import { clearcart } from "../../features/Cart/CartSlice";
+import { Button, Card, Space, Typography } from "antd";
+import {
+  BoxPlotOutlined,
+  CloseCircleOutlined,
+  OrderedListOutlined,
+  PrinterOutlined,
+  SendOutlined,
+  SmileFilled,
+  SwitcherOutlined,
+} from "@ant-design/icons";
 
 function formatTotal(totalAmount: { toLocaleString: () => number | string }) {
   return totalAmount.toLocaleString();
@@ -84,13 +91,14 @@ const CartDrawer: React.FC = () => {
   }, [dispatch, id, td._id]);
 
   return (
-    <Paper
-      elevation={2}
+    <Card
+    bordered
+    type="inner"
       style={{
-        padding: "12px",
         overflow: "hidden",
         overflowY: "auto",
       }}
+      bodyStyle={{backgroundColor:"white"}}
     >
       <PrintBillModal
         openM={openM}
@@ -99,91 +107,56 @@ const CartDrawer: React.FC = () => {
         data={data}
         totalAmount={totalAmount}
       />
-      <Box sx={{ display: "flex", flexDirection: "column", p: 2 }}>
-        <Grid
-          item
-          sx={{
+      <Space direction="vertical" style={{ width: "100%" }}>
+        <Space
+          style={{
             display: "flex",
-            justifyContent: "space-evenly",
+            justifyContent: "space-between",
+            // padding: 4,
+            width: "100%",
           }}
         >
-          <Grid
-            item
-            xs={12}
-            sx={{
-              display: "flex",
-              // columnGap: 1,
-              alignItems: "flex-start",
-              flexDirection: "column",
+          <Button
+            style={{
+              pl: 2,
+              color: "#6c1c2c",
+              borderColor: "#6c1c2c",
+              "&:hover": {
+                borderColor: "#bc8c7c",
+                color: "#bc8c7c",
+              },
             }}
+            icon={<OrderedListOutlined />}
           >
-            <Button
-              variant="outlined"
-              sx={{
-                pl: 2,
-                color: "#6c1c2c",
-                borderColor: "#6c1c2c",
-                "&:hover": {
-                  borderColor: "#bc8c7c",
-                  color: "#bc8c7c",
-                },
-              }}
-              startIcon={<BookmarkBorderIcon />}
-            >
-              {orderNumber}
-            </Button>
-          </Grid>
-          <Grid
-            item
-            sx={{
-              display: "flex",
-              columnGap: 2,
-              alignItems: "center",
-              flexDirection: "column",
-            }}
-          >
-            <Button
-              variant="contained"
-              sx={{
-                pl: 2,
-                bgcolor: "#6c1c2c",
-                "&:hover": {
-                  bgcolor: "#bc8c7c",
-                  color: "#ffff",
-                },
-              }}
-              startIcon={<TableBarIcon />}
-            >
-              {td?.name}
-            </Button>
-          </Grid>
-        </Grid>
-        <Card sx={{ mb: 2, boxShadow: "none" }}>
-          <CardContent>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={5}>
-                <Typography variant="body1" fontWeight="bold">
-                  Item
-                </Typography>
-              </Grid>
-              <Grid item xs={3} ml={-12}>
-                <Typography variant="body1" fontWeight="bold">
-                  Qty
-                </Typography>
-              </Grid>
-              <Grid item xs={3} ml={-2}>
-                <Typography variant="body1" fontWeight="bold">
-                  Price
-                </Typography>
-              </Grid>
-            </Grid>
-          </CardContent>
-          <Divider />
-        </Card>
+            {orderNumber}
+          </Button>
+
+          <Button type="primary" icon={<SwitcherOutlined />}>
+            {td?.name}
+          </Button>
+        </Space>
+        {/* <Card> */}
+        <Space
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            width: "54%",
+          }}
+        >
+          <Typography.Title level={5}>Item</Typography.Title>
+
+          <Typography.Title level={5}>Qty</Typography.Title>
+
+          <Typography.Title level={5}>Price</Typography.Title>
+        </Space>
+
+        <Divider />
+        {/* </Card> */}
         <div
           style={{
-            maxHeight: "calc(100vh - 600px)",
+            maxHeight: "calc(92vh - 500px)",
             overflowY: "auto",
+            width: "100%",
           }}
         >
           {loading
@@ -196,35 +169,54 @@ const CartDrawer: React.FC = () => {
           {loadingData && loading ? <CartLoader /> : ""}
         </div>
         {memoizedData?.length ? (
-          <Grid
-            item
-            // xs={12}
-            sx={{
-              position: "sticky",
-              bottom: 0,
-              backgroundColor: "white",
-              // mt: 2,
-            }}
-          >
-            <Typography variant="body1" fontWeight="bold">
-              Total :{" "}
+          <Space direction="vertical" style={{ width: "100%" }}>
+            <Divider />
+            <Typography.Text strong>
+              Total : Ksh.
               {totalAmount ? (
                 formattedTotal
               ) : (
                 <Typography>Calculating...</Typography>
               )}
-            </Typography>
-            <Typography variant="body1" fontWeight="bold">
-              Served By: {cartDetails?.created_by.username}
-            </Typography>
+            </Typography.Text>
+            <Typography.Text strong>
+              
+              Served By: <SmileFilled />{" "}{cartDetails?.created_by.username}
+            </Typography.Text>
 
-            <CardActions sx={{ width: "100%", justifyContent: "space-between" }}>
-
+            <Space
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+              }}
+            >
               <Button
-                variant="outlined"
+                danger
+                onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
+                icon={<CloseCircleOutlined />}
+              >
+                Clear
+              </Button>
+              <Button
+                onClick={() => dispatch(cartSent(cartDetails))}
+                icon={<SendOutlined />}
+                style={{
+                  color: "#6c1c2c",
+                  borderColor: "#6c1c2c",
+                  "&:hover": {
+                    borderColor: "#bc8c7c",
+                    color: "#bc8c7c",
+                  },
+                }}
+              >
+                Send Bill
+              </Button>
+              <Button
+                type="primary"
                 onClick={() => setOpenM(true)}
-                endIcon={<PrintIcon />}
-                sx={{
+                icon={<PrinterOutlined />}
+                style={{
                   color: "#6c1c2c",
                   borderColor: "#6c1c2c",
                   "&:hover": {
@@ -235,37 +227,8 @@ const CartDrawer: React.FC = () => {
               >
                 Print Bill
               </Button>
-              <Button
-                variant="outlined"
-                onClick={() => dispatch(cartSent(cartDetails))}
-                endIcon={<SendIcon />}
-                sx={{
-                  color: "#6c1c2c",
-                  borderColor: "#6c1c2c",
-                  "&:hover": {
-                    borderColor: "#bc8c7c",
-                    color: "#bc8c7c",
-                  },
-                }}
-              >
-                Send
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
-                endIcon={<ClearIcon />}
-                sx={{
-                  bgcolor: "#6c1c2c",
-                  "&:hover": {
-                    bgcolor: "#bc8c7c",
-                    color: "#ffff",
-                  },
-                }}
-              >
-                Clear
-              </Button>
-            </CardActions>
-          </Grid>
+            </Space>
+          </Space>
         ) : (
           <Card className={classes.cardm} sx={{ boxShadow: "none" }}>
             <div>
@@ -276,13 +239,11 @@ const CartDrawer: React.FC = () => {
                 image="/basket.png"
                 sx={{ width: 100 }}
               />
-              <Typography variant="body1" gutterBottom>
-                No items added
-              </Typography>
+              <Typography.Title level={4}>No items added</Typography.Title>
             </div>
           </Card>
         )}
-      </Box>
+      </Space>
       {user?.isAdmin && data?.length > 0 && (
         <PaymentDrawer
           paymentOpen={false}
@@ -291,7 +252,7 @@ const CartDrawer: React.FC = () => {
           }}
         />
       )}
-    </Paper>
+    </Card>
   );
 };
 

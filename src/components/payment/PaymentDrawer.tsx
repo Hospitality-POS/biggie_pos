@@ -1,38 +1,28 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Key, SetStateAction, useState } from "react";
-import {
-  Box,
-  Button,
-  CardActions,
-  CircularProgress,
-  Paper,
-} from "@mui/material";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import LocalAtmIcon from "@mui/icons-material/LocalAtm";
-import CreditCardIcon from "@mui/icons-material/CreditCard";
-import MobileScreenShareIcon from "@mui/icons-material/MobileScreenShare";
-import CreditCardOffIcon from "@mui/icons-material/CreditCardOff";
 import { grey } from "@mui/material/colors";
-import RecommendIcon from "@mui/icons-material/Recommend";
-import CloseIcon from "@mui/icons-material/Close";
-import { createOrder } from "../../features/Order/OrderActions";
+import { createOrder } from "@features/Order/OrderActions";
 import { useNavigate, useParams } from "react-router-dom";
-import { cartVoid, createCart, getCart } from "../../features/Cart/CartActions";
-import { logoutUser } from "../../features/Auth/AuthActions";
-import { reset } from "../../features/Auth/AuthSlice";
+import { cartVoid, createCart } from "@features/Cart/CartActions";
+import { logoutUser } from "@features/Auth/AuthActions";
+import { reset } from "@features/Auth/AuthSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
-import BlockIcon from "@mui/icons-material/Block";
-import { PaymentOutlined } from "@mui/icons-material";
-import { Space, Typography } from "antd";
+import { Alert, Button, Space, Spin, Typography } from "antd";
 import {
+  CloseCircleOutlined,
   CreditCardOutlined,
   DollarOutlined,
   FileAddOutlined,
+  LikeOutlined,
+  LoadingOutlined,
   MobileOutlined,
+  StopOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
+import { fetchAllPaymentMethods } from "@services/paymentMethod";
 
 const PaymentDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -53,8 +43,7 @@ const PaymentDrawer: React.FC = () => {
     data,
   } = useQuery({
     queryKey: ["paymentMethods"],
-    queryFn: () =>
-      fetch("http://localhost:3000/payment-methods/").then((res) => res.json()),
+    queryFn: fetchAllPaymentMethods,
     networkMode: "always",
   });
 
@@ -133,22 +122,43 @@ const PaymentDrawer: React.FC = () => {
   };
 
   if (isLoading) {
-    return <div>Loading payment methods...</div>;
+    return (
+      <Space
+        style={{ display: "flex", justifyContent: "center", marginTop: 4 }}
+      >
+        <Spin />
+      </Space>
+    );
   }
 
   if (Derror) {
-    return <div>An error occurred while fetching payment methods.</div>;
+    return (
+      <Space
+        style={{ display: "flex", justifyContent: "center", marginTop: 4 }}
+      >
+        <Alert
+          message="An error occurred while fetching payment methods."
+          type="error"
+          showIcon
+        />
+      </Space>
+    );
   }
 
   return (
-    <section>
-      <Typography.Title level={4}>Payment Method</Typography.Title>
+    <Space direction="vertical" style={{ width: "100%" }}>
+      <Typography.Title level={5}>Payment Method</Typography.Title>
       <Space
-        style={{ display: "flex", justifyContent: "space-between", padding: 4, flexWrap:"wrap" }}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+        }}
       >
         {data.map((method: { _id: string; name: string }) => (
           <ProCard
             key={method._id}
+            bodyStyle={{ paddingInline: "12px", paddingBlock: "16px" }}
             bordered
             onClick={() => handleSelectMethod(method._id)}
             style={{
@@ -166,7 +176,6 @@ const PaymentDrawer: React.FC = () => {
             >
               {method.name === "Cash" ? (
                 <>
-                  <DollarOutlined style={{ fontSize: "26px" }} />
                   <Typography.Text
                     strong
                     style={{
@@ -177,10 +186,10 @@ const PaymentDrawer: React.FC = () => {
                   >
                     Cash
                   </Typography.Text>
+                  <DollarOutlined style={{ fontSize: "16px" }} />
                 </>
               ) : method.name === "M-Pesa" ? (
                 <>
-                  <MobileOutlined style={{ fontSize: "26px" }} />
                   <Typography.Text
                     strong
                     style={{
@@ -191,10 +200,10 @@ const PaymentDrawer: React.FC = () => {
                   >
                     mpesa
                   </Typography.Text>
+                  <MobileOutlined style={{ fontSize: "16px" }} />
                 </>
               ) : method.name === "Card" ? (
                 <>
-                  <CreditCardOutlined style={{ fontSize: "26px" }} />
                   <Typography.Text
                     strong
                     style={{
@@ -205,10 +214,10 @@ const PaymentDrawer: React.FC = () => {
                   >
                     card
                   </Typography.Text>
+                  <CreditCardOutlined style={{ fontSize: "16px" }} />
                 </>
               ) : method.name === "Debt" ? (
                 <>
-                  <WalletOutlined style={{ fontSize: "26px" }} />
                   <Typography.Text
                     strong
                     style={{
@@ -219,10 +228,10 @@ const PaymentDrawer: React.FC = () => {
                   >
                     Debt
                   </Typography.Text>
+                  <WalletOutlined style={{ fontSize: "16px" }} />
                 </>
               ) : (
                 <>
-                  <FileAddOutlined style={{ fontSize: "26px" }} />
                   <Typography.Text
                     strong
                     style={{
@@ -233,6 +242,7 @@ const PaymentDrawer: React.FC = () => {
                   >
                     {method.name}
                   </Typography.Text>
+                  <FileAddOutlined style={{ fontSize: "26px" }} />
                 </>
               )}
             </Space>
@@ -240,33 +250,27 @@ const PaymentDrawer: React.FC = () => {
         ))}
       </Space>
       <Space
-        style={{ display: "flex", justifyContent: "space-between", padding: 4 }}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          marginTop: 4,
+        }}
       >
         <Button
-          variant="outlined"
-          color="primary"
+          danger
           onClick={() => {
             setSelectedMethod(null);
           }}
-          endIcon={<CloseIcon />}
-          sx={{
-            pl: 2,
-            color: "#6c1c2c",
-            borderColor: "#6c1c2c",
-
-            "&:hover": {
-              borderColor: "#bc8c7c",
-              color: "#bc8c7c",
-            },
-          }}
+          icon={<CloseCircleOutlined />}
         >
-          clear
+          Clear
         </Button>
         <Button
-          variant="outlined"
+          type="default"
           onClick={() => dispatch(cartVoid(cartDetails))}
-          endIcon={<BlockIcon />}
-          sx={{
+          icon={<StopOutlined />}
+          style={{
             pl: 2,
             color: "#6c1c2c",
             borderColor: "#6c1c2c",
@@ -279,19 +283,10 @@ const PaymentDrawer: React.FC = () => {
           Void Bill
         </Button>
         <Button
-          variant="contained"
-          color="primary"
-          endIcon={loading ? <CircularProgress size={20} /> : <RecommendIcon />}
+          type="primary"
+          icon={loading ? <LoadingOutlined /> : <LikeOutlined />}
           onClick={() => handlePayment(selectedMethod as string)}
           disabled={!selectedMethod}
-          sx={{
-            pl: 2,
-            bgcolor: "#6c1c2c",
-            "&:hover": {
-              bgcolor: "#bc8c7c",
-              color: "#ffff",
-            },
-          }}
         >
           Confirm
         </Button>
@@ -314,7 +309,7 @@ const PaymentDrawer: React.FC = () => {
           handleSplitConfirm={handleSplitConfirm}
         />
       )}
-    </section>
+    </Space>
   );
 };
 

@@ -1,22 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Box,
-  Button,
   Card,
   CardContent,
-  CircularProgress,
   Divider,
   Grid,
   IconButton,
 } from "@mui/material";
-// import DeleteIcon from "@mui/icons-material/Delete";
 import React, { useMemo } from "react";
 import { deleteCartItem } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
 import { Space } from "antd/lib";
-import { Typography } from "antd";
-import { DeleteFilled } from "@ant-design/icons";
+import { Button, Typography, notification } from "antd";
+import { DeleteOutlined, LoadingOutlined } from "@ant-design/icons";
 interface cartItemCardProps {
   cartItem: any;
 }
@@ -32,7 +29,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   const formattedPrice = useMemo(() => {
-    return `${cartItem.price}`;
+    return `${cartItem.price.toLocaleString()}`;
   }, [cartItem.price]);
 
   const formattedQuantity = useMemo(
@@ -46,37 +43,46 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       sx={{
         mb: 1,
         boxShadow: "none",
-        backgroundColor: cartItem.sent ? "#6c1c2c" : "#F8F8F8",
+        backgroundColor: cartItem.sent ? "#6c1c2c" : "#f6ffed",
         color: cartItem.sent ? "#fff" : "black",
       }}
     >
       <CardContent>
         <Grid container spacing={3} alignItems="center">
           <Grid item xs={3}>
-            <Typography.Text ellipsis={{ rows: 2, expandable: true }}>
+            <Typography.Text
+              ellipsis={{ rows: 2, expandable: true }}
+              style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
+            >
               {cartItem?.product_id?.name}
             </Typography.Text>
           </Grid>
           <Grid item xs={3}>
-            <Box sx={{ display: "flex", alignItems: "center", columnGap: 1 }}>
-              <Typography.Text strong>
+            <Box
+              sx={{ display: "flex", alignItems: "center", columnGap: 1 }}
+              style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
+            >
+              <Typography.Text
+                strong
+                style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
+              >
                 x{" "}
-                {cartItem.quantity ? (
-                  formattedQuantity
-                ) : (
-                  <CircularProgress
-                    size={20}
-                    thickness={8}
-                    sx={{ ml: 1 }}
-                    color="inherit"
-                  />
-                )}
+                {cartItem.quantity
+                  ? formattedQuantity
+                  : notification.warning({
+                      message: "Be Alerted!",
+                      description:
+                        "You have added an item that has no quantity!, make sure to update its quantity value",
+                    })}
               </Typography.Text>
             </Box>
           </Grid>
-          <Grid item xs={3} ml={-2}>
-            <Typography.Text strong>
-              ksh.{formattedPrice ? formattedPrice : 0}
+          <Grid item xs={3} ml={-3}>
+            <Typography.Text
+              strong
+              style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
+            >
+              {formattedPrice ? formattedPrice : 0}
             </Typography.Text>
           </Grid>
           <Grid item xs={3} ml={2}>
@@ -87,29 +93,21 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 </IconButton>
                 {user?.isAdmin && (
                   <Button
-                    variant="contained"
-                    color="inherit"
-                    size="small"
-                    sx={{ height: 35, borderRadius: "5px" }}
-                  >
-                    <DeleteFilled
-                      onClick={() => dispatch(deleteCartItem(cartItem._id))}
-                    />
-                  </Button>
+                    danger
+                    style={{ width: "60px" }}
+                    icon={<DeleteOutlined />}
+                    onClick={() => dispatch(deleteCartItem(cartItem._id))}
+                  ></Button>
                 )}
               </Space>
             ) : (
               <>
                 <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  sx={{ height: 30, borderRadius: "8px" }}
-                >
-                  <DeleteFilled
-                    onClick={() => dispatch(deleteCartItem(cartItem._id))}
-                  />
-                </Button>
+                  danger
+                  style={{ width: "60px" }}
+                  icon={<DeleteOutlined />}
+                  onClick={() => dispatch(deleteCartItem(cartItem._id))}
+                ></Button>
               </>
             )}
           </Grid>

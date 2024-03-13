@@ -10,7 +10,10 @@ export const getAllTables = async (data: ParamsType) => {
     const response = await axios.get(tableUrl, { params: {name: data.name, locatedAt: data.locatedAt} });
     return response.data;
   } catch (error) {
-    Modal.error({ title: `${error?.message}`, content: "Please check your internet connection!" });
+    Modal.error({
+      title: "Oops!",
+      content: "Please check your internet connection!",
+    });
   }
 };
 
@@ -20,7 +23,10 @@ export const getTableLocation = async (data: ParamsType) => {
     const response = await axios.get(url, { params: { name: data.name } });
     return response.data;
   } catch (error) {
-    Modal.error({ title: `${error?.message}`, content: "Please check your internet connection!" });
+    Modal.error({
+      title: "Oops!",
+      content: "Please check your internet connection!",
+    });
   }
 };
 

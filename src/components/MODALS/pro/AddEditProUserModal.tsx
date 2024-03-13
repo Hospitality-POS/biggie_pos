@@ -35,13 +35,9 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   edit,
   data,
 }) => {
- 
+  const [form] = Form.useForm();
 
-const [form] = Form.useForm();
- 
-  const {
-    handleConfirmAddUser
-  } = useAddEditUserModal({ onAddUser });
+  const { handleConfirmAddUser } = useAddEditUserModal({ onAddUser });
 
   return (
     <ModalForm
@@ -76,8 +72,12 @@ const [form] = Form.useForm();
         destroyOnClose: true,
       }}
       onFinish={async (values) => {
-        const confirmed = await ShowConfirm({title: `Are you sure you want to ${edit ? "update this" : "add new"} user?`})
-        if(confirmed){
+        const confirmed = await ShowConfirm({
+          title: `Are you sure you want to ${
+            edit ? "update this" : "add new"
+          } user?`,
+        });
+        if (confirmed) {
           edit
             ? await updateUsers({ values, _id: data._id })
             : await handleConfirmAddUser(values);
@@ -95,6 +95,7 @@ const [form] = Form.useForm();
     >
       <ProForm.Group>
         <ProFormText
+          hasFeedback
           width="md"
           id="fullName"
           name="fullname"
@@ -103,6 +104,7 @@ const [form] = Form.useForm();
           placeholder="Enter user fullname"
         />
         <ProFormText
+          hasFeedback
           width="md"
           name="username"
           label="username"
@@ -111,6 +113,7 @@ const [form] = Form.useForm();
         />
 
         <ProFormSelect
+          hasFeedback
           width="md"
           name="isAdmin"
           label="Admin Role"
@@ -128,6 +131,7 @@ const [form] = Form.useForm();
         />
 
         <ProFormText
+          hasFeedback
           width="md"
           id="user_email"
           name="email"
@@ -143,6 +147,7 @@ const [form] = Form.useForm();
         />
 
         <ProFormText.Password
+          hasFeedback
           width="md"
           name="pin"
           label="Pin"
@@ -157,6 +162,7 @@ const [form] = Form.useForm();
           placeholder="Enter user Pin"
         />
         <ProFormDigit
+          hasFeedback
           width="md"
           name="idNumber"
           label="ID Number"
@@ -167,6 +173,7 @@ const [form] = Form.useForm();
         />
 
         <ProFormDigit
+          hasFeedback
           width="md"
           name="phone"
           label="Phone"

@@ -41,7 +41,7 @@ export const editCategory = async (params: ParamsType) => {
     return response.data;
   } catch (error) {
      Modal.error({
-       title: `${(error as Error)?.message}`,
+       title: "Oops!",
        content: "Please check your internet connection!",
      }); 
     return (error as Error).message;
