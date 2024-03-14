@@ -69,11 +69,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 x{" "}
                 {cartItem.quantity
                   ? formattedQuantity
-                  : notification.warning({
-                      message: "Be Alerted!",
-                      description:
-                        "You have added an item that has no quantity!, make sure to update its quantity value",
-                    })}
+                  : <LoadingOutlined/>}
               </Typography.Text>
             </Box>
           </Grid>

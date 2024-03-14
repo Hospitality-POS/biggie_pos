@@ -10,13 +10,9 @@ interface PaymentMethod {
   name: string;
 }
 
-interface UseAddPaymentMethodFormProps {
-  onAddPaymentMethod: (paymentMethod: PaymentMethod) => void;
-}
 
-const useAddPaymentMethodSettingsModal = ({
-  onAddPaymentMethod,
-}: UseAddPaymentMethodFormProps) => {
+
+const useAddPaymentMethodSettingsModal = () => {
   const [form] = ProForm.useForm();
   const dispatch = useAppDispatch();
 
@@ -27,7 +23,6 @@ const useAddPaymentMethodSettingsModal = ({
   const handleConfirmAddPaymentMethod = async (values: PaymentMethod) => {
     try {
       dispatch(createPaymentMethod(values));
-      onAddPaymentMethod(values);
       setIsSubmitting(true);
       handleClose();
 
@@ -58,10 +53,6 @@ const useAddPaymentMethodSettingsModal = ({
     // Do something with the  PaymentMethodChange change if needed
   };
   return {
-    form,
-    isSubmitting,
-    setIsSubmitting,
-    handleClose,
     handleConfirmAddPaymentMethod,
     handlePaymentMethodChange,
   };

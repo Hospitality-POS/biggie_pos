@@ -11,16 +11,7 @@ import useAddEditUserModal from "../Hooks/useAddEditUserModal";
 import { ProFormDigit, ProFormInstance } from "@ant-design/pro-components";
 import { updateUsers } from "@services/users";
 import ShowConfirm from "@utils/ConfirmUtil";
-
-interface User {
-  fullname: string;
-  username: string;
-  email: string;
-  pin: string;
-  phone: string;
-  idNumber: string;
-  isAdmin: string;
-}
+import { User } from "src/interfaces/User";
 
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
@@ -45,7 +36,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       title={
         <Space>
           <UsergroupAddOutlined />
-          Add New User
+          {edit ? "Edit User" : "Add New User"}
         </Space>
       }
       initialValues={edit ? { ...data } : {}}

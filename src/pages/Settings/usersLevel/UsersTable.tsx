@@ -19,15 +19,8 @@ import { fetchAllUsersList } from "@services/users";
 import ExpandedRowContent from "./ExpandedRowContent";
 import AddEditProUserModal from "@components/MODALS/pro/AddEditProUserModal";
 import useUserSettings from "../hooks/useUserSettings";
+import { User } from "src/interfaces/User";
 
-interface User {
-  fullname: string;
-  id: number;
-  name: string;
-  email: string;
-  phone: number;
-  role: string;
-}
 
 const UsersTable = () => {
   const onDeleteCandidate = (_user: User) => {

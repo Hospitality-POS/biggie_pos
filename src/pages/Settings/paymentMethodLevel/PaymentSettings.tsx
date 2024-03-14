@@ -7,13 +7,12 @@ import {
 } from "@mui/material";
 import {
   ActionType,
-  ProCard,
-  ProFormText,
+  ParamsType,
   ProTable,
 } from "@ant-design/pro-components";
 import { Tooltip } from "antd/lib";
-import { Button } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { Button, Space } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import usePaymentSettings from "../hooks/usePaymentSettings";
 import AddProPaymentMethodSettingsModal from "@components/MODALS/pro/AddProPaymentSettingsModal";
@@ -22,15 +21,9 @@ const PaymentsMethodSettings = () => {
   const paymentRef = useRef<ActionType>();
   const {
     deleteCandidate,
-    setDeleteCandidate,
-    addPaymentSettingDialogOpen,
-    setAddPaymentSettingDialogOpen,
     deleteConfirmationOpen,
-    setDeleteConfirmationOpen,
     handleDeleteCancel,
     handleDeleteClick,
-    handleOpenAddPaymentSettingDialog,
-    handleAddPaymentSetting,
     handleDeleteConfirm,
   } = usePaymentSettings();
 
@@ -38,22 +31,24 @@ const PaymentsMethodSettings = () => {
     title: "Actions",
     dataIndex: "actions",
     hideInSearch: true,
-    render: (_, record: any) => [
-      <Tooltip key="edit" title="Edit">
-        <Button
-          type="link"
-          icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-          //   onClick={() => handleEditClick(record)}
-        />
-      </Tooltip>,
-      <Tooltip key="delete" title="Delete">
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeleteClick(record)}
-        />
-      </Tooltip>,
+    render: (_, record: ParamsType) => [
+      <Space>
+        <Tooltip key="edit" title="Edit">
+          <AddProPaymentMethodSettingsModal
+            edit={true}
+            actionRef={paymentRef}
+            data={record}
+          />
+        </Tooltip>
+        <Tooltip key="delete" title="Delete">
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteClick(record)}
+          />
+        </Tooltip>
+      </Space>,
     ],
   };
 
@@ -108,7 +103,6 @@ const PaymentsMethodSettings = () => {
         toolBarRender={() => [
           <AddProPaymentMethodSettingsModal
             actionRef={paymentRef}
-            onAddPaymentMethod={handleAddPaymentSetting}
           />,
         ]}
       />
