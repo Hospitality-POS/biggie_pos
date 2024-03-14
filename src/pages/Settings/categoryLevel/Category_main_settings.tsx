@@ -40,7 +40,6 @@ const CategoryMainSettings: React.FC = () => {
 
   return (
     <ProCard
-      // style={{ height: "90vh" }}
       tabs={{
         type: "card",
         items: tabsItems,
@@ -49,8 +48,9 @@ const CategoryMainSettings: React.FC = () => {
       }}
       title={
         <Space>
-          <ApartmentOutlined/>
-          <Typography.Title level={4}>Category Main Settings</Typography.Title> 
+          <Typography.Title level={4}>
+            <ApartmentOutlined /> Category Main Settings
+          </Typography.Title>
         </Space>
       }
     />

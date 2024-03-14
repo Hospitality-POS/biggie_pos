@@ -26,16 +26,7 @@ const CategorySettings = () => {
     handleDeleteCancel,
     deleteCandidate,
   } = useCategorySettings({ type:"category" });
-  const [isEditing, setIsEditing] = useState(false)
-  const handleAddCategory = () => {
-    // You can update your state or perform any necessary actions here
-    // For example, you can add the newCategory to your existing categories
-    // and update the table accordingly.
-  };
-  const handleEditClick = (record: React.SetStateAction<null>) => {
-    console.log(record);
-    setIsEditing(true)
-  };
+
   const actionColumn = {
     title: "Actions",
     dataIndex: "actions",
@@ -44,7 +35,6 @@ const CategorySettings = () => {
       <Space>
         <Tooltip key="edit" title="Edit">
           <AddProCategoryModal
-            onAddCategory={handleAddCategory}
             edit={true}
             actionRef={actionRef}
             data={record}
@@ -78,6 +68,7 @@ const CategorySettings = () => {
         columns={[
           {
             title: "Category",
+            key:"categ",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {
@@ -86,6 +77,7 @@ const CategorySettings = () => {
           },
           {
             title: "Subcategory",
+            key:"sub-categ",
             dataIndex: ["sub_category", "name"],
             hideInSearch: false,
             fieldProps: {
@@ -120,10 +112,7 @@ const CategorySettings = () => {
         headerTitle="List of categories"
         toolBarRender={() => [
           <AddProCategoryModal
-            onAddCategory={handleAddCategory}
-            edit={false}
             actionRef={actionRef}
-            data={{}}
           />,
         ]}
       />

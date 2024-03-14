@@ -60,6 +60,7 @@ const {
         columns={[
           {
             title: "Main-Category",
+            key:"main--categ",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {

@@ -8,7 +8,7 @@ import {
 } from "@ant-design/pro-form";
 import { EditOutlined, UsergroupAddOutlined } from "@ant-design/icons";
 import useAddEditUserModal from "../Hooks/useAddEditUserModal";
-import { ProFormDigit, ProFormInstance } from "@ant-design/pro-components";
+import { ProFormDigit } from "@ant-design/pro-components";
 import { updateUsers } from "@services/users";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { User } from "src/interfaces/User";
@@ -27,12 +27,14 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   data,
 }) => {
   const [form] = Form.useForm();
+   const formRef = useRef();
 
   const { handleConfirmAddUser } = useAddEditUserModal({ onAddUser });
 
   return (
     <ModalForm
       form={form}
+      formRef={formRef}
       title={
         <Space>
           <UsergroupAddOutlined />
@@ -61,6 +63,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
+        style: { display: "grid", placeContent: "center" },
       }}
       onFinish={async (values) => {
         const confirmed = await ShowConfirm({

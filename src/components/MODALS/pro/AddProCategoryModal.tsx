@@ -1,27 +1,24 @@
 // AddProCategoryDialog.tsx
-import React from "react";
-import { Button, Space } from "antd";
+import React, { useRef } from "react";
+import { Button, Form, Space } from "antd";
 import {
   ModalForm,
   ProFormSelect,
   ProFormText,
   ProForm,
 } from "@ant-design/pro-form";
-import useAddCategoryDialog from "../Hooks/useAddCategoryDialog";
-import { fetchSubCategories } from "../../../services/categories";
+import {
+  addNewCategory,
+  fetchSubCategories,
+  updateCategory,
+} from "../../../services/categories";
 import { ApartmentOutlined, EditOutlined } from "@ant-design/icons";
-
-interface Category {
-  _id?: string;
-  sub_category?: string;
-  name: string;
-}
+import ShowConfirm from "@utils/ConfirmUtil";
 
 interface AddCategoryDialogProps {
-  onAddCategory: (category: Category) => void;
   actionRef: any;
-  edit: boolean;
-  data: {
+  edit?: boolean;
+  data?: {
     _id: string;
     name: string;
     subcategory_id: string;
@@ -30,36 +27,30 @@ interface AddCategoryDialogProps {
 }
 
 const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
-  onAddCategory,
   actionRef,
   edit,
   data,
 }) => {
-  const {
-    form,
-    handleConfirmAddCategory,
-    handleClose,
-    handleConfirmEditCategory,
-  } = useAddCategoryDialog({ onAddCategory, edit });
+  const [form] = Form.useForm();
+  const formRef = useRef();
 
   return (
     <ModalForm
-      width={750}
+      form={form}
+      formRef={formRef}
       title={
         <Space>
           <ApartmentOutlined />
-          Add New Category
+          {edit ? "Edit Category" : "Add New Category"}
         </Space>
       }
       initialValues={
         edit
           ? {
               ...data,
-              _id: data?._id,
-              // name: data?.name,
               subcategory_id: {
                 value: data?.sub_category?._id,
-                label: data?.sub_category?.name,
+                lable: data?.sub_category?.name,
               },
             }
           : {}
@@ -70,6 +61,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
             type="link"
             key="button"
             icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
+            onClick={() => form.setFieldsValue(data)}
           ></Button>
         ) : (
           <Button key="button" icon={<ApartmentOutlined />}>
@@ -77,15 +69,26 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
           </Button>
         )
       }
-      onFinish={async (values) => {
-        edit
-          ? await handleConfirmEditCategory({ values, data }) 
-          : await handleConfirmAddCategory(values);
-        actionRef.current.reload();
-        return true;
+      autoFocusFirstInput
+      modalProps={{
+        destroyOnClose: true,
+        style: { display: "grid", placeContent: "center" },
       }}
-      onOpenChange={(visible) => !visible && handleClose()}
-      form={form}
+      onFinish={async (values) => {
+        const confirmed = await ShowConfirm({
+          title: `Are you sure you want to ${
+            edit ? "update this" : "add new"
+          } Cateory?`,
+        });
+        if (confirmed) {
+          edit
+            ? await updateCategory({ values, _id: data?._id })
+            : await addNewCategory(values);
+          actionRef.current.reset();
+          return true;
+        }
+      }}
+      onOpenChange={(visible) => !visible}
       submitter={{
         searchConfig: {
           resetText: "Cancel",
@@ -95,6 +98,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
     >
       <ProForm.Group>
         <ProFormText
+          hasFeedback
           width="md"
           name="name"
           label="Name"
@@ -103,6 +107,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
         />
 
         <ProFormSelect
+          hasFeedback
           width="md"
           name="subcategory_id"
           label="Subcategory"
