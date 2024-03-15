@@ -1,25 +1,13 @@
 import { HolderOutlined, PlusOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
-import SuccesssModal from "@components/MODALS/SuccessModal";
-import TableCard from "@components/TableCard/TableCard";
-import StaffModal from "@components/staffCard/LoginModal";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Card, Flex, FloatButton, Spin, Typography } from "antd";
-import { Empty, Modal, Space } from "antd/lib";
-import axios from "axios";
-import Lottie from "lottie-react";
+import { FloatButton, Spin, Typography } from "antd";
+import { Space } from "antd/lib";
 import React, { useState } from "react";
-import { useAppSelector } from "src/store";
-import fssanimation from "../../components/Loaders/fss loader.json";
 import EmptyPage from "@routes/EmptyPage";
 import { getAllProducts } from "@services/products";
-import StoreProductCardSkeleton from "@components/store/StoreProductSkeletonCard";
 import StoreProductCard from "@components/store/StoreProductCard";
 import ErrorDialog from "@components/MODALS/Dialogs/ErrorDialog";
-import { Product } from "src/interfaces/Product";
-import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import { CardContent, Box, IconButton } from "@mui/material";
-import { PlusOneTwoTone } from "@mui/icons-material";
 import AddNewProductModal from "@components/store/AddNewProductModal";
 
 export default function MainStore() {
@@ -56,7 +44,7 @@ export default function MainStore() {
     label: (
       <Typography>
         <HolderOutlined />
-        {item.name}
+        {item?.name}
       </Typography>
     ),
     children: [
@@ -67,7 +55,7 @@ export default function MainStore() {
         style={{ right: 20 + 70 }}
         tooltip={<div>Add a new Product</div>}
       />,
-      item?.products && item?.products.length > 0 ? (
+      item?.products && item?.products?.length > 0 ? (
         <div
           className="wrapper"
           style={{
@@ -81,16 +69,16 @@ export default function MainStore() {
             alignItems: "start",
           }}
         >
-          {item?.products.map((prod) => (
+          {item?.products?.map((prod) => (
             <Space>
               <StoreProductCard
                 key={prod._id}
-                bowls={prod.quantity}
+                bowls={prod?.quantity}
                 price={prod.price}
-                name={prod.name}
-                img={prod.image}
+                name={prod?.name}
+                img={prod?.image}
                 product={prod}
-                productId={prod._id}
+                productId={prod?._id}
               />
             </Space>
           ))}

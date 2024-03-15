@@ -19,15 +19,8 @@ import { fetchAllUsersList } from "@services/users";
 import ExpandedRowContent from "./ExpandedRowContent";
 import AddEditProUserModal from "@components/MODALS/pro/AddEditProUserModal";
 import useUserSettings from "../hooks/useUserSettings";
+import { User } from "src/interfaces/User";
 
-interface User {
-  fullname: string;
-  id: number;
-  name: string;
-  email: string;
-  phone: number;
-  role: string;
-}
 
 const UsersTable = () => {
   const onDeleteCandidate = (_user: User) => {
@@ -70,7 +63,7 @@ const UsersTable = () => {
     ],
   };
 
-  const expandedRowRender = (record) => {
+  const expandedRowRender = (record: any) => {
     return <ExpandedRowContent record={record} />;
   };
   return (
@@ -89,6 +82,7 @@ const UsersTable = () => {
           {
             title: "Name",
             dataIndex: "fullname",
+            key:"user-Name",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter User's name",
@@ -108,6 +102,7 @@ const UsersTable = () => {
           {
             title: "Email",
             dataIndex: "email",
+            key:"user-email2",
             hideInSearch: false,
             copyable: true,
             ellipsis: true,
@@ -147,8 +142,7 @@ const UsersTable = () => {
           actionColumn,
         ]}
         request={async (params) => {
-          const data = await fetchAllUsersList(params);
-
+          const data = await fetchAllUsersList(params);      
           return {
             data: data,
             success: true,
@@ -180,9 +174,6 @@ const UsersTable = () => {
         toolBarRender={() => [
           <AddEditProUserModal
             actionRef={actionRef}
-            onAddUser={(user) => {
-              console.log(user);
-            }}
           />,
         ]}
       />

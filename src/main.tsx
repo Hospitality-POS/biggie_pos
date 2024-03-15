@@ -10,8 +10,8 @@ import { createTheme } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@emotion/react";
 import { CssBaseline } from "@mui/material";
-import { ConfigProvider } from 'antd';
-import enUS from 'antd/locale/en_US';
+import { ConfigProvider } from "antd";
+import enUS from "antd/locale/en_US";
 
 const theme = createTheme({
   typography: {
@@ -21,29 +21,32 @@ const theme = createTheme({
 
 const queryClient = new QueryClient();
 
-
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Provider store={store}>
-
-          <QueryClientProvider client={queryClient}>
-            <ConfigProvider locale={enUS} theme={{
-          token: {
-            colorPrimary: "#6c1c2c",
-            colorBgContainer: "#f6ffed",
-          },
-          components:{
-            Button:{
-              primaryShadow: "#f6ffed"
-            }
-          }
-        }}>
+        <QueryClientProvider client={queryClient}>
+          <ConfigProvider
+            locale={enUS}
+            theme={{
+              token: {
+                colorPrimary: "#6c1c2c",
+                colorBgContainer: "#f6ffed",
+              },
+              components: {
+                Button: {
+                  primaryShadow: "#f6ffed",
+                },
+                Card: {
+                  actionsBg: "#6c1c2c",
+                },
+              },
+            }}
+          >
             <App />
-            </ConfigProvider>
-          </QueryClientProvider>
-
+          </ConfigProvider>
+        </QueryClientProvider>
       </Provider>
     </ThemeProvider>
   </React.StrictMode>

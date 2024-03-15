@@ -64,6 +64,7 @@ const SubCategorySettings = () => {
           {
             title: "Sub-category",
             dataIndex: "name",
+            key:"sub--categ",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter sub-category name",

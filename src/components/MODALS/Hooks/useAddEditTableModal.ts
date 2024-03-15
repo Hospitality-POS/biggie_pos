@@ -13,10 +13,8 @@ interface UseAddTableProps {
 export const useAddEditTableModal = ({ onAddTable }: UseAddTableProps) => {
   const dispatch = useAppDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form] = ProForm.useForm();
 
   const handleClose = () => {
-    form.resetFields();
     setIsSubmitting(false);
   };
 
@@ -52,7 +50,6 @@ export const useAddEditTableModal = ({ onAddTable }: UseAddTableProps) => {
   };
   return {
     isSubmitting,
-    form,
     handleConfirmAddTable,
     handleClose,
     setIsSubmitting,

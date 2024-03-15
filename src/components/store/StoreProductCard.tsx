@@ -1,7 +1,6 @@
 import {
   Box,
   Button,
-  Card,
   CardContent,
   CardMedia,
   IconButton,
@@ -10,12 +9,14 @@ import React from "react";
 import CircleIcon from "@mui/icons-material/Circle";
 import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
 import EditProductModal from "./EditProductModal";
-import { deleteProduct } from "../../features/Product/ProductAction";
+// import { deleteProduct } from "../../features/Product/ProductAction";
 import { MenuBook } from "@mui/icons-material";
 import { useAppDispatch } from "../../store";
-import { Space, Typography } from "antd";
+import { Card, Space, Typography } from "antd";
 import { ProCard } from "@ant-design/pro-components";
 import { DeleteFilled, EditOutlined, SettingOutlined } from "@ant-design/icons";
+import ShowConfirm from "@utils/ConfirmUtil";
+import { deleteProduct } from "@services/products";
 
 interface StoreProductCardProps {
   img: string;
@@ -47,22 +48,33 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
 
   return (
     <>
-      <ProCard
+      <Card
         hoverable
         style={{ maxWidth: 200, width: 200 }}
-        bordered
-        bodyStyle={{ backgroundColor: "white" }}
+        // bordered
+        // bodyStyle={{ backgroundColor: "white" }}
+        type="inner"
         actions={[
-          <SettingOutlined key="setting" style={{ fontSize: "20px" }} />,
+          <SettingOutlined
+            key="setting"
+            style={{ fontSize: "20px", color: "white" }}
+          />,
           <EditOutlined
             key="edit"
             onClick={handleEditClick}
-            style={{ fontSize: "20px" }}
+            style={{ fontSize: "20px", color: "white" }}
           />,
           <DeleteFilled
             key="delete"
-            onClick={() => handleDeleteClick(productId)}
-            style={{ fontSize: "20px" }}
+            onClick={async () => {
+              const confirm = await ShowConfirm({
+                title: "Are you sure you want to delete this product?",
+              });
+              if (confirm) {
+                deleteProduct(productId);
+              }
+            }}
+            style={{ fontSize: "20px", color: "white" }}
           />,
         ]}
       >
@@ -85,7 +97,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
           <Typography.Text ellipsis>{bowls}</Typography.Text>
           <Typography.Text> Item{bowls <= 1 ? " " : "s"}</Typography.Text>
         </div>
-      </ProCard>
+      </Card>
 
       <EditProductModal
         open={modalOpen}

@@ -4,7 +4,7 @@ import { notification } from "antd/lib";
 import { useAppDispatch, useAppSelector } from "../../../store";
 import { resetCategoryMessage } from "@features/Category/CategorySlice";
 import { createCategory, updateCategory } from "@features/Category/CategoryActions";
-import { editCategory } from "@services/categories";
+// import { editCategory } from "@services/categories";
 
 interface Category {
   _id?: string;
@@ -67,7 +67,7 @@ const useAddCategoryDialog = ({
 
   const handleConfirmEditCategory =async (data: ParamsType) => {
       try {     
-        editCategory(data);
+        // editCategory(data);
         handleClose();
       } catch (error) {
         setIsSubmitting(false);

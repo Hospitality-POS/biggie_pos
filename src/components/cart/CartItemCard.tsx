@@ -1,21 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   Box,
-  Button,
   Card,
   CardContent,
-  CircularProgress,
   Divider,
   Grid,
   IconButton,
-  Typography,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
 import React, { useMemo } from "react";
 import { deleteCartItem } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
 import { Space } from "antd/lib";
+import { Button, Typography, notification } from "antd";
+import { DeleteOutlined, LoadingOutlined } from "@ant-design/icons";
 interface cartItemCardProps {
   cartItem: any;
 }
@@ -31,7 +29,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const { user } = useAppSelector((state) => state.auth);
 
   const formattedPrice = useMemo(() => {
-    return `${cartItem.price}`;
+    return `${cartItem.price.toLocaleString()}`;
   }, [cartItem.price]);
 
   const formattedQuantity = useMemo(
@@ -45,70 +43,67 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       sx={{
         mb: 1,
         boxShadow: "none",
-        backgroundColor: cartItem.sent ? "#6c1c2c" : "#F8F8F8",
+        backgroundColor: cartItem.sent ? "#6c1c2c" : "#f6ffed",
         color: cartItem.sent ? "#fff" : "black",
       }}
     >
       <CardContent>
-        <Grid container spacing={2} alignItems="center">
+        <Grid container spacing={3} alignItems="center">
           <Grid item xs={3}>
-            <Typography variant="body1">
+            <Typography.Text
+              ellipsis={{ rows: 2, expandable: true }}
+              style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
+            >
               {cartItem?.product_id?.name}
-            </Typography>
+            </Typography.Text>
           </Grid>
           <Grid item xs={3}>
-            <Box sx={{ display: "flex", alignItems: "center", columnGap: 1 }}>
-              <Typography variant="body1" ml={4}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", columnGap: 1 }}
+              style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
+            >
+              <Typography.Text
+                strong
+                style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
+              >
                 x{" "}
-                {cartItem.quantity ? (
-                  formattedQuantity
-                ) : (
-                  <CircularProgress
-                    size={20}
-                    thickness={8}
-                    sx={{ ml: 1 }}
-                    color="inherit"
-                  />
-                )}
-              </Typography>
+                {cartItem.quantity
+                  ? formattedQuantity
+                  : <LoadingOutlined/>}
+              </Typography.Text>
             </Box>
           </Grid>
-          <Grid item xs={2} ml={-3}>
-            <Typography variant="body1" fontSize="16px" ml={1}>
-              ksh.{formattedPrice ? formattedPrice : 0}
-            </Typography>
+          <Grid item xs={3} ml={-3}>
+            <Typography.Text
+              strong
+              style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
+            >
+              {formattedPrice ? formattedPrice : 0}
+            </Typography.Text>
           </Grid>
-          <Grid item xs={2} ml={4}>
+          <Grid item xs={3} ml={2}>
             {cartItem.sent ? (
               <Space>
                 <IconButton>
                   <AddTaskIcon color="success" fontSize="small" />
                 </IconButton>
-                {user?.isAdmin && (<Button
-                  variant="contained"
-                  color="inherit"
-                  size="small"
-                  sx={{ height: 35, borderRadius: "5px" }}
-                >
-                  <DeleteIcon
-                    color="error"
+                {user?.isAdmin && (
+                  <Button
+                    danger
+                    style={{ width: "60px" }}
+                    icon={<DeleteOutlined />}
                     onClick={() => dispatch(deleteCartItem(cartItem._id))}
-                  />
-                </Button>)}
+                  ></Button>
+                )}
               </Space>
             ) : (
               <>
                 <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  sx={{ height: 30, borderRadius: "8px" }}
-                >
-                  <DeleteIcon
-                    color="error"
-                    onClick={() => dispatch(deleteCartItem(cartItem._id))}
-                  />
-                </Button>
+                  danger
+                  style={{ width: "60px" }}
+                  icon={<DeleteOutlined />}
+                  onClick={() => dispatch(deleteCartItem(cartItem._id))}
+                ></Button>
               </>
             )}
           </Grid>

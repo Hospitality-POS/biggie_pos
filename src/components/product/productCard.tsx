@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from "react";
 import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import { useDispatch, useSelector } from "react-redux";
 import { addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
 import { addItem, subtractItem } from "../../features/Cart/CartSlice";
 import { useAppDispatch, useAppSelector } from "../../store";
+import { Typography } from "antd";
 
 interface menudetails {
   quantity: number;
@@ -81,11 +81,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         flexDirection: "column",
         alignItems: "flex-start",
         justifyContent: "center",
-        padding: "16px",
-        maxWidth: "200px",
-        maxHeight: "150px",
-        height: "150px",
-        width: "150px",
+        padding: "10px",
+        // maxWidth: "200px",
+        height: "170px",
+        width: "180px",
         overflow: "hidden",
         cursor: "pointer",
         backgroundColor: "#6c1c2c",
@@ -100,10 +99,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         e.currentTarget.style.color = "Black";
       }}
     >
-      <div>
-        <Typography
-          variant="h6"
-          gutterBottom
+        <Typography.Title level={4}
+          ellipsis={{rows:3}}
           style={{
             fontWeight: "inherit",
             whiteSpace: "normal",
@@ -113,16 +110,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
           }}
         >
           {menu.name}
-        </Typography>
-        <Typography
-          variant="body1"
-          fontSize={18}
-          mb={2}
-          style={{ opacity: 0.7, marginTop: "auto", color: "white" }}
+        </Typography.Title>
+        <Typography.Text strong
+          style={{ opacity: 0.9, marginTop: "auto", color: "white" }}
         >
           Ksh. {formattedPrice}
-        </Typography>
-      </div>
+        </Typography.Text>
     </Paper>
   );
 };

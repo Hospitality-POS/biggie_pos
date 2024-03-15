@@ -59,7 +59,7 @@ import { useAppSelector } from "src/store";
       },
 
       {
-        icon: "online-payment.png",
+        icon: "/online-payment.png",
         title: "Payment methods",
         desc: "Add, view or update payment methods",
         url: "/payment-methods",

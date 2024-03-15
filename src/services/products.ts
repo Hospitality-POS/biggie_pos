@@ -3,17 +3,17 @@ import { BASE_URL } from "@utils/config";
 import { Modal } from "antd";
 import axios from "axios";
 
-const productUrl = `${BASE_URL}/product`;
+const productUrl = `${BASE_URL}/product/products`;
 
 const {headers} = SetBearerHeaderToken()
 
 export const getAllProducts = async () => {
   try {
-    const response = await axios.get(`${productUrl}/products/getproducts/all`);
+    const response = await axios.get(`${productUrl}/getproducts/all`);
     return response.data;
   } catch (error) {
     Modal.error({
-      title: `${error?.message}`,
+      title: "Oops!",
       content: "Please check your internet connection!",
     });
   }
@@ -25,7 +25,7 @@ export const deleteProduct = async (productId: string) => {
     return productId;
   } catch (error) {
     Modal.error({
-      title: `${error?.message}`,
+      title: "Oops!",
       content: "Please check your internet connection!",
     });
   }

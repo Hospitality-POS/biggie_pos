@@ -150,7 +150,7 @@ const RestaurantPage: React.FC = () => {
       <Grid container spacing={3}>
         {/* Left Column */}
         <Grid item xs={8}>
-          <Paper elevation={3} style={{ padding: "16px", height: "90vh" }}>
+          <Paper elevation={3} style={{ padding: "16px" }}>
             <AppBar position="static" sx={{ mb: 2, bgcolor: "#6c1c2c" }}>
               <Tabs
                 value={value}

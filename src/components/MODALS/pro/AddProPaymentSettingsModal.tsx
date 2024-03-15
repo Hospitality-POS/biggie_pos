@@ -1,70 +1,80 @@
 import React from "react";
-import { Button, Space } from "antd";
+import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
-import PaymentIcon from "@mui/icons-material/Payment";
-import useAddPaymentMethodSettingsModal from "../Hooks/useAddPaymentMethodSettingsModal";
-import { ActionType } from "@ant-design/pro-components";
-import { DollarOutlined, PlusOutlined } from "@ant-design/icons";
-
-interface PaymentMethod {
-  name: string;
-}
+import { DollarOutlined, EditOutlined } from "@ant-design/icons";
+import ShowConfirm from "@utils/ConfirmUtil";
+import { addNewPaymentMethod, updateMethod } from "@services/paymentMethod";
 
 interface AddProPaymentMethodSettingsModalProps {
-  onAddPaymentMethod: (paymentMethod: PaymentMethod) => void;
   actionRef: any;
+  edit?: boolean;
+  data?: any;
 }
 
 const AddProPaymentMethodSettingsModal: React.FC<
   AddProPaymentMethodSettingsModalProps
-> = ({ onAddPaymentMethod, actionRef }) => {
-  const {
-    form,
-    isSubmitting,
-    setIsSubmitting,
-    handleClose,
-    handleConfirmAddPaymentMethod,
-    handlePaymentMethodChange,
-  } = useAddPaymentMethodSettingsModal({ onAddPaymentMethod });
+> = ({ actionRef, edit, data }) => {
+  const [form] = Form.useForm();
 
   return (
     <Space align="center" direction="vertical" size={"small"}>
       <ModalForm
-        width={550}
-        open={isSubmitting}
-        layout="horizontal"
         title={
           <Space>
             <DollarOutlined />
             Add New Method
           </Space>
         }
+        initialValues={edit ? { ...data } : {}}
         trigger={
-          <Button
-            onClick={() => setIsSubmitting(true)}
-            key="button"
-            icon={<DollarOutlined />}
-          >
-            New
-          </Button>
+          edit ? (
+            <Button
+              key="button"
+              type="link"
+              icon={
+                <EditOutlined
+                  style={{ color: "#6c1c2c" }}
+                  onClick={() => form.setFieldsValue(data)}
+                />
+              }
+            ></Button>
+          ) : (
+            <Button key="button" icon={<DollarOutlined />}>
+              New
+            </Button>
+          )
         }
         form={form}
-        onFinish={async (values) => {
-          await handleConfirmAddPaymentMethod(values);
-          actionRef.current.reload();
+        autoFocusFirstInput
+        modalProps={{
+          destroyOnClose: true,
         }}
-        onOpenChange={(visible) => !visible && handleClose()}
+        onFinish={async (values) => {
+          const confirmed = await ShowConfirm({
+            title: `Are you sure you want to ${
+              edit ? "update this" : "add new"
+            } payment method?`,
+          });
+          if (confirmed) {
+            edit
+              ? await updateMethod({ values, _id: data._id })
+              : await addNewPaymentMethod(values);
+            actionRef.current.reset();
+            return true;
+          }
+        }}
+        onOpenChange={(visible) => !visible}
         submitter={{
           searchConfig: {
             resetText: "Cancel",
-            submitText: "Add Payment Method",
+            submitText:  edit ? "Edit method" : "Add Payment Method",
           },
         }}
-        onChange={handlePaymentMethodChange}
       >
         <ProForm.Group>
           <ProFormText
-            width="md"
+            hasFeedback
+            width="lg"
             name="name"
             label="Payment Method Name"
             rules={[{ required: true, message: "Name is required" }]}
