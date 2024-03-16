@@ -51,8 +51,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
       <Card
         hoverable
         style={{ maxWidth: 200, width: 200 }}
-        // bordered
-        // bodyStyle={{ backgroundColor: "white" }}
+        bodyStyle={{ backgroundColor: "white" }}
         type="inner"
         actions={[
           <SettingOutlined
