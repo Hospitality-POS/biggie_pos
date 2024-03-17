@@ -268,7 +268,8 @@ const PaymentDrawer: React.FC = () => {
         </Button>
         <Button
           type="default"
-          onClick={() => dispatch(cartVoid(cartDetails))}
+          disabled
+          // onClick={() => dispatch(cartVoid(cartDetails))}
           icon={<StopOutlined />}
           style={{
             pl: 2,
