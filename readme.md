@@ -32,3 +32,9 @@ to confirm  that docker is installed
 
 ## NEXT
 * After making sure its running, head over to chrome/brave and enter this url `http://localhost:5373`
+
+
+
+### Additional printer install
+* install cups `sudo apt install cups` and `sudo systemctl status cups`
+* install pos80 drivers by running ~`sudo chmod +x install80` and `sudo ./install80`
