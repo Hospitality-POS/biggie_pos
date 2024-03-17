@@ -48,19 +48,12 @@ export default function MainStore() {
       </Typography>
     ),
     children: [
-      <FloatButton
-        onClick={onAdd}
-        type="primary"
-        icon={<PlusOutlined />}
-        style={{ right: 20 + 70 }}
-        tooltip={<div>Add a new Product</div>}
-      />,
-      item?.products && item?.products?.length > 0 ? (
+      item?.products && item?.products?.length > 0  ? (
         <div
           className="wrapper"
           style={{
             display: "grid",
-            // gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+            // gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
             // gap: "10px",
             padding: 4,
             // border: "1px solid red",
@@ -84,7 +77,10 @@ export default function MainStore() {
           ))}
         </div>
       ) : (
-        <EmptyPage />
+        <>
+          <EmptyPage />
+         
+        </>
       ),
     ],
   }));
@@ -112,7 +108,13 @@ export default function MainStore() {
           items: tabsItems,
         }}
       />
-
+      <FloatButton
+        onClick={onAdd}
+        type="primary"
+        icon={<PlusOutlined />}
+        style={{ right: 20 + 70 }}
+        tooltip={<div>Add a new Product</div>}
+      />
       <AddNewProductModal open={open} onClose={onClose} onSave={onSave} />
     </>
   );
