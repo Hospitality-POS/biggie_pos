@@ -1,10 +1,7 @@
-  import React, { Key, useRef } from "react";
-  import { useSelector } from "react-redux";
-
+  import React, { useRef } from "react";
   import { QRCodeCanvas } from "qrcode.react";
   import {
     Button,
-    Modal,
     Box,
     Typography,
     TableContainer,
@@ -13,30 +10,16 @@
     TableCell,
     TableHead,
     TableRow,
-    Paper,
     Dialog,
     DialogContent,
-    // IconButton,
   } from "@mui/material";
-  // import { CloseOutlined } from "@mui/icons-material";
   import LocalPrintshopIcon from "@mui/icons-material/LocalPrintshop";
   import PrintDisabledIcon from "@mui/icons-material/PrintDisabled";
-  import { useQuery } from "@tanstack/react-query";
-  import axios from "axios";
   import "./bill.css";
-  import { useParams } from "react-router-dom";
   import { useReactToPrint } from "react-to-print";
-  import Meta from "antd/es/card/Meta";
-  import { BRAND_NAME, ENTITY_NAME, PHONE_NO, QR_Code, TILL_NO } from "@utils/config";
+  import { BRAND_NAME, EMAIL_URL, ENTITY_NAME, PHONE_NO, QR_Code, TILL_NO } from "@utils/config";
 
-  // interface CartItem {
-  //   _id: Key | null | undefined;
-  //   product_id: { name: string };
-  //   productName: string;
-  //   quantity: number;
-  //   price: number;
-  // }
-
+ 
   interface PrintBillProps {
     openM: boolean;
     onCloseM: () => void;
@@ -71,17 +54,17 @@
                 marginBottom: 15,
               }}
             >
-              <img
+              {/* <img
                 src="/logokil.png"
                 className="image--logo reciept"
                 alt="Restaurant Logo"
                 style={{ width: "70%" }}
-              />
+              /> */}
               <Typography
                 variant="body1"
                 style={{ fontFamily: "monospace", fontSize: "1.3em" }}
               >
-                {/* {BRAND_NAME} */}
+                {BRAND_NAME} 
               </Typography>
               <Typography
                 variant="body1"
@@ -269,9 +252,9 @@
                 textAlign: "center",
               }}
             >
-              Info email: bigsmokekaren@gmail.com
+              Info email: {EMAIL_URL}
             </Typography>
-            <Typography
+            <Typography 
               variant="body1"
               style={{
                 fontSize: "0.8em",

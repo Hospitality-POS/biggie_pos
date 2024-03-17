@@ -5,3 +5,4 @@ export const ENTITY_NAME: string = import.meta.env.VITE_ENTITY_NAME;
 export const COOP_NAME: string = import.meta.env.VITE_COOP_NAME;
 export const TILL_NO: number = import.meta.env.VITE_TILL_NO;
 export const PHONE_NO: string = import.meta.env.VITE_BUSINESS_NO;
+export const EMAIL_URL: string = import.meta.env.VITE_EMAIL_URL;
