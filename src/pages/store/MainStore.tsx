@@ -1,7 +1,11 @@
-import { HolderOutlined, PlusOutlined } from "@ant-design/icons";
-import { ProCard } from "@ant-design/pro-components";
+import {
+  HolderOutlined,
+  PlusOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
+import { ProCard, ProFormText } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
-import { FloatButton, Spin, Typography } from "antd";
+import { Empty, FloatButton, Input, Spin, Typography } from "antd";
 import { Space } from "antd/lib";
 import React, { useState } from "react";
 import EmptyPage from "@routes/EmptyPage";
@@ -9,6 +13,8 @@ import { getAllProducts } from "@services/products";
 import StoreProductCard from "@components/store/StoreProductCard";
 import ErrorDialog from "@components/MODALS/Dialogs/ErrorDialog";
 import AddNewProductModal from "@components/store/AddNewProductModal";
+
+const { Search } = Input;
 
 export default function MainStore() {
   const [open, setOpen] = useState(false);
@@ -19,6 +25,8 @@ export default function MainStore() {
     setOpen(true);
     setSelectedProductId(productId);
   };
+
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["products"],
@@ -48,38 +56,42 @@ export default function MainStore() {
       </Typography>
     ),
     children: [
-      item?.products && item?.products?.length > 0  ? (
+      item?.products && item?.products?.length > 0 ? (
         <div
           className="wrapper"
           style={{
             display: "grid",
-            // gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-            // gap: "10px",
             padding: 4,
-            // border: "1px solid red",
-            minHeight: "75vh",
+            height: "calc(100vh - 280px)",
             overflowY: "auto",
             alignItems: "start",
           }}
         >
-          {item?.products?.map((prod) => (
-            <Space>
-              <StoreProductCard
-                key={prod._id}
-                bowls={prod?.quantity}
-                price={prod.price}
-                name={prod?.name}
-                img={prod?.image}
-                product={prod}
-                productId={prod?._id}
-              />
-            </Space>
-          ))}
+          {item?.products.length > 0 ? (
+            item?.products
+              ?.filter((prod) =>
+                prod?.name.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map((prod) => (
+                <Space>
+                  <StoreProductCard
+                    key={prod._id}
+                    bowls={prod?.quantity}
+                    price={prod.price}
+                    name={prod?.name}
+                    img={prod?.image}
+                    product={prod}
+                    productId={prod?._id}
+                  />
+                </Space>
+              ))
+          ) : (
+            <Empty description="No Products in this category" />
+          )}
         </div>
       ) : (
         <>
           <EmptyPage />
-         
         </>
       ),
     ],
@@ -88,6 +100,7 @@ export default function MainStore() {
   if (isLoading) {
     return <Spin size="large" fullscreen tip="please wait ..." />;
   }
+
   if (isError) {
     return (
       <ErrorDialog
@@ -101,21 +114,38 @@ export default function MainStore() {
 
   return (
     <>
-      <ProCard
-        title={<Space>Products Management</Space>}
-        tabs={{
-          type: "card",
-          items: tabsItems,
-        }}
-      />
-      <FloatButton
-        onClick={onAdd}
-        type="primary"
-        icon={<PlusOutlined />}
-        style={{ right: 20 + 70 }}
-        tooltip={<div>Add a new Product</div>}
-      />
-      <AddNewProductModal open={open} onClose={onClose} onSave={onSave} />
+      {data.length > 0 ? (
+        <>
+          <ProCard
+            title={<Space>Products Management</Space>}
+            tabs={{
+              type: "card",
+              items: tabsItems,
+            }}
+            actions={
+              <Space style={{ justifyContent: "flex-start", paddingTop: 4 }}>
+                <Search
+                  placeholder="search by product name"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  enterButton
+                />
+              </Space>
+            }
+          />
+
+          <FloatButton
+            onClick={onAdd}
+            type="primary"
+            icon={<PlusOutlined />}
+            style={{ right: 20 + 70 }}
+            tooltip={<div>Add a new Product</div>}
+          />
+          <AddNewProductModal open={open} onClose={onClose} onSave={onSave} />
+        </>
+      ) : (
+        <EmptyPage />
+      )}
     </>
   );
 }
