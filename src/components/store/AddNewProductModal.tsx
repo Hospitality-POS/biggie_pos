@@ -211,7 +211,6 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
                     {...field}
                     label="Quantity"
                     type="number"
-                    value={1}
                     fullWidth
                     margin="normal"
                     InputProps={{
