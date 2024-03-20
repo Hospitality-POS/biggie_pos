@@ -14,6 +14,7 @@ import { getAllProducts } from "@services/products";
 import StoreProductCard from "@components/store/StoreProductCard";
 import ErrorDialog from "@components/MODALS/Dialogs/ErrorDialog";
 import AddNewProductModal from "@components/store/AddNewProductModal";
+import StoreModal from "@components/MODALS/pro/StoreModal";
 
 const { Search } = Input;
 
@@ -148,13 +149,14 @@ export default function MainStore() {
           />
 
           <FloatButton
-            onClick={onAdd}
+            // onClick={onAdd}
             type="primary"
             description={
-              <Button type="primary" block>
-                <PlusCircleFilled />
-                New Dish
-              </Button>
+              // <Button type="primary" block>
+              //   <PlusCircleFilled />
+              //   New Dish
+              // </Button>
+              <StoreModal edit={false} />
             }
             shape="square"
             style={{ right: 10 + 40, width: 100 }}
