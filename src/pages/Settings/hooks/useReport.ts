@@ -11,14 +11,12 @@ export const useReport = (reportType: string) => {
   const [openSalesModal, setOpenSalesModal] = useState(false);
   const [openPurchaseModal, setOpenPurchaseModal] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("sale");
-  const [salesDateTimeRange, setSalesDateTimeRange] = useState<[string, string]>([
-    "",
-    "",
-  ]); // Updated to handle both date and time
-  const [purchaseDateTimeRange, setPurchaseDateTimeRange] = useState<[string, string]>([
-    "",
-    "",
-  ]); // Updated to handle both date and time
+  const [salesDateTimeRange, setSalesDateTimeRange] = useState<
+    [string, string]
+  >(["", ""]); // Updated to handle both date and time
+  const [purchaseDateTimeRange, setPurchaseDateTimeRange] = useState<
+    [string, string]
+  >(["", ""]); // Updated to handle both date and time
 
   const dispatch = useAppDispatch();
 
@@ -34,7 +32,11 @@ export const useReport = (reportType: string) => {
       endDate: "",
     };
 
-    if (reportType === "sale" && salesDateTimeRange[0] && salesDateTimeRange[1]) {
+    if (
+      reportType === "sale" &&
+      salesDateTimeRange[0] &&
+      salesDateTimeRange[1]
+    ) {
       formattedPayload = {
         startDate: salesDateTimeRange[0],
         endDate: salesDateTimeRange[1],
@@ -56,7 +58,8 @@ export const useReport = (reportType: string) => {
   };
 
   const isGenerateButtonDisabled =
-    (reportType === "sale" && (!salesDateTimeRange[0] || !salesDateTimeRange[1])) ||
+    (reportType === "sale" &&
+      (!salesDateTimeRange[0] || !salesDateTimeRange[1])) ||
     (reportType === "purchase" &&
       (!purchaseDateTimeRange[0] || !purchaseDateTimeRange[1]));
 
