@@ -19,14 +19,13 @@ const Reports: React.FC = () => {
     rangePresets,
     openSalesModal,
     openPurchaseModal,
-    setSalesDateRange,
-    setPurchaseDateRange,
-    purchaseDateRange,
-    salesDateRange,
+    setSalesDateTimeRange, // Updated to handle both date and time
+    setPurchaseDateTimeRange, // Updated to handle both date and time
+    purchaseDateTimeRange, // Updated to handle both date and time
+    salesDateTimeRange, // Updated to handle both date and time
     setOpenSalesModal,
-    setOpenPurchaseModal
+    setOpenPurchaseModal,
   } = useReport(activeTab);
-
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
@@ -34,7 +33,6 @@ const Reports: React.FC = () => {
     setOpenPurchaseModal(false);
   };
 
-  
   const tabItems = [
     {
       key: "sale",
@@ -43,11 +41,13 @@ const Reports: React.FC = () => {
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
+            showTime={{ format: "HH:mm" }} // Enable time selection
+            format="YYYY-MM-DD HH:mm" // Set format to include time
             presets={rangePresets}
             onChange={(dates) =>
-              setSalesDateRange([
-                dates?.[0]?.format("YYYY-MM-DD") || "",
-                dates?.[1]?.format("YYYY-MM-DD") || "",
+              setSalesDateTimeRange([
+                dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
               ])
             }
           />
@@ -61,8 +61,8 @@ const Reports: React.FC = () => {
           <SalesReportModal
             openM={openSalesModal}
             onCloseM={onCloseSalesModal}
-            startDate={salesDateRange[0]}
-            endDate={salesDateRange[1]}
+            startDate={salesDateTimeRange[0]} // Updated to use salesDateTimeRange
+            endDate={salesDateTimeRange[1]} // Updated to use salesDateTimeRange
           />
         </Space>
       ),
@@ -74,11 +74,13 @@ const Reports: React.FC = () => {
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
+            showTime={{ format: "HH:mm" }} // Enable time selection
+            format="YYYY-MM-DD HH:mm" // Set format to include time
             presets={rangePresets}
             onChange={(dates) =>
-              setPurchaseDateRange([
-                dates?.[0]?.format("YYYY-MM-DD") || "",
-                dates?.[1]?.format("YYYY-MM-DD") || "",
+              setPurchaseDateTimeRange([
+                dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
               ])
             }
           />
@@ -92,8 +94,8 @@ const Reports: React.FC = () => {
           <PurchaseReportModal
             openM={openPurchaseModal}
             onCloseM={onClosePurchaseModal}
-            startDate={purchaseDateRange[0]}
-            endDate={purchaseDateRange[1]}
+            startDate={purchaseDateTimeRange[0]} // Updated to use purchaseDateTimeRange
+            endDate={purchaseDateTimeRange[1]} // Updated to use purchaseDateTimeRange
           />
         </Space>
       ),

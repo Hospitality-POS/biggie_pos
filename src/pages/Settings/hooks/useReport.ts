@@ -11,14 +11,14 @@ export const useReport = (reportType: string) => {
   const [openSalesModal, setOpenSalesModal] = useState(false);
   const [openPurchaseModal, setOpenPurchaseModal] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("sale");
-  const [salesDateRange, setSalesDateRange] = useState<[string, string]>([
+  const [salesDateTimeRange, setSalesDateTimeRange] = useState<[string, string]>([
     "",
     "",
-  ]);
-  const [purchaseDateRange, setPurchaseDateRange] = useState<[string, string]>([
+  ]); // Updated to handle both date and time
+  const [purchaseDateTimeRange, setPurchaseDateTimeRange] = useState<[string, string]>([
     "",
     "",
-  ]);
+  ]); // Updated to handle both date and time
 
   const dispatch = useAppDispatch();
 
@@ -34,23 +34,21 @@ export const useReport = (reportType: string) => {
       endDate: "",
     };
 
-    if (reportType === "sale" && salesDateRange[0] && salesDateRange[1]) {
+    if (reportType === "sale" && salesDateTimeRange[0] && salesDateTimeRange[1]) {
       formattedPayload = {
-        startDate: salesDateRange[0],
-        endDate: salesDateRange[1],
+        startDate: salesDateTimeRange[0],
+        endDate: salesDateTimeRange[1],
       };
       dispatch(generateSalesReport(formattedPayload));
       setOpenSalesModal(true);
-      console.log(openSalesModal);
-      
     } else if (
       reportType === "purchase" &&
-      purchaseDateRange[0] &&
-      purchaseDateRange[1]
+      purchaseDateTimeRange[0] &&
+      purchaseDateTimeRange[1]
     ) {
       formattedPayload = {
-        startDate: purchaseDateRange[0],
-        endDate: purchaseDateRange[1],
+        startDate: purchaseDateTimeRange[0],
+        endDate: purchaseDateTimeRange[1],
       };
       dispatch(generatePurchaseReport(formattedPayload));
       setOpenPurchaseModal(true);
@@ -58,9 +56,9 @@ export const useReport = (reportType: string) => {
   };
 
   const isGenerateButtonDisabled =
-    (reportType === "sale" && (!salesDateRange[0] || !salesDateRange[1])) ||
+    (reportType === "sale" && (!salesDateTimeRange[0] || !salesDateTimeRange[1])) ||
     (reportType === "purchase" &&
-      (!purchaseDateRange[0] || !purchaseDateRange[1]));
+      (!purchaseDateTimeRange[0] || !purchaseDateTimeRange[1]));
 
   const onCloseSalesModal = () => {
     setOpenSalesModal(false);
@@ -87,12 +85,12 @@ export const useReport = (reportType: string) => {
     activeTab,
     openSalesModal,
     openPurchaseModal,
-    setSalesDateRange,
-    setPurchaseDateRange,
-    purchaseDateRange,
-    salesDateRange,
+    setSalesDateTimeRange, // Updated state setter
+    setPurchaseDateTimeRange, // Updated state setter
+    purchaseDateTimeRange,
+    salesDateTimeRange,
     setActiveTab,
     setOpenSalesModal,
-    setOpenPurchaseModal
+    setOpenPurchaseModal,
   };
 };
