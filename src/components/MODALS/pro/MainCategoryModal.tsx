@@ -1,18 +1,17 @@
 import React, { useRef } from "react";
 import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
-import { AimOutlined, EditOutlined, SubnodeOutlined } from "@ant-design/icons";
+import { CrownOutlined, EditOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { ProFormSelect } from "@ant-design/pro-components";
-import { addNewSubCategory, editSubCategory, fetchMainCategories } from "@services/categories";
+import { addNewMainCategory, editMainCategory } from "@services/categories";
 
-interface SubCategoryModalProps {
+interface MainCategoryModalProps {
   actionRef: any;
   edit?: boolean;
   data?: any;
 }
 
-const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
+const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
   actionRef,
   edit,
   data,
@@ -22,10 +21,12 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
 
   return (
     <ModalForm
+      width={550}
+      layout="horizontal"
       title={
         <Space>
-          <SubnodeOutlined />
-          {edit ? "Edit subcategory" : "Add New subcategory"}
+          <CrownOutlined />
+          {edit ? "Edit Main Category" : "Add New Main Category"}
         </Space>
       }
       initialValues={edit ? { ...data } : {}}
@@ -42,7 +43,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
             }
           ></Button>
         ) : (
-          <Button key="button" icon={<SubnodeOutlined />}>
+          <Button key="button" icon={<CrownOutlined />}>
             New
           </Button>
         )
@@ -56,12 +57,12 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
         const confirmed = await ShowConfirm({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
-          } SubCategory?`,
+          } main category?`,
         });
         if (confirmed) {
           edit
-            ? await editSubCategory({ values, _id: data?._id })
-            : await addNewSubCategory(values);
+            ? await editMainCategory({ values, _id: data?._id })
+            : await addNewMainCategory(values);
           actionRef.current.reset();
           return true;
         }
@@ -72,7 +73,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: edit ? "Edit Subcategory" : "Add Subcategory",
+          submitText: edit ? "Edit Main Category" : "Add Main Category",
         },
       }}
     >
@@ -80,29 +81,13 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
         <ProFormText
           width="md"
           name="name"
-          label="Create New Subcategory"
-          rules={[{ required: true, message: "Subcategory is required" }]}
-          placeholder="Enter Subcategory name"
-        />
-        <ProFormSelect
-          hasFeedback
-          width="md"
-          name="main_category"
-          label="Main Category"
-          rules={[{ required: true, message: "Main Category is required" }]}
-          showSearch
-          placeholder="Select Main Category"
-          request={async () => {
-            const data = await fetchMainCategories();
-            const values = data.map((e: { name: any; _id: any }) => {
-              return { label: e.name, value: e._id };
-            });
-            return values;
-          }}
+          label="Create New Main Category"
+          rules={[{ required: true, message: "Main Category Name is required" }]}
+          placeholder="Enter Main Category Name"
         />
       </ProForm.Group>
     </ModalForm>
   );
 };
 
-export default SubCategoryModal;
+export default MainCategoryModal;

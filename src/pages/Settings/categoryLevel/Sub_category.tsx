@@ -32,7 +32,7 @@ const SubCategorySettings = () => {
     hideInSearch: true,
     render: (_, record: any) => [
       <Tooltip key="edit" title="Edit">
-       <SubCategoryModal data={record} edit={true}/>
+        <SubCategoryModal data={record} edit={true} actionRef ={actionRef}/>
       </Tooltip>,
       <Tooltip key="delete" title="Delete">
         <Button
