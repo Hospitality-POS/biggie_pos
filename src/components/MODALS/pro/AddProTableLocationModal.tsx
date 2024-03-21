@@ -1,74 +1,92 @@
-import React from "react";
-import { Button, Space } from "antd";
+import React, { useRef } from "react";
+import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
-import BusinessIcon from "@mui/icons-material/Business";
-import useAddSupplierDialog from "../Hooks/useAddSupplierDialog";
-import { ActionType } from "@ant-design/pro-components";
-import { useAddLocationModal } from "../Hooks/useAddLocationModal";
-import { AimOutlined, PlusOutlined } from "@ant-design/icons";
+import { AimOutlined, EditOutlined } from "@ant-design/icons";
+import ShowConfirm from "@utils/ConfirmUtil";
+import { addNewTableLocation, editLocation } from "@services/tables";
 
 interface AddProTableLocationModalProps {
-  onAddLocation: (location: string) => void;
-  actionRef;
+  actionRef: any;
+  edit?: boolean;
+  data?: any;
 }
 
 const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
-  onAddLocation,
   actionRef,
+  edit,
+  data,
 }) => {
-  const {
-    isSubmitting,
-    form,
-    handleConfirmAddLocation,
-    handleClose,
-    setIsSubmitting,
-  } = useAddLocationModal({ onAddLocation });
+  const [form] = Form.useForm();
+  const formRef = useRef();
 
   return (
-    <Space align="center" direction="vertical" size={"small"}>
-      <ModalForm
-        width={550}
-        layout="horizontal"
-        open={isSubmitting}
-        title={
-          <Space>
-            <AimOutlined />
-            Add New Location
-          </Space>
-        }
-        trigger={
+    <ModalForm
+      width={550}
+      layout="horizontal"
+      title={
+        <Space>
+          <AimOutlined />
+          {edit ? "Edit Location" : "Add New Location"}
+        </Space>
+      }
+      initialValues={edit ? { ...data } : {}}
+      trigger={
+        edit ? (
           <Button
-            onClick={() => setIsSubmitting(true)}
+            type="link"
             key="button"
-            icon={<AimOutlined />}
-          >
+            icon={
+              <EditOutlined
+                style={{ color: "#6c1c2c" }}
+                onClick={() => form.setFieldsValue(data)}
+              />
+            }
+          ></Button>
+        ) : (
+          <Button key="button" icon={<AimOutlined />}>
             New
           </Button>
+        )
+      }
+      autoFocusFirstInput
+      modalProps={{
+        destroyOnClose: true,
+        style: { display: "grid", placeContent: "center" },
+      }}
+      onFinish={async (values) => {
+        const confirmed = await ShowConfirm({
+          title: `Are you sure you want to ${
+            edit ? "update this" : "add new"
+          } Location?`,
+        });
+        if (confirmed) {
+          edit
+            ? await editLocation({ values, _id: data?._id })
+            : await addNewTableLocation(values);
+          actionRef.current.reset();
+          return true;
         }
-        onFinish={async (values) => {
-          await handleConfirmAddLocation(values);
-          actionRef.current.reload();
-        }}
-        onOpenChange={(visible) => !visible && handleClose()}
-        form={form}
-        submitter={{
-          searchConfig: {
-            resetText: "Cancel",
-            submitText: "Add Location",
-          },
-        }}
-      >
-        <ProForm.Group>
-          <ProFormText
-            width="md"
-            name="name"
-            label="Create New Location"
-            rules={[{ required: true, message: "Name is required" }]}
-            placeholder="Enter Location name"
-          />
-        </ProForm.Group>
-      </ModalForm>
-    </Space>
+      }}
+      onOpenChange={(visible) => !visible}
+      form={form}
+      formRef={formRef}
+      submitter={{
+        searchConfig: {
+          resetText: "Cancel",
+          submitText: edit ? "Edit Location" : "Add Location",
+        },
+      }}
+    >
+      <ProForm.Group>
+        <ProFormText
+          width="md"
+          name="name"
+          label="Create New Location"
+          rules={[{ required: true, message: "Name is required" }]}
+          placeholder="Enter Location name"
+        />
+      </ProForm.Group>
+    </ModalForm>
   );
 };
 
