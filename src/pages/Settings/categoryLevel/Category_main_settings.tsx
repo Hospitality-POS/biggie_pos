@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import CategorySettings from "./CategorySettings";
 import { Space } from "antd/lib";
-import { ApartmentOutlined } from "@ant-design/icons";
+import { ApartmentOutlined, HolderOutlined } from "@ant-design/icons";
 import SubCategorySettings from "./Sub_category";
 import MainCategorySettings from "./Main_category";
 import { Typography } from "antd";
@@ -21,19 +21,19 @@ const CategoryMainSettings: React.FC = () => {
     {
       key: "category1",
       tab: "category",
-      label: "All Categorys",
+      label: <><HolderOutlined/>All Categorys</>,
       children: <CategorySettings />,
     },
     {
       key: "category2",
       tab: "Sub-category",
-      label: "Sub-Category",
+      label: <><HolderOutlined/>Sub-Category</>,
       children: <SubCategorySettings />,
     },
     {
       key: "mainCategory",
       tab: "Main Category",
-      label: "Main Category",
+      label:<><HolderOutlined/>Main Category</>,
       children: <MainCategorySettings />,
     },
   ];
