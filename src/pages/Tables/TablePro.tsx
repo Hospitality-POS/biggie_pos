@@ -5,9 +5,8 @@ import TableCard from "@components/TableCard/TableCard";
 import StaffModal from "@components/staffCard/LoginModal";
 import { fetchTableUsequery } from "@services/tables";
 import { useQuery } from "@tanstack/react-query";
-import { Flex, Spin } from "antd";
-import { Empty, Modal, Space } from "antd/lib";
-import axios from "axios";
+import { Spin, Typography } from "antd";
+import { Space } from "antd/lib";
 import Lottie from "lottie-react";
 import React, { useState } from "react";
 import { useAppSelector } from "src/store";
@@ -105,7 +104,7 @@ export default function TablePro() {
   return (
     <>
       <ProCard
-        title={<Space>Tables</Space>}
+        title={<Typography.Text style={{fontSize:'18px'}}>Tables</Typography.Text>}
         tabs={{
           type: "card",
           items: tabsItems,
