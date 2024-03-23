@@ -67,6 +67,15 @@ const SubCategorySettings = () => {
               placeholder: "Enter sub-category name",
             },
           },
+          {
+            title: "Main-category",
+            dataIndex: ["main_category","name"],
+            key: "main--categ",
+            hideInSearch: false,
+            fieldProps: {
+              placeholder: "Enter main-category name",
+            },
+          },
           actionColumn,
         ]}
         request={async () => {

@@ -28,7 +28,17 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
           {edit ? "Edit subcategory" : "Add New subcategory"}
         </Space>
       }
-      initialValues={edit ? { ...data } : {}}
+      initialValues={
+        edit
+          ? {
+              ...data,
+              main_category: {
+                value: data?.main_category?._id,
+                lable: data?.main_category?.name,
+              },
+            }
+          : {}
+      }
       trigger={
         edit ? (
           <Button
