@@ -1,9 +1,7 @@
 // MainComponent.js
 import { ProLayout } from "@ant-design/pro-components";
-import React, { useState } from "react";
-import { Avatar, Button, ConfigProvider, Dropdown, Typography } from "antd/lib";
+import { Button, Dropdown, Typography } from "antd/lib";
 import {
-  LogoutOutlined,
   PoweroffOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -11,9 +9,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { logoutUser } from "@features/Auth/AuthActions";
 import { reset } from "@features/Auth/AuthSlice";
-import { Breadcrumb, Image, Space } from "antd";
+import { Image } from "antd";
 import useProLayoutNav from "./defaultprops";
-import BreadcrumbItem from "antd/es/breadcrumb/BreadcrumbItem";
 
 const ProNavbar = () => {
   const dispatch = useAppDispatch();

@@ -1,4 +1,5 @@
 import {
+  FolderAddOutlined,
   HolderOutlined,
   PlusCircleFilled,
   PlusOutlined,
@@ -62,7 +63,7 @@ export default function MainStore() {
           style={{
             display: "grid",
             padding: 4,
-            rowGap:15,
+            rowGap: 15,
             height: "calc(100vh - 280px)",
             overflowY: "auto",
             alignItems: "start",
@@ -124,7 +125,10 @@ export default function MainStore() {
               marginBottom: 4,
             }}
           >
-            <Typography.Text strong>Products Management</Typography.Text>
+            <Space>
+              <FolderAddOutlined />
+              <Typography.Text strong>Products Management</Typography.Text>
+            </Space>
             <Search
               placeholder="Enter product name"
               value={searchTerm}
