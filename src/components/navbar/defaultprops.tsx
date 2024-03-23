@@ -54,7 +54,7 @@ import { useAppSelector } from "src/store";
       {
         icon: "/material-management.png",
         title: "Inventory",
-        desc: "Add, view or update Product inventory",
+        desc: "Coming soon!",
         url: "/inventory",
       },
 
@@ -67,13 +67,13 @@ import { useAppSelector } from "src/store";
       {
         icon: "/supply-chain.png",
         title: "Suppliers",
-        desc: "Add, view or update suppliers",
+        desc: "Coming Soon!",
         url: "/suppliers",
       },
       {
         icon: "/faq.png",
         title: "FAQs",
-        desc: "Freuently asked questions?",
+        desc: "Frequently asked questions?",
         url: "/fss-faqs",
       },
     ],
