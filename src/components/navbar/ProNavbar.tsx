@@ -11,8 +11,9 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { logoutUser } from "@features/Auth/AuthActions";
 import { reset } from "@features/Auth/AuthSlice";
-import { Image, Space } from "antd";
+import { Breadcrumb, Image, Space } from "antd";
 import useProLayoutNav from "./defaultprops";
+import BreadcrumbItem from "antd/es/breadcrumb/BreadcrumbItem";
 
 const ProNavbar = () => {
   const dispatch = useAppDispatch();
@@ -36,7 +37,7 @@ const ProNavbar = () => {
           style={{ padding: 5 }}
         />
       }
-      title=""
+      title=""   
       menuHeaderRender={(logo, title) => (
         <div
           id="customize_menu_header"
@@ -100,11 +101,16 @@ const ProNavbar = () => {
       token={{
         bgLayout: "#f6ffed",
         colorPrimary: "#6c1c2c",
+        colorTextAppListIconHover: "black",
+        colorTextAppListIcon: "white",
+        colorBgAppListIconHover: "white",
+        hashId: "fss001",
         header: {
           colorBgMenuItemSelected: "#f6ffed",
           colorBgHeader: "#6c1c2c",
-          colorTextMenu: "#fff",
+          colorTextMenu: "#ffff",
           colorTextMenuSecondary: "#f6ffed",
+          colorBgMenuItemHover: "#f6ffed",
         },
         pageContainer: {
           paddingInlinePageContainerContent: 0,
