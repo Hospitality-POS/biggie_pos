@@ -1,11 +1,12 @@
 import {
+  FolderAddOutlined,
   HolderOutlined,
+  PlusCircleFilled,
   PlusOutlined,
-  SearchOutlined,
 } from "@ant-design/icons";
-import { ProCard, ProFormText } from "@ant-design/pro-components";
+import { ProCard } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
-import { Empty, FloatButton, Input, Spin, Typography } from "antd";
+import { Button, Empty, FloatButton, Input, Spin, Typography } from "antd";
 import { Space } from "antd/lib";
 import React, { useState } from "react";
 import EmptyPage from "@routes/EmptyPage";
@@ -50,10 +51,10 @@ export default function MainStore() {
     key: `${item._id}`,
     tab: "Products Management",
     label: (
-      <Typography>
+      <>
         <HolderOutlined />
         {item?.name}
-      </Typography>
+      </>
     ),
     children: [
       item?.products && item?.products?.length > 0 ? (
@@ -62,6 +63,7 @@ export default function MainStore() {
           style={{
             display: "grid",
             padding: 4,
+            rowGap: 15,
             height: "calc(100vh - 280px)",
             overflowY: "auto",
             alignItems: "start",
@@ -116,29 +118,45 @@ export default function MainStore() {
     <>
       {data.length > 0 ? (
         <>
+          <Space
+            style={{
+              justifyContent: "space-between",
+              width: "100%",
+              marginBottom: 4,
+            }}
+          >
+            <Space>
+              <FolderAddOutlined />
+              <Typography.Text strong>Products Management</Typography.Text>
+            </Space>
+            <Search
+              placeholder="Enter product name"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              enterButton
+            />
+          </Space>
           <ProCard
-            title={<Space>Products Management</Space>}
             tabs={{
               type: "card",
               items: tabsItems,
+              tabPosition: "right",
+              tabBarStyle: { background: "", touchAction: "pan-down" },
             }}
-            actions={
-              <Space style={{ justifyContent: "flex-start", paddingTop: 4 }}>
-                <Search
-                  placeholder="search by product name"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  enterButton
-                />
-              </Space>
-            }
+            bordered
           />
 
           <FloatButton
             onClick={onAdd}
             type="primary"
-            icon={<PlusOutlined />}
-            style={{ right: 20 + 70 }}
+            description={
+              <Button type="primary" block>
+                <PlusCircleFilled />
+                New Dish
+              </Button>
+            }
+            shape="square"
+            style={{ right: 10 + 40, width: 100 }}
             tooltip={<div>Add a new Product</div>}
           />
           <AddNewProductModal open={open} onClose={onClose} onSave={onSave} />

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button, DatePicker } from "antd";
-import { HddOutlined, IssuesCloseOutlined } from "@ant-design/icons";
+import { HddOutlined, HolderOutlined, IssuesCloseOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import SalesReportModal from "@components/Reports/SalesReport";
@@ -39,7 +39,7 @@ const Reports: React.FC = () => {
     {
       key: "sale",
       tab: "Sale",
-      label: "Generate Sales Report",
+      label: <><HolderOutlined/>Generate Sales Report</>,
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
@@ -70,11 +70,13 @@ const Reports: React.FC = () => {
     {
       key: "purchase",
       tab: "Purchase",
-      label: "Generate Purchase Report",
+      label: <><HolderOutlined/>Generate Purchase Report</>,
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
             presets={rangePresets}
+            // showHour={true}
+            // showTime
             onChange={(dates) =>
               setPurchaseDateRange([
                 dates?.[0]?.format("YYYY-MM-DD") || "",

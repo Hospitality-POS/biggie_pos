@@ -34,11 +34,14 @@ const TableLocationSettings = () => {
     hideInSearch: true,
     render: (_, record: any) => [
       <Tooltip key="edit" title="Edit">
-        <Button
-          type="link"
-          icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-          // onClick={() => handleEditLocation(record)}
-        />
+        <Tooltip key="edit" title="Edit">
+          <AddProTableLocationModal
+            edit={true}
+            actionRef={locationRef}
+            data={record}
+          />
+        </Tooltip>
+        
       </Tooltip>,
       <Tooltip key="delete" title="Delete">
         <Button

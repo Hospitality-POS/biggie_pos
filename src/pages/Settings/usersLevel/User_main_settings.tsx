@@ -1,5 +1,5 @@
 import { ProCard } from "@ant-design/pro-components";
-import { UsergroupAddOutlined } from "@ant-design/icons";
+import { HolderOutlined, UsergroupAddOutlined } from "@ant-design/icons";
 import { Space } from "antd/lib";
 import UsersTable from "./UsersTable";
 
@@ -8,7 +8,7 @@ function UsersMainSettings() {
       {
       key: "table1",
       tab: "Table",
-      label: "All Users",
+      label: <><HolderOutlined/>All Users</>,
       children: <UsersTable />,
     },
   ];

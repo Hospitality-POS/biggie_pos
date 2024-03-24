@@ -1,17 +1,17 @@
 import React, { useRef } from "react";
 import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
-import { AimOutlined, EditOutlined } from "@ant-design/icons";
+import { CrownOutlined, EditOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { addNewTableLocation, editLocation } from "@services/tables";
+import { addNewMainCategory, editMainCategory } from "@services/categories";
 
-interface AddProTableLocationModalProps {
+interface MainCategoryModalProps {
   actionRef: any;
   edit?: boolean;
   data?: any;
 }
 
-const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
+const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
   actionRef,
   edit,
   data,
@@ -25,8 +25,8 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
       layout="horizontal"
       title={
         <Space>
-          <AimOutlined />
-          {edit ? "Edit Location" : "Add New Location"}
+          <CrownOutlined />
+          {edit ? "Edit Main Category" : "Add New Main Category"}
         </Space>
       }
       initialValues={edit ? { ...data } : {}}
@@ -43,7 +43,7 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
             }
           ></Button>
         ) : (
-          <Button key="button" icon={<AimOutlined />}>
+          <Button key="button" icon={<CrownOutlined />}>
             New
           </Button>
         )
@@ -57,12 +57,12 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
         const confirmed = await ShowConfirm({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
-          } Location?`,
+          } main category?`,
         });
         if (confirmed) {
           edit
-            ? await editLocation({ values, _id: data?._id })
-            : await addNewTableLocation(values);
+            ? await editMainCategory({ values, _id: data?._id })
+            : await addNewMainCategory(values);
           actionRef.current.reset();
           return true;
         }
@@ -73,7 +73,7 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: edit ? "Edit Location" : "Add Location",
+          submitText: edit ? "Edit Main Category" : "Add Main Category",
         },
       }}
     >
@@ -81,13 +81,13 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
         <ProFormText
           width="md"
           name="name"
-          label="Create New Location"
-          rules={[{ required: true, message: "Name is required" }]}
-          placeholder="Enter Location name"
+          label="Create New Main Category"
+          rules={[{ required: true, message: "Main Category Name is required" }]}
+          placeholder="Enter Main Category Name"
         />
       </ProForm.Group>
     </ModalForm>
   );
 };
 
-export default AddProTableLocationModal;
+export default MainCategoryModal;

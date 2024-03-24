@@ -1,7 +1,7 @@
 import { ProCard } from "@ant-design/pro-components";
 import PaymentsMethodSettings from "./PaymentSettings";
 import { Space } from "antd/lib";
-import { DollarCircleOutlined } from "@ant-design/icons";
+import { DollarCircleOutlined, HolderOutlined } from "@ant-design/icons";
 
 
 function PaymentMainSettings() {
@@ -9,14 +9,13 @@ function PaymentMainSettings() {
     {
       key: "table1",
       tab: "Table",
-      label: "All Payment Methods",
+      label: <><HolderOutlined/>All Payment Methods</>,
       children: <PaymentsMethodSettings />,
     },
   ];
   return (
     <>
       <ProCard
-      //  style={{ height: "90vh" }}
        title={<Space><DollarCircleOutlined/>Payment Method Main Settings</Space>}
         tabs={{
           type: "card",

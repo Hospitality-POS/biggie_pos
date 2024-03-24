@@ -14,9 +14,10 @@ import {
 import AddProTableLocationModal from "@components/MODALS/pro/AddProTableLocationModal";
 import { fetchSubCategories } from "@services/categories";
 import useCategorySettings from "../hooks/useCategorySettings";
+import SubCategoryModal from "@components/MODALS/pro/SubCategoryModal";
 
 const SubCategorySettings = () => {
-  const locationRef = useRef<ActionType>();
+  const actionRef = useRef<ActionType>();
   const {
     deleteConfirmationOpen,
     handleDeleteClick,
@@ -31,11 +32,7 @@ const SubCategorySettings = () => {
     hideInSearch: true,
     render: (_, record: any) => [
       <Tooltip key="edit" title="Edit">
-        <Button
-          type="link"
-          icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-          // onClick={() => handleEditLocation(record)}
-        />
+        <SubCategoryModal data={record} edit={true} actionRef ={actionRef}/>
       </Tooltip>,
       <Tooltip key="delete" title="Delete">
         <Button
@@ -64,10 +61,19 @@ const SubCategorySettings = () => {
           {
             title: "Sub-category",
             dataIndex: "name",
-            key:"sub--categ",
+            key: "sub--categ",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter sub-category name",
+            },
+          },
+          {
+            title: "Main-category",
+            dataIndex: ["main_category","name"],
+            key: "main--categ",
+            hideInSearch: false,
+            fieldProps: {
+              placeholder: "Enter main-category name",
             },
           },
           actionColumn,
@@ -83,7 +89,7 @@ const SubCategorySettings = () => {
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
-        actionRef={locationRef}
+        actionRef={actionRef}
         rowSelection={{
           alwaysShowAlert: false,
           selections: false,
@@ -95,7 +101,7 @@ const SubCategorySettings = () => {
         }}
         dateFormatter="string"
         headerTitle="List of sub-category"
-        toolBarRender={() => []}
+        toolBarRender={() => [<SubCategoryModal actionRef={actionRef} />]}
       />
 
       {/* Delete Confirmation Dialog */}
@@ -114,7 +120,7 @@ const SubCategorySettings = () => {
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={() => handleDeleteConfirm(locationRef)} danger>
+          <Button onClick={() => handleDeleteConfirm(actionRef)} danger>
             Delete
           </Button>
         </DialogActions>

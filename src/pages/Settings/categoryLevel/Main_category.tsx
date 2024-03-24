@@ -11,9 +11,10 @@ import {
 } from "@mui/material";
 import { fetchMainCategories } from "@services/categories";
 import useCategorySettings from "../hooks/useCategorySettings";
+import MainCategoryModal from "@components/MODALS/pro/MainCategoryModal";
 
 const MainCategorySettings = () => {
-  const refmain = useRef<ActionType>();
+  const actionRef = useRef<ActionType>();
 const {
   deleteConfirmationOpen,
   handleDeleteClick,
@@ -28,11 +29,7 @@ const {
     hideInSearch: true,
     render: (_, record: any) => [
       <Tooltip key="edit" title="Edit">
-        <Button
-          type="link"
-          icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-          // onClick={() => handleEditLocation(record)}
-        />
+        <MainCategoryModal actionRef={actionRef} data={record} edit={true} />
       </Tooltip>,
       <Tooltip key="delete" title="Delete">
         <Button
@@ -60,7 +57,7 @@ const {
         columns={[
           {
             title: "Main-Category",
-            key:"main--categ",
+            key: "main--categ",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {
@@ -80,7 +77,7 @@ const {
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
-        actionRef={refmain}
+        actionRef={actionRef}
         rowSelection={{
           alwaysShowAlert: false,
           selections: false,
@@ -92,7 +89,7 @@ const {
         }}
         dateFormatter="string"
         headerTitle="List of Main-Category"
-        toolBarRender={() => []}
+        toolBarRender={() => [<MainCategoryModal actionRef={actionRef} />]}
       />
 
       {/* Delete Confirmation Dialog */}
@@ -111,7 +108,7 @@ const {
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={() => handleDeleteConfirm(refmain)} danger>
+          <Button onClick={() => handleDeleteConfirm(actionRef)} danger>
             Delete
           </Button>
         </DialogActions>
