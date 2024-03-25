@@ -144,6 +144,7 @@ export default function MainStore() {
               tabBarStyle: { background: "", touchAction: "pan-down" },
             }}
             bordered
+            boxShadow
           />
 
           <FloatButton
