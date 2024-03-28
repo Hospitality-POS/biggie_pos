@@ -5,7 +5,7 @@ import {
   CardMedia,
   IconButton,
 } from "@mui/material";
-import React from "react";
+import React, { useRef } from "react";
 import CircleIcon from "@mui/icons-material/Circle";
 import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
 import EditProductModal from "./EditProductModal";
@@ -17,6 +17,7 @@ import { ProCard } from "@ant-design/pro-components";
 import { DeleteFilled, EditOutlined, SettingOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { deleteProduct } from "@services/products";
+import StoreModal from "@components/MODALS/pro/StoreModal";
 
 interface StoreProductCardProps {
   img: string;
@@ -46,9 +47,12 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
     dispatch(deleteProduct(id));
   };
 
+
+  
   return (
     <>
       <Card
+        key={product?._id}
         hoverable
         style={{ maxWidth: 200, width: 200 }}
         bodyStyle={{ backgroundColor: "white" }}
@@ -58,11 +62,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
             key="setting"
             style={{ fontSize: "20px", color: "white" }}
           />,
-          <EditOutlined
-            key="edit"
-            onClick={handleEditClick}
-            style={{ fontSize: "20px", color: "white" }}
-          />,
+          <StoreModal edit={true} data={product} />,
           <DeleteFilled
             key="delete"
             onClick={async () => {

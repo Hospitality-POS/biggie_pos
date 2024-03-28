@@ -1,3 +1,4 @@
+import { ParamsType } from "@ant-design/pro-components";
 import SetBearerHeaderToken from "@utils/SetBearerHeaderToken";
 import { BASE_URL } from "@utils/config";
 import { Modal } from "antd";
@@ -13,11 +14,37 @@ export const getAllProducts = async () => {
     return response.data;
   } catch (error) {
     Modal.error({
-      title: "Oops!",
+      title: "Oops! Something went wrong",
       content: "Please check your internet connection!",
     });
   }
 };
+
+
+export const addNewProduct =async (params:ParamsType) => {
+  try {
+    const response = await axios.post(`${productUrl}/${params?._id}`, params?.values, {headers});
+    return response.data;
+  } catch (error) {
+    Modal.error({
+      title: "Oops! Something went wrong",
+      content: "Please check your internet connection!",
+    });
+  }
+}
+export const editProduct =async (params:ParamsType) => {
+  try {
+    const response = await axios.post(`${productUrl}`, params);
+    return response.data;
+  } catch (error) {
+    Modal.error({
+      title: "Oops! Something went wrong",
+      content: "Please check your internet connection!",
+    });
+  }
+}
+
+
 
 export const deleteProduct = async (productId: string) => {
   try {
