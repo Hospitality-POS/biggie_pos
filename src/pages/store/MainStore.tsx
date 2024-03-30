@@ -147,7 +147,6 @@ export default function MainStore() {
             bordered
             boxShadow
           />
-          <AddNewProductModal open={open} onClose={onClose} onSave={onSave} />
         </>
       ) : (
         <EmptyPage />

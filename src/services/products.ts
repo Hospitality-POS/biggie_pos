@@ -6,7 +6,7 @@ import axios from "axios";
 
 const productUrl = `${BASE_URL}/product/products`;
 
-const {headers} = SetBearerHeaderToken()
+const { headers } = SetBearerHeaderToken()
 
 export const getAllProducts = async () => {
   try {
@@ -21,9 +21,9 @@ export const getAllProducts = async () => {
 };
 
 
-export const addNewProduct =async (params:ParamsType) => {
+export const addNewProduct = async (params: ParamsType) => {
   try {
-    const response = await axios.post(`${productUrl}/${params?._id}`, params?.values, {headers});
+    const response = await axios.post(`${productUrl}`, params);
     return response.data;
   } catch (error) {
     Modal.error({
@@ -32,7 +32,7 @@ export const addNewProduct =async (params:ParamsType) => {
     });
   }
 }
-export const editProduct =async (params:ParamsType) => {
+export const editProduct = async (params: ParamsType) => {
   try {
     const response = await axios.post(`${productUrl}`, params);
     return response.data;
