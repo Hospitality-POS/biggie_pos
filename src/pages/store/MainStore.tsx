@@ -147,26 +147,18 @@ export default function MainStore() {
             bordered
             boxShadow
           />
-
-          <FloatButton
-            // onClick={onAdd}
-            type="primary"
-            description={
-              // <Button type="primary" block>
-              //   <PlusCircleFilled />
-              //   New Dish
-              // </Button>
-              <StoreModal edit={false} />
-            }
-            shape="square"
-            style={{ right: 10 + 40, width: 100 }}
-            tooltip={<div>Add a new Product</div>}
-          />
           <AddNewProductModal open={open} onClose={onClose} onSave={onSave} />
         </>
       ) : (
         <EmptyPage />
       )}
+      <FloatButton
+        type="primary"
+        description={<StoreModal edit={false} />}
+        shape="square"
+        style={{ right: 10 + 40, width: 100 }}
+        tooltip={<div>Add a new Product</div>}
+      />
     </>
   );
 }
