@@ -6,6 +6,7 @@ import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import SalesReportModal from "@components/Reports/SalesReport";
 import { Space } from "antd";
 import { useReport } from "../hooks/useReport";
+import VoidReportModal from "@components/Reports/VoidReport";
 
 const { RangePicker } = DatePicker;
 
@@ -19,18 +20,25 @@ const Reports: React.FC = () => {
     rangePresets,
     openSalesModal,
     openPurchaseModal,
-    setSalesDateTimeRange, // Updated to handle both date and time
-    setPurchaseDateTimeRange, // Updated to handle both date and time
-    purchaseDateTimeRange, // Updated to handle both date and time
-    salesDateTimeRange, // Updated to handle both date and time
+    setSalesDateTimeRange,
+    setPurchaseDateTimeRange,
+    purchaseDateTimeRange,
+    salesDateTimeRange,
     setOpenSalesModal,
     setOpenPurchaseModal,
+
+    openVoidedModal,
+    setVoidedDateTimeRange,
+    setOpenVoidedModal,
+    onCloseVoidedModal,
+    voidedDateTimeRange,
   } = useReport(activeTab);
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
     setOpenSalesModal(false);
     setOpenPurchaseModal(false);
+    setOpenVoidedModal(false);
   };
 
   const tabItems = [
@@ -41,8 +49,8 @@ const Reports: React.FC = () => {
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
-            showTime={{ format: "HH:mm" }} // Enable time selection
-            format="YYYY-MM-DD HH:mm" // Set format to include time
+            showTime={{ format: "HH:mm" }}
+            format="YYYY-MM-DD HH:mm"
             presets={rangePresets}
             onChange={(dates) =>
               setSalesDateTimeRange([
@@ -61,8 +69,8 @@ const Reports: React.FC = () => {
           <SalesReportModal
             openM={openSalesModal}
             onCloseM={onCloseSalesModal}
-            startDate={salesDateTimeRange[0]} // Updated to use salesDateTimeRange
-            endDate={salesDateTimeRange[1]} // Updated to use salesDateTimeRange
+            startDate={salesDateTimeRange[0]}
+            endDate={salesDateTimeRange[1]}
           />
         </Space>
       ),
@@ -74,8 +82,8 @@ const Reports: React.FC = () => {
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
-            showTime={{ format: "HH:mm" }} // Enable time selection
-            format="YYYY-MM-DD HH:mm" // Set format to include time
+            showTime={{ format: "HH:mm" }}
+            format="YYYY-MM-DD HH:mm"
             presets={rangePresets}
             onChange={(dates) =>
               setPurchaseDateTimeRange([
@@ -94,8 +102,41 @@ const Reports: React.FC = () => {
           <PurchaseReportModal
             openM={openPurchaseModal}
             onCloseM={onClosePurchaseModal}
-            startDate={purchaseDateTimeRange[0]} // Updated to use purchaseDateTimeRange
-            endDate={purchaseDateTimeRange[1]} // Updated to use purchaseDateTimeRange
+            startDate={purchaseDateTimeRange[0]}
+            endDate={purchaseDateTimeRange[1]}
+          />
+        </Space>
+      ),
+    },
+    {
+      key: "voided",
+      tab: "void",
+      label: "Generate Voided bills Report",
+      children: (
+        <Space direction="vertical" size={16}>
+          <RangePicker
+            showTime={{ format: "HH:mm" }}
+            format="YYYY-MM-DD HH:mm"
+            presets={rangePresets}
+            onChange={(dates) =>
+              setVoidedDateTimeRange([
+                dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+              ])
+            }
+          />
+          <Button
+            type="primary"
+            onClick={generateReportHandler}
+            disabled={isGenerateButtonDisabled}
+          >
+            Generate Report
+          </Button>
+          <VoidReportModal
+            openM={openVoidedModal}
+            onCloseM={onCloseVoidedModal}
+            startDate={voidedDateTimeRange[0]}
+            endDate={voidedDateTimeRange[1]}
           />
         </Space>
       ),
