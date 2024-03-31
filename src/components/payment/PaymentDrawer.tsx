@@ -9,7 +9,7 @@ import { logoutUser } from "@features/Auth/AuthActions";
 import { reset } from "@features/Auth/AuthSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
-import { Alert, Button, Space, Spin, Typography } from "antd";
+import { Alert, Button, Modal, Space, Spin, Typography } from "antd";
 import {
   CloseCircleOutlined,
   CreditCardOutlined,
@@ -119,6 +119,15 @@ const PaymentDrawer: React.FC = () => {
         navigate("/tables");
       }
     }
+  };
+
+  const handleVoidBill = () => {
+    dispatch(cartVoid(cartDetails));
+    Modal.info({title:"Void Bill", content:"Voided bill Succesfully", centered: true})
+    dispatch(logoutUser());
+    dispatch(reset());
+    navigate("/tables");
+
   };
 
   if (isLoading) {
@@ -268,11 +277,9 @@ const PaymentDrawer: React.FC = () => {
         </Button>
         <Button
           type="default"
-          disabled
-          // onClick={() => dispatch(cartVoid(cartDetails))}
+          onClick={handleVoidBill}
           icon={<StopOutlined />}
           style={{
-            pl: 2,
             color: "#6c1c2c",
             borderColor: "#6c1c2c",
             "&:hover": {
