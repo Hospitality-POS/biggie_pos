@@ -3,20 +3,25 @@ import dayjs from "dayjs";
 import {
   generatePurchaseReport,
   generateSalesReport,
+  generateVoidedReport,
 } from "@features/Report/reportActions";
 import { useAppDispatch } from "../../../store";
 import { TimeRangePickerProps } from "antd/lib";
 
 export const useReport = (reportType: string) => {
   const [openSalesModal, setOpenSalesModal] = useState(false);
+  const [openVoidedModal, setOpenVoidedModal] = useState(false);
   const [openPurchaseModal, setOpenPurchaseModal] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("sale");
   const [salesDateTimeRange, setSalesDateTimeRange] = useState<
     [string, string]
-  >(["", ""]); // Updated to handle both date and time
+  >(["", ""]);
+  const [voidedDateTimeRange, setVoidedDateTimeRange] = useState<
+    [string, string]
+  >(["", ""]);
   const [purchaseDateTimeRange, setPurchaseDateTimeRange] = useState<
     [string, string]
-  >(["", ""]); // Updated to handle both date and time
+  >(["", ""]); 
 
   const dispatch = useAppDispatch();
 
@@ -24,6 +29,7 @@ export const useReport = (reportType: string) => {
     setActiveTab(key);
     setOpenSalesModal(false);
     setOpenPurchaseModal(false);
+    setOpenVoidedModal(false); 
   };
 
   const generateReportHandler = () => {
@@ -54,6 +60,17 @@ export const useReport = (reportType: string) => {
       };
       dispatch(generatePurchaseReport(formattedPayload));
       setOpenPurchaseModal(true);
+    } else if (
+      reportType === "voided" &&
+      voidedDateTimeRange[0] &&
+      voidedDateTimeRange[1]
+    ) {
+      formattedPayload = {
+        startDate: voidedDateTimeRange[0],
+        endDate: voidedDateTimeRange[1],
+      };
+      dispatch(generateVoidedReport(formattedPayload));
+      setOpenVoidedModal(true);
     }
   };
 
@@ -61,7 +78,9 @@ export const useReport = (reportType: string) => {
     (reportType === "sale" &&
       (!salesDateTimeRange[0] || !salesDateTimeRange[1])) ||
     (reportType === "purchase" &&
-      (!purchaseDateTimeRange[0] || !purchaseDateTimeRange[1]));
+      (!purchaseDateTimeRange[0] || !purchaseDateTimeRange[1])) ||
+    (reportType === "voided" &&
+      (!voidedDateTimeRange[0] || !voidedDateTimeRange[1]));
 
   const onCloseSalesModal = () => {
     setOpenSalesModal(false);
@@ -69,6 +88,10 @@ export const useReport = (reportType: string) => {
 
   const onClosePurchaseModal = () => {
     setOpenPurchaseModal(false);
+  };
+
+  const onCloseVoidedModal = () => {
+    setOpenVoidedModal(false);
   };
 
   const rangePresets: TimeRangePickerProps["presets"] = [
@@ -79,21 +102,29 @@ export const useReport = (reportType: string) => {
   ];
 
   return {
+    openSalesModal,
     onCloseSalesModal,
+    setSalesDateTimeRange, 
+    salesDateTimeRange,
+    setOpenSalesModal,
+    
+    openPurchaseModal,
     onClosePurchaseModal,
+    setOpenPurchaseModal,
+    purchaseDateTimeRange,
+    setPurchaseDateTimeRange,
+
+    openVoidedModal,
+    setVoidedDateTimeRange,
+    setOpenVoidedModal,
+    onCloseVoidedModal,
+    voidedDateTimeRange,
+
     generateReportHandler,
     isGenerateButtonDisabled,
     rangePresets,
     handleTabChange,
     activeTab,
-    openSalesModal,
-    openPurchaseModal,
-    setSalesDateTimeRange, // Updated state setter
-    setPurchaseDateTimeRange, // Updated state setter
-    purchaseDateTimeRange,
-    salesDateTimeRange,
     setActiveTab,
-    setOpenSalesModal,
-    setOpenPurchaseModal,
   };
 };
