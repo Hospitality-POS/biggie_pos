@@ -26,6 +26,23 @@ export const generateSalesReport = createAsyncThunk(
   }
 );
 
+export const generateVoidedReport = createAsyncThunk(
+  "report/generateVoidedReport",
+  async (dated: DateDetails, { rejectWithValue }) => {
+
+    try {
+      const response = await axios.get(`${baseUrl}/date-range-void/items`,{params: {
+          startDate: dated.startDate,
+          endDate: dated.endDate,
+        }});
+      
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response.data.error || error.toString());
+    }
+  }
+);
+
 export const generatePurchaseReport = createAsyncThunk(
   "report/generatePurchaseReport",
   async (dated: DateDetails, { rejectWithValue }) => {
