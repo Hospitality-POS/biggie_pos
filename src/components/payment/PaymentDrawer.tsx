@@ -123,6 +123,7 @@ const PaymentDrawer: React.FC = () => {
 
   const handleVoidBill = () => {
     dispatch(cartVoid(cartDetails));
+    dispatch(createCart(id));
     Modal.info({title:"Void Bill", content:"Voided bill Succesfully", centered: true})
     dispatch(logoutUser());
     dispatch(reset());
