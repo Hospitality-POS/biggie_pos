@@ -132,13 +132,11 @@ export const cartSent = createAsyncThunk(
 
 export const cartVoid = createAsyncThunk(
   "cart/cartVoid",
-  async (cartDetails: any, { rejectWithValue, dispatch }) => {
+  async (cartDetails: any, { rejectWithValue }) => {
     try {
       const response = await axios.put(`${baseUrl}/void-cart`, {
         cart_id: cartDetails._id,
       });
-            dispatch(getCart(cartDetails.table_id._id))
-
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

@@ -6,6 +6,7 @@ import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import SalesReportModal from "@components/Reports/SalesReport";
 import { Space } from "antd";
 import { useReport } from "../hooks/useReport";
+import VoidReportModal from "@components/Reports/VoidReport";
 
 const { RangePicker } = DatePicker;
 
@@ -19,22 +20,27 @@ const Reports: React.FC = () => {
     rangePresets,
     openSalesModal,
     openPurchaseModal,
-    setSalesDateRange,
-    setPurchaseDateRange,
-    purchaseDateRange,
-    salesDateRange,
+    setSalesDateTimeRange,
+    setPurchaseDateTimeRange,
+    purchaseDateTimeRange,
+    salesDateTimeRange,
     setOpenSalesModal,
-    setOpenPurchaseModal
-  } = useReport(activeTab);
+    setOpenPurchaseModal,
 
+    openVoidedModal,
+    setVoidedDateTimeRange,
+    setOpenVoidedModal,
+    onCloseVoidedModal,
+    voidedDateTimeRange,
+  } = useReport(activeTab);
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
     setOpenSalesModal(false);
     setOpenPurchaseModal(false);
+    setOpenVoidedModal(false);
   };
 
-  
   const tabItems = [
     {
       key: "sale",
@@ -43,11 +49,13 @@ const Reports: React.FC = () => {
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
+            showTime={{ format: "HH:mm" }}
+            format="YYYY-MM-DD HH:mm"
             presets={rangePresets}
             onChange={(dates) =>
-              setSalesDateRange([
-                dates?.[0]?.format("YYYY-MM-DD") || "",
-                dates?.[1]?.format("YYYY-MM-DD") || "",
+              setSalesDateTimeRange([
+                dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
               ])
             }
           />
@@ -61,8 +69,8 @@ const Reports: React.FC = () => {
           <SalesReportModal
             openM={openSalesModal}
             onCloseM={onCloseSalesModal}
-            startDate={salesDateRange[0]}
-            endDate={salesDateRange[1]}
+            startDate={salesDateTimeRange[0]}
+            endDate={salesDateTimeRange[1]}
           />
         </Space>
       ),
@@ -74,13 +82,15 @@ const Reports: React.FC = () => {
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
+            showTime={{ format: "HH:mm" }}
+            format="YYYY-MM-DD HH:mm"
             presets={rangePresets}
             // showHour={true}
             // showTime
             onChange={(dates) =>
-              setPurchaseDateRange([
-                dates?.[0]?.format("YYYY-MM-DD") || "",
-                dates?.[1]?.format("YYYY-MM-DD") || "",
+              setPurchaseDateTimeRange([
+                dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
               ])
             }
           />
@@ -94,8 +104,41 @@ const Reports: React.FC = () => {
           <PurchaseReportModal
             openM={openPurchaseModal}
             onCloseM={onClosePurchaseModal}
-            startDate={purchaseDateRange[0]}
-            endDate={purchaseDateRange[1]}
+            startDate={purchaseDateTimeRange[0]}
+            endDate={purchaseDateTimeRange[1]}
+          />
+        </Space>
+      ),
+    },
+    {
+      key: "voided",
+      tab: "void",
+      label: "Generate Voided bills Report",
+      children: (
+        <Space direction="vertical" size={16}>
+          <RangePicker
+            showTime={{ format: "HH:mm" }}
+            format="YYYY-MM-DD HH:mm"
+            presets={rangePresets}
+            onChange={(dates) =>
+              setVoidedDateTimeRange([
+                dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+              ])
+            }
+          />
+          <Button
+            type="primary"
+            onClick={generateReportHandler}
+            disabled={isGenerateButtonDisabled}
+          >
+            Generate Report
+          </Button>
+          <VoidReportModal
+            openM={openVoidedModal}
+            onCloseM={onCloseVoidedModal}
+            startDate={voidedDateTimeRange[0]}
+            endDate={voidedDateTimeRange[1]}
           />
         </Space>
       ),
