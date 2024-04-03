@@ -14,71 +14,59 @@ import { useQuery } from "@tanstack/react-query";
 
 const OrdersTable = () => {
   const actionRef = useRef<ActionType>();
-const { data } = useQuery({ queryKey:[ "orderlist"], queryFn: getAllOrders });
+  const { data } = useQuery({ queryKey: ["orderlist"], queryFn: getAllOrders });
 
+  const handleExportCSV = () => {
+    const csvData = data?.map((order) => ({
+      OrderNo: order.order_no,
+      Amount: order.order_amount,
+      UpdatedBy: order?.updated_by?.username,
+      CreatedAt: moment(order.createdAt).format("MMMM Do YYYY, h:mm a"),
+    }));
 
-const handleExportCSV = () => {
-  const csvData = data?.map((order) => ({
-    OrderNo: order.order_no,
-     Amount:  order.order_amount,
-     UpdatedBy: order?.updated_by?.username,
-    CreatedAt: moment(order.createdAt).format("MMMM Do YYYY, h:mm a"),
-  }));
+    const csvHeaders = [
+      { label: "Order No", key: "OrderNo" },
+      { label: "Amount", key: "Amount" },
+      { label: "Closed By", key: "UpdatedBy" },
+      { label: "Closed At", key: "CreatedAt" },
+    ];
 
-  const csvHeaders = [
-    { label: "Order No", key: "OrderNo" },
-    { label: "Amount", key: "Amount" },
-    { label: "Closed By", key: "UpdatedBy" },
-    { label: "Closed At", key: "CreatedAt" },
-  ];
+    return (
+      <CSVLink
+        data={csvData}
+        headers={csvHeaders}
+        filename={"orders.csv"}
+        style={{ textDecoration: "none" }}
+      >
+        Export *CSV
+      </CSVLink>
+    );
+  };
 
-  return (
-    <CSVLink
-      data={csvData}
-      headers={csvHeaders}
-      filename={"orders.csv"}
-      style={{ textDecoration: "none" }}
-    >
-      Export *CSV
-    </CSVLink>
-  );
-};
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Orders Report", 10, 10);
 
-const handleExportPDF = () => {
-  const doc = new jsPDF();
-  doc.text("Orders Report", 10, 10);
+    const tableData = data?.map((order, i) => [
+      i,
+      order.order_no,
+      order.order_amount,
+      order.updated_by.username,
+      moment(order.createdAt).format("MMMM Do YYYY, h:mm a"),
+    ]);
 
-  const tableData = data?.map((order, i) => [
-    i,
-    order.order_no,
-    order.order_amount,
-    order.updated_by.username,
-    moment(order.createdAt).format("MMMM Do YYYY, h:mm a"),
-  ]);
+    const headers = ["No.", "Order No.", "Amount", "Closed At", "Closed By"];
+    const tableY = 20;
+    const dataY = tableY + 10;
 
-  const headers = ["No.", "Order No.","Amount", "Closed At", "Closed By"];
-  const tableY = 20;
-  const dataY = tableY + 10;
+    doc.autoTable({
+      head: [headers],
+      body: tableData,
+      startY: dataY,
+    });
 
-  doc.autoTable({
-    head: [headers],
-    body: tableData,
-    startY: dataY,
-  });
-
-  doc.save(`orders-${Date.now()}.pdf`);
-};
-
-
-
-
-
-
-
-
-
-
-
+    doc.save(`orders-${Date.now()}.pdf`);
+  };
 
   const expandedRowRender = (record: any) => {
     return <ExpandedRowContent record={record} />;
@@ -125,16 +113,6 @@ const handleExportPDF = () => {
             },
           },
 
-          {
-            title: "Role",
-            dataIndex: "isAdmin",
-            hideInSearch: true,
-            render: (text) => (
-              <Tag color={text ? "success" : "processing"}>
-                {text ? "admin" : "user"}
-              </Tag>
-            ),
-          },
           {
             title: "Amount",
             dataIndex: "order_amount",
