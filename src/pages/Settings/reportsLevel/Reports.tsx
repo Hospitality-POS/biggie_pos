@@ -113,7 +113,7 @@ const Reports: React.FC = () => {
     {
       key: "voided",
       tab: "void",
-      label: "Generate Voided bills Report",
+      label: <><HolderOutlined/>Generate Voided bills Report</>,
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
