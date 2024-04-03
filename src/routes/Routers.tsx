@@ -13,6 +13,7 @@ import NotFound from "@routes/NotFound";
 
 import { Spin } from "antd/lib";
 import { COOP_NAME } from "@utils/config";
+import MainOrders from "@pages/Orders/MainOrders";
 
 const Layout = lazy(() => import("@components/layout/Layout"));
 
@@ -195,7 +196,7 @@ const routes = createBrowserRouter(
         element={
           <Suspense fallback={<Spinner />}>
             <Private>
-              <Orders />
+              <MainOrders />
             </Private>
           </Suspense>
         }
