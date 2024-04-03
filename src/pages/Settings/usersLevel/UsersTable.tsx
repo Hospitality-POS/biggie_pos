@@ -166,7 +166,7 @@ const UsersTable = () => {
         expandable={{
           expandedRowRender,
           defaultExpandAllRows: false,
-          expandIconColumnIndex: 2,
+          expandIconColumnIndex: 1,
           columnTitle: " ",
         }}
         dateFormatter="string"
