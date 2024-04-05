@@ -70,6 +70,7 @@ const TableLocationSettings = () => {
           {
             title: "Table Location",
             dataIndex: "name",
+            key:"name",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter location name",
