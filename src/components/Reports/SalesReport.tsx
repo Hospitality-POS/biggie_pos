@@ -22,6 +22,7 @@ import "../MODALS/bill.css";
 import { Spin } from "antd/lib";
 import { BRAND_NAME, COOP_NAME } from "@utils/config";
 import moment from "moment";
+import useSystemDetails from "@hooks/useSystemDetails";
 
 interface SalesReportProps {
   openM: boolean;
@@ -46,11 +47,12 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
   });
 
   const overallTotal = data?.reduce(
-    (accumulator: number, item: { orderItems: any[]; }) => accumulator + getTotalAmount(item.orderItems),
+    (accumulator: number, item: { orderItems: any[] }) =>
+      accumulator + getTotalAmount(item.orderItems),
     0
   );
- 
-  
+  const { BRAND_NAME1 } = useSystemDetails();
+
   return (
     <>
       {loading ? (
@@ -71,10 +73,10 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                   variant="h5"
                   sx={{ fontFamily: "monospace", fontWeight: "bold" }}
                 >
-                  {BRAND_NAME}
+                  {BRAND_NAME1}
                 </Typography>
                 <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
-                 ITEM SALES REPORT
+                  ITEM SALES REPORT
                 </Typography>
               </div>
 

@@ -22,6 +22,7 @@ import "../MODALS/bill.css";
 import { Spin } from "antd/lib";
 import { BRAND_NAME, COOP_NAME } from "@utils/config";
 import moment from "moment";
+import useSystemDetails from "@hooks/useSystemDetails";
 
 interface PurchaseReportProps {
   openM: boolean;
@@ -36,6 +37,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
   startDate,
   endDate,
 }) => {
+  const { BRAND_NAME1 } = useSystemDetails();
   const componentRef = useRef<HTMLDivElement>(null);
   const { purchaseReport: data, loading } = useAppSelector(
     (state) => state.Report
@@ -53,7 +55,6 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
       />
     );
   }
-
   return (
     <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
       <DialogContent className="receiptM" ref={componentRef}>
@@ -66,7 +67,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
               variant="h5"
               sx={{ fontFamily: "monospace", fontWeight: "bold" }}
             >
-              {BRAND_NAME}
+              {BRAND_NAME1}
             </Typography>
             <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
               SALES REPORT

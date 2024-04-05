@@ -22,6 +22,7 @@ import "../MODALS/bill.css";
 import { Spin } from "antd/lib";
 import { BRAND_NAME, COOP_NAME } from "@utils/config";
 import moment from "moment";
+import useSystemDetails from "@hooks/useSystemDetails";
 
 interface VoidReportProps {
   openM: boolean;
@@ -37,6 +38,8 @@ const VoidReportModal: React.FC<VoidReportProps> = ({
   endDate,
 }) => {
   const componentRef = useRef<HTMLDivElement>(null);
+  const { BRAND_NAME1 } =
+    useSystemDetails();
   const { voidedReport: data, loading } = useAppSelector(
     (state) => state.Report
   );
@@ -71,7 +74,7 @@ const VoidReportModal: React.FC<VoidReportProps> = ({
                   variant="h5"
                   sx={{ fontFamily: "monospace", fontWeight: "bold" }}
                 >
-                  {BRAND_NAME}
+                  {BRAND_NAME1}
                 </Typography>
                 <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
                   Voided Bills REPORT
