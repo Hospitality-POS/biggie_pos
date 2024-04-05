@@ -88,7 +88,7 @@ const UsersTable = () => {
           {
             title: "Name",
             dataIndex: "fullname",
-            key: "user-Name",
+            key: "fullname",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter User's name",
@@ -106,9 +106,9 @@ const UsersTable = () => {
             ),
           },
           {
-            title: "Email",
-            dataIndex: "email",
-            key: "user-email2",
+            title: "User email",
+            dataIndex: "email", 
+            key: "email",
             hideInSearch: false,
             copyable: true,
             ellipsis: true,
@@ -149,6 +149,8 @@ const UsersTable = () => {
         ]}
         request={async (params) => {
           const data = await fetchAllUsersList(params);
+          console.log("======", params);
+          
           return {
             data: data,
             success: true,
