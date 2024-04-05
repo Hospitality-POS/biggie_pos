@@ -66,16 +66,16 @@ const VoidReportModal: React.FC<VoidReportProps> = ({
                 className="logo-print"
                 style={{ display: "flex", flexDirection: "column" }}
               >
-                <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
+                <Typography variant="h5" sx={{ fontFamily: "monospace", fontWeight: "bold" }}>
                   {BRAND_NAME}
                 </Typography>
-                <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
+                <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
                   Voided Bills REPORT
                 </Typography>
               </div>
 
               <p style={{ textAlign: "center", fontFamily: "monospace" }}>
-                From: {startDate} to {endDate}
+                From: {startDate} <br />  to <br />{endDate}
               </p>
 
               <TableContainer sx={{ mt: 2, width: "inherit", mb: 2 }}>
