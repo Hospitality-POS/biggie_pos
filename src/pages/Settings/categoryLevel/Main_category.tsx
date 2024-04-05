@@ -57,7 +57,7 @@ const {
         columns={[
           {
             title: "Main-Category",
-            key: "main--categ",
+            key: "name",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {

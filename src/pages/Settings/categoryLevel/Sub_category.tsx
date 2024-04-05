@@ -61,7 +61,7 @@ const SubCategorySettings = () => {
           {
             title: "Sub-category",
             dataIndex: "name",
-            key: "sub--categ",
+            key: "name",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter sub-category name",
@@ -70,7 +70,6 @@ const SubCategorySettings = () => {
           {
             title: "Main-category",
             dataIndex: ["main_category","name"],
-            key: "main--categ",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter main-category name",
@@ -78,8 +77,8 @@ const SubCategorySettings = () => {
           },
           actionColumn,
         ]}
-        request={async () => {
-          const data = await fetchSubCategories();
+        request={async (params) => {
+          const data = await fetchSubCategories(params);
           return {
             data: data,
             success: true,

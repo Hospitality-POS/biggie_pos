@@ -68,7 +68,7 @@ const CategorySettings = () => {
         columns={[
           {
             title: "Category",
-            key:"categ",
+            key:"name",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {
@@ -77,7 +77,6 @@ const CategorySettings = () => {
           },
           {
             title: "Subcategory",
-            key:"sub-categ",
             dataIndex: ["sub_category", "name"],
             hideInSearch: false,
             fieldProps: {
