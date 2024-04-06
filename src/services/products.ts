@@ -23,6 +23,11 @@ export const getAllProducts = async () => {
 export const addNewProduct = async (params: ParamsType) => {
   try {
     const response = await axios.post(`${productUrl}`, params);
+     notification.success({
+       message: `Success`,
+       description: "Successfully Added a new Product",
+       placement: "bottomLeft",
+     });
     return response.data;
   } catch (error) {
     Modal.error({
