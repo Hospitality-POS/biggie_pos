@@ -1,5 +1,5 @@
 import { ProCard } from "@ant-design/pro-components";
-import { FileExclamationTwoTone, PaperClipOutlined } from "@ant-design/icons";
+import { HolderOutlined, OrderedListOutlined } from "@ant-design/icons";
 import { Space } from "antd/lib";
 import OrdersTable from "./OrdersTable";
 
@@ -11,7 +11,7 @@ function MainOrders() {
       tab: "order",
       label: (
         <>
-          <PaperClipOutlined />
+          <HolderOutlined />
           Orders
         </>
       ),
@@ -23,7 +23,7 @@ function MainOrders() {
       <ProCard
         title={
           <Space>
-            <FileExclamationTwoTone />
+            <OrderedListOutlined />
             List of all Orders
           </Space>
         }

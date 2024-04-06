@@ -163,7 +163,6 @@ const OrdersTable = () => {
           columnTitle: " ",
         }}
         dateFormatter="string"
-        headerTitle="List of orders"
         toolBarRender={() => [
           <Button type="primary" loading={isLoading} disabled={isLoading}>
             {handleExportCSV()}
