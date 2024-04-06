@@ -1,52 +1,29 @@
-import {
-  FolderAddOutlined,
-  HolderOutlined,
-  PlusCircleFilled,
-  PlusOutlined,
-} from "@ant-design/icons";
+import { FolderAddOutlined, HolderOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Empty, FloatButton, Input, Spin, Typography } from "antd";
+import { Empty, FloatButton, Input, Spin, Typography } from "antd";
 import { Space } from "antd/lib";
-import React, { useState } from "react";
+import { useState } from "react";
 import EmptyPage from "@routes/EmptyPage";
 import { getAllProducts } from "@services/products";
 import StoreProductCard from "@components/store/StoreProductCard";
 import ErrorDialog from "@components/MODALS/Dialogs/ErrorDialog";
-import AddNewProductModal from "@components/store/AddNewProductModal";
 import StoreModal from "@components/MODALS/pro/StoreModal";
 
 const { Search } = Input;
 
 export default function MainStore() {
-  const [open, setOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState(null);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
-
-  const handleOpen = (productId: React.SetStateAction<null>) => {
-    setOpen(true);
-    setSelectedProductId(productId);
-  };
 
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["products"],
     queryFn: getAllProducts,
-    retry: 3,
+    retry: 1,
     refetchInterval: 3000,
     networkMode: "always",
   });
-
-  const onAdd = () => {
-    setOpen(true);
-  };
-  const onSave = () => {
-    console.log("clicked");
-  };
-  const onClose = () => {
-    setOpen(false);
-  };
 
   const tabsItems = data?.map((item) => ({
     key: `${item._id}`,
@@ -101,7 +78,13 @@ export default function MainStore() {
   }));
 
   if (isLoading) {
-    return <Spin size="large" fullscreen tip="please wait ..." />;
+    return (
+      <Spin
+        size="large"
+        fullscreen
+        tip="please wait, fetching all products ..."
+      />
+    );
   }
 
   if (isError) {
@@ -141,7 +124,9 @@ export default function MainStore() {
             tabs={{
               type: "card",
               items: tabsItems,
-              tabPosition: "right",
+              tabPosition: "left",
+              tabBarGutter: 5,
+              style: { backgroundColor: "grey" },
               tabBarStyle: { background: "", touchAction: "pan-down" },
             }}
             bordered
