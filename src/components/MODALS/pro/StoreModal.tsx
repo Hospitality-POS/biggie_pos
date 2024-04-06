@@ -8,6 +8,7 @@ import {
 } from "@ant-design/pro-form";
 import {
   EditOutlined,
+  FolderAddTwoTone,
   PlusCircleFilled,
   UsergroupAddOutlined,
 } from "@ant-design/icons";
@@ -32,7 +33,7 @@ const StoreModal: React.FC<StoreModalProps> = ({  edit, data }) => {
       formRef={formRef}
       title={
         <Space>
-          <UsergroupAddOutlined />
+          <FolderAddTwoTone />
           {edit ? "Edit Product" : "Add New Product"}
         </Space>
       }
@@ -128,7 +129,15 @@ const StoreModal: React.FC<StoreModalProps> = ({  edit, data }) => {
           rules={[{ required: true, message: "Product quantity is required" }]}
           placeholder="Enter Product Quantity"
         />
-
+        {edit && (
+          <ProFormText
+            disabled
+            width="md"
+            id="product-sub-category"
+            name={["sub_category", "name"]}
+            label="Product sub-category"
+          />
+        )}
         <ProFormMoney
           hasFeedback
           width="md"
