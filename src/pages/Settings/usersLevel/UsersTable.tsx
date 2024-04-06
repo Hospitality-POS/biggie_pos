@@ -178,7 +178,7 @@ const UsersTable = () => {
           columnTitle: " ",
         }}
         dateFormatter="string"
-        headerTitle="List of Users"
+        // headerTitle="List of Users"
         toolBarRender={() => [<AddEditProUserModal actionRef={actionRef} />]}
       />
 

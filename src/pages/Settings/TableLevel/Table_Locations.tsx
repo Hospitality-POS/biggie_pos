@@ -100,7 +100,7 @@ const TableLocationSettings = () => {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        headerTitle="List of Table Locations"
+        // headerTitle="List of Table Locations"
         toolBarRender={() => [
           <AddProTableLocationModal
             onAddLocation={handleAddLocation}

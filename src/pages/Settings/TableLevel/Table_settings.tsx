@@ -126,7 +126,7 @@ const TableSetting = () => {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        headerTitle="List of Table Locations"
+        // headerTitle="List of Table Locations"
         toolBarRender={() => [
           <AddEditProTableModal
             onAddTable={handleAddTable}
