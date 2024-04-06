@@ -21,6 +21,7 @@ import Spinner from "../spinner/Spinner";
 import "../MODALS/bill.css";
 import { Spin } from "antd/lib";
 import { BRAND_NAME, COOP_NAME } from "@utils/config";
+import moment from "moment";
 
 interface SalesReportProps {
   openM: boolean;
@@ -78,8 +79,9 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
               </div>
 
               <p style={{ textAlign: "center", fontFamily: "monospace" }}>
-                From: {startDate} <br /> to <br />
-                {endDate}
+                From: {moment(startDate).format("MMM-DD-YYYY H:MM A")} <br /> to{" "}
+                <br />
+                {moment(endDate).format("MMM-DD-YYYY H:MM A")}
               </p>
 
               <TableContainer sx={{ mt: 2, width: "inherit", mb: 2 }}>
@@ -200,7 +202,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                 variant="body1"
                 sx={{ textAlign: "center", fontSize: "0.9em" }}
               >
-                Generated on {new Date().toLocaleDateString()}
+                Generated on {moment(Date()).format("MMM/DD/YYYY")}
               </Typography>
             </div>
 
