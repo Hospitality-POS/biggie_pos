@@ -12,7 +12,11 @@ import {
   PlusCircleFilled,
   UsergroupAddOutlined,
 } from "@ant-design/icons";
-import { ProFormDigit, ProFormMoney, ProFormTextArea } from "@ant-design/pro-components";
+import {
+  ProFormDigit,
+  ProFormMoney,
+  ProFormTextArea,
+} from "@ant-design/pro-components";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { fetchAllCategories } from "@services/categories";
 import { addNewProduct, editProduct } from "@services/products";
@@ -22,8 +26,7 @@ interface StoreModalProps {
   data?: any;
 }
 
-
-const StoreModal: React.FC<StoreModalProps> = ({  edit, data }) => {
+const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
 
@@ -93,13 +96,13 @@ const StoreModal: React.FC<StoreModalProps> = ({  edit, data }) => {
         },
       }}
     >
-      <ProForm.Group>
+      <ProForm.Group title="Product Details">
         <ProFormText
           hasFeedback
           width="md"
           id="productName"
           name="name"
-          label="Product Name"
+          label="Name"
           rules={[{ required: true, message: "Product name is required" }]}
           placeholder="Enter product name"
         />
@@ -108,7 +111,7 @@ const StoreModal: React.FC<StoreModalProps> = ({  edit, data }) => {
           hasFeedback
           width="md"
           name="category"
-          label="Product Category"
+          label="Category"
           rules={[{ required: true, message: "Product category is required" }]}
           showSearch
           placeholder="Select product category"
@@ -125,7 +128,7 @@ const StoreModal: React.FC<StoreModalProps> = ({  edit, data }) => {
           hasFeedback
           width="md"
           name="quantity"
-          label="Product Quantity"
+          label="Quantity"
           rules={[{ required: true, message: "Product quantity is required" }]}
           placeholder="Enter Product Quantity"
         />
@@ -142,15 +145,17 @@ const StoreModal: React.FC<StoreModalProps> = ({  edit, data }) => {
           hasFeedback
           width="md"
           name="price"
-          label="Product Price"
+          label="Price"
           rules={[{ required: true, message: "Product Price is required" }]}
           placeholder="Enter Product Price"
         />
+      </ProForm.Group>
+      <ProForm.Group size={"large"} title="More Info*">
         <ProFormTextArea
           hasFeedback
-          width="xl"
+          width={"xl"}
           name="desc"
-          label="Product Description"
+          label="Description"
           placeholder="Enter Product Description if any."
         />
       </ProForm.Group>
