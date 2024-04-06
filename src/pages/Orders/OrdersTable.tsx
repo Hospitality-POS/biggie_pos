@@ -7,12 +7,14 @@ import { CSVLink } from "react-csv";
 import moment from "moment";
 import jsPDF from "jspdf";
 import { useQuery } from "@tanstack/react-query";
+import { ENTITY_NAME } from "@utils/config";
 
 const OrdersTable = () => {
   const actionRef = useRef<ActionType>();
   const { data, isLoading } = useQuery({
     queryKey: ["orderlist"],
     queryFn: getAllOrders,
+    networkMode: "always"
   });
 
   const handleExportCSV = () => {
@@ -22,7 +24,7 @@ const OrdersTable = () => {
             OrderNo: order?.order_no,
             Amount: order?.order_amount,
             UpdatedBy: order?.updated_by?.username,
-            CreatedAt: moment(order?.createdAt).format("MMMM Do YYYY, h:mm a"),
+            CreatedAt: moment(order?.createdAt).format("MMM-DD-YY, h:mm a"),
           }))
         : [];
 
@@ -37,7 +39,7 @@ const OrdersTable = () => {
       <CSVLink
         data={csvData}
         headers={csvHeaders}
-        filename={"orders.csv"}
+        filename={`${ENTITY_NAME} ORDERS ${moment(Date()).format("MMM-DD-YY, h:mm a")}.csv`}
         style={{ textDecoration: "none" }}
       >
         Export *CSV
