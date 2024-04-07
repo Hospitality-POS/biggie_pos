@@ -138,7 +138,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
             width="md"
             id="product-sub-category"
             name={["sub_category", "name"]}
-            label="Product sub-category"
+            label="sub-category"
           />
         )}
         <ProFormMoney
