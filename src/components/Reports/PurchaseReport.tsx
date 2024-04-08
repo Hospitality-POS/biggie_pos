@@ -98,7 +98,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                       {item.name}
                     </TableCell>
                     <TableCell sx={{ textAlign: "right", fontWeight: "bold" }}>
-                      {item.amount.toFixed(2)}
+                      {item.amount.toLocaleString()}
                     </TableCell>
                   </TableRow>
                 ))}
