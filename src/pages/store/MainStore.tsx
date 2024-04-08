@@ -106,19 +106,23 @@ export default function MainStore() {
             style={{
               justifyContent: "space-between",
               width: "100%",
-              marginBottom: 4,
+              marginBottom: 20,
             }}
           >
             <Space>
               <FolderAddOutlined />
               <Typography.Text strong>Products Management</Typography.Text>
             </Space>
+            <Space>
+
+              <StoreModal edit={false} />
             <Search
               placeholder="Enter product name"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               enterButton
             />
+            </Space>
           </Space>
           <ProCard
             tabs={{
@@ -126,7 +130,7 @@ export default function MainStore() {
               items: tabsItems,
               tabPosition: "left",
               tabBarGutter: 5,
-              style: { backgroundColor: "grey" },
+              style: { backgroundColor: "grey"},
               tabBarStyle: { background: "", touchAction: "pan-down" },
             }}
             bordered
@@ -136,13 +140,13 @@ export default function MainStore() {
       ) : (
         <EmptyPage />
       )}
-      <FloatButton
+      {/* <FloatButton
         type="primary"
         description={<StoreModal edit={false} />}
         shape="square"
-        style={{ right: 10 + 40, width: 100 }}
+        style={{ right: 5 + 40, width: 100 }}
         tooltip={<div>Add a new Product</div>}
-      />
+      /> */}
     </>
   );
 }
