@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import { useRef } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -6,18 +6,15 @@ import {
   DialogActions,
 } from "@mui/material";
 
-import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
+import { ActionType, ProTable } from "@ant-design/pro-components";
 import { fetchAllCategories } from "@services/categories";
 import { Tooltip, Button, Space } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { DeleteOutlined } from "@ant-design/icons";
 import useCategorySettings from "../hooks/useCategorySettings";
 import AddProCategoryModal from "@components/MODALS/pro/AddProCategoryModal";
 
 const CategorySettings = () => {
   const actionRef = useRef<ActionType>();
-  const onDeleteCandidate = (category: any) => {
-    // Handle any logic needed when a category is deleted
-  };
 
   const {
     deleteConfirmationOpen,
@@ -31,7 +28,7 @@ const CategorySettings = () => {
     title: "Actions",
     dataIndex: "actions",
     hideInSearch: true,
-    render: (_, record: any) => [      
+    render: (_, record) => [      
       <Space>
         <Tooltip key="edit" title="Edit">
           <AddProCategoryModal

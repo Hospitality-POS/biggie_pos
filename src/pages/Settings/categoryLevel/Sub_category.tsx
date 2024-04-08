@@ -2,16 +2,13 @@ import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import { Tooltip, Button } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { getTableLocation } from "@services/tables";
-import { useTableLocationSettings } from "../hooks/useTableSettings";
+import { DeleteOutlined } from "@ant-design/icons";
 import {
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
 } from "@mui/material";
-import AddProTableLocationModal from "@components/MODALS/pro/AddProTableLocationModal";
 import { fetchSubCategories } from "@services/categories";
 import useCategorySettings from "../hooks/useCategorySettings";
 import SubCategoryModal from "@components/MODALS/pro/SubCategoryModal";
@@ -30,7 +27,7 @@ const SubCategorySettings = () => {
     title: "Actions",
     dataIndex: "actions",
     hideInSearch: true,
-    render: (_, record: any) => [
+    render: (_, record) => [
       <Tooltip key="edit" title="Edit">
         <SubCategoryModal data={record} edit={true} actionRef ={actionRef}/>
       </Tooltip>,
