@@ -2,19 +2,20 @@ import { useRef } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import ExpandedRowContent from "./ExpandableOrderDetails";
 import { getAllOrders } from "@services/orders";
-import { Button, Spin } from "antd";
+import { Badge, Button, Tag } from "antd";
 import { CSVLink } from "react-csv";
 import moment from "moment";
-import jsPDF from "jspdf";
+// import jsPDF from "jspdf";
 import { useQuery } from "@tanstack/react-query";
 import { ENTITY_NAME } from "@utils/config";
+import { UserOutlined } from "@ant-design/icons";
 
 const OrdersTable = () => {
   const actionRef = useRef<ActionType>();
   const { data, isLoading } = useQuery({
     queryKey: ["orderlist"],
     queryFn: getAllOrders,
-    networkMode: "always"
+    networkMode: "always",
   });
 
   const handleExportCSV = () => {
@@ -39,7 +40,9 @@ const OrdersTable = () => {
       <CSVLink
         data={csvData}
         headers={csvHeaders}
-        filename={`${ENTITY_NAME} ORDERS ${moment(Date()).format("MMM-DD-YY, h:mm a")}.csv`}
+        filename={`${ENTITY_NAME} ORDERS ${moment(Date()).format(
+          "MMM-DD-YY, h:mm a"
+        )}.csv`}
         style={{ textDecoration: "none" }}
       >
         Export *CSV
@@ -93,7 +96,6 @@ const OrdersTable = () => {
           {
             title: "Order No.",
             dataIndex: "order_no",
-            key: "order-Number",
             hideInSearch: false,
             copyable: true,
             fieldProps: {
@@ -103,11 +105,17 @@ const OrdersTable = () => {
           {
             title: "Table",
             dataIndex: ["table_id", "name"],
-            key: "table-name",
+            key: "name",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter table name",
             },
+            render: (name) => (
+              <Badge
+                status={name !== "-" ? "success" : "error"}
+                text={name !== "-" ? name : "Deleted"}
+              />
+            ),
           },
           {
             title: "Closed By",
@@ -117,6 +125,17 @@ const OrdersTable = () => {
             fieldProps: {
               placeholder: "Enter username",
             },
+            render: (text) => (
+              <Tag color={text ? "green" : "error"}>
+                {text ? (
+                  <>
+                    <UserOutlined /> {text}
+                  </>
+                ) : (
+                  "Deleted"
+                )}
+              </Tag>
+            ),
           },
 
           {
@@ -156,12 +175,12 @@ const OrdersTable = () => {
           resetText: "Reset",
           labelWidth: "auto",
         }}
-        expandable={{
-          expandedRowRender,
-          defaultExpandAllRows: false,
-          expandIconColumnIndex: 1,
-          columnTitle: " ",
-        }}
+        // expandable={{
+        //   expandedRowRender,
+        //   defaultExpandAllRows: false,
+        //   expandIconColumnIndex: 1,
+        //   columnTitle: " ",
+        // }}
         dateFormatter="string"
         toolBarRender={() => [
           <Button type="primary" loading={isLoading} disabled={isLoading}>
