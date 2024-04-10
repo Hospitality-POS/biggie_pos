@@ -6,10 +6,7 @@ import {
   DialogActions,
   DialogContentText,
 } from "@mui/material";
-import {
-  ActionType,
-  ProTable,
-} from "@ant-design/pro-components";
+import { ActionType, ProTable } from "@ant-design/pro-components";
 import { Avatar, Badge, Tag, Tooltip } from "antd/lib";
 import { Button, Space } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
@@ -20,9 +17,11 @@ import ExpandedRowContent from "./ExpandedRowContent";
 import AddEditProUserModal from "@components/MODALS/pro/AddEditProUserModal";
 import useUserSettings from "../hooks/useUserSettings";
 import { User } from "src/interfaces/User";
-
+import { useAppSelector } from "src/store";
 
 const UsersTable = () => {
+  const { user } = useAppSelector((state) => state.auth);
+
   const onDeleteCandidate = (_user: User) => {
     // Handle any logic needed when a category is deleted
   };
@@ -47,14 +46,21 @@ const UsersTable = () => {
           <AddEditProUserModal
             edit={true}
             actionRef={actionRef}
-            data={record} 
-              />
+            data={record}
+          />
         </Tooltip>
 
-        <Tooltip key="delete" title="Delete">
+        <Tooltip
+          key="delete"
+          placement="right"
+          title={
+            user?.name === record?.username ? "Not Allowed" : "Delete this user"
+          }
+        >
           <Button
             type="link"
             danger
+            disabled={user?.name === record?.username}
             icon={<DeleteOutlined />}
             onClick={() => handleDeleteClick(record)}
           />
@@ -82,7 +88,7 @@ const UsersTable = () => {
           {
             title: "Name",
             dataIndex: "fullname",
-            key:"user-Name",
+            key: "fullname",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter User's name",
@@ -100,9 +106,9 @@ const UsersTable = () => {
             ),
           },
           {
-            title: "Email",
-            dataIndex: "email",
-            key:"user-email2",
+            title: "User email",
+            dataIndex: "email", 
+            key: "email",
             hideInSearch: false,
             copyable: true,
             ellipsis: true,
@@ -142,7 +148,9 @@ const UsersTable = () => {
           actionColumn,
         ]}
         request={async (params) => {
-          const data = await fetchAllUsersList(params);      
+          const data = await fetchAllUsersList(params);
+          console.log("======", params);
+          
           return {
             data: data,
             success: true,
@@ -166,16 +174,12 @@ const UsersTable = () => {
         expandable={{
           expandedRowRender,
           defaultExpandAllRows: false,
-          expandIconColumnIndex: 2,
+          expandIconColumnIndex: 1,
           columnTitle: " ",
         }}
         dateFormatter="string"
-        headerTitle="List of Users"
-        toolBarRender={() => [
-          <AddEditProUserModal
-            actionRef={actionRef}
-          />,
-        ]}
+        // headerTitle="List of Users"
+        toolBarRender={() => [<AddEditProUserModal actionRef={actionRef} />]}
       />
 
       {/* Delete Confirmation Dialog */}

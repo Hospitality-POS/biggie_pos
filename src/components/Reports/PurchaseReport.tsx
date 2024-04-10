@@ -21,6 +21,7 @@ import Spinner from "../spinner/Spinner";
 import "../MODALS/bill.css";
 import { Spin } from "antd/lib";
 import { BRAND_NAME, COOP_NAME } from "@utils/config";
+import moment from "moment";
 
 interface PurchaseReportProps {
   openM: boolean;
@@ -61,15 +62,19 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
             className="logo-print"
             style={{ display: "flex", flexDirection: "column" }}
           >
-            <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
+            <Typography
+              variant="h5"
+              sx={{ fontFamily: "monospace", fontWeight: "bold" }}
+            >
               {BRAND_NAME}
             </Typography>
-            <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
+            <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
               PURCHASE REPORT
             </Typography>
           </div>
           <p style={{ textAlign: "center", padding: "10px" }}>
-            From: {startDate} to {endDate}
+            From: {moment(startDate).format("MMM-DD-YYYY H:MM A")} <br /> to{" "}
+            <br /> {moment(endDate).format("MMM-DD-YYYY H:MM A")}
           </p>
 
           <TableContainer sx={{ mt: 2, width: "100%", mb: 2 }}>
@@ -93,7 +98,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                       {item.name}
                     </TableCell>
                     <TableCell sx={{ textAlign: "right", fontWeight: "bold" }}>
-                      {item.amount.toFixed(2)}
+                      {item.amount.toLocaleString()}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -121,9 +126,9 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
           </Typography>
           <Typography
             variant="body1"
-            sx={{ textAlign: "center", fontSize: "0.7em" }}
+            sx={{ textAlign: "center", fontSize: "0.9em" }}
           >
-            Generated on {new Date().toLocaleDateString()}
+            Generated on {moment(Date()).format("MMM/DD/YYYY H:MM A")}
           </Typography>
         </div>
 

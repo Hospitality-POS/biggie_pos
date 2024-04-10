@@ -81,3 +81,23 @@ export const addNewTableLocation = async (data: ParamsType) => {
     });
   }
 };
+
+export const delLocation = async (data: ParamsType) => {
+  try {
+    const response = await axios.delete(`${tableUrl}/locations/${data}`);
+    console.log(data);
+
+    notification.success({
+      message: `Success`,
+      description: "Successfully deleted Location",
+      placement: "bottomLeft",
+    });
+    return response.data;
+  } catch (error) {
+    Modal.error({
+      title: "Oops! Something went wrong.",
+      content: `${error?.response?.data?.error}`,
+    });
+    console.log(error);
+  }
+};

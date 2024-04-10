@@ -52,9 +52,11 @@ export const updateCategory = async (data: ParamsType) => {
 };
 
 // sub category
-export const fetchSubCategories = async () => {
+export const fetchSubCategories = async (data:ParamsType) => {
   try {
-    const response = await axios.get(`${categ_url}/sub-categories`);
+    const response = await axios.get(`${categ_url}/sub-categories`, {
+      params: { name: data.name, main_category: data.main_category?.name },
+    });
     return response.data;
   } catch (error) {
     console.log(error);

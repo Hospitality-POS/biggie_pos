@@ -99,7 +99,7 @@ const PaymentsMethodSettings = () => {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        headerTitle="List of Payment Methods"
+        // headerTitle="List of Payment Methods"
         toolBarRender={() => [
           <AddProPaymentMethodSettingsModal
             actionRef={paymentRef}

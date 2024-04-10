@@ -57,7 +57,7 @@ const {
         columns={[
           {
             title: "Main-Category",
-            key: "main--categ",
+            key: "name",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {
@@ -88,7 +88,7 @@ const {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        headerTitle="List of Main-Category"
+        // headerTitle="List of Main-Category"
         toolBarRender={() => [<MainCategoryModal actionRef={actionRef} />]}
       />
 

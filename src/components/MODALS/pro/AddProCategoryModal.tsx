@@ -114,8 +114,8 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
           rules={[{ required: true, message: "Subcategory is required" }]}
           showSearch
           placeholder="Select subcategory"
-          request={async () => {
-            const data = await fetchSubCategories();
+          request={async (params) => {
+            const data = await fetchSubCategories(params);
             const values = data.map((e: { name: any; _id: any }) => {
               return { label: e.name, value: e._id };
             });

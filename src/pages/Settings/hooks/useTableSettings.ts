@@ -5,6 +5,7 @@ import {
   deleteTable,
 } from "@features/Table/TableActions";
 import { Modal, notification } from "antd/lib";
+import { delLocation } from "@services/tables";
 
 export const useTableLocationSettings = () => {
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
@@ -30,22 +31,16 @@ export const useTableLocationSettings = () => {
   const handleDeleteConfirmLocation = (ref: { current: { reload: () => void; }; }) => {
     try {
       if (deleteCandidate) {
-        dispatch(deleteLocation(deleteCandidate._id));
+        delLocation(deleteCandidate._id);
         handleCloseLocation();
         setDeleteConfirmationOpen(false);
 
         ref.current.reload();
-        notification.success({
-          message: `Success`,
-          description: "Deleted Location successfuly",
-          placement: "bottomLeft",
-        });
+        
       }
     } catch (error) {
-      Modal.warning({
-        title: "Error",
-        content: "Failed to delete the selected location",
-      });
+      console.log(error);
+      
     }
   };
 
