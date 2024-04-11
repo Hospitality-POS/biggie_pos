@@ -19,10 +19,10 @@ const CategoryMainSettings: React.FC = () => {
 
   const tabsItems = [
     {
-      key: "category1",
-      tab: "category",
-      label: <><HolderOutlined/>All Categorys</>,
-      children: <CategorySettings />,
+      key: "mainCategory",
+      tab: "Main Category",
+      label:<><HolderOutlined/>Main Category</>,
+      children: <MainCategorySettings />,
     },
     {
       key: "category2",
@@ -31,10 +31,10 @@ const CategoryMainSettings: React.FC = () => {
       children: <SubCategorySettings />,
     },
     {
-      key: "mainCategory",
-      tab: "Main Category",
-      label:<><HolderOutlined/>Main Category</>,
-      children: <MainCategorySettings />,
+      key: "category1",
+      tab: "category",
+      label: <><HolderOutlined/>Categorys</>,
+      children: <CategorySettings />,
     },
   ];
 
