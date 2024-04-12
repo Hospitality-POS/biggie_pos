@@ -128,9 +128,9 @@ export default function MainStore() {
             tabs={{
               type: "card",
               items: tabsItems,
-              tabPosition: "left",
+              // tabPosition: "",
               tabBarGutter: 5,
-              style: { backgroundColor: "grey"},
+              // style: { backgroundColor: "grey"},
               tabBarStyle: { background: "", touchAction: "pan-down" },
             }}
             bordered
