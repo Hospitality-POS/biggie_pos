@@ -14,27 +14,27 @@ const TableMainSettings: React.FC = () => {
 
   const tabsItems = [
     {
-      key: "table1",
-      tab: "Table",
-      label: (
-        <>
-          <HolderOutlined />
-          All Tables
-        </>
-      ),
-      children: <TableSetting />,
-    },
-    {
       key: "table2",
       tab: "loaction",
 
       label: (
         <>
           <HolderOutlined />
-          All Table Locations
+          Locations
         </>
       ),
       children: <TableLocationSettings />,
+    },
+    {
+      key: "table1",
+      tab: "Table",
+      label: (
+        <>
+          <HolderOutlined />
+          Tables
+        </>
+      ),
+      children: <TableSetting />,
     },
   ];
 

@@ -33,7 +33,7 @@ const CategoryMainSettings: React.FC = () => {
     {
       key: "category1",
       tab: "category",
-      label: <><HolderOutlined/>Categorys</>,
+      label: <><HolderOutlined/>Category</>,
       children: <CategorySettings />,
     },
   ];
