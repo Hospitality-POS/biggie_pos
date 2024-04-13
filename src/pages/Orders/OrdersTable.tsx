@@ -1,8 +1,8 @@
 import { useRef } from "react";
-import { ActionType, ProTable } from "@ant-design/pro-components";
+import { ActionType, ProFormInstance, ProTable } from "@ant-design/pro-components";
 import ExpandedRowContent from "./ExpandableOrderDetails";
 import { getAllOrders } from "@services/orders";
-import { Badge, Button, Tag } from "antd";
+import { Badge, Button, Space, Tag } from "antd";
 import { CSVLink } from "react-csv";
 import moment from "moment";
 // import jsPDF from "jspdf";
@@ -12,6 +12,7 @@ import { UserOutlined } from "@ant-design/icons";
 
 const OrdersTable = () => {
   const actionRef = useRef<ActionType>();
+  const ref = useRef<ProFormInstance>();
   const { data, isLoading } = useQuery({
     queryKey: ["orderlist"],
     queryFn: getAllOrders,
@@ -151,6 +152,8 @@ const OrdersTable = () => {
             dataIndex: "createdAt",
             hideInSearch: true,
             valueType: "dateTime",
+            sorter: (a, b) =>
+              new Date(a.createdAt as string) - new Date(b.createdAt as string),
           },
         ]}
         request={async (params) => {
@@ -164,6 +167,7 @@ const OrdersTable = () => {
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
+        formRef={ref}
         actionRef={actionRef}
         rowSelection={{
           alwaysShowAlert: false,
@@ -174,6 +178,10 @@ const OrdersTable = () => {
           searchText: "Search order",
           resetText: "Reset",
           labelWidth: "auto",
+        }}
+        options={{
+          search: true,
+          fullScreen: true,          
         }}
         // expandable={{
         //   expandedRowRender,
