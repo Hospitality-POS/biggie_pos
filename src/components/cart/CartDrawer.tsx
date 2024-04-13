@@ -92,13 +92,13 @@ const CartDrawer: React.FC = () => {
 
   return (
     <Card
-    bordered
-    type="inner"
+      bordered
+      type="inner"
       style={{
         overflow: "hidden",
         overflowY: "auto",
       }}
-      bodyStyle={{backgroundColor:"white"}}
+      bodyStyle={{ backgroundColor: "white" }}
     >
       <PrintBillModal
         openM={openM}
@@ -180,8 +180,7 @@ const CartDrawer: React.FC = () => {
               )}
             </Typography.Text>
             <Typography.Text strong>
-              
-              Served By: <SmileFilled />{" "}{cartDetails?.created_by.username}
+              Served By: <SmileFilled /> {cartDetails?.created_by.username}
             </Typography.Text>
 
             <Space
@@ -191,13 +190,15 @@ const CartDrawer: React.FC = () => {
                 flexWrap: "wrap",
               }}
             >
-              <Button
-                danger
-                onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
-                icon={<CloseCircleOutlined />}
-              >
-                Clear
-              </Button>
+              {user?.isAdmin && (
+                <Button
+                  danger
+                  onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
+                  icon={<CloseCircleOutlined />}
+                >
+                  Clear
+                </Button>
+              )}
               <Button
                 onClick={() => dispatch(cartSent(cartDetails))}
                 icon={<SendOutlined />}
