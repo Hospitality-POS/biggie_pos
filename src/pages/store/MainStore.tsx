@@ -138,15 +138,17 @@ export default function MainStore() {
           />
         </>
       ) : (
+        <>
+        <FloatButton
+          type="primary"
+          description={<StoreModal edit={false} />}
+          shape="square"
+          style={{ right: 5 + 40, width: 100 }}
+          tooltip={<div>Add a new Product</div>}
+        />
         <EmptyPage />
+        </>
       )}
-      {/* <FloatButton
-        type="primary"
-        description={<StoreModal edit={false} />}
-        shape="square"
-        style={{ right: 5 + 40, width: 100 }}
-        tooltip={<div>Add a new Product</div>}
-      /> */}
     </>
   );
 }
