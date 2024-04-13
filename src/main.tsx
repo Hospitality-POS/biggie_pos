@@ -5,7 +5,6 @@ import { Provider } from "react-redux";
 import App from "./App.tsx";
 import "typeface-inter";
 import "./index.css";
-import { BrowserRouter } from "react-router-dom";
 import { createTheme } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@emotion/react";
