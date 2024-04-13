@@ -66,11 +66,17 @@ export const editProduct = async (data: ParamsType) => {
 export const deleteProduct = async (productId: string) => {
   try {
     await axios.delete(`${productUrl}/${productId}`, { headers });
+      notification.success({
+        message: `Success`,
+        description: "Product deleted successfully.",
+        placement: "bottomLeft",
+      });
     return productId;
   } catch (error) {
     Modal.error({
-      title: "Oops!",
+      title: "Oops! Something went wrong",
       content: "Please check your internet connection!",
+      centered: true
     });
   }
 };
