@@ -70,7 +70,7 @@ const TableLocationSettings = () => {
           {
             title: "Table Location",
             dataIndex: "name",
-            key:"name",
+            key: "name",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter location name",
@@ -99,6 +99,9 @@ const TableLocationSettings = () => {
           resetText: "Reset",
           labelWidth: "auto",
         }}
+        options={{
+          fullScreen: true,
+        }}
         dateFormatter="string"
         // headerTitle="List of Table Locations"
         toolBarRender={() => [
@@ -125,7 +128,10 @@ const TableLocationSettings = () => {
           <Button onClick={handleDeleteCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={() => handleDeleteConfirmLocation(locationRef)} danger>
+          <Button
+            onClick={() => handleDeleteConfirmLocation(locationRef)}
+            danger
+          >
             Delete
           </Button>
         </DialogActions>

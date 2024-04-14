@@ -157,6 +157,9 @@ const UsersTable = () => {
             total: data.length,
           };
         }}
+        options={{
+          fullScreen:true
+        }}
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}

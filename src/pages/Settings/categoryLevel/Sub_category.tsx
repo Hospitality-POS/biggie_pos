@@ -66,7 +66,7 @@ const SubCategorySettings = () => {
           },
           {
             title: "Main-category",
-            dataIndex: ["main_category","name"],
+            dataIndex: ["main_category", "name"],
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter main-category name",
@@ -86,6 +86,9 @@ const SubCategorySettings = () => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
         actionRef={actionRef}
+        options={{
+          fullScreen: true,
+        }}
         rowSelection={{
           alwaysShowAlert: false,
           selections: false,

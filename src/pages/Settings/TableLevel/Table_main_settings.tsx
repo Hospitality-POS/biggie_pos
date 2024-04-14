@@ -6,7 +6,7 @@ import { Space } from "antd/lib";
 import TableSetting from "./Table_settings";
 
 const TableMainSettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>("table1");
+  const [activeTab, setActiveTab] = useState<string>("table2");
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);

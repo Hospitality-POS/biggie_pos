@@ -78,6 +78,9 @@ const {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
         actionRef={actionRef}
+        options={{
+          fullScreen: true,
+        }}
         rowSelection={{
           alwaysShowAlert: false,
           selections: false,

@@ -94,7 +94,7 @@ const TableSetting = () => {
             title: "Amount",
             dataIndex: "cart_amount",
             hideInSearch: true,
-            valueType: "money"
+            valueType: "money",
           },
           {
             title: "Served By",
@@ -105,7 +105,7 @@ const TableSetting = () => {
         ]}
         request={async (params) => {
           const data = await getAllTables(params);
-        //   console.log(data);
+          //   console.log(data);
           return {
             data: data,
             success: true,
@@ -116,6 +116,9 @@ const TableSetting = () => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
         actionRef={tableRef}
+        options={{
+          fullScreen: true,
+        }}
         rowSelection={{
           alwaysShowAlert: false,
           selections: false,

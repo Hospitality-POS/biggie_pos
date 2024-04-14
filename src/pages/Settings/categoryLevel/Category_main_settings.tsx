@@ -11,7 +11,7 @@ const Category2 = () => <div>Content for Category 2</div>;
 const MainCategory = () => <div>Main Category Content</div>;
 
 const CategoryMainSettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>("category1");
+  const [activeTab, setActiveTab] = useState<string>("mainCategory");
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);

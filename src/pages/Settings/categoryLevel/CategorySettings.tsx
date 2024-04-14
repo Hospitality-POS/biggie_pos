@@ -65,7 +65,7 @@ const CategorySettings = () => {
         columns={[
           {
             title: "Category",
-            key:"name",
+            key: "name",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {
@@ -84,7 +84,7 @@ const CategorySettings = () => {
         ]}
         request={async (param) => {
           const data = await fetchAllCategories(param);
-          
+
           return {
             data: data,
             success: true,
@@ -104,13 +104,12 @@ const CategorySettings = () => {
           resetText: "Reset",
           labelWidth: "auto",
         }}
+        options={{
+          fullScreen: true,
+        }}
         dateFormatter="string"
         // headerTitle="List of categories"
-        toolBarRender={() => [
-          <AddProCategoryModal
-            actionRef={actionRef}
-          />,
-        ]}
+        toolBarRender={() => [<AddProCategoryModal actionRef={actionRef} />]}
       />
 
       {/* Delete Confirmation Dialog */}
