@@ -47,29 +47,43 @@ export default function TablePro() {
           {item.name}
         </Space>
       ),
-      children:
+      children: [
         item?.tables && item?.tables.length > 0 ? (
-          item.tables.map((T) => (
-            <Space align="center" key={T._id}>
-              <div
-                className="cards"
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  justifyContent: "center",
-                  marginTop: "5px",
-                  flexWrap: "wrap",
-                  width: "100%",
-                  bottom: 0,
-                }}
-              >
-                <TableCard key={T._id} item={T} openModal={handleOpen} />
-              </div>
-            </Space>
-          ))
+          <div
+            className="wrapper2"
+            style={{
+              display: "grid",
+              rowGap: 30,
+              height: "calc(100vh - 280px)",
+              overflowY: "auto",
+              alignItems: "start",
+            }}
+          >
+            {item.tables.length > 0 ? (
+              item.tables.map((T) => (
+                <div
+                  key={T._id}
+                  className="card"
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-start",
+                    marginTop: "0px",
+                    flexWrap: "wrap",
+                    width: "100%",
+                    bottom: 0,
+                  }}
+                >
+                  <TableCard key={T._id} item={T} openModal={handleOpen} />
+                </div>
+              ))
+            ) : (
+              <EmptyPage />
+            )}
+          </div>
         ) : (
           <EmptyPage />
         ),
+      ],
     })
   );
 
@@ -126,6 +140,7 @@ export default function TablePro() {
             items: tabsItems,
           }}
           bordered
+          boxShadow
         />
       </ConfigProvider>
       {selectedProductId && (
