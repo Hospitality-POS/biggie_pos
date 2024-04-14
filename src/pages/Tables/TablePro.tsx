@@ -1,11 +1,11 @@
-import { HolderOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, HolderOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import SuccesssModal from "@components/MODALS/SuccessModal";
 import TableCard from "@components/TableCard/TableCard";
 import StaffModal from "@components/staffCard/LoginModal";
 import { fetchTableUsequery } from "@services/tables";
 import { useQuery } from "@tanstack/react-query";
-import { Spin, Typography } from "antd";
+import { ConfigProvider, Spin, Typography } from "antd";
 import { Space } from "antd/lib";
 import Lottie from "lottie-react";
 import React, { useState } from "react";
@@ -25,18 +25,17 @@ export default function TablePro() {
     setSelectedProductId(productId);
   };
 
-  const { data, isLoading, isError  } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["tables"],
     queryFn: fetchTableUsequery,
     retry: 3,
     refetchInterval: 3000,
-    networkMode: "always"
+    networkMode: "always",
   });
 
   if (successmodal) {
     return <SuccesssModal />;
   }
-  
 
   const tabsItems = data?.map(
     (item: { _id: string; name: string; tables?: any[] }) => ({
@@ -78,7 +77,7 @@ export default function TablePro() {
     return <Spin size="large" fullscreen tip="please wait ..." />;
   }
 
-  if(loading){
+  if (loading) {
     return (
       <div
         style={{
@@ -98,18 +97,37 @@ export default function TablePro() {
     );
   }
   if (isError) {
-    return <EmptyPage/>;
+    return <EmptyPage />;
   }
 
   return (
     <>
-      <ProCard
-        title={<Typography.Text style={{fontSize:'18px'}}>Tables</Typography.Text>}
-        tabs={{
-          type: "card",
-          items: tabsItems,
+      <ConfigProvider
+        theme={{
+          components: {
+            Tabs: {
+              itemColor: "#fff",
+              itemActiveColor: "#000",
+              itemHoverColor: "#aa846f",
+              itemSelectedColor: "#000",
+              cardBg: "#6c1c2c",
+            },
+          },
         }}
-      />
+      >
+        <ProCard
+          title={
+            <Typography.Text style={{ fontSize: "18px" }}>
+              <AppstoreOutlined /> Tables
+            </Typography.Text>
+          }
+          tabs={{
+            type: "card",
+            items: tabsItems,
+          }}
+          bordered
+        />
+      </ConfigProvider>
       {selectedProductId && (
         <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} />
       )}
