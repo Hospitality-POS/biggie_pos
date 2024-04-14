@@ -1,7 +1,16 @@
 import { FolderAddOutlined, HolderOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
-import { Empty, FloatButton, Input, Spin, Typography } from "antd";
+import {
+  Button,
+  ConfigProvider,
+  Empty,
+  FloatButton,
+  Input,
+  Result,
+  Spin,
+  Typography,
+} from "antd";
 import { Space } from "antd/lib";
 import { useState } from "react";
 import EmptyPage from "@routes/EmptyPage";
@@ -114,39 +123,56 @@ export default function MainStore() {
               <Typography.Text strong>Products Management</Typography.Text>
             </Space>
             <Space>
-
               <StoreModal edit={false} />
-            <Search
-              placeholder="Enter product name"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              enterButton
-            />
+              <Search
+                placeholder="Enter product name"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                enterButton
+              />
             </Space>
           </Space>
-          <ProCard
-            tabs={{
-              type: "card",
-              items: tabsItems,
-              // tabPosition: "",
-              tabBarGutter: 5,
-              // style: { backgroundColor: "grey"},
-              tabBarStyle: { background: "", touchAction: "pan-down" },
+          <ConfigProvider
+            theme={{
+              components: {
+                Tabs: {
+                  itemColor: "#fff",
+                  itemActiveColor: "#000",
+                  itemHoverColor: "#aa846f",
+                  itemSelectedColor: "#000",
+                  cardBg: "#6c1c2c",
+                },
+              },
             }}
-            bordered
-            boxShadow
-          />
+          >
+            <ProCard
+              tabs={{
+                type: "card",
+                items: tabsItems,
+                // tabPosition: "",
+                tabBarGutter: 5,
+                // style: { backgroundColor: "#6c1c2c" },
+                // centered: true,
+                animated: true,
+              }}
+              bordered
+              boxShadow
+            />
+          </ConfigProvider>
         </>
       ) : (
         <>
-        <FloatButton
-          type="primary"
-          description={<StoreModal edit={false} />}
-          shape="square"
-          style={{ right: 5 + 40, width: 100 }}
-          tooltip={<div>Add a new Product</div>}
-        />
-        <EmptyPage />
+          <Result
+            status="info"
+            title="No Products Found"
+            subTitle="You haven't added any products yet. Click the button below to get started!"
+            extra={
+              <Space>
+                <StoreModal edit={false} />
+              </Space>
+            }
+            style={{ margin: "0 auto" }}
+          />
         </>
       )}
     </>
