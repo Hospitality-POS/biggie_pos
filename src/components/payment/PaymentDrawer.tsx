@@ -252,7 +252,7 @@ const PaymentDrawer: React.FC = () => {
                   >
                     {method.name}
                   </Typography.Text>
-                  <FileAddOutlined style={{ fontSize: "26px" }} />
+                  <FileAddOutlined style={{ fontSize: "16px" }} />
                 </>
               )}
             </Space>
