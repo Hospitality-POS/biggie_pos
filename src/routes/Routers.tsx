@@ -38,6 +38,9 @@ const SupplierMainSettings = lazy(
 const TableMainSettings = lazy(
   () => import("@pages/Settings/TableLevel/Table_main_settings")
 );
+const SystemSetup = lazy(
+  () => import("@pages/Settings/systemSetup/SystemSetup")
+);
 const CategoryMainSettings = lazy(
   () => import("@pages/Settings/categoryLevel/Category_main_settings")
 );
@@ -175,6 +178,17 @@ const routes = createBrowserRouter(
           <Suspense fallback={<Spinner />}>
             <Private>
               <PaymentMainSettings />
+            </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/system-setup"
+        errorElement={<NotFound />}
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <SystemSetup />
             </Private>
           </Suspense>
         }
