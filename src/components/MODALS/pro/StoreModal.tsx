@@ -145,6 +145,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           hasFeedback
           width="md"
           name="price"
+          customSymbol="Ksh."
           label="Price"
           rules={[{ required: true, message: "Product Price is required" }]}
           placeholder="Enter Product Price"
