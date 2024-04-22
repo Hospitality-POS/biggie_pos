@@ -2,13 +2,18 @@ import React, { useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import CategorySettings from "./CategorySettings";
 import { Space } from "antd/lib";
-import { ApartmentOutlined, HolderOutlined, SettingOutlined } from "@ant-design/icons";
+import {
+  ApartmentOutlined,
+  HolderOutlined,
+  SettingOutlined,
+} from "@ant-design/icons";
 import SubCategorySettings from "./Sub_category";
 import MainCategorySettings from "./Main_category";
 import { ConfigProvider, Typography } from "antd";
+import Profile from "./Profile";
 
 const Category2 = () => <div>Content for Category 2</div>;
-const MainCategory = () => <div>Main Category Content</div>;
+const MainCategory = () => <div>Main billing Content</div>;
 
 const SystemSetup: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("profile");
@@ -24,10 +29,10 @@ const SystemSetup: React.FC = () => {
       label: (
         <>
           <HolderOutlined />
-         Profile
+          Profile
         </>
       ),
-      children: Category2(),
+      children: <Profile />,
     },
     {
       key: "billing",
@@ -35,7 +40,7 @@ const SystemSetup: React.FC = () => {
       label: (
         <>
           <HolderOutlined />
-         Billing
+          Billing
         </>
       ),
       children: MainCategory(),
