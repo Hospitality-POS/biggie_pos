@@ -14,7 +14,8 @@ import ShowConfirm from "@utils/ConfirmUtil";
 import { User } from "src/interfaces/User";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
-import { reversePhoneNumber } from "@components/PhoneNumber/reversePhoneNumberFormat";
+import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
+
 
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
