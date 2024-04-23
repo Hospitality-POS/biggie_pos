@@ -4,7 +4,7 @@ import {
   ProFormInstance,
   ProFormText,
 } from "@ant-design/pro-components";
-import { getPhoneNumber } from "@components/PhoneNumber/formatPhoneNumberUtil";
+import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { updateUsers } from "@services/users";
 import ShowConfirm from "@utils/ConfirmUtil";
