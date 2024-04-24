@@ -4,7 +4,7 @@ import {
   HolderOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
-import { ConfigProvider, Typography } from "antd";
+import { ConfigProvider, Space, Typography } from "antd";
 import Profile from "./Profile";
 
 const MainCategory = () => <div>Main billing Content</div>;
@@ -21,10 +21,10 @@ const SystemSetup: React.FC = () => {
       key: "profile",
       tab: "profile",
       label: (
-        <>
+        <Space>
           <HolderOutlined />
           Profile
-        </>
+        </Space>
       ),
       children: <Profile />,
     },
@@ -32,10 +32,10 @@ const SystemSetup: React.FC = () => {
       key: "billing",
       tab: "billing",
       label: (
-        <>
+        <Space>
           <HolderOutlined />
           Billing
-        </>
+        </Space>
       ),
       children: MainCategory(),
     },

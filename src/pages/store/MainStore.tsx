@@ -38,10 +38,10 @@ export default function MainStore() {
     key: `${item._id}`,
     tab: "Products Management",
     label: (
-      <>
+      <Space>
         <HolderOutlined />
         {item?.name}
-      </>
+      </Space>
     ),
     children: [
       item?.products && item?.products?.length > 0 ? (
