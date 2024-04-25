@@ -7,7 +7,7 @@ import {
 import { ConfigProvider, Space, Typography } from "antd";
 import Profile from "./Profile";
 
-const MainCategory = () => <div>Main billing Content</div>;
+const MainCategory = () => <div>Coming Soon!</div>;
 
 const SystemSetup: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("profile");
