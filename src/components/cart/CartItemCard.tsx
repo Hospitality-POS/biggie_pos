@@ -81,26 +81,26 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               {formattedPrice ? formattedPrice : 0}
             </Typography.Text>
           </Grid>
-          <Grid item xs={3} ml={2}>
+          <Grid item xs={3}>
             {cartItem.sent ? (
               <Space>
-                <IconButton>
-                  <AddTaskIcon color="success" fontSize="small" />
-                </IconButton>
                 {user?.isAdmin && (
                   <Button
-                    danger
-                    style={{ width: "60px" }}
-                    icon={<DeleteOutlined />}
-                    onClick={() => dispatch(deleteCartItem(cartItem._id))}
+                  danger
+                  style={{ width: "40px", padding:0 }}
+                  icon={<DeleteOutlined />}
+                  onClick={() => dispatch(deleteCartItem(cartItem._id))}
                   ></Button>
                 )}
+                  <IconButton>
+                    <AddTaskIcon color="success" fontSize="small" />
+                  </IconButton>
               </Space>
             ) : (
               <>
                 <Button
                   danger
-                  style={{ width: "60px" }}
+                  style={{ width: "40px" }}
                   icon={<DeleteOutlined />}
                   onClick={() => dispatch(deleteCartItem(cartItem._id))}
                 ></Button>
