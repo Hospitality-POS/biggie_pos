@@ -69,7 +69,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
               {BRAND_NAME}
             </Typography>
             <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
-              PURCHASE REPORT
+              SALES REPORT
             </Typography>
           </div>
           <p style={{ textAlign: "center", padding: "10px" }}>

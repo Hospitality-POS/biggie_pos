@@ -74,7 +74,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                   {BRAND_NAME}
                 </Typography>
                 <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
-                  SALES REPORT
+                 ITEM SALES REPORT
                 </Typography>
               </div>
 

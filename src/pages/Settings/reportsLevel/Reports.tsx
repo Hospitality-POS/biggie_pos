@@ -45,7 +45,7 @@ const Reports: React.FC = () => {
     {
       key: "sale",
       tab: "Sale",
-      label: <Space><HolderOutlined/>Generate Sales Report</Space>,
+      label: <Space><HolderOutlined/>Generate Item Sales Report</Space>,
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
@@ -78,7 +78,7 @@ const Reports: React.FC = () => {
     {
       key: "purchase",
       tab: "Purchase",
-      label: <Space><HolderOutlined/>Generate Purchase Report</Space>,
+      label: <Space><HolderOutlined/>Generate Sales Report</Space>,
       children: (
         <Space direction="vertical" size={16}>
           <RangePicker
