@@ -82,12 +82,13 @@ function SystemSetup() {
               { value: "Till", label: "Till" },
               { value: "Paybill", label: "Paybill" },
             ]}
+            initialValue={"Till"}
             getValueFromEvent={(_, tr) => {
               onPaymentDetailsChange(tr.value);
               return onPaymentDetailsChange(tr.value);
             }}
           />
-          {ShowPaybilldetails && (
+          {ShowPaybilldetails ? (
             <>
               <ProFormDigit
                 name="account_no"
@@ -110,6 +111,17 @@ function SystemSetup() {
                 ]}
               />
             </>
+          ) : (
+            <ProFormDigit
+              name="till_no"
+              label="Till No."
+              rules={[
+                {
+                  required: true,
+                  message: "Please provide the till number.",
+                },
+              ]}
+            />
           )}
         </div>
       </div>
