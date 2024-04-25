@@ -84,7 +84,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
         if (confirmed) {
           edit
             ? await editProduct({ values, _id: data?._id })
-            : await addNewProduct(values);
+            : await addNewProduct({ ...values, quantity: 1});
           return true;
         }
       }}
@@ -124,14 +124,14 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           }}
         />
 
-        <ProFormDigit
+        {/* <ProFormDigit
           hasFeedback
           width="md"
           name="quantity"
           label="Quantity"
           rules={[{ required: true, message: "Product quantity is required" }]}
           placeholder="Enter Product Quantity"
-        />
+        /> */}
         {edit && (
           <ProFormText
             disabled
