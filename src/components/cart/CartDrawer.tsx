@@ -35,6 +35,7 @@ import {
   PrinterOutlined,
   SendOutlined,
   SmileFilled,
+  SwapOutlined,
   SwitcherOutlined,
 } from "@ant-design/icons";
 
@@ -129,6 +130,20 @@ const CartDrawer: React.FC = () => {
             icon={<OrderedListOutlined />}
           >
             {orderNumber}
+          </Button>
+          <Button
+            style={{
+              pl: 2,
+              color: "#6c1c2c",
+              borderColor: "#6c1c2c",
+              "&:hover": {
+                borderColor: "#bc8c7c",
+                color: "#bc8c7c",
+              },
+            }}
+            icon={<SwapOutlined />}
+          >
+            Transfer
           </Button>
 
           <Button type="primary" icon={<SwitcherOutlined />}>
