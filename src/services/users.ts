@@ -19,8 +19,6 @@ export const fetchAllUsersList = async (data: ParamsType) => {
 
 export const updateUsers = async (data: ParamsType) => {
     const url = `${BASE_URL}/users`;   
-console.log("jjjjjjjjjj", data.values);
-
   try {
     const response = await axios.put(`${url}/${data?._id}`, data?.value);
     notification.success({
