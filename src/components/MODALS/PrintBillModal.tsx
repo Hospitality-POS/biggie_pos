@@ -84,6 +84,12 @@
               >
                 Till: {TILL_NO}
               </Typography>
+              <Typography
+                variant="body1"
+                style={{ fontSize: "1em", fontFamily: "monospace" }}
+              >
+                #Client Pin: ........
+              </Typography>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between" }}>
