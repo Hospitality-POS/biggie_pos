@@ -35,3 +35,14 @@ export const updateUsers = async (data: ParamsType) => {
  
   }
 };
+
+
+export const fetchUserRoles =async () => {
+   const url = `${BASE_URL}/users`;
+  try {
+    const response = await axios.get(`${url}/fetch-role-type/all`);
+    return response.data;
+  } catch (error) {
+    console.log(error);
+  }
+}

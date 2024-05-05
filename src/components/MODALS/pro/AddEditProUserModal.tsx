@@ -9,7 +9,7 @@ import {
 import { EditOutlined, UsergroupAddOutlined } from "@ant-design/icons";
 import useAddEditUserModal from "../Hooks/useAddEditUserModal";
 import { ProFormDigit } from "@ant-design/pro-components";
-import { updateUsers } from "@services/users";
+import { fetchUserRoles, updateUsers } from "@services/users";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { User } from "src/interfaces/User";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
@@ -46,7 +46,16 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         </Space>
       }
       initialValues={
-        edit ? { ...data, phoneNumber: reversePhoneNumber(data?.phone) } : {}
+        edit
+          ? {
+              ...data,
+              phoneNumber: reversePhoneNumber(data?.phone),
+              roleId: {
+                value: data?.role?._id,
+                lable: data?.role?.role_type,
+              },
+            }
+          : {}
       }
       trigger={
         edit ? (
@@ -120,18 +129,17 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         <ProFormSelect
           hasFeedback
           width="md"
-          name="isAdmin"
-          label="Admin Role"
-          rules={[{ required: true, message: "Admin role is required" }]}
+          name="roleId"
+          label="Roles"
+          rules={[{ required: true, message: "Roles is required" }]}
           showSearch
-          placeholder="Select Admin Role"
-          options={[
-            { label: "True", value: true },
-            { label: "False", value: false },
-          ]}
-          valueEnum={{
-            true: "True",
-            false: "False",
+          placeholder="Select role"
+          request={async (params) => {
+            const data = await fetchUserRoles(params);
+            const values = data.map((e: { role_type: any; _id: any }) => {
+              return { label: e.role_type, value: e._id };
+            });
+            return values;
           }}
         />
 

@@ -66,10 +66,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 strong
                 style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
               >
-                x{" "}
-                {cartItem.quantity
-                  ? formattedQuantity
-                  : <LoadingOutlined/>}
+                x {cartItem.quantity ? formattedQuantity : <LoadingOutlined />}
               </Typography.Text>
             </Box>
           </Grid>
@@ -84,17 +81,17 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
           <Grid item xs={3}>
             {cartItem.sent ? (
               <Space>
-                {user?.isAdmin && (
+                {user?.role === "admin" && (
                   <Button
-                  danger
-                  style={{ width: "40px", padding:0 }}
-                  icon={<DeleteOutlined />}
-                  onClick={() => dispatch(deleteCartItem(cartItem._id))}
+                    danger
+                    style={{ width: "40px", padding: 0 }}
+                    icon={<DeleteOutlined />}
+                    onClick={() => dispatch(deleteCartItem(cartItem._id))}
                   ></Button>
                 )}
-                  <IconButton>
-                    <AddTaskIcon color="success" fontSize="small" />
-                  </IconButton>
+                <IconButton>
+                  <AddTaskIcon color="success" fontSize="small" />
+                </IconButton>
               </Space>
             ) : (
               <>

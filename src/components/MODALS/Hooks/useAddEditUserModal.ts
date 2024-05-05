@@ -16,6 +16,8 @@ interface User {
   phone: string;
   idNumber: string;
   isAdmin: string;
+  roleId: string;
+  role: any;
 }
 
 interface useAddEditUserModalProps {

@@ -6,4 +6,6 @@ export interface User {
   phone: string;
   idNumber: string;
   isAdmin: string;
+  role: any,
+  roleId: string
 }

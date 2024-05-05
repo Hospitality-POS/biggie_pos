@@ -107,7 +107,7 @@ const UsersTable = () => {
           },
           {
             title: "User email",
-            dataIndex: "email", 
+            dataIndex: "email",
             key: "email",
             hideInSearch: false,
             copyable: true,
@@ -126,11 +126,21 @@ const UsersTable = () => {
 
           {
             title: "Role",
-            dataIndex: "isAdmin",
+            dataIndex: ["role", "role_type"],
             hideInSearch: true,
             render: (text) => (
-              <Tag color={text ? "success" : "processing"}>
-                {text ? "admin" : "user"}
+              <Tag
+                color={
+                  text === "admin"
+                    ? "red-inverse"
+                    : text === "supervisor"
+                    ? "gold-inverse"
+                    : text === "waiter"
+                    ? "cyan-inverse"
+                    : "processing"
+                }
+              >
+                {text}
               </Tag>
             ),
           },
@@ -150,7 +160,7 @@ const UsersTable = () => {
         request={async (params) => {
           const data = await fetchAllUsersList(params);
           console.log("======", params);
-          
+
           return {
             data: data,
             success: true,
@@ -158,7 +168,7 @@ const UsersTable = () => {
           };
         }}
         options={{
-          fullScreen:true
+          fullScreen: true,
         }}
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
