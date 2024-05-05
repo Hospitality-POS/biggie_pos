@@ -10,10 +10,10 @@ function MainOrders() {
       key: "Orders",
       tab: "order",
       label: (
-        <>
+        <Space>
           <HolderOutlined />
           Orders
-        </>
+        </Space>
       ),
       children: <OrdersTable />,
     },

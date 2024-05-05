@@ -137,7 +137,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
             width="md"
             name="min_viable_quantity"
             label="Minimum viable Quantity"
-            placeholder="Enter supplier phone"
+            placeholder="Enter minimum viable quantity"
           />
           <ProFormSelect
             width="md"

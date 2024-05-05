@@ -12,6 +12,10 @@ import { ProFormDigit } from "@ant-design/pro-components";
 import { updateUsers } from "@services/users";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { User } from "src/interfaces/User";
+import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
+import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
+import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
+
 
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
@@ -27,7 +31,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   data,
 }) => {
   const [form] = Form.useForm();
-   const formRef = useRef();
+  const formRef = useRef();
 
   const { handleConfirmAddUser } = useAddEditUserModal({ onAddUser });
 
@@ -41,7 +45,9 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           {edit ? "Edit User" : "Add New User"}
         </Space>
       }
-      initialValues={edit ? { ...data } : {}}
+      initialValues={
+        edit ? { ...data, phoneNumber: reversePhoneNumber(data?.phone) } : {}
+      }
       trigger={
         edit ? (
           <Button
@@ -66,6 +72,8 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         style: { display: "grid", placeContent: "center" },
       }}
       onFinish={async (values) => {
+        const phoneNumber = getPhoneNumber(values?.phoneNumber);
+        const value = { ...values, phone: phoneNumber };
         const confirmed = await ShowConfirm({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
@@ -73,8 +81,11 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         });
         if (confirmed) {
           edit
-            ? await updateUsers({ values, _id: data._id })
-            : await handleConfirmAddUser(values);
+            ? await updateUsers({
+                value,
+                _id: data._id,
+              })
+            : await handleConfirmAddUser(value);
           actionRef.current.reset();
           return true;
         }
@@ -166,7 +177,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           placeholder="Enter user National ID"
         />
 
-        <ProFormDigit
+        {/* <ProFormDigit
           hasFeedback
           width="md"
           name="phone"
@@ -180,7 +191,8 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
             },
           ]}
           placeholder="Enter supplier phone"
-        />
+        /> */}
+        <PhoneInput label="Phone" owner="phoneNumber" />
       </ProForm.Group>
     </ModalForm>
   );

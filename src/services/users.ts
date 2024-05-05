@@ -19,9 +19,8 @@ export const fetchAllUsersList = async (data: ParamsType) => {
 
 export const updateUsers = async (data: ParamsType) => {
     const url = `${BASE_URL}/users`;   
-
   try {
-    const response = await axios.put(`${url}/${data?._id}`, data?.values);
+    const response = await axios.put(`${url}/${data?._id}`, data?.value);
     notification.success({
       message: `Success`,
       description: "Successfully edited User",

@@ -186,6 +186,7 @@ const PaymentDrawer: React.FC = () => {
             >
               {method.name === "Cash" ? (
                 <>
+                    <DollarOutlined style={{ fontSize: "16px" }} />
                   <Typography.Text
                     strong
                     style={{
@@ -196,10 +197,10 @@ const PaymentDrawer: React.FC = () => {
                   >
                     Cash
                   </Typography.Text>
-                  <DollarOutlined style={{ fontSize: "16px" }} />
                 </>
               ) : method.name === "M-Pesa" ? (
                 <>
+                    <MobileOutlined style={{ fontSize: "16px" }} />
                   <Typography.Text
                     strong
                     style={{
@@ -208,12 +209,12 @@ const PaymentDrawer: React.FC = () => {
                       }`,
                     }}
                   >
-                    mpesa
+                    Mpesa
                   </Typography.Text>
-                  <MobileOutlined style={{ fontSize: "16px" }} />
                 </>
               ) : method.name === "Card" ? (
                 <>
+                    <CreditCardOutlined style={{ fontSize: "16px" }} />
                   <Typography.Text
                     strong
                     style={{
@@ -222,12 +223,12 @@ const PaymentDrawer: React.FC = () => {
                       }`,
                     }}
                   >
-                    card
+                    Card
                   </Typography.Text>
-                  <CreditCardOutlined style={{ fontSize: "16px" }} />
                 </>
               ) : method.name === "Debt" ? (
                 <>
+                    <WalletOutlined style={{ fontSize: "16px" }} />
                   <Typography.Text
                     strong
                     style={{
@@ -238,10 +239,10 @@ const PaymentDrawer: React.FC = () => {
                   >
                     Debt
                   </Typography.Text>
-                  <WalletOutlined style={{ fontSize: "16px" }} />
                 </>
               ) : (
                 <>
+                    <FileAddOutlined style={{ fontSize: "16px" }} />
                   <Typography.Text
                     strong
                     style={{
@@ -250,9 +251,8 @@ const PaymentDrawer: React.FC = () => {
                       }`,
                     }}
                   >
-                    {method.name}
+                    {method?.name[0]?.toUpperCase()}{method?.name?.slice(1)}
                   </Typography.Text>
-                  <FileAddOutlined style={{ fontSize: "26px" }} />
                 </>
               )}
             </Space>
