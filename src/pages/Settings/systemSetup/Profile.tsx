@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   createSystemSetup,
+  fetchSystemPaymentDetails,
   fetchSystemSetupDetails,
   fetchSystemSetupDetailsById,
   updateSystemSetup,
@@ -54,7 +55,6 @@ function SystemSetup() {
   };
   const [form] = Form.useForm();
 
-
   return (
     <>
       {isLoading ? (
@@ -73,7 +73,7 @@ function SystemSetup() {
             const phoneNumber = getPhoneNumber(values?.phoneNumber);
             const data2 = { ...values, phone: phoneNumber };
             // console.log("mmmmm", values);
-            
+
             const confirmed = await ShowConfirm({
               title: `Are you sure you want to ${
                 data ? "Update" : "Add new"
@@ -118,14 +118,24 @@ function SystemSetup() {
               <ProFormText name="social_link" label="Social Link" />
               <ProFormText name="kra_pin" label="KRA Pin" />
               <ProFormSelect
-                name="paymentDetails"
-                label="Mpesa Payment Details"
-                options={[
-                  { value: "Till", label: "Till" },
-                  { value: "Paybill", label: "Paybill" },
-                ]}
-                getValueFromEvent={(_, tr) => onPaymentDetailsChange(tr.value)}
+                hasFeedback
+                name="paymentDetailsId"
+                label="Payment Details"
+                // rules={[
+                //   { required: true, message: "Payment detail is required" },
+                // ]}
+                showSearch
+                placeholder="Select role"
+                request={async (params) => {
+                  const data = await fetchSystemPaymentDetails(params);
+                  const values = data.map((e: { name: any; _id: any }) => {
+                    return { label: e.name, value: e._id };
+                  });
+                  return values;
+                }}
+                getValueFromEvent={(_, tr) => onPaymentDetailsChange(tr.label)}
               />
+
               {ShowPaybilldetails ? (
                 <>
                   <ProFormDigit
