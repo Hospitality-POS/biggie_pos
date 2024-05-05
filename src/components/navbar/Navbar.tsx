@@ -225,12 +225,14 @@ function Navbar() {
                           <TableBarIcon style={{ fontSize: "16px" }} />
                           <Typography fontSize="inherit">Tables</Typography>
                         </>
-                      ) : page === "Store" && user?.isAdmin ? (
+                      ) : page === "Store" &&
+                        user?.role === "admin" ? (
                         <>
                           <StoreIcon style={{ fontSize: "16px" }} />
                           <Typography fontSize="inherit">Store</Typography>
                         </>
-                      ) : page === "Orders" && user?.isAdmin ? (
+                      ) : page === "Orders" &&
+                        user?.role === "admin" ? (
                         <>
                           <FilterFramesIcon style={{ fontSize: "16px" }} />
                           <Typography fontSize="inherit">Orders</Typography>
@@ -263,7 +265,8 @@ function Navbar() {
             >
               {settings.map((setting) => (
                 <MenuItem key={setting} onClick={handleCloseUserMenu}>
-                  {setting === "Dashboard" && user?.isAdmin ? (
+                  {setting === "Dashboard" &&
+                  user?.role === "admin" ? (
                     <Typography textAlign="center">Dashboard</Typography>
                   ) : setting === "Profile" ? (
                     <Typography textAlign="center">Profile</Typography>
@@ -273,7 +276,7 @@ function Navbar() {
                 </MenuItem>
               ))}
             </Menu>
-            {user?.isAdmin && (
+            {user?.role === "admin" && (
               <IconButton
                 size="large"
                 aria-label="account of current user"
@@ -292,7 +295,7 @@ function Navbar() {
           {user && (
             <Tooltip title={user?.name}>
               <IconButton onClick={handleOpenUserMenu}>
-                <Avatar icon={<UserOutlined/>}/>
+                <Avatar icon={<UserOutlined />} />
               </IconButton>
             </Tooltip>
           )}

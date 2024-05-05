@@ -21,6 +21,8 @@ interface User {
   id?: string;
   username?: string;
   isAdmin?: boolean;
+  role?: any;
+  roleId?: string;
 }
 
 interface AuthState {

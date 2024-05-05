@@ -20,7 +20,7 @@ function Layout() {
       {/* <Navbar /> */}
       <ProNavbar />
 
-      {!user?.isAdmin ? (
+      {!user?.role === "admin" ? (
         <PageContainer
           header={{
             extra: [
@@ -51,21 +51,20 @@ function Layout() {
 
                 <Breadcrumb.Item
                   onClick={() => {
-                    user?.isAdmin
-                      ? navigate("/store")
-                      : Modal.warning({
-                          title: "Oops!",
-                          content:
-                            "You don't have permission to see this page.",
-                          centered: true,
-                        });
+                   user?.role === "admin"
+                     ? navigate("/store")
+                     : Modal.warning({
+                         title: "Oops!",
+                         content: "You don't have permission to see this page.",
+                         centered: true,
+                       });
                   }}
                 >
                   <FolderAddOutlined /> <span>Store</span>
                 </Breadcrumb.Item>
                 <Breadcrumb.Item
                   onClick={() => {
-                    user?.isAdmin
+                    user?.role === "admin"
                       ? navigate("/reports")
                       : Modal.warning({
                           title: "Oops!",

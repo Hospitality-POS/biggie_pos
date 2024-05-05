@@ -134,7 +134,7 @@ const CartDrawer: React.FC = () => {
             {orderNumber?.toLocaleUpperCase()}
           </Button>
 
-          <TransferBillModal data={data}/>
+          <TransferBillModal data={data} />
 
           <Button type="primary" icon={<SwitcherOutlined />}>
             {td?.name}
@@ -209,7 +209,7 @@ const CartDrawer: React.FC = () => {
                 flexWrap: "wrap",
               }}
             >
-              {user?.isAdmin && (
+              {user?.role === "admin" && (
                 <Button
                   danger
                   onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
@@ -264,7 +264,7 @@ const CartDrawer: React.FC = () => {
           </Card>
         )}
       </Space>
-      {user?.isAdmin && data?.length > 0 && (
+      {user?.role === "admin" && data?.length > 0 && (
         <PaymentDrawer
           paymentOpen={false}
           handlePaymentClose={function (): void {

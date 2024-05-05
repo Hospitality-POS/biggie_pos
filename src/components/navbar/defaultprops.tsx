@@ -3,7 +3,7 @@ import { useAppSelector } from "src/store";
 
   const useProLayoutNav = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const state = user?.isAdmin;
+  const state = !!(user?.role === "admin");
   const adminMenu = {
     route: {
       path: "/",
