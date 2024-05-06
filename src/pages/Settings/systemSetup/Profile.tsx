@@ -12,7 +12,7 @@ import { updateUsers } from "@services/users";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { Form, Skeleton, Space, Spin, Typography } from "antd";
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createSystemSetup,
   fetchSystemPaymentDetails,
@@ -30,6 +30,7 @@ function SystemSetup() {
     // refetchInterval: 3000,
     networkMode: "always",
   });
+  const query = useQueryClient();
 
   const [ShowPaybilldetails, setShowPaybilldetails] = useState(false);
   const formRef = useRef<ProFormInstance>();
@@ -67,12 +68,21 @@ function SystemSetup() {
           loading={isLoading}
           formRef={formRef}
           initialValues={
-            data ? { ...data, phoneNumber: reversePhoneNumber(data.phone) } : {}
+            data
+              ? {
+                  ...data,
+                  phoneNumber: reversePhoneNumber(data.phone),
+                  paymentDetailsId: {
+                    value: data?.paymentDetails?._id,
+                    lable: data?.paymentDetails?.name,
+                  },
+                }
+              : {}
           }
           onFinish={async (values) => {
             const phoneNumber = getPhoneNumber(values?.phoneNumber);
             const data2 = { ...values, phone: phoneNumber };
-            // console.log("mmmmm", values);
+            console.log("mmmmm", values);
 
             const confirmed = await ShowConfirm({
               title: `Are you sure you want to ${
@@ -83,6 +93,8 @@ function SystemSetup() {
               data
                 ? await updateSystemSetup({ data2, _id: data?._id })
                 : await createSystemSetup(data2);
+              query.invalidateQueries();
+              form.resetFields();
               return true;
             }
 
@@ -118,14 +130,13 @@ function SystemSetup() {
               <ProFormText name="social_link" label="Social Link" />
               <ProFormText name="kra_pin" label="KRA Pin" />
               <ProFormSelect
-                hasFeedback
                 name="paymentDetailsId"
                 label="Payment Details"
-                // rules={[
-                //   { required: true, message: "Payment detail is required" },
-                // ]}
+                rules={[
+                  { required: true, message: "Payment detail is required" },
+                ]}
                 showSearch
-                placeholder="Select role"
+                placeholder="Select Payment Details"
                 request={async (params) => {
                   const data = await fetchSystemPaymentDetails(params);
                   const values = data.map((e: { name: any; _id: any }) => {
@@ -133,7 +144,16 @@ function SystemSetup() {
                   });
                   return values;
                 }}
-                getValueFromEvent={(_, tr) => onPaymentDetailsChange(tr.label)}
+                fieldProps={{
+                  onSelect: async (tr) => {
+                    const data = await fetchSystemPaymentDetails();
+                    data?.map((v) => {
+                      if (v._id === tr) {
+                        onPaymentDetailsChange(v.name);
+                      }
+                    });
+                  },
+                }}
               />
 
               {ShowPaybilldetails ? (
