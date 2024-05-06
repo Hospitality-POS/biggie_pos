@@ -21,6 +21,7 @@ import {
   updateSystemSetup,
 } from "@services/systemsetup";
 import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
+import { DropboxCircleFilled } from "@ant-design/icons";
 
 function SystemSetup() {
   const { data, isLoading, isError } = useQuery({
@@ -64,25 +65,41 @@ function SystemSetup() {
         <ProForm
           form={form}
           layout="vertical"
+          request={async () => {
+            const data = await fetchSystemSetupDetailsById();
+            // console.log("reuest", data);
+            
+            return {
+              ...data,
+              phoneNumber: reversePhoneNumber(data?.phone),
+              paymentDetailId: {
+                value: data?.paymentDetails?._id,
+                lable: data?.paymentDetails?.name,
+              },
+            };
+          }}
           grid
           loading={isLoading}
           formRef={formRef}
-          initialValues={
-            data
-              ? {
-                  ...data,
-                  phoneNumber: reversePhoneNumber(data.phone),
-                  paymentDetailsId: {
-                    value: data?.paymentDetails?._id,
-                    lable: data?.paymentDetails?.name,
-                  },
-                }
-              : {}
-          }
+          // initialValues={
+          //   data
+          //     ? {
+          //         ...data,
+          //         phoneNumber: reversePhoneNumber(data?.phone),
+          //         paymentDetailId: {
+          //           value: data?.paymentDetails?._id,
+          //           lable: data?.paymentDetails?.name,
+          //         },
+          //       }
+          //     : {}
+          // }
           onFinish={async (values) => {
             const phoneNumber = getPhoneNumber(values?.phoneNumber);
-            const data2 = { ...values, phone: phoneNumber };
-            console.log("mmmmm", values);
+            const data2 = {
+              ...values,
+              phone: phoneNumber,
+              paymentDetailId: values.paymentDetailId.value };
+            console.log("mmmmm", data2);
 
             const confirmed = await ShowConfirm({
               title: `Are you sure you want to ${
@@ -93,8 +110,9 @@ function SystemSetup() {
               data
                 ? await updateSystemSetup({ data2, _id: data?._id })
                 : await createSystemSetup(data2);
-              query.invalidateQueries();
-              form.resetFields();
+              // query.invalidateQueries();
+              form.resetFields(['email']);
+              // formRef.current?.resetFields()
               return true;
             }
 
@@ -130,7 +148,7 @@ function SystemSetup() {
               <ProFormText name="social_link" label="Social Link" />
               <ProFormText name="kra_pin" label="KRA Pin" />
               <ProFormSelect
-                name="paymentDetailsId"
+                name="paymentDetailId"
                 label="Payment Details"
                 rules={[
                   { required: true, message: "Payment detail is required" },
