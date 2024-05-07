@@ -62,7 +62,7 @@ const SystemSetup: React.FC = () => {
           activeKey: activeTab,
           tabBarGutter: 5,
           onChange: handleTabChange,
-          tabPosition: "left",
+          // tabPosition: "left",
         }}
         title={
           <Typography.Title level={4}>
@@ -70,7 +70,7 @@ const SystemSetup: React.FC = () => {
           </Typography.Title>
         }
         bordered
-        boxShadow
+        // boxShadow
       />
     </ConfigProvider>
   );

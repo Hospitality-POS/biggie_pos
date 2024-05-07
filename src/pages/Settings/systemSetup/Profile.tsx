@@ -21,7 +21,13 @@ import {
   updateSystemSetup,
 } from "@services/systemsetup";
 import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
-import { ContactsFilled, DesktopOutlined, DropboxCircleFilled, RedoOutlined } from "@ant-design/icons";
+import {
+  ContactsFilled,
+  ContactsOutlined,
+  DesktopOutlined,
+  DropboxCircleFilled,
+  RedoOutlined,
+} from "@ant-design/icons";
 
 function SystemSetup() {
   const { data, isLoading, isError } = useQuery({
@@ -137,7 +143,10 @@ function SystemSetup() {
           }}
         >
           <div style={formStyle}>
-            <Typography.Title level={4}><ContactsFilled /> Business Profile</Typography.Title>
+            <Typography.Title level={4}>
+              {" "}
+              Business Profile <ContactsOutlined />
+            </Typography.Title>
             <div style={fieldStyle}>
               <ProFormText name="name" label="Business Name" />
               <ProFormText
