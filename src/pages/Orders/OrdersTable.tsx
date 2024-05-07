@@ -183,12 +183,12 @@ const OrdersTable = () => {
           search: true,
           fullScreen: true,          
         }}
-        // expandable={{
-        //   expandedRowRender,
-        //   defaultExpandAllRows: false,
-        //   expandIconColumnIndex: 1,
-        //   columnTitle: " ",
-        // }}
+        expandable={{
+          expandedRowRender,
+          defaultExpandAllRows: false,
+          expandIconColumnIndex: 1,
+          columnTitle: " ",
+        }}
         dateFormatter="string"
         toolBarRender={() => [
           <Button type="primary" loading={isLoading} disabled={isLoading}>

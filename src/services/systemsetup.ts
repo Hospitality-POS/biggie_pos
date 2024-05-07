@@ -19,7 +19,8 @@ export const fetchSystemSetupDetails = async () => {
 };
 export const fetchSystemSetupDetailsById = async () => {
   try {
-    const url = `${BASE_URL}/users/fetch-system-setting/${localStorage.getItem("businessId")}`;
+    const url = `${BASE_URL}/users/fetch-system-setting/663601fd1b1651d36a0d9db6`;
+    // const url = `${BASE_URL}/users/fetch-system-setting/${localStorage.getItem("businessId")}`;
     const response = await axios.get(url);
     // console.log("system..", response.data);
     
@@ -52,9 +53,9 @@ export const createSystemSetup = async (data: ParamsType) => {
 
 export const updateSystemSetup = async (data: ParamsType) => {
   try {
+    console.log("update..", data);
     const url = `${BASE_URL}/users/update-system-setting`;
     const response = await axios.put(`${url}/${data._id}`, data.data2);
-    // console.log("update..", response.data);
 
     return response.data;
   } catch (error) {
@@ -62,5 +63,17 @@ export const updateSystemSetup = async (data: ParamsType) => {
       title: "Oops! Something went wrong.",
       content: "Please check your internet connection!",
     });
+  }
+};
+
+
+export const fetchSystemPaymentDetails = async () => {
+  
+  const url = `${BASE_URL}/payment-methods/fetch-payment-detail/all`;
+  try {
+    const response = await axios.get(url);
+    return response.data;
+  } catch (error) {
+    console.log(error);
   }
 };
