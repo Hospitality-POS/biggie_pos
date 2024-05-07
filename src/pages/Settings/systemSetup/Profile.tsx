@@ -107,7 +107,7 @@ function SystemSetup() {
               phone: phoneNumber,
               paymentDetailId: values.paymentDetailId.value,
             };
-            console.log("mmmmm", data2);
+            // console.log("mmmmm", data2);
 
             const confirmed = await ShowConfirm({
               title: `Are you sure you want to ${
