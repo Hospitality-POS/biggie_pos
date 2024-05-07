@@ -1,24 +1,20 @@
 import { ProDescriptions } from "@ant-design/pro-components";
 
 const ExpandedRowContent = ({ record }) => {
-  const { pin, username, createdAt, phone } = record;
+  const { order_no, username, createdAt, served_by } = record;
+  
   const formattedCreatedAt = new Date(createdAt).toLocaleString();
 
   const data = [
     {
-      title: "Username",
-      dataIndex: "username",
-      value: username,
+      title: "order no.",
+      dataIndex: "order_no",
+      value: order_no,
     },
     {
-      title: "Pin",
-      dataIndex: "pin",
-      value: pin,
-    },
-    {
-      title: "Phone No.",
-      dataIndex: "phone",
-      value: phone,
+      title: "Served by",
+      dataIndex:[ "served_by","username"],
+      value: served_by?.username,
     },
     {
       title: "Date created",
@@ -33,7 +29,7 @@ const ExpandedRowContent = ({ record }) => {
       tooltip="Contains more information about the user"
       layout="horizontal"
       title="Additional Information"
-      dataSource={{ pin, username, createdAt: formattedCreatedAt, phone }}
+      dataSource={{ order_no, username, createdAt: formattedCreatedAt,served_by }}
       columns={data}
     />
   );
