@@ -35,6 +35,9 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({ data : cartItem }
       })),
   }));
 
+
+  console.log("carrrttitems", cartItem);
+  
   const productOptions = cartItem?.map((product) => ({
     label: product.product_id?.name,
     value: product._id,
@@ -72,6 +75,8 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({ data : cartItem }
         style: { display: "grid", placeContent: "center" },
       }}
       onFinish={async (values) => {
+        console.log("transfer bilss ddata", values);
+        
         const confirmed = await ShowConfirm({
           title: "Are you sure you want to transfer this bill?",
         });

@@ -7,7 +7,6 @@ import {
   SwapOutlined,
   TableOutlined,
 } from "@ant-design/icons";
-import { transferBill } from "@services/bills";
 import ShowConfirm from "@utils/ConfirmUtil";
 import {
   ProFormRate,
