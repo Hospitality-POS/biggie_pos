@@ -40,6 +40,7 @@ import {
   SwitcherOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
+import DiscountModal from "@components/MODALS/pro/DiscountModal";
 
 function formatTotal(totalAmount: { toLocaleString: () => number | string }) {
   return totalAmount.toLocaleString();
@@ -197,9 +198,10 @@ const CartDrawer: React.FC = () => {
                 )}
               </Typography.Text>
 
-              <Button type="primary" icon={<PercentageOutlined />}>
+              {/* <Button type="primary" icon={<PercentageOutlined />}>
                 Offer Discount?
-              </Button>
+              </Button> */}
+              <DiscountModal data={cartDetails}/>
             </div>
 
             <Space
