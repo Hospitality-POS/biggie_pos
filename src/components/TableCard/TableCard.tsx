@@ -58,6 +58,7 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
   const textOverlayStyles = {
     position: "absolute",
     top: "47%",
+    
     left: "50%",
     width: "100%",
     transform: "translate(-50%, -50%)",

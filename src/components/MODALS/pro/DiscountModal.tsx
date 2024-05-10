@@ -1,49 +1,32 @@
 import React, { useRef } from "react";
-import { Button, Form, Select, Space } from "antd";
-import { ModalForm, ProForm, ProFormDigit } from "@ant-design/pro-form";
+import { Button, Space } from "antd";
 import {
-  DollarCircleOutlined,
-  PercentageOutlined,
-  SwapOutlined,
-  TableOutlined,
-} from "@ant-design/icons";
-import ShowConfirm from "@utils/ConfirmUtil";
-import {
-  ProFormRate,
+  ModalForm,
+  ProForm,
+  ProFormDigit,
   ProFormSelect,
-  ProFormTreeSelect,
-} from "@ant-design/pro-components";
-import { fetchTableUsequery } from "@services/tables";
-import { useQuery } from "@tanstack/react-query";
-import { useAppSelector } from "src/store";
+} from "@ant-design/pro-form";
+import { PercentageOutlined } from "@ant-design/icons";
+import ShowConfirm from "@utils/ConfirmUtil";
 
-interface TransferBillModalProps {
+interface DiscountModalProps {
   data?: any;
 }
 
-const DiscountModal: React.FC<TransferBillModalProps> = ({
-  data: cartItem,
-}) => {
-  const [form] = Form.useForm();
-  const formRef = useRef();
+const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
+  const [form] = ProForm.useForm();
+  const formRef = useRef<any>(); 
 
   const discountOptions = [
-    { value: 10, label: "10%" },
-    { value: 20, label: "20%" },
-    { value: 30, label: "30%" },
-    { value: 40, label: "40%" },
-    { value: 50, label: "50%" },
-    { value: 60, label: "60%" },
-    { value: 70, label: "70%" },
-    { value: 80, label: "80%" },
-    { value: 90, label: "90%" },
-    { value: 100, label: "100%" },
+    { value: "amount", label: "Amount" },
+    { value: "percentage", label: "Percentage" },
   ];
 
   return (
     <ModalForm
       form={form}
       formRef={formRef}
+      layout="horizontal"
       width={400}
       title={
         <Space>
@@ -63,14 +46,12 @@ const DiscountModal: React.FC<TransferBillModalProps> = ({
       }}
       onFinish={async (values) => {
         console.log("discount", values);
-
         const confirmed = await ShowConfirm({
           title: "You are about to give the discount, please confirm?",
-          position: true
+          position: true,
         });
         if (confirmed) {
-          //   await transferBill(values);
-          //   actionRef.current.reset();
+          // Process discount
           return true;
         }
       }}
@@ -82,15 +63,20 @@ const DiscountModal: React.FC<TransferBillModalProps> = ({
       }}
     >
       <ProForm.Group>
-        <ProForm.Item
+        <ProFormSelect
+          name="type"
+          label="Discount Type"
+          options={discountOptions}
+          width={"md"}
+          rules={[{ required: true, message: "Please select a discount type" }]}
+        />
+        <ProFormDigit
           name="order_discount"
-          label="Discount (%)"
+          label="Discount Amount"
           rules={[
-            { required: true, message: "Please select a discount percentage" },
+            { required: true, message: "Please enter the discount amount" },
           ]}
-        >
-          <ProFormSelect options={discountOptions} width={"md"} />
-        </ProForm.Item>
+        />
       </ProForm.Group>
     </ModalForm>
   );

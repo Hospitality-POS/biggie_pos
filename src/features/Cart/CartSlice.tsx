@@ -46,6 +46,7 @@ interface CartState {
   cartItems: CartItem[];
   totalAmount: number;
   loading: boolean;
+  order_discount: number;
   error: string | null;
 }
 
@@ -69,6 +70,7 @@ cartDetails: {
   },
   cartItems: [],
   totalAmount: 0,
+  order_discount:0,
   loading: false,
   error: null,
 };
