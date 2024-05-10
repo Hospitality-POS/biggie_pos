@@ -5,7 +5,7 @@ import { DollarCircleOutlined, SwapOutlined, TableOutlined } from "@ant-design/i
 import { transferBill } from "@services/bills";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { ProFormSelect, ProFormTreeSelect } from "@ant-design/pro-components";
-import { fetchTableUsequery } from "@services/tables";
+import { fetchTableUsequery, transferCartitems } from "@services/tables";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "src/store";
 
@@ -27,9 +27,7 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({ data : cartItem }
   const locations = data.map((table: { name: string; _id: string; tables: any[]; }) => ({
     title: table.name,
     value: table._id,
-    children: table.tables
-      .filter((childTable: { isOccupied: boolean; }) => !childTable.isOccupied) 
-      .map((childTable: { name: string; _id: string; }) => ({
+    children: table.tables.map((childTable: { name: string; _id: string; }) => ({
         title: childTable.name,
         value: childTable._id,
       })),
@@ -81,8 +79,7 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({ data : cartItem }
           title: "Are you sure you want to transfer this bill?",
         });
         if (confirmed) {
-          //   await transferBill(values);
-          //   actionRef.current.reset();
+            await transferCartitems(values);
           return true;
         }
       }}
