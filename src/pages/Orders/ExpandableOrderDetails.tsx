@@ -8,23 +8,23 @@ const ExpandedRowContent = ({ record }) => {
 
 
 
-  const paymentData = order_payments.map((payment) => ({
-    title: payment.name,
-    value: `Ksh.${payment.amount.toFixed(2)}`,
+  const paymentData = order_payments?.map((payment) => ({
+    title: payment?.name,
+    value: `Ksh.${payment?.amount?.toLocaleString()}`,
   }));
 
   
 
   const singlePaymentDisplay =
-    paymentData.length === 1 ? (
+    paymentData?.length === 1 ? (
       <span>
-        {paymentData[0].title} - {paymentData[0].value}
+        {paymentData[0]?.title} - {paymentData[0]?.value}
       </span>
     ) : (
       <ul style={{ listStyleType: "none", paddingLeft: 0, marginTop:0 }}>
-        {paymentData.map((payment) => (
-          <li key={payment.title}>
-            {payment.title} - {payment.value}
+        {paymentData?.map((payment) => (
+          <li key={payment?.title}>
+            {payment?.title} - {payment?.value}
           </li>
         ))}
       </ul>
