@@ -1,19 +1,43 @@
 import { ProDescriptions } from "@ant-design/pro-components";
 
 const ExpandedRowContent = ({ record }) => {
-  const { order_no, username, createdAt, served_by } = record;
+  const { order_no, username, createdAt, served_by, order_payments } = record;
   
   const formattedCreatedAt = new Date(createdAt).toLocaleString();
 
+
+
+
+  const paymentData = order_payments.map((payment) => ({
+    title: payment.name,
+    value: `Ksh.${payment.amount.toFixed(2)}`,
+  }));
+  console.log("oad", paymentData);
+  
+
+  const singlePaymentDisplay =
+    paymentData.length === 1 ? (
+      <span>
+        {paymentData[0].title} - {paymentData[0].value}
+      </span>
+    ) : (
+      <ul style={{ listStyleType: "none", paddingLeft: 0, marginTop:0 }}>
+        {paymentData.map((payment) => (
+          <li key={payment.title}>
+            {payment.title} - {payment.value}
+          </li>
+        ))}
+      </ul>
+    );
+
   const data = [
     {
-      title: "order no.",
-      dataIndex: "order_no",
-      value: order_no,
+      title: "Payment(s)",
+      render: () => singlePaymentDisplay,
     },
     {
       title: "Served by",
-      dataIndex:[ "served_by","username"],
+      dataIndex: ["served_by", "username"],
       value: served_by?.username,
     },
     {
@@ -26,10 +50,15 @@ const ExpandedRowContent = ({ record }) => {
     <ProDescriptions
       size="small"
       style={{ paddingLeft: 28 }}
-      tooltip="Contains more information about the user"
+      tooltip="Contains more information about the order"
       layout="horizontal"
       title="Additional Information"
-      dataSource={{ order_no, username, createdAt: formattedCreatedAt,served_by }}
+      dataSource={{
+        order_no,
+        username,
+        createdAt: formattedCreatedAt,
+        served_by
+      }}
       columns={data}
     />
   );
