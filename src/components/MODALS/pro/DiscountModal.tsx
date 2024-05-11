@@ -26,8 +26,8 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
     <ModalForm
       form={form}
       formRef={formRef}
-      layout="horizontal"
-      width={400}
+      // layout="horizontal"
+      width={520}
       title={
         <Space>
           <PercentageOutlined />
@@ -67,12 +67,13 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
           name="type"
           label="Discount Type"
           options={discountOptions}
-          width={"md"}
+          width={"sm"}
           rules={[{ required: true, message: "Please select a discount type" }]}
         />
         <ProFormDigit
           name="order_discount"
           label="Discount Amount"
+          width={"sm"}
           rules={[
             { required: true, message: "Please enter the discount amount" },
           ]}
