@@ -12,7 +12,7 @@ const ExpandedRowContent = ({ record }) => {
     title: payment.name,
     value: `Ksh.${payment.amount.toFixed(2)}`,
   }));
-  console.log("oad", paymentData);
+
   
 
   const singlePaymentDisplay =
