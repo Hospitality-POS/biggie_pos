@@ -72,7 +72,7 @@ export const addItemToCart = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
     }
-  }
+  } 
 );
 
 export const updateCartItems = createAsyncThunk(

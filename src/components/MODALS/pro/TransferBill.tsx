@@ -7,8 +7,9 @@ import ShowConfirm from "@utils/ConfirmUtil";
 import { ProFormSelect, ProFormTreeSelect } from "@ant-design/pro-components";
 import { fetchTableUsequery, transferCartitems } from "@services/tables";
 import { useQuery } from "@tanstack/react-query";
-import { useAppSelector } from "src/store";
+import { useAppDispatch, useAppSelector } from "src/store";
 import { useNavigate } from "react-router-dom";
+import { deleteCartItem } from "@features/Cart/CartActions";
 
 interface TransferBillModalProps {
   data?: any;
@@ -25,6 +26,7 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({ data : cartItem }
   const [form] = Form.useForm();
   const formRef = useRef();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch()
 
   const locations = data.map((table: { name: string; _id: string; tables: any[]; }) => ({
     title: table.name,
@@ -82,6 +84,9 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({ data : cartItem }
         });
         if (confirmed) {
             await transferCartitems(values);
+            // values.products.forEach((productId) =>
+            //   dispatch(deleteCartItem(productId))
+            // );
             if (!cartItem.length){
               navigate("/tables");
             }

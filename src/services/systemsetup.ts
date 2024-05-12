@@ -26,7 +26,7 @@ export const fetchSystemSetupDetailsById = async () => {
 
     return response.data;
   } catch (error) {
-    Modal.error({
+    Modal.error({ 
       title: "Oops! Something went wrong.",
       content: "Please check your internet connection!",
     });
