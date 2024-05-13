@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { Button, Form, Space } from "antd";
 import { ModalForm, ProForm, ProFormDigit } from "@ant-design/pro-form";
-import { DollarCircleOutlined, SwapOutlined, TableOutlined } from "@ant-design/icons";
+import { CarryOutOutlined, DollarCircleOutlined, SwapOutlined, TableOutlined } from "@ant-design/icons";
 import { transferBill } from "@services/bills";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { ProFormSelect, ProFormTreeSelect } from "@ant-design/pro-components";
@@ -28,17 +28,20 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({ data : cartItem }
   const navigate = useNavigate();
   const dispatch = useAppDispatch()
 
-  const locations = data.map((table: { name: string; _id: string; tables: any[]; }) => ({
-    title: table.name,
-    value: table._id,
-    children: table.tables.map((childTable: { name: string; _id: string; }) => ({
-        title: childTable.name,
-        value: childTable._id,
-      })),
-  }));
-
-
-  console.log("carrrttitems", cartItem);
+  const locations = data?.map(
+    (table: { name: string; _id: string; tables: any[] }) => ({
+      title: table?.name,
+      value: table?._id,
+      disabled: true,
+      children: table?.tables.map(
+        (childTable: { name: string; _id: string }) => ({
+          title: childTable?.name,
+          value: childTable?._id,
+          icon: <CarryOutOutlined />,
+        })
+      ),
+    })
+  );
   
   const productOptions = cartItem?.map((product) => ({
     label: product.product_id?.name,
@@ -117,19 +120,20 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({ data : cartItem }
           name="table"
           label="Tables"
           rules={[
-            { required: true, message: "Please select one or more tables" },
+            { required: true, message: "Please select a table location to transfer!" },
           ]}
           request={() => locations}
           allowClear
           fieldProps={{
             treeLine: true,
             suffixIcon: <TableOutlined />,
+             treeIcon: true,
             filterTreeNode: true,
             showSearch: true,
             popupMatchSelectWidth: false,
             labelInValue: true,
             autoClearSearchValue: true,
-            multiple: true,
+            multiple: false,
             treeNodeFilterProp: "title",
             fieldNames: {
               label: "title",
