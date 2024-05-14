@@ -41,6 +41,9 @@ import {
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import DiscountModal from "@components/MODALS/pro/DiscountModal";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getAllCartItems } from "@services/cart";
+import useCartItemsData from "@hooks/cartItemsData";
 
 function formatTotal(totalAmount: { toLocaleString: () => number | string }) {
   return totalAmount.toLocaleString();
@@ -52,8 +55,8 @@ const CartDrawer: React.FC = () => {
   const {
     cartDetails,
     totalAmount,
-    cartItems: data,
-    loading,
+    cartItems: data2,
+    loading: iu,
   } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
 
@@ -62,12 +65,13 @@ const CartDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
   const { tableData: td } = useAppSelector((state) => state.Tables);
 
+  const { data, isLoading: loading } = useCartItemsData();
+ 
+
   const onCloseM = () => {
     setOpenM(false);
   };
-  // const clearCartDetails = useCallback(() => {
-  //     dispatch(clearcart());
-  // },[dispatch]);
+  
 
   const CartItemCardMemo = React.memo(CartItemCard);
 
@@ -166,7 +170,7 @@ const CartDrawer: React.FC = () => {
           }}
         >
           {loading
-            ? Array.from({ length: data.length }, (_, index) => (
+            ? Array.from({ length: data?.length }, (_, index) => (
                 <SkeletonCartItemCard key={index} />
               ))
             : data?.map((item: { _id: Key | null | undefined | string }) => (
@@ -201,7 +205,7 @@ const CartDrawer: React.FC = () => {
               {/* <Button type="primary" icon={<PercentageOutlined />}>
                 Offer Discount?
               </Button> */}
-              <DiscountModal data={cartDetails}/>
+              <DiscountModal data={cartDetails} />
             </div>
 
             <Space
