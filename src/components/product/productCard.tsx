@@ -7,13 +7,14 @@ import { useParams } from "react-router-dom";
 import { addItem, subtractItem } from "../../features/Cart/CartSlice";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { Typography } from "antd";
+import useCartItemsData from "@hooks/cartItemsData";
 
 interface menudetails {
   quantity: number;
-    _id: string;
-    name: string;
-    price: number;
-    desc: string;
+  _id: string;
+  name: string;
+  price: number;
+  desc: string;
 }
 interface ProductCardProps {
   menu: menudetails;
@@ -33,28 +34,34 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const dispatch = useAppDispatch();
   const { id } = useParams();
 
-  const formattedQuantity = useMemo(() => formatQuantity(menu.quantity), [menu.quantity]);
+  const formattedQuantity = useMemo(
+    () => formatQuantity(menu.quantity),
+    [menu.quantity]
+  );
 
   const handleAddToCart = () => {
-    if(!loading){
-    dispatch(
-      addItemToCart({
-        cart_id: cartDetails?._id,
-        product_id: menu._id,
-        price: menu.price,
-        created_by: user?.id,
-        quantity: formattedQuantity,
-        desc: menu.desc,
-        table_id: id,
-      })
-    );
+    if (!loading) {
+      dispatch(
+        addItemToCart({
+          cart_id: cartDetails?._id,
+          product_id: menu._id,
+          price: menu.price,
+          created_by: user?.id,
+          quantity: formattedQuantity,
+          desc: menu.desc,
+          table_id: id,
+        })
+      );
     }
   };
 
   const handleIncrement = () => {
     dispatch(addItem(menu._id));
     dispatch(fetchCartItems(cartDetails?._id));
+    refetch();
   };
+
+  const { refetch } = useCartItemsData();
 
   const handleDecrement = () => {
     if (quantity > 0) {
@@ -66,15 +73,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
   const formattedPrice = useMemo(() => formatPrice(menu.price), [menu.price]);
 
-
   return (
     <Paper
       elevation={3}
       onClick={() => {
-         if (!loading) {
-        handleIncrement();
-        handleAddToCart();
-         }
+        if (!loading) {
+          handleIncrement();
+          handleAddToCart();
+        }
       }}
       style={{
         display: "flex",
@@ -99,23 +105,25 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         e.currentTarget.style.color = "Black";
       }}
     >
-        <Typography.Title level={4}
-          ellipsis={{rows:3}}
-          style={{
-            fontWeight: "inherit",
-            whiteSpace: "normal",
-            wordWrap: "break-word",
-            color: "white",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {menu.name}
-        </Typography.Title>
-        <Typography.Text strong
-          style={{ opacity: 0.9, marginTop: "auto", color: "white" }}
-        >
-          Ksh. {formattedPrice}
-        </Typography.Text>
+      <Typography.Title
+        level={4}
+        ellipsis={{ rows: 3 }}
+        style={{
+          fontWeight: "inherit",
+          whiteSpace: "normal",
+          wordWrap: "break-word",
+          color: "white",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {menu.name}
+      </Typography.Title>
+      <Typography.Text
+        strong
+        style={{ opacity: 0.9, marginTop: "auto", color: "white" }}
+      >
+        Ksh. {formattedPrice}
+      </Typography.Text>
     </Paper>
   );
 };
