@@ -14,6 +14,7 @@ import AddTaskIcon from "@mui/icons-material/AddTask";
 import { Space } from "antd/lib";
 import { Button, Typography, notification } from "antd";
 import { DeleteOutlined, LoadingOutlined } from "@ant-design/icons";
+import useCartItemsData from "@hooks/cartItemsData";
 interface cartItemCardProps {
   cartItem: any;
 }
@@ -36,6 +37,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     () => formatQuantity(cartItem.quantity),
     [cartItem.quantity]
   );
+  const {refetch}=useCartItemsData();
 
   return (
     <Card
@@ -86,7 +88,10 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     danger
                     style={{ width: "40px", padding: 0 }}
                     icon={<DeleteOutlined />}
-                    onClick={() => dispatch(deleteCartItem(cartItem._id))}
+                    onClick={() => {
+                      dispatch(deleteCartItem(cartItem._id));
+                      refetch();
+                    }}
                   ></Button>
                 )}
                 <IconButton>
@@ -99,7 +104,10 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                   danger
                   style={{ width: "40px" }}
                   icon={<DeleteOutlined />}
-                  onClick={() => dispatch(deleteCartItem(cartItem._id))}
+                  onClick={() => {
+                    dispatch(deleteCartItem(cartItem._id));
+                    refetch();
+                  }}
                 ></Button>
               </>
             )}

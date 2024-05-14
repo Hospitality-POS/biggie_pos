@@ -146,6 +146,8 @@ const OrdersTable = () => {
             hideInSearch: true,
             ellipsis: true,
             valueType: "money",
+            
+
           },
           {
             title: "Time Closed",
