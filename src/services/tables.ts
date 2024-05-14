@@ -106,8 +106,8 @@ export const delLocation = async (data: ParamsType) => {
 export const transferCartitems =async (data:ParamsType) => {
   try {
     const transferUrl = `${BASE_URL}/cart`
-    console.log({ products: data.products, table: data.table[0].value });
-     const response = await axios.post(`${transferUrl}/transfer-cart-items`, {products: data.products, table: data.table[0].value});
+    // console.log({ products: data?.products, table: data?.table?.value });
+     const response = await axios.post(`${transferUrl}/transfer-cart-items`, {products: data?.products, table: data.table?.value});
 
      notification.success({
        message: `Success`,
@@ -117,6 +117,8 @@ export const transferCartitems =async (data:ParamsType) => {
      return response.data;
     
   } catch (error) {
+    console.log("failed to tranfer product", error);
+    
     Modal.error({
       title: "Oops! Something went wrong.",
       content: "Please try again!",
