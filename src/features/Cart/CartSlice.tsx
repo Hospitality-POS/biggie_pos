@@ -11,8 +11,6 @@ import {
   cartSent,
 } from "./CartActions";
 
-
-  
 interface CartDetails {
   _id: string;
   table_id: {
@@ -31,7 +29,6 @@ interface CartDetails {
   __v: number;
 }
 
-
 interface CartItem {
   _id: string;
   name: string;
@@ -47,30 +44,31 @@ interface CartState {
   totalAmount: number;
   loading: boolean;
   order_discount: number;
+  order_type: string;
   error: string | null;
 }
 
 const initialState: CartState = {
-cartDetails: {
-    _id: '',
+  cartDetails: {
+    _id: "",
     table_id: {
-      _id: '',
-      name: '',
+      _id: "",
+      name: "",
     },
     created_by: {
-      _id: '',
-      username: '',
+      _id: "",
+      username: "",
     },
     items: [],
-    order_no: '',
-    status: '',
-    createdAt: '',
-    updatedAt: '',
+    order_no: "",
+    status: "",
+    createdAt: "",
+    updatedAt: "",
     __v: 0,
   },
   cartItems: [],
   totalAmount: 0,
-  order_discount:0,
+  order_discount: 0,
   loading: false,
   error: null,
 };
@@ -133,9 +131,23 @@ const cartSlice = createSlice({
         0
       );
     },
-    clearcart(state){
-     state.cartDetails = initialState.cartDetails;
+    clearcart(state) {
+      state.cartDetails = initialState.cartDetails;
       state.cartItems = initialState.cartItems;
+    },
+    addDiscount(
+      state,
+      action: PayloadAction<{ order_type: string; order_discount: number }>
+    ) {
+      state.order_type = action.payload.order_type;
+      state.order_discount = action.payload.order_discount;
+
+      if (state.order_type === "amount") {
+        state.totalAmount -= state.order_discount;
+      } else if (state.order_type === "percentage") {
+        const discountAmount = (state.totalAmount * state.order_discount) / 100;
+        state.totalAmount -= discountAmount;
+      }
     },
   },
   extraReducers: (builder) => {
@@ -158,12 +170,11 @@ const cartSlice = createSlice({
       .addCase(getCart.fulfilled, (state, action) => {
         state.loading = false;
         state.cartDetails = action.payload;
-        state.cartItems = action.payload.items
+        state.cartItems = action.payload.items;
 
         // Calculate the total amount of all cart items using reduce
         state.totalAmount = action.payload.items.reduce(
-          (total: any, item: any) =>
-            total + parseFloat(item.price),
+          (total: any, item: any) => total + parseFloat(item.price),
           0
         );
       })
@@ -180,7 +191,7 @@ const cartSlice = createSlice({
         state.cartItems = action.payload as any;
         // Calculate the total amount of all cart items using reduce
         state.totalAmount = action.payload.reduce(
-          (total: any, item: any) => total + parseFloat(item.price||0),
+          (total: any, item: any) => total + parseFloat(item.price || 0),
           0
         );
       })
@@ -282,6 +293,7 @@ const cartSlice = createSlice({
   },
 });
 
-export const { removeCartItem, addItem, subtractItem, clearcart } = cartSlice.actions;
+export const { removeCartItem, addItem, subtractItem, clearcart, addDiscount } =
+  cartSlice.actions;
 
 export default cartSlice.reducer;

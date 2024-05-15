@@ -8,6 +8,8 @@ import {
 } from "@ant-design/pro-form";
 import { PercentageOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
+import { addDiscount } from "@features/Cart/CartSlice";
+import { useAppDispatch } from "src/store";
 
 interface DiscountModalProps {
   data?: any;
@@ -15,7 +17,8 @@ interface DiscountModalProps {
 
 const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
   const [form] = ProForm.useForm();
-  const formRef = useRef<any>(); 
+  const formRef = useRef<any>();
+  const dispatch = useAppDispatch();
 
   const discountOptions = [
     { value: "amount", label: "Amount" },
@@ -51,7 +54,12 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
           position: true,
         });
         if (confirmed) {
-          // Process discount
+          dispatch(
+            addDiscount({
+              order_type: values.type,
+              order_discount: values.order_discount,
+            })
+          );
           return true;
         }
       }}
