@@ -1,5 +1,7 @@
+import { ParamsType } from "@ant-design/pro-components";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
+import { notification } from "antd";
 import axios from "axios";
 
 const baseUrl = `${BASE_URL}/cart`;
@@ -8,8 +10,6 @@ interface CartInfo {
   table_id: string;
   created_by: string;
 }
-
-
 
 interface UpdatedCartItems {
   cart_id: string;
@@ -72,7 +72,7 @@ export const addItemToCart = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
     }
-  } 
+  }
 );
 
 export const updateCartItems = createAsyncThunk(
@@ -122,7 +122,7 @@ export const cartSent = createAsyncThunk(
       const response = await axios.put(`${baseUrl}/send-cart`, {
         cart_id: cartDetails._id,
       });
-      dispatch(getCart(cartDetails.table_id._id))
+      dispatch(getCart(cartDetails.table_id._id));
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -139,6 +139,31 @@ export const cartVoid = createAsyncThunk(
       });
       return response.data;
     } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+export const transferCartitemsAction = createAsyncThunk(
+  "cart/transferCartItems",
+  async (data: ParamsType, { rejectWithValue, dispatch }) => {
+    try {
+      // console.log({ products: data?.products, table: data?.table?.value });
+      const response = await axios.post(`${baseUrl}/transfer-cart-items`, {
+        products: data?.products,
+        table: data.table?.value,
+      });
+
+      dispatch(getCart(data?.id));
+       notification.success({
+         message: `Success`,
+         description: "Successfully transfered the products",
+         placement: "bottomLeft",
+       });
+      return response.data;
+    } catch (error: any) {
+      console.log("failed to tranfer product", error);
+
       return rejectWithValue(error.message || error.toString());
     }
   }
