@@ -23,7 +23,7 @@ import {
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
 import SendIcon from "@mui/icons-material/Send";
 import { clearcart } from "../../features/Cart/CartSlice";
@@ -46,7 +46,7 @@ import { getAllCartItems } from "@services/cart";
 import useCartItemsData from "@hooks/cartItemsData";
 
 function formatTotal(totalAmount: { toLocaleString: () => number | string }) {
-  return totalAmount.toLocaleString();
+  return totalAmount?.toLocaleString();
 }
 
 const CartDrawer: React.FC = () => {
@@ -55,8 +55,8 @@ const CartDrawer: React.FC = () => {
   const {
     cartDetails,
     totalAmount,
-    cartItems: data2,
-    loading: iu,
+    cartItems: data,
+    loading,
   } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
 
@@ -65,8 +65,8 @@ const CartDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
   const { tableData: td } = useAppSelector((state) => state.Tables);
 
-  const { data, isLoading: loading } = useCartItemsData();
- 
+  const { data: data2, isLoading } = useCartItemsData();
+ const navigate = useNavigate()
 
   const onCloseM = () => {
     setOpenM(false);
@@ -87,6 +87,9 @@ const CartDrawer: React.FC = () => {
       setLoadingData(true);
       try {
         await dispatch(getCart(id));
+        if(!data || !cartDetails){
+          navigate("/tables");
+        }
       } catch (error) {
         console.log("cart eror", error);
       } finally {
@@ -98,6 +101,8 @@ const CartDrawer: React.FC = () => {
     // clearCartDetails();
   }, [dispatch, id, td._id]);
 
+  console.log("============", data);
+  
   return (
     <Card
       bordered
