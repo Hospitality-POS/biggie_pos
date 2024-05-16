@@ -109,11 +109,6 @@ export const transferCartitems =async (data:ParamsType) => {
     // console.log({ products: data?.products, table: data?.table?.value });
      const response = await axios.post(`${transferUrl}/transfer-cart-items`, {products: data?.products, table: data.table?.value});
 
-     notification.success({
-       message: `Success`,
-       description: "Successfully transfered the products",
-       placement: "bottomLeft",
-     });
      return response.data;
     
   } catch (error) {
