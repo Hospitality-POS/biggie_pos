@@ -55,13 +55,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
     }
   };
 
+  const { invalidate } = useCartItemsData();
   const handleIncrement = () => {
     dispatch(addItem(menu._id));
     dispatch(fetchCartItems(cartDetails?._id));
-    refetch();
+    // refetch();
+    invalidate();
   };
 
-  const { refetch } = useCartItemsData();
 
   const handleDecrement = () => {
     if (quantity > 0) {
