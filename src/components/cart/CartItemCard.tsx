@@ -37,7 +37,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     () => formatQuantity(cartItem.quantity),
     [cartItem.quantity]
   );
-  const {refetch}=useCartItemsData();
+  const { invalidate } = useCartItemsData();
 
   return (
     <Card
@@ -90,7 +90,9 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     icon={<DeleteOutlined />}
                     onClick={() => {
                       dispatch(deleteCartItem(cartItem._id));
-                      refetch();
+                      // refetch();
+                      invalidate();
+                      
                     }}
                   ></Button>
                 )}
