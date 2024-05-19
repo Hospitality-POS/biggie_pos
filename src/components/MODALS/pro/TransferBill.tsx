@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Button, Form, Space } from "antd";
 import { ModalForm, ProForm, ProFormDigit } from "@ant-design/pro-form";
 import {
@@ -14,7 +14,7 @@ import { fetchTableUsequery, transferCartitems } from "@services/tables";
 import { useQuery } from "@tanstack/react-query";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { useNavigate, useParams } from "react-router-dom";
-import { createCart, deleteCartItem } from "@features/Cart/CartActions";
+import { createCart, deleteCartItem, getCart, transferCartitemsAction } from "@features/Cart/CartActions";
 import useCartItemsData from "@hooks/cartItemsData";
 import { reset } from "@features/Auth/AuthSlice";
 
@@ -36,7 +36,18 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({
   const formRef = useRef();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { data: cartItems, refetch } = useCartItemsData();
+  const {
+    data: cartItems,
+    invalidate,
+    transferBillMutate,
+  } = useCartItemsData();
+    const {
+      cartDetails,
+      totalAmount,
+      transferState,
+      cartItems: data2,
+      loading: iu,
+    } = useAppSelector((state) => state.cart);
 
   const { id } = useParams();
 
@@ -61,6 +72,7 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({
     label: product.product_id?.name,
     value: product._id,
   }));
+
 
   return (
     <ModalForm
@@ -94,16 +106,24 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({
         style: { display: "grid", placeContent: "center" },
       }}
       onFinish={async (values) => {
-        console.log("transfer bilss ddata", values);
-
+        const payload = {...values, id}
+        console.log("transfer bilss ddata", payload);
         const confirmed = await ShowConfirm({
           title: "Are you sure you want to transfer this bill?",
         });
         if (confirmed) {
-          await transferCartitems(values);
-          refetch();
-          navigate("/tables")
-          return true;
+          // await transferBillMutate(values);
+         await dispatch(transferCartitemsAction(payload));
+          // invalidate();
+         await dispatch(getCart(id));
+          console.log("after transfer", data2);
+
+          if (data2?.length === 1 || data2?.length === 0 || transferState) {
+            navigate("/tables");
+            return true;
+          } else {
+            return true;
+          }
         }
       }}
       submitter={{

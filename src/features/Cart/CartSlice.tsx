@@ -9,6 +9,7 @@ import {
   deleteAllCartItems,
   cartVoid,
   cartSent,
+  transferCartitemsAction,
 } from "./CartActions";
 
 interface CartDetails {
@@ -46,6 +47,7 @@ interface CartState {
   order_discount: number;
   order_type: string;
   error: string | null;
+  transferState: boolean;
 }
 
 const initialState: CartState = {
@@ -71,6 +73,7 @@ const initialState: CartState = {
   order_discount: 0,
   loading: false,
   error: null,
+  transferState: false,
 };
 
 const cartSlice = createSlice({
@@ -173,8 +176,8 @@ const cartSlice = createSlice({
         state.cartItems = action.payload.items;
 
         // Calculate the total amount of all cart items using reduce
-        state.totalAmount = action.payload.items.reduce(
-          (total: any, item: any) => total + parseFloat(item.price),
+        state.totalAmount = action.payload?.items?.reduce(
+          (total: any, item: any) => total + parseFloat(item?.price),
           0
         );
       })
@@ -289,6 +292,35 @@ const cartSlice = createSlice({
       .addCase(cartVoid.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      .addCase(transferCartitemsAction.fulfilled, (state, action) => {
+        state.loading = false;
+        // Check if all items in payload exist in existing cartItems
+        const allExist = action.payload.products?.every((itemId) =>
+          state.cartItems?.some((cartItem) => cartItem?._id === itemId)
+        );
+
+        if (allExist) {
+          state.cartItems = [];
+          state.transferState = true; // Empty the cart if all items exist
+          console.log(
+            "All cart items transferred successfully. Cart emptied.",
+            state.cartItems
+          );
+        } else {
+          console.log("Some cart items may not exist. Cart not emptied.");
+        }
+
+        console.log("from cartslice transferCartitemsAction", action.payload);
+      })
+      .addCase(transferCartitemsAction.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(transferCartitemsAction.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+        state.transferState = false;
       });
   },
 });

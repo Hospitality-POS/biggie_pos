@@ -127,7 +127,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               variant="body1"
               style={{ fontSize: "1.15em", fontFamily: "monospace" }}
             >
-              Table: {cartDetails?.table_id.name}
+              Table: {cartDetails?.table_id?.name}
             </Typography>
             <Typography
               variant="body1"
@@ -242,7 +242,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               fontWeight: "bold",
             }}
           >
-            Total: Ksh.{totalAmount.toFixed(2)}
+            Total: Ksh.{totalAmount?.toFixed(2)}
           </Typography>
 
           <Typography
