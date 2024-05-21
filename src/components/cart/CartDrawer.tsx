@@ -34,6 +34,7 @@ import {
   OrderedListOutlined,
   PercentageOutlined,
   PrinterOutlined,
+  RestOutlined,
   SendOutlined,
   SmileFilled,
   SwapOutlined,
@@ -56,6 +57,8 @@ const CartDrawer: React.FC = () => {
     cartDetails,
     totalAmount,
     cartItems: data,
+    order_discount,
+    order_type,
     loading,
   } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
@@ -101,7 +104,7 @@ const CartDrawer: React.FC = () => {
     // clearCartDetails();
   }, [dispatch, id, td._id]);
 
-  console.log("============", data);
+  // console.log("============", data);
   
   return (
     <Card
@@ -119,14 +122,15 @@ const CartDrawer: React.FC = () => {
         cartDetails={cartDetails}
         data={data}
         totalAmount={totalAmount}
+        order_type={order_type}
+        order_discount={order_discount}
       />
       <Space direction="vertical" style={{ width: "100%" }}>
         <Space
           style={{
             display: "flex",
             justifyContent: "space-between",
-            // padding: 4,
-            width: "100%",
+            flexWrap: "wrap",
           }}
         >
           <Button
@@ -191,15 +195,28 @@ const CartDrawer: React.FC = () => {
                 width: "100%",
                 display: "flex",
                 justifyContent: "space-between",
-                marginBottom: "20px",
-                alignItems: "flex-end",
+                marginBottom: "10px",
+                alignItems: "baseline",
               }}
             >
               <Typography.Text strong>
                 Served By: <SmileFilled /> {cartDetails?.created_by.username}
               </Typography.Text>
+              <DiscountModal data={cartDetails} />
+            </div>
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+                alignItems: "baseline",
+              }}
+            >
+              {/* <div style={{ display: "grid", gap: 2 }}> */}
+
               <Typography.Text strong>
-                Total : Ksh.
+                Amount Due : Ksh.
                 {totalAmount ? (
                   formattedTotal
                 ) : (
@@ -207,10 +224,12 @@ const CartDrawer: React.FC = () => {
                 )}
               </Typography.Text>
 
-              {/* <Button type="primary" icon={<PercentageOutlined />}>
-                Offer Discount?
-              </Button> */}
-              <DiscountModal data={cartDetails} />
+              <Typography.Text strong>
+                <RestOutlined /> Discount:
+                {order_type === "amount"
+                  ? ` KSH. ${order_discount?.toLocaleString()}`
+                  : ` ${order_discount}%`}
+              </Typography.Text>
             </div>
 
             <Space

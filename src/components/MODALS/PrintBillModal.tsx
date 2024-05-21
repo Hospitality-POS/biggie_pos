@@ -19,6 +19,7 @@ import "./bill.css";
 import { useReactToPrint } from "react-to-print";
 import { ENTITY_NAME, TILL_NO } from "@utils/config";
 import useSystemDetails from "@hooks/useSystemDetails";
+import { RestOutlined } from "@ant-design/icons";
 
 interface PrintBillProps {
   openM: boolean;
@@ -26,12 +27,16 @@ interface PrintBillProps {
   cartDetails: any;
   totalAmount: number;
   data: any;
+  order_discount: any;
+  order_type: any;
 }
 
 const PrintBillModal: React.FC<PrintBillProps> = ({
   openM,
   onCloseM,
   cartDetails,
+  order_discount,
+  order_type,
   data,
   totalAmount,
 }) => {
@@ -100,7 +105,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               #Client Pin: ........
             </Typography>
           </div>
-
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <Typography
               variant="body1"
@@ -115,7 +119,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               Served By: {cartDetails?.created_by?.username}
             </Typography>
           </div>
-
           <div
             style={{
               display: "flex",
@@ -232,7 +235,22 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               </TableBody>
             </Table>
           </TableContainer>
-
+          {order_discount !== 0 && (
+            <Typography
+              variant="body1"
+              style={{
+                fontSize: "1.2em",
+                fontFamily: "monospace",
+                textAlign: "center",
+                fontWeight: "bold",
+              }}
+            >
+               <RestOutlined /> Discount:
+              {order_type === "amount"
+                ? `KSH. ${order_discount?.toLocaleString()}`
+                : `${order_discount}%`}
+            </Typography>
+          )}
           <Typography
             variant="body1"
             style={{
@@ -242,7 +260,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               fontWeight: "bold",
             }}
           >
-            Total: Ksh.{totalAmount?.toFixed(2)}
+            Amount Due: Ksh.{totalAmount?.toFixed(2)}
           </Typography>
 
           <Typography
