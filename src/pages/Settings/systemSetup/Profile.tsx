@@ -33,8 +33,8 @@ function SystemSetup() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["systemsettings"],
     queryFn: fetchSystemSetupDetailsById,
-    // retry: 3,
-    // refetchInterval: 3000,
+    retry: 3,
+    refetchInterval: 3000,
     networkMode: "always",
   });
   const query = useQueryClient();
