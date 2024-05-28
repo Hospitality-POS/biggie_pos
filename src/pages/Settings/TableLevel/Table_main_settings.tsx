@@ -18,10 +18,10 @@ const TableMainSettings: React.FC = () => {
       tab: "loaction",
 
       label: (
-        <>
+        <Space>
           <HolderOutlined />
           Locations
-        </>
+        </Space>
       ),
       children: <TableLocationSettings />,
     },
@@ -29,10 +29,10 @@ const TableMainSettings: React.FC = () => {
       key: "table1",
       tab: "Table",
       label: (
-        <>
+        <Space>
           <HolderOutlined />
           Tables
-        </>
+        </Space>
       ),
       children: <TableSetting />,
     },

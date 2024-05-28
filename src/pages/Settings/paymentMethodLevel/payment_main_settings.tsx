@@ -9,7 +9,7 @@ function PaymentMainSettings() {
     {
       key: "table1",
       tab: "Table",
-      label: <><HolderOutlined/>All Payment Methods</>,
+      label: <Space><HolderOutlined/>All Payment Methods</Space>,
       children: <PaymentsMethodSettings />,
     },
   ];

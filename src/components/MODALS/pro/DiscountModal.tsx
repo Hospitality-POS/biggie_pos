@@ -29,7 +29,6 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
     <ModalForm
       form={form}
       formRef={formRef}
-      // layout="horizontal"
       width={520}
       title={
         <Space>
@@ -39,7 +38,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
       }
       trigger={
         <Button type="primary" icon={<PercentageOutlined />}>
-          Offer Discount?
+        Offer Discount?
         </Button>
       }
       autoFocusFirstInput

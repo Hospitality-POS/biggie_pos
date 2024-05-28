@@ -21,19 +21,19 @@ const CategoryMainSettings: React.FC = () => {
     {
       key: "mainCategory",
       tab: "Main Category",
-      label:<><HolderOutlined/>Main Category</>,
+      label:<Space><HolderOutlined/>Main Category</Space>,
       children: <MainCategorySettings />,
     },
     {
       key: "category2",
       tab: "Sub-category",
-      label: <><HolderOutlined/>Sub-Category</>,
+      label: <Space><HolderOutlined/>Sub-Category</Space>,
       children: <SubCategorySettings />,
     },
     {
       key: "category1",
       tab: "category",
-      label: <><HolderOutlined/>Category</>,
+      label: <Space><HolderOutlined/>Category</Space>,
       children: <CategorySettings />,
     },
   ];

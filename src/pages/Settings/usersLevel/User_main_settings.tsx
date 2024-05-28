@@ -8,7 +8,7 @@ function UsersMainSettings() {
       {
       key: "table1",
       tab: "Table",
-      label: <><HolderOutlined/>All Users</>,
+      label: <Space><HolderOutlined/>All Users</Space>,
       children: <UsersTable />,
     },
   ];
