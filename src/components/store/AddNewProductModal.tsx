@@ -113,7 +113,7 @@ const AddNewProductModal: React.FC<AddNewProductModalProps> = ({
           }}
         >
           <FastfoodIcon />
-            Add a New Dish
+            Add a New Item
         </div>
        
         <IconButton onClick={onClose}>

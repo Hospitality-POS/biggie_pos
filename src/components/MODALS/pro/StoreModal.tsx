@@ -66,7 +66,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
         ) : (
           <Button type="primary" block>
             <PlusCircleFilled />
-            New Dish
+            New Item
           </Button>
         )
       }
