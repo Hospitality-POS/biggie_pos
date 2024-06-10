@@ -4,7 +4,6 @@ import axios from "axios";
 
 export const getAllOrders = async (data: ParamsType) => {
   try {
-    console.log("orders", data); 
     const response = await axios.get(`${BASE_URL}/orders`, {
       params: {
         order_no: data?.order_no || data?.keyword,
