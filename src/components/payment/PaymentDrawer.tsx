@@ -9,7 +9,7 @@ import { logoutUser } from "@features/Auth/AuthActions";
 import { reset } from "@features/Auth/AuthSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
-import { Alert, Button, Modal, Space, Spin, Typography } from "antd";
+import { Alert, Button, Form, Modal, Space, Spin, Typography } from "antd";
 import {
   CloseCircleOutlined,
   CreditCardOutlined,
@@ -21,10 +21,14 @@ import {
   StopOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
-import { ProCard } from "@ant-design/pro-components";
+import { DrawerForm, ProCard } from "@ant-design/pro-components";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
+import DiscountModal from "@components/MODALS/pro/DiscountModal";
 
 const PaymentDrawer: React.FC = () => {
+
+   const [form] = Form.useForm();
+
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -134,7 +138,7 @@ const PaymentDrawer: React.FC = () => {
   if (isLoading) {
     return (
       <Space
-        style={{ display: "flex", justifyContent: "center", marginTop: 4 }}
+        style={{ display: "flex", justifyContent: "center", marginTop: 4, width: "100%" }}
       >
         <Spin />
       </Space>
@@ -156,169 +160,196 @@ const PaymentDrawer: React.FC = () => {
   }
 
   return (
-    <Space direction="vertical" style={{ width: "100%" }}>
-      <Typography.Title level={5}>Payment Method</Typography.Title>
-      <Space
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-        }}
-      >
-        {data.map((method: { _id: string; name: string }) => (
-          <ProCard
-            key={method._id}
-            bodyStyle={{ paddingInline: "12px", paddingBlock: "16px" }}
-            bordered
-            onClick={() => handleSelectMethod(method._id)}
-            style={{
-              backgroundColor: `${
-                selectedMethod === method._id ? "#6c1c2c" : grey[400]
-              }`,
-              cursor: "pointer",
-              transition: "background-color 0.3s ease",
-            }}
-          >
-            <Space
+    <DrawerForm
+      style={{ display: "flex", flexDirection: "column", rowGap: 20 }}
+      title={<Typography>Payment Options</Typography>}
+      key={"payment"}
+      aria-label="payment options"
+      resize={{
+        maxWidth: window.innerWidth * 0.8,
+        minWidth: 420,
+      }}
+      submitter={false}
+      form={form}
+      drawerProps={{
+        destroyOnClose: true,
+      }}
+      trigger={
+        <Button type="primary" block>
+          Proceed to Payment
+        </Button>
+      }
+    >
+      <div style={{}}>
+        <DiscountModal data={cartDetails} />
+      </div>
+      <Space direction="vertical" style={{ width: "100%" }}>
+        {/* <Typography.Title level={5}>Payment Method</Typography.Title> */}
+        <Space
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+          }}
+        >
+          {data.map((method: { _id: string; name: string }) => (
+            <ProCard
+              key={method._id}
+              bodyStyle={{ paddingInline: "20px", paddingBlock: "26px" }}
+              bordered
+              onClick={() => handleSelectMethod(method._id)}
               style={{
-                color: `${selectedMethod === method._id ? "white" : "inherit"}`,
+                backgroundColor: `${
+                  selectedMethod === method._id ? "#6c1c2c" : grey[400]
+                }`,
+                cursor: "pointer",
+                transition: "background-color 0.3s ease",
               }}
             >
-              {method.name === "Cash" ? (
-                <>
-                    <DollarOutlined style={{ fontSize: "16px" }} />
-                  <Typography.Text
-                    strong
-                    style={{
-                      color: `${
-                        selectedMethod === method._id ? "white" : "inherit"
-                      }`,
-                    }}
-                  >
-                    Cash
-                  </Typography.Text>
-                </>
-              ) : method.name === "M-Pesa" ? (
-                <>
-                    <MobileOutlined style={{ fontSize: "16px" }} />
-                  <Typography.Text
-                    strong
-                    style={{
-                      color: `${
-                        selectedMethod === method._id ? "white" : "inherit"
-                      }`,
-                    }}
-                  >
-                    Mpesa
-                  </Typography.Text>
-                </>
-              ) : method.name === "Card" ? (
-                <>
-                    <CreditCardOutlined style={{ fontSize: "16px" }} />
-                  <Typography.Text
-                    strong
-                    style={{
-                      color: `${
-                        selectedMethod === method._id ? "white" : "inherit"
-                      }`,
-                    }}
-                  >
-                    Card
-                  </Typography.Text>
-                </>
-              ) : method.name === "Debt" ? (
-                <>
-                    <WalletOutlined style={{ fontSize: "16px" }} />
-                  <Typography.Text
-                    strong
-                    style={{
-                      color: `${
-                        selectedMethod === method._id ? "white" : "inherit"
-                      }`,
-                    }}
-                  >
-                    Debt
-                  </Typography.Text>
-                </>
-              ) : (
-                <>
-                    <FileAddOutlined style={{ fontSize: "16px" }} />
-                  <Typography.Text
-                    strong
-                    style={{
-                      color: `${
-                        selectedMethod === method._id ? "white" : "inherit"
-                      }`,
-                    }}
-                  >
-                    {method?.name[0]?.toUpperCase()}{method?.name?.slice(1)}
-                  </Typography.Text>
-                </>
-              )}
-            </Space>
-          </ProCard>
-        ))}
-      </Space>
-      <Space
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          marginTop: 4,
-        }}
-      >
-        <Button
-          danger
-          onClick={() => {
-            setSelectedMethod(null);
-          }}
-          icon={<CloseCircleOutlined />}
-        >
-          Clear
-        </Button>
-        <Button
-          type="default"
-          onClick={handleVoidBill}
-          icon={<StopOutlined />}
+              <Space
+                style={{
+                  color: `${
+                    selectedMethod === method._id ? "white" : "inherit"
+                  }`,
+                }}
+              >
+                {method.name === "Cash" ? (
+                  <>
+                    <DollarOutlined style={{ fontSize: "32px" }} />
+                    <Typography.Text
+                      strong
+                      style={{
+                        color: `${
+                          selectedMethod === method._id ? "white" : "inherit"
+                        }`,
+                      }}
+                    >
+                      Cash
+                    </Typography.Text>
+                  </>
+                ) : method.name === "M-Pesa" ? (
+                  <>
+                    <MobileOutlined style={{ fontSize: "32px" }} />
+                    <Typography.Text
+                      strong
+                      style={{
+                        color: `${
+                          selectedMethod === method._id ? "white" : "inherit"
+                        }`,
+                      }}
+                    >
+                      Mpesa
+                    </Typography.Text>
+                  </>
+                ) : method.name === "Card" ? (
+                  <>
+                    <CreditCardOutlined style={{ fontSize: "32px" }} />
+                    <Typography.Text
+                      strong
+                      style={{
+                        color: `${
+                          selectedMethod === method._id ? "white" : "inherit"
+                        }`,
+                      }}
+                    >
+                      Card
+                    </Typography.Text>
+                  </>
+                ) : method.name === "Debt" ? (
+                  <>
+                    <WalletOutlined style={{ fontSize: "32px" }} />
+                    <Typography.Text
+                      strong
+                      style={{
+                        color: `${
+                          selectedMethod === method._id ? "white" : "inherit"
+                        }`,
+                      }}
+                    >
+                      Debt
+                    </Typography.Text>
+                  </>
+                ) : (
+                  <>
+                    <FileAddOutlined style={{ fontSize: "32px" }} />
+                    <Typography.Text
+                      strong
+                      style={{
+                        color: `${
+                          selectedMethod === method._id ? "white" : "inherit"
+                        }`,
+                      }}
+                    >
+                      {method?.name[0]?.toUpperCase()}
+                      {method?.name?.slice(1)}
+                    </Typography.Text>
+                  </>
+                )}
+              </Space>
+            </ProCard>
+          ))}
+        </Space>
+        <Space
           style={{
-            color: "#6c1c2c",
-            borderColor: "#6c1c2c",
-            "&:hover": {
-              borderColor: "#bc8c7c",
-              color: "#bc8c7c",
-            },
+            display: "flex",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            marginTop: 4,
           }}
         >
-          Void Bill
-        </Button>
-        <Button
-          type="primary"
-          icon={loading ? <LoadingOutlined /> : <LikeOutlined />}
-          onClick={() => handlePayment(selectedMethod as string)}
-          disabled={!selectedMethod}
-        >
-          Confirm
-        </Button>
-      </Space>
+          <Button
+            danger
+            onClick={() => {
+              setSelectedMethod(null);
+            }}
+            icon={<CloseCircleOutlined />}
+          >
+            Clear
+          </Button>
+          <Button
+            type="default"
+            onClick={handleVoidBill}
+            icon={<StopOutlined />}
+            style={{
+              color: "#6c1c2c",
+              borderColor: "#6c1c2c",
+              "&:hover": {
+                borderColor: "#bc8c7c",
+                color: "#bc8c7c",
+              },
+            }}
+          >
+            Void Bill
+          </Button>
+          <Button
+            type="primary"
+            icon={loading ? <LoadingOutlined /> : <LikeOutlined />}
+            onClick={() => handlePayment(selectedMethod as string)}
+            disabled={!selectedMethod}
+          >
+            Confirm
+          </Button>
+        </Space>
 
-      {selectedMethod !== secondMethod && (
-        <SplitBillDialog
-          open={openModal}
-          handleModalClose={handleModalClose}
-          data={data}
-          selectedMethod={selectedMethod}
-          secondMethod={secondMethod}
-          totalAmount={totalAmount}
-          amount1={amount1}
-          amount2={amount2}
-          setSelectedMethod={setSelectedMethod}
-          setSecondMethod={setSecondMethod}
-          setAmount1={setAmount1}
-          setAmount2={setAmount2}
-          handleSplitConfirm={handleSplitConfirm}
-        />
-      )}
-    </Space>
+        {selectedMethod !== secondMethod && (
+          <SplitBillDialog
+            open={openModal}
+            handleModalClose={handleModalClose}
+            data={data}
+            selectedMethod={selectedMethod}
+            secondMethod={secondMethod}
+            totalAmount={totalAmount}
+            amount1={amount1}
+            amount2={amount2}
+            setSelectedMethod={setSelectedMethod}
+            setSecondMethod={setSecondMethod}
+            setAmount1={setAmount1}
+            setAmount2={setAmount2}
+            handleSplitConfirm={handleSplitConfirm}
+          />
+        )}
+      </Space>
+    </DrawerForm>
   );
 };
 
