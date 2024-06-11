@@ -45,6 +45,7 @@ interface CartState {
   totalAmount: number;
   loading: boolean;
   order_discount: number;
+  clientPin: string;
   order_type: string;
   error: string | null;
   transferState: boolean;
@@ -71,6 +72,7 @@ const initialState: CartState = {
   cartItems: [],
   totalAmount: 0,
   order_discount: 0,
+  clientPin: 'N/A',
   loading: false,
   error: null,
   transferState: false,
@@ -152,6 +154,9 @@ const cartSlice = createSlice({
         state.totalAmount -= discountAmount;
       }
     },
+    addClientPin(state, action: PayloadAction<string>){
+      state.clientPin = action.payload;
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -325,7 +330,13 @@ const cartSlice = createSlice({
   },
 });
 
-export const { removeCartItem, addItem, subtractItem, clearcart, addDiscount } =
-  cartSlice.actions;
+export const {
+  removeCartItem,
+  addItem,
+  subtractItem,
+  clearcart,
+  addDiscount,
+  addClientPin,
+} = cartSlice.actions;
 
 export default cartSlice.reducer;
