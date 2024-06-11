@@ -45,6 +45,7 @@ import DiscountModal from "@components/MODALS/pro/DiscountModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAllCartItems } from "@services/cart";
 import useCartItemsData from "@hooks/cartItemsData";
+import ClientPin from "@components/MODALS/ClientPin";
 
 function formatTotal(totalAmount: { toLocaleString: () => number | string }) {
   return totalAmount?.toLocaleString();
@@ -60,6 +61,7 @@ const CartDrawer: React.FC = () => {
     order_discount,
     order_type,
     loading,
+    clientPin,
   } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
 
@@ -69,12 +71,8 @@ const CartDrawer: React.FC = () => {
   const { tableData: td } = useAppSelector((state) => state.Tables);
 
   const { data: data2, isLoading } = useCartItemsData();
- const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  const onCloseM = () => {
-    setOpenM(false);
-  };
-  
 
   const CartItemCardMemo = React.memo(CartItemCard);
 
@@ -90,7 +88,7 @@ const CartDrawer: React.FC = () => {
       setLoadingData(true);
       try {
         await dispatch(getCart(id));
-        if(!data || !cartDetails){
+        if (!data || !cartDetails) {
           navigate("/tables");
         }
       } catch (error) {
@@ -105,7 +103,7 @@ const CartDrawer: React.FC = () => {
   }, [dispatch, id, td._id]);
 
   // console.log("============", data);
-  
+
   return (
     <Card
       bordered
@@ -116,15 +114,6 @@ const CartDrawer: React.FC = () => {
       }}
       bodyStyle={{ backgroundColor: "white" }}
     >
-      <PrintBillModal
-        openM={openM}
-        onCloseM={onCloseM}
-        cartDetails={cartDetails}
-        data={data}
-        totalAmount={totalAmount}
-        order_type={order_type}
-        order_discount={order_discount}
-      />
       <Space direction="vertical" style={{ width: "100%" }}>
         <Space
           style={{
@@ -173,7 +162,7 @@ const CartDrawer: React.FC = () => {
         {/* </Card> */}
         <div
           style={{
-            maxHeight: "calc(92vh - 500px)",
+            maxHeight: "calc(92vh - 460px)",
             overflowY: "auto",
             width: "100%",
           }}
@@ -202,7 +191,7 @@ const CartDrawer: React.FC = () => {
               <Typography.Text strong>
                 Served By: <SmileFilled /> {cartDetails?.created_by.username}
               </Typography.Text>
-              <DiscountModal data={cartDetails} />
+              {/* <DiscountModal data={cartDetails} /> */}
             </div>
             <div
               style={{
@@ -262,7 +251,17 @@ const CartDrawer: React.FC = () => {
               >
                 Send Bill
               </Button>
-              <Button
+              <ClientPin />
+              <PrintBillModal
+                cartDetails={cartDetails}
+                data={data}
+                totalAmount={totalAmount}
+                order_type={order_type}
+                order_discount={order_discount}
+                clientPin={clientPin}
+              />
+              {/* <PrintBillModal/> */}
+              {/* <Button
                 type="primary"
                 onClick={() => setOpenM(true)}
                 icon={<PrinterOutlined />}
@@ -276,7 +275,7 @@ const CartDrawer: React.FC = () => {
                 }}
               >
                 Print Bill
-              </Button>
+              </Button> */}
             </Space>
           </Space>
         ) : (
@@ -294,14 +293,10 @@ const CartDrawer: React.FC = () => {
           </Card>
         )}
       </Space>
-      {user?.role === "admin" && data?.length > 0 && (
-        <PaymentDrawer
-          paymentOpen={false}
-          handlePaymentClose={function (): void {
-            throw new Error("Function not implemented.");
-          }}
-        />
-      )}
+
+      <div style={{ display: "flex", marginTop: 20 }}>
+        {user?.role === "admin" && data?.length > 0 && <PaymentDrawer />}
+      </div>
     </Card>
   );
 };
