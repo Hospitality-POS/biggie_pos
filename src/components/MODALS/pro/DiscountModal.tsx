@@ -37,7 +37,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
         </Space>
       }
       trigger={
-        <Button type="primary" icon={<PercentageOutlined />}>
+        <Button type="primary" icon={<PercentageOutlined />} block>
         Offer Discount?
         </Button>
       }
