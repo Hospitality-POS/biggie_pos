@@ -28,6 +28,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
 
   return (
     <ModalForm
+    initialValues={cartItem}
       form={form}
       formRef={formRef}
       width={520}
