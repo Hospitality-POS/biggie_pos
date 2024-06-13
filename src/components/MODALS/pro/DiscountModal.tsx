@@ -10,6 +10,7 @@ import { PercentageOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addDiscount } from "@features/Cart/CartSlice";
 import { useAppDispatch } from "src/store";
+import { updateCart } from "@features/Cart/CartActions";
 
 interface DiscountModalProps {
   data?: any;
@@ -47,17 +48,14 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
         centered: true,
       }}
       onFinish={async (values) => {
-        console.log("discount", values);
+        // console.log("discount", cartItem?._id);
         const confirmed = await ShowConfirm({
           title: "You are about to give the discount, please confirm?",
           position: true,
         });
         if (confirmed) {
           dispatch(
-            addDiscount({
-              order_type: values.type,
-              order_discount: values.order_discount,
-            })
+            updateCart({cart: cartItem, data: values})
           );
           return true;
         }
@@ -71,14 +69,14 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
     >
       <ProForm.Group>
         <ProFormSelect
-          name="type"
+          name="discount_type"
           label="Discount Type"
           options={discountOptions}
           width={"sm"}
           rules={[{ required: true, message: "Please select a discount type" }]}
         />
         <ProFormDigit
-          name="order_discount"
+          name="discount"
           label="Discount Amount"
           width={"sm"}
           rules={[
