@@ -22,18 +22,12 @@ interface PrintBillProps {
   cartDetails: any;
   totalAmount: number;
   data: any;
-  order_discount: any;
-  order_type: any;
-  clientPin: string;
 }
 
 const PrintBillModal: React.FC<PrintBillProps> = ({
   cartDetails,
-  order_discount,
-  order_type,
   data,
   totalAmount,
-  clientPin,
 }) => {
   const componentRef = useRef<HTMLDivElement>(null);
   
@@ -53,20 +47,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         destroyOnClose: true,
         cancelText: "cancel",
         okText: "Confirm Print",
-        okButtonProps: {icon: <PrinterFilled/>},
+        okButtonProps: { icon: <PrinterFilled /> },
       }}
       trigger={
-        <Button
-          type="primary"
-          icon={<PrinterOutlined />}
-        >
+        <Button type="primary" icon={<PrinterOutlined />}>
           Print Bill
         </Button>
       }
-
-      onFinish={async()=>{
-        handlePrint()
-        return true
+      onFinish={async () => {
+        handlePrint();
+        return true;
       }}
     >
       <div className="receipt" id="receipt" ref={componentRef}>
@@ -118,7 +108,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             variant="body1"
             style={{ fontSize: "1em", fontFamily: "monospace" }}
           >
-            Client Pin: {clientPin}
+            Client Pin: {cartDetails?.clientPin}
           </Typography>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -251,7 +241,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             </TableBody>
           </Table>
         </TableContainer>
-        {order_discount !== 0 && (
+        {cartDetails?.discount && (
           <Typography
             variant="body1"
             style={{
@@ -262,9 +252,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             }}
           >
             <RestOutlined /> Discount:
-            {order_type === "amount"
-              ? `KSH. ${order_discount?.toLocaleString()}`
-              : `${order_discount}%`}
+            {cartDetails?.discount_type === "amount"
+              ? `KSH. ${cartDetails?.discount?.toLocaleString()}`
+              : `${cartDetails?.discount}%`}
           </Typography>
         )}
         <Typography
@@ -337,8 +327,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           justifyContent: "space-evenly",
           columnGap: 5,
         }}
-      >
-      </Box>
+      ></Box>
     </ModalForm>
   );
 };
