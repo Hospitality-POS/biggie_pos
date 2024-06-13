@@ -10,6 +10,7 @@ import {
   cartVoid,
   cartSent,
   transferCartitemsAction,
+  updateCart,
 } from "./CartActions";
 
 interface CartDetails {
@@ -25,6 +26,9 @@ interface CartDetails {
   items: string[];
   order_no: string;
   status: string;
+  discount: number;
+  discount_type: string;
+  clientPin: string;
   createdAt: string;
   updatedAt: string;
   __v: number;
@@ -44,9 +48,6 @@ interface CartState {
   cartItems: CartItem[];
   totalAmount: number;
   loading: boolean;
-  order_discount: number;
-  clientPin: string;
-  order_type: string;
   error: string | null;
   transferState: boolean;
 }
@@ -66,13 +67,14 @@ const initialState: CartState = {
     order_no: "",
     status: "",
     createdAt: "",
+    discount: 0,
+    discount_type: "",
+    clientPin: "N/A",
     updatedAt: "",
     __v: 0,
   },
   cartItems: [],
   totalAmount: 0,
-  order_discount: 0,
-  clientPin: 'N/A',
   loading: false,
   error: null,
   transferState: false,
@@ -140,23 +142,23 @@ const cartSlice = createSlice({
       state.cartDetails = initialState.cartDetails;
       state.cartItems = initialState.cartItems;
     },
-    addDiscount(
-      state,
-      action: PayloadAction<{ order_type: string; order_discount: number }>
-    ) {
-      state.order_type = action.payload.order_type;
-      state.order_discount = action.payload.order_discount;
+    // addDiscount(
+    //   state,
+    //   action: PayloadAction<{ discount_type: string; discount: number }>
+    // ) {
+    //   state.discount_type = action.payload.discount_type;
+    //   state.discount = action.payload.discount;
 
-      if (state.order_type === "amount") {
-        state.totalAmount -= state.order_discount;
-      } else if (state.order_type === "percentage") {
-        const discountAmount = (state.totalAmount * state.order_discount) / 100;
-        state.totalAmount -= discountAmount;
-      }
-    },
-    addClientPin(state, action: PayloadAction<string>){
-      state.clientPin = action.payload;
-    }
+    //   if (state.discount_type === "amount") {
+    //     state.totalAmount -= state.discount;
+    //   } else if (state.discount_type === "percentage") {
+    //     const discountAmount = (state.totalAmount * state.discount) / 100;
+    //     state.totalAmount -= discountAmount;
+    //   }
+    // },
+    // addClientPin(state, action: PayloadAction<string>) {
+    //   state.clientPin = action.payload;
+    // },
   },
   extraReducers: (builder) => {
     builder
@@ -179,12 +181,21 @@ const cartSlice = createSlice({
         state.loading = false;
         state.cartDetails = action.payload;
         state.cartItems = action.payload.items;
+        state.cartDetails.clientPin = action.payload.client_pin;
+
 
         // Calculate the total amount of all cart items using reduce
         state.totalAmount = action.payload?.items?.reduce(
           (total: any, item: any) => total + parseFloat(item?.price),
           0
         );
+         if (state.cartDetails.discount_type === "amount") {
+           state.totalAmount -= state.cartDetails.discount;
+         } else if (state.cartDetails.discount_type === "percentage") {
+           const discountAmount =
+             (state.totalAmount * state.cartDetails.discount) / 100;
+           state.totalAmount -= discountAmount;
+         }
       })
       .addCase(getCart.rejected, (state, action) => {
         state.loading = false;
@@ -239,6 +250,28 @@ const cartSlice = createSlice({
         );
       })
       .addCase(updateCartItems.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(updateCart.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateCart.fulfilled, (state, action) => {
+        state.loading = false;
+        state.cartDetails.discount_type = action.payload.discount_type;
+        state.cartDetails.discount = action.payload.discount;
+        state.cartDetails.clientPin = action.payload.client_pin;
+
+        if (state.cartDetails.discount_type === "amount") {
+          state.totalAmount -= state.cartDetails.discount;
+        } else if (state.cartDetails.discount_type === "percentage") {
+          const discountAmount =
+            (state.totalAmount * state.cartDetails.discount) / 100;
+          state.totalAmount -= discountAmount;
+        }
+      })
+      .addCase(updateCart.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
@@ -335,7 +368,6 @@ export const {
   addItem,
   subtractItem,
   clearcart,
-  addDiscount,
   addClientPin,
 } = cartSlice.actions;
 
