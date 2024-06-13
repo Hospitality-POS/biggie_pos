@@ -58,10 +58,7 @@ const CartDrawer: React.FC = () => {
     cartDetails,
     totalAmount,
     cartItems: data,
-    order_discount,
-    order_type,
-    loading,
-    clientPin,
+    loading
   } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
 
@@ -70,9 +67,7 @@ const CartDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
   const { tableData: td } = useAppSelector((state) => state.Tables);
 
-  const { data: data2, isLoading } = useCartItemsData();
   const navigate = useNavigate();
-
 
   const CartItemCardMemo = React.memo(CartItemCard);
 
@@ -212,13 +207,14 @@ const CartDrawer: React.FC = () => {
                   <Typography>Calculating...</Typography>
                 )}
               </Typography.Text>
-
-              <Typography.Text strong>
-                <RestOutlined /> Discount:
-                {order_type === "amount"
-                  ? ` KSH. ${order_discount?.toLocaleString()}`
-                  : ` ${order_discount}%`}
-              </Typography.Text>
+              {cartDetails?.discount && (
+                <Typography.Text strong>
+                  <RestOutlined /> Discount:
+                  {cartDetails?.discount_type === "amount"
+                    ? ` KSH. ${cartDetails?.discount?.toLocaleString()}`
+                    : ` ${cartDetails?.discount}%`}
+                </Typography.Text>
+              )}
             </div>
 
             <Space
@@ -251,31 +247,12 @@ const CartDrawer: React.FC = () => {
               >
                 Send Bill
               </Button>
-              <ClientPin />
+              <ClientPin cart={cartDetails} />
               <PrintBillModal
                 cartDetails={cartDetails}
                 data={data}
                 totalAmount={totalAmount}
-                order_type={order_type}
-                order_discount={order_discount}
-                clientPin={clientPin}
               />
-              {/* <PrintBillModal/> */}
-              {/* <Button
-                type="primary"
-                onClick={() => setOpenM(true)}
-                icon={<PrinterOutlined />}
-                style={{
-                  color: "#6c1c2c",
-                  borderColor: "#6c1c2c",
-                  "&:hover": {
-                    borderColor: "#bc8c7c",
-                    color: "#bc8c7c",
-                  },
-                }}
-              >
-                Print Bill
-              </Button> */}
             </Space>
           </Space>
         ) : (
