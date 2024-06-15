@@ -1,18 +1,23 @@
 import { KeyOutlined } from "@ant-design/icons";
 import ProForm, { ModalForm, ProFormText } from "@ant-design/pro-form";
 import { updateCart } from "@features/Cart/CartActions";
-import { addClientPin } from "@features/Cart/CartSlice";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { Button, Form, Space, Typography } from "antd";
+import { CartDetailsInterface } from "src/interfaces/CartDetailsTypes";
 import { useAppDispatch } from "src/store";
 
-function ClientPin({ cart: cartDetails }) {
+interface ClientPinProps {
+  cart: CartDetailsInterface;
+}
+
+
+function ClientPin({ cart }: ClientPinProps) {
   const dispatch = useAppDispatch();
   const [form] = Form.useForm();
-  
+
   return (
     <ModalForm
-    initialValues={cartDetails}
+      initialValues={{...cart,client_pin: cart?.clientPin} }
       title={
         <Space>
           <KeyOutlined />
@@ -28,11 +33,7 @@ function ClientPin({ cart: cartDetails }) {
         <Button
           style={{
             color: "#6c1c2c",
-            borderColor: "#6c1c2c",
-            "&:hover": {
-              borderColor: "#bc8c7c",
-              color: "#bc8c7c",
-            },
+            borderColor: "#6c1c2c"
           }}
           icon={<KeyOutlined />}
         >
@@ -45,7 +46,7 @@ function ClientPin({ cart: cartDetails }) {
           position: true,
         });
         if (confirmed) {
-          dispatch(updateCart({ cart: cartDetails, data: values }));
+          dispatch(updateCart({ cart, data: values }));
           return true;
         }
       }}
