@@ -1,7 +1,8 @@
-import { AppBar, Tab, Tabs } from "@mui/material";
+// import { AppBar, Tab, Tabs } from "@mui/material";
 import React, { useCallback, useEffect } from "react";
 import { fetchCategoriesByID } from "../../features/Category/CategoryActions";
 import { useAppDispatch, useAppSelector } from "../../store";
+import { AppBar, Tab, Tabs } from "@mui/material";
 
 function a11yProps(index: number) {
   return {
@@ -49,7 +50,7 @@ const VerticalTabs: React.FC<verticalProps> = ({handleSub}) => {
     <>
       {Subcategories && Subcategories.length > 0 && (<AppBar
         position="static"
-        sx={{ bgcolor: "#6c1c2c", width: 80, height: 450, mt: 5}}
+        sx={{ bgcolor: "#6c1c2c", width: 80, height: 450}}
       >
         <Tabs
           orientation="vertical"
@@ -59,7 +60,7 @@ const VerticalTabs: React.FC<verticalProps> = ({handleSub}) => {
           textColor="inherit"
           variant="fullWidth"
           aria-label="full width tabs example"
-          sx={{ width: 80, height: "inherit" }}
+          sx={{ width: 80, height: "inherit"}}
         >
           <div
             style={{
