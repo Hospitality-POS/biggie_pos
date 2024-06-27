@@ -1,7 +1,7 @@
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import React, { useRef } from "react";
 
-function AddOnSettings() {
+function ModifiersSettings() {
     const actionRef = useRef<ActionType>();
   return (
     <ProTable
@@ -60,4 +60,4 @@ function AddOnSettings() {
   );
 }
 
-export default AddOnSettings;
+export default ModifiersSettings;
