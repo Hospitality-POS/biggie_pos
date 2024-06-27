@@ -6,6 +6,7 @@ import { ApartmentOutlined, HolderOutlined } from "@ant-design/icons";
 import SubCategorySettings from "./Sub_category";
 import MainCategorySettings from "./Main_category";
 import { Typography } from "antd";
+import AddOnSettings from "./AddOnSettings";
 
 const Category2 = () => <div>Content for Category 2</div>;
 const MainCategory = () => <div>Main Category Content</div>;
@@ -35,6 +36,12 @@ const CategoryMainSettings: React.FC = () => {
       tab: "category",
       label: <Space><HolderOutlined/>Category</Space>,
       children: <CategorySettings />,
+    },
+    {
+      key: "addOns",
+      tab: "Add-ons",
+      label: <Space><HolderOutlined/>Add-ons</Space>,
+      children: <AddOnSettings />,
     },
   ];
 
