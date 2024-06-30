@@ -1,4 +1,7 @@
+import { UserOutlined } from "@ant-design/icons";
 import { ActionType, ProTable } from "@ant-design/pro-components";
+import { getAllModifierAddons } from "@services/modifierAddons";
+import { Tag } from "antd";
 import React, { useRef } from "react";
 
 function ModifiersSettings() {
@@ -21,24 +24,37 @@ function ModifiersSettings() {
           valueType: "text",
         },
         {
-          title: "Description",
-          dataIndex: "description",
+          title: "Created By",
+          dataIndex: ["createdBy", "fullname"],
           valueType: "text",
           hideInSearch: true,
+          render: (text) => (
+            <Tag color={text ? "green" : "error"}>
+              {text ? (
+                <>
+                  <UserOutlined /> {text}
+                </>
+              ) : (
+                "Deleted"
+              )}
+            </Tag>
+          ),
         },
 
         {
-          title: "Status",
-          dataIndex: "status",
-          valueType: "text",
+          title: "created_at",
+          dataIndex: "createdAt",
+          valueType: "dateTime",
           hideInSearch: true,
         },
       ]}
-      request={async () => {
-        const response = await fetch(
-          "https://randomuser.me/api/?results=5&inc=name,gender,email,nat&noinfo"
-        );
-        return response.json();
+      request={async (params) => {
+        const data = await getAllModifierAddons(params);
+        return {
+          data: data,
+          success: true,
+          total: data.length,
+        };
       }}
       tableAlertRender={({ selectedRowKeys }) => {
         return <p>You have selected {selectedRowKeys.length}</p>;
