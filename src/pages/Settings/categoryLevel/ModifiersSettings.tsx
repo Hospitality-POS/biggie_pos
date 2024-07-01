@@ -1,7 +1,7 @@
-import { UserOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, PushpinOutlined, UserOutlined } from "@ant-design/icons";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import { getAllModifierAddons } from "@services/modifierAddons";
-import { Button, Tag } from "antd";
+import { Button, Tag, Tooltip } from "antd";
 import React, { useRef } from "react";
 import ExpandedRowContent from "./ModifierAddonExpand";
 
@@ -10,6 +10,26 @@ function ModifiersSettings() {
      const expandedRowRender = (record: any) => {
        return <ExpandedRowContent record={record} />;
      };
+
+     
+   const actionColumn = {
+     title: "Actions",
+     dataIndex: "actions",
+     hideInSearch: true,
+     render: (_, record) => [
+       <Tooltip key="edit" title="Edit">
+         <Button icon={<EditOutlined />} type="text"></Button>
+       </Tooltip>,
+       <Tooltip key="delete" title="Delete">
+         <Button
+           type="link"
+           danger
+           icon={<DeleteOutlined />}
+           //    onClick={() => handleDeleteClick(record)}
+         />
+       </Tooltip>,
+     ],
+   };
   return (
     <ProTable
       rowKey="_id"
@@ -60,6 +80,7 @@ function ModifiersSettings() {
           valueType: "dateTime",
           hideInSearch: true,
         },
+        actionColumn,
       ]}
       request={async (params) => {
         const data = await getAllModifierAddons(params);
@@ -81,19 +102,21 @@ function ModifiersSettings() {
         selections: false,
       }}
       search={{
-        searchText: "Search Add-ons",
+        searchText: "Search Modifiers",
         resetText: "Reset",
         labelWidth: "auto",
       }}
       expandable={{
-          expandedRowRender,
-          defaultExpandAllRows: false,
-          expandIconColumnIndex: 1,
-          columnTitle: " ",
-        }}
-        toolBarRender={() => [
-          <Button type="primary">Add Modifier</Button>
-        ]}
+        expandedRowRender,
+        defaultExpandAllRows: false,
+        expandIconColumnIndex: 1,
+        columnTitle: " ",
+      }}
+      toolBarRender={() => [
+        <Button type="primary" icon={<PushpinOutlined />}>
+          Add Modifier
+        </Button>,
+      ]}
     />
   );
 }

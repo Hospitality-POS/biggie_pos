@@ -1,9 +1,30 @@
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Button } from "antd";
+import { Button, Tooltip } from "antd";
 import { useRef } from "react";
 
 const ExpandedRowContent = ({ record }) => {
   const actionRef = useRef<ActionType>();
+
+   const actionColumn = {
+     title: "Actions",
+     dataIndex: "actions",
+     hideInSearch: true,
+     render: (_, record) => [
+       <Tooltip key="edit" title="Edit">
+         <Button icon={<EditOutlined />} type="text"></Button>
+         {/* <SubCategoryModal data={record} edit={true} actionRef={actionRef} /> */}
+       </Tooltip>,
+       <Tooltip key="delete" title="Delete">
+         <Button
+           type="link"
+           danger
+           icon={<DeleteOutlined />}
+        //    onClick={() => handleDeleteClick(record)}
+         />
+       </Tooltip>,
+     ],
+   };
   
   return (
     <>
@@ -31,6 +52,7 @@ const ExpandedRowContent = ({ record }) => {
             key: "updatedAt",
             valueType: "date",
           },
+          actionColumn,
         ]}
         headerTitle={false}
         search={false}
