@@ -1,11 +1,15 @@
 import { UserOutlined } from "@ant-design/icons";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import { getAllModifierAddons } from "@services/modifierAddons";
-import { Tag } from "antd";
+import { Button, Tag } from "antd";
 import React, { useRef } from "react";
+import ExpandedRowContent from "./ModifierAddonExpand";
 
-function ModifiersSettings() {
+function ModifiersSettings() { 
     const actionRef = useRef<ActionType>();
+     const expandedRowRender = (record: any) => {
+       return <ExpandedRowContent record={record} />;
+     };
   return (
     <ProTable
       rowKey="_id"
@@ -19,9 +23,12 @@ function ModifiersSettings() {
       }}
       columns={[
         {
-          title: "Name",
+          title: "Modifier Name",
           dataIndex: "name",
           valueType: "text",
+          fieldProps: {
+            placeholder: "Enter modifier name",
+          },
         },
         {
           title: "Created By",
@@ -42,8 +49,14 @@ function ModifiersSettings() {
         },
 
         {
-          title: "created_at",
+          title: "Date Created",
           dataIndex: "createdAt",
+          valueType: "dateTime",
+          hideInSearch: true,
+        },
+        {
+          title: "Date Updated",
+          dataIndex: "updatedAt",
           valueType: "dateTime",
           hideInSearch: true,
         },
@@ -72,6 +85,15 @@ function ModifiersSettings() {
         resetText: "Reset",
         labelWidth: "auto",
       }}
+      expandable={{
+          expandedRowRender,
+          defaultExpandAllRows: false,
+          expandIconColumnIndex: 1,
+          columnTitle: " ",
+        }}
+        toolBarRender={() => [
+          <Button type="primary">Add Modifier</Button>
+        ]}
     />
   );
 }

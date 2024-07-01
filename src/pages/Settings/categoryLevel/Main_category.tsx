@@ -46,7 +46,6 @@ const {
     <>
       <ProTable
         rowKey="_id"
-        cardBordered
         pagination={{
           pageSize: 5,
           showQuickJumper: false,
