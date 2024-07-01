@@ -16,8 +16,6 @@ const ExpandedRowContent = ({ record }: ExpandedRowContentProps) => {
 
   const formattedCreatedAt = new Date(createdAt).toLocaleString();
 
-  console.log(record);
-
   const paymentData = order_payments?.map((payment) => ({
     title: payment?.name,
     value: `Ksh.${payment?.amount?.toLocaleString()}`,
