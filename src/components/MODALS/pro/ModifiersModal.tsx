@@ -3,7 +3,7 @@ import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import { CrownOutlined, EditOutlined, PushpinOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { addNewMainCategory, editMainCategory } from "@services/categories";
+import { createModifierAddon, editModifierAddon } from "@services/modifierAddons";
 
 interface ModifiersModalProps {
   actionRef: any;
@@ -61,8 +61,8 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
         });
         if (confirmed) {
           edit
-            ? await editMainCategory({ values, _id: data?._id })
-            : await addNewMainCategory(values);
+            ? await editModifierAddon({ values, _id: data?._id })
+            : await createModifierAddon(values);
           actionRef.current.reset();
           return true;
         }
