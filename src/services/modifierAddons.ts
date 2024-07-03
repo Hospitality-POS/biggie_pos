@@ -104,7 +104,7 @@ export const getModifierAddonById = async (data: ParamsType) => {
 // addons 
 export const getAllAddons = async (data: ParamsType) => {
   try {
-    const response = await axios.get(`${BASE_URL}/addons/fetch-addons`, {
+    const response = await axios.get(`${BASE_URL}/modifiers/fetch-addons`, {
       params: {
         name: data?.name,
       },
