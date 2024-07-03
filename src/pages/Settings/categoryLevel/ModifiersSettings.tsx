@@ -4,6 +4,7 @@ import { getAllModifierAddons } from "@services/modifierAddons";
 import { Button, Tag, Tooltip } from "antd";
 import React, { useRef } from "react";
 import ExpandedRowContent from "./ModifierAddonExpand";
+import ModifiersModal from "@components/MODALS/pro/ModifiersModal";
 
 function ModifiersSettings() { 
     const actionRef = useRef<ActionType>();
@@ -18,7 +19,7 @@ function ModifiersSettings() {
      hideInSearch: true,
      render: (_, record) => [
        <Tooltip key="edit" title="Edit">
-         <Button icon={<EditOutlined />} type="text"></Button>
+       <ModifiersModal actionRef={actionRef} edit={true} data={record} />
        </Tooltip>,
        <Tooltip key="delete" title="Delete">
          <Button
@@ -113,9 +114,7 @@ function ModifiersSettings() {
         columnTitle: " ",
       }}
       toolBarRender={() => [
-        <Button type="primary" icon={<PushpinOutlined />}>
-          Add Modifier
-        </Button>,
+        <ModifiersModal actionRef={actionRef} edit={false} />,
       ]}
     />
   );

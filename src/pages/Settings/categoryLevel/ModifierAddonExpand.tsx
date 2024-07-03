@@ -1,5 +1,6 @@
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { ActionType, ProTable } from "@ant-design/pro-components";
+import AddonsModal from "@components/MODALS/pro/AddonsModal";
 import { Button, Tooltip } from "antd";
 import { useRef } from "react";
 
@@ -12,8 +13,7 @@ const ExpandedRowContent = ({ record }) => {
      hideInSearch: true,
      render: (_, record) => [
        <Tooltip key="edit" title="Edit">
-         <Button icon={<EditOutlined />} type="text"></Button>
-         {/* <SubCategoryModal data={record} edit={true} actionRef={actionRef} /> */}
+       <AddonsModal actionRef={actionRef} edit={true} data={record} />
        </Tooltip>,
        <Tooltip key="delete" title="Delete">
          <Button
@@ -29,7 +29,7 @@ const ExpandedRowContent = ({ record }) => {
   return (
     <>
       <ProTable
-      bordered
+        bordered
         size="small"
         rowKey="_id"
         actionRef={actionRef}
@@ -60,8 +60,10 @@ const ExpandedRowContent = ({ record }) => {
         dataSource={record.addons}
         pagination={false}
         toolBarRender={() => [
-          <Button type="primary">Add Addon</Button>,
-          <Button onClick={() => actionRef.current?.reload()}>Refresh</Button>,
+          <AddonsModal actionRef={actionRef} edit={false} data={record} />,
+          <Button onClick={() => actionRef.current?.reload()} type="primary">
+            Refresh
+          </Button>,
         ]}
       />
     </>
