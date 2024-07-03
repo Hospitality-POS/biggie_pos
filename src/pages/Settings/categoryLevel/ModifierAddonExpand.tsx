@@ -1,17 +1,23 @@
-import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
-import { ProTable } from "@ant-design/pro-components";
+import { DeleteOutlined } from "@ant-design/icons";
+import { ActionType, ProTable } from "@ant-design/pro-components";
 import AddonsModal from "@components/MODALS/pro/AddonsModal";
 import { deleteAddon } from "@services/modifierAddons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { Button, Tooltip } from "antd";
+import React, { RefObject } from "react";
+
+interface ExpandedRowContentProps {
+  record: any;
+  actionRef: RefObject<ActionType>;
+}
 
 
-const ExpandedRowContent = ({ record, actionRef }) => {
+const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({ record, actionRef }) => {
    const actionColumn = {
      title: "Actions",
      dataIndex: "actions",
      hideInSearch: true,
-     render: (_, record) => [
+     render: (_: any, record: any) => [
        <Tooltip key="edit" title="Edit">
        <AddonsModal actionRef={actionRef} edit={true} data={record} />
        </Tooltip>,
@@ -27,7 +33,7 @@ const ExpandedRowContent = ({ record, actionRef }) => {
             });
             if (confirmed) {
               await deleteAddon({ _id: record?._id });
-              actionRef.current?.reload();
+              actionRef?.current?.reload();
             }
           }}
          />

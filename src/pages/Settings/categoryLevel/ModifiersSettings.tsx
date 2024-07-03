@@ -2,7 +2,7 @@ import { DeleteOutlined, EditOutlined, PushpinOutlined, UserOutlined } from "@an
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import { deleteModifierAddon, getAllModifierAddons } from "@services/modifierAddons";
 import { Button, Tag, Tooltip } from "antd";
-import React, { useRef } from "react";
+import  { RefObject, useRef } from "react";
 import ExpandedRowContent from "./ModifierAddonExpand";
 import ModifiersModal from "@components/MODALS/pro/ModifiersModal";
 import ShowConfirm from "@utils/ConfirmUtil";
@@ -10,7 +10,12 @@ import ShowConfirm from "@utils/ConfirmUtil";
 function ModifiersSettings() { 
     const actionRef = useRef<ActionType>();
      const expandedRowRender = (record: any) => {
-       return <ExpandedRowContent record={record} actionRef={actionRef} />;
+       return (
+         <ExpandedRowContent
+           record={record}
+           actionRef={actionRef as RefObject<ActionType>}
+         />
+       );
      };
 
      
@@ -18,7 +23,7 @@ function ModifiersSettings() {
      title: "Actions",
      dataIndex: "actions",
      hideInSearch: true,
-     render: (_, record) => [
+     render: (_: any, record: any) => [
        <Tooltip key="edit" title="Edit">
        <ModifiersModal actionRef={actionRef} edit={true} data={record} />
        </Tooltip>,
