@@ -33,7 +33,7 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({ record, actionR
             });
             if (confirmed) {
               await deleteAddon({ _id: record?._id });
-              actionRef?.current?.reload();
+              actionRef.current?.reload();
             }
           }}
          />
@@ -76,7 +76,7 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({ record, actionR
         pagination={false}
         toolBarRender={() => [
           <AddonsModal actionRef={actionRef} edit={false} data={record} />,
-          <Button onClick={() => actionRef.current?.reload()} type="primary">
+          <Button onClick={() => actionRef.current?.reload()} type="primary" key="refreshAddons">
             Refresh
           </Button>,
         ]}
