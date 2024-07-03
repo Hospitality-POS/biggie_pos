@@ -1,12 +1,12 @@
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
-import { ActionType, ProTable } from "@ant-design/pro-components";
+import { ProTable } from "@ant-design/pro-components";
 import AddonsModal from "@components/MODALS/pro/AddonsModal";
+import { deleteAddon } from "@services/modifierAddons";
+import ShowConfirm from "@utils/ConfirmUtil";
 import { Button, Tooltip } from "antd";
-import { useRef } from "react";
 
-const ExpandedRowContent = ({ record }) => {
-  const actionRef = useRef<ActionType>();
 
+const ExpandedRowContent = ({ record, actionRef }) => {
    const actionColumn = {
      title: "Actions",
      dataIndex: "actions",
@@ -20,7 +20,16 @@ const ExpandedRowContent = ({ record }) => {
            type="link"
            danger
            icon={<DeleteOutlined />}
-        //    onClick={() => handleDeleteClick(record)}
+           onClick={async () => {
+            const confirmed = await ShowConfirm({
+              title: `Are you sure you want to delete ${record?.name}?`,
+              position: true,
+            });
+            if (confirmed) {
+              await deleteAddon({ _id: record?._id });
+              actionRef.current?.reload();
+            }
+          }}
          />
        </Tooltip>,
      ],

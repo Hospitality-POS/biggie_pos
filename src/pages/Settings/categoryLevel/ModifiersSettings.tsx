@@ -1,15 +1,16 @@
 import { DeleteOutlined, EditOutlined, PushpinOutlined, UserOutlined } from "@ant-design/icons";
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { getAllModifierAddons } from "@services/modifierAddons";
+import { deleteModifierAddon, getAllModifierAddons } from "@services/modifierAddons";
 import { Button, Tag, Tooltip } from "antd";
 import React, { useRef } from "react";
 import ExpandedRowContent from "./ModifierAddonExpand";
 import ModifiersModal from "@components/MODALS/pro/ModifiersModal";
+import ShowConfirm from "@utils/ConfirmUtil";
 
 function ModifiersSettings() { 
     const actionRef = useRef<ActionType>();
      const expandedRowRender = (record: any) => {
-       return <ExpandedRowContent record={record} />;
+       return <ExpandedRowContent record={record} actionRef={actionRef} />;
      };
 
      
@@ -26,7 +27,16 @@ function ModifiersSettings() {
            type="link"
            danger
            icon={<DeleteOutlined />}
-           //    onClick={() => handleDeleteClick(record)}
+           onClick={async() => {
+             const confirmed = await ShowConfirm({
+               title: `Are you sure you want to delete ${record?.name}?`,
+               position: true,
+             });
+             if (confirmed) {
+               await deleteModifierAddon({ _id: record?._id });
+               actionRef?.current?.reload();
+             }
+           }}
          />
        </Tooltip>,
      ],
