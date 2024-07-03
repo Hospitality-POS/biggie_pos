@@ -189,7 +189,6 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
             treeLine: true,
             suffixIcon: <TagsOutlined />,
             treeIcon: true,
-            switcherIcon: <TagsOutlined />,
             filterTreeNode: true,
             showSearch: true,
             popupMatchSelectWidth: false,
