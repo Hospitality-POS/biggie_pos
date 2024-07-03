@@ -5,11 +5,14 @@ import {
   ProFormText,
   ProForm,
   ProFormSelect,
+  ProFormTreeSelect,
 } from "@ant-design/pro-form";
 import {
+  CarryOutOutlined,
   EditOutlined,
   FolderAddTwoTone,
   PlusCircleFilled,
+  TagsOutlined,
   UsergroupAddOutlined,
 } from "@ant-design/icons";
 import {
@@ -20,6 +23,8 @@ import {
 import ShowConfirm from "@utils/ConfirmUtil";
 import { fetchAllCategories } from "@services/categories";
 import { addNewProduct, editProduct } from "@services/products";
+import { getAllAddons, getAllModifierAddons } from "@services/modifierAddons";
+import { useQuery } from "@tanstack/react-query";
 
 interface StoreModalProps {
   edit?: boolean;
@@ -29,6 +34,29 @@ interface StoreModalProps {
 const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
+
+  const { data: allAddons } = useQuery({
+    queryKey: ["addons"],
+    queryFn: getAllModifierAddons,
+    retry: 3,
+    refetchInterval: 3000,
+    networkMode: "always",
+  });
+
+   const addonsData = allAddons?.map(
+     (modifierAddon: { name: string; _id: string; addons: any[] }) => ({
+       title: modifierAddon?.name,
+       value: modifierAddon?._id,
+       disabled: true,
+       children: modifierAddon?.addons.map((childTable) => ({
+           title: childTable?.name,
+           value: childTable?._id,
+           icon: <CarryOutOutlined />,
+         })),
+     })
+   );
+    
+
 
   return (
     <ModalForm
@@ -84,7 +112,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
         if (confirmed) {
           edit
             ? await editProduct({ values, _id: data?._id })
-            : await addNewProduct({ ...values, quantity: 1});
+            : await addNewProduct({ ...values, quantity: 1 });
           return true;
         }
       }}
@@ -150,7 +178,50 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           rules={[{ required: true, message: "Product Price is required" }]}
           placeholder="Enter Product Price"
         />
+        <ProFormTreeSelect
+          width={"md"}
+          name="addons"
+          label="Addons (optional)"
+          request={ () => addonsData}
+          placeholder="Select addons"
+          allowClear
+          fieldProps={{
+            treeLine: true,
+            suffixIcon: <TagsOutlined />,
+            treeIcon: true,
+            switcherIcon: <TagsOutlined />,
+            filterTreeNode: true,
+            showSearch: true,
+            popupMatchSelectWidth: false,
+            labelInValue: true,
+            treeTitleRender: (value) =><span style={{color: "black", fontWeight:"normal", fontSize:"14px"}}>{value.title}</span>,
+            autoClearSearchValue: true,
+            multiple: true,
+            treeNodeFilterProp: "title",
+            fieldNames: {
+              label: "title",
+            },
+            getPopupContainer: () => document.body,
+          }}
+          style={{ width: "100%" }}
+        />
+        {/* <ProFormSelect
+          width={"md"}
+          name="printer"
+          label="Printer"
+          rules={[{ required: true, message: "Printer is required" }]}
+          showSearch
+          placeholder="Select printer"
+          request={async () => {
+            const data = await fetchAllPrinters({});
+            const values = data?.map((e: { name: any; _id: any }) => {
+              return { label: e.name, value: e._id };
+            });
+            return values;
+          }}
+        /> */}
       </ProForm.Group>
+
       <ProForm.Group size={"large"} title="More Info*">
         <ProFormTextArea
           hasFeedback
