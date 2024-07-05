@@ -46,11 +46,11 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
     onAfterPrint: onCloseM,
   });
 
-  // const overallTotal = data?.reduce(
-  //   (accumulator: number, item: { orderItems: any[] }) =>
-  //     accumulator + getTotalAmount(item.orderItems),
-  //   0
-  // );
+  const overallTotal = data?.reduce(
+    (accumulator: number, item: { orderItems: any[] }) =>
+      accumulator + getTotalAmount(item.orderItems),
+    0
+  );
   const { BRAND_NAME1 } = useSystemDetails();
 
   return (
@@ -184,29 +184,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                         sx={{ fontWeight: "bold", textAlign: "center" }}
                       >
                         Overall Total:{" "}
-                        <span>{data.totalCost?.toLocaleString()}</span>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell
-                        colSpan={2}
-                        sx={{ fontWeight: "bold", textAlign: "center" }}
-                      >
-                        Overall Discount:{" "}
-                        <span>
-                          {data.totalDiscountAmount?.toLocaleString()}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell
-                        colSpan={2}
-                        sx={{ fontWeight: "bold", textAlign: "center" }}
-                      >
-                        Overall inclusive discount:{" "}
-                        <span>
-                          {data.totalInclusiveDiscount?.toLocaleString()}
-                        </span>
+                        <span>{overallTotal?.toLocaleString()}</span>
                       </TableCell>
                     </TableRow>
                   </TableBody>

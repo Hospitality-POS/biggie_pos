@@ -110,7 +110,33 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                   >
                     Overall Total: {data?.totalCost.toLocaleString()}
                   </TableCell>
+                  
                 </TableRow>
+                 
+                    <TableRow>
+                      <TableCell
+                        colSpan={3}
+                        sx={{ fontWeight: "bold", textAlign: "center" }}
+                      >
+                        Overall Discount:{" "}
+                        <span>
+                          {data?.totalDiscountAmount?.toLocaleString()}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell
+                        colSpan={3}
+                        sx={{ fontWeight: "bold", textAlign: "center" }}
+                      >
+                        Overall inclusive discount:{" "}
+                        <span>
+                          {data?.totalInclusiveDiscount?.toLocaleString()}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+
+                    
               </TableBody>
             </Table>
           </TableContainer>
