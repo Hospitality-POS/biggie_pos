@@ -111,8 +111,8 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
         });
         if (confirmed) {
           edit
-            ? await editProduct({ values, _id: data?._id })
-            : await addNewProduct({ ...values, quantity: 1 });
+            ? await editProduct({ values, _id: data?._id, addons: values.addons.map((addon) => addon.value) })
+            : await addNewProduct({ ...values, quantity: 1, addons: values.addons.map((addon) => addon.value) });
           return true;
         }
       }}
