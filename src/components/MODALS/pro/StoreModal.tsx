@@ -76,6 +76,10 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
                 value: data?.category?._id,
                 lable: data?.category?.name,
               },
+              addons: data?.addons?.map((addon) => ({
+                value: addon?._id,
+                lable: addon?.name,
+              })),
             }
           : {}
       }
