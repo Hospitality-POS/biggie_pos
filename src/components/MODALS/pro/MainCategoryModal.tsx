@@ -51,7 +51,7 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
-        style: { display: "grid", placeContent: "center" },
+        centered: true,
       }}
       onFinish={async (values) => {
         const confirmed = await ShowConfirm({
@@ -82,7 +82,9 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
           width="md"
           name="name"
           label="Create New Main Category"
-          rules={[{ required: true, message: "Main Category Name is required" }]}
+          rules={[
+            { required: true, message: "Main Category Name is required" },
+          ]}
           placeholder="Enter Main Category Name"
         />
       </ProForm.Group>

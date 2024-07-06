@@ -52,10 +52,10 @@ const AddonsModal: React.FC<AddonsModalProps> = ({
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
-        style: { display: "grid", placeContent: "center" },
+        centered: true,
       }}
-      onFinish={async (values) => {        
-        let payload ={name: values?.name, modifier: data?._id}
+      onFinish={async (values) => {
+        let payload = { name: values?.name, modifier: data?._id };
         const confirmed = await ShowConfirm({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"

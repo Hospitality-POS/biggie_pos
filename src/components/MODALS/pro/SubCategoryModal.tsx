@@ -60,7 +60,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
-        style: { display: "grid", placeContent: "center" },
+        centered: true,
       }}
       onFinish={async (values) => {
         const confirmed = await ShowConfirm({

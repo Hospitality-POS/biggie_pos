@@ -51,7 +51,7 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
-        style: { display: "grid", placeContent: "center" },
+        centered: true,
       }}
       onFinish={async (values) => {
         const confirmed = await ShowConfirm({

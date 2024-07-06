@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { Button, Form, Space } from "antd";
 import {
   ModalForm,
@@ -33,7 +33,7 @@ interface StoreModalProps {
 
 const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
   const [form] = Form.useForm();
-  const formRef = useRef();
+  const formRef = useRef<refType>();
 
   const { data: allAddons } = useQuery({
     queryKey: ["addons"],
@@ -42,6 +42,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
     refetchInterval: 3000,
     networkMode: "always",
   });
+
 
    const addonsData = allAddons?.map(
      (modifierAddon: { name: string; _id: string; addons: any[] }) => ({
@@ -55,9 +56,10 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
          })),
      })
    );
+
+  //  edit ? console.log("edit", data) : console.log("add", data);
     
-
-
+  
   return (
     <ModalForm
       form={form}
@@ -76,10 +78,11 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
                 value: data?.category?._id,
                 lable: data?.category?.name,
               },
-              addons: data?.addons?.map((addon) => ({
-                value: addon?._id,
-                lable: addon?.name,
-              })),
+              addons:
+                data?.addons?.map((addon: any) => ({
+                  label: addon.name,
+                  value: addon._id,
+                })) || [],
             }
           : {}
       }
@@ -105,9 +108,10 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
-        style: { display: "grid", placeContent: "center" },
+        centered: true,
       }}
       onFinish={async (values) => {
+       
         const confirmed = await ShowConfirm({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
@@ -115,8 +119,16 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
         });
         if (confirmed) {
           edit
-            ? await editProduct({ values, _id: data?._id, addons: values.addons.map((addon) => addon.value) })
-            : await addNewProduct({ ...values, quantity: 1, addons: values.addons.map((addon) => addon.value) });
+            ? await editProduct({
+                ...values,
+                _id: data?._id,
+                addons: values.addons.map((addon: any) => addon.value),
+              })
+            : await addNewProduct({
+                ...values,
+                quantity: 1,
+                addons: values.addons.map((addon: any) => addon.value),
+              });
           return true;
         }
       }}
@@ -185,8 +197,9 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
         <ProFormTreeSelect
           width={"md"}
           name="addons"
+          key="addons"
           label="Addons (optional)"
-          request={ () => addonsData}
+          request={() => addonsData}
           placeholder="Select addons"
           allowClear
           fieldProps={{
@@ -197,7 +210,17 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
             showSearch: true,
             popupMatchSelectWidth: false,
             labelInValue: true,
-            treeTitleRender: (value) =><span style={{color: "black", fontWeight:"normal", fontSize:"14px"}}>{value.title}</span>,
+            treeTitleRender: (value) => (
+              <span
+                style={{
+                  color: "black",
+                  fontWeight: "normal",
+                  fontSize: "14px",
+                }}
+              >
+                {value.title}
+              </span>
+            ),
             autoClearSearchValue: true,
             multiple: true,
             treeNodeFilterProp: "title",

@@ -95,7 +95,7 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
-        style: { display: "grid", placeContent: "center" },
+        centered: true,
       }}
       onFinish={async (values) => {
         const payload = { ...values, id };
