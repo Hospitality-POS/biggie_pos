@@ -17,7 +17,7 @@ function ClientPin({ cart }: ClientPinProps) {
 
   return (
     <ModalForm
-      initialValues={{...cart,client_pin: cart?.clientPin} }
+      initialValues={{ ...cart, client_pin: cart?.clientPin }}
       title={
         <Space>
           <KeyOutlined />
@@ -28,12 +28,13 @@ function ClientPin({ cart }: ClientPinProps) {
       width={400}
       modalProps={{
         destroyOnClose: true,
+        centered: true,
       }}
       trigger={
         <Button
           style={{
             color: "#6c1c2c",
-            borderColor: "#6c1c2c"
+            borderColor: "#6c1c2c",
           }}
           icon={<KeyOutlined />}
         >
