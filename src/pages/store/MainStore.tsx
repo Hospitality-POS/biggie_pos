@@ -149,10 +149,7 @@ export default function MainStore() {
               tabs={{
                 type: "card",
                 items: tabsItems,
-                // tabPosition: "",
                 tabBarGutter: 5,
-                // style: { backgroundColor: "#6c1c2c" },
-                // centered: true,
                 animated: true,
               }}
               bordered
