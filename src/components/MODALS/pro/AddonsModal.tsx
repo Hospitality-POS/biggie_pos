@@ -1,10 +1,9 @@
 import React, { useRef } from "react";
 import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
-import { CrownOutlined, EditOutlined, TagsOutlined } from "@ant-design/icons";
+import { EditOutlined, TagsOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { createAddon, editAddon } from "@services/modifierAddons";
-
 
 interface AddonsModalProps {
   actionRef: any;
@@ -12,13 +11,29 @@ interface AddonsModalProps {
   data?: any;
 }
 
-const AddonsModal: React.FC<AddonsModalProps> = ({
-  actionRef,
-  edit,
-  data,
-}) => {
+const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
+
+  const editAddonsPayload = {
+    ...data,
+  };
+
+  const HandleOnAddonsFinish = async (values: Partial<AddonsType>) => {
+    let payload = { name: values?.name, modifier: data?._id };
+    const confirmed = await ShowConfirm({
+      title: `Are you sure you want to ${
+        edit ? "update this" : "add new"
+      } addons?`,
+    });
+    if (confirmed) {
+      edit
+        ? await editAddon({ values, _id: data?._id, name: data?.name })
+        : await createAddon(payload);
+      actionRef.current.reset();
+      return true;
+    }
+  };
 
   return (
     <ModalForm
@@ -30,7 +45,7 @@ const AddonsModal: React.FC<AddonsModalProps> = ({
           {edit ? "Edit Addons" : "Add New Addons"}
         </Space>
       }
-      initialValues={edit ? { ...data } : {}}
+      initialValues={edit ? editAddonsPayload : {}}
       trigger={
         edit ? (
           <Button
@@ -39,7 +54,7 @@ const AddonsModal: React.FC<AddonsModalProps> = ({
             icon={
               <EditOutlined
                 style={{ color: "#6c1c2c" }}
-                onClick={() => form.setFieldsValue(data)}
+                onClick={() => form.setFieldsValue(editAddonsPayload)}
               />
             }
           ></Button>
@@ -54,21 +69,7 @@ const AddonsModal: React.FC<AddonsModalProps> = ({
         destroyOnClose: true,
         centered: true,
       }}
-      onFinish={async (values) => {
-        let payload = { name: values?.name, modifier: data?._id };
-        const confirmed = await ShowConfirm({
-          title: `Are you sure you want to ${
-            edit ? "update this" : "add new"
-          } addons?`,
-        });
-        if (confirmed) {
-          edit
-            ? await editAddon({ values, _id: data?._id, name: data?.name })
-            : await createAddon(payload);
-          actionRef.current.reset();
-          return true;
-        }
-      }}
+      onFinish={HandleOnAddonsFinish}
       onOpenChange={(visible) => !visible}
       form={form}
       formRef={formRef}

@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
-import { Button, Form, Space } from "antd";
+import { Button, Form, FormInstance, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
-import { CrownOutlined, EditOutlined, PushpinOutlined } from "@ant-design/icons";
+import { EditOutlined, PushpinOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { createModifierAddon, editModifierAddon } from "@services/modifierAddons";
 
@@ -10,6 +10,10 @@ interface ModifiersModalProps {
   edit?: boolean;
   data?: any;
 }
+interface ModifiersType {
+  name: string;
+  _id: string;
+}
 
 const ModifiersModal: React.FC<ModifiersModalProps> = ({
   actionRef,
@@ -17,8 +21,26 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
   data,
 }) => {
   const [form] = Form.useForm();
-  const formRef = useRef();
+  const formRef = useRef<FormInstance>();
 
+  const editModifiersPayload = {
+    ...data,
+  };
+
+  const HandleOnModifiersFinish = async (values: Partial<ModifiersType>) => {
+    const confirmed = await ShowConfirm({
+      title: `Are you sure you want to ${
+        edit ? "update this" : "add new"
+      } modifiers?`,
+    });
+    if (confirmed) {
+      edit
+        ? await editModifierAddon({ values, _id: data?._id })
+        : await createModifierAddon(values);
+      actionRef.current.reset();
+      return true;
+    }
+  };
   return (
     <ModalForm
       width={550}
@@ -29,7 +51,7 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
           {edit ? "Edit Modifiers" : "Add New Modifiers"}
         </Space>
       }
-      initialValues={edit ? { ...data } : {}}
+      initialValues={edit ? editModifiersPayload : {}}
       trigger={
         edit ? (
           <Button
@@ -38,7 +60,7 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
             icon={
               <EditOutlined
                 style={{ color: "#6c1c2c" }}
-                onClick={() => form.setFieldsValue(data)}
+                onClick={() => form.setFieldsValue(editModifiersPayload)}
               />
             }
           ></Button>
@@ -53,20 +75,7 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
         destroyOnClose: true,
         centered: true,
       }}
-      onFinish={async (values) => {
-        const confirmed = await ShowConfirm({
-          title: `Are you sure you want to ${
-            edit ? "update this" : "add new"
-          } modifiers?`,
-        });
-        if (confirmed) {
-          edit
-            ? await editModifierAddon({ values, _id: data?._id })
-            : await createModifierAddon(values);
-          actionRef.current.reset();
-          return true;
-        }
-      }}
+      onFinish={HandleOnModifiersFinish}
       onOpenChange={(visible) => !visible}
       form={form}
       formRef={formRef}
