@@ -38,10 +38,10 @@ export const addNewProduct = async (params: ParamsType) => {
   }
 };
 export const editProduct = async (data: ParamsType) => {
-  // console.log(data); 
+  console.log(data); 
 
   try {
-    const response = await axios.put(`${productUrl}/${data._id}`, data.values, {
+    const response = await axios.put(`${productUrl}/${data._id}`, data, {
       headers,
     });
     notification.success({
@@ -51,12 +51,14 @@ export const editProduct = async (data: ParamsType) => {
     });
     return response.data;
   } catch (error) {
+    console.log(error);
+    
     Modal.error({
       title: "Oops! Something went wrong",
       content: `${
         error?.response.data.error == "Internal server error"
           ? "Failed to edit product, Please check your internet connection!"
-          : "You need to be Authorized to modify the product."
+          : "Please check your internet connection and try again later."
       }`,
       centered: true,
     });
