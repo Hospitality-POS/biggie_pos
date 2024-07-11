@@ -1,4 +1,4 @@
-import { FolderAddOutlined, HolderOutlined } from "@ant-design/icons";
+import { FolderAddOutlined, HolderOutlined, LoadingOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -30,7 +30,7 @@ export default function MainStore() {
     queryKey: ["products"],
     queryFn: getAllProducts,
     retry: 1,
-    refetchInterval: 3000,
+    refetchInterval: 5000,
     networkMode: "always",
   });
 
@@ -91,6 +91,7 @@ export default function MainStore() {
       <Spin
         size="large"
         fullscreen
+        indicator={<LoadingOutlined style={{ fontSize: 30 }} spin />}
         tip="please wait, fetching all products ..."
       />
     );
