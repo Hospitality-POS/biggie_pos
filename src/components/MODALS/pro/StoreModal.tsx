@@ -188,14 +188,25 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
         />
 
         {edit && (
-          <ProFormText
-            key={"sub_category"}
-            disabled
-            width="md"
-            id="product-sub-category"
-            name={["sub_category", "name"]}
-            label="sub-category"
-          />
+          <>
+            <ProFormText
+              key={"sub_category"}
+              disabled
+              width="md"
+              id="product-sub-category"
+              name={["sub_category", "name"]}
+              label="Sub-Category"
+            />
+            <ProFormText
+              hasFeedback
+              disabled
+              width="md"
+              id="productcode"
+              name="code"
+              label="Code"
+              convertValue={(value,_)=> value.toUpperCase()}
+            />
+          </>
         )}
         <ProFormMoney
           key={"price"}
