@@ -41,9 +41,7 @@ export const editProduct = async (data: ParamsType) => {
   console.log(data); 
 
   try {
-    const response = await axios.put(`${productUrl}/${data._id}`, data, {
-      headers,
-    });
+    const response = await axios.put(`${productUrl}/${data._id}`, {...data, category: data?.category?.value});
     notification.success({
       message: `Success`,
       description: "Successfully edited a Product",
