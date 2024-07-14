@@ -6,9 +6,8 @@ import { ApartmentOutlined, HolderOutlined } from "@ant-design/icons";
 import SubCategorySettings from "./Sub_category";
 import MainCategorySettings from "./Main_category";
 import { Typography } from "antd";
+import ModifiersSettings from "./ModifiersSettings";
 
-const Category2 = () => <div>Content for Category 2</div>;
-const MainCategory = () => <div>Main Category Content</div>;
 
 const CategoryMainSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("mainCategory");
@@ -35,6 +34,12 @@ const CategoryMainSettings: React.FC = () => {
       tab: "category",
       label: <Space><HolderOutlined/>Category</Space>,
       children: <CategorySettings />,
+    },
+    {
+      key: "modifiers",
+      tab: "Modifiers",
+      label: <Space><HolderOutlined/>Modifiers</Space>,
+      children: <ModifiersSettings />,
     },
   ];
 

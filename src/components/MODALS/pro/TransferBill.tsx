@@ -1,22 +1,20 @@
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 import { Button, Form, Space } from "antd";
-import { ModalForm, ProForm, ProFormDigit } from "@ant-design/pro-form";
+import { ModalForm, ProForm } from "@ant-design/pro-form";
 import {
   CarryOutOutlined,
-  DollarCircleOutlined,
   SwapOutlined,
   TableOutlined,
 } from "@ant-design/icons";
-import { transferBill } from "@services/bills";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { ProFormSelect, ProFormTreeSelect } from "@ant-design/pro-components";
-import { fetchTableUsequery, transferCartitems } from "@services/tables";
+import { fetchTableUsequery } from "@services/tables";
 import { useQuery } from "@tanstack/react-query";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { useNavigate, useParams } from "react-router-dom";
-import { createCart, deleteCartItem, getCart, transferCartitemsAction } from "@features/Cart/CartActions";
+import { getCart, transferCartitemsAction } from "@features/Cart/CartActions";
 import useCartItemsData from "@hooks/cartItemsData";
-import { reset } from "@features/Auth/AuthSlice";
+import { Product } from "src/interfaces/Product";
 
 interface TransferBillModalProps {
   data?: any;
@@ -36,17 +34,11 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({
   const formRef = useRef();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const {
-    data: cartItems,
-    invalidate,
-    transferBillMutate,
-  } = useCartItemsData();
+  useCartItemsData();
     const {
-      cartDetails,
-      totalAmount,
       transferState,
       cartItems: data2,
-      loading: iu,
+      // loading: iu,
     } = useAppSelector((state) => state.cart);
 
   const { id } = useParams();
@@ -68,7 +60,7 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({
     })
   );
 
-  const productOptions = cartItem?.map((product) => ({
+  const productOptions = cartItem?.map((product: Product) => ({
     label: product.product_id?.name,
     value: product._id,
   }));
@@ -103,20 +95,20 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
-        style: { display: "grid", placeContent: "center" },
+        centered: true,
       }}
       onFinish={async (values) => {
-        const payload = {...values, id}
-        console.log("transfer bilss ddata", payload);
+        const payload = { ...values, id };
+        // console.log("transfer bilss ddata", payload);
         const confirmed = await ShowConfirm({
           title: "Are you sure you want to transfer this bill?",
         });
         if (confirmed) {
           // await transferBillMutate(values);
-         await dispatch(transferCartitemsAction(payload));
+          await dispatch(transferCartitemsAction(payload));
           // invalidate();
-         await dispatch(getCart(id));
-          console.log("after transfer", data2);
+          await dispatch(getCart(id));
+          // console.log("after transfer", data2);
 
           if (data2?.length === 1 || data2?.length === 0 || transferState) {
             navigate("/tables");
@@ -167,6 +159,17 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({
             labelInValue: true,
             autoClearSearchValue: true,
             multiple: false,
+            treeTitleRender: (value) => (
+              <span
+                style={{
+                  color: "black",
+                  fontWeight: "normal",
+                  fontSize: "14px",
+                }}
+              >
+                {value.title}
+              </span>
+            ),
             treeNodeFilterProp: "title",
             fieldNames: {
               label: "title",

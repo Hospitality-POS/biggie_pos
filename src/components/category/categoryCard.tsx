@@ -1,47 +1,28 @@
-import { Card, CardContent, CardMedia, Typography } from "@mui/material";
-import { green, grey } from "@mui/material/colors";
+import { CheckCard } from "@ant-design/pro-components";
+import { Image, Space, Typography } from "antd";
 
 function CategoryCard({
   icon,
   name,
-  itemCount,
   id,
   handleSelectedCard,
-  selectedCard,
 }: any) {
  
-  
   return (
-    <Card
-      onClick={()=>handleSelectedCard(id)}
-      sx={{
-        backgroundColor: selectedCard === id ? "#bc8c7c" : grey[100],
-        color: selectedCard === id ? "white" : "black",
-        cursor: "pointer",
-        transition: "background-color 0.3s ease",
-        width: "120px",
-        height: "100px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <CardContent>
-        <CardMedia
-          component="img"
-          alt="icon"
-          image={icon ? icon : "/chip4.png"}
-          sx={{ width: "40px", height: "40px" }}
-        />
-        <Typography variant="h6" component="div" fontSize={12}>
+    <CheckCard
+      onClick={() => handleSelectedCard(id)}
+      title={
+        <Space style={{ justifyContent: "center", width: "100vw" }}>
+          <Image preview={false} src={icon ? icon : "/chip4.png"} width={50} />
+        </Space>
+      }
+      description={
+        <Typography.Title level={4} ellipsis={{ rows: 3 }}>
           {name}
-        </Typography>
-        <Typography variant="subtitle2" color="text.secondary">
-          {itemCount} Items
-        </Typography>
-      </CardContent>
-    </Card>
+        </Typography.Title>
+      }
+      style={{ width: 200, height: 200, overflow: "hidden" }}
+    />
   );
 }
 

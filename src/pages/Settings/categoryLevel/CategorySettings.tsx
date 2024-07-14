@@ -71,6 +71,7 @@ const CategorySettings = () => {
             fieldProps: {
               placeholder: "Enter category name",
             },
+            ellipsis: true,
           },
           {
             title: "Subcategory",

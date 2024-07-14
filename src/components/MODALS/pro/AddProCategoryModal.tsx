@@ -72,7 +72,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
-        style: { display: "grid", placeContent: "center" },
+        centered: true,
       }}
       onFinish={async (values) => {
         const confirmed = await ShowConfirm({

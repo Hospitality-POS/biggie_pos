@@ -48,6 +48,7 @@ const AddProPaymentMethodSettingsModal: React.FC<
         autoFocusFirstInput
         modalProps={{
           destroyOnClose: true,
+          centered: true,
         }}
         onFinish={async (values) => {
           const confirmed = await ShowConfirm({
@@ -67,7 +68,7 @@ const AddProPaymentMethodSettingsModal: React.FC<
         submitter={{
           searchConfig: {
             resetText: "Cancel",
-            submitText:  edit ? "Edit method" : "Add Payment Method",
+            submitText: edit ? "Edit method" : "Add Payment Method",
           },
         }}
       >

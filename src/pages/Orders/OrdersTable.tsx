@@ -146,8 +146,7 @@ const OrdersTable = () => {
             hideInSearch: true,
             ellipsis: true,
             valueType: "money",
-            
-
+            renderText: (value: number) => `Ksh. ${value.toFixed(2)}`,
           },
           {
             title: "Time Closed",
@@ -183,7 +182,7 @@ const OrdersTable = () => {
         }}
         options={{
           search: true,
-          fullScreen: true,          
+          fullScreen: true,
         }}
         expandable={{
           expandedRowRender,

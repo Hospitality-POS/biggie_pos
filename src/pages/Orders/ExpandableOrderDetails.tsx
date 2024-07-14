@@ -1,19 +1,25 @@
 import { ProDescriptions } from "@ant-design/pro-components";
 
-const ExpandedRowContent = ({ record }) => {
-  const { order_no, username, createdAt, served_by, order_payments } = record;
-  
+interface ExpandedRowContentProps {
+  record: OrderDetailsInterface;
+}
+
+const ExpandedRowContent = ({ record }: ExpandedRowContentProps) => {
+  const {
+    order_no,
+    createdAt,
+    served_by,
+    order_payments,
+    discount,
+    discount_type,
+  } = record;
+
   const formattedCreatedAt = new Date(createdAt).toLocaleString();
-
-
-
 
   const paymentData = order_payments?.map((payment) => ({
     title: payment?.name,
     value: `Ksh.${payment?.amount?.toLocaleString()}`,
   }));
-
-  
 
   const singlePaymentDisplay =
     paymentData?.length === 1 ? (
@@ -21,7 +27,7 @@ const ExpandedRowContent = ({ record }) => {
         {paymentData[0]?.title} - {paymentData[0]?.value}
       </span>
     ) : (
-      <ul style={{ listStyleType: "none", paddingLeft: 0, marginTop:0 }}>
+      <ul style={{ listStyleType: "none", paddingLeft: 0, marginTop: 0 }}>
         {paymentData?.map((payment) => (
           <li key={payment?.title}>
             {payment?.title} - {payment?.value}
@@ -41,8 +47,14 @@ const ExpandedRowContent = ({ record }) => {
       value: served_by?.username,
     },
     {
-      title: "Date created",
-      dataIndex: "createdAt",
+      title: "Discount",
+      dataIndex: "discount",
+      render: (value) =>
+        discount_type === "percentage"
+          ? `${value}%`
+          : discount_type === "amount"
+          ? `${value} .ksh`
+          : "N/A",
     },
   ];
 
@@ -55,9 +67,10 @@ const ExpandedRowContent = ({ record }) => {
       title="Additional Information"
       dataSource={{
         order_no,
-        username,
         createdAt: formattedCreatedAt,
-        served_by
+        served_by,
+        discount,
+        discount_type,
       }}
       columns={data}
     />
