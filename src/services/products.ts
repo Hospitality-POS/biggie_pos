@@ -38,10 +38,10 @@ export const addNewProduct = async (params: ParamsType) => {
   }
 };
 export const editProduct = async (data: ParamsType) => {
-  console.log(data); 
+  // console.log(data); 
 
   try {
-    const response = await axios.put(`${productUrl}/${data._id}`, {...data, category: data?.category?.value});
+    const response = await axios.put(`${productUrl}/${data._id}`, {...data, category: data?.category?.value || data.category});
     notification.success({
       message: `Success`,
       description: "Successfully edited a Product",
