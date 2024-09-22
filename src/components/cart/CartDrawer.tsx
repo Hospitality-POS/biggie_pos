@@ -1,18 +1,6 @@
-import React, { Key, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  CardContent,
-  Grid,
-  Divider,
-  CardMedia,
-  Paper,
-  CardActions,
-} from "@mui/material";
-import ClearIcon from "@mui/icons-material/Clear";
+import React, { Key, useEffect, useMemo, useState } from "react";
+import { Divider, CardMedia } from "@mui/material";
 import CartItemCard from "./CartItemCard";
-import PrintIcon from "@mui/icons-material/Print";
-import TableBarIcon from "@mui/icons-material/TableBar";
-import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import classes from "./Cart.module.css";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import {
@@ -25,40 +13,30 @@ import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
-import SendIcon from "@mui/icons-material/Send";
-import { clearcart } from "../../features/Cart/CartSlice";
 import { Button, Card, Space, Typography } from "antd";
 import {
-  BoxPlotOutlined,
   CloseCircleOutlined,
   OrderedListOutlined,
-  PercentageOutlined,
-  PrinterOutlined,
   RestOutlined,
   SendOutlined,
   SmileFilled,
-  SwapOutlined,
   SwitcherOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
-import DiscountModal from "@components/MODALS/pro/DiscountModal";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAllCartItems } from "@services/cart";
-import useCartItemsData from "@hooks/cartItemsData";
 import ClientPin from "@components/MODALS/ClientPin";
 
-function formatTotal(totalAmount: { toLocaleString: () => number | string }) {
-  return totalAmount?.toLocaleString();
-}
+// function formatTotal(totalAmount: { toLocaleString: () => number | string }) {
+//   return totalAmount?.toLocaleString();
+// }
 
 const CartDrawer: React.FC = () => {
-  const [openM, setOpenM] = useState(false);
+  // const [openM, setOpenM] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const {
     cartDetails,
     totalAmount,
     cartItems: data,
-    loading
+    loading,
   } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
 
@@ -72,7 +50,25 @@ const CartDrawer: React.FC = () => {
   const CartItemCardMemo = React.memo(CartItemCard);
 
   const memoizedData = useMemo(() => data, [data]);
-  const formattedTotal = useMemo(() => formatTotal(totalAmount), [totalAmount]);
+
+  const totalCartAmount = cartDetails?.items.reduce((acc, item) => {
+    return acc + item.price;
+  }, 0);
+  // Function to calculate the final amount after discount
+  const calculateFinalAmount = () => {
+    if (!cartDetails?.discount) {
+      return totalCartAmount.toLocaleString();
+    }
+    if (cartDetails?.discount_type === "percentage") {
+      const totalAmountCheck1 =
+        totalCartAmount - totalCartAmount * (cartDetails?.discount / 100);
+      return totalAmountCheck1.toLocaleString();
+    } else {
+      const totalAmountCheck = totalCartAmount - cartDetails?.discount;
+      return totalAmountCheck.toLocaleString();
+    }
+  };
+  // const formattedTotal = useMemo(() => formatTotal(calculateFinalAmount()), [calculateFinalAmount()]);
   const orderNumber = useMemo(
     () => cartDetails?.order_no,
     [cartDetails?.order_no]
@@ -200,9 +196,9 @@ const CartDrawer: React.FC = () => {
               {/* <div style={{ display: "grid", gap: 2 }}> */}
 
               <Typography.Text strong>
-                Amount Due : Ksh.
+                Amount Due : Ksh.{" "}
                 {totalAmount ? (
-                  formattedTotal
+                  calculateFinalAmount()
                 ) : (
                   <Typography>Calculating...</Typography>
                 )}
@@ -256,7 +252,7 @@ const CartDrawer: React.FC = () => {
             </Space>
           </Space>
         ) : (
-          <Card className={classes.cardm} sx={{ boxShadow: "none" }}>
+          <Card className={classes.cardm}>
             <div>
               <CardMedia
                 component="img"
