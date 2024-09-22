@@ -1,5 +1,5 @@
 // AddProCategoryDialog.tsx
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, Space } from "antd";
 import {
   ModalForm,
@@ -33,10 +33,29 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        name: data.name,
+        subcategory_id: data.sub_category?._id,
+      });
+    }
+  }, [open, data, form]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
 
   return (
     <ModalForm
       form={form}
+      open={open}
+      onOpenChange={handleOpenChange}
       formRef={formRef}
       title={
         <Space>
@@ -47,24 +66,20 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
       initialValues={
         edit
           ? {
-              ...data,
-              subcategory_id: {
-                value: data?.sub_category?._id,
-                lable: data?.sub_category?.name,
-              },
+              name: data?.name,
+              subcategory_id: data?.sub_category?._id,
             }
           : {}
       }
       trigger={
         edit ? (
           <Button
-            type="link"
             key="button"
-            icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
+            icon={<EditOutlined style={{ color: "#914F1E" }} />}
             onClick={() => form.setFieldsValue(data)}
-          ></Button>
+          >Edit</Button>
         ) : (
-          <Button key="button" icon={<ApartmentOutlined />}>
+          <Button type="primary" key="button" icon={<ApartmentOutlined />}>
             New Category
           </Button>
         )
@@ -78,17 +93,18 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
         const confirmed = await ShowConfirm({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
-          } Cateory?`,
+          } Category?`,
+          position: true,
         });
         if (confirmed) {
-          edit
-            ? await updateCategory({ values, _id: data?._id })
+          data
+            ? await updateCategory({ ...values, _id: data?._id })
             : await addNewCategory(values);
-          actionRef.current.reset();
+          actionRef.current?.reload();
+          setOpen(false);
           return true;
         }
       }}
-      onOpenChange={(visible) => !visible}
       submitter={{
         searchConfig: {
           resetText: "Cancel",
@@ -116,10 +132,9 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
           placeholder="Select subcategory"
           request={async (params) => {
             const data = await fetchSubCategories(params);
-            const values = data.map((e: { name: any; _id: any }) => {
+            return data.map((e: { name: any; _id: any }) => {
               return { label: e.name, value: e._id };
             });
-            return values;
           }}
         />
       </ProForm.Group>

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import { EditOutlined, TagsOutlined } from "@ant-design/icons";
@@ -15,6 +15,23 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
 
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        ...data,
+      });
+    }
+  }, [open, data, form]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
+
   const editAddonsPayload = {
     ...data,
   };
@@ -25,6 +42,7 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
       title: `Are you sure you want to ${
         edit ? "update this" : "add new"
       } addons?`,
+      position: true,
     });
     if (confirmed) {
       edit
@@ -37,6 +55,8 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
 
   return (
     <ModalForm
+      open={open}
+      onOpenChange={handleOpenChange}
       width={550}
       layout="horizontal"
       title={
@@ -49,7 +69,6 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
       trigger={
         edit ? (
           <Button
-            type="link"
             key="button"
             icon={
               <EditOutlined
@@ -57,9 +76,11 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
                 onClick={() => form.setFieldsValue(editAddonsPayload)}
               />
             }
-          ></Button>
+          >
+            Edit
+          </Button>
         ) : (
-          <Button key="button" icon={<TagsOutlined />}>
+          <Button type="primary" key="button" icon={<TagsOutlined />}>
             Add New Addons
           </Button>
         )
@@ -70,7 +91,6 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
         centered: true,
       }}
       onFinish={HandleOnAddonsFinish}
-      onOpenChange={(visible) => !visible}
       form={form}
       formRef={formRef}
       submitter={{

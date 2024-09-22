@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, Space } from "antd";
 import {
   ModalForm,
@@ -33,11 +33,32 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   const [form] = Form.useForm();
   const formRef = useRef();
 
+   const [open, setOpen] = useState(false);
+
+   useEffect(() => {
+     if (open && data) {
+       form.setFieldsValue({
+         ...data,
+         phoneNumber: reversePhoneNumber(data?.phone),
+         roleId: data?.role?._id,
+       });
+     }
+   }, [open, data, form]);
+
+   const handleOpenChange = (newOpen: boolean) => {
+     setOpen(newOpen);
+     if (!newOpen) {
+       form.resetFields();
+     }
+   };
+
   const { handleConfirmAddUser } = useAddEditUserModal({ onAddUser });
 
   return (
     <ModalForm
       form={form}
+      open={open}
+      onOpenChange={handleOpenChange}
       formRef={formRef}
       title={
         <Space>
@@ -60,7 +81,6 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       trigger={
         edit ? (
           <Button
-            type="link"
             key="button"
             icon={
               <EditOutlined
@@ -68,7 +88,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
                 onClick={() => form.setFieldsValue(data)}
               />
             }
-          ></Button>
+          >Edit</Button>
         ) : (
           <Button key="button" icon={<UsergroupAddOutlined />}>
             New
@@ -99,7 +119,6 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           return true;
         }
       }}
-      onOpenChange={(visible) => !visible}
       submitter={{
         searchConfig: {
           resetText: "Cancel",

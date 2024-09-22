@@ -1,10 +1,14 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
-import { AimOutlined, EditOutlined, SubnodeOutlined } from "@ant-design/icons";
+import { EditOutlined, SubnodeOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { ProFormSelect } from "@ant-design/pro-components";
-import { addNewSubCategory, editSubCategory, fetchMainCategories } from "@services/categories";
+import {
+  addNewSubCategory,
+  editSubCategory,
+  fetchMainCategories,
+} from "@services/categories";
 
 interface SubCategoryModalProps {
   actionRef: any;
@@ -19,9 +23,31 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        ...data,
+        main_category: {
+          value: data?.main_category?._id,
+          lable: data?.main_category?.name,
+        },
+      });
+    }
+  }, [open, data, form]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
 
   return (
     <ModalForm
+      open={open}
+      onOpenChange={handleOpenChange}
       title={
         <Space>
           <SubnodeOutlined />
@@ -42,7 +68,6 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
       trigger={
         edit ? (
           <Button
-            type="link"
             key="button"
             icon={
               <EditOutlined
@@ -50,10 +75,12 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
                 onClick={() => form.setFieldsValue(data)}
               />
             }
-          ></Button>
+          >
+            Edit
+          </Button>
         ) : (
-          <Button key="button" icon={<SubnodeOutlined />}>
-            New
+          <Button type="primary" key="button" icon={<SubnodeOutlined />}>
+            New Sub-category
           </Button>
         )
       }
@@ -67,6 +94,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
           } SubCategory?`,
+           position: true,
         });
         if (confirmed) {
           edit
@@ -76,7 +104,6 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
           return true;
         }
       }}
-      onOpenChange={(visible) => !visible}
       form={form}
       formRef={formRef}
       submitter={{

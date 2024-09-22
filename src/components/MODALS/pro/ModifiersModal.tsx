@@ -1,9 +1,12 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, FormInstance, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import { EditOutlined, PushpinOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { createModifierAddon, editModifierAddon } from "@services/modifierAddons";
+import {
+  createModifierAddon,
+  editModifierAddon,
+} from "@services/modifierAddons";
 
 interface ModifiersModalProps {
   actionRef: any;
@@ -23,6 +26,23 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
   const [form] = Form.useForm();
   const formRef = useRef<FormInstance>();
 
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        ...data,
+      });
+    }
+  }, [open, data, form]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
+
   const editModifiersPayload = {
     ...data,
   };
@@ -32,6 +52,7 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
       title: `Are you sure you want to ${
         edit ? "update this" : "add new"
       } modifiers?`,
+      position: true,
     });
     if (confirmed) {
       edit
@@ -43,6 +64,8 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
   };
   return (
     <ModalForm
+      open={open}
+      onOpenChange={handleOpenChange}
       width={550}
       layout="horizontal"
       title={
@@ -55,7 +78,7 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
       trigger={
         edit ? (
           <Button
-            type="link"
+            
             key="button"
             icon={
               <EditOutlined
@@ -63,9 +86,9 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
                 onClick={() => form.setFieldsValue(editModifiersPayload)}
               />
             }
-          ></Button>
+          >Edit</Button>
         ) : (
-          <Button key="button" icon={<PushpinOutlined />}>
+          <Button type="primary" key="button" icon={<PushpinOutlined />}>
             Add New Modifiers
           </Button>
         )
@@ -76,7 +99,6 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
         centered: true,
       }}
       onFinish={HandleOnModifiersFinish}
-      onOpenChange={(visible) => !visible}
       form={form}
       formRef={formRef}
       submitter={{
