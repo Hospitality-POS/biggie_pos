@@ -40,11 +40,10 @@ const CategorySettings = () => {
         
         <Tooltip key="delete" title="Delete">
           <Button
-            type="link"
             danger
             icon={<DeleteOutlined />}
             onClick={() => handleDeleteClick(record)}
-          />
+          >Delete</Button>
         </Tooltip>
       </Space>,
     ],

@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button } from "antd";
+import { Tooltip, Button, Space } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import {
   Dialog,
@@ -28,17 +28,19 @@ const {
     dataIndex: "actions",
     hideInSearch: true,
     render: (_, record: any) => [
+      <Space>
+
       <Tooltip key="edit" title="Edit">
         <MainCategoryModal actionRef={actionRef} data={record} edit={true} />
-      </Tooltip>,
+      </Tooltip>
       <Tooltip key="delete" title="Delete">
         <Button
-          type="link"
           danger
           icon={<DeleteOutlined />}
           onClick={() => handleDeleteClick(record)}
-        />
-      </Tooltip>,
+        >Delete</Button>  
+      </Tooltip>
+      </Space>
     ],
   };
 

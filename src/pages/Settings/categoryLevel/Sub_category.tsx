@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button } from "antd";
+import { Tooltip, Button, Space } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import {
   Dialog,
@@ -21,24 +21,28 @@ const SubCategorySettings = () => {
     handleDeleteConfirm,
     handleDeleteCancel,
     deleteCandidate,
-  } = useCategorySettings({type: 'sub-category' });
+  } = useCategorySettings({ type: "sub-category" });
 
   const actionColumn = {
     title: "Actions",
     dataIndex: "actions",
     hideInSearch: true,
     render: (_, record) => [
-      <Tooltip key="edit" title="Edit">
-        <SubCategoryModal data={record} edit={true} actionRef ={actionRef}/>
-      </Tooltip>,
-      <Tooltip key="delete" title="Delete">
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeleteClick(record)}
-        />
-      </Tooltip>,
+      <Space>
+        <Tooltip key="edit" title="Edit">
+          <SubCategoryModal data={record} edit={true} actionRef={actionRef} />
+        </Tooltip>
+        
+        <Tooltip key="delete" title="Delete">
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteClick(record)}
+          >
+            Delete
+          </Button>
+        </Tooltip>
+      </Space>,
     ],
   };
 
@@ -51,7 +55,7 @@ const SubCategorySettings = () => {
           pageSize: 5,
           showQuickJumper: false,
           showTotal: (total, range) => (
-            <div>{`Showing ${range[0]}-${range[1]} of ${total} total items`}</div>
+            <div>{`Showing ${range[0]}-${range[1]} of ${total} total sub-category`}</div>
           ),
         }}
         columns={[
