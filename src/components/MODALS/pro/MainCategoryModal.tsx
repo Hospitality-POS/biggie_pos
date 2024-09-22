@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import { CrownOutlined, EditOutlined } from "@ant-design/icons";
@@ -18,9 +18,27 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
+   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        ...data,
+      });
+    }
+  }, [open, data, form]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
 
   return (
     <ModalForm
+      open={open}
+      onOpenChange={handleOpenChange}
       width={550}
       layout="horizontal"
       title={
@@ -33,7 +51,7 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
       trigger={
         edit ? (
           <Button
-            type="link"
+        
             key="button"
             icon={
               <EditOutlined
@@ -41,10 +59,10 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
                 onClick={() => form.setFieldsValue(data)}
               />
             }
-          ></Button>
+          >Edit</Button>
         ) : (
-          <Button key="button" icon={<CrownOutlined />}>
-            New
+          <Button type="primary" key="button" icon={<CrownOutlined />}>
+            New Main Category
           </Button>
         )
       }
@@ -67,7 +85,6 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
           return true;
         }
       }}
-      onOpenChange={(visible) => !visible}
       form={form}
       formRef={formRef}
       submitter={{

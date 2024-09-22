@@ -42,11 +42,11 @@ const PaymentsMethodSettings = () => {
         </Tooltip>
         <Tooltip key="delete" title="Delete">
           <Button
-            type="link"
+            key="delete"
             danger
             icon={<DeleteOutlined />}
             onClick={() => handleDeleteClick(record)}
-          />
+          >Delete</Button>
         </Tooltip>
       </Space>,
     ],

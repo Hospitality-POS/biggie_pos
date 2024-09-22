@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button } from "antd";
+import { Tooltip, Button, Space } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { getAllTables } from "@services/tables";
 import { useTableSettings } from "../hooks/useTableSettings";
@@ -32,21 +32,24 @@ const TableSetting = () => {
     dataIndex: "actions",
     hideInSearch: true,
     render: (_, record: any) => [
-      <Tooltip key="edit" title="Edit">
-        <Button
-          type="link"
-          icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-          // onClick={() => handleEditLocation(record)}
-        />
-      </Tooltip>,
-      <Tooltip key="delete" title="Delete">
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeleteClick(record)}
-        />
-      </Tooltip>,
+      <Space>
+        <Tooltip key="edit" title="Edit">
+          <AddEditProTableModal
+            edit={true}
+            actionRef={tableRef}
+            data={record}
+          />
+        </Tooltip>
+        <Tooltip key="delete" title="Delete">
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteClick(record)}
+          >
+            Delete
+          </Button>
+        </Tooltip>
+      </Space>,
     ],
   };
 
@@ -57,9 +60,10 @@ const TableSetting = () => {
         cardBordered
         pagination={{
           pageSize: 5,
-          showQuickJumper: false,
+          showQuickJumper: true,
+          showSizeChanger: true,
           showTotal: (total, range) => (
-            <div>{`Showing ${range[0]}-${range[1]} of ${total} total items`}</div>
+            <div>{`Showing ${range[0]}-${range[1]} of ${total} total tables`}</div>
           ),
         }}
         columns={[
@@ -132,7 +136,7 @@ const TableSetting = () => {
         // headerTitle="List of Table Locations"
         toolBarRender={() => [
           <AddEditProTableModal
-            onAddTable={handleAddTable}
+            edit={false}
             actionRef={tableRef}
           />,
         ]}

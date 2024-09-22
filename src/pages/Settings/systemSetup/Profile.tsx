@@ -1,234 +1,290 @@
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ProForm,
   ProFormDigit,
-  ProFormInstance,
   ProFormSelect,
   ProFormText,
   ProSkeleton,
 } from "@ant-design/pro-components";
-import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
-import { updateUsers } from "@services/users";
+import { Form, Typography, Card, Row, Col, Space } from "antd";
+import {
+  ContactsOutlined,
+  RedoOutlined,
+  BankOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  EnvironmentOutlined,
+  GlobalOutlined,
+  NumberOutlined,
+} from "@ant-design/icons";
+import {
+  getPhoneNumber
+} from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { Form, Skeleton, Space, Spin, Typography } from "antd";
-import { useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createSystemSetup,
   fetchSystemPaymentDetails,
-  fetchSystemSetupDetails,
   fetchSystemSetupDetailsById,
   updateSystemSetup,
 } from "@services/systemsetup";
 import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
-import {
-  ContactsFilled,
-  ContactsOutlined,
-  DesktopOutlined,
-  DropboxCircleFilled,
-  RedoOutlined,
-} from "@ant-design/icons";
+
+const { Title } = Typography;
 
 function SystemSetup() {
-  const { data, isLoading, isError } = useQuery({
+  const [form] = Form.useForm();
+  const queryClient = useQueryClient();
+  const [showPaybillDetails, setShowPaybillDetails] = useState(false);
+
+  const { data, isLoading } = useQuery({
     queryKey: ["systemsettings"],
     queryFn: fetchSystemSetupDetailsById,
     retry: 3,
     refetchInterval: 3000,
     networkMode: "always",
   });
-  const query = useQueryClient();
 
-  const [ShowPaybilldetails, setShowPaybilldetails] = useState(false);
-  const formRef = useRef<ProFormInstance>();
-  const formStyle = {
-    display: "flex",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-evenly",
-    width: "100%",
-    height: "calc(100vh - 29  0px)",
-    overflowY: "auto",
+  const onPaymentDetailsChange = (value) => {
+    setShowPaybillDetails(value === "Paybill");
   };
 
-  const fieldStyle = {
-    marginBottom: 16,
-    marginTop: 25,
-    width: "calc(38% - 10px)",
+  const onFinish = async (values) => {
+    const phoneNumber = getPhoneNumber(values?.phoneNumber);
+    const formData = {
+      ...values,
+      phone: phoneNumber,
+      paymentDetailId: values.paymentDetailId.value,
+    };
+
+    const confirmed = await ShowConfirm({
+      title: `Are you sure you want to ${
+        data ? "Update" : "Add new"
+      } system setup details?`,
+      position: true,
+    });
+
+    if (confirmed) {
+      const newData = data
+        ? await updateSystemSetup({ data: formData, _id: data?._id })
+        : await createSystemSetup(formData);
+
+      queryClient.setQueryData(["systemsettings"], (oldData) => ({
+        ...oldData,
+        ...newData,
+      }));
+      return true;
+    }
+
+    return false;
   };
 
-  const onPaymentDetailsChange = (value: string) => {
-    value === "Paybill"
-      ? setShowPaybilldetails(true)
-      : setShowPaybilldetails(false);
-  };
-  const [form] = Form.useForm();
+  if (isLoading) {
+    return <ProSkeleton type="descriptions" />;
+  }
 
   return (
-    <>
-      {isLoading ? (
-        <ProSkeleton type="descriptions" />
-      ) : (
-        <ProForm
-          form={form}
-          layout="horizontal"
-          request={async () => {
-            const data = await fetchSystemSetupDetailsById();
-            // console.log("reuest", data);
-            onPaymentDetailsChange(data.paymentDetails.name);
-            return {
-              ...data,
-              phoneNumber: reversePhoneNumber(data?.phone),
-              paymentDetailId: {
-                value: data?.paymentDetails?._id,
-                lable: data?.paymentDetails?.name,
-              },
-            };
-          }}
-          grid
-          // loading={isLoading}
-          formRef={formRef}
-          // initialValues={
-          //   data
-          //     ? {
-          //         ...data,
-          //         phoneNumber: reversePhoneNumber(data?.phone),
-          //         paymentDetailId: {
-          //           value: data?.paymentDetails?._id,
-          //           lable: data?.paymentDetails?.name,
-          //         },
-          //       }
-          //     : {}
-          // }
-          onFinish={async (values) => {
-            const phoneNumber = getPhoneNumber(values?.phoneNumber);
-            const data2 = {
-              ...values,
-              phone: phoneNumber,
-              paymentDetailId: values.paymentDetailId.value,
-            };
-            // console.log("mmmmm", data2);
+    <Card
+      title={
+        <Title level={3}>
+          <ContactsOutlined /> Business Profile
+        </Title>
+      }
+      style={{maxWidth: "1500px", width: "100%", margin: "0 auto" }}
+      styles={{body: {padding: "24px"}}}
+    >
+      <ProForm
+        form={form}
+        layout="vertical"
+        onFinish={onFinish}
+        initialValues={
+          data
+            ? {
+                ...data,
+                phoneNumber: reversePhoneNumber(data?.phone),
+                paymentDetailId: {
+                  value: data?.paymentDetails?._id,
+                  label: data?.paymentDetails?.name,
+                },
+              }
+            : {}
+        }
+        submitter={{
+          render: (_, dom) => (
+            <Row justify="end">
+              <Col>
+                <Space>{dom}</Space>
+              </Col>
+            </Row>
+          ),
+          resetButtonProps: {
+            icon: <RedoOutlined />,
+          },
+          submitButtonProps: {
+            children: data ? "Update" : "Submit",
+          },
+        }}
+      >
+        <Row gutter={24}>
+          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+            <ProFormText
+              name="name"
+              label="Business Name"
+              placeholder="Enter business name"
+              rules={[
+                { required: true, message: "Please enter the business name" },
+              ]}
+              fieldProps={{
+                prefix: <BankOutlined className="site-form-item-icon" />,
+                size: "large",
+              }}
+            />
+          </Col>
+          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+            <ProFormText
+              name="email"
+              label="Email"
+              placeholder="Enter email address"
+              rules={[
+                { required: true, message: "Please enter the email address" },
+                {
+                  type: "email",
+                  message: "Please enter a valid email address",
+                },
+              ]}
+              fieldProps={{
+                prefix: <MailOutlined className="site-form-item-icon" />,
+                size: "large",
+              }}
+            />
+          </Col>
+        </Row>
 
-            const confirmed = await ShowConfirm({
-              title: `Are you sure you want to ${
-                data ? "Update" : "Add new"
-              } system setup details?`,
-              position: true,
-            });
-            if (confirmed) {
-              data
-                ? await updateSystemSetup({ data2, _id: data?._id })
-                : await createSystemSetup(data2);
-              // query.invalidateQueries();
-              form.resetFields();
-              // formRef.current?.resetFields()
-              return true;
-            }
+        <Row gutter={24}>
+          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+            <PhoneInput
+              label="Phone"
+              owner="phoneNumber"
+              rules={[
+                { required: true, message: "Please enter the phone number" },
+              ]}
+              fieldProps={{
+                size: "large",
+              }}
+            />
+          </Col>
+          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+            <ProFormText
+              name="location"
+              label="Location"
+              placeholder="Enter business location"
+              fieldProps={{
+                prefix: <EnvironmentOutlined className="site-form-item-icon" />,
+                size: "large",
+              }}
+            />
+          </Col>
+        </Row>
 
-            return true;
-          }}
-          submitter={{
-            searchConfig: {
-              resetText: "Refresh",
-              submitText: data ? "Update" : "Submit",
-            },
-            resetButtonProps: {
-              icon: <RedoOutlined />,
-            },
-            render: (_, dom) => (
-              <Space style={{ justifyContent: "flex-end", width: "100%" }}>
-                {dom}
-              </Space>
-            ),
-          }}
-        >
-          <div style={formStyle}>
-            <Typography.Title level={4}>
-              {" "}
-              Business Profile <ContactsOutlined />
-            </Typography.Title>
-            <div style={fieldStyle}>
-              <ProFormText name="name" label="Business Name" />
-              <ProFormText
-                name="email"
-                label="Email"
-                rules={[
-                  { required: true, message: "Please provide the email" },
-                ]}
-              />
-              <PhoneInput label="Phone" owner="phoneNumber" />
-              <ProFormText name="location" label="Location" />
-            </div>
-            <div style={fieldStyle}>
-              <ProFormText name="social_link" label="Social Link" />
-              <ProFormText name="kra_pin" label="KRA Pin" />
-              <ProFormSelect
-                name="paymentDetailId"
-                label="Payment Details"
-                rules={[
-                  { required: true, message: "Payment detail is required" },
-                ]}
-                showSearch
-                placeholder="Select Payment Details"
-                request={async (params) => {
-                  const data = await fetchSystemPaymentDetails(params);
-                  const values = data.map((e: { name: any; _id: any }) => {
-                    return { label: e.name, value: e._id };
-                  });
-                  return values;
-                }}
-                fieldProps={{
-                  onSelect: async (tr) => {
-                    const data = await fetchSystemPaymentDetails();
-                    data?.map((v) => {
-                      if (v._id === tr) {
-                        onPaymentDetailsChange(v.name);
-                      }
-                    });
-                  },
-                }}
-              />
+        <Row gutter={24}>
+          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+            <ProFormText
+              name="social_link"
+              label="Social Link"
+              placeholder="Enter social media link"
+              fieldProps={{
+                prefix: <GlobalOutlined className="site-form-item-icon" />,
+                size: "large",
+              }}
+            />
+          </Col>
+          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+            <ProFormText
+              name="kra_pin"
+              label="KRA Pin"
+              placeholder="Enter KRA Pin"
+              fieldProps={{
+                prefix: <NumberOutlined className="site-form-item-icon" />,
+                size: "large",
+              }}
+            />
+          </Col>
+        </Row>
 
-              {ShowPaybilldetails ? (
-                <>
+        <Row gutter={24}>
+          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+            <ProFormSelect
+              name="paymentDetailId"
+              label="Payment Details"
+              placeholder="Select Payment Details"
+              rules={[
+                { required: true, message: "Payment detail is required" },
+              ]}
+              request={async () => {
+                const data = await fetchSystemPaymentDetails();
+                return data.map((e) => ({ label: e.name, value: e._id }));
+              }}
+              fieldProps={{
+                onSelect: (value, option) =>
+                  onPaymentDetailsChange(option.label),
+                size: "large",
+              }}
+            />
+          </Col>
+          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+            {showPaybillDetails ? (
+              <Row gutter={24}>
+                <Col span={12}>
                   <ProFormDigit
                     name="account_no"
                     label="Account No."
+                    placeholder="Enter account number"
                     rules={[
                       {
                         required: true,
-                        message: "Please provide the account number.",
+                        message: "Please enter the account number",
                       },
                     ]}
+                    fieldProps={{
+                      size: "large",
+                    }}
                   />
+                </Col>
+                <Col span={12}>
                   <ProFormDigit
                     name="business_no"
                     label="Business No."
+                    placeholder="Enter business number"
                     rules={[
                       {
                         required: true,
-                        message: "Please provide the business number.",
+                        message: "Please enter the business number",
                       },
                     ]}
+                    fieldProps={{
+                      size: "large",
+                    }}
                   />
-                </>
-              ) : (
-                <ProFormDigit
-                  name="till_no"
-                  label="Till No."
-                  rules={[
-                    {
-                      required: true,
-                      message: "Please provide the till number.",
-                    },
-                  ]}
-                />
-              )}
-            </div>
-          </div>
-        </ProForm>
-      )}
-    </>
+                </Col>
+              </Row>
+            ) : (
+              <ProFormDigit
+                name="till_no"
+                label="Till No."
+                placeholder="Enter till number"
+                rules={[
+                  { required: true, message: "Please enter the till number" },
+                ]}
+                fieldProps={{
+                  size: "large",
+                }}
+              />
+            )}
+          </Col>
+        </Row>
+      </ProForm>
+    </Card>
   );
 }
 

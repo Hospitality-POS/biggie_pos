@@ -1,37 +1,50 @@
-import React from "react";
-import { Button, Space } from "antd";
+import React, { useEffect, useState } from "react";
+import { Button, Form, Space } from "antd";
 import {
   ModalForm,
   ProFormText,
   ProForm,
   ProFormSelect,
 } from "@ant-design/pro-form";
-import { AimOutlined, AppstoreAddOutlined, PlusOutlined } from "@ant-design/icons";
-import { getTableLocation } from "../../../services/tables";
+import { AimOutlined, AppstoreAddOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { addNewTable, getTableLocation, updateTable } from "../../../services/tables";
 import { useAddEditTableModal } from "../Hooks/useAddEditTableModal";
+import ShowConfirm from "@utils/ConfirmUtil";
 
 interface AddEditProTableModalProps {
-  onAddTable: (table: string) => void;
   actionRef;
+  edit?: boolean;
+  data?: any;
 }
 
 const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
-  onAddTable,
   actionRef,
+  edit,
+  data,
 }) => {
-  const {
-    isSubmitting,
-    form,
-    handleConfirmAddTable,
-    handleClose,
-    setIsSubmitting,
-    handeLocationChange,
-  } = useAddEditTableModal({ onAddTable });
+  const [form] = Form.useForm();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        ...data,
+              
+      });
+    }
+  }, [open, data, form]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
 
   return (
-    <Space align="center" direction="vertical" size={"small"}>
       <ModalForm
-        open={isSubmitting}
+        open={open}
+        onOpenChange={handleOpenChange}
         title={
           <Space>
             <AppstoreAddOutlined />
@@ -39,25 +52,48 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
           </Space>
         }
         trigger={
-          <Button
-            onClick={() => setIsSubmitting(true)}
-            key="button"
-            icon={<AppstoreAddOutlined />}
-          >
-            New
-          </Button>
+          edit ? (
+            <Button
+              key="button"
+              icon={
+                <EditOutlined
+                  style={{ color: "#6c1c2c" }}
+                  onClick={() => form.setFieldsValue(data)}
+                />
+              }
+            >Edit</Button>
+          ) : (
+            <Button type="primary" key="button" icon={<AppstoreAddOutlined />}>
+              New Table
+            </Button>
+          )
         }
         onFinish={async (values) => {
-          await handleConfirmAddTable(values);
-          actionRef.current.reset();
+          const confirmed = await ShowConfirm({
+            title: `Are you sure you want to ${
+              edit ? "update this" : "add new"
+            } table?`,
+            position: true,
+          });
+          if (confirmed) {
+            edit
+              ? await updateTable({ values, _id: data._id })
+              : await addNewTable(values);
+            actionRef.current.reset();
+            return true;
+          }
         }}
-        onOpenChange={(visible) => !visible && handleClose()}
+
         form={form}
         submitter={{
           searchConfig: {
             resetText: "Cancel",
             submitText: "Add Table",
           },
+        }}
+        modalProps={{
+          destroyOnClose: true,
+          centered: true,
         }}
       >
         <ProForm.Group>
@@ -82,11 +118,9 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
               });
               return values;
             }}
-            onChange={handeLocationChange}
           />
         </ProForm.Group>
       </ModalForm>
-    </Space>
   );
 };
 

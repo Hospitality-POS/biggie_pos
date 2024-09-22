@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import { DollarOutlined, EditOutlined } from "@ant-design/icons";
@@ -15,10 +15,28 @@ const AddProPaymentMethodSettingsModal: React.FC<
   AddProPaymentMethodSettingsModalProps
 > = ({ actionRef, edit, data }) => {
   const [form] = Form.useForm();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        ...data,
+      });
+    }
+  }, [open, data, form]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
 
   return (
-    <Space align="center" direction="vertical" size={"small"}>
       <ModalForm
+        width={500}
+        open={open}
+        onOpenChange={handleOpenChange}
         title={
           <Space>
             <DollarOutlined />
@@ -30,17 +48,17 @@ const AddProPaymentMethodSettingsModal: React.FC<
           edit ? (
             <Button
               key="button"
-              type="link"
+              
               icon={
                 <EditOutlined
                   style={{ color: "#6c1c2c" }}
                   onClick={() => form.setFieldsValue(data)}
                 />
               }
-            ></Button>
+            >Edit</Button>
           ) : (
-            <Button key="button" icon={<DollarOutlined />}>
-              New
+            <Button type="primary" key="button" icon={<DollarOutlined />}>
+              New Method
             </Button>
           )
         }
@@ -55,6 +73,7 @@ const AddProPaymentMethodSettingsModal: React.FC<
             title: `Are you sure you want to ${
               edit ? "update this" : "add new"
             } payment method?`,
+            position: true,
           });
           if (confirmed) {
             edit
@@ -64,7 +83,6 @@ const AddProPaymentMethodSettingsModal: React.FC<
             return true;
           }
         }}
-        onOpenChange={(visible) => !visible}
         submitter={{
           searchConfig: {
             resetText: "Cancel",
@@ -83,7 +101,6 @@ const AddProPaymentMethodSettingsModal: React.FC<
           />
         </ProForm.Group>
       </ModalForm>
-    </Space>
   );
 };
 

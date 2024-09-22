@@ -2,6 +2,7 @@ import { ParamsType } from "@ant-design/pro-components";
 import axios from "axios";
 import { BASE_URL } from "@utils/config";
 import { Modal, notification } from "antd/lib";
+import { message } from "antd";
 
 const tableUrl = `${BASE_URL}/tables`;
 
@@ -120,3 +121,41 @@ export const transferCartitems =async (data:ParamsType) => {
     });
   }
 }
+
+
+export const addNewTable = async (data: ParamsType) => {
+  try {
+    const response = await axios.post(tableUrl, {
+      name: data?.name,
+      locatedAt: data?.locatedAt,
+    });
+    notification.success({
+      message: `Success`,
+      description: "Successfully added new Table",
+      placement: "bottomLeft",
+    });
+    return response.data;
+  } catch (error: any) {
+    Modal.error({
+      title: "Oops! Something went wrong.",
+      content: "Please check your internet connection!",
+    });
+  }
+};
+
+export const updateTable = async (data: ParamsType) => {
+  try {
+    const response = await axios.put(`${tableUrl}/${data._id}`, {
+      name: data?.values?.name,
+      locatedAt: data?.values?.locatedAt?._id,
+    });
+    message.success('Successfully updated Table');
+    return response.data;
+  } catch (error: any) {
+    Modal.error({
+      title: "Oops! Something went wrong.",
+      content: "Please check your internet connection!",
+      centered: true,
+    });
+  }
+};

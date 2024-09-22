@@ -33,8 +33,8 @@ export const addNewCategory = async (params: ParamsType) => {
 export const updateCategory = async (data: ParamsType) => {
   try {
     const response = await axios.put(`${categ_url}/${data?._id}`, {
-      name: data.values.name,
-      sub_category: data.values.subcategory_id,
+      name: data?.name,
+      sub_category: data?.subcategory_id.value || data?.subcategory_id,
     });
     notification.success({
       message: `Success`,
@@ -52,7 +52,7 @@ export const updateCategory = async (data: ParamsType) => {
 };
 
 // sub category
-export const fetchSubCategories = async (data:ParamsType) => {
+export const fetchSubCategories = async (data: ParamsType) => {
   try {
     const response = await axios.get(`${categ_url}/sub-categories`, {
       params: { name: data.name, main_category: data.main_category?.name },
@@ -86,11 +86,14 @@ export const addNewSubCategory = async (params: ParamsType) => {
 
 export const editSubCategory = async (data: ParamsType) => {
   try {
+    // console.log("xxxxxx", data);
+
     const response = await axios.put(
       `${categ_url}/sub-categories/${data?._id}`,
       {
         name: data?.values.name,
-        main_category: data?.values.main_category,
+        main_category:
+          data?.values.main_category || data?.values.main_category?.value,
       }
     );
     notification.success({

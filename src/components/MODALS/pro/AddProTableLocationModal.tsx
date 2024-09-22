@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import { AimOutlined, EditOutlined } from "@ant-design/icons";
@@ -18,9 +18,28 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        name: data.name,
+        subcategory_id: data.sub_category?._id,
+      });
+    }
+  }, [open, data, form]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
 
   return (
     <ModalForm
+      open={open}
+      onOpenChange={handleOpenChange}
       width={550}
       layout="horizontal"
       title={
@@ -33,7 +52,7 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
       trigger={
         edit ? (
           <Button
-            type="link"
+            
             key="button"
             icon={
               <EditOutlined
@@ -41,10 +60,10 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
                 onClick={() => form.setFieldsValue(data)}
               />
             }
-          ></Button>
+          >Edit</Button>
         ) : (
-          <Button key="button" icon={<AimOutlined />}>
-            New
+          <Button type="primary" key="button" icon={<AimOutlined />}>
+            New Location
           </Button>
         )
       }
@@ -58,6 +77,7 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
           } Location?`,
+          position: true
         });
         if (confirmed) {
           edit
@@ -67,7 +87,6 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
           return true;
         }
       }}
-      onOpenChange={(visible) => !visible}
       form={form}
       formRef={formRef}
       submitter={{

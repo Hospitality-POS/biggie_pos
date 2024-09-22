@@ -14,10 +14,7 @@ import {
   PlusCircleFilled,
   TagsOutlined,
 } from "@ant-design/icons";
-import {
-  ProFormMoney,
-  ProFormTextArea,
-} from "@ant-design/pro-components";
+import { ProFormMoney, ProFormTextArea } from "@ant-design/pro-components";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { fetchAllCategories } from "@services/categories";
 import { addNewProduct, editProduct } from "@services/products";
@@ -89,15 +86,11 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
   };
 
   const HandleOnFinish = async (values) => {
-    console.log("values",  {
-        ...values,
-        addons: values.addons?.map((addon: any) => addon.value),
-      });
-    
     const confirmed = await ShowConfirm({
       title: `Are you sure you want to ${
         edit ? "update this" : "add new"
       } Product?`,
+      position: true,
     });
     if (confirmed) {
       const formattedValues = {
@@ -105,7 +98,6 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
         addons: values.addons?.map((addon: any) => addon.value),
       };
 
-  
       if (edit) {
         await editProduct({
           ...formattedValues,
@@ -204,7 +196,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
               id="productcode"
               name="code"
               label="Code"
-              convertValue={(value,_)=> value.toUpperCase()}
+              convertValue={(value, _) => value.toUpperCase()}
             />
           </>
         )}

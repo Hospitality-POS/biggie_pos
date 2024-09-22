@@ -1,51 +1,62 @@
-import { DeleteOutlined, EditOutlined, PushpinOutlined, UserOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PushpinOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { deleteModifierAddon, getAllModifierAddons } from "@services/modifierAddons";
-import { Button, Tag, Tooltip } from "antd";
-import  { RefObject, useRef } from "react";
+import {
+  deleteModifierAddon,
+  getAllModifierAddons,
+} from "@services/modifierAddons";
+import { Button, Space, Tag, Tooltip } from "antd";
+import { RefObject, useRef } from "react";
 import ExpandedRowContent from "./ModifierAddonExpand";
 import ModifiersModal from "@components/MODALS/pro/ModifiersModal";
 import ShowConfirm from "@utils/ConfirmUtil";
 
-function ModifiersSettings() { 
-    const actionRef = useRef<ActionType>();
-     const expandedRowRender = (record: any) => {
-       return (
-         <ExpandedRowContent
-           record={record}
-           actionRef={actionRef as RefObject<ActionType>}
-         />
-       );
-     };
+function ModifiersSettings() {
+  const actionRef = useRef<ActionType>();
+  const expandedRowRender = (record: any) => {
+    return (
+      <ExpandedRowContent
+        record={record}
+        actionRef={actionRef as RefObject<ActionType>}
+      />
+    );
+  };
 
-     
-   const actionColumn = {
-     title: "Actions",
-     dataIndex: "actions",
-     hideInSearch: true,
-     render: (_: any, record: any) => [
-       <Tooltip key="edit" title="Edit">
-       <ModifiersModal actionRef={actionRef} edit={true} data={record} />
-       </Tooltip>,
-       <Tooltip key="delete" title="Delete">
-         <Button
-           type="link"
-           danger
-           icon={<DeleteOutlined />}
-           onClick={async() => {
-             const confirmed = await ShowConfirm({
-               title: `Are you sure you want to delete ${record?.name}?`,
-               position: true,
-             });
-             if (confirmed) {
-               await deleteModifierAddon({ _id: record?._id });
-               actionRef?.current?.reload();
-             }
-           }}
-         />
-       </Tooltip>,
-     ],
-   };
+  const actionColumn = {
+    title: "Actions",
+    dataIndex: "actions",
+    hideInSearch: true,
+    render: (_: any, record: any) => [
+      <Space>
+        <Tooltip key="edit" title="Edit">
+          <ModifiersModal actionRef={actionRef} edit={true} data={record} />
+        </Tooltip>
+        <Tooltip key="delete" title="Delete">
+          <Button
+            key="delete"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={async () => {
+              const confirmed = await ShowConfirm({
+                title: `Are you sure you want to delete ${record?.name}?`,
+                position: true,
+              });
+              if (confirmed) {
+                await deleteModifierAddon({ _id: record?._id });
+                actionRef?.current?.reload();
+              }
+            }}
+          >
+            Delete
+          </Button>
+        </Tooltip>
+      </Space>,
+    ],
+  };
   return (
     <ProTable
       rowKey="_id"

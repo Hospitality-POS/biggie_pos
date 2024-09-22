@@ -1,11 +1,9 @@
 import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button } from "antd";
+import { Tooltip, Button, Space } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import {
-  getTableLocation,
-} from "@services/tables";
+import { getTableLocation } from "@services/tables";
 import { useTableLocationSettings } from "../hooks/useTableSettings";
 import {
   Dialog,
@@ -33,24 +31,26 @@ const TableLocationSettings = () => {
     dataIndex: "actions",
     hideInSearch: true,
     render: (_, record: any) => [
-      <Tooltip key="edit" title="Edit">
+      <Space>
         <Tooltip key="edit" title="Edit">
-          <AddProTableLocationModal
-            edit={true}
-            actionRef={locationRef}
-            data={record}
-          />
+          <Tooltip key="edit" title="Edit">
+            <AddProTableLocationModal
+              edit={true}
+              actionRef={locationRef}
+              data={record}
+            />
+          </Tooltip>
         </Tooltip>
-        
-      </Tooltip>,
-      <Tooltip key="delete" title="Delete">
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeleteClickLocation(record)}
-        />
-      </Tooltip>,
+        <Tooltip key="delete" title="Delete">
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteClickLocation(record)}
+          >
+            Delete
+          </Button>
+        </Tooltip>
+      </Space>,
     ],
   };
 
