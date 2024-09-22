@@ -6,6 +6,7 @@ import {
 } from "@ant-design/icons";
 import { ConfigProvider, Space, Typography } from "antd";
 import Profile from "./Profile";
+import PrinterConfig from "./PrinterConfig";
 
 const MainCategory = () => <div>Coming Soon!</div>;
 
@@ -27,6 +28,17 @@ const SystemSetup: React.FC = () => {
         </Space>
       ),
       children: <Profile />,
+    },
+    {
+      key:"Printer Config",
+      tab: "Printer Config",
+      label: (
+        <Space>
+          <HolderOutlined />
+          Printer
+        </Space>
+      ),
+      children: PrinterConfig(),
     },
     {
       key: "billing",
