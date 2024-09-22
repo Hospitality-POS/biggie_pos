@@ -1,14 +1,19 @@
 import { useRef } from "react";
-import { ActionType, ProFormInstance, ProTable } from "@ant-design/pro-components";
+import {
+  ActionType,
+  ProColumns,
+  ProFormInstance,
+  ProTable,
+} from "@ant-design/pro-components";
 import ExpandedRowContent from "./ExpandableOrderDetails";
-import { getAllOrders } from "@services/orders";
-import { Badge, Button, Space, Tag } from "antd";
+import { deleteOrderById, getAllOrders } from "@services/orders";
+import { Badge, Button, Space, Tag, Typography } from "antd";
 import { CSVLink } from "react-csv";
 import moment from "moment";
 // import jsPDF from "jspdf";
 import { useQuery } from "@tanstack/react-query";
 import { ENTITY_NAME } from "@utils/config";
-import { UserOutlined } from "@ant-design/icons";
+import { DeleteOutlined, UserOutlined } from "@ant-design/icons";
 
 const OrdersTable = () => {
   const actionRef = useRef<ActionType>();
@@ -77,6 +82,32 @@ const OrdersTable = () => {
 
   //   doc.save(`orders-${Date.now()}.pdf`);
   // };
+  const ActionsColumn: ProColumns<any>[] = [
+    {
+      title: "Actions",
+      key: "action",
+      render: (_, record) => (
+        <Space size="middle">
+          <Tag
+            color={"error"}
+            title="Delete"
+            style={{ cursor: "pointer" }}
+            onClick={async () => {
+              const success = await deleteOrderById(record._id);
+              if (success && actionRef.current) {
+                actionRef.current.reload();
+              }
+            }}
+          >
+            <DeleteOutlined />
+            <Typography.Text>
+              {record.status === "pending" ? "Cancel" : "Delete"}
+            </Typography.Text>
+          </Tag>
+        </Space>
+      ),
+    },
+  ];
 
   const expandedRowRender = (record: any) => {
     return <ExpandedRowContent record={record} />;
@@ -88,9 +119,10 @@ const OrdersTable = () => {
         cardBordered
         pagination={{
           pageSize: 5,
-          showQuickJumper: false,
+          showQuickJumper: true,
+          showSizeChanger: true,
           showTotal: (total, range) => (
-            <div>{`Showing ${range[0]}-${range[1]} of ${total} total items`}</div>
+            <div>{`Showing ${range[0]}-${range[1]} of ${total} total orders`}</div>
           ),
         }}
         columns={[
@@ -156,6 +188,7 @@ const OrdersTable = () => {
             sorter: (a, b) =>
               new Date(a.createdAt as string) - new Date(b.createdAt as string),
           },
+          ...ActionsColumn,
         ]}
         request={async (params) => {
           const data = await getAllOrders(params);
