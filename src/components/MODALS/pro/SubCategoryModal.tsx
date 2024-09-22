@@ -94,7 +94,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
           } SubCategory?`,
-           position: true,
+          position: true,
         });
         if (confirmed) {
           edit
