@@ -218,7 +218,7 @@ const VoidReportModal: React.FC<VoidReportProps> = ({
                 columnGap: 5,
               }}
             >
-              <Button
+              {/* <Button
                 className="hidden-print"
                 variant="outlined"
                 sx={{
@@ -234,7 +234,7 @@ const VoidReportModal: React.FC<VoidReportProps> = ({
                 endIcon={<LocalPrintshopIcon />}
               >
                 Print
-              </Button>
+              </Button> */}
               <Button
                 className="hidden-print"
                 variant="contained"
@@ -249,7 +249,7 @@ const VoidReportModal: React.FC<VoidReportProps> = ({
                 onClick={onCloseM}
                 endIcon={<PrintDisabledIcon />}
               >
-                Cancel
+                Close
               </Button>
             </Box>
           </DialogContent>

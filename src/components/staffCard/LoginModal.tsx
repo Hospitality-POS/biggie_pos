@@ -27,6 +27,12 @@ const StaffModal: React.FC<StaffModalProps> = ({ setOpen, open, tbl }) => {
           handleClose();
         }}
         onOpenChange={(visible) => !visible && handleClose()}
+        modalProps={
+          {
+            destroyOnClose: true,
+            centered: true,
+          }
+        }
         submitter={{
           searchConfig: {
             resetText: "Cancel",

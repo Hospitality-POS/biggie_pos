@@ -1,5 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
+import { message } from "antd";
 import axios from "axios";
 
 const baseUrl = `${BASE_URL}/orders`;
@@ -17,10 +18,12 @@ export const generateSalesReport = createAsyncThunk(
       const response = await axios.get(`${baseUrl}/date-range-sales/items`,{params: {
           startDate: dated.startDate,
           endDate: dated.endDate,
+          print: true
         }});
-      
+      message.success("Sales report generated successfully");
       return response.data;
     } catch (error: any) {
+      message.error("Failed to generate sales report");
       return rejectWithValue(error.response.data.error || error.toString());
     }
   }
@@ -34,10 +37,12 @@ export const generateVoidedReport = createAsyncThunk(
       const response = await axios.get(`${baseUrl}/date-range-void/items`,{params: {
           startDate: dated.startDate,
           endDate: dated.endDate,
+          print: true
         }});
-      
+      message.success("Voided report generated successfully");
       return response.data;
     } catch (error: any) {
+      message.error("Failed to generate voided report");
       return rejectWithValue(error.response.data.error || error.toString());
     }
   }
@@ -50,10 +55,12 @@ export const generatePurchaseReport = createAsyncThunk(
       const response = await axios.get(`${baseUrl}/order-payment-methods/summary`, {params: {
           startDate: dated.startDate,
           endDate: dated.endDate,
+          print: true
         }});
-
+      message.success("Purchase report generated successfully");
       return response.data;
     } catch (error: any) {
+      message.error("Failed to generate purchase report");
       return rejectWithValue(error.response.data.error || error.toString());
     }
   }

@@ -232,6 +232,7 @@ const CartDrawer: React.FC = () => {
               <Button
                 onClick={() => dispatch(cartSent(cartDetails))}
                 icon={<SendOutlined />}
+                // disabled={cartDetails?.status === "sent"}
                 style={{
                   color: "#6c1c2c",
                   borderColor: "#6c1c2c",
