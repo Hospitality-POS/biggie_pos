@@ -15,7 +15,7 @@ export const getAllCartItems = async (cartId: string) => {
 
 export const printInvoice = async (cartId: string) => {
   try {
-    const response = await axios.get(`${baseUrl}/cart/print-invoice/${cartId}`);
+    const response = await axios.put(`${baseUrl}/cart/print-cart`, { cart_id: cartId });
     message.success("Invoice printed successfully");
     return response.data || [];
   } catch (error: any) {
