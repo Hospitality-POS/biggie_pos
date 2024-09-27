@@ -102,6 +102,7 @@ const TransferBillModal: React.FC<TransferBillModalProps> = ({
         // console.log("transfer bilss ddata", payload);
         const confirmed = await ShowConfirm({
           title: "Are you sure you want to transfer this bill?",
+          position: true
         });
         if (confirmed) {
           // await transferBillMutate(values);

@@ -71,6 +71,12 @@ const LoginProModal: React.FC<LoginModalProps> = ({
            handleLogin(values.pin)
         }}
         onOpenChange={(visible) => !visible && handleClose()}
+        modalProps={
+          {
+            destroyOnClose: true,
+            centered: true,
+          }
+        }
         submitter={{
           searchConfig: {
             resetText: "Clear",

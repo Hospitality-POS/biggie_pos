@@ -14,9 +14,14 @@ import "./bill.css";
 import { useReactToPrint } from "react-to-print";
 import { ENTITY_NAME } from "@utils/config";
 import useSystemDetails from "@hooks/useSystemDetails";
-import { PrinterFilled, PrinterOutlined, RestOutlined } from "@ant-design/icons";
+import {
+  PrinterFilled,
+  PrinterOutlined,
+  RestOutlined,
+} from "@ant-design/icons";
 import { Button } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
+import { printInvoice } from "@services/cart";
 
 interface PrintBillProps {
   cartDetails: any;
@@ -30,7 +35,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   totalAmount,
 }) => {
   const componentRef = useRef<HTMLDivElement>(null);
-  
 
   const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs } =
     useSystemDetails();
@@ -45,7 +49,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
       modalProps={{
         centered: true,
         destroyOnClose: true,
-        cancelText: "cancel",
+        cancelText: "close",
         okText: "Confirm Print",
         okButtonProps: { icon: <PrinterFilled /> },
       }}
@@ -55,8 +59,13 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         </Button>
       }
       onFinish={async () => {
-        handlePrint();
-        return true;
+        try {
+          await printInvoice(cartDetails._id);
+          return true;
+        } catch (error) {
+          console.log(error);
+          return false;
+        }
       }}
     >
       <div className="receipt" id="receipt" ref={componentRef}>
@@ -275,9 +284,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         >
           ============================
         </Typography>
-        <div className="qrcoded" style={{ marginTop: 4 }}>
+        {/* <div className="qrcoded" style={{ marginTop: 4 }}>
           <QRCodeCanvas value={QR_Code} size={80} className="qrcode" />
-        </div>
+        </div> */}
         <Typography
           variant="body1"
           style={{
@@ -287,7 +296,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             marginTop: 10,
           }}
         >
-          Thank you for your support!
+          Thank you! and come again!
         </Typography>
         <Typography
           variant="body1"
@@ -305,20 +314,23 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             fontSize: "0.8em",
             fontFamily: "monospace",
             textAlign: "center",
+            marginBottom: 8,
           }}
         >
           Generated on {new Date().toLocaleDateString()}
         </Typography>
-        {/* <Typography
-              variant="body1"
-              style={{
-                fontSize: "0.8em",
-                fontFamily: "monospace",
-                textAlign: "center",
-              }}
-            >
-              Powered by: FSS ltd.
-            </Typography> */}
+        <Typography
+          variant="body1"
+          style={{
+            fontSize: "0.8em",
+            fontFamily: "monospace",
+            fontWeight: "bold",
+            textAlign: "center",
+          }}
+        >
+          A product of FSS for more Info
+          <br /> contact us on 0747665878
+        </Typography>
       </div>
       <Box
         sx={{
