@@ -217,7 +217,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                 columnGap: 5,
               }}
             >
-              <Button
+              {/* <Button
                 className="hidden-print"
                 variant="outlined"
                 sx={{
@@ -233,7 +233,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                 endIcon={<LocalPrintshopIcon />}
               >
                 Print
-              </Button>
+              </Button> */}
               <Button
                 className="hidden-print"
                 variant="contained"
@@ -248,7 +248,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
                 onClick={onCloseM}
                 endIcon={<PrintDisabledIcon />}
               >
-                Cancel
+                Close
               </Button>
             </Box>
           </DialogContent>
