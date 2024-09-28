@@ -30,6 +30,7 @@ import {
   CreditCardOutlined,
   DollarOutlined,
   FileAddOutlined,
+  FileOutlined,
   LikeOutlined,
   LoadingOutlined,
   MobileOutlined,
@@ -86,6 +87,21 @@ const PaymentDrawer: React.FC = () => {
       orderDate.getFullYear() === today.getFullYear()
     );
   });
+
+  // Function to check if a date is today
+  const isToday = (someDate: Date) => {
+    const today = new Date();
+    return (
+      someDate.getDate() === today.getDate() &&
+      someDate.getMonth() === today.getMonth() &&
+      someDate.getFullYear() === today.getFullYear()
+    );
+  };
+
+  // Filter today's payments
+  const todaysPayments =
+    paymentHistory?.filter((payment) => isToday(new Date(payment.createdAt))) ||
+    [];
 
   const {
     isLoading,
@@ -450,8 +466,8 @@ const PaymentDrawer: React.FC = () => {
           <ClockCircleOutlined /> Recent Transactions
         </Typography.Title>
         <Space direction="vertical" style={{ width: "100%" }}>
-          {paymentHistory
-            ?.slice(0, 4)
+          {todaysPayments
+            ?.slice(0, 3)
             .map(({ order_amount, _id, createdAt, order_payments }: any) => (
               <Row key={_id} justify="space-between" align="middle">
                 <Col>
@@ -485,6 +501,8 @@ const PaymentDrawer: React.FC = () => {
           <Typography.Text type="secondary">No orders today</Typography.Text>
         )}
       </Space>
+      <Divider />
+     <Button type="primary" block onClick={() => navigate("/orders")} icon={<FileOutlined />}>View All Transactions</Button>
     </DrawerForm>
   );
 };

@@ -20,6 +20,7 @@ const Layout = lazy(() => import("@components/layout/Layout"));
 const RestaurantPage = lazy(() => import("@pages/Restaurant/Restuarant"));
 const MainStore = lazy(() => import("@pages/store/MainStore"));
 const Orders = lazy(() => import("@pages/Orders/Orders"));
+const Invoices = lazy(() => import("@pages/Invoices/Invoices"));
 const Table = lazy(() => import("@pages/Tables/TablePro"));
 
 // App list - settings
@@ -211,6 +212,18 @@ const routes = createBrowserRouter(
           <Suspense fallback={<Spinner />}>
             <Private>
               <MainOrders />
+            </Private>
+          </Suspense>
+        }
+        // errorElement={<NotFound/>}
+      />
+      <Route
+        path="/invoices"
+        errorElement={<NotFound />}
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <Invoices />
             </Private>
           </Suspense>
         }
