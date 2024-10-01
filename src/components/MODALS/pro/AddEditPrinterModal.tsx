@@ -13,28 +13,34 @@ interface AddEditPrinterModalProps {
 }
 
 interface PrinterType {
-    name: string;
-    ipAddr: string;
-    main_category: { value: string; lable: string };
+  name: string;
+  ipAddr: string;
+  main_category: { value: string; lable: string };
+  connectionType: "NETWORK" | "USB";
 }
 
 const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, edit, data }) => {
+   const [connectionType, setConnectionType] = useState<"NETWORK" | "USB">(
+     data?.connectionType || "NETWORK"
+   );
     const [form] = Form.useForm();
     const formRef = useRef();
 
     const [open, setOpen] = useState(false);
 
-    useEffect(() => {
-      if (open && data) {
-        form.setFieldsValue({
-          ...data,
-          main_category: {
-            value: data?.main_category?._id,
-            lable: data?.main_category?.name,
-          },
-        });
-      }
-    }, [open, data, form]);
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        ...data,
+        main_category: {
+          value: data?.main_category?._id,
+          lable: data?.main_category?.name,
+        },
+        connectionType: data?.connectionType || "NETWORK",
+      });
+      setConnectionType(data?.connectionType || "NETWORK");
+    }
+  }, [open, data, form]);
 
     const handleOpenChange = (newOpen: boolean) => {
       setOpen(newOpen);
@@ -53,7 +59,13 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
     };
 
     const HandleOnPrinterFinish = async (values: Partial<PrinterType>) => {
-        const payload = { name: values?.name, ipAddr: values?.ipAddr, main_category: values?.main_category };
+         const payload = {
+           name: values?.name,
+           ipAddr:
+             values?.connectionType === "NETWORK" ? values?.ipAddr : undefined,
+           main_category: values?.main_category,
+           connectionType: values?.connectionType,
+         };
         
         const confirmed = await ShowConfirm({
             title: `Are you sure you want to ${
@@ -63,7 +75,7 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
         });
         if (confirmed) {
             edit
-                ? await updatePrinter({ values, _id: data?._id, name: data?.name, main_category: data?.main_category?.value })
+                ? await updatePrinter({ values, _id: data?._id, name: data?.name, main_category: data?.main_category?.value, connectionType: data?.connectionType })
                 : await createPrinter(payload);
             actionRef.current.reset();
             return true;
@@ -91,7 +103,9 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
                   onClick={() => form.setFieldsValue(editPrinterPayload)}
                 />
               }
-            >Edit</Button>
+            >
+              Edit
+            </Button>
           ) : (
             <Button key="button" icon={<PrinterOutlined />} type="primary">
               Add New Printer
@@ -121,8 +135,23 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
             rules={[{ required: true, message: "Printer Name is required" }]}
             placeholder="Enter Printer Name"
           />
-            <ProFormText
+          <ProFormSelect
             width="md"
+            name="connectionType"
+            label="Connection Type"
+            initialValue={connectionType}
+            options={[
+              { label: "Network", value: "NETWORK" },
+              { label: "USB", value: "USB" },
+            ]}
+            rules={[{ required: true, message: "Connection Type is required" }]}
+            fieldProps={{
+              onChange: (value: "NETWORK" | "USB") => setConnectionType(value),
+            }}
+          />
+          {connectionType === "NETWORK" && (
+            <ProFormText
+              width="md"
             name="ipAddr"
             label="IP Address"
             rules={[
@@ -132,27 +161,28 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
                 message: "Please enter a valid IP address",
               },
             ]}
-            placeholder="Enter IP Address"
-          />
+              placeholder="Enter IP Address"
+            />
+          )}
         </ProForm.Group>
 
         <ProForm.Group>
-        <ProFormSelect
-          hasFeedback
-          width="md"
-          name="main_category"
-          label="Main Category"
-          rules={[{ required: true, message: "Main Category is required" }]}
-          showSearch
-          placeholder="Select Main Category"
-          request={async () => {
-            const data = await fetchMainCategories();
-            const values = data.map((e: { name: any; _id: any }) => {
-              return { label: e.name, value: e._id };
-            });
-            return values;
-          }}
-        />
+          <ProFormSelect
+            hasFeedback
+            width="md"
+            name="main_category"
+            label="Main Category"
+            rules={[{ required: true, message: "Main Category is required" }]}
+            showSearch
+            placeholder="Select Main Category"
+            request={async () => {
+              const data = await fetchMainCategories();
+              const values = data.map((e: { name: any; _id: any }) => {
+                return { label: e.name, value: e._id };
+              });
+              return values;
+            }}
+          />
         </ProForm.Group>
       </ModalForm>
     );
