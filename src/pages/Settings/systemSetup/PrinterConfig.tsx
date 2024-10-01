@@ -11,6 +11,7 @@ import {
   Popconfirm,
   message,
   Space,
+  Tag,
 } from "antd";
 import {
   PrinterOutlined,
@@ -51,6 +52,14 @@ function PrinterManagement() {
       key: "main_category",
     },
     {
+      title: "Connection Type",
+      dataIndex: "connectionType",
+      search: false,
+      fieldProps: {
+        placeholder: "Enter Connection Type",
+      },
+    },
+    {
       title: "IP Address",
       dataIndex: "ipAddr",
       copyable: true,
@@ -58,6 +67,19 @@ function PrinterManagement() {
         placeholder: "Enter IP Address",
       },
       key: "ip",
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      search: false,
+      fieldProps: {
+        placeholder: "Enter Status",
+      },
+      render: (_, record: any) => (
+        <Tag color={record.status === "online" ? "green" : "red"}>
+          {record.status}
+        </Tag>
+      ),
     },
     {
       title: "Actions",
