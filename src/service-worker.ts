@@ -39,6 +39,6 @@ registerRoute(
 // Cache navigation requests with the NetworkFirst strategy
 registerRoute(
   new NavigationRoute(
-    createHandlerBoundToURL('/index.html')
+    createHandlerBoundToURL(`${self.location.origin}/index.html`) // Updated line
   )
 );
