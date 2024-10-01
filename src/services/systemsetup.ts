@@ -53,9 +53,9 @@ export const createSystemSetup = async (data: ParamsType) => {
 
 export const updateSystemSetup = async (data: ParamsType) => {
   try {
-    console.log("update..", data);
+    // console.log("update..", data);
     const url = `${BASE_URL}/users/update-system-setting`;
-    const response = await axios.put(`${url}/${data._id}`, data.data2);
+    const response = await axios.put(`${url}/${data._id}`, data.data);
 
     return response.data;
   } catch (error) {
