@@ -1,31 +1,25 @@
 import { useRef } from "react";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from "@mui/material";
 import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
 import { Avatar, Tooltip } from "antd/lib";
-import { Button } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { fetchAllSuppliers } from "@services/supplier";
+import { Button, message, Popconfirm, Tag } from "antd";
+import {  DeleteOutlined } from "@ant-design/icons";
+import { deleteSupplier, fetchAllSuppliers } from "@services/supplier";
 import { UserOutlined } from "@ant-design/icons";
 import { MailOutlined, PhoneOutlined } from "@mui/icons-material";
 import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
-import { useSupplierSettings } from "../hooks/useSuppliersettings";
+import { useMutation } from "@tanstack/react-query";
+
 
 const SupplierTable = () => {
   const actionRef = useRef<ActionType>();
 
-  const {
-    deleteConfirmationOpen,
-    deleteCandidate,
-    handleDeleteClick,
-    handleDeleteConfirm,
-    handleDeleteCancel,
-    handleAddSupplier,
-  } = useSupplierSettings();
+  const DeleteSupplierMutation = useMutation(deleteSupplier, {
+    onSuccess: () => {
+      actionRef.current?.reload();
+      message.success("Supplier deleted successfully");
+    },
+    onError: () => message.error("Failed to delete supplier"),
+  });
 
   const actionColumn = {
     title: "Actions",
@@ -33,20 +27,23 @@ const SupplierTable = () => {
     hideInSearch: true,
     render: (_, record: any) => [
       <Tooltip key="edit" title="Edit">
-        <Button
-          type="link"
-          icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-          //   onClick={() => handleEditClick(record)}
+        <AddProSupplierModal
+          edit={true}
+          actionRef={actionRef}
+          data={record}
         />
       </Tooltip>,
-      <Tooltip key="delete" title="Delete">
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeleteClick(record)}
-        />
-      </Tooltip>,
+     <Popconfirm
+        title="Are you sure you want to delete this supplier?"
+        onConfirm={() => DeleteSupplierMutation.mutate(record._id)}
+        okText="Yes"
+        cancelText="No"
+      >
+        <Tag color="error" key={record._id} style={{ cursor: "pointer" }}>
+          <DeleteOutlined />
+           Delete
+        </Tag>
+      </Popconfirm>,
     ],
   };
 
@@ -142,33 +139,12 @@ const SupplierTable = () => {
         headerTitle="List of Suppliers"
         toolBarRender={() => [
           <AddProSupplierModal
-            onAddSupplier={handleAddSupplier}
+            edit={false}
             actionRef={actionRef}
           />,
         ]}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteConfirmationOpen}
-        onClose={handleDeleteCancel}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete :{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>the supplier
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={() => handleDeleteConfirm(actionRef)} danger>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };
