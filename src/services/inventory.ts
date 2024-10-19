@@ -34,7 +34,7 @@ export const editInventory = async (params: ParamsType) => {
     const response = await axios.put(`${url}/${params?._id}`, {
       ...params.values,
       unit_id: params.values.unit_id.value,
-      subcategory_id: params.values.subcategory_id.value,
+      // subcategory_id: params.values.subcategory_id.value,
     });
     message.success("Inventory updated successfully");
     return response.data;

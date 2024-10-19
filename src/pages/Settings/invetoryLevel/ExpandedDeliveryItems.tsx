@@ -30,7 +30,9 @@ const ExpandedDeliveryItems = ({ record }) => {
             loading={printDeliveryNoteMutation.isLoading}
             onClick={() => printDeliveryNoteMutation.mutate(record._id)}
           >
-         {printDeliveryNoteMutation.isLoading ? "Printing..." : "Print Delivery Note"}
+            {printDeliveryNoteMutation.isLoading
+              ? "Printing..."
+              : "Print Delivery Note"}
           </Button>
         </Space>
       }

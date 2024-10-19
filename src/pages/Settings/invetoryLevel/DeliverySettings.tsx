@@ -128,6 +128,10 @@ const DeliverySettings = () => {
         filterType: "light",
       }}
       dateFormatter="string"
+      scroll={{ x: "100%" }}
+      options={{
+        fullScreen: true,
+      }}
       headerTitle={
         <Text strong style={{ fontSize: "18px" }}>
           List of Deliveries
