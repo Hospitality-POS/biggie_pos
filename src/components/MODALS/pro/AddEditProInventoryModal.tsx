@@ -61,9 +61,13 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     if (open && data) {
       form.setFieldsValue({
         ...data,
-        main_category: {
-          value: data?.main_category?._id,
-          lable: data?.main_category?.name,
+        subcategory_id: {
+          value: data?.subcategory_id?._id,
+          lable: data?.subcategory_id?.name,
+        },
+        unit_id: {
+          value: data?.unit_id?._id,
+          lable: data?.unit_id?.name,
         },
       });
     }
@@ -177,7 +181,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         submitter={{
           searchConfig: {
             resetText: "Cancel",
-            submitText: "Add Inventory",
+            submitText: edit ? "Edit Inventory" : "Add Inventory",
           },
         }}
       >
