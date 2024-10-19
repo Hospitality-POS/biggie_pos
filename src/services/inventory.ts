@@ -20,7 +20,7 @@ export const fetchAllInventory = async (data: ParamsType) => {
 export const addNewInventory = async (params: ParamsType) => {
   try {
     console.log(params);
-    const response = await axios.post(url, {...params});
+    const response = await axios.post(url, { ...params });
     message.success("Inventory added successfully");
     return response.data;
   } catch (error) {
@@ -31,7 +31,11 @@ export const addNewInventory = async (params: ParamsType) => {
 
 export const editInventory = async (params: ParamsType) => {
   try {
-    const response = await axios.put(`${url}/${params?._id}`, {...params.values});
+    const response = await axios.put(`${url}/${params?._id}`, {
+      ...params.values,
+      unit_id: params.values.unit_id.value,
+      subcategory_id: params.values.subcategory_id.value,
+    });
     message.success("Inventory updated successfully");
     return response.data;
   } catch (error) {
