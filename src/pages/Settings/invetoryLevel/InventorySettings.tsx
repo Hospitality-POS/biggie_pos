@@ -12,9 +12,9 @@ const InventorySettings = () => {
   const deleteInventoryMutation = useMutation(deleteInventory, {
     onSuccess: () => {
       paymentRef.current?.reload();
-      message.success("Printer deleted successfully");
+      message.success("Inventory deleted successfully");
     },
-    onError: () => message.error("Failed to delete printer"),
+    onError: () => message.error("Failed to delete inventory"),
   });
 
   const actionColumn = {

@@ -2,6 +2,7 @@ import { ProCard } from "@ant-design/pro-components";
 import { Space } from "antd/lib";
 import { CalendarOutlined, HolderOutlined } from "@ant-design/icons";
 import InventorySettings from "./InventorySettings";
+import DeliverySettings from "./DeliverySettings";
 
 
 
@@ -17,7 +18,7 @@ function InventoryMainSettings() {
       key: "table2",
       tab: "delivery",
       label: <Space><HolderOutlined/>Deliveries</Space>,
-      children: <></>,
+      children: <DeliverySettings />,
     }
   ];
   return (
