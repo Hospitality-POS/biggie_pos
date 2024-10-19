@@ -1,9 +1,7 @@
 import { ProCard } from "@ant-design/pro-components";
-import PaymentsMethodSettings from "./PaymentSettings";
 import { Space } from "antd/lib";
-import { CalendarOutlined, DollarCircleOutlined } from "@ant-design/icons";
+import { CalendarOutlined, HolderOutlined } from "@ant-design/icons";
 import InventorySettings from "./InventorySettings";
-import Inventory from "./Inventory";
 
 
 
@@ -11,10 +9,16 @@ function InventoryMainSettings() {
   const tabsItems = [
     {
       key: "table1",
-      tab: "Table",
-      label: "All Inventory",
+      tab: "Inventory",
+      label: <Space><HolderOutlined/>Inventory</Space>,
       children: <InventorySettings />,
     },
+    {
+      key: "table2",
+      tab: "delivery",
+      label: <Space><HolderOutlined/>Deliveries</Space>,
+      children: <></>,
+    }
   ];
   return (
     <>
