@@ -6,13 +6,23 @@ import {
   ProTable,
 } from "@ant-design/pro-components";
 import ExpandedRowContent from "./ExpandableInvoice";
-import { Space, Tag, Typography } from "antd";
-import { DeleteOutlined, UserOutlined } from "@ant-design/icons";
+import { Button, Space, Tag, Typography } from "antd";
+import {  PrinterOutlined, UserOutlined } from "@ant-design/icons";
 import { getAllInvoices, rePrintInvoice } from "@services/cart";
+import { useMutation } from "@tanstack/react-query";
 
 const InvoicesTable = () => {
   const actionRef = useRef<ActionType>();
   const ref = useRef<ProFormInstance>();
+
+  const reprintMutattion = useMutation(rePrintInvoice, {
+    onSuccess: (data) => {
+        actionRef?.current?.reload();
+    },
+    onError: (error) => {
+      console.log(error);
+    },
+  });
 
   const ActionsColumn: ProColumns<any>[] = [
     {
@@ -21,22 +31,17 @@ const InvoicesTable = () => {
       key: "action",
       render: (_, record) => (
         <Space size="middle">
-          <Tag
-            color={"green"}
-            title="Re-print"
+          <Button
+            type="dashed"
+            loading={reprintMutattion.isLoading}
             style={{ cursor: "pointer" }}
-            onClick={async () => {
-              const success = await rePrintInvoice(record._id);
-              if (success && actionRef.current) {
-                actionRef.current.reload();
-              }
-            }}
+            onClick={() => reprintMutattion.mutate(record._id)}
           >
-            <DeleteOutlined />
+            <PrinterOutlined />
             <Typography.Text>
-              Re-print
+             {reprintMutattion.isLoading ? "Printing..." : "Re-print"}
             </Typography.Text>
-          </Tag>
+          </Button>
         </Space>
       ),
     },
