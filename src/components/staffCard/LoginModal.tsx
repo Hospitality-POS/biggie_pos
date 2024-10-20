@@ -29,7 +29,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
       <ModalForm
         title="ENTER YOUR 4 DIGIT PIN"
         trigger={
-          showButton?  (
+          showButton ? (
             <Button
               type="dashed"
               icon={<LoginOutlined />}
@@ -38,7 +38,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
               Login
             </Button>
           ) : (
-           <></>
+            <></>
           )
         }
         size="large"

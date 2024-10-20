@@ -16,7 +16,6 @@ import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
 
-
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
   actionRef: any;
@@ -33,24 +32,24 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   const [form] = Form.useForm();
   const formRef = useRef();
 
-   const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
-   useEffect(() => {
-     if (open && data) {
-       form.setFieldsValue({
-         ...data,
-         phoneNumber: reversePhoneNumber(data?.phone),
-         roleId: data?.role?._id,
-       });
-     }
-   }, [open, data, form]);
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        ...data,
+        phoneNumber: reversePhoneNumber(data?.phone),
+        roleId: data?.role?._id,
+      });
+    }
+  }, [open, data, form]);
 
-   const handleOpenChange = (newOpen: boolean) => {
-     setOpen(newOpen);
-     if (!newOpen) {
-       form.resetFields();
-     }
-   };
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
 
   const { handleConfirmAddUser } = useAddEditUserModal({ onAddUser });
 
@@ -88,7 +87,9 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
                 onClick={() => form.setFieldsValue(data)}
               />
             }
-          >Edit</Button>
+          >
+            Edit
+          </Button>
         ) : (
           <Button key="button" icon={<UsergroupAddOutlined />}>
             New
@@ -107,7 +108,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
           } user?`,
-           position: true,
+          position: true,
         });
         if (confirmed) {
           edit
