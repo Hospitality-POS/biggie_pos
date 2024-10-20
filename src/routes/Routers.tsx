@@ -47,6 +47,8 @@ const CategoryMainSettings = lazy(
 );
 const Reports = lazy(() => import("@pages/Settings/reportsLevel/Reports"));
 
+const Profile = lazy(() => import("@pages/Profile/Profile"));
+
 const routes = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<Layout />}>
@@ -228,6 +230,17 @@ const routes = createBrowserRouter(
           </Suspense>
         }
         // errorElement={<NotFound/>}
+      />
+      <Route
+        path="/profile/:id"
+        errorElement={<NotFound />}
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <Profile />
+            </Private>
+          </Suspense>
+        }
       />
       <Route path="*" element={<NotFound />} />
     </Route>

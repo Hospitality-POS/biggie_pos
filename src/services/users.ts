@@ -3,6 +3,8 @@ import axios from "axios";
 import { BASE_URL } from "@utils/config";
 import { Modal, notification } from "antd/lib";
 
+  const userUrl = `${BASE_URL}/users`;
+ 
 export const fetchAllUsersList = async (data: ParamsType) => {
   try {
     const url = `${BASE_URL}/users/all`;
@@ -46,3 +48,15 @@ export const fetchUserRoles =async () => {
     console.log(error);
   }
 }
+
+export const fetchUserById = async (id: string) => {
+ 
+   try {
+     const response = await axios.get(`${userUrl}/${id}`);
+     return response.data;
+   } catch (error) {
+     console.log(error);
+     throw new Error("Error fetching user");
+   }
+   
+ };
