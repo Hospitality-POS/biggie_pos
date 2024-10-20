@@ -107,6 +107,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
           } user?`,
+           position: true,
         });
         if (confirmed) {
           edit

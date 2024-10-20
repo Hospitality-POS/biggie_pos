@@ -11,6 +11,8 @@ import { logoutUser } from "@features/Auth/AuthActions";
 import { reset } from "@features/Auth/AuthSlice";
 import { Image } from "antd";
 import useProLayoutNav from "./defaultprops";
+import StaffModal from "@components/staffCard/LoginModal";
+import { useState } from "react";
 
 const ProNavbar = () => {
   const dispatch = useAppDispatch();
@@ -22,6 +24,9 @@ const ProNavbar = () => {
     dispatch(reset());
     navigation("/tables");
   };
+  const [open, setOpen] = useState(false);
+  const tbl = "staff";
+
   return (
     <ProLayout
       style={{ maxWidth: "1920px" }}
@@ -79,16 +84,17 @@ const ProNavbar = () => {
                           key: "logout",
                           icon: <UserOutlined />,
                           label: "Profile",
+                          onClick: () => navigation(`/profile/${user?.id}`)
                         },
                       ],
                     }}
                   >
                     {dom}
                   </Dropdown>
-                  <Button icon={<PoweroffOutlined />} onClick={handleLogout} />
+                  <Button icon={<PoweroffOutlined />} onClick={handleLogout}>logout</Button>
                 </>
               ) : (
-                ""
+                <StaffModal setOpen={setOpen} open={open} tbl={tbl} showButton/>
               )}
             </>
           );
