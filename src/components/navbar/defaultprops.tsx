@@ -1,4 +1,4 @@
-import {  ApiFilled, CalculatorFilled, FileAddFilled, FileFilled, FolderFilled, HomeFilled, PrinterFilled, SmileFilled } from "@ant-design/icons";
+import {  ApiFilled, CalculatorFilled, FileAddFilled, FileFilled, FolderFilled, HomeFilled, PrinterFilled, SmileFilled, SolutionOutlined } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 
   const useProLayoutNav = () => {
@@ -31,8 +31,8 @@ import { useAppSelector } from "src/store";
         },
         {
           path: "/employee-shift",
-          name: "Shift Schedule",
-          icon: <FileAddFilled />,
+          name: "Shifts",
+          icon: <SolutionOutlined />,
         },
         {
           path: "/reports",
