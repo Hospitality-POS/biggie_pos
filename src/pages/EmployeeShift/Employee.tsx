@@ -219,8 +219,8 @@ const RestaurantShiftSchedule = () => {
       <Calendar
         cellRender={dateCellRender}
         fullscreen
-        mode="month"
-        validRange={[moment().startOf("month"), moment().endOf("month")]}
+        // mode="month"
+        // validRange={[moment().startOf("month"), moment().endOf("month")]}
       />
       <Modal
         title="Add New Shift"
