@@ -40,7 +40,7 @@ const VoidReportModal: React.FC<VoidReportProps> = ({
   const componentRef = useRef<HTMLDivElement>(null);
   const { BRAND_NAME1 } =
     useSystemDetails();
-  const { voidedReport: data, loading } = useAppSelector(
+  const { voidedReport: data, loading, error } = useAppSelector(
     (state) => state.Report
   );
   const handlePrint = useReactToPrint({
@@ -53,6 +53,7 @@ const VoidReportModal: React.FC<VoidReportProps> = ({
       accumulator + getTotalAmount(item.orderItems),
     0
   );
+  if (error) return;
 
   return (
     <>
