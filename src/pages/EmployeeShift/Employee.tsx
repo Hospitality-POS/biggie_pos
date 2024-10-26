@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Calendar,
   Select,
@@ -12,145 +12,96 @@ import {
   Col,
   Popover,
   Space,
+  Spin,
+  Typography,
 } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  ExclamationCircleOutlined,
-  FileAddFilled,
   SolutionOutlined,
 } from "@ant-design/icons";
-import moment from "moment";
-
-const { Option } = Select;
-const { RangePicker } = TimePicker;
-const { confirm } = Modal;
+import EmployeeShiftModal from "@components/MODALS/pro/EmployeeShiftModal";
+import { deleteShift, fetchAllShifts } from "@services/shifts";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 const RestaurantShiftSchedule = () => {
-  const [shifts, setShifts] = useState([]);
-  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
-  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [editingShift, setEditingShift] = useState(null);
-  const [form] = Form.useForm();
+  const actionRef = useRef(null);
 
-  const handleAddShift = () => {
-    setIsAddModalVisible(true);
-  };
+  const { data: shifts, isLoading: isLoadingShifts } = useQuery({
+    queryKey: ["shifts"],
+    queryFn: fetchAllShifts, 
+    retry: 1,
+    refetchInterval: 5000,
+    networkMode: "always",
+  });
 
-  const handleEditShift = (shift) => {
-    setEditingShift(shift);
-    form.setFieldsValue({
-      employee: shift.employee,
-      day: shift.day,
-      timeRange: [
-        moment(shift.timeRange[0], "HH:mm"),
-        moment(shift.timeRange[1], "HH:mm"),
-      ],
-    });
-    setIsEditModalVisible(true);
-  };
+  const DeleteShiftMutation = useMutation({
+    mutationFn: deleteShift,
+    onSuccess: () => {
+      // Refetch shift data after deletion
+      fetchAllShifts();
+    },
+    onError: (error) => {
+      console.error("Delete error:", error);
+    },
+  });
 
-  const handleDeleteShift = (shiftId) => {
-    confirm({
-      title: "Are you sure you want to delete this shift?",
-      icon: <ExclamationCircleOutlined />,
-      content: "This action cannot be undone.",
-      okText: "Yes",
-      okType: "danger",
-      cancelText: "No",
-      onOk() {
-        const updatedShifts = shifts.filter((shift) => shift.id !== shiftId);
-        setShifts(updatedShifts);
-        message.success("Shift deleted successfully");
-      },
-    });
-  };
-
-  const handleAddModalOk = () => {
-    form.validateFields().then((values) => {
-      const newShift = {
-        id: Date.now(),
-        employee: values.employee,
-        day: values.day,
-        timeRange: [
-          values.timeRange[0].format("HH:mm"),
-          values.timeRange[1].format("HH:mm"),
-        ],
-      };
-      setShifts([...shifts, newShift]);
-      setIsAddModalVisible(false);
-      form.resetFields();
-      message.success("Shift added successfully");
-    });
-  };
-
-  const handleEditModalOk = () => {
-    form.validateFields().then((values) => {
-      const updatedShifts = shifts.map((shift) =>
-        shift.id === editingShift.id
-          ? {
-              ...shift,
-              employee: values.employee,
-              day: values.day,
-              timeRange: [
-                values.timeRange[0].format("HH:mm"),
-                values.timeRange[1].format("HH:mm"),
-              ],
-            }
-          : shift
-      );
-      setShifts(updatedShifts);
-      setIsEditModalVisible(false);
-      setEditingShift(null);
-      form.resetFields();
-      message.success("Shift updated successfully");
-    });
-  };
-
-  const handleModalCancel = () => {
-    setIsAddModalVisible(false);
-    setIsEditModalVisible(false);
-    setEditingShift(null);
-    form.resetFields();
-  };
-
-  const getListData = (value) => {
+  const getListData = (value: Date) => {
     const dayOfWeek = value.format("dddd");
-    return shifts.filter((shift) => shift.day === dayOfWeek);
+    return shifts?.filter((shift) => shift.dayOfWeek === dayOfWeek);
   };
 
-  const dateCellRender = (value) => {
+  const getShiftStatusColor = (startTime: string) => {
+    const hour = parseInt(startTime.split(":")[0]);
+    if (hour < 12) return "success";
+    if (hour < 17) return "processing";
+    return "warning";
+  };
+
+  const dateCellRender = (value: Date) => {
     const listData = getListData(value);
     return (
       <ul className="events">
-        {listData.map((item) => (
-          <li key={item.id}>
+        {listData?.map((item) => (
+          <li key={item._id}>
             <Popover
               content={
-                <Space>
-                  <Button
-                    icon={<EditOutlined />}
-                    size="small"
-                    onClick={() => handleEditShift(item)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    icon={<DeleteOutlined />}
-                    size="small"
-                    danger
-                    onClick={() => handleDeleteShift(item.id)}
-                  >
-                    Delete
-                  </Button>
-                </Space>
+                <div className="p-2">
+                  <div className="mb-2">
+                    <strong>Employee:</strong> {item?.employee_id?.fullname}
+                  </div>
+                  <div className="mb-2">
+                    <strong>Time:</strong> {item?.startTime}-{item?.endTime}
+                  </div>
+                  <Space>
+                    <EmployeeShiftModal
+                      actionRef={actionRef}
+                      edit={true}
+                      data={item}
+                    />
+                    <Button
+                      icon={<DeleteOutlined />}
+                      danger
+                      onClick={() => {
+                        DeleteShiftMutation.mutate(item._id);
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </Space>
+                </div>
               }
               trigger="hover"
+              placement="rightTop"
             >
               <Badge
-                status="processing"
-                text={`${item.employee}: ${item.timeRange[0]}-${item.timeRange[1]}`}
+                status={getShiftStatusColor(item?.startTime)}
+                text={
+                  <span className="shift-text">
+                    {`${item?.employee_id?.fullname}: ${item?.startTime}-${item?.endTime}`}
+                  </span>
+                }
               />
             </Popover>
           </li>
@@ -159,88 +110,51 @@ const RestaurantShiftSchedule = () => {
     );
   };
 
-  const ShiftForm = () => (
-    <Form form={form} layout="vertical">
-      <Form.Item
-        name="employee"
-        label="Employee"
-        rules={[{ required: true, message: "Please select an employee" }]}
-      >
-        <Select placeholder="Select an employee">
-          <Option value="John Doe">John Doe</Option>
-          <Option value="Jane Smith">Jane Smith</Option>
-          <Option value="Bob Johnson">Bob Johnson</Option>
-        </Select>
-      </Form.Item>
-      <Form.Item
-        name="day"
-        label="Day of Week"
-        rules={[{ required: true, message: "Please select a day" }]}
-      >
-        <Select placeholder="Select a day">
-          {[
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-          ].map((day) => (
-            <Option key={day} value={day}>
-              {day}
-            </Option>
-          ))}
-        </Select>
-      </Form.Item>
-      <Form.Item
-        name="timeRange"
-        label="Shift Time"
-        rules={[{ required: true, message: "Please select shift time" }]}
-      >
-        <RangePicker format="HH:mm" />
-      </Form.Item>
-    </Form>
-  );
-
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">
-        <SolutionOutlined /> Weekly Shift Schedule
-      </h1>
-      <Button
-        type="primary"
-        icon={<PlusOutlined />}
-        onClick={handleAddShift}
-        className="mb-4"
-      >
-        Add Shift
-      </Button>
-      <Calendar
-        cellRender={dateCellRender}
-        fullscreen
-        // mode="month"
-        // validRange={[moment().startOf("month"), moment().endOf("month")]}
-      />
-      <Modal
-        title="Add New Shift"
-        open={isAddModalVisible}
-        onOk={handleAddModalOk}
-        onCancel={handleModalCancel}
-        centered
-      >
-        <ShiftForm />
-      </Modal>
-      <Modal
-        title="Edit Shift"
-        open={isEditModalVisible}
-        onOk={handleEditModalOk}
-        onCancel={handleModalCancel}
-        centered
-      >
-        <ShiftForm />
-      </Modal>
-    </div>
+    <>
+      <Typography.Title level={3}>
+        <SolutionOutlined className="mr-2" />
+        Weekly Shift Schedule
+      </Typography.Title>
+      <div className="mb-4" style={{ display: "flex", gap: 4 }}>
+        <EmployeeShiftModal actionRef={actionRef} edit={false} data={{}} />
+      </div>
+      <Spin spinning={isLoadingShifts || DeleteShiftMutation.isLoading}>
+        <Calendar
+          cellRender={dateCellRender}
+          fullscreen
+          className="shift-calendar"
+        />
+      </Spin>
+      <style jsx>{`
+        .events {
+          margin: 0;
+          padding: 0;
+          list-style: none;
+        }
+        .events li {
+          margin-bottom: 4px;
+        }
+        .shift-text {
+          font-size: 12px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 150px;
+          display: inline-block;
+        }
+        :global(.shift-calendar .ant-picker-calendar-date-content) {
+          height: 80px;
+          overflow-y: auto;
+        }
+        :global(.shift-calendar .ant-badge-status-text) {
+          font-size: 12px;
+        }
+        :global(.ant-popover-inner-content) {
+          min-width: 200px;
+        }
+      `}</style>
+    </>
   );
 };
 
