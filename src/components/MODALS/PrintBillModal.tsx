@@ -22,6 +22,7 @@ import {
 import { Button } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
 import { printInvoice } from "@services/cart";
+import ShowConfirm from "@utils/ConfirmUtil";
 
 interface PrintBillProps {
   cartDetails: any;
@@ -60,8 +61,17 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
       }
       onFinish={async () => {
         try {
-          await printInvoice(cartDetails._id);
-          return true;
+          const confirmed = await ShowConfirm({
+            title: `Do you want to print this bill with ETR machine?`,
+            position: true,
+          });
+          if (confirmed) {
+            await printInvoice({cart_id:cartDetails?._id, print_etr: true,print:true});
+            return true;
+          }else{
+            await printInvoice({cart_id: cartDetails?._id, print_etr: false,print:true});
+            return true;
+          }
         } catch (error) {
           console.log(error);
           return false;
@@ -85,7 +95,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               /> */}
           <Typography
             variant="body1"
-            style={{ fontFamily: "monospace", fontSize: "1.3em" }}
+            style={{ fontFamily: "monospace", fontSize: "1.3em", textAlign: "center" }}
           >
             {BRAND_NAME1}
           </Typography>
