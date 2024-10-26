@@ -85,6 +85,7 @@ const OrdersTable = () => {
   const ActionsColumn: ProColumns<any>[] = [
     {
       title: "Actions",
+      search: false,
       key: "action",
       render: (_, record) => (
         <Space size="middle">
