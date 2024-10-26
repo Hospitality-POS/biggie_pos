@@ -251,12 +251,13 @@ const RestaurantPage: React.FC = () => {
                         )}
                       </section>
                     ) : (
-                      <div style={{ width: "inherit" }}>
+                      <div style={{ width: "inherit", overflow: "hidden" }}>
                         <div
                           style={{
                             display: "flex",
                             alignItems: "flex-end",
                             justifyContent: "flex-end",
+                            overflow: "hidden",
                           }}
                         >
                           <IconButton
@@ -281,6 +282,7 @@ const RestaurantPage: React.FC = () => {
                               gap: "10px",
                               marginLeft: 4,
                               paddingLeft: "4px",
+                              overflow: "hidden",
                             }}
                           >
                             {[...Array(6)].map((_, index) => (
@@ -301,6 +303,7 @@ const RestaurantPage: React.FC = () => {
                               width: "inherit",
                               maxHeight: "70vh",
                               overflowY: "auto",
+                              overflow: "hidden",
                             }}
                           >
                             {areProductsAvailable ? (

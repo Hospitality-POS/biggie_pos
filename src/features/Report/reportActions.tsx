@@ -13,13 +13,14 @@ interface DateDetails {
 export const generateSalesReport = createAsyncThunk(
   "report/generateSalesReport",
   async (dated: DateDetails, { rejectWithValue }) => {
-
     try {
-      const response = await axios.get(`${baseUrl}/date-range-sales/items`,{params: {
+      const response = await axios.get(`${baseUrl}/date-range-sales/items`, {
+        params: {
           startDate: dated.startDate,
           endDate: dated.endDate,
-          print: true
-        }});
+          print: true,
+        },
+      });
       message.success("Sales report generated successfully");
       return response.data;
     } catch (error: any) {
@@ -32,13 +33,14 @@ export const generateSalesReport = createAsyncThunk(
 export const generateVoidedReport = createAsyncThunk(
   "report/generateVoidedReport",
   async (dated: DateDetails, { rejectWithValue }) => {
-
     try {
-      const response = await axios.get(`${baseUrl}/date-range-void/items`,{params: {
+      const response = await axios.get(`${baseUrl}/date-range-void/items`, {
+        params: {
           startDate: dated.startDate,
           endDate: dated.endDate,
-          print: true
-        }});
+          print: true,
+        },
+      });
       message.success("Voided report generated successfully");
       return response.data;
     } catch (error: any) {
@@ -51,16 +53,44 @@ export const generateVoidedReport = createAsyncThunk(
 export const generatePurchaseReport = createAsyncThunk(
   "report/generatePurchaseReport",
   async (dated: DateDetails, { rejectWithValue }) => {
-    try { 
-      const response = await axios.get(`${baseUrl}/order-payment-methods/summary`, {params: {
-          startDate: dated.startDate,
-          endDate: dated.endDate,
-          print: true
-        }});
+    try {
+      const response = await axios.get(
+        `${baseUrl}/order-payment-methods/summary`,
+        {
+          params: {
+            startDate: dated.startDate,
+            endDate: dated.endDate,
+            print: true,
+          },
+        }
+      );
       message.success("Purchase report generated successfully");
       return response.data;
     } catch (error: any) {
       message.error("Failed to generate purchase report");
+      return rejectWithValue(error.response.data.error || error.toString());
+    }
+  }
+);
+
+export const generateDeliveryReport = createAsyncThunk(
+  "report/generateDeliveryReport",
+  async (dated: DateDetails, { rejectWithValue }) => {
+    try {
+      const response = await axios.get(
+        `${BASE_URL}/delivery/date-range-delivery-items/items`,
+        {
+          params: {
+            startDate: dated.startDate,
+            endDate: dated.endDate,
+            print: true,
+          },
+        }
+      );
+      message.success("Delivery report generated successfully");
+      return response.data;
+    } catch (error: any) {
+      message.error("Failed to generate delivery report");
       return rejectWithValue(error.response.data.error || error.toString());
     }
   }

@@ -99,6 +99,9 @@ const TableSetting = () => {
             dataIndex: "cart_amount",
             hideInSearch: true,
             valueType: "money",
+            render: (_, record) => {
+              return `Ksh. ${record?.cart_amount?.toLocaleString()}`;
+            },
           },
           {
             title: "Served By",

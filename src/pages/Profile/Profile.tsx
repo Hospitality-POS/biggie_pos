@@ -1,0 +1,231 @@
+import React, { useState } from "react";
+import {
+  UserOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  IdcardOutlined,
+  CalendarOutlined,
+  EditOutlined,
+  LockOutlined,
+  EyeOutlined,
+  EyeInvisibleOutlined,
+} from "@ant-design/icons";
+import { PageContainer } from "@ant-design/pro-components";
+import {
+  Card,
+  Avatar,
+  Tag,
+  Descriptions,
+  Row,
+  Col,
+  Space,
+  Typography,
+  Button,
+  message,
+  Skeleton,
+  Result,
+} from "antd";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchUserById } from "@services/users";
+
+const { Title, Text } = Typography;
+
+function Profile() {
+  const [isPinVisible, setIsPinVisible] = useState(false);
+  const [pin, setPin] = useState("******");
+  const params = useParams();
+  
+  const { id } = params;
+
+  const {data: userDetails, isLoading} = useQuery(
+  {
+    queryKey: ["user", id],
+    queryFn: () => fetchUserById(id),
+    refetchOnWindowFocus: false,
+    networkMode: "always",
+  }
+  );
+
+
+  const primaryColor = "#6c1c2c";
+
+  const handleEdit = () => {
+    console.log("Edit profile clicked");
+  };
+
+  const handleChangePin = () => {
+    console.log("Change PIN clicked");
+  };
+
+  const togglePinVisibility = async () => {
+    if (!isPinVisible) {
+      try {
+        setPin(userDetails.pin);
+        setIsPinVisible(true);
+      } catch (error) {
+        message.error("Failed to fetch PIN. Please try again later.");
+      }
+    } else {
+      setPin("******");
+      setIsPinVisible(false);
+    }
+  };
+
+  if (!userDetails) {
+    return (
+      <PageContainer
+        title="User Profile"
+        content="View and manage user information"
+        style={{ padding: "24px" }}
+      >
+        <Card>
+          <Row gutter={[16, 16]} align="middle">
+            <Col span={24}>
+            {isLoading ? (
+              <Skeleton active />
+            ) : (
+             <Result status="404" title="User not found" subTitle="Sorry, the user you visited does not exist." />
+            )}
+            </Col>
+          </Row>
+        </Card>
+      </PageContainer>
+    );
+  }
+
+  return (
+    <PageContainer
+      title="User Profile"
+      content="View and manage user information"
+      style={{ padding: "24px" }}
+    >
+      <Card>
+        <Row gutter={[16, 16]} align="middle">
+          <Col
+            xs={24}
+            sm={8}
+            md={6}
+            lg={5}
+            xl={4}
+            style={{ textAlign: "center" }}
+          >
+            <Avatar
+              size={100}
+              icon={<UserOutlined />}
+              style={{ backgroundColor: primaryColor }}
+            />
+          </Col>
+          <Col xs={24} sm={16} md={18} lg={19} xl={20}>
+            <Space direction="vertical" size="small" style={{ width: "100%" }}>
+              <Space align="center">
+                <Title level={3} style={{ marginBottom: 0 }}>
+                  {userDetails.fullname}
+                </Title>
+                <Button
+                  type="text"
+                  icon={<EditOutlined />}
+                  onClick={handleEdit}
+                  style={{ color: primaryColor }}
+                  aria-label="Edit profile"
+                />
+              </Space>
+              <Text
+                type="secondary"
+                style={{ marginBottom: 8 }}
+              >{`@${userDetails.username}`}</Text>
+              <Space>
+                <Tag color={userDetails.status === "Active" ? "green" : "red"}>
+                  {userDetails.status}
+                </Tag>
+                <Tag color={primaryColor}>
+                  {userDetails.role.role_type.toUpperCase()}
+                </Tag>
+              </Space>
+            </Space>
+          </Col>
+        </Row>
+
+        <Descriptions
+          bordered
+          column={{ xs: 1, sm: 2 }}
+          style={{ marginTop: "24px" }}
+          labelStyle={{ fontWeight: "bold" }}
+          size="small"
+        >
+          <Descriptions.Item
+            label={
+              <Space>
+                <MailOutlined /> Email
+              </Space>
+            }
+          >
+            {userDetails.email}
+          </Descriptions.Item>
+          <Descriptions.Item
+            label={
+              <Space>
+                <PhoneOutlined /> Phone
+              </Space>
+            }
+          >
+            {userDetails.phone}
+          </Descriptions.Item>
+          <Descriptions.Item
+            label={
+              <Space>
+                <IdcardOutlined /> ID Number
+              </Space>
+            }
+          >
+            {userDetails.idNumber}
+          </Descriptions.Item>
+          <Descriptions.Item
+            label={
+              <Space>
+                <LockOutlined /> PIN
+              </Space>
+            }
+          >
+            <Space>
+              {pin}
+              <Button
+                type="text"
+                icon={isPinVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                onClick={togglePinVisibility}
+                aria-label={isPinVisible ? "Hide PIN" : "Show PIN"}
+              />
+              <Button
+                type="link"
+                onClick={handleChangePin}
+                style={{ padding: 0 }}
+              >
+                Change PIN
+              </Button>
+            </Space>
+          </Descriptions.Item>
+          <Descriptions.Item
+            label={
+              <Space>
+                <CalendarOutlined /> Created At
+              </Space>
+            }
+          >
+            {new Date(userDetails.createdAt).toLocaleString()}
+          </Descriptions.Item>
+          <Descriptions.Item
+            label={
+              <Space>
+                <CalendarOutlined /> Last Updated
+              </Space>
+            }
+          >
+            {new Date(userDetails.updatedAt).toLocaleString()}
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
+    </PageContainer>
+  );
+}
+
+export default Profile;

@@ -4,20 +4,43 @@ import classes from "./staff.module.css";
 import { Button, Col, Row } from "antd/lib";
 import { ModalForm, ProFormText } from "@ant-design/pro-components";
 import { useLogin } from "./hook/useLogin";
+import { LoginOutlined } from "@ant-design/icons";
 
 type StaffModalProps = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   open: boolean;
   tbl: string;
+  showButton: boolean;
 };
-const StaffModal: React.FC<StaffModalProps> = ({ setOpen, open, tbl }) => {
-  const { handleLogin, handleNumberClick, handleClose, form } =
-    useLogin(setOpen, tbl);
+
+const StaffModal: React.FC<StaffModalProps> = ({
+  setOpen,
+  open,
+  tbl,
+  showButton,
+}) => {
+  const { handleLogin, handleNumberClick, handleClose, form } = useLogin(
+    setOpen,
+    tbl
+  );
 
   return (
     <>
       <ModalForm
         title="ENTER YOUR 4 DIGIT PIN"
+        trigger={
+          showButton ? (
+            <Button
+              type="dashed"
+              icon={<LoginOutlined />}
+              onClick={() => setOpen(true)}
+            >
+              Login
+            </Button>
+          ) : (
+            <></>
+          )
+        }
         size="large"
         open={open}
         width={600}
@@ -27,12 +50,10 @@ const StaffModal: React.FC<StaffModalProps> = ({ setOpen, open, tbl }) => {
           handleClose();
         }}
         onOpenChange={(visible) => !visible && handleClose()}
-        modalProps={
-          {
-            destroyOnClose: true,
-            centered: true,
-          }
-        }
+        modalProps={{
+          destroyOnClose: true,
+          centered: true,
+        }}
         submitter={{
           searchConfig: {
             resetText: "Cancel",

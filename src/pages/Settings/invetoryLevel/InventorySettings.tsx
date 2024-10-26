@@ -1,60 +1,45 @@
 import { useRef } from "react";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from "@mui/material";
-import {
-  ActionType,
-  ProCard,
-  ProFormText,
-  ProTable,
-} from "@ant-design/pro-components";
-import { Tooltip } from "antd/lib";
-import { Button } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { fetchAllPaymentMethods } from "@services/paymentMethod";
-import usePaymentSettings from "../hooks/usePaymentSettings";
-import AddProPaymentMethodSettingsModal from "@components/MODALS/pro/AddProPaymentSettingsModal";
-import { fetchAllInventory } from "@services/inventory";
-import { useProductInventorySettings } from "../hooks/useProductInventorySettings";
+import { ActionType, ProTable } from "@ant-design/pro-components";
+import { Button, message, Popconfirm, Tag } from "antd";
+import { deleteInventory, fetchAllInventory } from "@services/inventory";
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
+import { DeleteOutlined } from "@ant-design/icons";
+import { useMutation } from "@tanstack/react-query";
 
-const  InventorySettings= () => {
+const InventorySettings = () => {
   const paymentRef = useRef<ActionType>();
-  const {
-     handleDeleteClick,
-    handleDeleteConfirm,
-    handleDeleteCancel,
-    deleteConfirmationOpen,
-    deleteCandidate,
-    handleAddInventory
-  } = useProductInventorySettings();
 
-
-  
+  const deleteInventoryMutation = useMutation(deleteInventory, {
+    onSuccess: () => {
+      paymentRef.current?.reload();
+      message.success("Inventory deleted successfully");
+    },
+    onError: () => message.error("Failed to delete inventory"),
+  });
 
   const actionColumn = {
     title: "Actions",
     dataIndex: "actions",
     hideInSearch: true,
     render: (_, record: any) => [
-      <Tooltip key="edit" title="Edit">
-        <Button
-          type="link"
-          icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-          //   onClick={() => handleEditClick(record)}
+      <Tag color="success" key={record._id}>
+        <AddEditProInventoryModal
+          actionRef={paymentRef}
+          data={record}
+          edit={true}
         />
-      </Tooltip>,
-      <Tooltip key="delete" title="Delete">
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeleteClick(record)}
-        />
-      </Tooltip>,
+      </Tag>,
+      <Popconfirm
+        title="Are you sure you want to delete this inventory?"
+        onConfirm={() => deleteInventoryMutation.mutate(record._id)}
+        okText="Yes"
+        cancelText="No"
+      >
+        <Tag color="error" key={record._id} style={{ cursor: "pointer" }}>
+          <DeleteOutlined />
+          Delete
+        </Tag>
+      </Popconfirm>,
     ],
   };
 
@@ -78,6 +63,7 @@ const  InventorySettings= () => {
             fieldProps: {
               placeholder: "Enter Code",
             },
+            sorter: true,
           },
           {
             title: "Name",
@@ -86,25 +72,44 @@ const  InventorySettings= () => {
             fieldProps: {
               placeholder: "Enter Product Name",
             },
+            sorter: true,
           },
           {
             title: "Price",
             dataIndex: "price",
             hideInSearch: true,
-            valueType: "money"
+            valueType: "money",
+            render: (_, record) => {
+              return `ksh. ${record?.price?.toLocaleString()}`;
+            },
           },
-           {
-            title: "Quantity",
-            dataIndex: "quantity", 
+          {
+            title: "Subcategory",
+            dataIndex: "subcategory_id",
             hideInSearch: true,
-            valueType: "digit"
+            render: (_, record) => {
+              return record?.subcategory_id?.name;
+            },
           },
-         
+          {
+            title: "Quantity",
+            dataIndex: "quantity",
+            hideInSearch: true,
+            valueType: "digit",
+          },
+          {
+            title: "Unit",
+            dataIndex: "unit_id",
+            hideInSearch: true,
+            render: (_, record) => {
+              return record?.unit_id?.name;
+            },
+          },
           actionColumn,
         ]}
         request={async (param) => {
           const data = await fetchAllInventory(param);
-          // console.log(data);          
+          // console.log(data);
           return {
             data: data,
             success: true,
@@ -120,40 +125,16 @@ const  InventorySettings= () => {
           selections: false,
         }}
         search={{
-          searchText: "Search Method",
+          searchText: "Search Inventory",
           resetText: "Reset",
           labelWidth: "auto",
         }}
         dateFormatter="string"
         headerTitle="List of Product Inventory"
         toolBarRender={() => [
-          <AddEditProInventoryModal
-            actionRef={paymentRef}
-            onAddInventory={handleAddInventory}
-          />,
+          <AddEditProInventoryModal actionRef={paymentRef} />,
         ]}
       />
-
-      <Dialog
-        open={deleteConfirmationOpen}
-        onClose={handleDeleteCancel}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete the inventory for :{" "}
-          <i>{deleteCandidate ? deleteCandidate?.name : ""}</i> product.
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={async() => await handleDeleteConfirm(paymentRef)} danger>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };

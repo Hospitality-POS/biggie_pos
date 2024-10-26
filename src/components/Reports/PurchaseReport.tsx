@@ -39,7 +39,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
 }) => {
   const { BRAND_NAME1 } = useSystemDetails();
   const componentRef = useRef<HTMLDivElement>(null);
-  const { purchaseReport: data, loading } = useAppSelector(
+  const { purchaseReport: data, loading,error } = useAppSelector(
     (state) => state.Report
   );
   const handlePrint = useReactToPrint({
@@ -55,6 +55,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
       />
     );
   }
+  if (error) return;
   return (
     <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
       <DialogContent className="receiptM" ref={componentRef}>

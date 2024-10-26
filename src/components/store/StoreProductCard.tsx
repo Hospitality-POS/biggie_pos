@@ -1,23 +1,14 @@
-import {
-  Box,
-  Button,
-  CardContent,
-  CardMedia,
-  IconButton,
-} from "@mui/material";
-import React, { useRef } from "react";
+import React from "react";
 import CircleIcon from "@mui/icons-material/Circle";
-import BorderColorOutlinedIcon from "@mui/icons-material/BorderColorOutlined";
 import EditProductModal from "./EditProductModal";
 // import { deleteProduct } from "../../features/Product/ProductAction";
-import { MenuBook } from "@mui/icons-material";
 import { useAppDispatch } from "../../store";
-import { Card, Space, Typography } from "antd";
-import { ProCard } from "@ant-design/pro-components";
-import { DeleteFilled, EditOutlined, SettingOutlined } from "@ant-design/icons";
+import { Card, Typography } from "antd";
+import { DeleteFilled, SettingOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { deleteProduct } from "@services/products";
 import StoreModal from "@components/MODALS/pro/StoreModal";
+import RecipeModal from "@components/MODALS/pro/RecipeModal";
 
 interface StoreProductCardProps {
   img: string;
@@ -48,7 +39,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
   };
 
 
-  
+
   return (
     <>
       <Card
@@ -58,16 +49,18 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
         bodyStyle={{ backgroundColor: "white" }}
         type="inner"
         actions={[
-          <SettingOutlined
-            key="setting"
-            style={{ fontSize: "25px", color: "white" }}
-          />,
+          // <SettingOutlined
+          //   key="setting"
+          //   style={{ fontSize: "25px", color: "white" }}
+          // />,
+          <RecipeModal productId={product?._id} key={product?._id} productName={name} />,
           <StoreModal edit={true} data={product} />,
           <DeleteFilled
             key="delete"
             onClick={async () => {
               const confirm = await ShowConfirm({
-                title: "Are you sure you want to delete this product?",
+                title: `Are you sure you want to delete ${name}?`,
+                position: true
               });
               if (confirm) {
                 deleteProduct(productId);

@@ -1,7 +1,8 @@
+import { AlertOutlined } from "@ant-design/icons";
 import { ParamsType } from "@ant-design/pro-components";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
-import { notification } from "antd";
+import { Modal, notification } from "antd";
 import axios from "axios";
 import { CartDetailsInterface } from "src/interfaces/CartDetailsTypes";
 import { ThunkApi } from "src/interfaces/ThunkApiTypes";
@@ -75,6 +76,9 @@ export const addItemToCart = createAsyncThunk(
       dispatch(getCart(cartItem.table_id));
       return response.data;
     } catch (error: any) {
+      if (error.response.status === 400) {
+       Modal.error({ title: "Oops!", content: `${error?.response.data.message}` , centered: true , icon: <AlertOutlined/>});
+      }
       return rejectWithValue(error.message || error.toString());
     }
   }

@@ -4,6 +4,12 @@ import { message, Modal, notification } from "antd";
 import axios from "axios";
 const baseUrl = BASE_URL;
 
+interface PrintData {
+  cart_id: string;
+  print_etr: boolean;
+  print: boolean;
+}
+
 export const getAllCartItems = async (cartId: string) => {
   try {
     const response = await axios.get(`${baseUrl}/cart/cart-items/${cartId}`);
@@ -14,9 +20,9 @@ export const getAllCartItems = async (cartId: string) => {
 };
 
 
-export const printInvoice = async (cartId: string) => {
+export const printInvoice = async (prrintData: PrintData) => {
   try {
-    const response = await axios.put(`${baseUrl}/cart/print-cart`, { cart_id: cartId });
+    const response = await axios.put(`${baseUrl}/cart/print-cart`, prrintData);
     message.success("Invoice printed successfully");
     return response.data || [];
   } catch (error: any) {

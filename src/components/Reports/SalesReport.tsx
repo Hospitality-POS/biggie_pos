@@ -38,7 +38,7 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
   endDate,
 }) => {
   const componentRef = useRef<HTMLDivElement>(null);
-  const { salesReport: data, loading } = useAppSelector(
+  const { salesReport: data, loading, error } = useAppSelector(
     (state) => state.Report
   );
   const handlePrint = useReactToPrint({
@@ -52,6 +52,8 @@ const SalesReportModal: React.FC<SalesReportProps> = ({
     0
   );
   const { BRAND_NAME1 } = useSystemDetails();
+
+  if (error) return;
 
   return (
     <>
