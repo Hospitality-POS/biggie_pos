@@ -1,15 +1,26 @@
-import React, { useRef } from "react";
-import { Button, Form, Space, InputNumber, Tooltip, Row, Col } from "antd";
+import React, { useCallback, useRef } from "react";
+import {
+  Button,
+  Form,
+  InputNumber,
+  Tooltip,
+  Row,
+  Col,
+  Spin,
+  message,
+  Flex,
+} from "antd";
 import { ModalForm, ProForm, ProFormSelect } from "@ant-design/pro-form";
 import {
-  FolderAddTwoTone,
   PlusCircleFilled,
   MinusCircleOutlined,
   CarryOutOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchAllInventoryItems, fetchAllUnits } from "@services/products";
 import ShowConfirm from "@utils/ConfirmUtil";
+import { createRecipe, deleteRecipe, fetchRecipe, updateRecipe } from "@services/recipe";
 
 interface RecipeModalProps {
   productId: string;
@@ -19,12 +30,19 @@ interface RecipeModalProps {
 interface inventoryItemType {
   name: string;
   _id: string;
-  unit_id: { _id: string; name: string }; // Adjusted to match your response structure
+  unit_id: { _id: string; name: string };
 }
 
 interface unitType {
   name: string;
   _id: string;
+}
+
+interface recipeItemType {
+  _id: string;
+  inventory_id: { _id: string; name: string };
+  unit_id: { _id: string; name: string };
+  quantity: number;
 }
 
 const RecipeModal: React.FC<RecipeModalProps> = ({
@@ -33,56 +51,142 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef(null);
+  const [modalVisible, setModalVisible] = React.useState(false);
+const [recipeItems, setRecipeItems] = React.useState<any[]>([]);
 
-  // Fetch inventory items using React Query
-  const { data: inventoryItems } = useQuery({
+// Mutation for deleting recipe item
+const { mutate: deleteRecipeMutation } = useMutation({
+  mutationFn: deleteRecipe,
+  onSuccess: () => {
+    message.success("Recipe item deleted successfully");
+    // Refetch recipe data after deletion
+    fetchRecipeData();
+  },
+  onError: (error) => {
+    message.error("Failed to delete recipe item");
+    console.error("Delete error:", error);
+  },
+});
+
+// Mutation for fetching recipe
+const { mutate: fetchRecipeData, isLoading: isLoadingRecipe } = useMutation({
+  mutationFn: () => fetchRecipe(productId),
+  onSuccess: (data) => {
+    setRecipeItems(data); // Store original recipe data
+
+    const formattedData = data?.map((item: recipeItemType) => ({
+      _id: item?._id, // Store the recipe ID
+      item: item?.inventory_id?._id || "missing_inventory",
+      unit: item?.unit_id?._id,
+      quantity: item?.quantity,
+    })) || [{}];
+
+    form.setFieldsValue({
+      recipeItems: formattedData,
+    });
+    setModalVisible(true);
+  },
+  onError: (error) => {
+    console.error("Failed to fetch recipe:", error);
+    form.setFieldsValue({
+      recipeItems: [{}],
+    });
+    setModalVisible(true);
+  },
+});
+
+const handleDeleteRecipeItem = async (recipeId: string, name: number) => {
+  const confirmed = await ShowConfirm({
+    title: "Are you sure you want to delete this recipe item?",
+    position: true,
+  });
+
+  if (confirmed) {
+    if (recipeId) {
+      // If we have a recipe ID, delete from database
+      deleteRecipeMutation(recipeId);
+    } else {
+      // If no recipe ID (new item), just remove from form
+      const currentItems = form.getFieldValue("recipeItems");
+      const newItems = currentItems.filter(
+        (_: any, index: number) => index !== name
+      );
+      form.setFieldsValue({ recipeItems: newItems });
+    }
+  }
+};
+  // Fetch inventory items and units
+  const { data: inventoryItems, isLoading: isLoadingInventory } = useQuery({
     queryKey: ["inventoryItems"],
     queryFn: fetchAllInventoryItems,
-    retry: 3,
-    refetchInterval: 5000,
+    staleTime: 60 * 1000,
     networkMode: "always",
   });
 
-  // Fetch units using React Query
-  const { data: units } = useQuery({
+  const { data: units, isLoading: isLoadingUnits } = useQuery({
     queryKey: ["units"],
     queryFn: fetchAllUnits,
-    retry: 3,
-    refetchInterval: 5000,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
     networkMode: "always",
   });
 
-  // Fetch inventory items and map with unit details
-  const InventoryRequest = async () => {
-    const data = inventoryItems?.map((item: inventoryItemType) => ({
+  const InventoryRequest = useCallback(async () => {
+    return inventoryItems?.map((item: inventoryItemType) => ({
       label: item?.name,
       value: item?._id,
-      unit: item?.unit_id, // Now including the unit_id object from the response
+      unit: item?.unit_id,
     }));
-    return data;
+  }, [inventoryItems]);
+
+
+  const handleTriggerClick = () => {
+    form.resetFields(); 
+    fetchRecipeData();
+  };
+
+  const handleModalClose = () => {
+    form.resetFields();
+    setModalVisible(false);
   };
 
   const handleOnFinish = async (values: any) => {
     const confirmed = await ShowConfirm({
-      title: `Are you sure you want to save this recipe?`,
+      title: `Are you sure you want to ${
+        form.getFieldValue("recipeItems")?.length > 1 ? "update" : "save"
+      } this recipe?`,
       position: true,
     });
 
     if (confirmed) {
-      // Here you would call your service to save the recipe
-      console.log("Saving recipe: ", { productId, ...values });
-
-      return true;
+      try {
+        if (form.getFieldValue("recipeItems")?.length > 1) {
+          await updateRecipe(productId, values.recipeItems);
+        } else {
+          await createRecipe(productId, values.recipeItems);
+        }
+        handleModalClose();
+        return true;
+      } catch (error) {
+        console.error("Error saving recipe:", error);
+        return false;
+      }
     }
+    return false;
   };
 
   return (
     <ModalForm
       form={form}
       formRef={formRef}
+      loading={isLoadingRecipe}
+      open={modalVisible}
+      onOpenChange={(visible) => {
+        if (!visible) handleModalClose();
+      }}
       title={
-        <Space>
-          <FolderAddTwoTone />
+        <Flex gap={4}>
+          <CarryOutOutlined />
           <Tooltip title={productName}>
             <span
               style={{
@@ -93,128 +197,160 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
                 display: "inline-block",
               }}
             >
-              {`Add Recipe for ${productName}`}
+              {`${
+                form.getFieldValue("recipeItems")?.length > 1 ? "Update" : "Add"
+              } Recipe for ${productName}`}
             </span>
           </Tooltip>
-        </Space>
+        </Flex>
       }
       trigger={
-        <Tooltip key="setting" title="Add Recipe">
-          <CarryOutOutlined
-            key="setting"
-            style={{ fontSize: "25px", color: "white" }}
+          <Button
+            onClick={handleTriggerClick}
+            loading={isLoadingRecipe}
+            type="primary"
+            icon={
+              <CarryOutOutlined style={{ fontSize: "25px", color: "white" }} />
+            }
           />
-        </Tooltip>
       }
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
         centered: true,
+        onCancel: handleModalClose,
       }}
       onFinish={handleOnFinish}
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: "Save Recipe",
+          submitText: `${
+            form.getFieldValue("recipeItems")?.length > 1 ? "Update" : "Save"
+          } Recipe`,
+        },
+        submitButtonProps: {
+          disabled: isLoadingRecipe,
+          icon:
+            form.getFieldValue("recipeItems")?.length > 1 ? (
+              <CheckCircleOutlined />
+            ) : (
+              <PlusCircleFilled />
+            ),
+          loading: isLoadingRecipe || isLoadingInventory || isLoadingUnits,
         },
       }}
     >
-      <div
-        style={{ maxHeight: "300px", overflowY: "auto", overflowX:"hidden", marginBottom: "16px" }}
-      >
-        <Form.List name="recipeItems">
-          {(fields, { add, remove }) => (
-            <>
-              {fields.map(({ key, name, fieldKey, ...restField }) => (
-                <Row
-                  key={key}
-                  gutter={[16, 16]}
-                  style={{ marginBottom: "8px" }}
-                >
-                  <Col xs={24} sm={12} md={8}>
-                    <ProFormSelect
-                      {...restField}
-                      name={[name, "item"]}
-                      showSearch
-                      label="Inventory Item"
-                      placeholder="Select inventory item"
-                      rules={[
-                        {
-                          required: true,
-                          message: "Inventory item is required",
-                        },
-                      ]}
-                      request={InventoryRequest}
-                      width="sm"
-                      fieldProps={{
-                        onChange: (value, option) => {
-                          const selectedUnit = option.unit;
-                          // Set the unit ID and make it read-only
-                          form.setFieldValue(
-                            ["recipeItems", name, "unit"],
-                            selectedUnit._id
-                          );
-                        },
-                      }}
-                    />
-                  </Col>
-                  <Col xs={24} sm={12} md={6}>
-                    <ProForm.Item
-                      {...restField}
-                      name={[name, "quantity"]}
-                      label="Quantity"
-                      rules={[
-                        { required: true, message: "Quantity is required" },
-                      ]}
-                    >
-                      <InputNumber
-                        min={0.1}
-                        placeholder="Enter quantity"
-                        style={{ width: "100%" }}
+      {isLoadingRecipe || isLoadingInventory || isLoadingUnits ? (
+        <div style={{ textAlign: "center", padding: "20px" }}>
+          <Spin tip="Please wait a moment..." />
+        </div>
+      ) : (
+        <div
+          style={{
+            maxHeight: "300px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            marginBottom: "16px",
+          }}
+        >
+          <Form.List name="recipeItems" initialValue={[{}]}>
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, fieldKey, ...restField }) => (
+                  <Row
+                    key={key}
+                    gutter={[16, 16]}
+                    style={{ marginBottom: "8px" }}
+                  >
+                    <Col xs={24} sm={12} md={8}>
+                      <ProFormSelect
+                        {...restField}
+                        name={[name, "item"]}
+                        showSearch
+                        label="Inventory Item"
+                        placeholder="Select inventory item"
+                        rules={[
+                          {
+                            required: true,
+                            message: "Inventory item is required",
+                          },
+                        ]}
+                        request={InventoryRequest}
+                        width="sm"
+                        fieldProps={{
+                          onChange: (value, option: any) => {
+                            const selectedUnit = option.unit;
+                            form.setFieldValue(
+                              ["recipeItems", name, "unit"],
+                              selectedUnit._id
+                            );
+                          },
+                        }}
                       />
-                    </ProForm.Item>
-                  </Col>
-                  <Col xs={24} sm={12} md={6}>
-                    <ProFormSelect
-                      {...restField}
-                      name={[name, "unit"]}
-                      label="Unit"
-                      placeholder="Unit will be auto-filled"
-                      fieldProps={{
-                        disabled: true, // Disable editing of the unit field
-                      }}
-                      request={async () =>
-                        units?.map((unit: unitType) => ({
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <ProForm.Item
+                        {...restField}
+                        name={[name, "quantity"]}
+                        label="Quantity"
+                        rules={[
+                          { required: true, message: "Quantity is required" },
+                        ]}
+                      >
+                        <InputNumber
+                          min={0.1}
+                          placeholder="Enter quantity"
+                          style={{ width: "100%" }}
+                        />
+                      </ProForm.Item>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <ProFormSelect
+                        {...restField}
+                        name={[name, "unit"]}
+                        label="Unit"
+                        placeholder="Unit will be auto-filled"
+                        fieldProps={{
+                          disabled: true,
+                        }}
+                        options={units?.map((unit: unitType) => ({
                           label: unit.name,
                           value: unit._id,
-                        }))
-                      }
-                    />
-                  </Col>
-                  <Col
-                    xs={24}
-                    sm={12}
-                    md={2}
-                    style={{ display: "flex", alignItems: "center" }}
-                  >
-                    <Button
-                      type="link"
-                      danger
-                      icon={<MinusCircleOutlined />}
-                      onClick={() => remove(name)}
+                        }))}
+                      />
+                    </Col>
+                    <Col
+                      xs={24}
+                      sm={12}
+                      md={2}
+                      style={{ display: "flex", alignItems: "center" }}
                     >
-                      Remove
-                    </Button>
-                  </Col>
-                </Row>
-              ))}
-              <Button type="dashed" block onClick={() => add()}>
-                <PlusCircleFilled /> Add Recipe Item
-              </Button>
-            </>
-          )}
-        </Form.List>
-      </div>
+                      <Button
+                        type="link"
+                        danger
+                        icon={<MinusCircleOutlined />}
+                        onClick={() => {
+                          const recipeId = form.getFieldValue([
+                            "recipeItems",
+                            name,
+                            "_id",
+                          ]);
+                          handleDeleteRecipeItem(recipeId, name);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </Col>
+                  </Row>
+                ))}
+                <Button type="dashed" block onClick={() => add()}>
+                  <PlusCircleFilled /> Add Recipe Item
+                </Button>
+              </>
+            )}
+          </Form.List>
+        </div>
+      )}
     </ModalForm>
   );
 };
