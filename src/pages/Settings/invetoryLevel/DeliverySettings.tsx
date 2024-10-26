@@ -38,7 +38,7 @@ const DeliverySettings = () => {
           okText="Yes"
           cancelText="No"
         >
-          <Button type="primary" danger icon={<DeleteOutlined />}>
+          <Button type="primary" danger icon={<DeleteOutlined />} size="small">
             Delete
           </Button>
         </Popconfirm>
