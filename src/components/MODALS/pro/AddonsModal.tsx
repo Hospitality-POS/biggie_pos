@@ -9,9 +9,11 @@ interface AddonsModalProps {
   actionRef: any;
   edit?: boolean;
   data?: any;
+  modifierId?: string;
+  parentReload?: () => void;
 }
 
-const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
+const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data, modifierId, parentReload }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
 
@@ -32,12 +34,8 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
     }
   };
 
-  const editAddonsPayload = {
-    ...data,
-  };
-
   const HandleOnAddonsFinish = async (values: Partial<AddonsType>) => {
-    let payload = { name: values?.name, modifier: data?._id };
+    const payload = { name: values?.name, modifier: modifierId };
     const confirmed = await ShowConfirm({
       title: `Are you sure you want to ${
         edit ? "update this" : "add new"
@@ -48,7 +46,9 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
       edit
         ? await editAddon({ values, _id: data?._id, name: data?.name })
         : await createAddon(payload);
+      setOpen(false);
       actionRef.current.reset();
+      parentReload?.();
       return true;
     }
   };
@@ -58,17 +58,17 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
       open={open}
       onOpenChange={handleOpenChange}
       width={550}
-      layout="horizontal"
       title={
         <Space>
           <TagsOutlined />
           {edit ? "Edit Addons" : "Add New Addons"}
         </Space>
       }
-      initialValues={edit ? editAddonsPayload : {}}
+      initialValues={edit ? data : {}}
       trigger={
         edit ? (
           <Button
+            size="small"
             key="button"
             icon={
               <EditOutlined
@@ -98,17 +98,20 @@ const AddonsModal: React.FC<AddonsModalProps> = ({ actionRef, edit, data }) => {
           resetText: "Cancel",
           submitText: edit ? "Edit Addons" : "Add Addons",
         },
+        submitButtonProps: {
+          icon: edit ? <EditOutlined /> : <TagsOutlined />,
+        },
+        resetButtonProps: {
+          style: { display: "none" },
+        },
       }}
     >
-      <ProForm.Group>
         <ProFormText
-          width="md"
           name="name"
           label="Create New Addons"
           rules={[{ required: true, message: "Addons Name is required" }]}
           placeholder="Enter Addons Name"
         />
-      </ProForm.Group>
     </ModalForm>
   );
 };

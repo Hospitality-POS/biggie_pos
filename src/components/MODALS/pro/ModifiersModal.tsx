@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, FormInstance, Space } from "antd";
-import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
-import { EditOutlined, PushpinOutlined } from "@ant-design/icons";
+import { ModalForm, ProFormText } from "@ant-design/pro-form";
+import { EditOutlined, PlusOutlined, PushpinOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import {
   createModifierAddon,
@@ -67,7 +67,6 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
       open={open}
       onOpenChange={handleOpenChange}
       width={550}
-      layout="horizontal"
       title={
         <Space>
           <PushpinOutlined />
@@ -78,7 +77,7 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
       trigger={
         edit ? (
           <Button
-            
+            size="small"
             key="button"
             icon={
               <EditOutlined
@@ -106,17 +105,20 @@ const ModifiersModal: React.FC<ModifiersModalProps> = ({
           resetText: "Cancel",
           submitText: edit ? "Edit Modifiers" : "Add Modifiers",
         },
+        submitButtonProps: {
+          icon: edit ? <EditOutlined /> : <PlusOutlined />,
+        },
+        resetButtonProps: {
+          style: { display: "none" },
+        },
       }}
     >
-      <ProForm.Group>
         <ProFormText
-          width="md"
           name="name"
           label="Create New Modifiers"
           rules={[{ required: true, message: "Modifiers Name is required" }]}
           placeholder="Enter Modifiers Name"
         />
-      </ProForm.Group>
     </ModalForm>
   );
 };

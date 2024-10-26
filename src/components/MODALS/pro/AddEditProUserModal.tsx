@@ -87,6 +87,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
                 onClick={() => form.setFieldsValue(data)}
               />
             }
+            size="small"
           >
             Edit
           </Button>

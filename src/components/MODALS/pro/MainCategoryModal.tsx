@@ -40,7 +40,6 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
       open={open}
       onOpenChange={handleOpenChange}
       width={550}
-      layout="horizontal"
       title={
         <Space>
           <CrownOutlined />
@@ -51,7 +50,7 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
       trigger={
         edit ? (
           <Button
-        
+            size="small"
             key="button"
             icon={
               <EditOutlined
@@ -76,6 +75,7 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
           } main category?`,
+           position: true,
         });
         if (confirmed) {
           edit
@@ -94,9 +94,7 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
         },
       }}
     >
-      <ProForm.Group>
         <ProFormText
-          width="md"
           name="name"
           label="Create New Main Category"
           rules={[
@@ -104,7 +102,6 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
           ]}
           placeholder="Enter Main Category Name"
         />
-      </ProForm.Group>
     </ModalForm>
   );
 };

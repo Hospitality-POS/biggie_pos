@@ -14,6 +14,7 @@ import {
 } from "../../../services/categories";
 import { ApartmentOutlined, EditOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
+import { useQuery } from "@tanstack/react-query";
 
 interface AddCategoryDialogProps {
   actionRef: any;
@@ -51,6 +52,21 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
     }
   };
 
+  const {data: subCategories} = useQuery({
+    queryKey: ["subCategories"],
+    queryFn: fetchSubCategories,
+    retry: 3,
+    refetchInterval: 5000,
+    networkMode: "always",
+  });
+
+  const SubCategoriesRequest = async () => {
+    const data = subCategories?.map((e: { name: string; _id: string }) => {
+      return { label: e.name, value: e._id };
+    });
+    return data;
+  };
+
   return (
     <ModalForm
       form={form}
@@ -74,10 +90,13 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
       trigger={
         edit ? (
           <Button
+            size="small"
             key="button"
             icon={<EditOutlined style={{ color: "#914F1E" }} />}
             onClick={() => form.setFieldsValue(data)}
-          >Edit</Button>
+          >
+            Edit
+          </Button>
         ) : (
           <Button type="primary" key="button" icon={<ApartmentOutlined />}>
             New Category
@@ -130,12 +149,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
           rules={[{ required: true, message: "Subcategory is required" }]}
           showSearch
           placeholder="Select subcategory"
-          request={async (params) => {
-            const data = await fetchSubCategories(params);
-            return data.map((e: { name: any; _id: any }) => {
-              return { label: e.name, value: e._id };
-            });
-          }}
+          request={SubCategoriesRequest}
         />
       </ProForm.Group>
     </ModalForm>
