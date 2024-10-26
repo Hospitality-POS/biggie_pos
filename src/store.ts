@@ -10,30 +10,29 @@ import CategorySlice from "./features/Category/CategorySlice";
 import PaymentMethodSlice from "./features/Payment/PaymentMethodSlice";
 import reportSlice from "./features/Report/ReportSlice";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
-
-
-
+import shiftReducer from "./features/Employee/ShiftSlice"; // Ensure this matches your file structure
 
 const rootReducer = combineReducers({
   auth: authSlice.reducer,
   cart: CartSlice,
   order: OrderSlice,
   product: ProductSlice,
+  shifts: shiftReducer,  // Correct usage of the shift reducer
   productInventory: productInventorySlice,
   supplier: SupplierSlice,
   Tables: TableSlice,
   Categories: CategorySlice,
   PaymentMethods: PaymentMethodSlice,
-  Report: reportSlice
+  Report: reportSlice,
 });
 
 export const store = configureStore({
   reducer: rootReducer,
 });
 
-export type RootState = ReturnType<typeof store.getState> 
+export type RootState = ReturnType<typeof store.getState>;
 
-type AppDispatch = typeof store.dispatch
-export const useAppDispatch: ()=> AppDispatch = useDispatch;
+type AppDispatch = typeof store.dispatch;
+export const useAppDispatch: () => AppDispatch = useDispatch;
 
 export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;

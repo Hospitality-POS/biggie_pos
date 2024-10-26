@@ -1,110 +1,89 @@
-import React, { useState } from "react";
-import {
-  Calendar,
-  Select,
-  Button,
-  Form,
-  Modal,
-  message,
-  Badge,
-  TimePicker,
-  Row,
-  Col,
-  Popover,
-  Space,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  ExclamationCircleOutlined,
-  FileAddFilled,
-  SolutionOutlined,
-} from "@ant-design/icons";
+import React, { useEffect, useState } from "react";
+import { Calendar, Modal, message, Badge, TimePicker, Button, Popover, Select, Space } from "antd";
+import { MenuItem, FormControl, InputAdornment } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
+import { PlusOutlined, EditOutlined, DeleteOutlined, ExclamationCircleOutlined, SolutionOutlined } from "@ant-design/icons";
 import moment from "moment";
+import PersonIcon from "@mui/icons-material/Person";
+import { fetchAllUsersList } from "@services/users";
+import { useForm, Controller } from "react-hook-form";
+import { useDispatch, useSelector } from "react-redux";
+import { createShift, fetchShifts, deleteShift, updateShift } from "../../features/Employee/ShiftActions";
 
-const { Option } = Select;
-const { RangePicker } = TimePicker;
 const { confirm } = Modal;
 
+interface ShiftData {
+  _id?: string; // Optional ID for existing shifts
+  employee_id: string;
+  day: string;
+  time: {
+    start: moment.Moment;
+    end: moment.Moment;
+  };
+}
+
 const RestaurantShiftSchedule = () => {
-  const [shifts, setShifts] = useState([]);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [editingShift, setEditingShift] = useState(null);
-  const [form] = Form.useForm();
+  const [editingShift, setEditingShift] = useState<ShiftData | null>(null);
 
-  const handleAddShift = () => {
-    setIsAddModalVisible(true);
+  const { control, handleSubmit, reset } = useForm<ShiftData>({
+    defaultValues: { employee_id: "", day: "", time: { start: moment(), end: moment() } },
+  });
+
+  const { data: users } = useQuery(["users"], fetchAllUsersList, { retry: 3 });
+
+  const dispatch = useDispatch();
+
+  const handleSave = (data: ShiftData) => {
+    const shiftDetails: ShiftData = {
+      ...data,
+      time: {
+        start: moment(data.time.start).toISOString(),
+        end: moment(data.time.end).toISOString()
+      }
+    };
+
+    if (editingShift) {
+      shiftDetails._id = editingShift._id; // Include the ID for updating
+      dispatch(updateShift(shiftDetails));
+      message.success("Shift updated successfully");
+    } else {
+      dispatch(createShift(shiftDetails));
+      message.success("Shift added successfully");
+    }
+
+    reset();
+    setIsAddModalVisible(false);
+    setIsEditModalVisible(false);
+    setEditingShift(null);
   };
 
-  const handleEditShift = (shift) => {
+  const handleEditShift = (shift: ShiftData) => {
     setEditingShift(shift);
-    form.setFieldsValue({
-      employee: shift.employee,
+    reset({
+      employee_id: shift.employee_id,
       day: shift.day,
-      timeRange: [
-        moment(shift.timeRange[0], "HH:mm"),
-        moment(shift.timeRange[1], "HH:mm"),
-      ],
+      time: {
+        start: moment(shift.time.start),
+        end: moment(shift.time.end)
+      }
     });
     setIsEditModalVisible(true);
   };
 
-  const handleDeleteShift = (shiftId) => {
+  const handleDeleteShift = (shiftId: string) => {
     confirm({
       title: "Are you sure you want to delete this shift?",
       icon: <ExclamationCircleOutlined />,
-      content: "This action cannot be undone.",
       okText: "Yes",
       okType: "danger",
       cancelText: "No",
       onOk() {
-        const updatedShifts = shifts.filter((shift) => shift.id !== shiftId);
-        setShifts(updatedShifts);
-        message.success("Shift deleted successfully");
+        dispatch(deleteShift(shiftId)).then(() => {
+          message.success("Shift deleted successfully");
+        });
       },
-    });
-  };
-
-  const handleAddModalOk = () => {
-    form.validateFields().then((values) => {
-      const newShift = {
-        id: Date.now(),
-        employee: values.employee,
-        day: values.day,
-        timeRange: [
-          values.timeRange[0].format("HH:mm"),
-          values.timeRange[1].format("HH:mm"),
-        ],
-      };
-      setShifts([...shifts, newShift]);
-      setIsAddModalVisible(false);
-      form.resetFields();
-      message.success("Shift added successfully");
-    });
-  };
-
-  const handleEditModalOk = () => {
-    form.validateFields().then((values) => {
-      const updatedShifts = shifts.map((shift) =>
-        shift.id === editingShift.id
-          ? {
-              ...shift,
-              employee: values.employee,
-              day: values.day,
-              timeRange: [
-                values.timeRange[0].format("HH:mm"),
-                values.timeRange[1].format("HH:mm"),
-              ],
-            }
-          : shift
-      );
-      setShifts(updatedShifts);
-      setIsEditModalVisible(false);
-      setEditingShift(null);
-      form.resetFields();
-      message.success("Shift updated successfully");
     });
   };
 
@@ -112,36 +91,35 @@ const RestaurantShiftSchedule = () => {
     setIsAddModalVisible(false);
     setIsEditModalVisible(false);
     setEditingShift(null);
-    form.resetFields();
+    reset();
   };
 
-  const getListData = (value) => {
-    const dayOfWeek = value.format("dddd");
-    return shifts.filter((shift) => shift.day === dayOfWeek);
+  useEffect(() => {
+    dispatch(fetchShifts());
+  }, [dispatch]);
+
+  const shifts = useSelector((state) => state.shifts.shifts);
+  const loading = useSelector((state: any) => state.shift?.loading || false);
+  const error = useSelector((state: any) => state.shift?.error || null);
+
+  const getListData = (value: moment.Moment) => {
+    if (!Array.isArray(shifts)) return [];
+    return shifts.filter((shift) => shift.day === value.format("dddd"));
   };
 
-  const dateCellRender = (value) => {
+  const dateCellRender = (value: moment.Moment) => {
     const listData = getListData(value);
     return (
       <ul className="events">
         {listData.map((item) => (
-          <li key={item.id}>
+          <li key={item.employee_id}>
             <Popover
               content={
                 <Space>
-                  <Button
-                    icon={<EditOutlined />}
-                    size="small"
-                    onClick={() => handleEditShift(item)}
-                  >
+                  <Button icon={<EditOutlined />} size="small" onClick={() => handleEditShift(item)}>
                     Edit
                   </Button>
-                  <Button
-                    icon={<DeleteOutlined />}
-                    size="small"
-                    danger
-                    onClick={() => handleDeleteShift(item.id)}
-                  >
+                  <Button icon={<DeleteOutlined />} size="small" danger onClick={() => handleDeleteShift(item._id)}>
                     Delete
                   </Button>
                 </Space>
@@ -150,7 +128,7 @@ const RestaurantShiftSchedule = () => {
             >
               <Badge
                 status="processing"
-                text={`${item.employee}: ${item.timeRange[0]}-${item.timeRange[1]}`}
+                text={`${item.employee_id.fullname}: ${moment(item.time.start).format("HH:mm")} - ${moment(item.time.end).format("HH:mm")}`}
               />
             </Popover>
           </li>
@@ -160,47 +138,86 @@ const RestaurantShiftSchedule = () => {
   };
 
   const ShiftForm = () => (
-    <Form form={form} layout="vertical">
-      <Form.Item
-        name="employee"
-        label="Employee"
-        rules={[{ required: true, message: "Please select an employee" }]}
-      >
-        <Select placeholder="Select an employee">
-          <Option value="John Doe">John Doe</Option>
-          <Option value="Jane Smith">Jane Smith</Option>
-          <Option value="Bob Johnson">Bob Johnson</Option>
-        </Select>
-      </Form.Item>
-      <Form.Item
+    <form onSubmit={handleSubmit(handleSave)}>
+      <Controller
+        name="employee_id" // Keeping it as employee_id
+        control={control}
+        rules={{ required: "User is required" }}
+        render={({ field }) => (
+          <FormControl fullWidth margin="normal">
+            <Select
+              {...field}
+              label="Users"
+              startAdornment={
+                <InputAdornment position="start">
+                  <PersonIcon />
+                </InputAdornment>
+              }
+              onChange={(value) => {
+                // On update, set the value as an object; on create, set it as a primitive
+                field.onChange({ _id: value });
+              }}
+              value={editingShift ? editingShift.employee_id._id : field.value} // Auto-select for edit, default for create
+            >
+              <MenuItem value="">Select User</MenuItem>
+              {users && users.map((user) => (
+                <MenuItem key={user._id} value={user._id}>
+                  {user.username}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+      />
+
+      <Controller
         name="day"
-        label="Day of Week"
-        rules={[{ required: true, message: "Please select a day" }]}
-      >
-        <Select placeholder="Select a day">
-          {[
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-          ].map((day) => (
-            <Option key={day} value={day}>
-              {day}
-            </Option>
-          ))}
-        </Select>
-      </Form.Item>
-      <Form.Item
-        name="timeRange"
-        label="Shift Time"
-        rules={[{ required: true, message: "Please select shift time" }]}
-      >
-        <RangePicker format="HH:mm" />
-      </Form.Item>
-    </Form>
+        control={control}
+        rules={{ required: "Please select a day" }}
+        render={({ field }) => (
+          <FormControl fullWidth margin="normal">
+            <Select displayEmpty {...field}>
+              <MenuItem value="" disabled>
+                Select a day
+              </MenuItem>
+              {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(
+                (day) => (
+                  <MenuItem key={day} value={day}>
+                    {day}
+                  </MenuItem>
+                )
+              )}
+            </Select>
+          </FormControl>
+        )}
+      />
+      <Controller
+        name="time.start"
+        control={control}
+        rules={{ required: "Please select shift start time" }}
+        render={({ field }) => (
+          <TimePicker
+            format="HH:mm"
+            {...field}
+            placeholder="Start Time"
+            onChange={(time) => field.onChange(time)} // time should be a moment object
+          />
+        )}
+      />
+      <Controller
+        name="time.end"
+        control={control}
+        rules={{ required: "Please select shift end time" }}
+        render={({ field }) => (
+          <TimePicker
+            format="HH:mm"
+            {...field}
+            placeholder="End Time"
+            onChange={(time) => field.onChange(time)} // time should be a moment object
+          />
+        )}
+      />
+    </form>
   );
 
   return (
@@ -211,30 +228,18 @@ const RestaurantShiftSchedule = () => {
       <Button
         type="primary"
         icon={<PlusOutlined />}
-        onClick={handleAddShift}
+        onClick={() => setIsAddModalVisible(true)}
         className="mb-4"
       >
         Add Shift
       </Button>
-      <Calendar
-        cellRender={dateCellRender}
-        fullscreen
-        // mode="month"
-        // validRange={[moment().startOf("month"), moment().endOf("month")]}
-      />
+      {loading && <p>Loading shifts...</p>}
+      {error && <p>Error loading shifts: {error}</p>}
+      <Calendar cellRender={dateCellRender} fullscreen />
       <Modal
-        title="Add New Shift"
-        open={isAddModalVisible}
-        onOk={handleAddModalOk}
-        onCancel={handleModalCancel}
-        centered
-      >
-        <ShiftForm />
-      </Modal>
-      <Modal
-        title="Edit Shift"
-        open={isEditModalVisible}
-        onOk={handleEditModalOk}
+        title={editingShift ? "Edit Shift" : "Add New Shift"}
+        open={isAddModalVisible || isEditModalVisible}
+        onOk={handleSubmit(handleSave)} // Use handleSubmit for both Add and Edit
         onCancel={handleModalCancel}
         centered
       >
