@@ -1,5 +1,6 @@
 import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
+import { message } from "antd";
 import { Modal, notification } from "antd/lib";
 
 import axios from "axios";
@@ -12,6 +13,16 @@ export const fetchAllCategories = async (data: ParamsType) => {
     params: { name: data.name, sub_category: data.sub_category?.name },
   });
   return response.data;
+};
+
+export const deleteCategory = async (params: ParamsType) => {
+  try {
+    const response = await axios.delete(`${categ_url}/${params}`);
+    return response.data;
+  } catch (error) {
+    console.log(error);
+    throw new Error("Error deleting category");
+  }
 };
 
 export const addNewCategory = async (params: ParamsType) => {
@@ -141,18 +152,10 @@ export const addNewMainCategory = async (params: ParamsType) => {
     const response = await axios.post(`${categ_url}/main-categories`, {
       name: params.name,
     });
-    notification.success({
-      message: `Success`,
-      description: "Successfully Added a new main category",
-      placement: "bottomLeft",
-    });
-
+    message.success("Main-Category created successfully");
     return response.data;
   } catch (error) {
-    Modal.error({
-      title: "Oops! Something went wrong",
-      content: "Please check your internet connection!",
-    });
+    throw new Error("Error creating main-category");
   }
 };
 
@@ -164,18 +167,10 @@ export const editMainCategory = async (data: ParamsType) => {
         name: data?.values.name,
       }
     );
-    notification.success({
-      message: `Success`,
-      description: "Successfully edited main-category",
-      placement: "bottomLeft",
-    });
+   message.success("Main-Category updated successfully");
     return response.data;
   } catch (error) {
-    Modal.error({
-      title: "Oops! Something went wrong",
-      content: "Please check your internet connection!",
-    });
-    return (error as Error).message;
+    throw new Error("Error updating main-category");
   }
 };
 
@@ -183,13 +178,9 @@ export const deleteMainCategory = async (params: ParamsType) => {
   const url = `${categ_url}/main-categories`;
   try {
     const response = await axios.delete(`${url}/${params}`);
-
     return response.data;
   } catch (error) {
-    Modal.error({
-      title: `${(error as Error)?.message}`,
-      content: "Please check your internet connection!",
-    });
-    return (error as Error).message;
+    console.log(error);
+    throw new Error("Error deleting main-category");
   }
 };
