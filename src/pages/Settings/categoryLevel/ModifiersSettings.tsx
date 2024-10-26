@@ -9,19 +9,31 @@ import {
   deleteModifierAddon,
   getAllModifierAddons,
 } from "@services/modifierAddons";
-import { Button, Space, Tag, Tooltip } from "antd";
-import { RefObject, useRef } from "react";
+import { Button, message, Popconfirm, Space, Tag, Tooltip } from "antd";
+import { RefObject, useRef, useState } from "react";
 import ExpandedRowContent from "./ModifierAddonExpand";
 import ModifiersModal from "@components/MODALS/pro/ModifiersModal";
-import ShowConfirm from "@utils/ConfirmUtil";
+import { useMutation } from "@tanstack/react-query";
 
 function ModifiersSettings() {
   const actionRef = useRef<ActionType>();
+  // Keep track of expanded rows to force their refresh
+  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
+
+  const DeleteModifierMutation = useMutation(deleteModifierAddon, {
+    onSuccess: () => {
+      actionRef.current?.reload();
+      message.success("Modifier deleted successfully");
+    },
+    onError: () => message.error("Failed to delete modifier"),
+  });
+
   const expandedRowRender = (record: any) => {
     return (
       <ExpandedRowContent
         record={record}
-        actionRef={actionRef as RefObject<ActionType>}
+        actionRef={actionRef as React.RefObject<ActionType>}
+        parentReload={() => actionRef.current?.reload()}
       />
     );
   };
@@ -35,28 +47,26 @@ function ModifiersSettings() {
         <Tooltip key="edit" title="Edit">
           <ModifiersModal actionRef={actionRef} edit={true} data={record} />
         </Tooltip>
-        <Tooltip key="delete" title="Delete">
+        <Popconfirm
+          title="Are you sure you want to delete this modifier?"
+          onConfirm={() => DeleteModifierMutation.mutate(record._id)}
+          okText="Yes"
+          cancelText="No"
+        >
           <Button
             key="delete"
+            size="small"
+            type="primary"
             danger
             icon={<DeleteOutlined />}
-            onClick={async () => {
-              const confirmed = await ShowConfirm({
-                title: `Are you sure you want to delete ${record?.name}?`,
-                position: true,
-              });
-              if (confirmed) {
-                await deleteModifierAddon({ _id: record?._id });
-                actionRef?.current?.reload();
-              }
-            }}
           >
             Delete
           </Button>
-        </Tooltip>
+        </Popconfirm>
       </Space>,
     ],
   };
+
   return (
     <ProTable
       rowKey="_id"
@@ -94,7 +104,6 @@ function ModifiersSettings() {
             </Tag>
           ),
         },
-
         {
           title: "Date Created",
           dataIndex: "createdAt",
@@ -138,6 +147,8 @@ function ModifiersSettings() {
         defaultExpandAllRows: false,
         expandIconColumnIndex: 1,
         columnTitle: " ",
+        expandedRowKeys,
+        onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]),
       }}
       toolBarRender={() => [
         <ModifiersModal actionRef={actionRef} edit={false} />,

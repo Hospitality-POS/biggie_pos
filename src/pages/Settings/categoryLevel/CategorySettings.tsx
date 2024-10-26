@@ -1,34 +1,28 @@
 import { useRef } from "react";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from "@mui/material";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { fetchAllCategories } from "@services/categories";
-import { Tooltip, Button, Space } from "antd";
+import { deleteCategory, fetchAllCategories } from "@services/categories";
+import { Tooltip, Button, Space, Popconfirm, message } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
-import useCategorySettings from "../hooks/useCategorySettings";
 import AddProCategoryModal from "@components/MODALS/pro/AddProCategoryModal";
+import { useMutation } from "@tanstack/react-query";
 
 const CategorySettings = () => {
   const actionRef = useRef<ActionType>();
 
-  const {
-    deleteConfirmationOpen,
-    handleDeleteClick,
-    handleDeleteConfirm,
-    handleDeleteCancel,
-    deleteCandidate,
-  } = useCategorySettings({ type:"category" });
+  const DeleteCategoryMutation = useMutation(deleteCategory, {
+    onSuccess: () => {
+      actionRef.current?.reload();
+      message.success("Category deleted successfully");
+    },
+    onError: () => message.error("Failed to delete category"),
+  });
 
   const actionColumn = {
     title: "Actions",
     dataIndex: "actions",
     hideInSearch: true,
-    render: (_, record) => [      
+    render: (_, record) => [
       <Space>
         <Tooltip key="edit" title="Edit">
           <AddProCategoryModal
@@ -37,14 +31,22 @@ const CategorySettings = () => {
             data={record}
           />
         </Tooltip>
-        
-        <Tooltip key="delete" title="Delete">
+
+        <Popconfirm
+          title="Are you sure you want to delete this category?"
+          onConfirm={() => DeleteCategoryMutation.mutate(record._id)}
+          okText="Yes"
+          cancelText="No"
+        >
           <Button
+            size="small"
+            type="primary"
             danger
             icon={<DeleteOutlined />}
-            onClick={() => handleDeleteClick(record)}
-          >Delete</Button>
-        </Tooltip>
+          >
+            Delete
+          </Button>
+        </Popconfirm>
       </Space>,
     ],
   };
@@ -111,28 +113,6 @@ const CategorySettings = () => {
         // headerTitle="List of categories"
         toolBarRender={() => [<AddProCategoryModal actionRef={actionRef} />]}
       />
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteConfirmationOpen}
-        onClose={handleDeleteCancel}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete :{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>the category
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={() => handleDeleteConfirm(actionRef)} danger>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };
