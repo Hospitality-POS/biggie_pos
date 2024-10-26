@@ -1,40 +1,28 @@
 import { useRef } from "react";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  DialogContentText,
-} from "@mui/material";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import { Avatar, Badge, Tag, Tooltip } from "antd/lib";
-import { Button, Space } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { Button, message, Popconfirm, Space } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 import { UserOutlined } from "@ant-design/icons";
 import { MailOutlined } from "@mui/icons-material";
-import { fetchAllUsersList } from "@services/users";
+import { deleteUserById, fetchAllUsersList } from "@services/users";
 import ExpandedRowContent from "./ExpandedRowContent";
 import AddEditProUserModal from "@components/MODALS/pro/AddEditProUserModal";
-import useUserSettings from "../hooks/useUserSettings";
-import { User } from "src/interfaces/User";
 import { useAppSelector } from "src/store";
+import { useMutation } from "@tanstack/react-query";
 
 const UsersTable = () => {
   const { user } = useAppSelector((state) => state.auth);
 
-  const onDeleteCandidate = (_user: User) => {
-    // Handle any logic needed when a category is deleted
-  };
-
-  const {
-    deleteConfirmationOpen,
-    handleDeleteClick,
-    handleDeleteConfirm,
-    handleDeleteCancel,
-    deleteCandidate,
-  } = useUserSettings({ onDeleteCandidate });
-
   const actionRef = useRef<ActionType>();
+
+  const deleteUserMutation = useMutation(deleteUserById, {
+    onSuccess: () => {
+      actionRef.current?.reload();
+      message.success("User deleted successfully");
+    },
+    onError: () => message.error("Failed to delete user"),
+  });
 
   const actionColumn = {
     title: "Actions",
@@ -54,16 +42,20 @@ const UsersTable = () => {
           key="delete"
           placement="right"
           title={
-            user?.name === record?.username ? "Not Allowed" : "Delete this user"
+            user?.name === record?.username ? "Not Allowed" : "Delete User"
           }
         >
-          <Button
-            type="link"
-            danger
+          <Popconfirm
+            title="Are you sure you want to delete this user?"
+            onConfirm={() => deleteUserMutation.mutate(record._id)}
             disabled={user?.name === record?.username}
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteClick(record)}
-          />
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button type="primary" danger icon={<DeleteOutlined />} size="small">
+              Delete
+            </Button>
+          </Popconfirm>
         </Tooltip>
       </Space>,
     ],
@@ -194,25 +186,6 @@ const UsersTable = () => {
         // headerTitle="List of Users"
         toolBarRender={() => [<AddEditProUserModal actionRef={actionRef} />]}
       />
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteConfirmationOpen} onClose={handleDeleteCancel}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this user?
-            <i>{deleteCandidate ? deleteCandidate.name : ""} </i>
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={() => handleDeleteConfirm(actionRef)} danger>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };
