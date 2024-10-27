@@ -61,11 +61,14 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
       }
       trigger={
         edit ? (
-          <Space key="button" size="small" style={{ cursor: "pointer" }}>
-            <Tag color="success" key={data._id}>
-              <EditOutlined onClick={() => form.setFieldsValue(data)} /> Edit
-            </Tag>
-          </Space>
+          <Button
+            size="small"
+            key="button"
+            icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
+            onClick={() => form.setFieldsValue(data)}
+          >
+            Edit
+          </Button>
         ) : (
           <Button type="primary" key="button" icon={<SisternodeOutlined />}>
             New Supplier
