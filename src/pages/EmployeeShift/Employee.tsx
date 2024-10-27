@@ -48,7 +48,7 @@ const RestaurantShiftSchedule = () => {
   });
 
   const getListData = (value: Date) => {
-    const dayOfWeek = value.format("dddd");
+    const dayOfWeek = value?.format("dddd");
     return shifts?.filter((shift) => shift.dayOfWeek === dayOfWeek);
   };
 
@@ -112,13 +112,13 @@ const RestaurantShiftSchedule = () => {
 
   return (
     <>
-      <Typography.Title level={3}>
-        <SolutionOutlined className="mr-2" />
+    <Space size={16}  style={{ justifyContent: "space-between", width: "100%" }}>
+      <Typography.Title level={4}>
+        <SolutionOutlined style={{ fontSize: "24px", color: "#6c1c2c" }} />
         Weekly Shift Schedule
       </Typography.Title>
-      <div className="mb-4" style={{ display: "flex", gap: 4 }}>
         <EmployeeShiftModal actionRef={actionRef} edit={false} data={{}} />
-      </div>
+    </Space>
       <Spin spinning={isLoadingShifts || DeleteShiftMutation.isLoading}>
         <Calendar
           cellRender={dateCellRender}
