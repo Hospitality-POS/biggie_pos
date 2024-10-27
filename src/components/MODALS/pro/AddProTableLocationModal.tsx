@@ -41,7 +41,6 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
       open={open}
       onOpenChange={handleOpenChange}
       width={550}
-      layout="horizontal"
       title={
         <Space>
           <AimOutlined />
@@ -52,7 +51,7 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
       trigger={
         edit ? (
           <Button
-            
+            size="small"
             key="button"
             icon={
               <EditOutlined
@@ -60,7 +59,9 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
                 onClick={() => form.setFieldsValue(data)}
               />
             }
-          >Edit</Button>
+          >
+            Edit
+          </Button>
         ) : (
           <Button type="primary" key="button" icon={<AimOutlined />}>
             New Location
@@ -77,7 +78,7 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
           title: `Are you sure you want to ${
             edit ? "update this" : "add new"
           } Location?`,
-          position: true
+          position: true,
         });
         if (confirmed) {
           edit
@@ -94,17 +95,20 @@ const AddProTableLocationModal: React.FC<AddProTableLocationModalProps> = ({
           resetText: "Cancel",
           submitText: edit ? "Edit Location" : "Add Location",
         },
+        submitButtonProps: {
+          icon: edit ? <EditOutlined /> : <AimOutlined />,
+        },
+        resetButtonProps: {
+          style: { display: "none" },
+        },
       }}
     >
-      <ProForm.Group>
-        <ProFormText
-          width="md"
-          name="name"
-          label="Create New Location"
-          rules={[{ required: true, message: "Name is required" }]}
-          placeholder="Enter Location name"
-        />
-      </ProForm.Group>
+      <ProFormText
+        name="name"
+        label="Create New Location"
+        rules={[{ required: true, message: "Name is required" }]}
+        placeholder="Enter Location name"
+      />
     </ModalForm>
   );
 };

@@ -9,6 +9,7 @@ import {
   editSubCategory,
   fetchMainCategories,
 } from "@services/categories";
+import { useQuery } from "@tanstack/react-query";
 
 interface SubCategoryModalProps {
   actionRef: any;
@@ -44,6 +45,21 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
     }
   };
 
+  const { data: mainCategories } = useQuery({
+    queryKey: ["mainCategories"],
+    queryFn: fetchMainCategories,
+    retry: 3,
+    refetchInterval: 5000,
+    networkMode: "always",
+  });
+
+  const MainCategoriesRequest = async () => {
+    const data = mainCategories?.map((e: { name: string; _id: string }) => {
+      return { label: e.name, value: e._id };
+    });
+    return data;
+  };
+
   return (
     <ModalForm
       open={open}
@@ -69,6 +85,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
         edit ? (
           <Button
             key="button"
+            size="small"
             icon={
               <EditOutlined
                 style={{ color: "#6c1c2c" }}
@@ -129,13 +146,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
           rules={[{ required: true, message: "Main Category is required" }]}
           showSearch
           placeholder="Select Main Category"
-          request={async () => {
-            const data = await fetchMainCategories();
-            const values = data.map((e: { name: any; _id: any }) => {
-              return { label: e.name, value: e._id };
-            });
-            return values;
-          }}
+          request={MainCategoriesRequest}
         />
       </ProForm.Group>
     </ModalForm>

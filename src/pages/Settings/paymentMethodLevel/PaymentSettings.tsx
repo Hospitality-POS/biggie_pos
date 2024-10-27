@@ -1,31 +1,26 @@
 import { useRef } from "react";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-} from "@mui/material";
-import {
   ActionType,
   ParamsType,
   ProTable,
 } from "@ant-design/pro-components";
 import { Tooltip } from "antd/lib";
-import { Button, Space } from "antd";
+import { Button, message, Popconfirm, Space } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
-import { fetchAllPaymentMethods } from "@services/paymentMethod";
-import usePaymentSettings from "../hooks/usePaymentSettings";
+import { deletePaymentMethod, fetchAllPaymentMethods } from "@services/paymentMethod";
 import AddProPaymentMethodSettingsModal from "@components/MODALS/pro/AddProPaymentSettingsModal";
+import { useMutation } from "@tanstack/react-query";
 
 const PaymentsMethodSettings = () => {
   const paymentRef = useRef<ActionType>();
-  const {
-    deleteCandidate,
-    deleteConfirmationOpen,
-    handleDeleteCancel,
-    handleDeleteClick,
-    handleDeleteConfirm,
-  } = usePaymentSettings();
+  
+  const DeletePaymentMethodMutation = useMutation(deletePaymentMethod, {
+    onSuccess: () => {
+      paymentRef.current?.reload();
+      message.success("Payment method deleted successfully");
+    },
+    onError: () => message.error("Failed to delete payment method"),
+  });
 
   const actionColumn = {
     title: "Actions",
@@ -40,14 +35,21 @@ const PaymentsMethodSettings = () => {
             data={record}
           />
         </Tooltip>
-        <Tooltip key="delete" title="Delete">
-          <Button
-            key="delete"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteClick(record)}
-          >Delete</Button>
-        </Tooltip>
+       <Popconfirm
+        title="Are you sure you want to delete this payment method?"
+        onConfirm={() => DeletePaymentMethodMutation.mutate(record._id)}
+        okText="Yes"
+        cancelText="No"
+      >
+        <Button
+          type="primary"
+          danger
+          icon={<DeleteOutlined />}
+          size="small"
+        >
+          Delete
+        </Button>
+      </Popconfirm>
       </Space>,
     ],
   };
@@ -99,35 +101,13 @@ const PaymentsMethodSettings = () => {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        // headerTitle="List of Payment Methods"
+        headerTitle="List of Payment Methods"
         toolBarRender={() => [
           <AddProPaymentMethodSettingsModal
             actionRef={paymentRef}
           />,
         ]}
       />
-
-      <Dialog
-        open={deleteConfirmationOpen}
-        onClose={handleDeleteCancel}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete:{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""}</i> the payment
-          method
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={() => handleDeleteConfirm(paymentRef)} danger>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };

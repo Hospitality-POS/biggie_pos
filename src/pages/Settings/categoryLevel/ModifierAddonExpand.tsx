@@ -2,19 +2,33 @@ import { DeleteOutlined, RetweetOutlined } from "@ant-design/icons";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import AddonsModal from "@components/MODALS/pro/AddonsModal";
 import { deleteAddon } from "@services/modifierAddons";
-import ShowConfirm from "@utils/ConfirmUtil";
-import { Button, Space, Tooltip } from "antd";
-import React, { RefObject } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { Button, message, Popconfirm, Space, Tooltip } from "antd";
+import React, { useRef } from "react";
 
 interface ExpandedRowContentProps {
   record: any;
-  actionRef: RefObject<ActionType>;
+  actionRef?: React.RefObject<ActionType>;
+  parentReload: () => void;
 }
 
 const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({
   record,
   actionRef,
+  parentReload,
 }) => {
+  // A separate actionRef for the nested table
+  const nestedTableRef = useRef<ActionType>();
+
+  const DeleteAddonMutation = useMutation(deleteAddon, {
+    onSuccess: () => {
+      nestedTableRef.current?.reload();
+      parentReload();
+      message.success("Addon deleted successfully");
+    },
+    onError: () => message.error("Failed to delete addon"),
+  });
+
   const actionColumn = {
     title: "Actions",
     dataIndex: "actions",
@@ -22,28 +36,29 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({
     render: (_: any, record: any) => [
       <Space>
         <Tooltip key="edit" title="Edit">
-          <AddonsModal actionRef={actionRef} edit={true} data={record} />
+          <AddonsModal
+            actionRef={nestedTableRef}
+            parentReload={parentReload}
+            edit={true}
+            data={record}
+          />
         </Tooltip>
-
-        <Tooltip key="delete" title="Delete">
+        <Popconfirm
+          title="Are you sure you want to delete this addon?"
+          onConfirm={() => DeleteAddonMutation.mutate(record._id)}
+          okText="Yes"
+          cancelText="No"
+        >
           <Button
             key="delete"
+            size="small"
+            type="primary"
             danger
             icon={<DeleteOutlined />}
-            onClick={async () => {
-              const confirmed = await ShowConfirm({
-                title: `Are you sure you want to delete ${record?.name}?`,
-                position: true,
-              });
-              if (confirmed) {
-                await deleteAddon({ _id: record?._id });
-                actionRef.current?.reload();
-              }
-            }}
           >
             Delete
           </Button>
-        </Tooltip>
+        </Popconfirm>
       </Space>,
     ],
   };
@@ -54,7 +69,7 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({
         bordered
         size="small"
         rowKey="_id"
-        actionRef={actionRef}
+        actionRef={nestedTableRef}
         columns={[
           {
             title: "Addon Name",
@@ -82,10 +97,17 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({
         dataSource={record.addons}
         pagination={false}
         toolBarRender={() => [
-          <AddonsModal actionRef={actionRef} edit={false} data={record} />,
+          <AddonsModal
+            actionRef={nestedTableRef}
+            parentReload={parentReload}
+            modifierId={record?._id}
+          />,
           <Tooltip title="Refresh">
             <Button
-              onClick={() => actionRef.current?.reload()}
+              onClick={() => {
+                nestedTableRef.current?.reload();
+                parentReload();
+              }}
               icon={<RetweetOutlined />}
               key="refreshAddons"
             >

@@ -1,31 +1,23 @@
 import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button, Space } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { getTableLocation } from "@services/tables";
-import { useTableLocationSettings } from "../hooks/useTableSettings";
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@mui/material";
+import { Tooltip, Button, Space, Popconfirm, message } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
+import { delLocation, getTableLocation } from "@services/tables";
 import AddProTableLocationModal from "@components/MODALS/pro/AddProTableLocationModal";
+import { useMutation } from "@tanstack/react-query";
 
 const TableLocationSettings = () => {
   const locationRef = useRef<ActionType>();
 
-  const {
-    deleteCandidate,
-    handleAddLocation,
-    deleteConfirmationOpen,
-    handleDeleteClickLocation,
-    handleEditLocation,
-    handleDeleteConfirmLocation,
-    handleDeleteCancel,
-  } = useTableLocationSettings();
-
+  const DeleteLocationMutation = useMutation(delLocation, {
+    onSuccess: () => {
+      locationRef.current?.reload();
+      message.success("Location deleted successfully");
+    },
+    onError: () => message.error("Failed to delete location"),
+  });
+  
   const actionColumn = {
     title: "Actions",
     dataIndex: "actions",
@@ -41,15 +33,16 @@ const TableLocationSettings = () => {
             />
           </Tooltip>
         </Tooltip>
-        <Tooltip key="delete" title="Delete">
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteClickLocation(record)}
-          >
+        <Popconfirm
+          title="Are you sure you want to delete this location?"
+          onConfirm={() => DeleteLocationMutation.mutate(record._id)}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button size="small" type="primary" danger icon={<DeleteOutlined />}>
             Delete
           </Button>
-        </Tooltip>
+          </Popconfirm>
       </Space>,
     ],
   };
@@ -103,39 +96,13 @@ const TableLocationSettings = () => {
           fullScreen: true,
         }}
         dateFormatter="string"
-        // headerTitle="List of Table Locations"
+        headerTitle="List of Table Locations"
         toolBarRender={() => [
           <AddProTableLocationModal
-            onAddLocation={handleAddLocation}
             actionRef={locationRef}
           />,
         ]}
       />
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteConfirmationOpen}
-        onClose={handleDeleteCancel}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete Loaction:{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""} </i>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button
-            onClick={() => handleDeleteConfirmLocation(locationRef)}
-            danger
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };

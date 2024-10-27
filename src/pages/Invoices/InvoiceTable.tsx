@@ -140,6 +140,7 @@ const InvoicesTable = () => {
         options={{
           fullScreen: true,
         }}
+        headerTitle="List of All Invoices"
         expandable={{
           expandedRowRender,
           defaultExpandAllRows: false,

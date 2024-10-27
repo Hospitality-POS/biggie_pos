@@ -127,9 +127,14 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         }
         trigger={
           edit ? (
-            <Space key="button" size="small" style={{ cursor: "pointer" }}>
-              <EditOutlined onClick={() => form.setFieldsValue(data)} /> Edit
-            </Space>
+            <Button
+              key="button"
+              size="small"
+              onClick={() => form.setFieldsValue(data)}
+              icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
+            >
+              Edit  
+            </Button>
           ) : (
             <Button
               type="primary"

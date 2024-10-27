@@ -60,3 +60,14 @@ export const fetchUserById = async (id: string) => {
    }
    
  };
+
+ export const deleteUserById = async (id: string) => {
+   try {
+     const response = await axios.delete(`${userUrl}/${id}`);
+     return response.data;
+   } catch (error) {
+     console.log(error);
+     throw new Error("Error deleting user");
+   }
+   
+ };

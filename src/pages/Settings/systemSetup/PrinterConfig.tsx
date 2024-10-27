@@ -99,7 +99,7 @@ function PrinterManagement() {
             okText="Yes"
             cancelText="No"
           >
-            <Button danger icon={<DeleteOutlined />}>
+            <Button danger icon={<DeleteOutlined />} size="small" type="primary">
               Delete
             </Button>
           </Popconfirm>

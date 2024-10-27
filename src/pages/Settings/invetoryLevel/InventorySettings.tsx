@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Button, message, Popconfirm, Tag } from "antd";
+import { Button, message, Popconfirm, Space, Tag } from "antd";
 import { deleteInventory, fetchAllInventory } from "@services/inventory";
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
 import { DeleteOutlined } from "@ant-design/icons";
@@ -22,24 +22,23 @@ const InventorySettings = () => {
     dataIndex: "actions",
     hideInSearch: true,
     render: (_, record: any) => [
-      <Tag color="success" key={record._id}>
+      <Space size="small" key={record._id}>
         <AddEditProInventoryModal
           actionRef={paymentRef}
           data={record}
           edit={true}
         />
-      </Tag>,
-      <Popconfirm
-        title="Are you sure you want to delete this inventory?"
-        onConfirm={() => deleteInventoryMutation.mutate(record._id)}
-        okText="Yes"
-        cancelText="No"
-      >
-        <Tag color="error" key={record._id} style={{ cursor: "pointer" }}>
-          <DeleteOutlined />
-          Delete
-        </Tag>
-      </Popconfirm>,
+        <Popconfirm
+          title="Are you sure you want to delete this inventory?"
+          onConfirm={() => deleteInventoryMutation.mutate(record._id)}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button type="primary" danger icon={<DeleteOutlined />} size="small">
+            Delete
+          </Button>
+        </Popconfirm>
+      </Space>
     ],
   };
 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, DatePicker } from "antd";
+import { Button, DatePicker, Space, Tabs } from "antd";
 import {
   BarChartOutlined,
   FileExclamationOutlined,
@@ -12,19 +12,15 @@ import { ProCard } from "@ant-design/pro-components";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import SalesReportModal from "@components/Reports/SalesReport";
 import VoidReportModal from "@components/Reports/VoidReport";
-import { Space } from "antd";
-import { useReport } from "../hooks/useReport";
 import DeliveryReportModal from "@components/Reports/DeliveryReport";
+import { useReport } from "../hooks/useReport";
 
 const { RangePicker } = DatePicker;
-
-interface DateTimeRange {
-  startDate: string;
-  endDate: string;
-}
+const { TabPane } = Tabs;
 
 const Reports: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("sale");
+
   const {
     onCloseSalesModal,
     onClosePurchaseModal,
@@ -39,14 +35,11 @@ const Reports: React.FC = () => {
     salesDateTimeRange,
     setOpenSalesModal,
     setOpenPurchaseModal,
-
     openVoidedModal,
     setVoidedDateTimeRange,
     setOpenVoidedModal,
     onCloseVoidedModal,
     voidedDateTimeRange,
-
-    // New delivery report states
     openDeliveryModal,
     setDeliveryDateTimeRange,
     setOpenDeliveryModal,
@@ -62,181 +55,173 @@ const Reports: React.FC = () => {
     setOpenDeliveryModal(false);
   };
 
-  const tabItems = [
-    {
-      key: "sale",
-      tab: "Sale",
-      label: (
-        <Space>
-          <FileTextOutlined />
-          Generate Item Sales Report
-        </Space>
-      ),
-      children: (
-        <Space direction="vertical" size={16}>
-          <RangePicker
-            showTime={{ format: "HH:mm" }}
-            format="YYYY-MM-DD HH:mm"
-            presets={rangePresets}
-            onChange={(dates) =>
-              setSalesDateTimeRange([
-                dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
-                dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
-              ])
-            }
-          />
-          <Button
-            type="primary"
-            onClick={generateReportHandler}
-            disabled={isGenerateButtonDisabled}
-            icon={<BarChartOutlined />}
-          >
-            Generate Report
-          </Button>
-          <SalesReportModal
-            openM={openSalesModal}
-            onCloseM={onCloseSalesModal}
-            startDate={salesDateTimeRange[0]}
-            endDate={salesDateTimeRange[1]}
-          />
-        </Space>
-      ),
-    },
-    {
-      key: "purchase",
-      tab: "Purchase",
-      label: (
-        <Space>
-          <ShoppingOutlined />
-          Generate Sales Report
-        </Space>
-      ),
-      children: (
-        <Space direction="vertical" size={16}>
-          <RangePicker
-            showTime={{ format: "HH:mm" }}
-            format="YYYY-MM-DD HH:mm"
-            presets={rangePresets}
-            onChange={(dates) =>
-              setPurchaseDateTimeRange([
-                dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
-                dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
-              ])
-            }
-          />
-          <Button
-            type="primary"
-            onClick={() => generateReportHandler()}
-            disabled={isGenerateButtonDisabled}
-            icon={<BarChartOutlined />}
-          >
-            Generate Report
-          </Button>
-          <PurchaseReportModal
-            openM={openPurchaseModal}
-            onCloseM={onClosePurchaseModal}
-            startDate={purchaseDateTimeRange[0]}
-            endDate={purchaseDateTimeRange[1]}
-          />
-        </Space>
-      ),
-    },
-    {
-      key: "voided",
-      tab: "void",
-      label: (
-        <Space>
-          <FileExclamationOutlined />
-          Generate Voided bills Report
-        </Space>
-      ),
-      children: (
-        <Space direction="vertical" size={16}>
-          <RangePicker
-            showTime={{ format: "HH:mm" }}
-            format="YYYY-MM-DD HH:mm"
-            presets={rangePresets}
-            onChange={(dates) =>
-              setVoidedDateTimeRange([
-                dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
-                dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
-              ])
-            }
-          />
-          <Button
-            type="primary"
-            onClick={generateReportHandler}
-            disabled={isGenerateButtonDisabled}
-            icon={<BarChartOutlined />}
-          >
-            Generate Report
-          </Button>
-          <VoidReportModal
-            openM={openVoidedModal}
-            onCloseM={onCloseVoidedModal}
-            startDate={voidedDateTimeRange[0]}
-            endDate={voidedDateTimeRange[1]}
-          />
-        </Space>
-      ),
-    },
-    {
-      key: "delivery",
-      tab: "Delivery",
-      label: (
-        <Space>
-          <CarOutlined />
-          Generate Delivery Report
-        </Space>
-      ),
-      children: (
-        <Space direction="vertical" size={16}>
-          <RangePicker
-            showTime={{ format: "HH:mm" }}
-            format="YYYY-MM-DD HH:mm"
-            presets={rangePresets}
-            onChange={(dates) =>
-              setDeliveryDateTimeRange([
-                dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
-                dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
-              ])
-            }
-          />
-          <Button
-            type="primary"
-            onClick={generateReportHandler}
-            disabled={isGenerateButtonDisabled}
-            icon={<BarChartOutlined />}
-          >
-            Generate Report
-          </Button> 
-           <DeliveryReportModal
-            openM={openDeliveryModal}
-            onCloseM={onCloseDeliveryModal}
-            startDate={deliveryDateTimeRange[0]} 
-            endDate={deliveryDateTimeRange[1]}
-          />
-        
-        </Space>
-      ),
-    },
-  ];
-
   return (
     <ProCard
-      tabs={{
-        type: "line",
-        activeKey: activeTab,
-        onChange: handleTabChange,
-        items: tabItems,
-      }}
       title={
         <Space>
-          <HddOutlined />
+          <HddOutlined style={{ color: "#722ed1", fontSize: "24px" }} />
           Generate Reports
         </Space>
       }
-    ></ProCard>
+    >
+      <Tabs activeKey={activeTab} onChange={handleTabChange} type="card">
+        <TabPane
+          tab={
+            <Space>
+              <FileTextOutlined style={{ color: "#52c41a" }} />{" "}
+              {/* Green for Sales */}
+              Generate Item Sales Report
+            </Space>
+          }
+          key="sale"
+        >
+          <Space direction="vertical" size={16}>
+            <RangePicker
+              showTime={{ format: "HH:mm" }}
+              format="YYYY-MM-DD HH:mm"
+              presets={rangePresets}
+              onChange={(dates) =>
+                setSalesDateTimeRange([
+                  dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                  dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                ])
+              }
+            />
+            <Button
+              type="primary"
+              onClick={generateReportHandler}
+              disabled={isGenerateButtonDisabled}
+              icon={<BarChartOutlined />}
+            >
+              Generate Report
+            </Button>
+            <SalesReportModal
+              openM={openSalesModal}
+              onCloseM={onCloseSalesModal}
+              startDate={salesDateTimeRange[0]}
+              endDate={salesDateTimeRange[1]}
+            />
+          </Space>
+        </TabPane>
+
+        <TabPane
+          tab={
+            <Space>
+              <ShoppingOutlined style={{ color: "#fa8c16" }} />{" "}
+              {/* Orange for Purchase */}
+              Generate Purchase Report
+            </Space>
+          }
+          key="purchase"
+        >
+          <Space direction="vertical" size={16}>
+            <RangePicker
+              showTime={{ format: "HH:mm" }}
+              format="YYYY-MM-DD HH:mm"
+              presets={rangePresets}
+              onChange={(dates) =>
+                setPurchaseDateTimeRange([
+                  dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                  dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                ])
+              }
+            />
+            <Button
+              type="primary"
+              onClick={generateReportHandler}
+              disabled={isGenerateButtonDisabled}
+              icon={<BarChartOutlined />}
+            >
+              Generate Report
+            </Button>
+            <PurchaseReportModal
+              openM={openPurchaseModal}
+              onCloseM={onClosePurchaseModal}
+              startDate={purchaseDateTimeRange[0]}
+              endDate={purchaseDateTimeRange[1]}
+            />
+          </Space>
+        </TabPane>
+
+        <TabPane
+          tab={
+            <Space>
+              <FileExclamationOutlined style={{ color: "#eb2f2f" }} />{" "}
+              {/* Red for Voided */}
+              Generate Voided Bills Report
+            </Space>
+          }
+          key="voided"
+        >
+          <Space direction="vertical" size={16}>
+            <RangePicker
+              showTime={{ format: "HH:mm" }}
+              format="YYYY-MM-DD HH:mm"
+              presets={rangePresets}
+              onChange={(dates) =>
+                setVoidedDateTimeRange([
+                  dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                  dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                ])
+              }
+            />
+            <Button
+              type="primary"
+              onClick={generateReportHandler}
+              disabled={isGenerateButtonDisabled}
+              icon={<BarChartOutlined />}
+            >
+              Generate Report
+            </Button>
+            <VoidReportModal
+              openM={openVoidedModal}
+              onCloseM={onCloseVoidedModal}
+              startDate={voidedDateTimeRange[0]}
+              endDate={voidedDateTimeRange[1]}
+            />
+          </Space>
+        </TabPane>
+
+        <TabPane
+          tab={
+            <Space>
+              <CarOutlined style={{ color: "#1890ff" }} />{" "}
+              {/* Blue for Delivery */}
+              Generate Delivery Report
+            </Space>
+          }
+          key="delivery"
+        >
+          <Space direction="vertical" size={16}>
+            <RangePicker
+              showTime={{ format: "HH:mm" }}
+              format="YYYY-MM-DD HH:mm"
+              presets={rangePresets}
+              onChange={(dates) =>
+                setDeliveryDateTimeRange([
+                  dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                  dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                ])
+              }
+            />
+            <Button
+              type="primary"
+              onClick={generateReportHandler}
+              disabled={isGenerateButtonDisabled}
+              icon={<BarChartOutlined />}
+            >
+              Generate Report
+            </Button>
+            <DeliveryReportModal
+              openM={openDeliveryModal}
+              onCloseM={onCloseDeliveryModal}
+              startDate={deliveryDateTimeRange[0]}
+              endDate={deliveryDateTimeRange[1]}
+            />
+          </Space>
+        </TabPane>
+      </Tabs>
+    </ProCard>
   );
 };
 

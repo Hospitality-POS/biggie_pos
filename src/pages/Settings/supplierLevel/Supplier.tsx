@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { ActionType, ProFormText, ProTable } from "@ant-design/pro-components";
 import { Avatar, Tooltip } from "antd/lib";
-import { Button, message, Popconfirm, Tag } from "antd";
+import { Button, message, Popconfirm, Space, Tag } from "antd";
 import {  DeleteOutlined } from "@ant-design/icons";
 import { deleteSupplier, fetchAllSuppliers } from "@services/supplier";
 import { UserOutlined } from "@ant-design/icons";
@@ -26,24 +26,25 @@ const SupplierTable = () => {
     dataIndex: "actions",
     hideInSearch: true,
     render: (_, record: any) => [
-      <Tooltip key="edit" title="Edit">
-        <AddProSupplierModal
-          edit={true}
-          actionRef={actionRef}
-          data={record}
-        />
-      </Tooltip>,
-     <Popconfirm
-        title="Are you sure you want to delete this supplier?"
-        onConfirm={() => DeleteSupplierMutation.mutate(record._id)}
-        okText="Yes"
-        cancelText="No"
-      >
-        <Tag color="error" key={record._id} style={{ cursor: "pointer" }}>
-          <DeleteOutlined />
-           Delete
-        </Tag>
-      </Popconfirm>,
+      <Space>
+        <Tooltip key="edit" title="Edit">
+          <AddProSupplierModal
+            edit={true}
+            actionRef={actionRef}
+            data={record}
+          />
+        </Tooltip>
+        <Popconfirm
+          title="Are you sure you want to delete this supplier?"
+          onConfirm={() => DeleteSupplierMutation.mutate(record._id)}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button type="primary" danger icon={<DeleteOutlined />} size="small">
+            Delete
+          </Button>
+        </Popconfirm>
+      </Space>,
     ],
   };
 

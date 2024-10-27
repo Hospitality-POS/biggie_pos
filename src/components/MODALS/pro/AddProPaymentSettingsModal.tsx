@@ -48,7 +48,7 @@ const AddProPaymentMethodSettingsModal: React.FC<
           edit ? (
             <Button
               key="button"
-              
+              size="small"
               icon={
                 <EditOutlined
                   style={{ color: "#6c1c2c" }}
@@ -87,6 +87,12 @@ const AddProPaymentMethodSettingsModal: React.FC<
           searchConfig: {
             resetText: "Cancel",
             submitText: edit ? "Edit method" : "Add Payment Method",
+          },
+          submitButtonProps: {
+            icon: edit ? <EditOutlined /> : <DollarOutlined />,
+          },
+          resetButtonProps: {
+            style: { display: "none" },
           },
         }}
       >

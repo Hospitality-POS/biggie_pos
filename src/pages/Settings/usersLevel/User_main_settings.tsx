@@ -1,27 +1,77 @@
+import React from "react";
 import { ProCard } from "@ant-design/pro-components";
-import { HolderOutlined, UsergroupAddOutlined } from "@ant-design/icons";
-import { Space } from "antd/lib";
+import { UserOutlined, UsergroupAddOutlined } from "@ant-design/icons";
+import { Space, Typography, Divider } from "antd";
 import UsersTable from "./UsersTable";
+import RoleSettings from "./RoleSettings";
+
+const { Text } = Typography;
 
 function UsersMainSettings() {
-  const tabsItems = [
-      {
-      key: "table1",
-      tab: "Table",
-      label: <Space><HolderOutlined/>All Users</Space>,
-      children: <UsersTable />,
-    },
-  ];
   return (
-    <>
-      <ProCard
-        title={<Space><UsergroupAddOutlined/>Users Main Settings</Space>}
-        tabs={{
-          type: "card",
-          items: tabsItems,
-        }}
-      />
-    </>
+    <ProCard
+      bordered
+      title={
+        <Typography.Title
+          level={4}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            margin: 0,
+            fontWeight: "bold",
+          }}
+        >
+          <UsergroupAddOutlined style={{ marginRight: 8 }} />
+          Users Main Settings
+        </Typography.Title>
+      }
+      tabs={{
+        type: "card",
+        defaultActiveKey: "users",
+        size: "large",
+      }}
+    >
+      <ProCard.TabPane
+        key="users"
+        tab={
+          <Space>
+            <UserOutlined style={{ color: "#52c41a" }} />
+            <Text style={{ fontWeight: "lighter" }}>Users</Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <UsersTable />
+        </div>
+      </ProCard.TabPane>
+      <ProCard.TabPane
+        key="roles"
+        tab={
+          <Space>
+            <UsergroupAddOutlined style={{ color: "#1890ff" }} />
+            <Text style={{ fontWeight: "normal" }}>Roles</Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <RoleSettings />
+        </div>
+      </ProCard.TabPane>
+
+      <Divider style={{ margin: 0 }} />
+    </ProCard>
   );
 }
 

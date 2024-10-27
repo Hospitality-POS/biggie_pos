@@ -1,13 +1,16 @@
 import React, { useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
-import CategorySettings from "./CategorySettings";
-import { Space } from "antd/lib";
-import { ApartmentOutlined, HolderOutlined } from "@ant-design/icons";
-import SubCategorySettings from "./Sub_category";
+import { Space, Typography } from "antd";
+import {
+  ApartmentOutlined,
+  FolderOutlined,
+  SettingOutlined,
+  AppstoreOutlined,
+} from "@ant-design/icons";
 import MainCategorySettings from "./Main_category";
-import { Typography } from "antd";
+import SubCategorySettings from "./Sub_category";
+import CategorySettings from "./CategorySettings";
 import ModifiersSettings from "./ModifiersSettings";
-
 
 const CategoryMainSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("mainCategory");
@@ -16,49 +19,109 @@ const CategoryMainSettings: React.FC = () => {
     setActiveTab(key);
   };
 
-  const tabsItems = [
-    {
-      key: "mainCategory",
-      tab: "Main Category",
-      label:<Space><HolderOutlined/>Main Category</Space>,
-      children: <MainCategorySettings />,
-    },
-    {
-      key: "category2",
-      tab: "Sub-category",
-      label: <Space><HolderOutlined/>Sub-Category</Space>,
-      children: <SubCategorySettings />,
-    },
-    {
-      key: "category1",
-      tab: "category",
-      label: <Space><HolderOutlined/>Category</Space>,
-      children: <CategorySettings />,
-    },
-    {
-      key: "modifiers",
-      tab: "Modifiers",
-      label: <Space><HolderOutlined/>Modifiers</Space>,
-      children: <ModifiersSettings />,
-    },
-  ];
-
   return (
     <ProCard
+      bordered
+      title={
+        <Typography.Title
+          level={4}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            margin: 0,
+          }}
+        >
+          <ApartmentOutlined style={{ marginRight: 8 }} />
+          Category Main Settings
+        </Typography.Title>
+      }
       tabs={{
         type: "card",
-        items: tabsItems,
         activeKey: activeTab,
         onChange: handleTabChange,
+        size: "large",
       }}
-      title={
-        <Space>
-          <Typography.Title level={4}>
-            <ApartmentOutlined /> Category Main Settings
-          </Typography.Title>
-        </Space>
-      }
-    />
+    >
+      <ProCard.TabPane
+        key="mainCategory"
+        tab={
+          <Space>
+            <AppstoreOutlined style={{ color: "#52c41a" }} />
+            <Typography.Text>Main Category</Typography.Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <MainCategorySettings />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
+        key="category2"
+        tab={
+          <Space>
+            <FolderOutlined style={{ color: "#faad14" }} />
+            <Typography.Text>Sub-Category</Typography.Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <SubCategorySettings />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
+        key="category1"
+        tab={
+          <Space>
+            <FolderOutlined style={{ color: "#1890ff" }} />
+            <Typography.Text>Category</Typography.Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <CategorySettings />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
+        key="modifiers"
+        tab={
+          <Space>
+            <SettingOutlined style={{ color: "#eb2f96" }} />
+            <Typography.Text>Modifiers</Typography.Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <ModifiersSettings />
+        </div>
+      </ProCard.TabPane>
+    </ProCard>
   );
 };
 

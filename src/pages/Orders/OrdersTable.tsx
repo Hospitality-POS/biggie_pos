@@ -85,6 +85,7 @@ const OrdersTable = () => {
   const ActionsColumn: ProColumns<any>[] = [
     {
       title: "Actions",
+      search: false,
       key: "action",
       render: (_, record) => (
         <Space size="middle">
@@ -223,6 +224,7 @@ const OrdersTable = () => {
           expandIconColumnIndex: 1,
           columnTitle: " ",
         }}
+        headerTitle="List of All Orders"
         dateFormatter="string"
         toolBarRender={() => [
           <Button type="primary" loading={isLoading} disabled={isLoading}>

@@ -1,27 +1,22 @@
 import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button, Space } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,          
-} from "@mui/material";
-import { fetchMainCategories } from "@services/categories";
-import useCategorySettings from "../hooks/useCategorySettings";
+import { Tooltip, Button, Space, Popconfirm, message } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
+import { deleteMainCategory, fetchMainCategories } from "@services/categories";
 import MainCategoryModal from "@components/MODALS/pro/MainCategoryModal";
+import { useMutation } from "@tanstack/react-query";
 
 const MainCategorySettings = () => {
   const actionRef = useRef<ActionType>();
-const {
-  deleteConfirmationOpen,
-  handleDeleteClick,
-  handleDeleteConfirm,
-  handleDeleteCancel,
-  deleteCandidate,
-} = useCategorySettings({ type: "main-category" });
+ 
+  const  DeleteMainCategoryMutation = useMutation(deleteMainCategory, {
+    onSuccess: () => {
+      actionRef.current?.reload();
+      message.success("Main-Category deleted successfully");
+    },
+    onError: () => message.error("Failed to delete main-category"),
+  });
 
   const actionColumn = {
     title: "Actions",
@@ -29,18 +24,20 @@ const {
     hideInSearch: true,
     render: (_, record: any) => [
       <Space>
-
-      <Tooltip key="edit" title="Edit">
-        <MainCategoryModal actionRef={actionRef} data={record} edit={true} />
-      </Tooltip>
-      <Tooltip key="delete" title="Delete">
-        <Button
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDeleteClick(record)}
-        >Delete</Button>  
-      </Tooltip>
-      </Space>
+        <Tooltip key="edit" title="Edit">
+          <MainCategoryModal actionRef={actionRef} data={record} edit={true} />
+        </Tooltip>
+        <Popconfirm
+          title="Are you sure you want to delete this main-category?"
+          onConfirm={() => DeleteMainCategoryMutation.mutate(record._id)}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button type="primary" danger icon={<DeleteOutlined />} size="small">
+            Delete
+          </Button>
+        </Popconfirm>
+      </Space>,
     ],
   };
 
@@ -92,31 +89,9 @@ const {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        // headerTitle="List of Main-Category"
+        headerTitle="List of Main Categories"
         toolBarRender={() => [<MainCategoryModal actionRef={actionRef} />]}
       />
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteConfirmationOpen}
-        onClose={handleDeleteCancel}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete :{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""} main category </i>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={() => handleDeleteConfirm(actionRef)} danger>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };

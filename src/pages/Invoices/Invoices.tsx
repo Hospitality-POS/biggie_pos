@@ -1,37 +1,41 @@
+import React from "react";
 import { ProCard } from "@ant-design/pro-components";
-import { HolderOutlined, PrinterFilled } from "@ant-design/icons";
-import { Space } from "antd/lib";
+import { FileDoneOutlined, PrinterFilled } from "@ant-design/icons";
+import { Space, Typography } from "antd";
 import InvoiceTable from "./InvoiceTable";
 
+const { Title } = Typography;
+
 function Invoices() {
-  const tabsItems = [
-    {
-      key: "Invoices",
-      tab: "invoices",
-      label: (
-        <Space>
-        <HolderOutlined/>
-          Invoices
-        </Space>
-      ),
-      children: <InvoiceTable />,
-    },
-  ];
   return (
-    <>
-      <ProCard
-        title={
+    <ProCard
+      bordered
+      title={
+        <Space>
+          <PrinterFilled style={{ fontSize: "24px", color: "#6c1c2c" }} />
+          <Title level={4} style={{ margin: 0 }}>
+            List of All Invoices Printed
+          </Title>
+        </Space>
+      }
+      tabs={{
+        type: "card",
+        defaultActiveKey: "invoices",
+        size: "large",
+      }}
+    >
+      <ProCard.TabPane
+        key="invoices"
+        tab={
           <Space>
-            <PrinterFilled />
-            List of all Invoices Printed
+            <FileDoneOutlined style={{ color: "#52c41a", fontSize: "18px" }} />
+            <Typography.Text>Invoices</Typography.Text>
           </Space>
         }
-        tabs={{
-          type: "card",
-          items: tabsItems,
-        }}
-      />
-    </>
+      >
+        <InvoiceTable />
+      </ProCard.TabPane>
+    </ProCard>
   );
 }
 

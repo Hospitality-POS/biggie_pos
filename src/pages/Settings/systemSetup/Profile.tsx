@@ -1,27 +1,23 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ProForm,
   ProFormDigit,
   ProFormSelect,
   ProFormText,
-  ProSkeleton,
 } from "@ant-design/pro-components";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
-import { Form, Typography, Card, Row, Col, Space } from "antd";
+import { Form, Typography, Card, Row, Col, Space, Skeleton } from "antd";
 import {
   ContactsOutlined,
   RedoOutlined,
   BankOutlined,
   MailOutlined,
-  PhoneOutlined,
   EnvironmentOutlined,
   GlobalOutlined,
   NumberOutlined,
 } from "@ant-design/icons";
-import {
-  getPhoneNumber
-} from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
+import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import ShowConfirm from "@utils/ConfirmUtil";
 import {
   createSystemSetup,
@@ -81,18 +77,18 @@ function SystemSetup() {
   };
 
   if (isLoading) {
-    return <ProSkeleton type="descriptions" />;
+    return <Skeleton active />;
   }
 
   return (
     <Card
       title={
-        <Title level={3}>
+        <Title level={4}>
           <ContactsOutlined /> Business Profile
         </Title>
       }
-      style={{maxWidth: "1500px", width: "100%", margin: "0 auto" }}
-      styles={{body: {padding: "24px"}}}
+      style={{ maxWidth: "1500px", margin: "0 auto", borderRadius: "8px" }}
+      bodyStyle={{ padding: "24px" }}
     >
       <ProForm
         form={form}
@@ -123,11 +119,12 @@ function SystemSetup() {
           },
           submitButtonProps: {
             children: data ? "Update" : "Submit",
+            style: { backgroundColor: "#1890ff", color: "#fff" },
           },
         }}
       >
         <Row gutter={24}>
-          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+          <Col xs={24} sm={24} md={12}>
             <ProFormText
               name="name"
               label="Business Name"
@@ -139,9 +136,10 @@ function SystemSetup() {
                 prefix: <BankOutlined className="site-form-item-icon" />,
                 size: "large",
               }}
+              style={{ borderRadius: "4px" }}
             />
           </Col>
-          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+          <Col xs={24} sm={24} md={12}>
             <ProFormText
               name="email"
               label="Email"
@@ -157,24 +155,23 @@ function SystemSetup() {
                 prefix: <MailOutlined className="site-form-item-icon" />,
                 size: "large",
               }}
+              style={{ borderRadius: "4px" }}
             />
           </Col>
         </Row>
 
         <Row gutter={24}>
-          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+          <Col xs={24} sm={24} md={12}>
             <PhoneInput
               label="Phone"
               owner="phoneNumber"
               rules={[
                 { required: true, message: "Please enter the phone number" },
               ]}
-              fieldProps={{
-                size: "large",
-              }}
+              fieldProps={{ size: "large" }}
             />
           </Col>
-          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+          <Col xs={24} sm={24} md={12}>
             <ProFormText
               name="location"
               label="Location"
@@ -183,12 +180,13 @@ function SystemSetup() {
                 prefix: <EnvironmentOutlined className="site-form-item-icon" />,
                 size: "large",
               }}
+              style={{ borderRadius: "4px" }}
             />
           </Col>
         </Row>
 
         <Row gutter={24}>
-          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+          <Col xs={24} sm={24} md={12}>
             <ProFormText
               name="social_link"
               label="Social Link"
@@ -197,9 +195,10 @@ function SystemSetup() {
                 prefix: <GlobalOutlined className="site-form-item-icon" />,
                 size: "large",
               }}
+              style={{ borderRadius: "4px" }}
             />
           </Col>
-          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+          <Col xs={24} sm={24} md={12}>
             <ProFormText
               name="kra_pin"
               label="KRA Pin"
@@ -208,12 +207,13 @@ function SystemSetup() {
                 prefix: <NumberOutlined className="site-form-item-icon" />,
                 size: "large",
               }}
+              style={{ borderRadius: "4px" }}
             />
           </Col>
         </Row>
 
         <Row gutter={24}>
-          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+          <Col xs={24} sm={24} md={12}>
             <ProFormSelect
               name="paymentDetailId"
               label="Payment Details"
@@ -230,9 +230,10 @@ function SystemSetup() {
                   onPaymentDetailsChange(option.label),
                 size: "large",
               }}
+              style={{ borderRadius: "4px" }}
             />
           </Col>
-          <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+          <Col xs={24} sm={24} md={12}>
             {showPaybillDetails ? (
               <Row gutter={24}>
                 <Col span={12}>
@@ -246,9 +247,8 @@ function SystemSetup() {
                         message: "Please enter the account number",
                       },
                     ]}
-                    fieldProps={{
-                      size: "large",
-                    }}
+                    fieldProps={{ size: "large" }}
+                    style={{ borderRadius: "4px" }}
                   />
                 </Col>
                 <Col span={12}>
@@ -262,9 +262,8 @@ function SystemSetup() {
                         message: "Please enter the business number",
                       },
                     ]}
-                    fieldProps={{
-                      size: "large",
-                    }}
+                    fieldProps={{ size: "large" }}
+                    style={{ borderRadius: "4px" }}
                   />
                 </Col>
               </Row>
@@ -276,9 +275,8 @@ function SystemSetup() {
                 rules={[
                   { required: true, message: "Please enter the till number" },
                 ]}
-                fieldProps={{
-                  size: "large",
-                }}
+                fieldProps={{ size: "large" }}
+                style={{ borderRadius: "4px" }}
               />
             )}
           </Col>

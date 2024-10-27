@@ -97,6 +97,7 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
           edit ? (
             <Button
               key="button"
+              size="small"
               icon={
                 <EditOutlined
                   style={{ color: "#6c1c2c" }}

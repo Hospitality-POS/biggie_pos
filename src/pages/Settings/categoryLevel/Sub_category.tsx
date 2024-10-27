@@ -1,7 +1,7 @@
 import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button, Space } from "antd";
+import { Tooltip, Button, Space, message, Popconfirm } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import {
   Dialog,
@@ -9,19 +9,20 @@ import {
   DialogContent,
   DialogTitle,
 } from "@mui/material";
-import { fetchSubCategories } from "@services/categories";
+import { deleteSubCategory, fetchSubCategories } from "@services/categories";
 import useCategorySettings from "../hooks/useCategorySettings";
 import SubCategoryModal from "@components/MODALS/pro/SubCategoryModal";
+import { useMutation } from "@tanstack/react-query";
 
 const SubCategorySettings = () => {
   const actionRef = useRef<ActionType>();
-  const {
-    deleteConfirmationOpen,
-    handleDeleteClick,
-    handleDeleteConfirm,
-    handleDeleteCancel,
-    deleteCandidate,
-  } = useCategorySettings({ type: "sub-category" });
+  const DeleteSubCategoryMutation = useMutation(deleteSubCategory, {
+    onSuccess: () => {
+      actionRef.current?.reload();
+      message.success("Sub-Category deleted successfully");
+    },
+    onError: () => message.error("Failed to delete sub-category"),
+  });
 
   const actionColumn = {
     title: "Actions",
@@ -32,16 +33,17 @@ const SubCategorySettings = () => {
         <Tooltip key="edit" title="Edit">
           <SubCategoryModal data={record} edit={true} actionRef={actionRef} />
         </Tooltip>
-        
-        <Tooltip key="delete" title="Delete">
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteClick(record)}
-          >
+
+        <Popconfirm
+          title="Are you sure you want to delete this sub-category?"
+          onConfirm={() => DeleteSubCategoryMutation.mutate(record._id)}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button size="small" type="primary" danger icon={<DeleteOutlined />}>
             Delete
           </Button>
-        </Tooltip>
+        </Popconfirm>
       </Space>,
     ],
   };
@@ -103,31 +105,9 @@ const SubCategorySettings = () => {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        // headerTitle="List of sub-category"
+        headerTitle="List of sub-categories"
         toolBarRender={() => [<SubCategoryModal actionRef={actionRef} />]}
       />
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteConfirmationOpen}
-        onClose={handleDeleteCancel}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete :{" "}
-          <i>{deleteCandidate ? deleteCandidate.name : ""} sub-category</i>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={() => handleDeleteConfirm(actionRef)} danger>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };

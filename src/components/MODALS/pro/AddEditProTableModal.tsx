@@ -54,6 +54,7 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
         trigger={
           edit ? (
             <Button
+              size="small"
               key="button"
               icon={
                 <EditOutlined

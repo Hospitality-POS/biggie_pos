@@ -1,38 +1,43 @@
+import React from "react";
 import { ProCard } from "@ant-design/pro-components";
-import { HolderOutlined, OrderedListOutlined } from "@ant-design/icons";
-import { Space } from "antd/lib";
+import { OrderedListOutlined, ShoppingCartOutlined } from "@ant-design/icons";
+import { Space, Typography } from "antd";
 import OrdersTable from "./OrdersTable";
 
+const { Title } = Typography;
 
 function MainOrders() {
-  const tabsItems = [
-    {
-      key: "Orders",
-      tab: "order",
-      label: (
-        <Space>
-          <HolderOutlined />
-          Orders
-        </Space>
-      ),
-      children: <OrdersTable />,
-    },
-  ];
   return (
-    <>
-      <ProCard
-        title={
+    <ProCard
+      bordered
+      title={
+        <Space>
+          <OrderedListOutlined style={{ fontSize: "18px", color: "#6c1c2c" }} />
+          <Title level={4} style={{ margin: 0 }}>
+            List of All Orders
+          </Title>
+        </Space>
+      }
+      tabs={{
+        type: "card",
+        defaultActiveKey: "orders",
+        size: "large",
+      }}
+    >
+      <ProCard.TabPane
+        key="orders"
+        tab={
           <Space>
-            <OrderedListOutlined />
-            List of all Orders
+            <ShoppingCartOutlined
+              style={{ color: "#1890ff", fontSize: "18px" }}
+            />
+            <Typography.Text>Orders</Typography.Text>
           </Space>
         }
-        tabs={{
-          type: "card",
-          items: tabsItems,
-        }}
-      />
-    </>
+      >
+        <OrdersTable />
+      </ProCard.TabPane>
+    </ProCard>
   );
 }
 

@@ -155,6 +155,7 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
             key="button"
             icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
             onClick={() => form.setFieldsValue(data)}
+            size="small"
           >
             Edit
           </Button>
