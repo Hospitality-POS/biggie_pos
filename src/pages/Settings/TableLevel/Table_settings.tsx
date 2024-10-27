@@ -1,31 +1,23 @@
 import { useRef } from "react";
 
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button, Space } from "antd";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { getAllTables } from "@services/tables";
-import { useTableSettings } from "../hooks/useTableSettings";
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@mui/material";
+import { Tooltip, Button, Space, Popconfirm, message } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
+import { deleteTable, getAllTables } from "@services/tables";
 import { Badge } from "antd/lib";
 import AddEditProTableModal from "@components/MODALS/pro/AddEditProTableModal";
+import { useMutation } from "@tanstack/react-query";
 
 const TableSetting = () => {
   const tableRef = useRef<ActionType>();
 
-  const {
-    handleAddTable,
-    deleteCandidateTable,
-    handleDeleteClick,
-    handleEdit,
-    handleDeleteConfirmTable,
-    deleteConfirmationOpenTable,
-    handleDeleteCancel,
-  } = useTableSettings();
+  const DeleteTableMutation = useMutation(deleteTable, {
+    onSuccess: () => {
+      tableRef.current?.reload();
+      message.success("Table deleted successfully");
+    },
+    onError: () => message.error("Failed to delete table"),
+  });
 
   const actionColumn = {
     title: "Actions",
@@ -40,15 +32,16 @@ const TableSetting = () => {
             data={record}
           />
         </Tooltip>
-        <Tooltip key="delete" title="Delete">
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteClick(record)}
-          >
+        <Popconfirm
+          title="Are you sure you want to delete this table?"
+          onConfirm={() => DeleteTableMutation.mutate(record._id)}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button size="small" type="primary" danger icon={<DeleteOutlined />}>
             Delete
           </Button>
-        </Tooltip>
+        </Popconfirm>
       </Space>,
     ],
   };
@@ -136,36 +129,11 @@ const TableSetting = () => {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        // headerTitle="List of Table Locations"
+        headerTitle="List of Tables"
         toolBarRender={() => [
-          <AddEditProTableModal
-            edit={false}
-            actionRef={tableRef}
-          />,
+          <AddEditProTableModal edit={false} actionRef={tableRef} />,
         ]}
       />
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteConfirmationOpenTable}
-        onClose={handleDeleteCancel}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          Are you sure you want to delete Table:{" "}
-          <i>{deleteCandidateTable ? deleteCandidateTable.name : ""} </i>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={() => handleDeleteConfirmTable(tableRef)} danger>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };

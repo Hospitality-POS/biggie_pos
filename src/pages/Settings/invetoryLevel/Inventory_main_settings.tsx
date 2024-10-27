@@ -1,61 +1,103 @@
+import React from "react";
 import { ProCard } from "@ant-design/pro-components";
-import { Space } from "antd";
-import { CalendarOutlined, DatabaseOutlined } from "@ant-design/icons";
+import { Space, Typography, Divider } from "antd";
+import {
+  CalendarOutlined,
+  DatabaseOutlined,
+  ShopOutlined,
+  TruckOutlined,
+} from "@ant-design/icons"; // Ensure you import the correct icons
 import InventorySettings from "./InventorySettings";
 import DeliverySettings from "./DeliverySettings";
 import UomSettings from "./UomSettings";
 
+const { Text } = Typography;
+
 function InventoryMainSettings() {
-  const tabsItems = [
-    {
-      key: "table0",
-      tab: "Unit of Measure",
-      label: (
-        <Space>
-          <DatabaseOutlined />
-          Unit of Measure
-        </Space>
-      ),
-      children: <UomSettings />,
-    },
-    {
-      key: "table1",
-      tab: "Inventory",
-      label: (
-        <Space>
-          <DatabaseOutlined />
-          Inventory
-        </Space>
-      ),
-      children: <InventorySettings />,
-    },
-    {
-      key: "table2",
-      tab: "delivery",
-      label: (
-        <Space>
-          <DatabaseOutlined />
-          Deliveries
-        </Space>
-      ),
-      children: <DeliverySettings />,
-    },
-  ];
   return (
-    <>
-      <ProCard
-        title={
+    <ProCard
+      bordered
+      title={
+        <Typography.Title
+          level={4}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            margin: 0,
+          }}
+        >
+          <CalendarOutlined style={{ marginRight: 8 }} />
+          Inventory Main Settings
+        </Typography.Title>
+      }
+      tabs={{
+        type: "card",
+        defaultActiveKey: "uom",
+        size: "large",
+      }}
+    >
+      <ProCard.TabPane
+        key="uom"
+        tab={
           <Space>
-            <CalendarOutlined />
-            Inventory Main Settings
+            <DatabaseOutlined />
+            <Text>Unit of Measure</Text>
           </Space>
         }
-        tabs={{
-          type: "card",
-          items: tabsItems,
-        }}
-      />
-    </>
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <UomSettings />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
+        key="inventory"
+        tab={
+          <Space>
+            <ShopOutlined style={{ color: "#52c41a" }} />
+            <Text>Inventory</Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <InventorySettings />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
+        key="delivery"
+        tab={
+          <Space>
+            <TruckOutlined style={{ color: "#1890ff" }} />{" "}
+            <Text>Deliveries</Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <DeliverySettings />
+        </div>
+      </ProCard.TabPane>
+
+      <Divider style={{ margin: 0 }} />
+    </ProCard>
   );
 }
 

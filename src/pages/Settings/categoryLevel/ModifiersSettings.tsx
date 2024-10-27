@@ -130,6 +130,7 @@ function ModifiersSettings() {
         return <p>You have selected {selectedRowKeys.length}</p>;
       }}
       actionRef={actionRef}
+      headerTitle="List of Modifiers and Addons"
       options={{
         fullScreen: true,
       }}

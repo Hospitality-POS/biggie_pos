@@ -110,7 +110,7 @@ const CategorySettings = () => {
           fullScreen: true,
         }}
         dateFormatter="string"
-        // headerTitle="List of categories"
+        headerTitle="List of categories"
         toolBarRender={() => [<AddProCategoryModal actionRef={actionRef} />]}
       />
     </>

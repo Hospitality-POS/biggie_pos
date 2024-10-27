@@ -105,7 +105,7 @@ const SubCategorySettings = () => {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        // headerTitle="List of sub-category"
+        headerTitle="List of sub-categories"
         toolBarRender={() => [<SubCategoryModal actionRef={actionRef} />]}
       />
     </>

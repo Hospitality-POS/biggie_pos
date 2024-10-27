@@ -1,14 +1,15 @@
 import React, { useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
-  HolderOutlined,
+  UserOutlined,
+  PrinterOutlined,
   SettingOutlined,
-} from "@ant-design/icons";
-import { ConfigProvider, Space, Typography } from "antd";
+  MoneyCollectOutlined,
+} from "@ant-design/icons"; // Selected icons to ensure consistency in theme
+import { ConfigProvider, Space, Typography, Divider } from "antd";
 import Profile from "./Profile";
 import PrinterConfig from "./PrinterConfig";
-
-const MainCategory = () => <div>Coming Soon!</div>;
+import ComingSoon from "@components/coming-soon/ComingSoon";
 
 const SystemSetup: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("profile");
@@ -17,74 +18,108 @@ const SystemSetup: React.FC = () => {
     setActiveTab(key);
   };
 
-  const tabsItems = [
-    {
-      key: "profile",
-      tab: "profile",
-      label: (
-        <Space>
-          <HolderOutlined />
-          Profile
-        </Space>
-      ),
-      children: <Profile />,
-    },
-    {
-      key:"Printer Config",
-      tab: "Printer Config",
-      label: (
-        <Space>
-          <HolderOutlined />
-          Printer
-        </Space>
-      ),
-      children: PrinterConfig(),
-    },
-    {
-      key: "billing",
-      tab: "billing",
-      label: (
-        <Space>
-          <HolderOutlined />
-          Billing
-        </Space>
-      ),
-      children: MainCategory(),
-    },
-  ];
-
   return (
-    <ConfigProvider
-      theme={{
-        components: {
-          Tabs: {
-            itemColor: "#fff",
-            itemActiveColor: "#000",
-            itemHoverColor: "#aa846f",
-            itemSelectedColor: "#000",
-            cardBg: "#6c1c2c",
-          },
-        },
+    // <ConfigProvider
+    //   theme={{
+    //     components: {
+    //       Tabs: {
+    //         itemColor: "#fff",
+    //         itemActiveColor: "#000",
+    //         itemHoverColor: "#aa846f",
+    //         itemSelectedColor: "#000",
+    //         cardBg: "#6c1c2c",
+    //       },
+    //     },
+    //   }}
+    // >
+    <ProCard
+      bordered
+      title={
+        <Typography.Title
+          level={4}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            margin: 0,
+          }}
+        >
+          <SettingOutlined style={{ marginRight: 8 }} />
+          System Setup
+        </Typography.Title>
+      }
+      tabs={{
+        type: "card",
+        activeKey: activeTab,
+        size: "large",
+        onChange: handleTabChange,
       }}
     >
-      <ProCard
-        tabs={{
-          type: "card",
-          items: tabsItems,
-          activeKey: activeTab,
-          tabBarGutter: 5,
-          onChange: handleTabChange,
-          // tabPosition: "left",
-        }}
-        title={
-          <Typography.Title level={4}>
-            <SettingOutlined /> System Setup
-          </Typography.Title>
+      <ProCard.TabPane
+        key="profile"
+        tab={
+          <Space>
+            <UserOutlined style={{ color: "#52c41a" }} />{" "}
+            {/* Green color for profile */}
+            <Typography.Text>System Profile</Typography.Text>
+          </Space>
         }
-        bordered
-        // boxShadow
-      />
-    </ConfigProvider>
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <Profile />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
+        key="printer"
+        tab={
+          <Space>
+            <PrinterOutlined style={{ color: "#1890ff" }} />{" "}
+            {/* Blue color for printer config */}
+            <Typography.Text>Printer Config</Typography.Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <PrinterConfig />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
+        key="billing"
+        tab={
+          <Space>
+            <MoneyCollectOutlined style={{ color: "#faad14" }} />
+            {/* Yellow color for billing */}
+            <Typography.Text>Billing</Typography.Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <ComingSoon />
+        </div>
+      </ProCard.TabPane>
+
+      <Divider style={{ margin: 0 }} />
+    </ProCard>
+    // </ConfigProvider>
   );
 };
 

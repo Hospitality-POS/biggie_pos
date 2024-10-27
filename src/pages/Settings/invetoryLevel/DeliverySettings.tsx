@@ -132,11 +132,7 @@ const DeliverySettings = () => {
       options={{
         fullScreen: true,
       }}
-      headerTitle={
-        <Text strong style={{ fontSize: "18px" }}>
-          List of Deliveries
-        </Text>
-      }
+      headerTitle="List of Deliveries"
       expandable={{
         expandedRowRender: (record) => (
           <ExpandedDeliveryItems record={record} />

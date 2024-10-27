@@ -89,7 +89,7 @@ const MainCategorySettings = () => {
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        // headerTitle="List of Main-Category"
+        headerTitle="List of Main Categories"
         toolBarRender={() => [<MainCategoryModal actionRef={actionRef} />]}
       />
     </>
