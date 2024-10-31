@@ -66,10 +66,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             position: true,
           });
           if (confirmed) {
-            await printInvoice({cart_id:cartDetails?._id, print_etr: true,print:true});
+            await printInvoice({ cart_id: cartDetails?._id, print_etr: true, print: true });
             return true;
-          }else{
-            await printInvoice({cart_id: cartDetails?._id, print_etr: false,print:true});
+          } else {
+            await printInvoice({ cart_id: cartDetails?._id, print_etr: false, print: true });
             return true;
           }
         } catch (error) {
@@ -193,30 +193,30 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 (item: {
                   _id: React.Key | null | undefined;
                   quantity:
+                  | string
+                  | number
+                  | boolean
+                  | React.ReactElement<
+                    any,
+                    string | React.JSXElementConstructor<any>
+                  >
+                  | Iterable<React.ReactNode>
+                  | React.ReactPortal
+                  | null
+                  | undefined;
+                  product_id: {
+                    name:
                     | string
                     | number
                     | boolean
                     | React.ReactElement<
-                        any,
-                        string | React.JSXElementConstructor<any>
-                      >
+                      any,
+                      string | React.JSXElementConstructor<any>
+                    >
                     | Iterable<React.ReactNode>
                     | React.ReactPortal
                     | null
                     | undefined;
-                  product_id: {
-                    name:
-                      | string
-                      | number
-                      | boolean
-                      | React.ReactElement<
-                          any,
-                          string | React.JSXElementConstructor<any>
-                        >
-                      | Iterable<React.ReactNode>
-                      | React.ReactPortal
-                      | null
-                      | undefined;
                   };
                   price: number;
                 }) => (
