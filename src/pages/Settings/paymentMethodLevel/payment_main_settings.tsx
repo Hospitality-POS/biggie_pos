@@ -1,10 +1,11 @@
 import { ProCard } from "@ant-design/pro-components";
 import { Space, Typography, Divider } from "antd";
 import { MoneyCollectOutlined } from "@ant-design/icons";
+import PaymentsMethodSettings from "./PaymentSettings";
 
 const { Text } = Typography;
 
-function PaymentsMethodSettings() {
+function PaymentMainSettings() {
   return (
     <ProCard
       bordered
@@ -52,4 +53,4 @@ function PaymentsMethodSettings() {
   );
 }
 
-export default PaymentsMethodSettings;
+export default PaymentMainSettings;
