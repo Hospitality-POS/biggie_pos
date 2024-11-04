@@ -15,12 +15,16 @@ import { User } from "src/interfaces/User";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
+import { useAppSelector } from "src/store";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
   actionRef: any;
   edit?: boolean;
   data?: any;
+  isProfile?: boolean;
+  userId?: string;
 }
 
 const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
@@ -28,11 +32,18 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   actionRef,
   edit,
   data,
+  isProfile,
+  userId,
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
 
   const [open, setOpen] = useState(false);
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
+  // console.log("xxxxxxxxxxxxxxxxxxxx", isAdmin);
+
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (open && data) {
@@ -53,6 +64,32 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
   const { handleConfirmAddUser } = useAddEditUserModal({ onAddUser });
 
+
+    const onFinish = async (values) => {
+      const phoneNumber = getPhoneNumber(values?.phoneNumber);
+      const value = { ...values, phone: phoneNumber };
+      const confirmed = await ShowConfirm({
+        title: `Are you sure you want to ${
+          edit ? "update this" : "add new"
+        } ${isProfile? "profile" : "user"}?`,
+        position: true,
+      });
+      if (confirmed) {
+        if (edit) {
+          await updateUsers({
+            value,
+            _id: data._id,
+          });
+          // Invalidate the query to update the user details
+          isProfile && await queryClient.invalidateQueries(["user", userId]);
+        } else {
+          await handleConfirmAddUser(value);
+        }
+        actionRef.current?.reload();
+        return true;
+      }
+    };
+
   return (
     <ModalForm
       form={form}
@@ -61,8 +98,8 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       formRef={formRef}
       title={
         <Space>
-          <UsergroupAddOutlined />
-          {edit ? "Edit User" : "Add New User"}
+          {isProfile ? <EditOutlined /> : <UsergroupAddOutlined />}
+          {edit ? `Edit ${isProfile ? "Profile" : "User"}` : "Add New User"}
         </Space>
       }
       initialValues={
@@ -72,7 +109,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
               phoneNumber: reversePhoneNumber(data?.phone),
               roleId: {
                 value: data?.role?._id,
-                lable: data?.role?.role_type,
+                label: data?.role?.role_type,
               },
             }
           : {}
@@ -102,30 +139,11 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         destroyOnClose: true,
         centered: true,
       }}
-      onFinish={async (values) => {
-        const phoneNumber = getPhoneNumber(values?.phoneNumber);
-        const value = { ...values, phone: phoneNumber };
-        const confirmed = await ShowConfirm({
-          title: `Are you sure you want to ${
-            edit ? "update this" : "add new"
-          } user?`,
-          position: true,
-        });
-        if (confirmed) {
-          edit
-            ? await updateUsers({
-                value,
-                _id: data._id,
-              })
-            : await handleConfirmAddUser(value);
-          actionRef.current.reset();
-          return true;
-        }
-      }}
+      onFinish={onFinish}
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: edit ? "Edit User" : "Add New User",
+          submitText: edit ? "Save Profile" : "Add New User",
         },
       }}
     >
@@ -148,22 +166,24 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           placeholder="Enter preferred username"
         />
 
-        <ProFormSelect
-          hasFeedback
-          width="md"
-          name="roleId"
-          label="Roles"
-          rules={[{ required: true, message: "Roles is required" }]}
-          showSearch
-          placeholder="Select role"
-          request={async (params) => {
-            const data = await fetchUserRoles(params);
-            const values = data.map((e: { role_type: any; _id: any }) => {
-              return { label: e.role_type, value: e._id };
-            });
-            return values;
-          }}
-        />
+        {isAdmin && (
+          <ProFormSelect
+            hasFeedback
+            width="md"
+            name="roleId"
+            label="Roles"
+            rules={[{ required: true, message: "Roles is required" }]}
+            showSearch
+            placeholder="Select role"
+            request={async (params) => {
+              const data = await fetchUserRoles(params);
+              const values = data.map((e: { role_type: any; _id: any }) => {
+                return { label: e.role_type, value: e._id };
+              });
+              return values;
+            }}
+          />
+        )}
 
         <ProFormText
           hasFeedback

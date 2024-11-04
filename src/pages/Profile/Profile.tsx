@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   UserOutlined,
   MailOutlined,
@@ -10,7 +10,7 @@ import {
   EyeOutlined,
   EyeInvisibleOutlined,
 } from "@ant-design/icons";
-import { PageContainer } from "@ant-design/pro-components";
+import { ActionType, PageContainer } from "@ant-design/pro-components";
 import {
   Card,
   Avatar,
@@ -28,13 +28,16 @@ import {
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUserById } from "@services/users";
+import AddEditProUserModal from "@components/MODALS/pro/AddEditProUserModal";
 
 const { Title, Text } = Typography;
 
 function Profile() {
   const [isPinVisible, setIsPinVisible] = useState(false);
-  const [pin, setPin] = useState("******");
+  const [pin, setPin] = useState("*********");
   const params = useParams();
+  
+  const userRef = useRef<ActionType>();
   
   const { id } = params;
 
@@ -50,13 +53,6 @@ function Profile() {
 
   const primaryColor = "#6c1c2c";
 
-  const handleEdit = () => {
-    console.log("Edit profile clicked");
-  };
-
-  const handleChangePin = () => {
-    console.log("Change PIN clicked");
-  };
 
   const togglePinVisibility = async () => {
     if (!isPinVisible) {
@@ -67,7 +63,7 @@ function Profile() {
         message.error("Failed to fetch PIN. Please try again later.");
       }
     } else {
-      setPin("******");
+      setPin("*********");
       setIsPinVisible(false);
     }
   };
@@ -122,12 +118,14 @@ function Profile() {
                 <Title level={3} style={{ marginBottom: 0 }}>
                   {userDetails.fullname}
                 </Title>
-                <Button
-                  type="text"
-                  icon={<EditOutlined />}
-                  onClick={handleEdit}
-                  style={{ color: primaryColor }}
-                  aria-label="Edit profile"
+
+                {/* edit user modal */}
+                <AddEditProUserModal
+                  edit={true}
+                  actionRef={userRef}
+                  data={userDetails}
+                  isProfile={true}
+                  userId={userDetails?._id}
                 />
               </Space>
               <Text
@@ -195,13 +193,7 @@ function Profile() {
                 onClick={togglePinVisibility}
                 aria-label={isPinVisible ? "Hide PIN" : "Show PIN"}
               />
-              <Button
-                type="link"
-                onClick={handleChangePin}
-                style={{ padding: 0 }}
-              >
-                Change PIN
-              </Button>
+            
             </Space>
           </Descriptions.Item>
           <Descriptions.Item

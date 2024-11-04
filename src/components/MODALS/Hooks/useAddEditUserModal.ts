@@ -46,18 +46,10 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
       handleClose();
 
       if (isSuccess) {
-        notification.success({
-          message: `Success`,
-          description: "Successfully added new User",
-          placement: "bottomLeft",
-        });
+        message.success("User added successfully");
         return true
       } else {
-        notification.error({
-          message: `Error`,
-          description: "Failed to add a new User",
-          placement: "bottomLeft",
-        });
+        message.error("Failed to add a new User");
       }
       
     } catch (error) {
