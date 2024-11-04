@@ -17,7 +17,6 @@ export const fetchAllShifts = async () => {
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error fetching shifts:", err.message);
     message.error("Failed to fetch shifts");
     throw err;
   }

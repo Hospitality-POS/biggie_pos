@@ -14,10 +14,7 @@ export const fetchAllSuppliers = async (data: ParamsType) => {
     });
     return response.data;
   } catch (error) {
-    Modal.error({
-      title: "Oops!",
-      content: "Please check your internet connection!",
-    });
+    throw new Error(error);
   }
 };
 

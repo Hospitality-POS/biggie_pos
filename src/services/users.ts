@@ -15,10 +15,7 @@ export const fetchAllUsersList = async (data: ParamsType) => {
     });
     return response.data;
   } catch (error) {
-    Modal.error({
-      title: `${error?.message}`,
-      content: "Please check your internet connection!",
-    });
+    throw new Error(error?.message);
   }
 };
 

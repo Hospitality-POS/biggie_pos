@@ -2,6 +2,7 @@ import { ParamsType } from "@ant-design/pro-components";
 import axios from "axios";
 import { BASE_URL } from "@utils/config";
 import { Modal, notification } from "antd/lib";
+import { message } from "antd";
 
 export const fetchSystemSetupDetails = async () => {
   try {
@@ -11,10 +12,7 @@ export const fetchSystemSetupDetails = async () => {
 
     return response.data;
   } catch (error) {
-    Modal.error({
-      title: "Oops! Something went wrong.",
-      content: "Please check your internet connection!",
-    });
+    throw new Error(error?.message);
   }
 };
 export const fetchSystemSetupDetailsById = async () => {
@@ -26,49 +24,36 @@ export const fetchSystemSetupDetailsById = async () => {
 
     return response.data;
   } catch (error) {
-    Modal.error({ 
-      title: "Oops! Something went wrong.",
-      content: "Please check your internet connection!",
-    });
+    throw new Error(error?.message);
   }
 };
-
 
 export const createSystemSetup = async (data: ParamsType) => {
   try {
     const url = `${BASE_URL}/users/new-system-setting`;
     const response = await axios.post(url, data);
-    localStorage.setItem("businessId", response?.data?._id)
+    localStorage.setItem("businessId", response?.data?._id);
     // console.log("create..", response.data);
-
+    message.success("System Setup created successfully");
     return response.data;
   } catch (error) {
-    Modal.error({
-      title: "Oops! Something went wrong.",
-      content: "Please check your internet connection!",
-    });
+    message.error("Failed to create a new System Setup");
   }
 };
-
 
 export const updateSystemSetup = async (data: ParamsType) => {
   try {
     // console.log("update..", data);
     const url = `${BASE_URL}/users/update-system-setting`;
     const response = await axios.put(`${url}/${data._id}`, data.data);
-
+    message.success("System Setup updated successfully");
     return response.data;
   } catch (error) {
-    Modal.error({
-      title: "Oops! Something went wrong.",
-      content: "Please check your internet connection!",
-    });
+    message.error("Failed to update System Setup");
   }
 };
 
-
 export const fetchSystemPaymentDetails = async () => {
-
   const url = `${BASE_URL}/payment-methods/fetch-payment-detail/all`;
   try {
     const response = await axios.get(url);
