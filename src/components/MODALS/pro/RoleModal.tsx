@@ -3,12 +3,32 @@ import {
   ProFormText,
   ProFormTextArea,
 } from "@ant-design/pro-components";
-import { Button, Form, message } from "antd";
+import { Button, Form, message, Checkbox, Space, Divider, Card, Tag, Tooltip } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createRole, updateRole } from "@services/Roles";
-import { EditOutlined, PlusOutlined } from "@ant-design/icons";
+import { EditOutlined, PlusOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
+
+// Define available permissions - replace with your actual permissions
+const PERMISSIONS = {
+  Users: [
+    { id: 'view_users', name: 'View Users', description: 'Can view user list and details' },
+    { id: 'create_users', name: 'Create Users', description: 'Can create new users' },
+    { id: 'edit_users', name: 'Edit Users', description: 'Can modify existing users' },
+    { id: 'delete_users', name: 'Delete Users', description: 'Can remove users from the system' },
+  ],
+  Roles: [
+    { id: 'view_roles', name: 'View Roles', description: 'Can view role list and details' },
+    { id: 'create_roles', name: 'Create Roles', description: 'Can create new roles' },
+    { id: 'edit_roles', name: 'Edit Roles', description: 'Can modify existing roles' },
+    { id: 'delete_roles', name: 'Delete Roles', description: 'Can delete roles' },
+  ],
+  Settings: [
+    { id: 'view_settings', name: 'View Settings', description: 'Can view system settings' },
+    { id: 'modify_settings', name: 'Modify Settings', description: 'Can modify system settings' },
+  ],
+};
 
 const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
   edit,
@@ -18,6 +38,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
   const queryClient = useQueryClient();
   const [form] = Form.useForm();
   const formRef = useRef();
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
   const [open, setOpen] = useState(false);
 
@@ -26,43 +47,46 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
       form.setFieldsValue({
         ...data,
       });
+      setSelectedPermissions(data.permissions || []);
     }
   }, [open, data, form]);
 
-  // Handle open and close events
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     if (!newOpen) {
       form.resetFields();
+      setSelectedPermissions([]);
     }
   };
 
-  // Define mutation for creating or updating a role
   const roleMutation = useMutation(edit ? updateRole : createRole, {
     onSuccess: () => {
       setOpen(false);
       actionRef?.current?.reload();
       queryClient.invalidateQueries("roles");
     },
-    onError: () =>
-      //   message.error(edit ? "Failed to update role" : "Failed to create role"),
-      setOpen(false),
+    onError: () => {
+      setOpen(false);
+    },
   });
 
-  // Submit handler
   const handleSubmit = async (values) => {
     try {
       const confirmed = await ShowConfirm({
-        title: `Are you sure you want to ${
-          edit ? "update this" : "add new"
-        } role?`,
+        title: `Are you sure you want to ${edit ? "update this" : "add new"
+          } role?`,
         position: true,
       });
 
       if (confirmed) {
+        const roleData = {
+          ...values,
+          permissions: selectedPermissions,
+        };
+
         edit
-          ? await roleMutation.mutateAsync({ ...values, _id: data._id })
-          : await roleMutation.mutateAsync(values);
+          ? await roleMutation.mutateAsync({ ...roleData, _id: data._id })
+          : await roleMutation.mutateAsync(roleData);
         setOpen(false);
         actionRef?.current?.reload();
         return true;
@@ -71,6 +95,18 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
       console.error("Error saving role:", error);
       return false;
     }
+  };
+
+  const handleCategoryCheckAll = (category: string, checked: boolean) => {
+    const categoryPermissions = PERMISSIONS[category].map(p => p.id);
+    setSelectedPermissions(prev => {
+      const otherPermissions = prev.filter(p => !categoryPermissions.includes(p));
+      return checked ? [...otherPermissions, ...categoryPermissions] : otherPermissions;
+    });
+  };
+
+  const isCategoryCheckedAll = (category: string) => {
+    return PERMISSIONS[category].every(p => selectedPermissions.includes(p.id));
   };
 
   return (
@@ -104,9 +140,9 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
         onCancel: () => {
           message.info(edit ? "Edit cancelled" : "Creation cancelled");
         },
+        width: 800,
       }}
       onFinish={handleSubmit}
-      width={550}
       submitter={{
         searchConfig: {
           resetText: "Cancel",
@@ -126,6 +162,69 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
         placeholder="Enter role type"
         rules={[{ required: true, message: "Role type is required" }]}
       />
+
+      <Divider>Permissions</Divider>
+
+      <Space direction="vertical" className="w-full" size="large">
+        {Object.entries(PERMISSIONS).map(([category, permissions]) => (
+          <Card
+            key={category}
+            size="small"
+            title={
+              <Space>
+                <Checkbox
+                  checked={isCategoryCheckedAll(category)}
+                  onChange={(e) => handleCategoryCheckAll(category, e.target.checked)}
+                >
+                  {category}
+                </Checkbox>
+                <Tag color="blue">{selectedPermissions.filter(p =>
+                  permissions.map(cp => cp.id).includes(p)
+                ).length} / {permissions.length}</Tag>
+              </Space>
+            }
+          >
+            <Space direction="vertical" className="w-full">
+              {permissions.map((permission) => (
+                <div key={permission.id} className="flex items-center justify-between">
+                  <Checkbox
+                    checked={selectedPermissions.includes(permission.id)}
+                    onChange={(e) => {
+                      setSelectedPermissions(prev =>
+                        e.target.checked
+                          ? [...prev, permission.id]
+                          : prev.filter(p => p !== permission.id)
+                      );
+                    }}
+                  >
+                    {permission.name}
+                  </Checkbox>
+                  <Tooltip title={permission.description}>
+                    <InfoCircleOutlined className="text-gray-400" />
+                  </Tooltip>
+                </div>
+              ))}
+            </Space>
+          </Card>
+        ))}
+      </Space>
+
+      <Divider>Selected Permissions Preview</Divider>
+
+      <Card size="small" className="bg-gray-50">
+        <Space wrap>
+          {selectedPermissions.map(permId => {
+            const permission = Object.values(PERMISSIONS)
+              .flat()
+              .find(p => p.id === permId);
+            return permission ? (
+              <Tag key={permId} color="blue">
+                {permission.name}
+              </Tag>
+            ) : null;
+          })}
+        </Space>
+      </Card>
     </ModalForm>
   );
 };
