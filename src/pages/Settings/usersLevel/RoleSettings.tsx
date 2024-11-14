@@ -1,24 +1,21 @@
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import { Button, Popconfirm, Space, Tooltip, message } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { deleteRole, fetchAllRoles } from "@services/Roles";
 import RoleModal from "@components/MODALS/pro/RoleModal";
 
 function RoleSettings() {
-  const [loading, setLoading] = useState(false);
   const actionRef = useRef<ActionType>();
 
   const deleteRoleMutation = useMutation(deleteRole, {
     onSuccess: () => {
-      // Refetch role data after deletion
       actionRef?.current?.reload();
     },
     onError: () => message.error("Failed to delete role"),
   });
 
-  // Define columns with styling and feature configuration for roles
   const columns = [
     {
       title: "Role Type",
@@ -56,7 +53,6 @@ function RoleSettings() {
           <Tooltip title="Edit">
             <RoleModal actionRef={actionRef} edit={true} data={record} />
           </Tooltip>
-
           <Popconfirm
             title="Are you sure you want to delete this role?"
             onConfirm={() => deleteRoleMutation.mutate(record._id)}
@@ -77,7 +73,6 @@ function RoleSettings() {
     },
   ];
 
-  // Data request function with error handling
   const requestData = async (params) => {
     try {
       const data = await fetchAllRoles(params);
@@ -96,8 +91,7 @@ function RoleSettings() {
     <ProTable
       columns={columns}
       actionRef={actionRef}
-      rowKey="id"
-      loading={loading}
+      rowKey="_id"
       request={requestData}
       pagination={{ pageSize: 10 }}
       options={{
@@ -119,7 +113,7 @@ function RoleSettings() {
         resetText: "Reset",
         labelWidth: "auto",
       }}
-      toolBarRender={() => [<RoleModal actionRef={actionRef} />]}
+      toolBarRender={() => [<RoleModal key="addRole" actionRef={actionRef} />]}
       dateFormatter="string"
     />
   );

@@ -12,6 +12,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
   data,
   actionRef,
 }) => {
+  console.log('data', data);
   const [form] = Form.useForm();
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [role_type, setRoleType] = useState<string | undefined>(undefined);

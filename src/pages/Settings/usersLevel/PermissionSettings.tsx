@@ -12,13 +12,11 @@ function PermissionSettings() {
 
     const deletePermissionMutation = useMutation(deletePermission, {
         onSuccess: () => {
-            // Refetch role data after deletion
             actionRef?.current?.reload();
         },
         onError: () => message.error("Failed to delete permission"),
     });
 
-    // Define columns with styling and feature configuration for roles
     const columns = [
         {
             title: "Name",
@@ -38,14 +36,14 @@ function PermissionSettings() {
             fieldProps: {
                 autoComplete: "on",
                 allowClear: true,
-                placeholder: "Enter  Group Name",
+                placeholder: "Enter Group Name",
             },
             sorter: true,
         },
         {
             title: "Route Url",
             dataIndex: "route_url",
-            key: "name",
+            key: "route_url", // Fixed key to be unique
             fieldProps: {
                 autoComplete: "on",
                 allowClear: true,
@@ -78,7 +76,6 @@ function PermissionSettings() {
                     <Tooltip title="Edit">
                         <PermissionModal actionRef={actionRef} edit={true} data={record} />
                     </Tooltip>
-
                     <Popconfirm
                         title="Are you sure you want to delete this permission?"
                         onConfirm={() => deletePermissionMutation.mutate(record._id)}
@@ -99,8 +96,8 @@ function PermissionSettings() {
         },
     ];
 
-    // Data request function with error handling
     const requestData = async (params) => {
+        setLoading(true);  // Set loading to true when request starts
         try {
             const data = await fetchAllPermissions(params);
             return {
@@ -111,6 +108,8 @@ function PermissionSettings() {
         } catch (error) {
             message.error("Failed to load permission data.");
             return { data: [], success: false };
+        } finally {
+            setLoading(false); // Reset loading state after request finishes
         }
     };
 
@@ -118,7 +117,7 @@ function PermissionSettings() {
         <ProTable
             columns={columns}
             actionRef={actionRef}
-            rowKey="id"
+            rowKey="_id" // Adjusted to match MongoDB-style documents
             loading={loading}
             request={requestData}
             pagination={{ pageSize: 10 }}
@@ -128,7 +127,7 @@ function PermissionSettings() {
                 reload: true,
                 setting: true,
             }}
-            headerTitle=" Permission Settings"
+            headerTitle="Permission Settings"
             tableAlertRender={({ selectedRowKeys }) => (
                 <p>You have selected {selectedRowKeys.length} permissions</p>
             )}
