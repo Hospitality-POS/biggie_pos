@@ -4,6 +4,7 @@ import { UserOutlined, UsergroupAddOutlined } from "@ant-design/icons";
 import { Space, Typography, Divider } from "antd";
 import UsersTable from "./UsersTable";
 import RoleSettings from "./RoleSettings";
+import PermissionSettings from "./PermissionSettings";
 
 const { Text } = Typography;
 
@@ -67,6 +68,27 @@ function UsersMainSettings() {
           }}
         >
           <RoleSettings />
+        </div>
+      </ProCard.TabPane>
+
+
+      <ProCard.TabPane
+        key="permissions"
+        tab={
+          <Space>
+            <UsergroupAddOutlined style={{ color: "#1890ff" }} />
+            <Text style={{ fontWeight: "normal" }}>Permissions</Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <PermissionSettings />
         </div>
       </ProCard.TabPane>
 
