@@ -1,8 +1,8 @@
 import { ParamsType } from "@ant-design/pro-components";
 import SetBearerHeaderToken from "@utils/SetBearerHeaderToken";
 import { BASE_URL } from "@utils/config";
-import { message, Modal, notification } from "antd";
-import axios from "axios";
+import { message } from "antd";
+import axiosInstance from "./request";
 
 const productUrl = `${BASE_URL}/product/products`;
 const invetoryUrl = `${BASE_URL}/product-inventory`;
@@ -12,7 +12,7 @@ const { headers } = SetBearerHeaderToken();
 
 export const getAllProducts = async () => {
   try {
-    const response = await axios.get(`${productUrl}/getproducts/all`);
+    const response = await axiosInstance.get(`${productUrl}/getproducts/all`);
     return response.data;
   } catch (error) {
     throw new Error("Failed to fetch products", error);
@@ -21,7 +21,7 @@ export const getAllProducts = async () => {
 
 export const addNewProduct = async (params: ParamsType) => {
   try {
-    const response = await axios.post(`${productUrl}`, params);
+    const response = await axiosInstance.post(`${productUrl}`, params);
     message.success("Product added successfully");
     return response.data;
   } catch (error) {
@@ -33,7 +33,7 @@ export const editProduct = async (data: ParamsType) => {
   // console.log(data);
 
   try {
-    const response = await axios.put(`${productUrl}/${data._id}`, {
+    const response = await axiosInstance.put(`${productUrl}/${data._id}`, {
       ...data,
       category: data?.category?.value || data.category,
     });
@@ -47,8 +47,8 @@ export const editProduct = async (data: ParamsType) => {
 
 export const deleteProduct = async (productId: string) => {
   try {
-    await axios.delete(`${productUrl}/${productId}`, { headers });
-   message.success("Product deleted successfully");
+    await axiosInstance.delete(`${productUrl}/${productId}`, { headers });
+    message.success("Product deleted successfully");
     return productId;
   } catch (error) {
     message.error("Failed to delete product");
@@ -57,7 +57,7 @@ export const deleteProduct = async (productId: string) => {
 
 export const fetchAllInventoryItems = async (params: type) => {
   try {
-    const response = await axios.get(`${invetoryUrl}`);
+    const response = await axiosInstance.get(`${invetoryUrl}`);
     return response.data;
   } catch (error) {
     throw new Error("failed to fetch invetories");
@@ -66,7 +66,7 @@ export const fetchAllInventoryItems = async (params: type) => {
 
 export const fetchAllUnits = async (params: type) => {
   try {
-    const response = await axios.get(`${unitsUrl}`);
+    const response = await axiosInstance.get(`${unitsUrl}`);
     return response.data;
   } catch (error) {
     throw new Error("Failed to fetch units");

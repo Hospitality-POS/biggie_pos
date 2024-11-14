@@ -1,8 +1,9 @@
 import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
+import axiosInstance from "./request";
 import { message } from "antd";
-import axios from "axios";
 const baseUrl = BASE_URL;
+
 
 interface PrintData {
   cart_id: string;
@@ -25,7 +26,7 @@ declare global {
 
 export const getAllCartItems = async (cartId: string) => {
   try {
-    const response = await axios.get(`${baseUrl}/cart/cart-items/${cartId}`);
+    const response = await axiosInstance.get(`${baseUrl}/cart/cart-items/${cartId}`);
     return response.data || [];
   } catch (error: any) {
     console.log(error);
@@ -35,7 +36,7 @@ export const getAllCartItems = async (cartId: string) => {
 export const printInvoice = async (printData: PrintData): Promise<void> => {
   try {
     // Set response type to 'arraybuffer' to handle binary data
-    const response = await axios.put(`${baseUrl}/cart/print-cart`, printData, {
+    const response = await axiosInstance.put(`${baseUrl}/cart/print-cart`, printData, {
       responseType: 'arraybuffer',
     });
 
@@ -89,7 +90,7 @@ export const printInvoice = async (printData: PrintData): Promise<void> => {
 
 export const getAllInvoices = async (params: ParamsType) => {
   try {
-    const response = await axios.get(`${baseUrl}/cart/invoices`, {
+    const response = await axiosInstance.get(`${baseUrl}/cart/invoices`, {
       params: {
         orderNo: params?.order_no || params?.keyword,
         tableName: params?.table,
@@ -103,7 +104,7 @@ export const getAllInvoices = async (params: ParamsType) => {
 
 export const rePrintInvoice = async (invoiceId: string) => {
   try {
-    const response = await axios.put(`${baseUrl}/cart/re-print-inv`, {
+    const response = await axiosInstance.put(`${baseUrl}/cart/re-print-inv`, {
       invoice_id: invoiceId,
     });
     message.success("Invoice re-printed successfully");

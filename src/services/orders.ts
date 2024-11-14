@@ -1,11 +1,11 @@
 import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
-import axios from "axios";
+import axiosInstance from "./request";
 
 export const getAllOrders = async (data: ParamsType) => {
   try {
-    const response = await axios.get(`${BASE_URL}/orders`, {
+    const response = await axiosInstance.get(`${BASE_URL}/orders`, {
       params: {
         order_no: data?.order_no || data?.keyword,
         table_name: data?.name,
@@ -20,7 +20,7 @@ export const getAllOrders = async (data: ParamsType) => {
 
 export const deleteOrderById = async (id: string) => {
   try {
-    await axios.delete(`${BASE_URL}/orders/${id}`);
+    await axiosInstance.delete(`${BASE_URL}/orders/${id}`);
     message.success("Order deleted successfully");
     return true;
   } catch (error) {

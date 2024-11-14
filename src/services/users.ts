@@ -1,7 +1,6 @@
 import { ParamsType } from "@ant-design/pro-components";
-import axios from "axios";
+import axiosInstance from "./request";
 import { BASE_URL } from "@utils/config";
-import { Modal, notification } from "antd/lib";
 import { message } from "antd";
 
 const userUrl = `${BASE_URL}/users`;
@@ -10,7 +9,7 @@ export const fetchAllUsersList = async (data: ParamsType) => {
   try {
     const url = `${BASE_URL}/users/all`;
 
-    const response = await axios.get(url, {
+    const response = await axiosInstance.get(url, {
       params: { fullname: data.fullname, email: data.email },
     });
     return response.data;
@@ -22,7 +21,7 @@ export const fetchAllUsersList = async (data: ParamsType) => {
 export const updateUsers = async (data: ParamsType) => {
   const url = `${BASE_URL}/users`;
   try {
-    const response = await axios.put(`${url}/${data?._id}`, data?.value);
+    const response = await axiosInstance.put(`${url}/${data?._id}`, data?.value);
     message.success("User updated successfully");
     return response.data;
   } catch (error: any) {
@@ -34,7 +33,7 @@ export const updateUsers = async (data: ParamsType) => {
 export const fetchUserRoles = async () => {
   const url = `${BASE_URL}/users`;
   try {
-    const response = await axios.get(`${url}/fetch-role-type/all`);
+    const response = await axiosInstance.get(`${url}/fetch-role-type/all`);
     return response.data;
   } catch (error) {
     console.log(error);
@@ -43,7 +42,7 @@ export const fetchUserRoles = async () => {
 
 export const fetchUserById = async (id: string) => {
   try {
-    const response = await axios.get(`${userUrl}/${id}`);
+    const response = await axiosInstance.get(`${userUrl}/${id}`);
     return response.data;
   } catch (error) {
     console.log(error);
@@ -53,7 +52,7 @@ export const fetchUserById = async (id: string) => {
 
 export const deleteUserById = async (id: string) => {
   try {
-    const response = await axios.delete(`${userUrl}/${id}`);
+    const response = await axiosInstance.delete(`${userUrl}/${id}`);
     return response.data;
   } catch (error) {
     console.log(error);

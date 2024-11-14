@@ -1,7 +1,8 @@
 import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
+import axiosInstance from "./request";
 
 const uomUrl = `${BASE_URL}/uom`;
 
@@ -12,7 +13,7 @@ interface Uom {
 
 export const fetchAllUom = async (params: ParamsType) => {
   try {
-    const response = await axios.get(uomUrl, { params });
+    const response = await axiosInstance.get(uomUrl, { params });
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
@@ -24,7 +25,7 @@ export const fetchAllUom = async (params: ParamsType) => {
 
 export const createUom = async (uomData: Uom) => {
   try {
-    const response = await axios.post(uomUrl, uomData);
+    const response = await axiosInstance.post(uomUrl, uomData);
     message.success("UOM created successfully");
     return response.data;
   } catch (error: unknown) {
@@ -37,7 +38,7 @@ export const createUom = async (uomData: Uom) => {
 
 export const updateUom = async (uomData: Uom) => {
   try {
-    const response = await axios.put(`${uomUrl}/${uomData._id}`, uomData);
+    const response = await axiosInstance.put(`${uomUrl}/${uomData._id}`, uomData);
     message.success("UOM updated successfully");
     return response.data;
   } catch (error: unknown) {
@@ -50,7 +51,7 @@ export const updateUom = async (uomData: Uom) => {
 
 export const deleteUom = async (id: string) => {
   try {
-    const response = await axios.delete(`${uomUrl}/${id}`);
+    const response = await axiosInstance.delete(`${uomUrl}/${id}`);
     message.success("UOM deleted successfully");
     return response.data;
   } catch (error: unknown) {

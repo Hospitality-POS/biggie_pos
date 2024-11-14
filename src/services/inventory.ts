@@ -1,14 +1,14 @@
 import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
+import axiosInstance from "./request";
 
-import axios from "axios";
 
 const url = `${BASE_URL}/product-inventory`;
 
 export const fetchAllInventory = async (data: ParamsType) => {
   try {
-    const response = await axios.get(url, {
+    const response = await axiosInstance.get(url, {
       params: { name: data.name, code: data.code },
     });
     return response.data;
@@ -20,7 +20,7 @@ export const fetchAllInventory = async (data: ParamsType) => {
 export const addNewInventory = async (params: ParamsType) => {
   try {
     console.log(params);
-    const response = await axios.post(url, { ...params });
+    const response = await axiosInstance.post(url, { ...params });
     message.success("Inventory added successfully");
     return response.data;
   } catch (error) {
@@ -31,7 +31,7 @@ export const addNewInventory = async (params: ParamsType) => {
 
 export const editInventory = async (params: ParamsType) => {
   try {
-    const response = await axios.put(`${url}/${params?._id}`, {
+    const response = await axiosInstance.put(`${url}/${params?._id}`, {
       ...params.values,
       unit_id: params.values.unit_id.value,
       subcategory_id: params.values.subcategory_id.value,
@@ -46,7 +46,7 @@ export const editInventory = async (params: ParamsType) => {
 
 export const deleteInventory = async (params: ParamsType) => {
   try {
-    const response = await axios.delete(`${url}/${params}`);
+    const response = await axiosInstance.delete(`${url}/${params}`);
     // message.success("Inventory deleted successfully");
     return response.data;
   } catch (error) {

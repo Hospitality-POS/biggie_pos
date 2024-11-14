@@ -1,14 +1,13 @@
 import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
-
-import axios from "axios";
+import axiosInstance from "./request";
 
 const url = `${BASE_URL}/delivery`;
 
 export const fetchAllDeliveries = async (data: ParamsType) => {
   try {
-    const response = await axios.get(url, {
+    const response = await axiosInstance.get(url, {
       params: { name: data.name, code: data.code },
     });
     return response.data;
@@ -19,7 +18,7 @@ export const fetchAllDeliveries = async (data: ParamsType) => {
 
 export const addNewDelivery = async (params: ParamsType) => {
   try {
-    const response = await axios.post(url, {
+    const response = await axiosInstance.post(url, {
       ...params,
     });
     message.success("Delivery added successfully");
@@ -32,7 +31,7 @@ export const addNewDelivery = async (params: ParamsType) => {
 export const editDelivery = async (params: ParamsType) => {
   try {
     console.log(params);
-    const response = await axios.put(`${url}/${params?._id}`, {
+    const response = await axiosInstance.put(`${url}/${params?._id}`, {
       ...params.values,
       supplier_id: params.values.supplier_id?.value,
       received_by: params.values.received_by?.value,
@@ -52,7 +51,7 @@ export const editDelivery = async (params: ParamsType) => {
 
 export const deleteDelivery = async (params: ParamsType) => {
   try {
-    const response = await axios.delete(`${url}/${params}`);
+    const response = await axiosInstance.delete(`${url}/${params}`);
     return response.data;
   } catch (error) {
     throw new Error(error);
@@ -61,7 +60,7 @@ export const deleteDelivery = async (params: ParamsType) => {
 
 export const getDeliveryItemsByDateRange = async (params: ParamsType) => {
   try {
-    const response = await axios.get(`${url}/date-range-delivery-items/items`, {
+    const response = await axiosInstance.get(`${url}/date-range-delivery-items/items`, {
       params,
     });
     return response.data;
@@ -72,7 +71,7 @@ export const getDeliveryItemsByDateRange = async (params: ParamsType) => {
 
 export const printDeliveryNote = async (params: ParamsType) => {
   try {
-    const response = await axios.get(`${url}/delivery-note/${params}?print=true`);
+    const response = await axiosInstance.get(`${url}/delivery-note/${params}?print=true`);
     // message.success("Delivery note printed successfully");
     return response.data;
   } catch (error) {

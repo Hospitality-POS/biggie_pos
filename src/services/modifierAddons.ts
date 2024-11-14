@@ -1,11 +1,11 @@
 import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
-import { message, Modal, notification } from "antd";
-import axios from "axios";
+import { message } from "antd";
+import axiosInstance from "./request";
 
 export const getAllModifierAddons = async (data: ParamsType) => {
   try {
-    const response = await axios.get(`${BASE_URL}/modifiers/fetch-modifiers`, {
+    const response = await axiosInstance.get(`${BASE_URL}/modifiers/fetch-modifiers`, {
       params: {
         name: data?.name,
       },
@@ -21,7 +21,7 @@ export const createModifierAddon = async (data: ParamsType) => {
     if (localStorage.getItem("user")) {
       user = JSON.parse(localStorage.getItem("user"));
     }
-    const response = await axios.post(`${BASE_URL}/modifiers/create-modifier`, {
+    const response = await axiosInstance.post(`${BASE_URL}/modifiers/create-modifier`, {
       ...data,
       createdBy: user?.id,
     });
@@ -39,7 +39,7 @@ export const editModifierAddon = async (data: ParamsType) => {
     if (localStorage.getItem("user")) {
       user = JSON.parse(localStorage.getItem("user"));
     }
-    const response = await axios.put(
+    const response = await axiosInstance.put(
       `${BASE_URL}/modifiers/update-modifier/${data?._id}`,
       {
         ...data.values,
@@ -56,7 +56,7 @@ export const editModifierAddon = async (data: ParamsType) => {
 
 export const deleteModifierAddon = async (data: ParamsType) => {
   try {
-    const response = await axios.delete(
+    const response = await axiosInstance.delete(
       `${BASE_URL}/modifiers/delete-modifier/${data}`
     );
     return response.data;
@@ -68,7 +68,7 @@ export const deleteModifierAddon = async (data: ParamsType) => {
 
 export const getModifierAddonById = async (data: ParamsType) => {
   try {
-    const response = await axios.get(`${BASE_URL}/modifiers/fetch-modifiers`, {
+    const response = await axiosInstance.get(`${BASE_URL}/modifiers/fetch-modifiers`, {
       params: {
         id: data?.id,
       },
@@ -82,7 +82,7 @@ export const getModifierAddonById = async (data: ParamsType) => {
 // addons
 export const getAllAddons = async (data: ParamsType) => {
   try {
-    const response = await axios.get(`${BASE_URL}/modifiers/fetch-addons`, {
+    const response = await axiosInstance.get(`${BASE_URL}/modifiers/fetch-addons`, {
       params: {
         name: data?.name,
       },
@@ -94,7 +94,7 @@ export const getAllAddons = async (data: ParamsType) => {
 };
 export const createAddon = async (data: ParamsType) => {
   try {
-    const response = await axios.post(`${BASE_URL}/modifiers/create-addons`, data);
+    const response = await axiosInstance.post(`${BASE_URL}/modifiers/create-addons`, data);
     message.success("Addon created successfully");
     return response.data;
   } catch (error) {
@@ -105,7 +105,7 @@ export const createAddon = async (data: ParamsType) => {
 
 export const editAddon = async (data: ParamsType) => {
   try {
-    const response = await axios.put(
+    const response = await axiosInstance.put(
       `${BASE_URL}/modifiers/update-addon/${data?._id}`,
       {
         ...data.values,
@@ -121,7 +121,7 @@ export const editAddon = async (data: ParamsType) => {
 
 export const deleteAddon = async (data: ParamsType) => {
   try {
-    const response = await axios.delete(
+    const response = await axiosInstance.delete(
       `${BASE_URL}/modifiers/delete-addon/${data}`
     );
 
@@ -133,7 +133,7 @@ export const deleteAddon = async (data: ParamsType) => {
 
 export const getAddonById = async (data: ParamsType) => {
   try {
-    const response = await axios.get(`${BASE_URL}/modifiers/fetch-addons`, {
+    const response = await axiosInstance.get(`${BASE_URL}/modifiers/fetch-addons`, {
       params: {
         id: data?.id,
       },
