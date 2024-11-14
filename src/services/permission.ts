@@ -2,7 +2,7 @@ import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 import axiosInstance from "./request";
-import axios from "axios";
+
 
 const permissionUrl = `${BASE_URL}/users`;
 
@@ -13,7 +13,7 @@ interface Permission {
 
 export const fetchAllPermissions = async (params: ParamsType) => {
     try {
-        const response = await axios.get(`${permissionUrl}/fetch-permission/all`, { params });
+        const response = await axiosInstance.get(`${permissionUrl}/fetch-permission/all`, { params });
         return response.data;
     } catch (error) {
         console.log(error);
@@ -22,7 +22,7 @@ export const fetchAllPermissions = async (params: ParamsType) => {
 
 export const createPermission = async (roleData: Permission) => {
     try {
-        const response = await axios.post(`${permissionUrl}/new-permission`, roleData);
+        const response = await axiosInstance.post(`${permissionUrl}/new-permission`, roleData);
         message.success("permission created successfully");
         return response.data;
     } catch (error: unknown) {
@@ -34,7 +34,7 @@ export const createPermission = async (roleData: Permission) => {
 
 export const updatePermission = async (roleData: Permission) => {
     try {
-        const response = await axios.put(`${permissionUrl}/update-permission/${roleData._id}`, roleData);
+        const response = await axiosInstance.put(`${permissionUrl}/update-permission/${roleData._id}`, roleData);
         message.success("permission updated successfully");
         return response.data;
     } catch (error: unknown) {
@@ -47,7 +47,7 @@ export const updatePermission = async (roleData: Permission) => {
 
 export const deletePermission = async (id: string) => {
     try {
-        const response = await axios.delete(`${permissionUrl}/remove-permission/${id}`);
+        const response = await axiosInstance.delete(`${permissionUrl}/remove-permission/${id}`);
         message.success("permission deleted successfully");
         return response.data;
     } catch (error: unknown) {

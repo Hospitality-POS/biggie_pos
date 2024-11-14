@@ -1,6 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
-import axios from "axios";
+import axiosInstance from "../../services/request";
 
 const baseUrl = `${BASE_URL}/payment-methods`
 
@@ -20,9 +20,9 @@ const getToken = () => {
 export const fetchPaymentsMethod = createAsyncThunk(
   "paymentMethod/fetchPaymentsMethod",
   async (_, { rejectWithValue }) => {
-    const token = getToken(); 
+    const token = getToken();
     try {
-      const response = await axios.get(baseUrl, {
+      const response = await axiosInstance.get(baseUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -38,9 +38,9 @@ export const fetchPaymentsMethod = createAsyncThunk(
 export const createPaymentMethod = createAsyncThunk(
   "paymentMethod/createPaymentMethod",
   async (newPayment: Payment, { rejectWithValue }) => {
-    const token = getToken(); 
+    const token = getToken();
     try {
-      const response = await axios.post(baseUrl, newPayment, {
+      const response = await axiosInstance.post(baseUrl, newPayment, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -56,9 +56,9 @@ export const createPaymentMethod = createAsyncThunk(
 export const updatePaymentMethod = createAsyncThunk(
   "paymentMethod/updatePaymentMethod",
   async (updatedPayment: Payment, { rejectWithValue }) => {
-    const token = getToken(); 
+    const token = getToken();
     try {
-      const response = await axios.put(
+      const response = await axiosInstance.put(
         `${baseUrl}/${updatedPayment._id}`,
         updatedPayment,
         {
@@ -77,10 +77,10 @@ export const updatePaymentMethod = createAsyncThunk(
 // Create an async thunk to delete a payment
 export const deletePaymentMethod = createAsyncThunk(
   "paymentMethod/deletePaymentMethod",
-  async (paymentId: string, { rejectWithValue, dispatch}) => {
-    const token = getToken(); 
+  async (paymentId: string, { rejectWithValue, dispatch }) => {
+    const token = getToken();
     try {
-      const response = await axios.delete(`${baseUrl}/${paymentId}`, {
+      const response = await axiosInstance.delete(`${baseUrl}/${paymentId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

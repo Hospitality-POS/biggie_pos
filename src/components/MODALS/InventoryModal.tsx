@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { useForm, Controller } from "react-hook-form";
-import axios from "axios";
+import axiosInstance from "../../services/request";
 import { useQuery } from "@tanstack/react-query";
 
 interface NewProduct {
@@ -50,7 +50,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         cost: 0,
         min_viable_quantity: 0,
         category_id: "",
-        supplier_id: "", 
+        supplier_id: "",
         description: "",
       },
     });
@@ -61,7 +61,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   };
 
   const fetchCategories = async () => {
-    const response = await axios.get("http://localhost:3000/categories");
+    const response = await axiosInstance.get("http://localhost:3000/categories");
     return response.data;
   };
 
@@ -71,7 +71,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
   const fetchSuppliers = async () => {
     const token = getToken();
-    const response = await axios.get("http://localhost:3000/suppliers", {
+    const response = await axiosInstance.get("http://localhost:3000/suppliers", {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -83,7 +83,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
   const handleAddNewProduct = (data: NewProduct) => {
     console.log(data);
-    
+
     const newProductData: NewProduct = {
       ...data,
       category_id: data.category_id,

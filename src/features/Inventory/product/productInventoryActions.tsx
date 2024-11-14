@@ -1,7 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
-import { Modal, notification } from "antd/lib";
-import axios from "axios";
+import { Modal } from "antd/lib";
+import axiosInstance from "../../../services/request";
 
 const baseUrl = `${BASE_URL}/product-inventory`;
 
@@ -28,7 +28,7 @@ export const createProductInventory = createAsyncThunk(
   "productInventory/createProductInventory",
   async (inventoryData: InventoryData, { rejectWithValue, dispatch }) => {
     try {
-      const response = await axios.post(baseUrl, inventoryData);
+      const response = await axiosInstance.post(baseUrl, inventoryData);
       dispatch(fetchAllProductInventories());
       return response.data;
     } catch (error) {
@@ -42,7 +42,7 @@ export const fetchAllProductInventories = createAsyncThunk(
   "productInventory/fetchAllProductInventories",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(baseUrl);
+      const response = await axiosInstance.get(baseUrl);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || error.toString());
@@ -54,7 +54,7 @@ export const getProductInventory = createAsyncThunk(
   "productInventory/getProductInventory",
   async (inventoryId: string, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${baseUrl}/${inventoryId}`);
+      const response = await axiosInstance.get(`${baseUrl}/${inventoryId}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || error.toString());
@@ -67,7 +67,7 @@ export const updateProductInventory = createAsyncThunk(
   "productInventory/updateProductInventory",
   async (inventoryData: ProductInventory, { rejectWithValue, dispatch }) => {
     try {
-      const response = await axios.put(
+      const response = await axiosInstance.put(
         `${baseUrl}/${inventoryData._id}`,
         inventoryData
       );
@@ -84,12 +84,12 @@ export const deleteProductInventory = createAsyncThunk(
   "productInventory/deleteProductInventory",
   async (inventoryId: string, { rejectWithValue }) => {
     try {
-      await axios.delete(`${baseUrl}/${inventoryId}`);
-      
+      await axiosInstance.delete(`${baseUrl}/${inventoryId}`);
+
       return inventoryId;
     } catch (error) {
       // console.log(error);
-      
+
       Modal.warning({
         title: "Error",
         content: "Failed to delete the product inventory",

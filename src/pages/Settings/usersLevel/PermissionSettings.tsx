@@ -41,6 +41,17 @@ function PermissionSettings() {
             sorter: true,
         },
         {
+            title: "Method",
+            dataIndex: "method",
+            key: "method",
+            fieldProps: {
+                autoComplete: "on",
+                allowClear: true,
+                placeholder: "Enter Method",
+            },
+            sorter: true,
+        },
+        {
             title: "Route Url",
             dataIndex: "route_url",
             key: "route_url", // Fixed key to be unique

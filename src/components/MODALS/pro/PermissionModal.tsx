@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Button, Form, Space } from "antd";
-import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
-import { DollarOutlined, EditOutlined } from "@ant-design/icons";
+import { ModalForm, ProFormText, ProForm, ProFormSelect } from "@ant-design/pro-form";
+import { LockOutlined, EditOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { createPermission, updatePermission } from "@services/permission";
 
@@ -39,7 +39,7 @@ const AddProPermissioModal: React.FC<
             onOpenChange={handleOpenChange}
             title={
                 <Space>
-                    <DollarOutlined />
+                    <LockOutlined />
                     Add New Permission
                 </Space>
             }
@@ -57,7 +57,7 @@ const AddProPermissioModal: React.FC<
                         }
                     >Edit</Button>
                 ) : (
-                    <Button type="primary" key="button" icon={<DollarOutlined />}>
+                    <Button type="primary" key="button" icon={<LockOutlined />}>
                         New Permission
                     </Button>
                 )
@@ -88,7 +88,7 @@ const AddProPermissioModal: React.FC<
                     submitText: edit ? "Edit Permission" : "Add Permission",
                 },
                 submitButtonProps: {
-                    icon: edit ? <EditOutlined /> : <DollarOutlined />,
+                    icon: edit ? <EditOutlined /> : <LockOutlined />,
                 },
                 resetButtonProps: {
                     style: { display: "none" },
@@ -125,6 +125,23 @@ const AddProPermissioModal: React.FC<
                     label="Route Url"
                     rules={[{ required: true, message: "Route Url is required" }]}
                     placeholder="Enter Route Url name"
+                />
+            </ProForm.Group>
+
+            <ProForm.Group>
+                <ProFormSelect
+                    hasFeedback
+                    width="lg"
+                    name="method"
+                    label="Method"
+                    rules={[{ required: true, message: "Method is required" }]}
+                    placeholder="Select HTTP Method"
+                    options={[
+                        { label: 'GET', value: 'GET' },
+                        { label: 'POST', value: 'POST' },
+                        { label: 'PUT', value: 'PUT' },
+                        { label: 'DELETE', value: 'DELETE' },
+                    ]}
                 />
             </ProForm.Group>
         </ModalForm>

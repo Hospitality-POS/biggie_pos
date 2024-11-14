@@ -1,7 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
-import axios from "axios";
+import axiosInstance from "../../services/request";
 
 const baseUrl = `${BASE_URL}/orders`;
 
@@ -14,7 +14,7 @@ export const generateSalesReport = createAsyncThunk(
   "report/generateSalesReport",
   async (dated: DateDetails, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${baseUrl}/date-range-sales/items`, {
+      const response = await axiosInstance.get(`${baseUrl}/date-range-sales/items`, {
         params: {
           startDate: dated.startDate,
           endDate: dated.endDate,
@@ -34,7 +34,7 @@ export const generateVoidedReport = createAsyncThunk(
   "report/generateVoidedReport",
   async (dated: DateDetails, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${baseUrl}/date-range-void/items`, {
+      const response = await axiosInstance.get(`${baseUrl}/date-range-void/items`, {
         params: {
           startDate: dated.startDate,
           endDate: dated.endDate,
@@ -54,7 +54,7 @@ export const generatePurchaseReport = createAsyncThunk(
   "report/generatePurchaseReport",
   async (dated: DateDetails, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
+      const response = await axiosInstance.get(
         `${baseUrl}/order-payment-methods/summary`,
         {
           params: {
@@ -77,7 +77,7 @@ export const generateDeliveryReport = createAsyncThunk(
   "report/generateDeliveryReport",
   async (dated: DateDetails, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
+      const response = await axiosInstance.get(
         `${BASE_URL}/delivery/date-range-delivery-items/items`,
         {
           params: {

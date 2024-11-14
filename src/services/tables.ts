@@ -2,7 +2,9 @@ import { ParamsType } from "@ant-design/pro-components";
 import axiosInstance from "./request";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
-import axios from "axios";
+
+
+
 
 const tableUrl = `${BASE_URL}/tables`;
 
@@ -30,7 +32,7 @@ export const getTableLocation = async (data: ParamsType) => {
 export const fetchTableUsequery = async () => {
   try {
 
-    const response = await axios.get(`${tableUrl}/tables/unique-locatedAt`);
+    const response = await axiosInstance.get(`${tableUrl}/tables/unique-locatedAt`);
 
     return response.data;
   } catch (error) {

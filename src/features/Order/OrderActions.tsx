@@ -1,8 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
-import { Modal } from "antd/lib";
-import axios from "axios";
+import axiosInstance from "../../services/request";
 
 interface OrderDetails {
   _id: string;
@@ -28,7 +27,7 @@ export const createOrder = createAsyncThunk(
   "order/createOrder",
   async (orderDetails: OrderDetails, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${baseUrl}/create`, orderDetails);
+      const response = await axiosInstance.post(`${baseUrl}/create`, orderDetails);
       return response.data;
     } catch (error: any) {
       message.error("Failed to create order");
@@ -41,7 +40,7 @@ export const fetchOrders = createAsyncThunk(
   "order/fetchOrders",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(baseUrl);
+      const response = await axiosInstance.get(baseUrl);
       // console.log(response);
 
       return response.data;
@@ -55,7 +54,7 @@ export const updateOrder = createAsyncThunk(
   "order/updateOrder",
   async (orderDetails: OrderDetails, { rejectWithValue }) => {
     try {
-      const response = await axios.put(
+      const response = await axiosInstance.put(
         `${baseUrl}/${orderDetails._id}`,
         orderDetails
       );
@@ -71,7 +70,7 @@ export const fetchOrdersByDateRange = createAsyncThunk(
   async (dateRange: DateRange, { rejectWithValue }) => {
     try {
       const { startDate, endDate } = dateRange;
-      const response = await axios.get(`${baseUrl}`, {
+      const response = await axiosInstance.get(`${baseUrl}`, {
         params: {
           startDate,
           endDate,
@@ -88,7 +87,7 @@ export const deleteOrder = createAsyncThunk(
   "order/deleteOrder",
   async (orderId: string, { rejectWithValue }) => {
     try {
-      await axios.delete(`${baseUrl}/${orderId}`);
+      await axiosInstance.delete(`${baseUrl}/${orderId}`);
       return orderId;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

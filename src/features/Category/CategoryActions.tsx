@@ -1,6 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
-import axios from "axios";
+import axiosInstance from "../../services/request";
 
 const baseUrl = `${BASE_URL}/categories`;
 
@@ -16,7 +16,7 @@ export const fetchCategories = createAsyncThunk(
   "category/fetchCategories",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(baseUrl);
+      const response = await axiosInstance.get(baseUrl);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || error.toString());
@@ -29,7 +29,7 @@ export const fetchMainCategories = createAsyncThunk(
   "category/fetchMainCategories",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${baseUrl}/main-categories`);
+      const response = await axiosInstance.get(`${baseUrl}/main-categories`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.message || error.toString());
@@ -42,7 +42,7 @@ export const createCategory = createAsyncThunk(
   "category/createCategory",
   async (newCategory: Category, { rejectWithValue, dispatch }) => {
     try {
-      const response = await axios.post(baseUrl, newCategory);
+      const response = await axiosInstance.post(baseUrl, newCategory);
       dispatch(fetchCategories())
       return response.data;
     } catch (error) {
@@ -56,7 +56,7 @@ export const updateCategory = createAsyncThunk(
   "category/updateCategory",
   async (updatedCategory: Category, { rejectWithValue }) => {
     try {
-      const response = await axios.put(
+      const response = await axiosInstance.put(
         `${baseUrl}/${updatedCategory._id}`,
         updatedCategory
       );
@@ -72,7 +72,7 @@ export const fetchsubcategories = createAsyncThunk(
   "category/subcategories",
   async (subcategoryId, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
+      const response = await axiosInstance.get(
         `${baseUrl}/main-categories/${subcategoryId}/sub-categories`
       );
       return response.data;
@@ -87,7 +87,7 @@ export const fetchCategoriesByID = createAsyncThunk(
   "category/CategoriesByID",
   async (subcategoryId, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
+      const response = await axiosInstance.get(
         `${baseUrl}/sub-categories/${subcategoryId}/categories`
       );
       return response.data;
@@ -102,7 +102,7 @@ export const deleteCategory = createAsyncThunk(
   "category/deleteCategory",
   async (categoryId: string, { rejectWithValue, dispatch }) => {
     try {
-      const response = await axios.delete(`${baseUrl}/${categoryId}`);
+      const response = await axiosInstance.delete(`${baseUrl}/${categoryId}`);
       // Optionally, you can dispatch an action to fetch updated categories after deletion.
       dispatch(fetchCategories());
       return response.data;

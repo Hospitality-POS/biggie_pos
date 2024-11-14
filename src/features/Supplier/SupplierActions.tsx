@@ -1,6 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
-import axios from "axios";
+import axiosInstance from "../../services/request";
 
 const baseUrl = `${BASE_URL}/suppliers`;
 
@@ -24,7 +24,7 @@ export const fetchSuppliers = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     const token = getToken(); // Get the token
     try {
-      const response = await axios.get(`${baseUrl}`, {
+      const response = await axiosInstance.get(`${baseUrl}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -42,7 +42,7 @@ export const createSupplier = createAsyncThunk(
   async (newSupplier: Supplier, { rejectWithValue }) => {
     const token = getToken(); // Get the token
     try {
-      const response = await axios.post(`${baseUrl}`, newSupplier, {
+      const response = await axiosInstance.post(`${baseUrl}`, newSupplier, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -60,7 +60,7 @@ export const updateSupplier = createAsyncThunk(
   async (updatedSupplier: Supplier, { rejectWithValue }) => {
     const token = getToken(); // Get the token
     try {
-      const response = await axios.put(
+      const response = await axiosInstance.put(
         `${baseUrl}/${updatedSupplier._id}`,
         updatedSupplier,
         {
@@ -82,7 +82,7 @@ export const deleteSupplier = createAsyncThunk(
   async (supplierId: string, { rejectWithValue, dispatch }) => {
     const token = getToken(); // Get the token
     try {
-      const response = await axios.delete(`${baseUrl}/${supplierId}`, {
+      const response = await axiosInstance.delete(`${baseUrl}/${supplierId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
