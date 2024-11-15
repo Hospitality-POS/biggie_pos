@@ -160,11 +160,11 @@ const CartDrawer: React.FC = () => {
         >
           {loading
             ? Array.from({ length: data?.length }, (_, index) => (
-                <SkeletonCartItemCard key={index} />
-              ))
+              <SkeletonCartItemCard key={index} />
+            ))
             : data?.map((item: { _id: Key | null | undefined | string }) => (
-                <CartItemCardMemo key={item._id} cartItem={item} />
-              ))}
+              <CartItemCardMemo key={item._id} cartItem={item} />
+            ))}
           {loadingData && loading ? <CartLoader /> : ""}
         </div>
         {memoizedData?.length ? (
@@ -269,7 +269,7 @@ const CartDrawer: React.FC = () => {
       </Space>
 
       <div style={{ display: "flex", marginTop: 20 }}>
-        {user?.role === "admin" && data?.length > 0 && <PaymentDrawer />}
+        {(user?.role === "admin" || user?.role === "cashier") && data?.length > 0 && <PaymentDrawer />}
       </div>
     </Card>
   );

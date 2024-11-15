@@ -1,9 +1,9 @@
-import {  ApiFilled, CalculatorFilled, FileAddFilled, FileFilled, FolderFilled, HomeFilled, PrinterFilled, SmileFilled, SolutionOutlined } from "@ant-design/icons";
+import { ApiFilled, CalculatorFilled, FileAddFilled, FileFilled, FolderFilled, HomeFilled, PrinterFilled, SmileFilled, SolutionOutlined } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 
-  const useProLayoutNav = () => {
+const useProLayoutNav = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const state = !!(user?.role === "admin");
+  const state = !!(user?.role === "admin" || user?.role === "cashier");
   const adminMenu = {
     route: {
       path: "/",
@@ -106,6 +106,6 @@ import { useAppSelector } from "src/store";
       ],
     },
   };
-  return  state ? adminMenu : userMenu;
+  return state ? adminMenu : userMenu;
 };
 export default useProLayoutNav
