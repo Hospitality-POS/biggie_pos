@@ -38,7 +38,7 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
-        console.log('my error 2', error);
+
         const { response } = error;
         if (response && response.status === 401) {
             handleError("Unauthorized. Please login again.");

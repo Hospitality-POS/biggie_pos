@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ConfigProvider, Spin, Typography } from "antd";
 import { Space } from "antd/lib";
 import Lottie from "lottie-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/fss loader.json";
 import EmptyPage from "@routes/EmptyPage";
@@ -16,6 +16,7 @@ import EmptyPage from "@routes/EmptyPage";
 export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
+  const [activeTabId, setActiveTabId] = useState<string>("");
   const { openModal: successmodal, loading } = useAppSelector(
     (state) => state.order
   );
@@ -26,12 +27,17 @@ export default function TablePro() {
   };
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["tables"],
-    queryFn: fetchTableUsequery,
-    retry: 3,
-    refetchInterval: 3000,
+    queryKey: ["tables", activeTabId],
+    queryFn: () => fetchTableUsequery({ id: activeTabId }),
     networkMode: "always",
   });
+
+  // Set initial active tab when data is loaded
+  useEffect(() => {
+    if (data && data.length > 0 && !activeTabId) {
+      setActiveTabId(data[0]._id);
+    }
+  }, [data]);
 
   if (successmodal) {
     return <SuccesssModal />;
@@ -138,6 +144,8 @@ export default function TablePro() {
           tabs={{
             type: "card",
             items: tabsItems,
+            onChange: (key) => setActiveTabId(key),
+            activeKey: activeTabId
           }}
           bordered
           boxShadow

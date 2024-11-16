@@ -29,10 +29,10 @@ export const getTableLocation = async (data: ParamsType) => {
   }
 };
 
-export const fetchTableUsequery = async () => {
+export const fetchTableUsequery = async (params) => {
   try {
 
-    const response = await axiosInstance.get(`${tableUrl}/tables/unique-locatedAt`);
+    const response = await axiosInstance.get(`${tableUrl}/tables/unique-locatedAt`, { params: { locationId: params.id } });
 
     return response.data;
   } catch (error) {
