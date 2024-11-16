@@ -1,6 +1,5 @@
-import React from "react";
 import { ProCard } from "@ant-design/pro-components";
-import { UserOutlined, UsergroupAddOutlined } from "@ant-design/icons";
+import { UserOutlined, UsergroupAddOutlined, LockOutlined } from "@ant-design/icons";
 import { Space, Typography, Divider } from "antd";
 import UsersTable from "./UsersTable";
 import RoleSettings from "./RoleSettings";
@@ -76,7 +75,7 @@ function UsersMainSettings() {
         key="permissions"
         tab={
           <Space>
-            <UsergroupAddOutlined style={{ color: "#1890ff" }} />
+            <LockOutlined style={{ color: "#1890ff" }} />
             <Text style={{ fontWeight: "normal" }}>Permissions</Text>
           </Space>
         }

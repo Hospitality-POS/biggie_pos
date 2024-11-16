@@ -1,11 +1,11 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { generateDeliveryReport, generatePurchaseReport, generateSalesReport, generateVoidedReport } from "./reportActions";
+import { generateDeliveryReport, generatePurchaseReport, generateSalesReport, generateVoidedReport, generateInventoryUsageReport } from "./reportActions";
 
 interface ReportState {
   salesReport: any;
   voidedReport: any;
   purchaseReport: any;
-  deliveryReport:any;
+  deliveryReport: any;
   loading: boolean;
   error: string | null;
 }
@@ -70,6 +70,18 @@ const reportSlice = createSlice({
         state.deliveryReport = action.payload;
       })
       .addCase(generateDeliveryReport.rejected, (state, action: any) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(generateInventoryUsageReport.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(generateInventoryUsageReport.fulfilled, (state, action) => {
+        state.loading = false;
+        state.deliveryReport = action.payload;
+      })
+      .addCase(generateInventoryUsageReport.rejected, (state, action: any) => {
         state.loading = false;
         state.error = action.payload;
       });

@@ -24,8 +24,9 @@ export const deleteOrderById = async (id: string) => {
     message.success("Order deleted successfully");
     return true;
   } catch (error) {
-    console.log(error);
-    message.error("Error deleting order");
+    if (error?.response?.status != 403) {
+      message.error("Error deleting order");
+    }
     return false;
   }
 };

@@ -30,8 +30,9 @@ export const updatePrinter = async (data: any) => {
     message.success("Printer updated successfully");
     return response.data;
   } catch (error) {
-    console.log(error);
-    message.error("Failed to update printer");
+    if (error?.response?.status != 403) {
+      message.error("Failed to update printer");
+    }
   }
 };
 
@@ -40,7 +41,8 @@ export const deletePrinter = async (printerId: string) => {
     const response = await axiosInstance.delete(`${printerUrl}/${printerId}`);
     return response.data;
   } catch (error) {
-    console.log(error);
-    message.error("Failed to delete printer");
+    if (error?.response?.status != 403) {
+      message.error("Failed to delete printer");
+    }
   }
 };

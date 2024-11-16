@@ -1,9 +1,10 @@
 import axios from "axios";
 import { BASE_URL } from "@utils/config";
+import { message } from "antd";
 
 // Helper function to handle errors
 const handleError = (errorMessage: string) => {
-    console.error(errorMessage); // Replace with a custom error handler if needed
+    message.info(`${errorMessage}`)
 };
 
 // Create an axios instance with the base URL and timeout
@@ -27,6 +28,7 @@ axiosInstance.interceptors.request.use(
         return config;
     },
     (error) => {
+        console.log('my error', error);
         handleError("Request failed");
         return Promise.reject(error);
     }
@@ -36,10 +38,14 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
+        console.log('my error 2', error);
         const { response } = error;
         if (response && response.status === 401) {
             handleError("Unauthorized. Please login again.");
-        } else {
+        } else if (response.status === 403) {
+            handleError(response.data.message);
+        }
+        else {
             handleError("An error occurred while processing your request.");
         }
         return Promise.reject(error);

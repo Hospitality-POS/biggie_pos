@@ -25,7 +25,9 @@ export const updateUsers = async (data: ParamsType) => {
     message.success("User updated successfully");
     return response.data;
   } catch (error: any) {
-    message.error("Failed to update user");
+    if (error?.response?.status != 403) {
+      message.error("Failed to update user");
+    }
     throw new Error(error?.message);
   }
 };

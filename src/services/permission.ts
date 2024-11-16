@@ -26,8 +26,9 @@ export const createPermission = async (roleData: Permission) => {
         message.success("permission created successfully");
         return response.data;
     } catch (error: unknown) {
-        console.error("Error creating permission:", error);
-        message.error("Failed to create permission");
+        if (error?.response?.status != 403) {
+            message.error("Failed to create permission");
+        }
         throw error;
     }
 };
@@ -39,8 +40,9 @@ export const updatePermission = async (roleData: Permission) => {
         return response.data;
     } catch (error: unknown) {
 
-        console.error("Error updating permission:", error);
-        message.error("Failed to update permission");
+        if (error?.response?.status != 403) {
+            message.error("Failed to update permission");
+        }
         throw error;
     }
 };
@@ -51,8 +53,9 @@ export const deletePermission = async (id: string) => {
         message.success("permission deleted successfully");
         return response.data;
     } catch (error: unknown) {
-        console.error("Error deleting permission:", error);
-        message.error("Failed to delete permission");
+        if (error?.response?.status != 403) {
+            message.error("Failed to delete permission");
+        }
         throw error;
     }
 };

@@ -30,6 +30,27 @@ export const generateSalesReport = createAsyncThunk(
   }
 );
 
+
+export const generateInventoryUsageReport = createAsyncThunk(
+  "report/generateInventoryUsageReport",
+  async (dated: DateDetails, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get(`${BASE_URL}/product-inventory/date-range-inventory-usage-items/items`, {
+        params: {
+          startDate: dated.startDate,
+          endDate: dated.endDate,
+          print: true,
+        },
+      });
+      message.success("Sales report generated successfully");
+      return response.data;
+    } catch (error: any) {
+      message.error("Failed to generate sales report");
+      return rejectWithValue(error.response.data.error || error.toString());
+    }
+  }
+);
+
 export const generateVoidedReport = createAsyncThunk(
   "report/generateVoidedReport",
   async (dated: DateDetails, { rejectWithValue }) => {

@@ -28,7 +28,9 @@ export const createModifierAddon = async (data: ParamsType) => {
     message.success("Modifier created successfully");
     return response.data;
   } catch (error) {
-    message.error("Failed to add modifier");
+    if (error?.response?.status != 403) {
+      message.error("Failed to add modifier");
+    }
     throw new Error("Error adding modifier");
   }
 };
@@ -49,7 +51,9 @@ export const editModifierAddon = async (data: ParamsType) => {
     message.success("Modifier updated successfully");
     return response.data;
   } catch (error) {
-    message.error("Failed to update modifier");
+    if (error?.response?.status != 403) {
+      message.error("Failed to update modifier");
+    }
     throw new Error("Error updating modifier");
   }
 };
@@ -98,7 +102,9 @@ export const createAddon = async (data: ParamsType) => {
     message.success("Addon created successfully");
     return response.data;
   } catch (error) {
-    message.error("Failed to add addon");
+    if (error?.response?.status != 403) {
+      message.error("Failed to add addon");
+    }
     throw new Error("Error adding addon");
   }
 };
@@ -114,7 +120,9 @@ export const editAddon = async (data: ParamsType) => {
     message.success("Addon updated successfully");
     return response.data;
   } catch (error) {
-    message.error("Failed to update addon");
+    if (error?.response?.status != 403) {
+      message.error("Failed to update addon");
+    }
     throw new Error("Error updating addon");
   }
 };

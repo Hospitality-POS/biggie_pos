@@ -7,6 +7,7 @@ import {
   HddOutlined,
   ShoppingOutlined,
   CarOutlined,
+  StockOutlined,
 } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
@@ -14,6 +15,7 @@ import SalesReportModal from "@components/Reports/SalesReport";
 import VoidReportModal from "@components/Reports/VoidReport";
 import DeliveryReportModal from "@components/Reports/DeliveryReport";
 import { useReport } from "../hooks/useReport";
+import InventoryUsageReportModal from "@components/Reports/InventoryUsageReport"
 
 const { RangePicker } = DatePicker;
 const { TabPane } = Tabs;
@@ -45,6 +47,12 @@ const Reports: React.FC = () => {
     setOpenDeliveryModal,
     onCloseDeliveryModal,
     deliveryDateTimeRange,
+    openInventoryUsageModal,
+    setOpenInventoryUsageModal,
+    onCloseInventoryUsageModal,
+    setInventoryUsageDateTimeRange,
+    inventoryUsageDateTimeRange,
+
   } = useReport(activeTab);
 
   const handleTabChange = (key: string) => {
@@ -53,6 +61,7 @@ const Reports: React.FC = () => {
     setOpenPurchaseModal(false);
     setOpenVoidedModal(false);
     setOpenDeliveryModal(false);
+    setOpenInventoryUsageModal(false);
   };
 
   return (
@@ -217,6 +226,44 @@ const Reports: React.FC = () => {
               onCloseM={onCloseDeliveryModal}
               startDate={deliveryDateTimeRange[0]}
               endDate={deliveryDateTimeRange[1]}
+            />
+          </Space>
+        </TabPane>
+        <TabPane
+          tab={
+            <Space>
+              <StockOutlined style={{ color: "#1890ff" }} />{" "}
+              {/* Blue for Delivery */}
+              Inventory Usage Report
+            </Space>
+          }
+          key="usage"
+        >
+          <Space direction="vertical" size={16}>
+            <RangePicker
+              showTime={{ format: "HH:mm" }}
+              format="YYYY-MM-DD HH:mm"
+              presets={rangePresets}
+              onChange={(dates) =>
+                setInventoryUsageDateTimeRange([
+                  dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                  dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                ])
+              }
+            />
+            <Button
+              type="primary"
+              onClick={generateReportHandler}
+              disabled={isGenerateButtonDisabled}
+              icon={<BarChartOutlined />}
+            >
+              Generate Report
+            </Button>
+            <InventoryUsageReportModal
+              openM={openInventoryUsageModal}
+              onCloseM={onCloseInventoryUsageModal}
+              startDate={inventoryUsageDateTimeRange[0]}
+              endDate={inventoryUsageDateTimeRange[1]}
             />
           </Space>
         </TabPane>

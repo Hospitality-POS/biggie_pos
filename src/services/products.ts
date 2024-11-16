@@ -25,7 +25,9 @@ export const addNewProduct = async (params: ParamsType) => {
     message.success("Product added successfully");
     return response.data;
   } catch (error) {
-    message.error("Failed to add a new product");
+    if (error?.response?.status != 403) {
+      message.error("Failed to add a new product");
+    }
     throw new Error("Failed to add a new product", error);
   }
 };
@@ -40,8 +42,9 @@ export const editProduct = async (data: ParamsType) => {
     message.success("Product updated successfully");
     return response.data;
   } catch (error) {
-    console.log(error);
-    message.error("Failed to edit product");
+    if (error?.response?.status != 403) {
+      message.error("Failed to edit product");
+    }
   }
 };
 
@@ -51,7 +54,9 @@ export const deleteProduct = async (productId: string) => {
     message.success("Product deleted successfully");
     return productId;
   } catch (error) {
-    message.error("Failed to delete product");
+    if (error?.response?.status != 403) {
+      message.error("Failed to delete product");
+    }
   }
 };
 

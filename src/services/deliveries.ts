@@ -44,7 +44,9 @@ export const editDelivery = async (params: ParamsType) => {
     message.success("Delivery updated successfully");
     return response.data;
   } catch (error) {
-    message.error("Error updating delivery");
+    if (error?.response?.status != 403) {
+      message.error("Error updating delivery");
+    }
     throw new Error(error);
   }
 };
@@ -75,7 +77,9 @@ export const printDeliveryNote = async (params: ParamsType) => {
     // message.success("Delivery note printed successfully");
     return response.data;
   } catch (error) {
-    // message.error("Error printing delivery note");
+    if (error?.response?.status != 403) {
+      message.error("Error printing delivery note");
+    }
     throw new Error(error);
   }
 };

@@ -32,7 +32,9 @@ export const addNewCategory = async (params: ParamsType) => {
     message.success("Category added successfully");
     return response.data;
   } catch (error) {
-    message.error("Failed to add a new category");
+    if (error?.response?.status != 403) {
+      message.error("Failed to add a new category");
+    }
     throw new Error("Failed to add a new category", error);
   }
 };
@@ -46,7 +48,9 @@ export const updateCategory = async (data: ParamsType) => {
     message.success("Category updated successfully");
     return response.data;
   } catch (error) {
-    message.error("Failed to edit category");
+    if (error?.response?.status != 403) {
+      message.error("Failed to edit category");
+    }
     return (error as Error).message;
   }
 };
@@ -73,7 +77,9 @@ export const addNewSubCategory = async (params: ParamsType) => {
 
     return response.data;
   } catch (error) {
-    message.error("Failed to add a new subcategory");
+    if (error?.response?.status != 403) {
+      message.error("Failed to add a new subcategory");
+    }
     throw new Error("Failed to add a new subcategory", error);
   }
 };
@@ -93,7 +99,9 @@ export const editSubCategory = async (data: ParamsType) => {
     message.success("Subcategory updated successfully");
     return response.data;
   } catch (error) {
-    message.error("Failed to edit a sub-category");
+    if (error?.response?.status != 403) {
+      message.error("Failed to edit a sub-category");
+    }
     throw new Error("Failed to edit a sub-category", error);
   }
 };
@@ -105,7 +113,9 @@ export const deleteSubCategory = async (params: ParamsType) => {
     message.success("Subcategory deleted successfully");
     return response.data;
   } catch (error) {
-    message.error("Failed to delete a sub-category");
+    if (error?.response?.status != 403) {
+      message.error("Failed to delete a sub-category");
+    }
     return (error as Error).message;
   }
 };

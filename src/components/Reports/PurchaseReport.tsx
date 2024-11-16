@@ -10,17 +10,15 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  Paper,
   Box,
 } from "@mui/material";
-import LocalPrintshopIcon from "@mui/icons-material/LocalPrintshop";
 import PrintDisabledIcon from "@mui/icons-material/PrintDisabled";
 import { useReactToPrint } from "react-to-print";
 import { useAppSelector } from "../../store";
-import Spinner from "../spinner/Spinner";
+
 import "../MODALS/bill.css";
 import { Spin } from "antd/lib";
-import { BRAND_NAME, COOP_NAME } from "@utils/config";
+import { COOP_NAME } from "@utils/config";
 import moment from "moment";
 import useSystemDetails from "@hooks/useSystemDetails";
 
@@ -39,7 +37,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
 }) => {
   const { BRAND_NAME1 } = useSystemDetails();
   const componentRef = useRef<HTMLDivElement>(null);
-  const { purchaseReport: data, loading,error } = useAppSelector(
+  const { purchaseReport: data, loading, error } = useAppSelector(
     (state) => state.Report
   );
   const handlePrint = useReactToPrint({
@@ -111,33 +109,33 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                   >
                     Overall Total: {data?.totalCost.toLocaleString()}
                   </TableCell>
-                  
-                </TableRow>
-                 
-                    <TableRow>
-                      <TableCell
-                        colSpan={3}
-                        sx={{ fontWeight: "bold", textAlign: "center" }}
-                      >
-                        Overall Discount:{" "}
-                        <span>
-                          {data?.totalDiscountAmount?.toLocaleString()}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell
-                        colSpan={3}
-                        sx={{ fontWeight: "bold", textAlign: "center" }}
-                      >
-                        Overall inclusive discount:{" "}
-                        <span>
-                          {data?.totalInclusiveDiscount?.toLocaleString()}
-                        </span>
-                      </TableCell>
-                    </TableRow>
 
-                    
+                </TableRow>
+
+                <TableRow>
+                  <TableCell
+                    colSpan={3}
+                    sx={{ fontWeight: "bold", textAlign: "center" }}
+                  >
+                    Overall Discount:{" "}
+                    <span>
+                      {data?.totalDiscountAmount?.toLocaleString()}
+                    </span>
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell
+                    colSpan={3}
+                    sx={{ fontWeight: "bold", textAlign: "center" }}
+                  >
+                    Overall inclusive discount:{" "}
+                    <span>
+                      {data?.totalInclusiveDiscount?.toLocaleString()}
+                    </span>
+                  </TableCell>
+                </TableRow>
+
+
               </TableBody>
             </Table>
           </TableContainer>

@@ -30,7 +30,9 @@ export const fetchRecipe = async (productId: string) => {
     if (err.response?.status === 404) {
       return null;
     }
-    message.error("Failed to fetch recipe");
+    if (error?.response?.status != 403) {
+      message.error("Failed to fetch recipe");
+    }
     throw err;
   }
 };
@@ -54,8 +56,9 @@ export const createRecipe = async (
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error creating recipe:", err.message);
-    message.error("Failed to create recipe");
+    if (error?.response?.status != 403) {
+      message.error("Failed to create recipe");
+    }
     throw err;
   }
 };
@@ -79,8 +82,9 @@ export const updateRecipe = async (
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error updating recipe:", err.message);
-    message.error("Failed to update recipe");
+    if (error?.response?.status != 403) {
+      message.error("Failed to update recipe");
+    }
     return null;
   }
 };
@@ -92,8 +96,9 @@ export const deleteRecipe = async (productId: string) => {
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error deleting recipe:", err.message);
-    // message.error("Failed to delete recipe");
+    if (error?.response?.status != 403) {
+      message.error("Failed to delete recipe");
+    }
     return null;
   }
 };

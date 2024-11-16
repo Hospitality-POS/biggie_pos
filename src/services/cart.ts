@@ -83,8 +83,9 @@ export const printInvoice = async (printData: PrintData): Promise<void> => {
       message.success("Invoice downloaded successfully");
     }
   } catch (error) {
-    console.error("Failed to download invoice:", error);
-    message.error("Failed to download invoice");
+    if (error?.response?.status != 403) {
+      message.error("Failed to download invoice");
+    }
   }
 };
 
@@ -110,7 +111,8 @@ export const rePrintInvoice = async (invoiceId: string) => {
     message.success("Invoice re-printed successfully");
     return response.data || [];
   } catch (error: any) {
-    console.log(error);
-    message.error("Failed to re-print invoice");
+    if (error?.response?.status != 403) {
+      message.error("Failed to re-print invoice");
+    }
   }
 };

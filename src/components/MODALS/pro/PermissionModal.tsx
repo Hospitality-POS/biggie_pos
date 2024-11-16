@@ -133,14 +133,14 @@ const AddProPermissioModal: React.FC<
                     hasFeedback
                     width="lg"
                     name="method"
-                    label="Method"
-                    rules={[{ required: true, message: "Method is required" }]}
-                    placeholder="Select HTTP Method"
+                    label="Function"
+                    rules={[{ required: true, message: "Function is required" }]}
+                    placeholder="Select Function Type"
                     options={[
-                        { label: 'GET', value: 'GET' },
-                        { label: 'POST', value: 'POST' },
-                        { label: 'PUT', value: 'PUT' },
-                        { label: 'DELETE', value: 'DELETE' },
+                        { label: 'Fetching', value: 'GET' },
+                        { label: 'Creating', value: 'POST' },
+                        { label: 'Updating/Edit', value: 'PUT' },
+                        { label: 'Remove/Delete', value: 'DELETE' },
                     ]}
                 />
             </ProForm.Group>

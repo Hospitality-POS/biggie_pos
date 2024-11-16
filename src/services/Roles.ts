@@ -25,8 +25,9 @@ export const createRole = async (roleData: Role) => {
     message.success("Role created successfully");
     return response.data;
   } catch (error: unknown) {
-    console.error("Error creating role:", error);
-    message.error("Failed to create role");
+    if (error?.response?.status != 403) {
+      message.error("Failed to create role");
+    }
     throw error;
   }
 };
@@ -38,8 +39,9 @@ export const updateRole = async (roleData: Role) => {
     return response.data;
   } catch (error: unknown) {
 
-    console.error("Error updating role:", error);
-    message.error("Failed to update role");
+    if (error?.response?.status != 403) {
+      message.error("Failed to update role");
+    }
     throw error;
   }
 };
@@ -50,8 +52,9 @@ export const deleteRole = async (id: string) => {
     message.success("Role deleted successfully");
     return response.data;
   } catch (error: unknown) {
-    console.error("Error deleting role:", error);
-    message.error("Failed to delete role");
+    if (error?.response?.status != 403) {
+      message.error("Failed to delete role");
+    }
     throw error;
   }
 };

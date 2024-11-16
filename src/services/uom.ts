@@ -17,8 +17,9 @@ export const fetchAllUom = async (params: ParamsType) => {
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error fetching uom:", err.message);
-    message.error("Failed to fetch uom");
+    if (error?.response?.status != 403) {
+      message.error("Failed to fetch uom");
+    }
     throw err;
   }
 };
@@ -30,8 +31,9 @@ export const createUom = async (uomData: Uom) => {
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error creating uom:", err.message);
-    message.error("Failed to create uom");
+    if (error?.response?.status != 403) {
+      message.error("Failed to create uom");
+    }
     throw err;
   }
 };
@@ -43,8 +45,9 @@ export const updateUom = async (uomData: Uom) => {
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error updating uom:", err.message);
-    message.error("Failed to update uom");
+    if (error?.response?.status != 403) {
+      message.error("Failed to update uom");
+    }
     throw err;
   }
 };
@@ -56,8 +59,9 @@ export const deleteUom = async (id: string) => {
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error deleting uom:", err.message);
-    message.error("Failed to delete uom");
+    if (error?.response?.status != 403) {
+      message.error("Failed to delete uom");
+    }
     throw err;
   }
 };
