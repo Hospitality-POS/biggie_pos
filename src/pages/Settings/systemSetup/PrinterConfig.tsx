@@ -82,6 +82,19 @@ function PrinterManagement() {
       ),
     },
     {
+      title: "Default Printer",
+      dataIndex: "defaultPrinter",
+      search: false,
+      fieldProps: {
+        placeholder: "Enter Default Printer",
+      },
+      render: (_, record: any) => (
+        <Tag color={record.defaultPrinter ? "green" : "red"}>
+          {record.defaultPrinter ? 'true' : 'false'}
+        </Tag>
+      ),
+    },
+    {
       title: "Actions",
       key: "actions",
       search: false,

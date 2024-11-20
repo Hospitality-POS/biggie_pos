@@ -25,6 +25,7 @@ import { createRecipe, deleteRecipe, fetchRecipe, updateRecipe } from "@services
 interface RecipeModalProps {
   productId: string;
   productName: string;
+  activateInventory: boolean;
 }
 
 interface inventoryItemType {
@@ -48,73 +49,74 @@ interface recipeItemType {
 const RecipeModal: React.FC<RecipeModalProps> = ({
   productId,
   productName,
+  activateInventory,
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef(null);
   const [modalVisible, setModalVisible] = React.useState(false);
-const [recipeItems, setRecipeItems] = React.useState<any[]>([]);
+  const [recipeItems, setRecipeItems] = React.useState<any[]>([]);
 
-// Mutation for deleting recipe item
-const { mutate: deleteRecipeMutation } = useMutation({
-  mutationFn: deleteRecipe,
-  onSuccess: () => {
-    message.success("Recipe item deleted successfully");
-    // Refetch recipe data after deletion
-    fetchRecipeData();
-  },
-  onError: (error) => {
-    message.error("Failed to delete recipe item");
-    console.error("Delete error:", error);
-  },
-});
-
-// Mutation for fetching recipe
-const { mutate: fetchRecipeData, isLoading: isLoadingRecipe } = useMutation({
-  mutationFn: () => fetchRecipe(productId),
-  onSuccess: (data) => {
-    setRecipeItems(data); // Store original recipe data
-
-    const formattedData = data?.map((item: recipeItemType) => ({
-      _id: item?._id, // Store the recipe ID
-      item: item?.inventory_id?._id || "missing_inventory",
-      unit: item?.unit_id?._id,
-      quantity: item?.quantity,
-    })) || [{}];
-
-    form.setFieldsValue({
-      recipeItems: formattedData,
-    });
-    setModalVisible(true);
-  },
-  onError: (error) => {
-    console.error("Failed to fetch recipe:", error);
-    form.setFieldsValue({
-      recipeItems: [{}],
-    });
-    setModalVisible(true);
-  },
-});
-
-const handleDeleteRecipeItem = async (recipeId: string, name: number) => {
-  const confirmed = await ShowConfirm({
-    title: "Are you sure you want to delete this recipe item?",
-    position: true,
+  // Mutation for deleting recipe item
+  const { mutate: deleteRecipeMutation } = useMutation({
+    mutationFn: deleteRecipe,
+    onSuccess: () => {
+      message.success("Recipe item deleted successfully");
+      // Refetch recipe data after deletion
+      fetchRecipeData();
+    },
+    onError: (error) => {
+      message.error("Failed to delete recipe item");
+      console.error("Delete error:", error);
+    },
   });
 
-  if (confirmed) {
-    if (recipeId) {
-      // If we have a recipe ID, delete from database
-      deleteRecipeMutation(recipeId);
-    } else {
-      // If no recipe ID (new item), just remove from form
-      const currentItems = form.getFieldValue("recipeItems");
-      const newItems = currentItems.filter(
-        (_: any, index: number) => index !== name
-      );
-      form.setFieldsValue({ recipeItems: newItems });
+  // Mutation for fetching recipe
+  const { mutate: fetchRecipeData, isLoading: isLoadingRecipe } = useMutation({
+    mutationFn: () => fetchRecipe(productId),
+    onSuccess: (data) => {
+      setRecipeItems(data); // Store original recipe data
+
+      const formattedData = data?.map((item: recipeItemType) => ({
+        _id: item?._id, // Store the recipe ID
+        item: item?.inventory_id?._id || "missing_inventory",
+        unit: item?.unit_id?._id,
+        quantity: item?.quantity,
+      })) || [{}];
+
+      form.setFieldsValue({
+        recipeItems: formattedData,
+      });
+      setModalVisible(true);
+    },
+    onError: (error) => {
+      console.error("Failed to fetch recipe:", error);
+      form.setFieldsValue({
+        recipeItems: [{}],
+      });
+      setModalVisible(true);
+    },
+  });
+
+  const handleDeleteRecipeItem = async (recipeId: string, name: number) => {
+    const confirmed = await ShowConfirm({
+      title: "Are you sure you want to delete this recipe item?",
+      position: true,
+    });
+
+    if (confirmed) {
+      if (recipeId) {
+        // If we have a recipe ID, delete from database
+        deleteRecipeMutation(recipeId);
+      } else {
+        // If no recipe ID (new item), just remove from form
+        const currentItems = form.getFieldValue("recipeItems");
+        const newItems = currentItems.filter(
+          (_: any, index: number) => index !== name
+        );
+        form.setFieldsValue({ recipeItems: newItems });
+      }
     }
-  }
-};
+  };
   // Fetch inventory items and units
   const { data: inventoryItems, isLoading: isLoadingInventory } = useQuery({
     queryKey: ["inventoryItems"],
@@ -141,7 +143,7 @@ const handleDeleteRecipeItem = async (recipeId: string, name: number) => {
 
 
   const handleTriggerClick = () => {
-    form.resetFields(); 
+    form.resetFields();
     fetchRecipeData();
   };
 
@@ -152,9 +154,8 @@ const handleDeleteRecipeItem = async (recipeId: string, name: number) => {
 
   const handleOnFinish = async (values: any) => {
     const confirmed = await ShowConfirm({
-      title: `Are you sure you want to ${
-        form.getFieldValue("recipeItems")?.length > 1 ? "update" : "save"
-      } this recipe?`,
+      title: `Are you sure you want to ${form.getFieldValue("recipeItems")?.length > 1 ? "update" : "save"
+        } this recipe?`,
       position: true,
     });
 
@@ -197,22 +198,35 @@ const handleDeleteRecipeItem = async (recipeId: string, name: number) => {
                 display: "inline-block",
               }}
             >
-              {`${
-                form.getFieldValue("recipeItems")?.length > 1 ? "Update" : "Add"
-              } Recipe for ${productName}`}
+              {`${form.getFieldValue("recipeItems")?.length > 1 ? "Update" : "Add"
+                } Recipe for ${productName}`}
             </span>
           </Tooltip>
         </Flex>
       }
       trigger={
+        <Tooltip
+          title="Inventory auto deduction has been disabled, kindly enable to proceed"
+        >
           <Button
             onClick={handleTriggerClick}
             loading={isLoadingRecipe}
             type="primary"
             icon={
-              <CarryOutOutlined style={{ fontSize: "25px", color: "white" }} />
+              <CarryOutOutlined
+                style={{
+                  fontSize: "25px",
+                  color: activateInventory ? "white" : "gray"
+                }}
+
+              />
             }
+            disabled={!activateInventory}
+            style={{
+              border: 'none',  // Remove border around the button
+            }}
           />
+        </Tooltip>
       }
       autoFocusFirstInput
       modalProps={{
@@ -224,9 +238,8 @@ const handleDeleteRecipeItem = async (recipeId: string, name: number) => {
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: `${
-            form.getFieldValue("recipeItems")?.length > 1 ? "Update" : "Save"
-          } Recipe`,
+          submitText: `${form.getFieldValue("recipeItems")?.length > 1 ? "Update" : "Save"
+            } Recipe`,
         },
         submitButtonProps: {
           disabled: isLoadingRecipe,
