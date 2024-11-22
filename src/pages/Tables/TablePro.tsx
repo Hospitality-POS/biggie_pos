@@ -5,13 +5,45 @@ import TableCard from "@components/TableCard/TableCard";
 import StaffModal from "@components/staffCard/LoginModal";
 import { fetchTableUsequery } from "@services/tables";
 import { useQuery } from "@tanstack/react-query";
-import { ConfigProvider, Spin, Typography } from "antd";
+import { ConfigProvider, Skeleton, Typography, Card } from "antd";
 import { Space } from "antd/lib";
 import Lottie from "lottie-react";
 import React, { useState, useEffect } from "react";
 import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/fss loader.json";
 import EmptyPage from "@routes/EmptyPage";
+
+const TableSkeleton = () => <Skeleton.Image active style={{ width: "50%", height: "100px" }} />
+ 
+
+const LoadingTabContent = () => (
+  <div
+    className="wrapper2"
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+      gap: "4px",
+      padding: "20px",
+      height: "calc(100vh - 280px)",
+      overflowY: "auto",
+    }}
+  >
+    {[...Array(4)].map((_, index) => (
+      <TableSkeleton key={index} />
+    ))}
+  </div>
+);
+
+const LoadingTabs = () => (
+  <div style={{ padding: "16px 0" }}>
+    <Space size={16}>
+      <Skeleton.Button active style={{ width: 100, borderRadius: 4 }} />
+      <Skeleton.Button active style={{ width: 100, borderRadius: 4 }} />
+      <Skeleton.Button active style={{ width: 100, borderRadius: 4 }} />
+      <Skeleton.Button active style={{ width: 100, borderRadius: 4 }} />
+    </Space>
+  </div>
+);
 
 export default function TablePro() {
   const [open, setOpen] = useState(false);
@@ -32,7 +64,6 @@ export default function TablePro() {
     networkMode: "always",
   });
 
-  // Set initial active tab when data is loaded
   useEffect(() => {
     if (data && data.length > 0 && !activeTabId) {
       setActiveTabId(data[0]._id);
@@ -93,10 +124,6 @@ export default function TablePro() {
     })
   );
 
-  if (isLoading) {
-    return <Spin size="large" fullscreen tip="please wait ..." />;
-  }
-
   if (loading) {
     return (
       <div
@@ -116,12 +143,44 @@ export default function TablePro() {
       </div>
     );
   }
+
   if (isError) {
     return <EmptyPage />;
   }
 
-  return (
-    <>
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <ConfigProvider
+          theme={{
+            components: {
+              Tabs: {
+                itemColor: "#fff",
+                itemActiveColor: "#000",
+                itemHoverColor: "#aa846f",
+                itemSelectedColor: "#000",
+                cardBg: "#6c1c2c",
+              },
+            },
+          }}
+        >
+          <ProCard
+            title={
+              <Typography.Text style={{ fontSize: "18px" }}>
+                <AppstoreOutlined /> Tables
+              </Typography.Text>
+            }
+            bordered
+            boxShadow
+          >
+            <LoadingTabs />
+            <LoadingTabContent />
+          </ProCard>
+        </ConfigProvider>
+      );
+    }
+
+    return (
       <ConfigProvider
         theme={{
           components: {
@@ -145,12 +204,18 @@ export default function TablePro() {
             type: "card",
             items: tabsItems,
             onChange: (key) => setActiveTabId(key),
-            activeKey: activeTabId
+            activeKey: activeTabId,
           }}
           bordered
           boxShadow
         />
       </ConfigProvider>
+    );
+  };
+
+  return (
+    <>
+      {renderContent()}
       {selectedProductId && (
         <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} />
       )}
