@@ -1,4 +1,4 @@
-import { ApiFilled, CalculatorFilled, FileAddFilled, FileFilled, FolderFilled, HomeFilled, PrinterFilled, SmileFilled, SolutionOutlined } from "@ant-design/icons";
+import { ApiFilled, CalculatorFilled, BarChartOutlined, FolderFilled, HomeFilled, PrinterFilled, SmileFilled, SolutionOutlined } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 
 const useProLayoutNav = () => {
@@ -38,6 +38,11 @@ const useProLayoutNav = () => {
           path: "/reports",
           name: "Reports",
           icon: <ApiFilled />,
+        },
+        {
+          path: "/dashboard",
+          name: "Dashboard",
+          icon: <BarChartOutlined />,
         },
       ],
     },

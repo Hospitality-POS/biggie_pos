@@ -49,7 +49,9 @@ const Reports = lazy(() => import("@pages/Settings/reportsLevel/Reports"));
 
 const Profile = lazy(() => import("@pages/Profile/Profile"));
 
-const EmployeeShift = lazy(() => import("@pages/EmployeeShift/Employee"));  
+const EmployeeShift = lazy(() => import("@pages/EmployeeShift/Employee"));
+
+const Dashboard = lazy(() => import("@pages/Dashboard/Dashboard"));
 
 const routes = createBrowserRouter(
   createRoutesFromElements(
@@ -219,7 +221,7 @@ const routes = createBrowserRouter(
             </Private>
           </Suspense>
         }
-        // errorElement={<NotFound/>}
+      // errorElement={<NotFound/>}
       />
       <Route
         path="/invoices"
@@ -231,7 +233,7 @@ const routes = createBrowserRouter(
             </Private>
           </Suspense>
         }
-        // errorElement={<NotFound/>}
+      // errorElement={<NotFound/>}
       />
       <Route
         path="/profile/:id"
@@ -255,8 +257,20 @@ const routes = createBrowserRouter(
           </Suspense>
         }
       />
+      <Route
+        path="/dashboard"
+        errorElement={<NotFound />}
+        element={
+          <Suspense fallback={<Spinner />}>
+            <Private>
+              <Dashboard />
+            </Private>
+          </Suspense>
+        }
+      />
       <Route path="*" element={<NotFound />} />
     </Route>
+
   )
 );
 

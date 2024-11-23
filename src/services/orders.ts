@@ -17,6 +17,20 @@ export const getAllOrders = async (data: ParamsType) => {
   }
 };
 
+export const getTodayOrdersCount = async (data: ParamsType) => {
+  try {
+    const response = await axiosInstance.get(`${BASE_URL}/orders`, {
+      params: {
+        order_no: data?.order_no || data?.keyword,
+        table_name: data?.name,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 
 export const deleteOrderById = async (id: string) => {
   try {

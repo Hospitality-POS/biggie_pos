@@ -1,10 +1,9 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import ProNavbar from "@components/navbar/ProNavbar";
 import { PageContainer } from "@ant-design/pro-components";
-import { Breadcrumb, Modal, notification } from "antd";
+import { Breadcrumb, Modal } from "antd";
 import {
   DashboardOutlined,
-  FolderAddFilled,
   FolderAddOutlined,
   HomeFilled,
   PaperClipOutlined,
@@ -29,7 +28,7 @@ function Layout() {
                   <HomeFilled /> <span>Home</span>
                 </Breadcrumb.Item>
                 <Breadcrumb.Item>
-                  <DashboardOutlined /> <span>Dashboard</span>
+                  <DashboardOutlined /> <span>Home</span>
                 </Breadcrumb.Item>
               </Breadcrumb>,
             ],
@@ -46,18 +45,18 @@ function Layout() {
                   <HomeFilled /> <span>Home</span>
                 </Breadcrumb.Item>
                 <Breadcrumb.Item>
-                  <DashboardOutlined /> <span>Dashboard</span>
+                  <DashboardOutlined /> <span>Home</span>
                 </Breadcrumb.Item>
 
                 <Breadcrumb.Item
                   onClick={() => {
-                   user?.role === "admin"
-                     ? navigate("/store")
-                     : Modal.warning({
-                         title: "Oops!",
-                         content: "You don't have permission to see this page.",
-                         centered: true,
-                       });
+                    user?.role === "admin"
+                      ? navigate("/store")
+                      : Modal.warning({
+                        title: "Oops!",
+                        content: "You don't have permission to see this page.",
+                        centered: true,
+                      });
                   }}
                 >
                   <FolderAddOutlined /> <span>Store</span>
@@ -67,14 +66,28 @@ function Layout() {
                     user?.role === "admin"
                       ? navigate("/reports")
                       : Modal.warning({
-                          title: "Oops!",
-                          content:
-                            "You don't have permission to see this page.",
-                          centered: true,
-                        });
+                        title: "Oops!",
+                        content:
+                          "You don't have permission to see this page.",
+                        centered: true,
+                      });
                   }}
                 >
                   <PaperClipOutlined /> <span>Reports</span>
+                </Breadcrumb.Item>
+                <Breadcrumb.Item
+                  onClick={() => {
+                    user?.role === "admin"
+                      ? navigate("/dashboard")
+                      : Modal.warning({
+                        title: "Oops!",
+                        content:
+                          "You don't have permission to see this page.",
+                        centered: true,
+                      });
+                  }}
+                >
+                  <PaperClipOutlined /> <span>Dashboard</span>
                 </Breadcrumb.Item>
               </Breadcrumb>,
             ],
