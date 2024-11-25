@@ -40,7 +40,7 @@ const useProLayoutNav = () => {
           icon: <ApiFilled />,
         },
         {
-          path: "/dashboard",
+          path: "/home-dashboard",
           name: "Dashboard",
           icon: <BarChartOutlined />,
         },

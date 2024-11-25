@@ -258,7 +258,7 @@ const routes = createBrowserRouter(
         }
       />
       <Route
-        path="/dashboard"
+        path="/home-dashboard"
         errorElement={<NotFound />}
         element={
           <Suspense fallback={<Spinner />}>

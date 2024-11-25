@@ -78,7 +78,7 @@ function Layout() {
                 <Breadcrumb.Item
                   onClick={() => {
                     user?.role === "admin"
-                      ? navigate("/dashboard")
+                      ? navigate("/home-dashboard")
                       : Modal.warning({
                         title: "Oops!",
                         content:
