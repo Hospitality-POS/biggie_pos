@@ -339,8 +339,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             textAlign: "center",
           }}
         >
-          A product of FSS for more Info
-          <br /> contact us on 0747665878
+          A product of RELIA TECH  for more Info
+          <br /> contact us on 0747665877
         </Typography>
       </div>
       <Box

@@ -88,7 +88,7 @@ const useProLayoutNav = () => {
       {
         icon: "/system-setup.png",
         title: "System setup",
-        desc: "Configure your FSS system for optimal use.",
+        desc: "Configure your RELIA system for optimal use.",
         url: "/system-setup",
       },
       {
