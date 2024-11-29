@@ -169,7 +169,7 @@ const Dashboard = () => {
         {
             title: "Revenue",
             value: data?.todayRevenue,
-            prefix: <DollarOutlined />
+            prefix: "Ksh."
         },
         {
             title: "Active Orders",
