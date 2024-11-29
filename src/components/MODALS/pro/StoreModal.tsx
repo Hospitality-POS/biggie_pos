@@ -6,6 +6,7 @@ import {
   ProForm,
   ProFormSelect,
   ProFormTreeSelect,
+  ProFormSwitch,
 } from "@ant-design/pro-form";
 import {
   CarryOutOutlined,
@@ -209,18 +210,19 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           rules={[{ required: true, message: "Product Price is required" }]}
           placeholder="Enter Product Price"
         />
-        <ProFormSelect
-          hasFeedback
+        <ProFormSwitch
           width="md"
           id="activateInventory"
           name="activateInventory"
           label=" Activate Inventory"
-          rules={[{ required: true, message: "Please select if the product should auto deduct Inventory " }]}
-          placeholder="Select if the should auto deduct Inventory"
-          options={[
-            { label: 'True', value: true },
-            { label: 'False', value: false }
+          rules={[
+            {
+              required: true,
+              message:
+                "Please select if the product should auto deduct Inventory ",
+            },
           ]}
+          placeholder="Select if the should auto deduct Inventory"
         />
         <ProFormTreeSelect
           name="addons"
@@ -276,8 +278,6 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           }}
         /> */}
       </ProForm.Group>
-
-
 
       <ProForm.Group size={"large"} title="More Info*">
         <ProFormTextArea
