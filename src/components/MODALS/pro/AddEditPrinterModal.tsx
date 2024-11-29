@@ -1,7 +1,8 @@
 import { PrinterOutlined, EditOutlined } from "@ant-design/icons";
-import ProForm, { ModalForm, ProFormSelect, ProFormText } from "@ant-design/pro-form";
+import ProForm, { ModalForm, ProFormSelect, ProFormSwitch, ProFormText } from "@ant-design/pro-form";
 import { fetchMainCategories } from "@services/categories";
 import { createPrinter, updatePrinter } from "@services/printer";
+import { useQuery } from "@tanstack/react-query";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { Space, Button, Form } from "antd";
 import { useEffect, useRef, useState } from "react";
@@ -49,7 +50,19 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
       form.resetFields();
     }
   };
+    const { data: mainCategoryData } = useQuery({
+      queryKey: ["printer-main-category"],
+      queryFn: () => fetchMainCategories(),
+      refetchInterval: 5000,
+      networkMode: "always",
+    });
 
+  const mainCategoryRequest = async () => {
+    const values = mainCategoryData?.map((e: { name: any; _id: any }) => {
+      return { label: e.name, value: e._id };
+    });
+    return values;
+  };
 
   const editPrinterPayload = {
     ...data,
@@ -166,18 +179,13 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
             placeholder="Enter IP Address"
           />
         )}
-        <ProFormSelect
-          hasFeedback
-          width="md"
+
+        <ProFormSwitch
+        width="md"
           id="defaultPrinter"
           name="defaultPrinter"
-          label=" Default Printer"
+          label="Set as Default Printer?"
           rules={[{ required: true, message: "Please select default Printer " }]}
-          placeholder="Select default Printer"
-          options={[
-            { label: 'True', value: true },
-            { label: 'False', value: false }
-          ]}
         />
       </ProForm.Group>
 
@@ -190,13 +198,7 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
           rules={[{ required: true, message: "Main Category is required" }]}
           showSearch
           placeholder="Select Main Category"
-          request={async () => {
-            const data = await fetchMainCategories();
-            const values = data.map((e: { name: any; _id: any }) => {
-              return { label: e.name, value: e._id };
-            });
-            return values;
-          }}
+          request={mainCategoryRequest}
         />
       </ProForm.Group>
     </ModalForm>

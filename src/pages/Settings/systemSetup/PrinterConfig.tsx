@@ -16,6 +16,11 @@ import {
 import {
   PrinterOutlined,
   DeleteOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  StarFilled,
+  StarOutlined,
+  FilterFilled,
 } from "@ant-design/icons";
 import AddEditPrinterModal from "@components/MODALS/pro/AddEditPrinterModal";
 import { deletePrinter, getAllPrinters } from "@services/printer";
@@ -71,28 +76,50 @@ function PrinterManagement() {
     {
       title: "Status",
       dataIndex: "status",
-      search: false,
-      fieldProps: {
-        placeholder: "Enter Status",
-      },
-      render: (_, record: any) => (
-        <Tag color={record.status === "online" ? "green" : "red"}>
-          {record.status}
-        </Tag>
+      filterIcon: (filtered: boolean) => (
+        <FilterFilled style={{ color: filtered ? "#1890ff" : "white" }} />
       ),
+      filters: [
+        { text: "Online", value: "online" },
+        { text: "Offline", value: "offline" },
+      ],
+      onFilter: (value: string, record: any) => record.status === value,
+      render: (_, record: any) => {
+        const isOnline = record.status === "online";
+        return (
+          <Tag
+            color={isOnline ? "success" : "error"}
+            icon={isOnline ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+          >
+            {record.status.toUpperCase()}
+          </Tag>
+        );
+      },
     },
     {
       title: "Default Printer",
       dataIndex: "defaultPrinter",
       search: false,
-      fieldProps: {
-        placeholder: "Enter Default Printer",
-      },
-      render: (_, record: any) => (
-        <Tag color={record.defaultPrinter ? "green" : "red"}>
-          {record.defaultPrinter ? 'true' : 'false'}
-        </Tag>
+      filterIcon: (filtered: boolean) => (
+        <FilterFilled style={{ color: filtered ? "#1890ff" : "white" }} />
       ),
+      render: (_, record: any) => {
+        const isDefault = record.defaultPrinter;
+        return (
+          <Tag
+            color={isDefault ? "success" : "default"}
+            icon={isDefault ? <StarFilled /> : <StarOutlined />}
+          >
+            {isDefault ? "Default" : "Standard"}
+          </Tag>
+        );
+      },
+      filters: [
+        { text: "Default", value: true },
+        { text: "Standard", value: false },
+      ],
+      onFilter: (value: boolean, record: any) =>
+        record.defaultPrinter === value,
     },
     {
       title: "Actions",
@@ -112,7 +139,12 @@ function PrinterManagement() {
             okText="Yes"
             cancelText="No"
           >
-            <Button danger icon={<DeleteOutlined />} size="small" type="primary">
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              size="small"
+              type="primary"
+            >
               Delete
             </Button>
           </Popconfirm>
