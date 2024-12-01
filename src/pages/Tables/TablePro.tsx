@@ -13,8 +13,7 @@ import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/fss loader.json";
 import EmptyPage from "@routes/EmptyPage";
 
-const TableSkeleton = () => <Skeleton.Image active style={{ width: "50%", height: "100px" }} />
- 
+const TableSkeleton = () => <Skeleton.Image active style={{ width: "50%", height: "100px" }} />;
 
 const LoadingTabContent = () => (
   <div
@@ -49,9 +48,26 @@ export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [activeTabId, setActiveTabId] = useState<string>("");
+  const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
   const { openModal: successmodal, loading } = useAppSelector(
     (state) => state.order
   );
+
+  const storedCode = localStorage.getItem("companyCode");
+  console.log('nice', storedCode);
+  // Show login modal and blur background if companyCode is not present
+  useEffect(() => {
+    if (!storedCode) {
+      console.log('nice e', storedCode);
+      setIsBackgroundBlurred(true);
+      setOpen(true); // Open the login modal
+      setSelectedProductId('undefined'); // Ensure it's null to open modal without a specific product
+    }
+  }, [storedCode]);
+
+  useEffect(() => {
+    console.log('open state:', open);
+  }, [open]);
 
   const handleOpen = (productId: React.SetStateAction<null>) => {
     setOpen(true);
@@ -60,8 +76,15 @@ export default function TablePro() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["tables", activeTabId],
-    queryFn: () => fetchTableUsequery({ id: activeTabId }),
+    queryFn: () => {
+      // Only fetch if storedCode is not undefined
+      if (storedCode) {
+        return fetchTableUsequery({ id: activeTabId });
+      }
+      return []; // Return empty array if no storedCode
+    },
     networkMode: "always",
+    enabled: !!storedCode, // Disable query if storedCode is undefined
   });
 
   useEffect(() => {

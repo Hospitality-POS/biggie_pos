@@ -34,6 +34,7 @@ const ProNavbar = () => {
         <Image
           src="/relia.png"
           height={60}
+          width={120}
           preview={true}
           alt="fss-logo"
           style={{ padding: 5 }}

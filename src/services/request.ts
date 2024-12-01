@@ -17,14 +17,22 @@ axiosInstance.interceptors.request.use(
     (config) => {
         const user = localStorage.getItem("user");
 
+
         if (user) {
             const userObject = JSON.parse(user);
             const token = userObject.Token;
             if (token) {
+
                 config.headers['Authorization'] = `Bearer ${token}`;
                 console.log('Token added to headers:', config.headers['Authorization']);
             }
         }
+        const storedCode = localStorage.getItem("companyCode");
+        if (storedCode || config.data?.companyCode) {
+            config.headers['companyCode'] = storedCode || config.data?.companyCode;
+        }
+
+        console.log('nice', config);
         return config;
     },
     (error) => {

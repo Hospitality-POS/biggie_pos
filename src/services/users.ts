@@ -18,6 +18,25 @@ export const fetchAllUsersList = async (data: ParamsType) => {
   }
 };
 
+export const verifyCompanyCode = async (data: ParamsType) => {
+  try {
+    const url = `${BASE_URL}/users/verify`;
+
+    // Create the request body
+    const requestBody = {
+      ...data,
+    };
+
+    const response = await axiosInstance.post(url, requestBody);
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.message || "Failed to verify company code.");
+  }
+};
+
+
+
 export const updateUsers = async (data: ParamsType) => {
   const url = `${BASE_URL}/users`;
   try {

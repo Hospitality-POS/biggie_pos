@@ -2,11 +2,11 @@ import React from "react";
 import { Form, Space } from "antd";
 import classes from "@components/staffCard/staff.module.css";
 import { Button, Col, Row } from "antd/lib";
-import { ModalForm,  ProFormText } from "@ant-design/pro-components";
+import { ModalForm, ProFormText } from "@ant-design/pro-components";
 import { useAppDispatch, useAppSelector } from "src/store";
 import useCheckIfUserIsLoggedIn from "@hooks/useCheckIfUserIsLoggedIn";
 import { loginUser } from "@features/Auth/AuthActions";
-interface LoginModalProps{
+interface LoginModalProps {
   setOpen: any;
   open: boolean;
   tbl: string;
@@ -32,10 +32,10 @@ const LoginProModal: React.FC<LoginModalProps> = ({
     });
   };
 
-  const keyedInputs: number[] =[]
-  
+  const keyedInputs: number[] = []
+
   const handleNumberClick = (value: number) => {
-    if(keyedInputs.length<=3){
+    if (keyedInputs.length <= 3) {
       keyedInputs.push(value)
     }
     form.setFieldsValue({
@@ -48,7 +48,7 @@ const LoginProModal: React.FC<LoginModalProps> = ({
   const handleLogin = async (pin) => {
     try {
       await form.validateFields();
-      dispatch(loginUser({pin}));
+      dispatch(loginUser({ pin }));
       checkIfUserIsLoggedIn(tbl, user, cartError, setOpen);
       if (!isUserLoggedIn) {
         setOpen(false);
@@ -68,7 +68,7 @@ const LoginProModal: React.FC<LoginModalProps> = ({
         form={form}
         // trigger={}
         onFinish={async (values) => {
-           handleLogin(values.pin)
+          handleLogin(values.pin)
         }}
         onOpenChange={(visible) => !visible && handleClose()}
         modalProps={
@@ -111,11 +111,12 @@ const LoginProModal: React.FC<LoginModalProps> = ({
               <Col key={number}>
                 <Button
                   className={classes.numPadButton}
-                  onClick={() =>{ handleNumberClick(number)
-                  
+                  onClick={() => {
+                    handleNumberClick(number)
+
                   }}
                   type="primary"
-                  
+
                   ghost
                 >
                   {number}
