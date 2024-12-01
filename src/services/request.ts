@@ -4,7 +4,7 @@ import { message } from "antd";
 
 // Helper function to handle errors
 const handleError = (errorMessage: string) => {
-    message.info(`${errorMessage}`)
+    message.error(`${errorMessage}`)
 };
 
 // Create an axios instance with the base URL and timeout
@@ -52,6 +52,9 @@ axiosInstance.interceptors.response.use(
             handleError("Unauthorized. Please login again.");
         } else if (response.status === 403) {
             handleError(response.data.message);
+        }
+        else if (response.status === 409) {
+            handleError("Company does not exist kindly contact support ");
         }
         else {
             handleError("An error occurred while processing your request.");
