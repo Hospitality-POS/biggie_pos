@@ -6,6 +6,7 @@ import {
   ProForm,
   ProFormSelect,
   ProFormTreeSelect,
+  ProFormSwitch,
 } from "@ant-design/pro-form";
 import {
   CarryOutOutlined,
@@ -48,6 +49,13 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
     networkMode: "always",
   });
 
+  const { data: categoryData } = useQuery({
+    queryKey: ["store-category"],
+    queryFn: () => fetchAllCategories({}),
+    refetchInterval: 5000,
+    networkMode: "always",
+  });
+
   const AddonsRequest = async () => {
     const values = allAddons?.map((modifierAddon: modifiersAddonsType) => ({
       label: modifierAddon?.name,
@@ -66,8 +74,8 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
     return values;
   };
   const CategoryRequest = async () => {
-    const data = await fetchAllCategories({});
-    const values = data?.map((e: categoryValueType) => {
+    // const data = await fetchAllCategories({});
+    const values = categoryData?.map((e: categoryValueType) => {
       return { label: e.name, value: e._id, key: e._id };
     });
     return values;
@@ -209,19 +217,39 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           rules={[{ required: true, message: "Product Price is required" }]}
           placeholder="Enter Product Price"
         />
-        <ProFormSelect
-          hasFeedback
+        <ProFormSwitch
           width="md"
           id="activateInventory"
           name="activateInventory"
           label=" Activate Inventory"
-          rules={[{ required: true, message: "Please select if the product should auto deduct Inventory " }]}
-          placeholder="Select if the should auto deduct Inventory"
-          options={[
-            { label: 'True', value: true },
-            { label: 'False', value: false }
+          rules={[
+            {
+              required: true,
+              message:
+                "Please select if the product should auto deduct Inventory ",
+            },
           ]}
+          placeholder="Select if the should auto deduct Inventory"
         />
+
+        {/* <ProFormSelect
+          width={"md"}
+          name="printer"
+          label="Printer"
+          rules={[{ required: true, message: "Printer is required" }]}
+          showSearch
+          placeholder="Select printer"
+          request={async () => {
+            const data = await fetchAllPrinters({});
+            const values = data?.map((e: { name: any; _id: any }) => {
+              return { label: e.name, value: e._id };
+            });
+            return values;
+          }}
+        /> */}
+      </ProForm.Group>
+
+      <ProForm.Group size={"large"} title="More Info*">
         <ProFormTreeSelect
           name="addons"
           width={"md"}
@@ -260,30 +288,10 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           }}
           style={{ width: "100%" }}
         />
-        {/* <ProFormSelect
-          width={"md"}
-          name="printer"
-          label="Printer"
-          rules={[{ required: true, message: "Printer is required" }]}
-          showSearch
-          placeholder="Select printer"
-          request={async () => {
-            const data = await fetchAllPrinters({});
-            const values = data?.map((e: { name: any; _id: any }) => {
-              return { label: e.name, value: e._id };
-            });
-            return values;
-          }}
-        /> */}
-      </ProForm.Group>
-
-
-
-      <ProForm.Group size={"large"} title="More Info*">
         <ProFormTextArea
           key={"desc"}
           hasFeedback
-          width={"xl"}
+          width="md"
           name="desc"
           label="Description"
           placeholder="Enter Product Description if any."
