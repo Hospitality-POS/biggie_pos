@@ -15,8 +15,6 @@ type StaffModalProps = {
   showButton: boolean;
 };
 
-
-
 const StaffModal: React.FC<StaffModalProps> = ({
   setOpen,
   open,
@@ -32,6 +30,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
 
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [step, setStep] = useState<"companyCode" | "pin">("companyCode");
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     // Check if company code exists in localStorage
@@ -44,6 +43,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
 
   const handleCompanyCodeSubmit = async (code: string) => {
     try {
+      setLoading(true); // Set loading to true before the API call
       dispatch({ type: 'VERIFY_COMPANY_CODE_REQUEST' });
 
       const result = await verifyCompanyCode({ companyCode: code });
@@ -57,6 +57,8 @@ const StaffModal: React.FC<StaffModalProps> = ({
     } catch (error) {
       dispatch({ type: 'VERIFY_COMPANY_CODE_FAILURE', payload: error });
       console.error("Error verifying company code:", error);
+    } finally {
+      setLoading(false); // Reset loading state after the API call
     }
   };
 
@@ -85,8 +87,10 @@ const StaffModal: React.FC<StaffModalProps> = ({
           if (step === "companyCode") {
             handleCompanyCodeSubmit(values.companyCode);
           } else {
-            handleLogin(values.pin);
+            setLoading(true); // Set loading to true before login
+            await handleLogin(values.pin);
             handleClose();
+            setLoading(false); // Reset loading state after login
           }
         }}
         onOpenChange={(visible) => !visible && handleClose()}
@@ -98,6 +102,9 @@ const StaffModal: React.FC<StaffModalProps> = ({
           searchConfig: {
             resetText: "Cancel",
             submitText: step === "companyCode" ? "Submit" : "Login",
+          },
+          submitButtonProps: {
+            loading, // Bind the loading state to the submit button
           },
         }}
       >
