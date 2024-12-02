@@ -37,7 +37,7 @@ const ProNavbar = () => {
           width={120}
           preview={true}
           alt="fss-logo"
-          style={{ padding: 5 }}
+          style={{ padding: 12 }}
         />
       }
       title=""
