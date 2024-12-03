@@ -124,7 +124,7 @@ const SystemSetup: React.FC = () => {
         key="offers"
         tab={
           <Space>
-            <UnlockOutlined style={{ color: "#faad14" }} />
+            <UnlockOutlined style={{ color: "#2E9AFE" }} />
             {/* Yellow color for billing */}
             <Typography.Text>Offers</Typography.Text>
           </Space>
