@@ -51,9 +51,11 @@ const CartDrawer: React.FC = () => {
 
   const memoizedData = useMemo(() => data, [data]);
 
-  const totalCartAmount = cartDetails?.items.reduce((acc, item) => {
-    return acc + item.price;
-  }, 0);
+  const totalCartAmount =
+    cartDetails?.items?.length > 0
+      ? cartDetails.items.reduce((acc, item) => acc + item.price, 0)
+      : 0;
+
   // Function to calculate the final amount after discount
   const calculateFinalAmount = () => {
     if (!cartDetails?.discount) {
@@ -180,7 +182,7 @@ const CartDrawer: React.FC = () => {
               }}
             >
               <Typography.Text strong>
-                Served By: <SmileFilled /> {cartDetails?.created_by.username}
+                Served By: <SmileFilled /> {cartDetails?.created_by?.username}
               </Typography.Text>
               {/* <DiscountModal data={cartDetails} /> */}
             </div>
