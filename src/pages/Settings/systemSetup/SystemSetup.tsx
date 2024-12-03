@@ -4,7 +4,9 @@ import {
   UserOutlined,
   PrinterOutlined,
   SettingOutlined,
-  MoneyCollectOutlined,
+  CrownOutlined,
+  UnlockOutlined
+
 } from "@ant-design/icons"; // Selected icons to ensure consistency in theme
 import { ConfigProvider, Space, Typography, Divider } from "antd";
 import Profile from "./Profile";
@@ -100,9 +102,31 @@ const SystemSetup: React.FC = () => {
         key="billing"
         tab={
           <Space>
-            <MoneyCollectOutlined style={{ color: "#faad14" }} />
+            <CrownOutlined style={{ color: "#faad14" }} />
             {/* Yellow color for billing */}
             <Typography.Text>Billing</Typography.Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <ComingSoon />
+        </div>
+      </ProCard.TabPane>
+
+
+      <ProCard.TabPane
+        key="offers"
+        tab={
+          <Space>
+            <UnlockOutlined style={{ color: "#faad14" }} />
+            {/* Yellow color for billing */}
+            <Typography.Text>Offers</Typography.Text>
           </Space>
         }
       >
