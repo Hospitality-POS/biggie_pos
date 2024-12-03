@@ -221,16 +221,21 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           width="md"
           id="activateInventory"
           name="activateInventory"
-          label=" Activate Inventory"
+          label="Activate Inventory"
           rules={[
             {
-              required: true,
-              message:
-                "Please select if the product should auto deduct Inventory ",
+              validator: (_, value) => {
+                if (value === undefined) {
+                  return Promise.reject("Please select if the product should auto deduct Inventory");
+                }
+                return Promise.resolve();
+              },
             },
           ]}
-          placeholder="Select if the should auto deduct Inventory"
+          placeholder="Select if the product should auto deduct Inventory"
+          initialValue={true}
         />
+
 
         {/* <ProFormSelect
           width={"md"}

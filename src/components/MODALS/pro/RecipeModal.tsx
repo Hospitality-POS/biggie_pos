@@ -205,9 +205,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
         </Flex>
       }
       trigger={
-        <Tooltip
-          title="Inventory auto deduction has been disabled, kindly enable to proceed"
-        >
+        activateInventory ? (
           <Button
             onClick={handleTriggerClick}
             loading={isLoadingRecipe}
@@ -216,9 +214,8 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
               <CarryOutOutlined
                 style={{
                   fontSize: "25px",
-                  color: activateInventory ? "white" : "gray"
+                  color: "white" // Button appears active when activateInventory is true
                 }}
-
               />
             }
             disabled={!activateInventory}
@@ -226,8 +223,29 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
               border: 'none',  // Remove border around the button
             }}
           />
-        </Tooltip>
+        ) : (
+          <Tooltip title="Inventory auto deduction has been disabled, kindly enable to proceed">
+            <Button
+              onClick={handleTriggerClick}
+              loading={isLoadingRecipe}
+              type="primary"
+              icon={
+                <CarryOutOutlined
+                  style={{
+                    fontSize: "25px",
+                    color: "gray" // Button appears inactive when activateInventory is false
+                  }}
+                />
+              }
+              disabled={!activateInventory}
+              style={{
+                border: 'none',  // Remove border around the button
+              }}
+            />
+          </Tooltip>
+        )
       }
+
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
