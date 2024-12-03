@@ -60,6 +60,7 @@ axiosInstance.interceptors.response.use(
         else if (response.status === 409) {
             handleError("Company does not exist kindly contact support ");
         }
+
         else {
             handleError("An error occurred while processing your request.");
         }
