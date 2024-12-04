@@ -32,6 +32,7 @@ const PaymentSubscriptionPage = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
+  const [isComingSoon, setIsComingSoon] = useState(true);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [cardDetails, setCardDetails] = useState({
     cardNumber: '',
@@ -264,11 +265,10 @@ const PaymentSubscriptionPage = () => {
             icon={<CreditCardOutlined />}
             size="large"
             block
-            onClick={() => setSelectedPaymentMethod('card')}
+            disabled={isComingSoon}
           >
-            Pay with Card
+            {isComingSoon ? 'Coming Soon' : 'Pay with Card'}
           </Button>
-
           {selectedPaymentMethod === 'mpesa' && (
             <div style={{ marginTop: '16px' }}>
               <Input
