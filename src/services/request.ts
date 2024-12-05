@@ -60,6 +60,9 @@ axiosInstance.interceptors.response.use(
         else if (response.status === 409) {
             handleError("Company does not exist kindly contact support ");
         }
+        else if (response.status === 400) {
+            handleError("Failed to make payment  ");
+        }
 
         else {
             handleError("An error occurred while processing your request.");

@@ -36,6 +36,7 @@ export const makeSubscriptionPayment = async (params: ParamsType) => {
     message.success("Payment submitted successfully");
     return response.data;
   } catch (error) {
+    message.error("Failed to make payment");
     throw new Error("Error making payment");
   }
 };
