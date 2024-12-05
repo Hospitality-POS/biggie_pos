@@ -30,6 +30,16 @@ export const addNewPaymentMethod = async (params: ParamsType) => {
   }
 };
 
+export const makeSubscriptionPayment = async (params: ParamsType) => {
+  try {
+    const response = await axiosInstance.post(method_url + '/make-payment', params, { headers });
+    message.success("Payment submitted successfully");
+    return response.data;
+  } catch (error) {
+    throw new Error("Error making payment");
+  }
+};
+
 
 export const updateMethod = async (data: ParamsType) => {
   try {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Typography,
   Card,
@@ -12,7 +12,8 @@ import {
   Badge,
   message,
   Input,
-  Spin
+  Spin,
+  Form
 } from 'antd';
 import {
   CreditCardOutlined,
@@ -24,22 +25,61 @@ import {
   FileTextOutlined
 } from '@ant-design/icons';
 
+import ProForm, { ModalForm, ProFormText } from "@ant-design/pro-form";
+import ShowConfirm from '@utils/ConfirmUtil';
+import { makeSubscriptionPayment } from '@services/paymentMethod';
+
 const { Title, Text } = Typography;
 
-const PaymentSubscriptionPage = () => {
+interface MakePaymentrModalProps {
+  actionRef: any;
+  edit?: boolean;
+  data?: any;
+}
+
+
+interface Payment {
+  phoneNumber: string;
+  amount: string;
+}
+const PaymentSubscriptionPage: React.FC<MakePaymentrModalProps> = ({ actionRef, edit, data }) => {
+
+  const [form] = Form.useForm();
+
+  const formRef = useRef();
+
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('Basic');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
-  const [isComingSoon, setIsComingSoon] = useState(true);
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [cardDetails, setCardDetails] = useState({
-    cardNumber: '',
-    expiryDate: '',
-    cvv: ''
-  });
+  const [isComingSoon] = useState(true);
+  // const [cardDetails, setCardDetails] = useState({
+  //   cardNumber: '',
+  //   expiryDate: '',
+  //   cvv: ''
+  // });
   const [loadingPayment, setLoadingPayment] = useState(false);
+
+
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        ...data,
+      });
+
+    }
+  }, [open, data, form]);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    console.log('new', newOpen);
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
+
 
   // Mock current subscription
   const currentSubscription = {
@@ -70,34 +110,47 @@ const PaymentSubscriptionPage = () => {
     }
   ];
 
-  const handleStkPush = () => {
-    console.log('Initiating STK push payment for invoice:', selectedInvoiceId);
-    setLoadingPayment(true);
-
-    // Simulate a timeout for the payment
-    setTimeout(() => {
-      setLoadingPayment(false);
-      setPaymentModalVisible(false);
-      message.success('M-PESA payment successful!');
-    }, 3000); // 3 seconds timeout
-  };
-
-  const handleCardPayment = () => {
-    console.log('Initiating card payment for invoice:', selectedInvoiceId);
+  const handleStkPush = async (values: Partial<Payment>) => {
 
     setLoadingPayment(true);
 
-    // Simulate a timeout for the payment
-    setTimeout(() => {
-      setLoadingPayment(false);
-      setPaymentModalVisible(false);
-      message.success('Card payment successful!');
-    }, 3000); // 3 seconds timeout
+    const payload = {
+      msisdn: values?.phoneNumber,
+      amount: 10
+    };
+
+    console.log('payment', payload);
+
+    const confirmed = await ShowConfirm({
+      title: `Are you sure you want to complete this payment`,
+      position: true,
+    });
+    if (confirmed) {
+      makeSubscriptionPayment(payload);
+      actionRef.current.reset();
+      return true;
+    }
+    setLoadingPayment(false);
   };
+
+
+
+  // const handleCardPayment = () => {
+  //   console.log('Initiating card payment for invoice:', selectedInvoiceId);
+
+  //   setLoadingPayment(true);
+
+  //   // Simulate a timeout for the payment
+  //   setTimeout(() => {
+  //     setLoadingPayment(false);
+  //     setPaymentModalVisible(false);
+  //     message.success('Card payment successful!');
+  //   }, 3000); // 3 seconds timeout
+  // };
 
   const handlePayInvoice = (invoiceId) => {
     setSelectedInvoiceId(invoiceId);
-    setPaymentModalVisible(true);
+    // setPaymentModalVisible(true);
   };
 
   const columns = [
@@ -138,7 +191,7 @@ const PaymentSubscriptionPage = () => {
       key: 'action',
       render: (_, record) => (
         record.status === 'unpaid' && (
-          <Button type="primary" size="small" onClick={() => handlePayInvoice(record.id)}>
+          <Button type="primary" size="small" onClick={() => handleOpenChange(record.id,)}>
             Pay Now
           </Button>
         )
@@ -243,11 +296,18 @@ const PaymentSubscriptionPage = () => {
       </Modal>
 
       {/* Payment Method Modal */}
-      <Modal
-        title="Select Payment Method"
-        open={paymentModalVisible}
-        onCancel={() => setPaymentModalVisible(false)}
-        footer={null}
+      <ModalForm
+        onOpenChange={handleOpenChange}
+        open={open}
+        onFinish={handleStkPush}
+        form={form}
+        formRef={formRef}
+        submitter={{
+          searchConfig: {
+            resetText: "Cancel",
+            submitText: "Complete Payment",
+          },
+        }}
       >
         <Space direction="vertical" style={{ width: '100%', padding: '20px 0' }}>
           <Button
@@ -270,29 +330,22 @@ const PaymentSubscriptionPage = () => {
             {isComingSoon ? 'Coming Soon' : 'Pay with Card'}
           </Button>
           {selectedPaymentMethod === 'mpesa' && (
-            <div style={{ marginTop: '16px' }}>
-              <Input
+
+            <ProForm.Group
+              style={{ width: "100%" }} // Ensure the group spans the modal's width
+            >
+              <ProFormText
+                width="lg" // Set the input to take up the full width
+                name="phoneNumber"
+                label="Phone Number"
+                rules={[{ required: true, message: "Phone Number is required" }]}
                 placeholder="Phone Number (254...)"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                style={{ marginBottom: '8px' }}
               />
-              <Text style={{ display: 'block', marginTop: '8px' }}>
-                Amount: KES {currentSubscription.amount}
-              </Text>
-              <Button
-                type="primary"
-                size="large"
-                block
-                onClick={handleStkPush}
-                style={{ marginTop: '16px' }}
-              >
-                Confirm M-PESA Payment
-              </Button>
-            </div>
+            </ProForm.Group>
+
           )}
 
-          {selectedPaymentMethod === 'card' && (
+          {/* {selectedPaymentMethod === 'card' && (
             <div style={{ marginTop: '16px' }}>
               <Input
                 placeholder="Card Number"
@@ -324,7 +377,7 @@ const PaymentSubscriptionPage = () => {
                 Confirm Card Payment
               </Button>
             </div>
-          )}
+          )} */}
 
           {loadingPayment && (
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
@@ -332,7 +385,7 @@ const PaymentSubscriptionPage = () => {
             </div>
           )}
         </Space>
-      </Modal>
+      </ModalForm>
     </div>
   );
 };
