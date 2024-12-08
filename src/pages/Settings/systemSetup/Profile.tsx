@@ -37,8 +37,8 @@ function SystemSetup() {
   const { data, isLoading } = useQuery({
     queryKey: ["systemsettings"],
     queryFn: fetchSystemSetupDetailsById,
-    retry: 3,
-    refetchInterval: 3000,
+    // retry: 3,
+    // refetchInterval: 3000,
     networkMode: "always",
   });
 
@@ -55,9 +55,8 @@ function SystemSetup() {
     };
 
     const confirmed = await ShowConfirm({
-      title: `Are you sure you want to ${
-        data ? "Update" : "Add new"
-      } system setup details?`,
+      title: `Are you sure you want to ${data ? "Update" : "Add new"
+        } system setup details?`,
       position: true,
     });
 
@@ -97,13 +96,13 @@ function SystemSetup() {
         initialValues={
           data
             ? {
-                ...data,
-                phoneNumber: reversePhoneNumber(data?.phone),
-                paymentDetailId: {
-                  value: data?.paymentDetails?._id,
-                  label: data?.paymentDetails?.name,
-                },
-              }
+              ...data,
+              phoneNumber: reversePhoneNumber(data?.phone),
+              paymentDetailId: {
+                value: data?.paymentDetails?._id,
+                label: data?.paymentDetails?.name,
+              },
+            }
             : {}
         }
         submitter={{

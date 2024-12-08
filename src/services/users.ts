@@ -2,7 +2,7 @@ import { ParamsType } from "@ant-design/pro-components";
 import axiosInstance from "./request";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
-
+import { createAsyncThunk } from "@reduxjs/toolkit";
 const userUrl = `${BASE_URL}/users`;
 
 export const fetchAllUsersList = async (data: ParamsType) => {
@@ -17,6 +17,25 @@ export const fetchAllUsersList = async (data: ParamsType) => {
     throw new Error(error?.message);
   }
 };
+
+export const updateSubscription = createAsyncThunk(
+  "subscription/update",
+  async (data: ParamsType, { rejectWithValue }) => {
+    try {
+      const url = `${BASE_URL}/users/update-package`;
+      const response = await axiosInstance.post(url, data);
+      console.log('nice bbb', response);
+      if (response && response.data && response.data.data) {
+        localStorage.setItem("tenant", JSON.stringify(response.data.data));
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Error:', error);
+      return rejectWithValue("Failed to update subscription.");
+    }
+  }
+);
 
 export const verifyCompanyCode = async (data: ParamsType) => {
   try {
