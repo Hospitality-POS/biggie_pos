@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Button, Space, Spin, Typography, Card, Alert } from "antd";
+import React, { useEffect, useRef, useState } from "react";
+import { Button, Space, Spin, Typography, Card, Alert, Form } from "antd";
 import {
   MobileOutlined,
   CreditCardOutlined,
@@ -11,37 +11,95 @@ import ProForm, {
   ProFormRadio,
 } from "@ant-design/pro-form";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
-
+import ShowConfirm from "@utils/ConfirmUtil";
+import { makeSubscriptionPayment } from "@services/paymentMethod";
+import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 interface PaymentModalProps {
-  open: boolean;
-  handleOpenChange: (open: boolean) => void;
-  handleStkPush: () => any;
-  form: any;
-  formRef: any;
-  selectedPaymentMethod?: string;
-  setSelectedPaymentMethod?: (selectedPaymentMethod: string) => void;
-  isComingSoon: boolean;
-  loadingPayment: boolean;
+  data?: any;
+  actionRef: any;
 }
 
 const { Text, Title } = Typography;
 
-const PaymentModal: React.FC<PaymentModalProps> = ({
-  open,
-  handleOpenChange,
-  handleStkPush,
-  form,
-  formRef,
-  selectedPaymentMethod = "mpesa",
-  setSelectedPaymentMethod = () => {},
-  isComingSoon,
-  loadingPayment,
-}) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ data, actionRef }) => {
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("mpesa");
+  const [isComingSoon, setIsComingSoon] = useState(true);
+
+  const [form] = Form.useForm();
+  const formRef = useRef();
+
+  const [open, setOpen] = useState(false);
+
+  const handleOpenChange = (newOpen) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields();
+    }
+  };
+
+  useEffect(() => {
+    if (open && data) {
+      form.setFieldsValue({
+        ...data,
+      });
+    }
+  }, [open, data, form]);
+
+  const handleStkPush = async (values) => {
+    const phoneNumber = getPhoneNumber(values?.phoneNumber);
+    const payload = {
+      msisdn: phoneNumber,
+      amount: data?.amount,
+      invoiceId: data?.invoice_code,
+    };
+
+    // console.log("payment", payload);
+    // console.log("***********************", data);
+    // console.log("###############", values);
+
+    const confirmed = await ShowConfirm({
+      title: `Are you sure you want to complete this payment`,
+      position: true,
+    });
+    if (confirmed) {
+      makeSubscriptionPayment(payload);
+      actionRef.current.reset();
+      return true;
+    }
+  };
+
+  const handleCardPayment = async (values) => {
+    const payload = {
+      phoneNumber: values?.phoneNumber,
+      amount: 10,
+      invoiceId: "",
+    };
+
+    console.log("payment", payload);
+
+    const confirmed = await ShowConfirm({
+      title: `Are you sure you want to complete this payment`,
+      position: true,
+    });
+    if (confirmed) {
+      makeSubscriptionPayment(payload);
+      actionRef.current.reset();
+      return true;
+    }
+  };
+
   return (
     <ModalForm
+      trigger={
+        <Button type="primary" icon={<WalletOutlined />}>
+          Pay Now
+        </Button>
+      }
       onOpenChange={handleOpenChange}
       open={open}
-      onFinish={handleStkPush}
+      onFinish={
+        selectedPaymentMethod === "mpesa" ? handleStkPush : handleCardPayment
+      }
       form={form}
       formRef={formRef}
       title={
@@ -52,7 +110,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           </Title>
         </Space>
       }
-      size="large"
+      //   size="large"
       autoFocusFirstInput
       submitter={{
         searchConfig: {
@@ -74,11 +132,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       modalProps={{
         destroyOnClose: true,
         centered: true,
-        width: 500,
-        bodyStyle: {
-          padding: "24px",
-          backgroundColor: "#f5f5f5",
-        },
+        width: 600,
       }}
     >
       <Space
@@ -133,7 +187,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           <PhoneInput label="Phone Number" owner="phoneNumber" />
         </Card>
 
-        {loadingPayment && (
+        {/* {loadingPayment && (
           <Spin
             spinning={loadingPayment}
             size="large"
@@ -147,7 +201,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               style={{ marginTop: "20px" }}
             />
           </Spin>
-        )}
+        )} */}
       </Space>
     </ModalForm>
   );
