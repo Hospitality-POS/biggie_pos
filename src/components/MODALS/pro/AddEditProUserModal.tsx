@@ -16,7 +16,7 @@ import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
 import { useAppSelector } from "src/store";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
@@ -88,6 +88,21 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         actionRef.current?.reload();
         return true;
       }
+    };
+
+     const { data: userRoles } = useQuery({
+       queryKey: ["userRoles"],
+       queryFn: fetchUserRoles,
+       retry: 3,
+       refetchInterval: 5000,
+       networkMode: "always",
+     });
+
+    const roleRequest = async () => {
+      const values = userRoles.map((e: { role_type: any; _id: any }) => {
+        return { label: e.role_type, value: e._id };
+      });
+      return values;
     };
 
   return (
@@ -172,16 +187,11 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
             width="md"
             name="roleId"
             label="Roles"
+            disabled={isProfile}
             rules={[{ required: true, message: "Roles is required" }]}
             showSearch
             placeholder="Select role"
-            request={async (params) => {
-              const data = await fetchUserRoles(params);
-              const values = data.map((e: { role_type: any; _id: any }) => {
-                return { label: e.role_type, value: e._id };
-              });
-              return values;
-            }}
+            request={roleRequest}
           />
         )}
 
