@@ -18,6 +18,7 @@ export const fetchAllUsersList = async (data: ParamsType) => {
   }
 };
 
+// todo: the use of createAsyncThunk is not recommended
 export const updateSubscription = createAsyncThunk(
   "subscription/update",
   async (data: ParamsType, { rejectWithValue }) => {
