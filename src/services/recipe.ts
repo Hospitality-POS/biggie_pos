@@ -1,6 +1,8 @@
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
+
+import axiosInstance from "./request";
 
 const recipeUrl = `${BASE_URL}/recipe`;
 
@@ -20,7 +22,7 @@ interface RecipePayload {
 
 export const fetchRecipe = async (productId: string) => {
   try {
-    const response = await axios.get(`${recipeUrl}/${productId}`);
+    const response = await axiosInstance.get(`${recipeUrl}/${productId}`);
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
@@ -28,7 +30,9 @@ export const fetchRecipe = async (productId: string) => {
     if (err.response?.status === 404) {
       return null;
     }
-    message.error("Failed to fetch recipe");
+    if (error?.response?.status != 403) {
+      message.error("Failed to fetch recipe");
+    }
     throw err;
   }
 };
@@ -47,13 +51,14 @@ export const createRecipe = async (
       })),
     };
 
-    const response = await axios.post(recipeUrl, payload);
+    const response = await axiosInstance.post(recipeUrl, payload);
     message.success("Recipe created successfully");
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error creating recipe:", err.message);
-    message.error("Failed to create recipe");
+    if (error?.response?.status != 403) {
+      message.error("Failed to create recipe");
+    }
     throw err;
   }
 };
@@ -72,26 +77,28 @@ export const updateRecipe = async (
       })),
     };
 
-    const response = await axios.put(`${recipeUrl}/${productId}`, payload);
+    const response = await axiosInstance.put(`${recipeUrl}/${productId}`, payload);
     message.success("Recipe updated successfully");
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error updating recipe:", err.message);
-    message.error("Failed to update recipe");
+    if (error?.response?.status != 403) {
+      message.error("Failed to update recipe");
+    }
     return null;
   }
 };
 
 export const deleteRecipe = async (productId: string) => {
   try {
-    const response = await axios.delete(`${recipeUrl}/${productId}`);
+    const response = await axiosInstance.delete(`${recipeUrl}/${productId}`);
     // message.success("Recipe deleted successfully");
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    console.error("Error deleting recipe:", err.message);
-    // message.error("Failed to delete recipe");
+    if (error?.response?.status != 403) {
+      message.error("Failed to delete recipe");
+    }
     return null;
   }
 };

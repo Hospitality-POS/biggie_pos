@@ -1,13 +1,12 @@
 import { ParamsType } from "@ant-design/pro-components";
-import axios from "axios";
 import { BASE_URL } from "@utils/config";
-import { Modal, notification } from "antd/lib";
+import axiosInstance from "./request";
 import { message } from "antd";
 
 export const fetchSystemSetupDetails = async () => {
   try {
     const url = `${BASE_URL}/users/fetch-system-setting/all`;
-    const response = await axios.get(url);
+    const response = await axiosInstance.get(url);
     // console.log("system..", response.data);
 
     return response.data;
@@ -19,7 +18,7 @@ export const fetchSystemSetupDetailsById = async () => {
   try {
     const url = `${BASE_URL}/users/fetch-system-setting/6637797763064f893911fd92`;
     // const url = `${BASE_URL}/users/fetch-system-setting/${localStorage.getItem("businessId")}`;
-    const response = await axios.get(url);
+    const response = await axiosInstance.get(url);
     // console.log("system..", response.data);
 
     return response.data;
@@ -31,7 +30,7 @@ export const fetchSystemSetupDetailsById = async () => {
 export const createSystemSetup = async (data: ParamsType) => {
   try {
     const url = `${BASE_URL}/users/new-system-setting`;
-    const response = await axios.post(url, data);
+    const response = await axiosInstance.post(url, data);
     localStorage.setItem("businessId", response?.data?._id);
     // console.log("create..", response.data);
     message.success("System Setup created successfully");
@@ -45,7 +44,7 @@ export const updateSystemSetup = async (data: ParamsType) => {
   try {
     // console.log("update..", data);
     const url = `${BASE_URL}/users/update-system-setting`;
-    const response = await axios.put(`${url}/${data._id}`, data.data);
+    const response = await axiosInstance.put(`${url}/${data._id}`, data.data);
     message.success("System Setup updated successfully");
     return response.data;
   } catch (error) {
@@ -56,7 +55,7 @@ export const updateSystemSetup = async (data: ParamsType) => {
 export const fetchSystemPaymentDetails = async () => {
   const url = `${BASE_URL}/payment-methods/fetch-payment-detail/all`;
   try {
-    const response = await axios.get(url);
+    const response = await axiosInstance.get(url);
     return response.data;
   } catch (error) {
     console.log(error);

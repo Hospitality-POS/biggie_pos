@@ -17,6 +17,7 @@ interface StoreProductCardProps {
   bowls: number;
   product: any;
   productId: string;
+  activateInventory: boolean;
 }
 const StoreProductCard: React.FC<StoreProductCardProps> = ({
   name,
@@ -24,7 +25,9 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
   bowls,
   product,
   productId,
+  activateInventory,
 }) => {
+  console.log('nice', product);
   const [modalOpen, setModalOpen] = React.useState(false);
   const dispatch = useAppDispatch();
   const handleEditClick = () => {
@@ -53,7 +56,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
           //   key="setting"
           //   style={{ fontSize: "25px", color: "white" }}
           // />,
-          <RecipeModal productId={product?._id} key={product?._id} productName={name} />,
+          <RecipeModal productId={product?._id} key={product?._id} activateInventory={product?.activateInventory} productName={name} />,
           <StoreModal edit={true} data={product} />,
           <DeleteFilled
             key="delete"

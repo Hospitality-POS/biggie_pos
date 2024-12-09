@@ -5,7 +5,7 @@ import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { useSelector } from "react-redux";
 import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
+import axiosInstance from "../../services/request";
 
 function AddToCartIcon({ OpenCart }: any) {
   const { cartDetails } = useSelector((state: any) => state.cart);
@@ -20,7 +20,7 @@ function AddToCartIcon({ OpenCart }: any) {
 
   const fetchCartItems = async (cartId: string) => {
     try {
-      const response = await axios.get(
+      const response = await axiosInstance.get(
         `http://localhost:3000/cart/cart-items/${cartId}`
       );
       return response.data;

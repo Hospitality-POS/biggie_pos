@@ -145,60 +145,60 @@ function Navbar() {
                       Restaurant
                     </Typography>
                   ) : //  page === "Bar" ? (
-                  //   <Typography
-                  //     textAlign="center"
-                  //     fontSize="inherit"
-                  //     onClick={() => navigate("/bar")}
-                  //   >
-                  //     Bar
-                  //   </Typography>
-                  // )
-                  //  :
-                  // page === "Staff" ? (
-                  //   <Typography
-                  //     textAlign="center"
-                  //     fontSize="inherit"
-                  //     onClick={() => navigate("/staff")}
-                  //   >
-                  //     Staff
-                  //   </Typography>
-                  // ) :
-                  //  page === "Kitchen" ? (
-                  //   <Typography
-                  //     textAlign="center"
-                  //     fontSize="inherit"
-                  //     onClick={() => navigate("/kitchen")}
-                  //   >
-                  //     Kitchen
-                  //   </Typography>
-                  // ) :
-                  page === "Tables" ? (
-                    <Typography
-                      textAlign="center"
-                      fontSize="inherit"
-                      onClick={() => navigate("/tables")}
-                    >
-                      Tables
-                    </Typography>
-                  ) : page === "Store" ? (
-                    <Typography
-                      textAlign="center"
-                      fontSize="inherit"
-                      onClick={() => navigate("/store")}
-                    >
-                      Store
-                    </Typography>
-                  ) : page === "Orders" ? (
-                    <Typography
-                      textAlign="center"
-                      fontSize="inherit"
-                      onClick={() => navigate("/Orders")}
-                    >
-                      Orders
-                    </Typography>
-                  ) : (
-                    ""
-                  )}
+                    //   <Typography
+                    //     textAlign="center"
+                    //     fontSize="inherit"
+                    //     onClick={() => navigate("/bar")}
+                    //   >
+                    //     Bar
+                    //   </Typography>
+                    // )
+                    //  :
+                    // page === "Staff" ? (
+                    //   <Typography
+                    //     textAlign="center"
+                    //     fontSize="inherit"
+                    //     onClick={() => navigate("/staff")}
+                    //   >
+                    //     Staff
+                    //   </Typography>
+                    // ) :
+                    //  page === "Kitchen" ? (
+                    //   <Typography
+                    //     textAlign="center"
+                    //     fontSize="inherit"
+                    //     onClick={() => navigate("/kitchen")}
+                    //   >
+                    //     Kitchen
+                    //   </Typography>
+                    // ) :
+                    page === "Tables" ? (
+                      <Typography
+                        textAlign="center"
+                        fontSize="inherit"
+                        onClick={() => navigate("/tables")}
+                      >
+                        Tables
+                      </Typography>
+                    ) : page === "Store" ? (
+                      <Typography
+                        textAlign="center"
+                        fontSize="inherit"
+                        onClick={() => navigate("/store")}
+                      >
+                        Store
+                      </Typography>
+                    ) : page === "Orders" ? (
+                      <Typography
+                        textAlign="center"
+                        fontSize="inherit"
+                        onClick={() => navigate("/Orders")}
+                      >
+                        Orders
+                      </Typography>
+                    ) : (
+                      ""
+                    )}
                 </MenuItem>
               ))}
             </Menu>
@@ -266,7 +266,7 @@ function Navbar() {
               {settings.map((setting) => (
                 <MenuItem key={setting} onClick={handleCloseUserMenu}>
                   {setting === "Dashboard" &&
-                  user?.role === "admin" ? (
+                    user?.role === "admin" ? (
                     <Typography textAlign="center">Dashboard</Typography>
                   ) : setting === "Profile" ? (
                     <Typography textAlign="center">Profile</Typography>

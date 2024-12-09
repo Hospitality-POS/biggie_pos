@@ -1,16 +1,15 @@
 import { ParamsType } from "@ant-design/pro-components";
-import axios from "axios";
+import axiosInstance from "./request";
 import { BASE_URL } from "@utils/config";
-import { Modal, notification } from "antd/lib";
 import { message } from "antd";
-
+import { createAsyncThunk } from "@reduxjs/toolkit";
 const userUrl = `${BASE_URL}/users`;
 
 export const fetchAllUsersList = async (data: ParamsType) => {
   try {
     const url = `${BASE_URL}/users/all`;
 
-    const response = await axios.get(url, {
+    const response = await axiosInstance.get(url, {
       params: { fullname: data.fullname, email: data.email },
     });
     return response.data;
@@ -19,14 +18,56 @@ export const fetchAllUsersList = async (data: ParamsType) => {
   }
 };
 
+// todo: the use of createAsyncThunk is not recommended
+export const updateSubscription = createAsyncThunk(
+  "subscription/update",
+  async (data: ParamsType, { rejectWithValue }) => {
+    try {
+      const url = `${BASE_URL}/users/update-package`;
+      const response = await axiosInstance.post(url, data);
+      console.log('nice bbb', response);
+      if (response && response.data && response.data.data) {
+        localStorage.setItem("tenant", JSON.stringify(response.data.data));
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Error:', error);
+      message.error("Failed to update subscription.");
+      return rejectWithValue("Failed to update subscription.");
+    }
+  }
+);
+
+export const verifyCompanyCode = async (data: ParamsType) => {
+  try {
+    const url = `${BASE_URL}/users/verify`;
+
+    // Create the request body
+    const requestBody = {
+      ...data,
+    };
+
+    const response = await axiosInstance.post(url, requestBody);
+
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.message || "Failed to verify company code.");
+  }
+};
+
+
+
 export const updateUsers = async (data: ParamsType) => {
   const url = `${BASE_URL}/users`;
   try {
-    const response = await axios.put(`${url}/${data?._id}`, data?.value);
+    const response = await axiosInstance.put(`${url}/${data?._id}`, data?.value);
     message.success("User updated successfully");
     return response.data;
   } catch (error: any) {
-    message.error("Failed to update user");
+    if (error?.response?.status != 403) {
+      message.error("Failed to update user");
+    }
     throw new Error(error?.message);
   }
 };
@@ -34,7 +75,7 @@ export const updateUsers = async (data: ParamsType) => {
 export const fetchUserRoles = async () => {
   const url = `${BASE_URL}/users`;
   try {
-    const response = await axios.get(`${url}/fetch-role-type/all`);
+    const response = await axiosInstance.get(`${url}/fetch-role-type/all`);
     return response.data;
   } catch (error) {
     console.log(error);
@@ -43,7 +84,7 @@ export const fetchUserRoles = async () => {
 
 export const fetchUserById = async (id: string) => {
   try {
-    const response = await axios.get(`${userUrl}/${id}`);
+    const response = await axiosInstance.get(`${userUrl}/${id}`);
     return response.data;
   } catch (error) {
     console.log(error);
@@ -53,7 +94,7 @@ export const fetchUserById = async (id: string) => {
 
 export const deleteUserById = async (id: string) => {
   try {
-    const response = await axios.delete(`${userUrl}/${id}`);
+    const response = await axiosInstance.delete(`${userUrl}/${id}`);
     return response.data;
   } catch (error) {
     console.log(error);

@@ -22,7 +22,7 @@ import StoreModal from "@components/MODALS/pro/StoreModal";
 const { Search } = Input;
 
 export default function MainStore() {
-  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [setErrorDialogOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
 

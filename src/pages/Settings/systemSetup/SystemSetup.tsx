@@ -4,12 +4,14 @@ import {
   UserOutlined,
   PrinterOutlined,
   SettingOutlined,
-  MoneyCollectOutlined,
+  CrownOutlined,
+  UnlockOutlined
+
 } from "@ant-design/icons"; // Selected icons to ensure consistency in theme
 import { ConfigProvider, Space, Typography, Divider } from "antd";
 import Profile from "./Profile";
 import PrinterConfig from "./PrinterConfig";
-import ComingSoon from "@components/coming-soon/ComingSoon";
+import Billing from "@components/billing/Billing";
 
 const SystemSetup: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("profile");
@@ -100,7 +102,7 @@ const SystemSetup: React.FC = () => {
         key="billing"
         tab={
           <Space>
-            <MoneyCollectOutlined style={{ color: "#faad14" }} />
+            <CrownOutlined style={{ color: "#faad14" }} />
             {/* Yellow color for billing */}
             <Typography.Text>Billing</Typography.Text>
           </Space>
@@ -113,7 +115,29 @@ const SystemSetup: React.FC = () => {
             borderRadius: "8px",
           }}
         >
-          <ComingSoon />
+          <Billing />
+        </div>
+      </ProCard.TabPane>
+
+
+      <ProCard.TabPane
+        key="offers"
+        tab={
+          <Space>
+            <UnlockOutlined style={{ color: "#2E9AFE" }} />
+            {/* Yellow color for billing */}
+            <Typography.Text>Offers</Typography.Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <Billing />
         </div>
       </ProCard.TabPane>
 

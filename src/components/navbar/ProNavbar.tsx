@@ -32,14 +32,15 @@ const ProNavbar = () => {
       style={{ maxWidth: "1920px" }}
       logo={
         <Image
-          src="/android-chrome-512x512.png"
-          height={60}
+          src="/relia.png"
+          height={55}
+          width={120}
           preview={true}
           alt="fss-logo"
-          style={{ padding: 5 }}
+          style={{ padding: 12 }}
         />
       }
-      title=""   
+      title=""
       menuHeaderRender={(logo, title) => (
         <div
           id="customize_menu_header"
@@ -94,7 +95,7 @@ const ProNavbar = () => {
                   <Button icon={<PoweroffOutlined />} onClick={handleLogout}>logout</Button>
                 </>
               ) : (
-                <StaffModal setOpen={setOpen} open={open} tbl={tbl} showButton/>
+                <StaffModal setOpen={setOpen} open={open} tbl={tbl} showButton />
               )}
             </>
           );

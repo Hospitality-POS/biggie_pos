@@ -1,6 +1,5 @@
-import { BASE_URL } from "@utils/config";
+import axiosInstance from "./request"; // Import the axiosInstance
 import { message } from "antd";
-import axios, { AxiosError } from "axios";
 
 interface Shift {
   employee_id: string;
@@ -9,54 +8,59 @@ interface Shift {
   endTime: string;
 }
 
-const shiftUrl = `${BASE_URL}/shifts`;
+const shiftUrl = `/shifts`; // No need to repeat BASE_URL, it's already included in axiosInstance
 
+// Fetch all shifts
 export const fetchAllShifts = async () => {
   try {
-    const response = await axios.get(shiftUrl);
+    const response = await axiosInstance.get(shiftUrl);
     return response.data;
-  } catch (error: unknown) {
-    const err = error as AxiosError;
-    message.error("Failed to fetch shifts");
-    throw err;
+  } catch (error) {
+    if (error?.response?.status != 403) {
+      message.error("Failed to fetch shifts");
+    }
+    throw error;
   }
 };
 
+// Create a shift
 export const createShift = async (shiftData: Shift) => {
   try {
-    const response = await axios.post(shiftUrl, shiftData);
+    const response = await axiosInstance.post(shiftUrl, shiftData);
     message.success("Shift created successfully");
     return response.data;
-  } catch (error: unknown) {
-    const err = error as AxiosError;
-    console.error("Error creating shift:", err.message);
-    message.error("Failed to create shift");
-    throw err;
+  } catch (error) {
+    if (error?.response?.status != 403) {
+      message.error("Failed to create shift");
+    }
+    throw error;
   }
 };
 
+// Update a shift
 export const updateShift = async (shiftData: Shift) => {
   try {
-    const response = await axios.put(`${shiftUrl}/${shiftData._id}`, shiftData);
+    const response = await axiosInstance.put(`${shiftUrl}/${shiftData._id}`, shiftData);
     message.success("Shift updated successfully");
     return response.data;
-  } catch (error: unknown) {
-    const err = error as AxiosError;
-    console.error("Error updating shift:", err.message);
-    message.error("Failed to update shift");
-    throw err;
+  } catch (error) {
+    if (error?.response?.status != 403) {
+      message.error("Failed to update shift");
+    }
+    throw error;
   }
 };
 
+// Delete a shift
 export const deleteShift = async (id: string) => {
   try {
-    const response = await axios.delete(`${shiftUrl}/${id}`);
+    const response = await axiosInstance.delete(`${shiftUrl}/${id}`);
     message.success("Shift deleted successfully");
     return response.data;
-  } catch (error: unknown) {
-    const err = error as AxiosError;
-    console.error("Error deleting shift:", err.message);
-    message.error("Failed to delete shift");
-    throw err;
+  } catch (error) {
+    if (error?.response?.status != 403) {
+      message.error("Failed to delete shift");
+    }
+    throw error;
   }
 };

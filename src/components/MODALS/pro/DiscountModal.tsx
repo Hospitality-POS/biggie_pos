@@ -9,7 +9,7 @@ import {
 import { PercentageOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addDiscount } from "@features/Cart/CartSlice";
-import { useAppDispatch } from "src/store";
+import { useAppDispatch, useAppSelector } from "src/store";
 import { updateCart } from "@features/Cart/CartActions";
 
 interface DiscountModalProps {
@@ -21,6 +21,8 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
   const formRef = useRef<any>();
   const dispatch = useAppDispatch();
 
+  const { user } = useAppSelector((state) => state.auth);
+
   const discountOptions = [
     { value: "amount", label: "Amount" },
     { value: "percentage", label: "Percentage" },
@@ -28,7 +30,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
 
   return (
     <ModalForm
-    initialValues={cartItem}
+      initialValues={cartItem}
       form={form}
       formRef={formRef}
       width={520}
@@ -39,9 +41,11 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
         </Space>
       }
       trigger={
-        <Button type="primary" icon={<PercentageOutlined />} block>
-        Offer Discount?
-        </Button>
+        user?.role === "admin" && (
+          <Button type="primary" icon={<PercentageOutlined />} block>
+            Offer Discount?
+          </Button>
+        )
       }
       autoFocusFirstInput
       modalProps={{
@@ -56,7 +60,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
         });
         if (confirmed) {
           dispatch(
-            updateCart({cart: cartItem, data: values})
+            updateCart({ cart: cartItem, data: values })
           );
           return true;
         }

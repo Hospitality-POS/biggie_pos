@@ -1,5 +1,5 @@
 import { ParamsType } from "@ant-design/pro-components";
-import axios from "axios";
+import axiosInstance from "./request";
 import { BASE_URL } from "@utils/config";
 import SetBearerHeaderToken from "@utils/SetBearerHeaderToken";
 import { message } from "antd";
@@ -10,7 +10,7 @@ const { headers } = SetBearerHeaderToken();
 
 export const fetchAllPaymentMethods = async (data?: ParamsType) => {
   try {
-    const response = await axios.get(method_url, {
+    const response = await axiosInstance.get(method_url, {
       params: { name: data?.name },
     });
     return response.data;
@@ -21,7 +21,7 @@ export const fetchAllPaymentMethods = async (data?: ParamsType) => {
 
 export const addNewPaymentMethod = async (params: ParamsType) => {
   try {
-    const response = await axios.post(method_url, params, { headers });
+    const response = await axiosInstance.post(method_url, params, { headers });
     message.success("Payment method created successfully");
     return response.data;
   } catch (error) {
@@ -30,10 +30,21 @@ export const addNewPaymentMethod = async (params: ParamsType) => {
   }
 };
 
-
-export const updateMethod =async (data:ParamsType) => {
+export const makeSubscriptionPayment = async (params: ParamsType) => {
   try {
-    const response = await axios.put(`${method_url}/${data?._id}`, data?.values, {headers})
+    const response = await axiosInstance.post(method_url + '/make-payment', params, { headers });
+    message.success("Payment submitted successfully");
+    return response.data;
+  } catch (error) {
+    message.error("Failed to make payment");
+    throw new Error("Error making payment");
+  }
+};
+
+
+export const updateMethod = async (data: ParamsType) => {
+  try {
+    const response = await axiosInstance.put(`${method_url}/${data?._id}`, data?.values, { headers })
     message.success("Payment method updated successfully");
     return response.data
   } catch (error) {
@@ -44,7 +55,7 @@ export const updateMethod =async (data:ParamsType) => {
 
 export const deletePaymentMethod = async (data: ParamsType) => {
   try {
-    const response = await axios.delete(`${method_url}/${data}`, { headers });
+    const response = await axiosInstance.delete(`${method_url}/${data}`, { headers });
     return response.data;
   } catch (error) {
     throw new Error("Error deleting payment method");

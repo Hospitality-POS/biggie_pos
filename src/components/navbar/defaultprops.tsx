@@ -1,9 +1,9 @@
-import {  ApiFilled, CalculatorFilled, FileAddFilled, FileFilled, FolderFilled, HomeFilled, PrinterFilled, SmileFilled, SolutionOutlined } from "@ant-design/icons";
+import { ApiFilled, CalculatorFilled, BarChartOutlined, FolderFilled, HomeFilled, PrinterFilled, SmileFilled, SolutionOutlined } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 
-  const useProLayoutNav = () => {
+const useProLayoutNav = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const state = !!(user?.role === "admin");
+  const state = !!(user?.role === "admin" || user?.role === "cashier");
   const adminMenu = {
     route: {
       path: "/",
@@ -38,6 +38,11 @@ import { useAppSelector } from "src/store";
           path: "/reports",
           name: "Reports",
           icon: <ApiFilled />,
+        },
+        {
+          path: "/home-dashboard",
+          name: "Dashboard",
+          icon: <BarChartOutlined />,
         },
       ],
     },
@@ -83,7 +88,7 @@ import { useAppSelector } from "src/store";
       {
         icon: "/system-setup.png",
         title: "System setup",
-        desc: "Configure your FSS system for optimal use.",
+        desc: "Configure your RELIA system for optimal use.",
         url: "/system-setup",
       },
       {
@@ -106,6 +111,6 @@ import { useAppSelector } from "src/store";
       ],
     },
   };
-  return  state ? adminMenu : userMenu;
+  return state ? adminMenu : userMenu;
 };
 export default useProLayoutNav

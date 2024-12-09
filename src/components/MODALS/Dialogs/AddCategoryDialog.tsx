@@ -24,7 +24,7 @@ import CategoryIcon from "@mui/icons-material/Category";
 import { useDispatch, useSelector } from "react-redux";
 import { resetCategoryMessage } from "../../../features/Category/CategorySlice";
 import { createCategory } from "../../../features/Category/CategoryActions";
-import axios from "axios";
+import axiosInstance from "../../../services/request";
 import { useQuery } from "@tanstack/react-query";
 
 interface Category {
@@ -78,7 +78,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
   };
 
   const fetchSubCategories = async () => {
-    const response = await axios.get(
+    const response = await axiosInstance.get(
       "http://localhost:3000/categories/sub-categories"
     );
     return response.data;

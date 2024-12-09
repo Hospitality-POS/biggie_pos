@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Space } from "antd";
 import classes from "./staff.module.css";
 import { Button, Col, Row } from "antd/lib";
 import { ModalForm, ProFormText } from "@ant-design/pro-components";
 import { useLogin } from "./hook/useLogin";
 import { LoginOutlined } from "@ant-design/icons";
+import { useAppDispatch } from "src/store";
+import { verifyCompanyCode } from "@services/users";
 
 type StaffModalProps = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -23,6 +25,44 @@ const StaffModal: React.FC<StaffModalProps> = ({
     setOpen,
     tbl
   );
+
+  const dispatch = useAppDispatch();
+
+  const [companyCode, setCompanyCode] = useState<string | null>(null);
+  const [step, setStep] = useState<"companyCode" | "pin">("companyCode");
+  const [loading, setLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Check if company code exists in localStorage
+    const storedCode = localStorage.getItem("companyCode");
+    if (storedCode) {
+      setCompanyCode(storedCode);
+      setStep("pin");
+    }
+  }, [open]);
+
+  const handleCompanyCodeSubmit = async (code: string) => {
+    try {
+      setLoading(true); // Set loading to true before the API call
+      dispatch({ type: 'VERIFY_COMPANY_CODE_REQUEST' });
+
+      const result = await verifyCompanyCode({ companyCode: code });
+
+      localStorage.setItem("tenant", JSON.stringify(result.data));
+
+      dispatch({ type: 'VERIFY_COMPANY_CODE_SUCCESS', payload: result });
+
+      localStorage.setItem("companyCode", code);
+
+      setCompanyCode(code);
+      setStep("pin");
+    } catch (error) {
+      dispatch({ type: 'VERIFY_COMPANY_CODE_FAILURE', payload: error });
+      console.error("Error verifying company code:", error);
+    } finally {
+      setLoading(false); // Reset loading state after the API call
+    }
+  };
 
   return (
     <>
@@ -46,8 +86,14 @@ const StaffModal: React.FC<StaffModalProps> = ({
         width={600}
         form={form}
         onFinish={async (values) => {
-          handleLogin(values.pin);
-          handleClose();
+          if (step === "companyCode") {
+            handleCompanyCodeSubmit(values.companyCode);
+          } else {
+            setLoading(true); // Set loading to true before login
+            await handleLogin(values.pin);
+            handleClose();
+            setLoading(false); // Reset loading state after login
+          }
         }}
         onOpenChange={(visible) => !visible && handleClose()}
         modalProps={{
@@ -57,47 +103,68 @@ const StaffModal: React.FC<StaffModalProps> = ({
         submitter={{
           searchConfig: {
             resetText: "Cancel",
-            submitText: "Login",
+            submitText: step === "companyCode" ? "Submit" : "Login",
+          },
+          submitButtonProps: {
+            loading, // Bind the loading state to the submit button
           },
         }}
       >
-        <ProFormText.Password
-          width="xl"
-          name="pin"
-          label="Pin"
-          tooltip="Users Login PIN 4 digits only"
-          normalize={(value) => {
-            const numericValue = value.replace(/[^0-9]/g, "");
-            return numericValue.slice(0, 4);
-          }}
-          rules={[
-            {
-              required: true,
-              pattern: /^[0-9]{4}$/,
-              message: "Invalid Pin format",
-            },
-          ]}
-          placeholder="Enter user Pin"
-        />
-
-        <Space>
-          <Row gutter={8} justify="center" className={classes.numPad}>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((number) => (
-              <Col key={number}>
-                <Button
-                  className={classes.numPadButton}
-                  onClick={() => {
-                    handleNumberClick(number);
-                  }}
-                  type="primary"
-                  ghost
-                >
-                  {number}
-                </Button>
-              </Col>
-            ))}
-          </Row>
-        </Space>
+        {step === "companyCode" && (
+          <ProFormText.Password
+            width="xl"
+            name="companyCode"
+            label="Company Code"
+            tooltip="Enter Company Code"
+            placeholder="Enter Company Code"
+            rules={[
+              {
+                required: true,
+                message: "Company Code is required",
+              },
+            ]}
+          />
+        )}
+        {step === "pin" && (
+          <>
+            <ProFormText.Password
+              width="xl"
+              name="pin"
+              label="Pin"
+              tooltip="Users Login PIN 4 digits only"
+              normalize={(value) => {
+                const numericValue = value.replace(/[^0-9]/g, "");
+                return numericValue.slice(0, 4);
+              }}
+              rules={[
+                {
+                  required: true,
+                  pattern: /^[0-9]{4}$/,
+                  message: "Invalid Pin format",
+                },
+              ]}
+              placeholder="Enter user Pin"
+            />
+            <Space>
+              <Row gutter={8} justify="center" className={classes.numPad}>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((number) => (
+                  <Col key={number}>
+                    <Button
+                      className={classes.numPadButton}
+                      onClick={() => {
+                        handleNumberClick(number);
+                      }}
+                      type="primary"
+                      ghost
+                    >
+                      {number}
+                    </Button>
+                  </Col>
+                ))}
+              </Row>
+            </Space>
+          </>
+        )}
       </ModalForm>
     </>
   );

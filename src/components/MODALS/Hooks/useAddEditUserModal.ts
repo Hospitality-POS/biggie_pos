@@ -49,9 +49,10 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
         message.success("User added successfully");
         return true
       } else {
+
         message.error("Failed to add a new User");
       }
-      
+
     } catch (error) {
       setIsSubmitting(false);
       handleClose();
@@ -64,7 +65,7 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
     try {
       updateUsers(data)
       handleClose();
-      
+
     } catch (error) {
       setIsSubmitting(false);
       handleClose();

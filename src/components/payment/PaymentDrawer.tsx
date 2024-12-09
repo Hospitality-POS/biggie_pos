@@ -311,18 +311,16 @@ const PaymentDrawer: React.FC = () => {
                 bordered
                 onClick={() => handleSelectMethod(method._id)}
                 style={{
-                  backgroundColor: `${
-                    selectedMethod === method._id ? "#6c1c2c" : grey[400]
-                  }`,
+                  backgroundColor: `${selectedMethod === method._id ? "#6c1c2c" : grey[400]
+                    }`,
                   cursor: "pointer",
                   transition: "background-color 0.3s ease",
                 }}
               >
                 <Space
                   style={{
-                    color: `${
-                      selectedMethod === method._id ? "white" : "inherit"
-                    }`,
+                    color: `${selectedMethod === method._id ? "white" : "inherit"
+                      }`,
                   }}
                 >
                   {method.name === "Cash" ? (
@@ -331,9 +329,8 @@ const PaymentDrawer: React.FC = () => {
                       <Typography.Text
                         strong
                         style={{
-                          color: `${
-                            selectedMethod === method._id ? "white" : "inherit"
-                          }`,
+                          color: `${selectedMethod === method._id ? "white" : "inherit"
+                            }`,
                         }}
                       >
                         Cash
@@ -345,9 +342,8 @@ const PaymentDrawer: React.FC = () => {
                       <Typography.Text
                         strong
                         style={{
-                          color: `${
-                            selectedMethod === method._id ? "white" : "inherit"
-                          }`,
+                          color: `${selectedMethod === method._id ? "white" : "inherit"
+                            }`,
                         }}
                       >
                         Mpesa
@@ -359,9 +355,8 @@ const PaymentDrawer: React.FC = () => {
                       <Typography.Text
                         strong
                         style={{
-                          color: `${
-                            selectedMethod === method._id ? "white" : "inherit"
-                          }`,
+                          color: `${selectedMethod === method._id ? "white" : "inherit"
+                            }`,
                         }}
                       >
                         Card
@@ -373,9 +368,8 @@ const PaymentDrawer: React.FC = () => {
                       <Typography.Text
                         strong
                         style={{
-                          color: `${
-                            selectedMethod === method._id ? "white" : "inherit"
-                          }`,
+                          color: `${selectedMethod === method._id ? "white" : "inherit"
+                            }`,
                         }}
                       >
                         Debt
@@ -387,9 +381,8 @@ const PaymentDrawer: React.FC = () => {
                       <Typography.Text
                         strong
                         style={{
-                          color: `${
-                            selectedMethod === method._id ? "white" : "inherit"
-                          }`,
+                          color: `${selectedMethod === method._id ? "white" : "inherit"
+                            }`,
                         }}
                       >
                         {method?.name[0]?.toUpperCase()}
@@ -409,30 +402,34 @@ const PaymentDrawer: React.FC = () => {
               marginTop: 4,
             }}
           >
-            <Button
-              danger
-              onClick={() => {
-                setSelectedMethod(null);
-              }}
-              icon={<CloseCircleOutlined />}
-            >
-              Clear
-            </Button>
-            <Button
-              type="default"
-              onClick={handleVoidBill}
-              icon={<StopOutlined />}
-              style={{
-                color: "#6c1c2c",
-                borderColor: "#6c1c2c",
-                "&:hover": {
-                  borderColor: "#bc8c7c",
-                  color: "#bc8c7c",
-                },
-              }}
-            >
-              Void Bill
-            </Button>
+            {user?.role === "admin" && (
+              <Button
+                danger
+                onClick={() => {
+                  setSelectedMethod(null);
+                }}
+                icon={<CloseCircleOutlined />}
+              >
+                Clear
+              </Button>
+            )}
+            {user?.role === "admin" && (
+              <Button
+                type="default"
+                onClick={handleVoidBill}
+                icon={<StopOutlined />}
+                style={{
+                  color: "#6c1c2c",
+                  borderColor: "#6c1c2c",
+                  "&:hover": {
+                    borderColor: "#bc8c7c",
+                    color: "#bc8c7c",
+                  },
+                }}
+              >
+                Void Bill
+              </Button>
+            )}
             <Button
               type="primary"
               icon={loading ? <LoadingOutlined /> : <LikeOutlined />}
@@ -491,9 +488,8 @@ const PaymentDrawer: React.FC = () => {
         {todayOrders?.length > 4 && (
           <Typography.Text type="secondary">
             {todayOrders?.length > 0
-              ? `${todayOrders.length} order${
-                  todayOrders.length > 1 ? "s" : ""
-                } today`
+              ? `${todayOrders.length} order${todayOrders.length > 1 ? "s" : ""
+              } today`
               : "No orders today"}
           </Typography.Text>
         )}
@@ -502,7 +498,7 @@ const PaymentDrawer: React.FC = () => {
         )}
       </Space>
       <Divider />
-     <Button type="primary" block onClick={() => navigate("/orders")} icon={<FileOutlined />}>View All Transactions</Button>
+      <Button type="primary" block onClick={() => navigate("/orders")} icon={<FileOutlined />}>View All Transactions</Button>
     </DrawerForm>
   );
 };

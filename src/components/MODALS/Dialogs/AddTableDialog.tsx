@@ -19,8 +19,8 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import { useForm, Controller } from "react-hook-form";
-import { useDispatch, useSelector } from "react-redux";
-import axios from "axios";
+import { useDispatch } from "react-redux";
+import axiosInstance from "../../../services/request";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import TableIcon from "@mui/icons-material/TableChart";
 import { createTable } from "../../../features/Table/TableActions";
@@ -82,7 +82,7 @@ const AddTableDialog: React.FC<AddTableDialogProps> = ({
   };
 
   const fetchLocations = async () => {
-    const response = await axios.get("http://localhost:3000/tables/location/locations");
+    const response = await axiosInstance.get("http://localhost:3000/tables/location/locations");
     return response.data;
   };
 

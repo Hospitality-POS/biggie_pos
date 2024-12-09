@@ -1,7 +1,6 @@
 import { BASE_URL } from "@utils/config";
 import { ParamsType } from "@ant-design/pro-components";
-import axios from "axios";
-import { Modal } from "antd/lib";
+import axiosInstance from "./request";
 import { message } from "antd";
 
 const supplierUrl = `${BASE_URL}/suppliers`;
@@ -9,7 +8,7 @@ const supplierUrl = `${BASE_URL}/suppliers`;
 export const fetchAllSuppliers = async (data: ParamsType) => {
   try {
 
-    const response = await axios.get(supplierUrl, {
+    const response = await axiosInstance.get(supplierUrl, {
       params: { name: data.name, email: data.email },
     });
     return response.data;
@@ -20,7 +19,7 @@ export const fetchAllSuppliers = async (data: ParamsType) => {
 
 export const addNewSupplier = async (params: ParamsType) => {
   try {
-    const response = await axios.post(`${supplierUrl}`, {
+    const response = await axiosInstance.post(`${supplierUrl}`, {
       ...params,
     });
     message.success("Supplier added successfully");
@@ -32,7 +31,7 @@ export const addNewSupplier = async (params: ParamsType) => {
 
 export const editSupplier = async (params: ParamsType) => {
   try {
-    const response = await axios.put(`${supplierUrl}/${params?._id}`, {
+    const response = await axiosInstance.put(`${supplierUrl}/${params?._id}`, {
       ...params.value,
     });
     message.success("Supplier updated successfully");
@@ -44,7 +43,7 @@ export const editSupplier = async (params: ParamsType) => {
 
 export const deleteSupplier = async (params: ParamsType) => {
   try {
-    const response = await axios.delete(`${supplierUrl}/${params}`);
+    const response = await axiosInstance.delete(`${supplierUrl}/${params}`);
     return response.data;
   } catch (error) {
     throw new Error(error);
