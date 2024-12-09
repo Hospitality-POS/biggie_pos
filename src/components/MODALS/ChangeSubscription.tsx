@@ -67,7 +67,7 @@ const ChangeSubscriptionModal: React.FC<ChangeSubscriptionModalProps> = ({
       }
       title={
         <Space>
-          <WalletOutlined />
+          <SwapOutlined />
           <Title level={4} style={{ margin: 0 }}>
             Change Subscription Plan
           </Title>
