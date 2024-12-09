@@ -81,6 +81,7 @@ const ChangeSubscriptionModal: React.FC<ChangeSubscriptionModalProps> = ({
       modalProps={{
         destroyOnClose: true,
         centered: true,
+        width: 700,
       }}
       submitter={{
         searchConfig: {
