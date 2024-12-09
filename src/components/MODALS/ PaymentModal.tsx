@@ -1,85 +1,156 @@
-import React from 'react';
-import { Button, Space, Spin, Typography } from 'antd';
-import { MobileOutlined, CreditCardOutlined } from '@ant-design/icons';
-import ProForm, { ModalForm, ProFormText } from "@ant-design/pro-form";
+import React, { useState } from "react";
+import { Button, Space, Spin, Typography, Card, Alert } from "antd";
+import {
+  MobileOutlined,
+  CreditCardOutlined,
+  WalletOutlined,
+} from "@ant-design/icons";
+import ProForm, {
+  ModalForm,
+  ProFormText,
+  ProFormRadio,
+} from "@ant-design/pro-form";
+import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 
-const { Text } = Typography;
+interface PaymentModalProps {
+  open: boolean;
+  handleOpenChange: (open: boolean) => void;
+  handleStkPush: () => any;
+  form: any;
+  formRef: any;
+  selectedPaymentMethod?: string;
+  setSelectedPaymentMethod?: (selectedPaymentMethod: string) => void;
+  isComingSoon: boolean;
+  loadingPayment: boolean;
+}
 
-const PaymentModal = ({
-    open,
-    handleOpenChange,
-    handleStkPush,
-    form,
-    formRef,
-    selectedPaymentMethod,
-    setSelectedPaymentMethod,
-    isComingSoon,
-    loadingPayment,
+const { Text, Title } = Typography;
+
+const PaymentModal: React.FC<PaymentModalProps> = ({
+  open,
+  handleOpenChange,
+  handleStkPush,
+  form,
+  formRef,
+  selectedPaymentMethod = "mpesa",
+  setSelectedPaymentMethod = () => {},
+  isComingSoon,
+  loadingPayment,
 }) => {
-    return (
-        <ModalForm
-            onOpenChange={handleOpenChange}
-            visible={open}
-            onFinish={handleStkPush}
-            form={form}
-            formRef={formRef}
-            title="Select Payment Method"
-            submitter={{
-                searchConfig: {
-                    resetText: "Cancel",
-                    submitText: "Complete Payment",
-                },
-                render: (props, dom) => (
-                    <Space style={{ justifyContent: 'space-between' }}>
-                        {dom}
-                    </Space>
-                ),
+  return (
+    <ModalForm
+      onOpenChange={handleOpenChange}
+      open={open}
+      onFinish={handleStkPush}
+      form={form}
+      formRef={formRef}
+      title={
+        <Space>
+          <WalletOutlined />
+          <Title level={4} style={{ margin: 0 }}>
+            Payment Options
+          </Title>
+        </Space>
+      }
+      size="large"
+      autoFocusFirstInput
+      submitter={{
+        searchConfig: {
+          resetText: "Cancel",
+          submitText: "Complete Payment",
+        },
+        render: (props, dom) => (
+          <Space
+            style={{
+              width: "100%",
+              display: "flex",
+              justifyContent: "space-between",
             }}
-            style={{ maxWidth: '600px', margin: '0 auto' }} // Center the modal
+          >
+            {dom}
+          </Space>
+        ),
+      }}
+      modalProps={{
+        destroyOnClose: true,
+        centered: true,
+        width: 500,
+        bodyStyle: {
+          padding: "24px",
+          backgroundColor: "#f5f5f5",
+        },
+      }}
+    >
+      <Space
+        direction="vertical"
+        style={{
+          width: "100%",
+          textAlign: "center",
+        }}
+      >
+        <ProFormRadio.Group
+          name="paymentMethod"
+          label="Select Payment Method"
+          radioType="radio"
+          initialValue={selectedPaymentMethod}
+          fieldProps={{
+            value: selectedPaymentMethod,
+            onChange: (e) => setSelectedPaymentMethod(e.target.value),
+          }}
+          options={[
+            {
+              label: "M-PESA",
+              value: "mpesa",
+              icon: <MobileOutlined />,
+            },
+            {
+              label: "Card Payment",
+              value: "card",
+              icon: <CreditCardOutlined />,
+              disabled: isComingSoon,
+            },
+          ]}
+          style={{
+            width: "100%",
+            marginBottom: "24px",
+          }}
+        />
+
+        <Card
+          title={
+            selectedPaymentMethod === "mpesa" ? (
+              <Text strong>M-PESA Payment (STK Push)</Text>
+            ) : (
+              <Text strong>Card Payment (Coming Soon)</Text>
+            )
+          }
+          style={{
+            width: "100%",
+            marginBottom: "16px",
+            display: selectedPaymentMethod === "mpesa" ? "block" : "none",
+          }}
         >
-            <Space direction="vertical" style={{ width: '100%', padding: '20px 0' }}>
-                <Button
-                    type="primary"
-                    icon={<MobileOutlined />}
-                    size="large"
-                    block
-                    onClick={() => setSelectedPaymentMethod('mpesa')}
-                    style={{ marginBottom: '16px' }}
-                >
-                    Pay with M-PESA (STK Push)
-                </Button>
+          <PhoneInput label="Phone Number" owner="phoneNumber" />
+        </Card>
 
-                <Button
-                    icon={<CreditCardOutlined />}
-                    size="large"
-                    block
-                    disabled={isComingSoon}
-                    style={{ marginBottom: '16px' }}
-                >
-                    {isComingSoon ? 'Coming Soon' : 'Pay with Card'}
-                </Button>
-
-                {selectedPaymentMethod === 'mpesa' && (
-                    <ProForm.Group style={{ width: "100%" }}>
-                        <ProFormText
-                            width="lg"
-                            name="phoneNumber"
-                            label="Phone Number"
-                            rules={[{ required: true, message: "Phone Number is required" }]}
-                            placeholder="Phone Number (254...)"
-                            style={{ marginBottom: '16px' }} // Add margin for spacing
-                        />
-                    </ProForm.Group>
-                )}
-
-                {loadingPayment && (
-                    <Spin spinning={loadingPayment} size="large" style={{ marginTop: '20px' }}>
-                        <Text>Processing payment...</Text>
-                    </Spin>
-                )}
-            </Space>
-        </ModalForm>
-    );
+        {loadingPayment && (
+          <Spin
+            spinning={loadingPayment}
+            size="large"
+            tip="Processing payment..."
+          >
+            <Alert
+              message="Payment in Progress"
+              description="Please do not close this window or refresh the page."
+              type="info"
+              showIcon
+              style={{ marginTop: "20px" }}
+            />
+          </Spin>
+        )}
+      </Space>
+    </ModalForm>
+  );
 };
 
 export default PaymentModal;
