@@ -32,6 +32,7 @@ export const updateSubscription = createAsyncThunk(
       return response.data;
     } catch (error) {
       console.error('Error:', error);
+      message.error("Failed to update subscription.");
       return rejectWithValue("Failed to update subscription.");
     }
   }
