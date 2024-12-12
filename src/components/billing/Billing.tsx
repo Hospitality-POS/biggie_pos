@@ -180,6 +180,7 @@ const PaymentSubscriptionPage: React.FC<MakePaymentrModalProps> = ({ actionRef, 
             </Title>
             <Button
               type="primary"
+              disabled={tenant.invoices && tenant.invoices.length}
               icon={<SwapOutlined />}
               onClick={() => setIsModalVisible(true)}
             >
