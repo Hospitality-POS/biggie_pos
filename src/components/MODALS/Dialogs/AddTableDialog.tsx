@@ -82,7 +82,7 @@ const AddTableDialog: React.FC<AddTableDialogProps> = ({
   };
 
   const fetchLocations = async () => {
-    const response = await axiosInstance.get("http://localhost:3000/tables/location/locations");
+    const response = await axiosInstance.get(process.env.VITE_BASE_URL + "/tables/location/locations");
     return response.data;
   };
 

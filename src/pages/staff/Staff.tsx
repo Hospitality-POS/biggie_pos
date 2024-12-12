@@ -10,39 +10,39 @@ import { fetchAllUsers } from "../../features/Auth/AuthActions";
 import React from "react"
 
 const Staff = () => {
-//   const {users:data, loading: isLoading, error:isError}=useSelector((state:any)=>state.auth)
-//   const dispatch = useDispatch()
- 
-//   useEffect(() => {
-//     dispatch(fetchAllUsers());
-// }, [dispatch]);
-// const { isLoading, isError, data } = useQuery({
-//     queryKey: ["staff"],
-//     queryFn: async () => {
-//       try {
-//         const response = await fetch("http://localhost:3000/users/all");
-//         const responseData = await response.json();
+  //   const {users:data, loading: isLoading, error:isError}=useSelector((state:any)=>state.auth)
+  //   const dispatch = useDispatch()
 
-//         // Store data in localStorage
-//         localStorage.setItem("staffData", JSON.stringify(responseData));
+  //   useEffect(() => {
+  //     dispatch(fetchAllUsers());
+  // }, [dispatch]);
+  // const { isLoading, isError, data } = useQuery({
+  //     queryKey: ["staff"],
+  //     queryFn: async () => {
+  //       try {
+  //         const response = await fetch("http://localhost:3000/users/all");
+  //         const responseData = await response.json();
 
-//         return responseData;
-//       } catch (error) {
-//         throw error;
-//       }
-//     },
-//     initialData: JSON.parse(localStorage.getItem("staffData")),
-//     retry: false,
-//   });
+  //         // Store data in localStorage
+  //         localStorage.setItem("staffData", JSON.stringify(responseData));
+
+  //         return responseData;
+  //       } catch (error) {
+  //         throw error;
+  //       }
+  //     },
+  //     initialData: JSON.parse(localStorage.getItem("staffData")),
+  //     retry: false,
+  //   });
 
   const { isLoading, isError, error, data } = useQuery({
     queryKey: ["staff"],
     queryFn: () =>
-      fetch("http://localhost:3000/users/all").then((res) => res.json()),
+      fetch(process.env.VITE_BASE_URL + "/users/all").then((res) => res.json()),
     retry: 3,
     retryDelay: 1000,
   });
-  
+
 
   if (isLoading) {
     return (
