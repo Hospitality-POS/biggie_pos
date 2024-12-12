@@ -63,8 +63,6 @@ axiosInstance.interceptors.response.use(
         }
         else if (response.status === 400) {
             handleError("Failed to make payment  ");
-        } else if (response.status === 403) {
-            handleError(response.data.message);
         } else if (response.status === 404) {
             handleError(response.data.message);
         }

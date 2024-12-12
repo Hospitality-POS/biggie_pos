@@ -61,7 +61,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   };
 
   const fetchCategories = async () => {
-    const response = await axiosInstance.get("http://localhost:3000/categories");
+    const response = await axiosInstance.get(process.env.VITE_BASE_URL + "/categories");
     return response.data;
   };
 
@@ -71,7 +71,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
   const fetchSuppliers = async () => {
     const token = getToken();
-    const response = await axiosInstance.get("http://localhost:3000/suppliers", {
+    const response = await axiosInstance.get(process.env.VITE_BASE_URL + "/suppliers", {
       headers: {
         Authorization: `Bearer ${token}`,
       },

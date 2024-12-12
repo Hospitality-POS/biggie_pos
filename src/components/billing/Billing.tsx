@@ -1,9 +1,14 @@
+<<<<<<< HEAD
 import React, { useEffect, useRef, useState } from 'react';
+=======
+import React, { useRef, useState } from "react";
+>>>>>>> 64f9563f3b8d5b13d219dbb7825c121c49673886
 import {
   Typography,
   Card,
   Button,
   Space,
+<<<<<<< HEAD
   Modal,
   Alert,
   Divider,
@@ -110,23 +115,67 @@ const PaymentSubscriptionPage: React.FC<MakePaymentrModalProps> = ({ actionRef, 
       title: 'Description',
       dataIndex: 'desc',
       key: 'desc',
+=======
+  Alert,
+  Divider,
+  Badge,
+  Form,
+} from "antd";
+import {
+  CalendarOutlined,
+  TagOutlined,
+  FileTextOutlined,
+} from "@ant-design/icons";
+import moment from "moment";
+import { ProTable } from "@ant-design/pro-components";
+import ChangeSubscriptionModal from "@components/MODALS/ChangeSubscription";
+import PaymentModal from "@components/MODALS/ PaymentModal";
+const { Title, Text } = Typography;
+
+const PaymentSubscriptionPage = () => {
+  const actionRef = useRef();
+
+  let tenant = JSON.parse(localStorage.getItem("tenant"));
+
+  tenant.next_billing_date = moment(tenant.next_billing_date).format(
+    "MMMM Do YYYY, h:mm a"
+  );
+
+  const columns = [
+    {
+      title: "Invoice Code",
+      dataIndex: "invoice_code",
+      key: "invoice_code",
+    },
+    {
+      title: "Description",
+      dataIndex: "desc",
+      key: "desc",
+      ellipsis: true,
+>>>>>>> 64f9563f3b8d5b13d219dbb7825c121c49673886
     },
     {
       title: "Created Date",
       dataIndex: "createdAt",
       hideInSearch: true,
       valueType: "dateTime",
+<<<<<<< HEAD
       sorter: (a, b) =>
         new Date(a.createdAt as string) - new Date(b.createdAt as string),
       render: (text) => {
         return new Date(text).toLocaleDateString('en-US');
       }
+=======
+      sorter: (a: any, b: any) =>
+        new Date(a.createdAt as string) - new Date(b.createdAt as string),
+>>>>>>> 64f9563f3b8d5b13d219dbb7825c121c49673886
     },
     {
       title: "Due Date",
       dataIndex: "due_date",
       hideInSearch: true,
       valueType: "dateTime",
+<<<<<<< HEAD
       sorter: (a, b) =>
         new Date(a.due_date as string) - new Date(b.due_date as string),
       render: (text) => {
@@ -146,11 +195,30 @@ const PaymentSubscriptionPage: React.FC<MakePaymentrModalProps> = ({ actionRef, 
       render: (status) => (
         <Badge
           status={status === 'Paid' ? 'success' : 'warning'}
+=======
+      sorter: (a: any, b: any) =>
+        new Date(a?.due_date as string) - new Date(b?.due_date as string),
+    },
+    {
+      title: "Amount",
+      dataIndex: "amount",
+      key: "amount",
+      render: (amount: any) => `KES ${amount.toFixed(2)}`,
+    },
+    {
+      title: "Status",
+      dataIndex: "payment_status",
+      key: "payment_status",
+      render: (status: any) => (
+        <Badge
+          status={status === "Paid" ? "success" : "warning"}
+>>>>>>> 64f9563f3b8d5b13d219dbb7825c121c49673886
           text={status.charAt(0).toUpperCase() + status.slice(1)}
         />
       ),
     },
     {
+<<<<<<< HEAD
       title: 'Action',
       key: 'action',
       render: (_, record) => (
@@ -163,21 +231,44 @@ const PaymentSubscriptionPage: React.FC<MakePaymentrModalProps> = ({ actionRef, 
           </Button>
         )
       ),
+=======
+      title: "Action",
+      key: "action",
+      render: (_, record) =>
+        record.payment_status === "Unpaid" && (
+          <PaymentModal data={record} actionRef={actionRef} />
+        ),
+>>>>>>> 64f9563f3b8d5b13d219dbb7825c121c49673886
     },
   ];
 
   return (
+<<<<<<< HEAD
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
       {/* Current Subscription */}
       <Card style={{ marginBottom: '24px' }}>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+=======
+    <div style={{ padding: "24px", maxWidth: "1200px", margin: "0 auto" }}>
+      {/* Current Subscription */}
+      <Card style={{ marginBottom: "24px" }}>
+        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+>>>>>>> 64f9563f3b8d5b13d219dbb7825c121c49673886
             <Title level={4}>
               <Space>
                 <TagOutlined />
                 Current Subscription
               </Space>
             </Title>
+<<<<<<< HEAD
             <Button
               type="primary"
               disabled={tenant.invoices && tenant.invoices.length}
@@ -186,10 +277,14 @@ const PaymentSubscriptionPage: React.FC<MakePaymentrModalProps> = ({ actionRef, 
             >
               Change Plan
             </Button>
+=======
+            <ChangeSubscriptionModal tenant={tenant} actionRef={actionRef} />
+>>>>>>> 64f9563f3b8d5b13d219dbb7825c121c49673886
           </div>
           <Alert
             message={
               <Space direction="vertical">
+<<<<<<< HEAD
                 <Text strong>{tenant.subscription_id.name} Package</Text>
                 <Space split={<Divider type="vertical" />}>
                   <Text>
@@ -197,6 +292,20 @@ const PaymentSubscriptionPage: React.FC<MakePaymentrModalProps> = ({ actionRef, 
                   </Text>
                   <Text>
                     <CalendarOutlined /> Next billing: {tenant.next_billing_date}
+=======
+                <Text strong>{tenant?.subscription_id?.name} Package</Text>
+                <Space split={<Divider type="vertical" />}>
+                  <Text>
+                    Kes{" "}
+                    {tenant?.subscription_cycle === "Yearly"
+                      ? tenant?.subscription_id?.price[0]["Yearly"]
+                      : tenant?.subscription_id?.price[0]["Monthly"]}{" "}
+                    / {tenant?.subscription_cycle}
+                  </Text>
+                  <Text>
+                    <CalendarOutlined /> Next billing:{" "}
+                    {tenant?.next_billing_date}
+>>>>>>> 64f9563f3b8d5b13d219dbb7825c121c49673886
                   </Text>
                 </Space>
               </Space>
@@ -215,13 +324,21 @@ const PaymentSubscriptionPage: React.FC<MakePaymentrModalProps> = ({ actionRef, 
             Invoices
           </Space>
         </Title>
+<<<<<<< HEAD
         <Table
           columns={columns}
           dataSource={tenant.invoices}
+=======
+        <ProTable
+          search={false}
+          columns={columns}
+          dataSource={tenant?.invoices}
+>>>>>>> 64f9563f3b8d5b13d219dbb7825c121c49673886
           rowKey="id"
           pagination={false}
         />
       </Card>
+<<<<<<< HEAD
 
       {/* Change Plan Modal */}
       <ChangeSubscriptionModal
@@ -242,6 +359,8 @@ const PaymentSubscriptionPage: React.FC<MakePaymentrModalProps> = ({ actionRef, 
         isComingSoon={isComingSoon}
         loadingPayment={loadingPayment}
       />
+=======
+>>>>>>> 64f9563f3b8d5b13d219dbb7825c121c49673886
     </div>
   );
 };
