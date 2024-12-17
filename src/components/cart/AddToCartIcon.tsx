@@ -21,7 +21,7 @@ function AddToCartIcon({ OpenCart }: any) {
   const fetchCartItems = async (cartId: string) => {
     try {
       const response = await axiosInstance.get(
-        `http://localhost:3000/cart/cart-items/${cartId}`
+        process.env.VITE_BASE_URL + `/cart/cart-items/${cartId}`
       );
       return response.data;
     } catch (error) {

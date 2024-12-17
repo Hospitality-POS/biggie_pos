@@ -36,6 +36,8 @@ const ChangeSubscriptionModal: React.FC<ChangeSubscriptionModalProps> = ({
     }
   }, [open, tenant, form]);
 
+  const isDisabled = tenant.invoices && tenant.invoices.length > 0;
+
   const dispatch = useDispatch();
 
   const handleSubmit = async () => {
@@ -61,7 +63,7 @@ const ChangeSubscriptionModal: React.FC<ChangeSubscriptionModalProps> = ({
   return (
     <ModalForm
       trigger={
-        <Button type="primary" icon={<SwapOutlined />}>
+        <Button type="primary" icon={<SwapOutlined />} disabled={isDisabled}>
           Change Plan
         </Button>
       }

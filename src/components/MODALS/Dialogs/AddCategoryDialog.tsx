@@ -79,7 +79,7 @@ const AddCategoryDialog: React.FC<AddCategoryDialogProps> = ({
 
   const fetchSubCategories = async () => {
     const response = await axiosInstance.get(
-      "http://localhost:3000/categories/sub-categories"
+      process.env.VITE_BASE_URL + "/categories/sub-categories"
     );
     return response.data;
   };

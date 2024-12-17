@@ -52,6 +52,7 @@ axiosInstance.interceptors.response.use(
     (error) => {
 
         const { response } = error;
+        console.log('resp', response);
         if (response && response.status === 401) {
             handleError("Unauthorized. Please login again.");
         } else if (response.status === 403) {
@@ -62,6 +63,8 @@ axiosInstance.interceptors.response.use(
         }
         else if (response.status === 400) {
             handleError("Failed to make payment  ");
+        } else if (response.status === 404) {
+            handleError(response.data.message);
         }
 
         else {
