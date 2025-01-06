@@ -8,6 +8,7 @@ import {
   ShoppingOutlined,
   CarOutlined,
   StockOutlined,
+  RestOutlined,
 } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
@@ -235,6 +236,44 @@ const Reports: React.FC = () => {
               <StockOutlined style={{ color: "#1890ff" }} />{" "}
               {/* Blue for Delivery */}
               Inventory Usage Report
+            </Space>
+          }
+          key="usage"
+        >
+          <Space direction="vertical" size={16}>
+            <RangePicker
+              showTime={{ format: "HH:mm" }}
+              format="YYYY-MM-DD HH:mm"
+              presets={rangePresets}
+              onChange={(dates) =>
+                setInventoryUsageDateTimeRange([
+                  dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                  dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                ])
+              }
+            />
+            <Button
+              type="primary"
+              onClick={generateReportHandler}
+              disabled={isGenerateButtonDisabled}
+              icon={<BarChartOutlined />}
+            >
+              Generate Report
+            </Button>
+            <InventoryUsageReportModal
+              openM={openInventoryUsageModal}
+              onCloseM={onCloseInventoryUsageModal}
+              startDate={inventoryUsageDateTimeRange[0]}
+              endDate={inventoryUsageDateTimeRange[1]}
+            />
+          </Space>
+        </TabPane>
+        <TabPane
+          tab={
+            <Space>
+              <RestOutlined style={{ color: "#1890ff" }} />{" "}
+              {/* Blue for Delivery */}
+              Tips  Report
             </Space>
           }
           key="usage"

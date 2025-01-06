@@ -42,9 +42,9 @@ export const getCart = createAsyncThunk(
   "cart/getCart",
   async (tableId: string, { rejectWithValue }) => {
     try {
-      // console.log("waaat", tableId);
+      console.log("waaat", tableId);
       const response = await axiosInstance.get(`${baseUrl}/cart/${tableId}`);
-      // console.log("res get me", response.data);
+      console.log("res get me", response.data);
 
       return response.data;
     } catch (error: any) {
@@ -181,15 +181,18 @@ export const transferCartitemsAction = createAsyncThunk(
 export const updateCart = createAsyncThunk(
   "cart/updateCart",
   async (
+
     { cart, data }: updateCartInterface,
     { rejectWithValue, dispatch }: ThunkApi
   ) => {
     try {
+
       const response = await axiosInstance.put(
         `${baseUrl}/update-cart/${cart?._id}`,
         data
       );
-      dispatch(getCart(cart?.table_id));
+      console.log('data new', cart);
+      dispatch(getCart(cart?.table_id._id));
 
       return response.data;
     } catch (error: any) {

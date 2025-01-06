@@ -184,6 +184,14 @@ const CartDrawer: React.FC = () => {
               <Typography.Text strong>
                 Served By: <SmileFilled /> {cartDetails?.created_by?.username}
               </Typography.Text>
+              {cartDetails?.tip_amount && (
+                <Typography.Text strong>
+                  <RestOutlined /> Tip Value:
+                  {cartDetails?.tip_type === "amount"
+                    ? ` KSH. ${cartDetails?.tip_amount?.toLocaleString()}`
+                    : ` ${cartDetails?.tip_amount}%`}
+                </Typography.Text>
+              )}
               {/* <DiscountModal data={cartDetails} /> */}
             </div>
             <div
@@ -213,6 +221,7 @@ const CartDrawer: React.FC = () => {
                     : ` ${cartDetails?.discount}%`}
                 </Typography.Text>
               )}
+
             </div>
 
             <Space
