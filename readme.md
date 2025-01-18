@@ -31,7 +31,7 @@ to confirm  that docker is installed
 
 
 ## NEXT
-* After making sure its running, head over to chrome/brave and enter this url `http://localhost:5373`
+* After making sure its running, head over to chrome/brave and enter this url `http://localhost:5374`
 
 
 
