@@ -42,6 +42,7 @@ import { DrawerForm, ProCard } from "@ant-design/pro-components";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import DiscountModal from "@components/MODALS/pro/DiscountModal";
 import { getAllOrders } from "@services/orders";
+import TipModal from "@components/MODALS/pro/TipModal";
 
 const PaymentDrawer: React.FC = () => {
   const [form] = Form.useForm();
@@ -238,6 +239,7 @@ const PaymentDrawer: React.FC = () => {
             Payment
           </Typography.Text>
           <DiscountModal data={cartDetails} />
+          <TipModal data={cartDetails} />
         </Space>
       }
       key={"payment"}
@@ -271,12 +273,26 @@ const PaymentDrawer: React.FC = () => {
               precision={2}
             />
           </Col>
-          <Col span={12}>
+          <Col span={6}>
             <Statistic
               title="Discount"
               value={cartDetails?.discount}
               prefix={
                 cartDetails?.discount_type === "percentage" ? (
+                  <PercentageOutlined />
+                ) : (
+                  "Ksh."
+                )
+              }
+              precision={2}
+            />
+          </Col>
+          <Col span={6}>
+            <Statistic
+              title="Tip Value"
+              value={cartDetails?.tip_amount}
+              prefix={
+                cartDetails?.tip_type === "percentage" ? (
                   <PercentageOutlined />
                 ) : (
                   "Ksh."

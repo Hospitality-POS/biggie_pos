@@ -28,6 +28,8 @@ interface CartDetails {
   status: string;
   discount: number;
   discount_type: string;
+  tip_amount: number;
+  tip_type: string;
   clientPin: string;
   createdAt: string;
   updatedAt: string;
@@ -69,6 +71,8 @@ const initialState: CartState = {
     createdAt: "",
     discount: 0,
     discount_type: "",
+    tip_amount: 0,
+    tip_type: "",
     clientPin: "N/A",
     updatedAt: "",
     __v: 0,
@@ -189,13 +193,13 @@ const cartSlice = createSlice({
           (total: any, item: any) => total + parseFloat(item?.price),
           0
         );
-         if (state.cartDetails.discount_type === "amount") {
-           state.totalAmount -= state.cartDetails.discount;
-         } else if (state.cartDetails.discount_type === "percentage") {
-           const discountAmount =
-             (state.totalAmount * state.cartDetails.discount) / 100;
-           state.totalAmount -= discountAmount;
-         }
+        if (state.cartDetails.discount_type === "amount") {
+          state.totalAmount -= state.cartDetails.discount;
+        } else if (state.cartDetails.discount_type === "percentage") {
+          const discountAmount =
+            (state.totalAmount * state.cartDetails.discount) / 100;
+          state.totalAmount -= discountAmount;
+        }
       })
       .addCase(getCart.rejected, (state, action) => {
         state.loading = false;

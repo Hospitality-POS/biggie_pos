@@ -8,7 +8,6 @@ import {
 } from "@ant-design/pro-form";
 import { PercentageOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { addDiscount } from "@features/Cart/CartSlice";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { updateCart } from "@features/Cart/CartActions";
 
@@ -43,7 +42,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
       trigger={
         user?.role === "admin" && (
           <Button type="primary" icon={<PercentageOutlined />} block>
-            Offer Discount?
+            Offer Discount
           </Button>
         )
       }
