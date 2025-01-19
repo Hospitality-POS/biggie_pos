@@ -14,6 +14,7 @@ import NotFound from "@routes/NotFound";
 import { Spin } from "antd/lib";
 import { COOP_NAME } from "@utils/config";
 import MainOrders from "@pages/Orders/MainOrders";
+import StaffLoginPage from "@pages/Login/Login";
 
 const Layout = lazy(() => import("@components/layout/Layout"));
 
@@ -120,6 +121,19 @@ const routes = createBrowserRouter(
             <Private>
               <MainStore />
             </Private>
+          </Suspense>
+        }
+      />
+      <Route
+        path="/login"
+        errorElement={<NotFound />}
+        element={
+          <Suspense
+            fallback={
+              <Spin size="large" fullscreen indicator={<Spinner />} />
+            }
+          >
+            <StaffLoginPage />
           </Suspense>
         }
       />

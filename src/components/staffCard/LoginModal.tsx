@@ -7,6 +7,7 @@ import { useLogin } from "./hook/useLogin";
 import { LoginOutlined } from "@ant-design/icons";
 import { useAppDispatch } from "src/store";
 import { verifyCompanyCode } from "@services/users";
+import { useNavigate } from "react-router-dom";
 
 type StaffModalProps = {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -21,12 +22,14 @@ const StaffModal: React.FC<StaffModalProps> = ({
   tbl,
   showButton,
 }) => {
-  const { handleLogin, handleNumberClick, handleClose, form } = useLogin(
+  const { handleNumberClick, handleClose, form } = useLogin(
     setOpen,
     tbl
   );
 
+
   const dispatch = useAppDispatch();
+  const navigation = useNavigate();
 
   const [companyCode, setCompanyCode] = useState<string | null>(null);
   const [step, setStep] = useState<"companyCode" | "pin">("companyCode");
@@ -40,6 +43,11 @@ const StaffModal: React.FC<StaffModalProps> = ({
       setStep("pin");
     }
   }, [open]);
+
+  const handleLogin = () => {
+    navigation("/login");
+  };
+
 
   const handleCompanyCodeSubmit = async (code: string) => {
     try {
@@ -73,7 +81,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
             <Button
               type="dashed"
               icon={<LoginOutlined />}
-              onClick={() => setOpen(true)}
+              onClick={handleLogin}
             >
               Login
             </Button>

@@ -35,18 +35,33 @@ export const useLogin = (setOpen: { (value: SetStateAction<boolean>): void; (arg
     });
   };
 
-  const handleLogin = async (pin: any) => {
+  const handleLogin = async (pin: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      // Validate the form
       await form.validateFields();
-      dispatch(loginUser({ pin }));
-      checkIfUserIsLoggedIn(tbl, user, cartError, setOpen);
-      if (!isUserLoggedIn) {
-        setOpen(false);
+
+      // Dispatch login action
+      const resp = await dispatch(loginUser({ pin }));
+
+
+      // Handle rejected login
+      if (resp?.error?.message === "Rejected") {
+        return { success: false, error: "Invalid PIN. Please try again." };
       }
+
+      // Check if the payload exists
+      if (resp?.payload) {
+        return { success: true, user: resp.payload };
+      }
+
+      // Fallback for unexpected cases
+      return { success: false, error: "Login failed. Please try again." };
     } catch (error) {
-      // Handle form validation error
+      console.error("Error during login:", error);
+      return { success: false, error: "An unexpected error occurred during login." };
     }
   };
+
   return {
     handleLogin,
     handleNumberClick,
