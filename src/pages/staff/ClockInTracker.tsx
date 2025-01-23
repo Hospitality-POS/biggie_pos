@@ -1,283 +1,338 @@
-import React, { useState } from 'react';
-import { Row, Col, Typography, Button, Form, Input, Space, Result } from 'antd';
-import {
-    ClockCircleOutlined,
-    UserOutlined
-} from '@ant-design/icons';
-
+import React, { useState } from "react";
+import { Row, Col, Typography, Button, Space, Result, message } from "antd";
+import { ClockCircleOutlined, DeleteOutlined, LockOutlined, QrcodeOutlined, SendOutlined } from "@ant-design/icons";
+import { ProCard } from "@ant-design/pro-components";
 import { staffClockInOut } from "@services/customers";
-import { ProCard } from '@ant-design/pro-components';
+
+const { Title, Text, Paragraph } = Typography;
 
 const StaffClockTracker = () => {
-    const [form] = Form.useForm();
-    const [loading, setLoading] = useState(false);
-    const [clockStatus, setClockStatus] = useState(null);
+  const [pin, setPin] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [pinEntered, setPinEntered] = useState(false);
+  const [pinError, setPinError] = useState(false);
+    const [clockStatus, setClockStatus] = useState({
+        isClockIn: undefined,
+        timestamp: "",
+        staffName: "",
+    });
 
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const clientName = tenant ? tenant.name : "Relia";
 
-    const clientName = tenant ? tenant.name : "Relia";
+  const params = new URLSearchParams(window.location.search);
+  const tenantId = params.get("tenant_id");
+  const shopId = params.get("shop_id");
 
-    const params = new URLSearchParams(window.location.search);
-    const tenantId = params.get("tenant_id");
-    const shopId = params.get("shop_id");
+  const handlePinSubmit = async () => {
+    setLoading(true);
+    try {
 
 
-    const handleStaffClockInOut = async (values) => {
-        setLoading(true);
-        try {
-            const { staffPin } = values;
+                // const { staffPin } = values;
 
-            const payload = {
-                pin: staffPin,
-                tenant_id: tenantId,
-                shop_id: shopId
+                const payload = {
+                  pin: pin,
+                  tenant_id: tenantId,
+                  shop_id: shopId,
+                };
+
+                const response = await staffClockInOut(payload);
+
+                console.log("clock in status", response.status);
+                const isClockIn =
+                  response &&
+                  (response.status === 200
+                    ? true
+                    : response.status === 201
+                    ? false
+                    : undefined);
+
+                setClockStatus({
+                  isClockIn,
+                  timestamp: new Date().toLocaleString(),
+                  staffName: response.data.staffClockRecord.staff_id.username,
+                });
+              } catch (error) {
+                console.error("Clock in/out failed", error);
+              } finally {
+                setLoading(false);
+              }
             };
 
-            const response = await staffClockInOut(payload);
+//       if (pin) {
+//         setPinEntered(true);
+//         message.success("Pin entered successfully!");
+//       } else {
+//         setPinError(true);
+//         message.error("Incorrect pin. Please try again.");
+//       }
+//     } catch (error) {
+//       message.error("Something went wrong. Please try again.");
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
 
+  const resetPinState = () => {
+    setPinEntered(false);
+    setPin("");
+    setPinError(false);
+  };
 
-            console.log('clock in status', response.status);
-            const isClockIn = response && (response.status === 200 ? true : (response.status === 201 ? false : undefined));
+  const MobileHeader = () => (
+    <div
+      style={{
+        padding: "24px",
+        textAlign: "center",
+        background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+        borderRadius: "16px 16px 0 0",
+      }}
+    >
+      <img
+        src="/relia.png"
+        alt="store-logo"
+        style={{
+          width: "128px",
+          height: "auto",
+          marginBottom: "16px",
+          margin: "0 auto",
+        }}
+      />
+      <Title
+        level={4}
+        style={{
+          color: "white",
+          margin: 0,
+          fontSize: "18px",
+        }}
+      >
+        Welcome to {clientName}
+      </Title>
+      <Text style={{ color: "#e0e0e0", fontSize: "14px" }}>
+        Clock In to Start Your Day" or "Clock Out to End Your Day
+      </Text>
+    </div>
+  );
 
-
-            setClockStatus({
-                isClockIn,
-                timestamp: new Date().toLocaleString(),
-                staffName: response.data.staffClockRecord.staff_id.username
-            });
-
-        } catch (error) {
-            console.error("Clock in/out failed", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-
-    const resetState = () => {
-        setClockStatus(null);
-        form.resetFields();
-    };
-
-    const RetailBackground = () => (
-        <svg
-            style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                opacity: 0.08,
-            }}
-            viewBox="0 0 100 100"
-            preserveAspectRatio="xMidYMid slice"
-        >
-            <defs>
-                <pattern
-                    id="retail-grid"
-                    width="20"
-                    height="20"
-                    patternUnits="userSpaceOnUse"
-                >
-                    <path
-                        d="M 20 0 L 0 0 0 20"
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="0.5"
-                    />
-                    <path d="M 10 5 L 15 5 L 15 8 L 12.5 10 L 10 8 Z" fill="white" />
-                    <path
-                        d="M 5 15 C 5 15 6 12 8 12 C 10 12 10 15 10 15"
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="0.5"
-                    />
-                </pattern>
-            </defs>
-            <rect width="100" height="100" fill="url(#retail-grid)" />
-        </svg>
-    );
-
-    return (
+  const DesktopSidebar = () => (
+    <div
+      style={{
+        position: "relative",
+        height: "500px",
+        minHeight: "500px",
+        background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+        padding: "32px",
+        borderRadius: "16px 0 0 16px",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          textAlign: "center",
+        }}
+      >
         <div
+          style={{
+            background: "rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(10px)",
+            padding: "40px",
+            borderRadius: "24px",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <img
+            src="/relia.png"
+            alt="store-logo"
             style={{
-                minHeight: "100vh",
+              width: "192px",
+              height: "auto",
+              marginBottom: "24px",
+              margin: "0 auto",
+            }}
+          />
+          <Title
+            level={2}
+            style={{
+              color: "white",
+              fontSize: "24px",
+              fontWeight: 600,
+              marginBottom: "24px",
+              textShadow: "0 2px 4px rgba(0,0,0,0.2)",
+            }}
+          >
+            Secure Access
+          </Title>
+          <Paragraph
+            style={{
+              color: "rgba(255, 255, 255, 0.9)",
+              fontSize: "16px",
+              lineHeight: 1.8,
+              maxWidth: "400px",
+              margin: "0 auto",
+              textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+            }}
+          >
+            Clock In to Start Your Day" or "Clock Out to End Your Day
+          </Paragraph>
+        </div>
+      </div>
+    </div>
+  );
+
+  const MainContent = () => (
+    <div style={{ maxWidth: "400px", width: "100%", margin: "0 auto" }}>
+      {pinEntered ? (
+        <Result
+          status="success"
+          title={<Title level={3}>Pin Entered Successfully!</Title>}
+          subTitle={
+            <Text style={{ fontSize: "16px", color: "#666" }}>
+              Welcome to the secure area.
+            </Text>
+          }
+          extra={
+            <Space direction="vertical" size="large" style={{ width: "100%" }}>
+              <Button type="primary" size="large" block onClick={resetPinState}>
+                Back to Home
+              </Button>
+            </Space>
+          }
+        />
+      ) : (
+        <div>
+          <div style={{ marginBottom: "24px", textAlign: "center" }}>
+            <Text style={{ fontSize: "16px", color: "#666" }}>
+              Enter your 4-digit pin to proceed:
+            </Text>
+          </div>
+          <div style={{ textAlign: "center", marginBottom: "16px" }}>
+            <Text style={{ fontSize: "24px", fontWeight: "bold" }}>
+              {pin.padEnd(4, "*")}
+            </Text>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "16px",
+            }}
+          >
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => (
+              <Button
+                key={number}
+                // type="primary"
+                size="large"
+                onClick={() =>
+                  setPin((prevPin) =>
+                    prevPin.length < 4 ? prevPin + number : prevPin
+                  )
+                }
+                disabled={pin.length >= 4}
+              >
+                {number}
+              </Button>
+            ))}
+            <Button
+              type="primary"
+              size="large"
+              onClick={() => setPin("")}
+              disabled={pin.length === 0}
+              icon={<DeleteOutlined />}
+            >
+              Clear
+            </Button>
+            <Button
+            //   type="primary"
+              size="large"
+              onClick={() =>
+                setPin((prevPin) =>
+                  prevPin.length < 4 ? prevPin + "0" : prevPin
+                )
+              }
+              disabled={pin.length >= 4}
+            >
+              0
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              onClick={handlePinSubmit}
+              disabled={pin.length !== 4}
+              loading={loading}
+              icon={<ClockCircleOutlined />}
+            >
+            In/Out
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+        backgroundSize: "cover",
+        backgroundImage: `url("/try.png")`,
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      <ProCard
+        ghost
+        style={{
+          width: "100%",
+          maxWidth: "1200px",
+          background: "rgba(255, 255, 255, 0.95)",
+          borderRadius: "16px",
+          overflow: "hidden",
+          boxShadow: "0 4px 24px rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        <Row>
+          {/* Desktop Sidebar - Hidden on Mobile */}
+          <Col xs={0} md={12} style={{ height: "500px" }}>
+            <DesktopSidebar />
+          </Col>
+
+          {/* Mobile Header - Shown only on Mobile */}
+          <Col xs={24} md={0}>
+            <MobileHeader />
+          </Col>
+
+          {/* Main Content */}
+          <Col xs={24} md={12}>
+            <div
+              style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundImage: "url(/try.png)",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
-                padding: "1rem"
-            }}
-        >
-            <ProCard
-                boxShadow
-                style={{
-                    maxWidth: "1000px",
-                    width: "100%",
-                    padding: 0,
-                    borderRadius: "8px",
-                }}
-                bodyStyle={{ padding: 0 }}
+                padding: "16px",
+                flexDirection: "column",
+                height: "100%",
+              }}
             >
-                <Row>
-                    <Col
-                        xs={24}
-                        md={12}
-                        style={{
-                            background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
-                            padding: "1rem",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            minHeight: "500px",
-                            position: "relative",
-                            overflow: "hidden",
-                            borderRadius: {
-                                xs: "8px",
-                                md: "8px 0 0 8px"
-                            }
-                        }}
-                    >
-                        <RetailBackground />
-                        <div
-                            style={{
-                                position: "relative",
-                                zIndex: 1,
-                                textAlign: "center",
-                                background: "rgba(255, 255, 255, 0.1)",
-                                padding: {
-                                    xs: "1rem",
-                                    md: "2rem"
-                                },
-                                borderRadius: "16px",
-                                backdropFilter: "blur(10px)",
-                                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    padding: "1rem",
-                                    marginBottom: "1rem",
-                                    display: "inline-block",
-                                }}
-                            >
-                                <img
-                                    src="/relia.png"
-                                    alt="store-logo"
-                                    width="100%"
-                                    height="auto"
-                                />
-                            </div>
-                            <h2
-                                style={{
-                                    color: "white",
-                                    fontSize: {
-                                        xs: "22px",
-                                        md: "28px"
-                                    },
-                                    marginBottom: "1rem",
-                                    fontWeight: "600",
-                                    textShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                                }}
-                            >
-                                Staff Clock In/Out
-                            </h2>
-                            <p
-                                style={{
-                                    color: "rgba(255, 255, 255, 0.9)",
-                                    textAlign: "center",
-                                    textShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                                    lineHeight: "1.6",
-                                    fontSize: {
-                                        xs: "14px",
-                                        md: "16px"
-                                    },
-                                    maxWidth: "280px",
-                                    margin: "0 auto",
-                                }}
-                            >
-                                Use your 4-digit PIN to clock in and out.
-                            </p>
-                        </div>
-                    </Col>
-                    <Col
-                        xs={24}
-                        md={12}
-                        style={{
-                            padding: {
-                                xs: "1rem",
-                                md: "2rem"
-                            },
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            minHeight: "500px",
-                        }}
-                    >
-                        <div
-                            style={{
-                                maxWidth: "360px",
-                                width: "100%",
-                                display: "flex",
-                                justifyContent: "center",
-                                flexDirection: "column",
-                            }}
-                        >
-                            {clockStatus ? (
-                                <Result
-                                    status="success"
-                                    title={`${clockStatus.isClockIn ? 'Clocked In' : 'Clocked Out'} Successfully`}
-                                    subTitle={`${clockStatus.staffName} - ${clockStatus.timestamp}`}
-                                    extra={
-                                        <Button type="primary" onClick={resetState}>
-                                            Clock {clockStatus.isClockIn ? 'Out' : 'In'}
-                                        </Button>
-                                    }
-                                />
-                            ) : (
-                                <Form
-                                    form={form}
-                                    layout="vertical"
-                                    onFinish={handleStaffClockInOut}
-                                    style={{ width: '100%' }}
-                                >
-                                    <Form.Item
-                                        name="staffPin"
-                                        label="Staff PIN"
-                                        rules={[
-                                            { required: true, message: 'Please enter your 4-digit PIN' },
-                                            { pattern: /^\d{4}$/, message: 'PIN must be exactly 4 digits' }
-                                        ]}
-                                    >
-                                        <Input
-                                            prefix={<UserOutlined />}
-                                            placeholder="Enter 4-digit PIN"
-                                            maxLength={4}
-                                        />
-                                    </Form.Item>
-
-                                    <Button
-                                        type="primary"
-                                        htmlType="submit"
-                                        block
-                                        icon={<ClockCircleOutlined />}
-                                        loading={loading}
-                                    >
-                                        Clock In/Out
-                                    </Button>
-                                </Form>
-                            )}
-                        </div>
-                    </Col>
-                </Row>
-            </ProCard>
-        </div>
-    );
+              <MainContent />
+            </div>
+          </Col>
+        </Row>
+      </ProCard>
+    </div>
+  );
 };
 
 export default StaffClockTracker;
