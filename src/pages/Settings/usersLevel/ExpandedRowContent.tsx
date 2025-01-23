@@ -1,7 +1,13 @@
-import React from 'react';
-import { ProDescriptions } from '@ant-design/pro-components';
-import { Typography, List, Card, Tag, Space } from 'antd';
-import { ClockCircleOutlined, CalendarOutlined, LoginOutlined, LogoutOutlined } from '@ant-design/icons';
+import React from "react";
+import { ProDescriptions } from "@ant-design/pro-components";
+import { Typography, List, Card, Tag, Space, Button } from "antd";
+import {
+  ClockCircleOutlined,
+  CalendarOutlined,
+  LoginOutlined,
+  LogoutOutlined,
+  PrinterFilled,
+} from "@ant-design/icons";
 
 interface ClockRecord {
   _id: string;
@@ -28,44 +34,44 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({ record }) => {
   const formatTimeDisplay = (dateString: string) => {
     const date = new Date(dateString);
     return {
-      date: date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+      date: date.toLocaleDateString("en-US", {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
       }),
-      time: date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
+      time: date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
   };
 
   const employeeInfo = [
     {
-      title: 'Username',
-      dataIndex: 'username',
+      title: "Username",
+      dataIndex: "username",
       value: username,
     },
     {
-      title: 'Pin',
-      dataIndex: 'pin',
+      title: "Pin",
+      dataIndex: "pin",
       value: pin,
     },
     {
-      title: 'Phone No.',
-      dataIndex: 'phone',
+      title: "Phone No.",
+      dataIndex: "phone",
       value: phone,
     },
     {
-      title: 'Date created',
-      dataIndex: 'createdAt',
+      title: "Date created",
+      dataIndex: "createdAt",
       value: formattedCreatedAt,
     },
   ];
 
   return (
-    <div className="p-4">
+    <div style={{ padding: "16px" }}>
       <ProDescriptions
         size="small"
         tooltip="Employee Information"
@@ -77,11 +83,11 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({ record }) => {
 
       <Card
         title={
-          <Typography.Title level={5} className="m-0">
+          <Typography.Title level={5} style={{ margin: 0 }}>
             Clock In/Out History
           </Typography.Title>
         }
-        className="mt-4"
+        style={{ marginTop: "16px" }}
       >
         <List
           size="small"
@@ -95,26 +101,55 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({ record }) => {
             return (
               <List.Item
                 key={record._id}
-                className="flex flex-col sm:flex-row items-start sm:items-center gap-2"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                  alignItems: "start",
+                }}
               >
                 <Space direction="vertical" size="small">
-                  <div className="flex items-center gap-2">
-                    <CalendarOutlined className="text-blue-500" />
-                    <span className="font-medium">{clockIn.date}</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <CalendarOutlined style={{ color: "#1890ff" }} />
+                    <span style={{ fontWeight: "500" }}>{clockIn.date}</span>
                   </div>
                   <Space size="large">
-                    <div className="flex items-center gap-2">
-                      <LoginOutlined className="text-green-500" />
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <LoginOutlined style={{ color: "#52c41a" }} />
                       <span>In: {clockIn.time}</span>
                     </div>
                     {clockOut ? (
-                      <div className="flex items-center gap-2">
-                        <LogoutOutlined className="text-red-500" />
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        <LogoutOutlined style={{ color: "#f5222d" }} />
                         <span>Out: {clockOut.time}</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <ClockCircleOutlined className="text-orange-500" />
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        <ClockCircleOutlined style={{ color: "#fa8c16" }} />
                         <Tag color="orange">Currently Working</Tag>
                       </div>
                     )}
@@ -123,9 +158,21 @@ const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({ record }) => {
               </List.Item>
             );
           }}
-          locale={{ emptyText: 'No Clock In or Out recorded' }}
+          locale={{ emptyText: "No Clock In or Out recorded" }}
         />
       </Card>
+
+      {/* Print Button */}
+      {clockInArray.length > 0 && (
+        <Button
+          style={{ marginTop: "16px" }}
+          type="primary"
+          onClick={() => window.print()}
+          icon={<PrinterFilled />}
+        >
+          Print Clock In/Out History
+        </Button>
+      )}
     </div>
   );
 };

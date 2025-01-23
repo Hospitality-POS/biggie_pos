@@ -52,7 +52,12 @@ const UsersTable = () => {
             okText="Yes"
             cancelText="No"
           >
-            <Button type="primary" danger icon={<DeleteOutlined />} size="small">
+            <Button
+              type="primary"
+              danger
+              icon={<DeleteOutlined />}
+              size="small"
+            >
               Delete
             </Button>
           </Popconfirm>
@@ -61,9 +66,6 @@ const UsersTable = () => {
     ],
   };
 
-  const expandedRowRender = (record: any) => {
-    return <ExpandedRowContent record={record} />;
-  };
   return (
     <>
       <ProTable
@@ -82,10 +84,6 @@ const UsersTable = () => {
             dataIndex: "fullname",
             key: "fullname",
             hideInSearch: false,
-            fieldProps: {
-              placeholder: "Enter User's name",
-            },
-
             render: (text, record) => (
               <div style={{ display: "flex", alignItems: "center" }}>
                 <Avatar
@@ -101,13 +99,8 @@ const UsersTable = () => {
             title: "User email",
             dataIndex: "email",
             key: "email",
-            hideInSearch: false,
             copyable: true,
             ellipsis: true,
-            fieldProps: {
-              placeholder: "Enter user's email",
-            },
-
             render: (text) => (
               <div style={{ display: "flex", alignItems: "center" }}>
                 <MailOutlined />
@@ -115,23 +108,11 @@ const UsersTable = () => {
               </div>
             ),
           },
-
           {
             title: "Role",
             dataIndex: ["role", "role_type"],
-            hideInSearch: true,
             render: (text) => (
-              <Tag
-                color={
-                  text === "admin"
-                    ? "red-inverse"
-                    : text === "supervisor"
-                    ? "gold-inverse"
-                    : text === "waiter"
-                    ? "cyan-inverse"
-                    : "processing"
-                }
-              >
+              <Tag color={text === "admin" ? "red-inverse" : "processing"}>
                 {text}
               </Tag>
             ),
@@ -139,11 +120,10 @@ const UsersTable = () => {
           {
             title: "Status",
             dataIndex: "status",
-            hideInSearch: true,
             render: (status) => (
               <Badge
                 status={status === "Active" ? "success" : "error"}
-                text={status === "Active" ? "Active" : "Suspended"}
+                text={status}
               />
             ),
           },
@@ -151,43 +131,19 @@ const UsersTable = () => {
         ]}
         request={async (params) => {
           const data = await fetchAllUsersList(params);
-          console.log("======", params);
-
-          return {
-            data: data,
-            success: true,
-            total: data.length,
-          };
+          return { data, success: true, total: data.length };
         }}
-        options={{
-          fullScreen: true,
-        }}
-        tableAlertRender={({ selectedRowKeys }) => {
-          return <p>You have selected {selectedRowKeys.length}</p>;
-        }}
+        options={{ fullScreen: true }}
         actionRef={actionRef}
-        rowSelection={{
-          alwaysShowAlert: false,
-          selections: false,
-        }}
-        scroll={{ x: "inherit" }}
-        search={{
-          searchText: "Search User",
-          resetText: "Reset",
-          labelWidth: "auto",
-        }}
         expandable={{
-          expandedRowRender,
-          defaultExpandAllRows: false,
-          expandIconColumnIndex: 1,
-          columnTitle: " ",
+          expandedRowRender: (record) => <ExpandedRowContent record={record} />,
         }}
         dateFormatter="string"
         headerTitle="List of All Users"
-        toolBarRender={() => [<AddEditProUserModal actionRef={actionRef} />]}
       />
     </>
   );
 };
 
 export default UsersTable;
+
