@@ -110,6 +110,7 @@ const UsersTable = () => {
           },
           {
             title: "Role",
+            search: false,
             dataIndex: ["role", "role_type"],
             render: (text) => (
               <Tag color={text === "admin" ? "red-inverse" : "processing"}>
@@ -119,6 +120,7 @@ const UsersTable = () => {
           },
           {
             title: "Status",
+            search: false,
             dataIndex: "status",
             render: (status) => (
               <Badge
