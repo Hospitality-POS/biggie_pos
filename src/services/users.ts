@@ -24,7 +24,7 @@ export const updateSubscription = createAsyncThunk(
     try {
       const url = `${BASE_URL}/users/update-package`;
       const response = await axiosInstance.post(url, data);
-      console.log('nice bbb', response);
+      // console.log('nice bbb', response);
       if (response && response.data && response.data.data) {
         localStorage.setItem("tenant", JSON.stringify(response.data.data));
       }

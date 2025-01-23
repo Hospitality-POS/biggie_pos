@@ -23,7 +23,6 @@ import { logCustomerVisit, addNewCustomer } from "@services/customers";
 import { ProCard } from "@ant-design/pro-components";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
-import "./index.css";
 
 const { Title, Text, Paragraph } = Typography;
 

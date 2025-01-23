@@ -58,7 +58,7 @@ export default function TablePro() {
   // Show login modal and blur background if companyCode is not present
   useEffect(() => {
     if (!storedCode) {
-      console.log('nice e', storedCode);
+      // console.log('nice e', storedCode);
       setIsBackgroundBlurred(true);
       setOpen(true); // Open the login modal
       setSelectedProductId('undefined'); // Ensure it's null to open modal without a specific product
