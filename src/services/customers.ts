@@ -38,7 +38,7 @@ export const staffClockInOut = async (params: ParamsType) => {
     try {
         console.log('params', params);
         const response = await axiosInstance.post(categ_url + '/clock-in', { ...params });
-        message.success("Customer visit logged  successfully");
+        // message.success("Customer visit logged  successfully");
         return response;
     } catch (error) {
 
@@ -50,7 +50,7 @@ export const logCustomerVisit = async (params: ParamsType) => {
     try {
         console.log('params', params);
         const response = await axiosInstance.post(categ_url + '/log-visit', { ...params });
-        message.success("Customer visit logged  successfully");
+        // message.success("Customer visit logged  successfully");
         return response;
     } catch (error) {
         console.log('error', error);
