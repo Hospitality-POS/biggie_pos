@@ -1,398 +1,487 @@
-import React, { useState } from 'react';
-import { Row, Col, Typography, Button, Form, Input, Space, Result, message } from 'antd';
+import React, { useState } from "react";
 import {
-    SaveOutlined,
-    QrcodeOutlined,
-    UserAddOutlined,
-    MailOutlined,
-    CopyOutlined
-} from '@ant-design/icons';
-
+  Row,
+  Col,
+  Typography,
+  Button,
+  Form,
+  Input,
+  Space,
+  Result,
+  message,
+} from "antd";
+import {
+  SaveOutlined,
+  QrcodeOutlined,
+  UserAddOutlined,
+  MailOutlined,
+  CopyOutlined,
+  UserOutlined,
+  LeftOutlined,
+} from "@ant-design/icons";
 import { logCustomerVisit, addNewCustomer } from "@services/customers";
-import { ProCard } from '@ant-design/pro-components';
+import { ProCard } from "@ant-design/pro-components";
+import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
+import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
+import "./index.css";
+
+const { Title, Text, Paragraph } = Typography;
 
 const CustomerVisitTracker = () => {
-    const [form] = Form.useForm();
-    const [customerDetails, setCustomerDetails] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [registrationMode, setRegistrationMode] = useState(false);
-    const [visitCompleted, setVisitCompleted] = useState(false);
-    const [generatedCode, setGeneratedCode] = useState(null);
-    const [visitType, setVisitType] = useState(null);
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [registrationMode, setRegistrationMode] = useState(false);
+  const [visitCompleted, setVisitCompleted] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState(null);
+  const [visitType, setVisitType] = useState(null);
 
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const clientName = tenant ? tenant.name : "Relia";
 
-    const clientName = tenant ? tenant.name : "Relia";
+  const params = new URLSearchParams(window.location.search);
+  const tenantId = params.get("tenant_id");
+  const shopId = params.get("shop_id");
 
-    const params = new URLSearchParams(window.location.search);
-    const tenantId = params.get("tenant_id");
-    const shopId = params.get("shop_id");
+ const welcomeMessages = [
+   "🎉 Great to see you again! 🙌",
+   "We missed you, welcome back! ❤️",
+   "Hello again, ready for something new? 🚀",
+   "It's awesome to have you back! 😄",
+   "You're back! Let's get started! 💪",
+   "Back at it again! We've got more in store for you! 🎁",
+   "Welcome back, your favorite spot is waiting! 🏆",
+   "Always a pleasure to see you return! 🌟",
+   "We’re thrilled to have you back! 💙",
+ ];
 
-    const handleCustomerRegistration = async (values) => {
-        setLoading(true);
-        const { email, name, phone } = values;
 
-        const payload = {
-            email,
-            phone,
-            customer_name: name,
-            tenant_id: tenantId,
-            shop_id: shopId
-        };
-        const response = await addNewCustomer(payload);
-        if (response && response.status === 201) {
-            const customerCode = response.data.customer.code;
-            setGeneratedCode(customerCode);
-            setVisitType('registration');
-            setVisitCompleted(true);
-        }
-        setLoading(false);
-    };
+  const getRandomWelcomeMessage = () => {
+    const randomIndex = Math.floor(Math.random() * welcomeMessages.length);
+    return welcomeMessages[randomIndex];
+  };
 
-    const handleVisitLog = async (values) => {
-        setLoading(true);
-        const { customerCode } = values;
+   const randomMessage = getRandomWelcomeMessage();
+  // Business logic functions remain the same
+  const handleCustomerRegistration = async (values) => {
+    setLoading(true);
+    try {
+      const { email, name, phoneNumber } = values;
+      const phone = getPhoneNumber(phoneNumber);
+      const payload = {
+        email,
+        phone,
+        customer_name: name,
+        tenant_id: tenantId,
+        shop_id: shopId,
+      };
+      const response = await addNewCustomer(payload);
+      if (response?.status === 201) {
+        const customerCode = response.data.customer.code;
+        setGeneratedCode(customerCode);
+        setVisitType("registration");
+        setVisitCompleted(true);
+        message.success("Registration successful!");
+      }
+    } catch (error) {
+      message.error("Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        const payload = {
-            customerCode: customerCode,
-            tenant_id: tenantId,
-            shop_id: shopId
-        };
-        const resp = await logCustomerVisit(payload);
-        if (resp && resp.status === 200) {
-            setVisitType('visit');
-            setVisitCompleted(true);
-        }
-        setLoading(false);
-    };
+  const handleVisitLog = async (values) => {
+    setLoading(true);
+    try {
+      const { phoneNumber } = values;
+      const customerCode = getPhoneNumber(phoneNumber);
+      const payload = {
+        customerCode,
+        tenant_id: tenantId,
+        shop_id: shopId,
+      };
+      const resp = await logCustomerVisit(payload);
+      if (resp?.status === 200) {
+        setVisitType("visit");
+        setVisitCompleted(true);
+        message.success("Visit logged successfully!");
+      }
+    } catch (error) {
+      message.error("Failed to log visit. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const copyCodeToClipboard = () => {
-        if (generatedCode) {
-            navigator.clipboard.writeText(generatedCode).then(() => {
-                message.success('Customer code copied to clipboard');
-            }).catch(err => {
-                message.error('Failed to copy customer code');
-            });
-        }
-    };
+  const copyCodeToClipboard = () => {
+    if (generatedCode) {
+      navigator.clipboard
+        .writeText(generatedCode)
+        .then(() => message.success("Customer code copied to clipboard"))
+        .catch(() => message.error("Failed to copy customer code"));
+    }
+  };
 
-    const resetState = () => {
-        setCustomerDetails(null);
-        setRegistrationMode(false);
-        setVisitCompleted(false);
-        setGeneratedCode(null);
-        setVisitType(null);
-        form.resetFields();
-    };
+  const resetState = () => {
+    setRegistrationMode(false);
+    setVisitCompleted(false);
+    setGeneratedCode(null);
+    setVisitType(null);
+    form.resetFields();
+  };
 
-    const RetailBackground = () => (
-        <svg
-            style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                opacity: 0.08,
-            }}
-            viewBox="0 0 100 100"
-            preserveAspectRatio="xMidYMid slice"
+  const RetailBackground = () => (
+    <svg
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        opacity: 0.1,
+        zIndex: 0,
+      }}
+      viewBox="0 0 100 100"
+      preserveAspectRatio="xMidYMid slice"
+    >
+      <defs>
+        <pattern
+          id="retail-grid"
+          width="20"
+          height="20"
+          patternUnits="userSpaceOnUse"
         >
-            <defs>
-                <pattern
-                    id="retail-grid"
-                    width="20"
-                    height="20"
-                    patternUnits="userSpaceOnUse"
-                >
-                    <path
-                        d="M 20 0 L 0 0 0 20"
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="0.5"
-                    />
-                    <path d="M 10 5 L 15 5 L 15 8 L 12.5 10 L 10 8 Z" fill="white" />
-                    <path
-                        d="M 5 15 C 5 15 6 12 8 12 C 10 12 10 15 10 15"
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="0.5"
-                    />
-                </pattern>
-            </defs>
-            <rect width="100" height="100" fill="url(#retail-grid)" />
-        </svg>
-    );
+          <path
+            d="M 20 0 L 0 0 0 20"
+            fill="none"
+            stroke="white"
+            strokeWidth="0.5"
+          />
+          <path d="M 10 5 L 15 5 L 15 8 L 12.5 10 L 10 8 Z" fill="white" />
+          <path
+            d="M 5 15 C 5 15 6 12 8 12 C 10 12 10 15 10 15"
+            fill="none"
+            stroke="white"
+            strokeWidth="0.5"
+          />
+        </pattern>
+      </defs>
+      <rect width="100" height="100" fill="url(#retail-grid)" />
+    </svg>
+  );
 
-    return (
+  const MobileHeader = () => (
+    <div
+      style={{
+        padding: "24px",
+        textAlign: "center",
+        background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+        borderRadius: "16px 16px 0 0",
+      }}
+    >
+      <img
+        src="/relia.png"
+        alt="store-logo"
+        style={{
+          width: "128px",
+          height: "auto",
+          marginBottom: "16px",
+          margin: "0 auto",
+        }}
+      />
+      <Title
+        level={4}
+        style={{
+          color: "white",
+          margin: 0,
+          fontSize: "18px",
+        }}
+      >
+        Welcome to {clientName}
+      </Title>
+      <Text style={{ color: "#e0e0e0", fontSize: "14px" }}>
+        We're dedicated to delivering a seamless and personalized experience
+        that puts your needs first.
+      </Text>
+    </div>
+  );
+
+  const DesktopSidebar = () => (
+    <div
+      style={{
+        position: "relative",
+        height: "500px",
+        minHeight: "500px",
+        background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+        padding: "32px",
+        borderRadius: "16px 0 0 16px",
+        overflow: "hidden",
+      }}
+    >
+      <RetailBackground />
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          textAlign: "center",
+        }}
+      >
         <div
+          style={{
+            background: "rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(10px)",
+            padding: "40px",
+            borderRadius: "24px",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <img
+            src="/relia.png"
+            alt="store-logo"
             style={{
-                minHeight: "100vh",
+              width: "192px",
+              height: "auto",
+              marginBottom: "24px",
+              margin: "0 auto",
+            }}
+          />
+          <Title
+            level={2}
+            style={{
+              color: "white",
+              fontSize: "24px",
+              fontWeight: 600,
+              marginBottom: "24px",
+              textShadow: "0 2px 4px rgba(0,0,0,0.2)",
+            }}
+          >
+            Customer Experience
+          </Title>
+          <Paragraph
+            style={{
+              color: "rgba(255, 255, 255, 0.9)",
+              fontSize: "16px",
+              lineHeight: 1.8,
+              maxWidth: "400px",
+              margin: "0 auto",
+              textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+            }}
+          >
+            We're dedicated to delivering a seamless and personalized experience
+            that puts your needs first.
+          </Paragraph>
+        </div>
+      </div>
+    </div>
+  );
+
+  const MainContent = () => (
+    <div style={{ maxWidth: "400px", width: "100%", margin: "0 auto" }}>
+      {visitCompleted ? (
+        <Result
+          status="success"
+          title={
+            <Title level={3}>
+              {visitType === "registration"
+                ? "Registration Successful!"
+                : "Visit Logged Successfully"}
+            </Title>
+          }
+          subTitle={
+            <Text style={{ fontSize: "16px", color: "#666" }}>
+              {visitType === "registration"
+                ? "Welcome to our community!"
+                : "Thank you for visiting us today!"}
+            </Text>
+          }
+          extra={
+            <Space direction="vertical" size="large" style={{ width: "100%" }}>
+              {generatedCode && (
+                <ProCard
+                  bordered
+                  style={{
+                    textAlign: "center",
+                    borderRadius: "12px",
+                    background: "#f5f5f5",
+                  }}
+                >
+                  <Space>
+                    <Text strong style={{ fontSize: "18px" }}>
+                      {generatedCode}
+                    </Text>
+                    <Button
+                      type="text"
+                      icon={<CopyOutlined />}
+                      onClick={copyCodeToClipboard}
+                    />
+                  </Space>
+                </ProCard>
+              )}
+              <Button type="primary" size="large" block onClick={resetState}>
+                Back to Home
+              </Button>
+            </Space>
+          }
+        />
+      ) : registrationMode ? (
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleCustomerRegistration}
+          size="large"
+          style={{ width: "100%" }}
+        >
+          <Form.Item
+            name="name"
+            label="Enter your full name"
+            rules={[{ required: true, message: "Please enter your name" }]}
+          >
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="Enter your full name"
+            />
+          </Form.Item>
+
+          <PhoneInput label="Enter your phone number" owner="phoneNumber" />
+
+          <Form.Item
+            name="email"
+            label="Enter your email address"
+            rules={[
+              { required: true, message: "Please enter email" },
+              { type: "email", message: "Please enter a valid email" },
+            ]}
+          >
+            <Input
+              prefix={<MailOutlined />}
+              placeholder="Enter your email address"
+            />
+          </Form.Item>
+
+          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              size="large"
+              icon={<SaveOutlined />}
+              loading={loading}
+            >
+              Register & Log Visit
+            </Button>
+            <Button
+              block
+              size="large"
+              onClick={() => setRegistrationMode(false)}
+              icon={<LeftOutlined />}
+            >
+              Go Back
+            </Button>
+          </Space>
+        </Form>
+      ) : (
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleVisitLog}
+          size="large"
+          style={{ width: "100%" }}
+        >
+          <Title
+            level={5}
+            style={{ marginBottom: "24px", textAlign: "center" }}
+          >
+            {randomMessage}
+          </Title>
+
+          <PhoneInput label="Enter your phone number" owner="phoneNumber" />
+
+          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              size="large"
+              icon={<QrcodeOutlined />}
+              loading={loading}
+            >
+              Log Visit
+            </Button>
+            <Button
+              type="default"
+              block
+              size="large"
+              icon={<UserAddOutlined />}
+              onClick={() => setRegistrationMode(true)}
+            >
+              First Time? Register Here
+            </Button>
+          </Space>
+        </Form>
+      )}
+    </div>
+  );
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+        backgroundSize: "cover",
+        backgroundImage: `url("/try.png")`,
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      <ProCard
+        ghost
+        style={{
+          width: "100%",
+          maxWidth: "1200px",
+          background: "rgba(255, 255, 255, 0.95)",
+          borderRadius: "16px",
+          overflow: "hidden",
+          boxShadow: "0 4px 24px rgba(0, 0, 0, 0.1)",
+        }}
+      >
+        <Row>
+          {/* Desktop Sidebar - Hidden on Mobile */}
+          <Col xs={0} md={12} style={{ height: "500px" }}>
+            <DesktopSidebar />
+          </Col>
+
+          {/* Mobile Header - Shown only on Mobile */}
+          <Col xs={24} md={0}>
+            <MobileHeader />
+          </Col>
+
+          {/* Main Content */}
+          <Col xs={24} md={12}>
+            <div
+              style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundImage: "url(/try.png)",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
-                padding: "1rem"
-            }}
-        >
-            <ProCard
-                boxShadow
-                style={{
-                    maxWidth: "1000px",
-                    width: "100%",
-                    padding: 0,
-                    borderRadius: "8px",
-                }}
-                bodyStyle={{ padding: 0 }}
+                padding: "16px",
+                flexDirection: "column",
+                height: "100%",
+              }}
             >
-                <Row>
-                    <Col
-                        xs={0}
-                        md={12}
-                        style={{
-                            background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
-                            padding: "1rem",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            minHeight: "500px",
-                            position: "relative",
-                            overflow: "hidden",
-                            borderRadius: "8px 0 0 8px"
-                        }}
-                    >
-                        <RetailBackground />
-                        <div
-                            style={{
-                                position: "relative",
-                                zIndex: 1,
-                                textAlign: "center",
-                                background: "rgba(255, 255, 255, 0.1)",
-                                padding: "2rem",
-                                borderRadius: "16px",
-                                backdropFilter: "blur(10px)",
-                                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    padding: "1rem",
-                                    marginBottom: "1rem",
-                                    display: "inline-block",
-                                }}
-                            >
-                                <img
-                                    src="/relia.png"
-                                    alt="store-logo"
-                                    width="100%"
-                                    height="auto"
-                                />
-                            </div>
-                            <h2
-                                style={{
-                                    color: "white",
-                                    fontSize: "28px",
-                                    marginBottom: "1rem",
-                                    fontWeight: "600",
-                                    textShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                                }}
-                            >
-                                Customer Experience
-                            </h2>
-                            <p
-                                style={{
-                                    color: "rgba(255, 255, 255, 0.9)",
-                                    textAlign: "center",
-                                    textShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                                    lineHeight: "1.6",
-                                    fontSize: "16px",
-                                    maxWidth: "280px",
-                                    margin: "0 auto",
-                                }}
-                            >
-                                We're committed to providing you with the best shopping experience.
-                            </p>
-                        </div>
-                    </Col>
-                    <Col
-                        xs={24}
-                        md={12}
-                        style={{
-                            padding: "1rem",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            minHeight: "500px",
-                        }}
-                    >
-                        <div
-                            style={{
-                                maxWidth: "360px",
-                                width: "100%",
-                                display: "flex",
-                                justifyContent: "center",
-                                flexDirection: "column",
-                            }}
-                        >
-                            {visitCompleted ? (
-                                <Result
-                                    status="success"
-                                    title={visitType === 'registration' ? "Registration Successful!" : "Visit Logged Successfully"}
-                                    subTitle={visitType === 'registration'
-                                        ? "Thank you for registering with us!"
-                                        : "Thank you for visiting our shop!"
-                                    }
-                                    extra={
-                                        <Space direction="vertical" style={{ width: '100%' }}>
-                                            {/* {generatedCode && (
-                                                <div style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    backgroundColor: '#f0f0f0',
-                                                    padding: '10px',
-                                                    borderRadius: '8px'
-                                                }}>
-                                                    <Typography.Text
-                                                        strong
-                                                        style={{
-                                                            marginRight: '10px',
-                                                            fontSize: '16px'
-                                                        }}
-                                                    >
-                                                        {generatedCode}
-                                                    </Typography.Text>
-                                                    <Button
-                                                        icon={<CopyOutlined />}
-                                                        onClick={copyCodeToClipboard}
-                                                    >
-                                                        Copy
-                                                    </Button>
-                                                </div>
-                                            )} */}
-                                            <Typography.Text type="secondary" style={{ textAlign: 'center', display: 'block' }}>
-                                                We look forward to serving you again soon! Please visit us again and tell your friends.
-                                            </Typography.Text>
-                                            <Button
-                                                type="primary"
-                                                block
-                                                onClick={resetState}
-                                            >
-                                                Back
-                                            </Button>
-                                        </Space>
-                                    }
-                                />
-                            ) : registrationMode ? (
-                                <Form
-                                    form={form}
-                                    layout="vertical"
-                                    onFinish={handleCustomerRegistration}
-                                    style={{ width: '100%' }}
-                                >
-                                    <Form.Item
-                                        name="name"
-                                        label="Customer Name"
-                                        rules={[{ required: true, message: 'Please enter customer name' }]}
-                                    >
-                                        <Input placeholder="Enter customer name" />
-                                    </Form.Item>
-
-                                    <Form.Item
-                                        name="phone"
-                                        label="Phone Number"
-                                        rules={[
-                                            { required: true, message: 'Please enter phone number' },
-                                            { pattern: /^[0-9]{10}$/, message: 'Please enter a valid 10-digit phone number' }
-                                        ]}
-                                    >
-                                        <Input placeholder="Enter 10-digit phone number" />
-                                    </Form.Item>
-
-                                    <Form.Item
-                                        name="email"
-                                        label="Email"
-                                        rules={[
-                                            { required: true, message: 'Please enter email' },
-                                            { type: 'email', message: 'Please enter a valid email' }
-                                        ]}
-                                    >
-                                        <Input
-                                            prefix={<MailOutlined />}
-                                            placeholder="Enter your email"
-                                        />
-                                    </Form.Item>
-
-                                    <Space direction="vertical" style={{ width: '100%' }}>
-                                        <Button
-                                            type="primary"
-                                            htmlType="submit"
-                                            block
-                                            disabled={loading}
-                                            icon={<SaveOutlined />}
-                                            loading={loading}
-                                        >
-                                            Get Code & Log Visit
-                                        </Button>
-                                        <Button
-                                            block
-                                            onClick={() => setRegistrationMode(false)}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </Space>
-                                </Form>
-                            ) : (
-                                <Form
-                                    form={form}
-                                    layout="vertical"
-                                    onFinish={handleVisitLog}
-                                    style={{ width: '100%' }}
-                                >
-                                    <Form.Item
-                                        name="customerCode"
-                                        label="Phone Number"
-                                        rules={[
-                                            { required: true, message: 'Please enter phone number' },
-                                            { pattern: /^[0-9]{10}$/, message: 'Please enter a valid 10-digit phone number' }
-                                        ]}
-                                    >
-                                        <Input placeholder="Enter 10-digit phone number" />
-                                    </Form.Item>
-
-                                    <Space direction="vertical" style={{ width: '100%' }}>
-                                        <Button
-                                            type="primary"
-                                            htmlType="submit"
-                                            block
-                                            disabled={loading}
-                                            icon={<QrcodeOutlined />}
-                                            loading={loading}
-                                        >
-                                            Log Visit
-                                        </Button>
-                                        <Button
-                                            type="default"
-                                            block
-                                            icon={<UserAddOutlined />}
-                                            onClick={() => setRegistrationMode(true)}
-                                        >
-                                            No Code? Get One
-                                        </Button>
-                                    </Space>
-                                </Form>
-                            )}
-                        </div>
-                    </Col>
-                </Row>
-            </ProCard>
-        </div>
-    );
+              <MainContent />
+            </div>
+          </Col>
+        </Row>
+      </ProCard>
+    </div>
+  );
 };
 
 export default CustomerVisitTracker;
