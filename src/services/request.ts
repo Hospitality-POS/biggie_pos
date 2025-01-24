@@ -17,10 +17,12 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
     (config) => {
         const user = localStorage.getItem("user");
+        const shopId = localStorage.getItem("shopId");
 
 
 
         if (user) {
+            ``
             const userObject = JSON.parse(user);
             const token = userObject.Token;
             if (token) {
@@ -28,6 +30,20 @@ axiosInstance.interceptors.request.use(
                 config.headers['Authorization'] = `Bearer ${token}`;
                 config.headers['currentUser'] = userObject._id || userObject.id;
                 console.log('Token added to headers:', config.headers['Authorization']);
+            }
+            if (shopId && !(config.url?.includes('/users') || config.url?.includes('/shops'))) {
+                if (config.method === 'get') {
+                    config.params = {
+                        ...config.params,
+                        shop_id: shopId,
+                        role: userObject?.role
+                    };
+                } else {
+                    config.data = {
+                        ...config.data,
+                        shop_id: shopId,
+                    };
+                }
             }
         }
         const storedCode = localStorage.getItem("companyCode");

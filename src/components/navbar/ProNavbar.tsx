@@ -22,8 +22,11 @@ const ProNavbar = () => {
   const handleLogout = () => {
     dispatch(logoutUser());
     dispatch(reset());
-    navigation("/tables");
+    navigation("/login");
   };
+
+
+
   const [open, setOpen] = useState(false);
   const tbl = "staff";
 

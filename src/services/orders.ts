@@ -27,6 +27,14 @@ export const getDashboardAnalysis = async () => {
     console.log(error);
   }
 };
+export const getAdminDashboardAnalysis = async () => {
+  try {
+    const response = await axiosInstance.get(`${BASE_URL}/orders/admin-dashboard/summary`);
+    return response.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
 
 export const getTodayOrdersCount = async (data: ParamsType) => {
   try {
