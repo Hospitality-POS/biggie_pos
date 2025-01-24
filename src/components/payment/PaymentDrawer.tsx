@@ -158,8 +158,8 @@ const PaymentDrawer: React.FC = () => {
     // dispatch(getCart(id))
     if (!error) {
       dispatch(createCart(id));
-      dispatch(logoutUser());
-      dispatch(reset());
+      // dispatch(logoutUser());
+      //dispatch(reset());
       navigate("/tables");
     }
   };

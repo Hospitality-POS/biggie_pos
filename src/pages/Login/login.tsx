@@ -93,7 +93,7 @@ const StaffLoginPage = () => {
         const { success, error, user: userPayload } = await handleLogin(enteredPin);
         console.log('user info', user);
         if (success && userPayload?.role === "admin") {
-            navigate("/tables");
+            navigate("/admin/dashboard");
         } else if (success) {
             navigate("/tables");
         } else {
