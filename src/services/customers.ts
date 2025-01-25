@@ -7,8 +7,6 @@ const categ_url = `${BASE_URL}/customers`;
 //  categories
 export const addNewCustomer = async (params: ParamsType) => {
     try {
-        params.tenant_id = '674dd82a9f6cd7b6a50e571b';
-        params.shop_id = '678409b73f1321be48285b3f';
         const response = await axiosInstance.post(categ_url, { ...params });
         message.success("Customer added successfully");
         return response;
@@ -19,6 +17,18 @@ export const addNewCustomer = async (params: ParamsType) => {
         throw new Error("Failed to add a new customer", error);
     }
 };
+export const staffClockInOut = async (params: ParamsType) => {
+    try {
+        console.log('params', params);
+        const response = await axiosInstance.post(categ_url + '/clock-in', { ...params });
+        message.success("Customer visit logged  successfully");
+        return response;
+    } catch (error) {
+
+        throw new Error("You have already clocked in and out for today");
+    }
+};
+
 export const logCustomerVisit = async (params: ParamsType) => {
     try {
         console.log('params', params);

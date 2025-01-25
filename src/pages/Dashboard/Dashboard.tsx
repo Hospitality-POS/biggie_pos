@@ -14,6 +14,7 @@ import {
     Space,
     Skeleton,
     message,
+    Tooltip
 } from "antd";
 import {
     ShoppingCartOutlined,
@@ -22,9 +23,10 @@ import {
     TeamOutlined,
     ClockCircleOutlined,
     TableOutlined,
-    DollarOutlined,
-    WarningOutlined,
-    ReloadOutlined
+    CopyOutlined,
+    UsergroupAddOutlined,
+    ReloadOutlined,
+    WarningOutlined
 } from '@ant-design/icons';
 import { getDashboardAnalysis } from "@services/orders";
 
@@ -37,6 +39,7 @@ const QUICK_ACCESS_BUTTONS = [
     { icon: <TeamOutlined />, text: 'Suppliers', route: '/suppliers', color: '#faad14' },
     { icon: <ClockCircleOutlined />, text: 'Shifts', route: '/employee-shift', color: '#eb2f96' },
     { icon: <TableOutlined />, text: 'Tables', route: '/table-settings', color: '#fa541c' },
+    { icon: <UsergroupAddOutlined />, text: 'Customers', route: '/customers', color: '#13c2c2' },
 ];
 
 const ORDER_COLUMNS = [
@@ -126,13 +129,19 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const [messageApi, contextHolder] = message.useMessage();
 
-    const { data, isLoading, refetch, isRefetching, error } = useQuery({
+    const {
+        data,
+        isLoading,
+        refetch,
+        isRefetching,
+        error
+    } = useQuery({
         queryKey: ["dashBoardAnalysis"],
         queryFn: getDashboardAnalysis,
         networkMode: "always",
-        refetchOnWindowFocus: false, // Prevent automatic refetch on window focus
-        staleTime: 30000, // Consider data fresh for 30 seconds
-        retry: 2, // Number of retry attempts if query fails
+        refetchOnWindowFocus: false,
+        staleTime: 30000,
+        retry: 2,
         onError: (error) => {
             messageApi.error({
                 content: 'Failed to fetch dashboard data. Please try again.',
@@ -151,13 +160,55 @@ const Dashboard = () => {
 
     const handleRefresh = async () => {
         try {
-            await refetch(); // This will trigger a new query
+            await refetch();
         } catch (error) {
             messageApi.error({
                 content: 'Failed to refresh dashboard. Please try again.',
                 duration: 3,
             });
         }
+    };
+
+    const handleCopyStaffUrl = () => {
+        const storedTenant = localStorage.getItem("tenant");
+        const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+        const tenantId = tenant?._id || null;
+        const shopId = localStorage.getItem("shopId");
+
+        const customerUrl = `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenantId}&shop_id=${shopId}`;
+
+        navigator.clipboard.writeText(customerUrl).then(() => {
+            messageApi.success({
+                content: 'Staff URL copied to clipboard!',
+                duration: 2,
+            });
+        }).catch(err => {
+            messageApi.error({
+                content: 'Failed to copy URL',
+                duration: 2,
+            });
+        });
+    };
+
+    const handleCopyCustomerUrl = () => {
+        const storedTenant = localStorage.getItem("tenant");
+        const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+        const tenantId = tenant?._id || null;
+        const shopId = localStorage.getItem("shopId");
+
+        const customerUrl = `${import.meta.env.VITE_APP_URL}/admin/customers?tenant_id=${tenantId}&shop_id=${shopId}`;
+
+        navigator.clipboard.writeText(customerUrl).then(() => {
+            messageApi.success({
+                content: 'Customer URL copied to clipboard!',
+                duration: 2,
+            });
+        }).catch(err => {
+            messageApi.error({
+                content: 'Failed to copy URL',
+                duration: 2,
+            });
+        });
     };
 
     const statisticsData = [
@@ -199,6 +250,22 @@ const Dashboard = () => {
                         >
                             {isRefetching ? 'Refreshing...' : 'Refresh'}
                         </Button>
+                        <Tooltip title="Copy Customer URL">
+                            <Button
+                                icon={<CopyOutlined />}
+                                onClick={handleCopyCustomerUrl}
+                            >
+                                Copy Customer URL
+                            </Button>
+                        </Tooltip>
+                        <Tooltip title="Copy Staff URL">
+                            <Button
+                                icon={<CopyOutlined />}
+                                onClick={handleCopyStaffUrl}
+                            >
+                                Copy Staff URL
+                            </Button>
+                        </Tooltip>
                         <Text>{new Date().toLocaleString()}</Text>
                     </Space>
                 </Row>

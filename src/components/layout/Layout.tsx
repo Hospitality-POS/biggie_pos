@@ -23,6 +23,8 @@ function Layout() {
 
   const isCustomersRoute = location.pathname === "/admin/customers";
 
+  const isClockInRoute = location.pathname === "/admin/staff-clock-in";
+
   const isAdminRoute =
     location.pathname === "/admin" || location.pathname.startsWith("/admin");
 
@@ -69,7 +71,7 @@ function Layout() {
     );
   };
 
-  if (isLoginRoute || isCustomersRoute) {
+  if (isLoginRoute || isCustomersRoute || isClockInRoute) {
     return (
       <div style={{ maxWidth: "1920px" }}>
         <App>
