@@ -18,10 +18,7 @@ import NubaLoader from "@components/spinner/NubaLoader";
 import StaffLoginPage from "@pages/Login/login";
 import Dashboard from "@pages/Dashboard/Dashboard";
 import CustomerRegistration from "@pages/Customer/Customer";
-<<<<<<< HEAD
 import StaffClockTracker from "@pages/staff/ClockInTracker";
-=======
->>>>>>> cb33917722c027dbda513d6ba1087ee4f77fae8a
 import HelpCenter from "src/AdminDashboard/HelpCenter/HelpCenterPage";
 import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
 import ShopManagement from "src/AdminDashboard/Shops/MainShopPage";
