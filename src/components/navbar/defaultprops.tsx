@@ -49,12 +49,6 @@ const useProLayoutNav = () => {
 
     appList: [
       {
-        icon: "/people.png",
-        title: "Users/People",
-        desc: "Control user access and permissions.",
-        url: "/users",
-      },
-      {
         icon: "/checklist.png",
         title: "Category",
         desc: "Organize your products with clear categories.",

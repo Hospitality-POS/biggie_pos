@@ -1,21 +1,17 @@
 import React, { useState } from 'react';
 import { Row, Col, Typography, Button, Form, Input, Space, Result } from 'antd';
 import {
-    SaveOutlined,
-    QrcodeOutlined,
-    UserAddOutlined,
-    MailOutlined
+    ClockCircleOutlined,
+    UserOutlined
 } from '@ant-design/icons';
 
-import { logCustomerVisit, addNewCustomer } from "@services/customers";
+import { staffClockInOut } from "@services/customers";
 import { ProCard } from '@ant-design/pro-components';
 
-const CustomerVisitTracker = () => {
+const StaffClockTracker = () => {
     const [form] = Form.useForm();
-    const [customerDetails, setCustomerDetails] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [registrationMode, setRegistrationMode] = useState(false);
-    const [visitCompleted, setVisitCompleted] = useState(false);
+    const [clockStatus, setClockStatus] = useState(null);
 
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -26,45 +22,42 @@ const CustomerVisitTracker = () => {
     const tenantId = params.get("tenant_id");
     const shopId = params.get("shop_id");
 
-    const handleCustomerRegistration = async (values) => {
+
+    const handleStaffClockInOut = async (values) => {
         setLoading(true);
+        try {
+            const { staffPin } = values;
 
-        const { email, name, phone } = values;
+            const payload = {
+                pin: staffPin,
+                tenant_id: tenantId,
+                shop_id: shopId
+            };
 
-        const payload = {
-            email,
-            phone,
-            customer_name: name,
-            tenant_id: tenantId,
-            shop_id: shopId
-        };
-        const response = await addNewCustomer(payload);
-        if (response && response.status === 201) {
-            setVisitCompleted(true);
+            const response = await staffClockInOut(payload);
+
+
+            console.log('clock in status', response.status);
+            const isClockIn = response && (response.status === 200 ? true : (response.status === 201 ? false : undefined));
+
+
+            setClockStatus({
+                isClockIn,
+                timestamp: new Date().toLocaleString(),
+                staffName: response.data.staffClockRecord.staff_id.username
+            });
+
+        } catch (error) {
+            console.error("Clock in/out failed", error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
-    const handleVisitLog = async (values) => {
-        setLoading(true);
-        const { customerCode } = values;
-
-        const payload = {
-            customerCode: customerCode,
-            tenant_id: tenantId,
-            shop_id: shopId
-        };
-        const resp = await logCustomerVisit(payload);
-        if (resp && resp.status === 200) {
-            setVisitCompleted(true);
-        }
-        setLoading(false);
-    };
 
     const resetState = () => {
-        setCustomerDetails(null);
-        setRegistrationMode(false);
-        setVisitCompleted(false);
+        setClockStatus(null);
+        form.resetFields();
     };
 
     const RetailBackground = () => (
@@ -117,7 +110,7 @@ const CustomerVisitTracker = () => {
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
-                padding: "1rem" // Add padding for smaller screens
+                padding: "1rem"
             }}
         >
             <ProCard
@@ -136,7 +129,7 @@ const CustomerVisitTracker = () => {
                         md={12}
                         style={{
                             background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
-                            padding: "1rem", // Reduced padding for mobile
+                            padding: "1rem",
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
@@ -145,8 +138,8 @@ const CustomerVisitTracker = () => {
                             position: "relative",
                             overflow: "hidden",
                             borderRadius: {
-                                xs: "8px", // Full border radius on mobile
-                                md: "8px 0 0 8px" // Original border radius on larger screens
+                                xs: "8px",
+                                md: "8px 0 0 8px"
                             }
                         }}
                     >
@@ -158,7 +151,7 @@ const CustomerVisitTracker = () => {
                                 textAlign: "center",
                                 background: "rgba(255, 255, 255, 0.1)",
                                 padding: {
-                                    xs: "1rem", // Reduced padding on mobile
+                                    xs: "1rem",
                                     md: "2rem"
                                 },
                                 borderRadius: "16px",
@@ -184,7 +177,7 @@ const CustomerVisitTracker = () => {
                                 style={{
                                     color: "white",
                                     fontSize: {
-                                        xs: "22px", // Smaller font on mobile
+                                        xs: "22px",
                                         md: "28px"
                                     },
                                     marginBottom: "1rem",
@@ -192,7 +185,7 @@ const CustomerVisitTracker = () => {
                                     textShadow: "0 2px 4px rgba(0,0,0,0.2)",
                                 }}
                             >
-                                Customer Experience
+                                Staff Clock In/Out
                             </h2>
                             <p
                                 style={{
@@ -201,14 +194,14 @@ const CustomerVisitTracker = () => {
                                     textShadow: "0 2px 4px rgba(0,0,0,0.2)",
                                     lineHeight: "1.6",
                                     fontSize: {
-                                        xs: "14px", // Smaller font on mobile
+                                        xs: "14px",
                                         md: "16px"
                                     },
                                     maxWidth: "280px",
                                     margin: "0 auto",
                                 }}
                             >
-                                We're committed to providing you with the best shopping experience.
+                                Use your 4-digit PIN to clock in and out.
                             </p>
                         </div>
                     </Col>
@@ -217,7 +210,7 @@ const CustomerVisitTracker = () => {
                         md={12}
                         style={{
                             padding: {
-                                xs: "1rem", // Reduced padding on mobile
+                                xs: "1rem",
                                 md: "2rem"
                             },
                             display: "flex",
@@ -235,111 +228,48 @@ const CustomerVisitTracker = () => {
                                 flexDirection: "column",
                             }}
                         >
-                            {visitCompleted ? (
+                            {clockStatus ? (
                                 <Result
                                     status="success"
-                                    title="Thank You for Visiting!"
-                                    subTitle={`We hope you enjoyed your experience at ${clientName}. Come again next time!`}
+                                    title={`${clockStatus.isClockIn ? 'Clocked In' : 'Clocked Out'} Successfully`}
+                                    subTitle={`${clockStatus.staffName} - ${clockStatus.timestamp}`}
                                     extra={
                                         <Button type="primary" onClick={resetState}>
-                                            Log Another Visit
+                                            Clock {clockStatus.isClockIn ? 'Out' : 'In'}
                                         </Button>
                                     }
                                 />
-                            ) : registrationMode ? (
-                                <Form
-                                    form={form}
-                                    layout="vertical"
-                                    onFinish={handleCustomerRegistration}
-                                    style={{ width: '100%' }}
-                                >
-                                    <Form.Item
-                                        name="name"
-                                        label="Customer Name"
-                                        rules={[{ required: true, message: 'Please enter customer name' }]}
-                                    >
-                                        <Input placeholder="Enter customer name" />
-                                    </Form.Item>
-
-                                    <Form.Item
-                                        name="phone"
-                                        label="Phone Number"
-                                        rules={[
-                                            { required: true, message: 'Please enter phone number' },
-                                            { pattern: /^[0-9]{10}$/, message: 'Please enter a valid 10-digit phone number' }
-                                        ]}
-                                    >
-                                        <Input placeholder="Enter 10-digit phone number" />
-                                    </Form.Item>
-
-                                    <Form.Item
-                                        name="email"
-                                        label="Email"
-                                        rules={[
-                                            { required: true, message: 'Please enter email' },
-                                            { type: 'email', message: 'Please enter a valid email' }
-                                        ]}
-                                    >
-                                        <Input
-                                            prefix={<MailOutlined />}
-                                            placeholder="Enter your email"
-                                        />
-                                    </Form.Item>
-
-                                    <Space direction="vertical" style={{ width: '100%' }}>
-                                        <Button
-                                            type="primary"
-                                            htmlType="submit"
-                                            block
-                                            disabled={loading}
-                                            icon={<SaveOutlined />}
-                                            loading={loading}
-                                        >
-                                            Get Code & Log Visit
-                                        </Button>
-                                        <Button
-                                            block
-                                            onClick={() => setRegistrationMode(false)}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </Space>
-                                </Form>
                             ) : (
                                 <Form
                                     form={form}
                                     layout="vertical"
-                                    onFinish={handleVisitLog}
+                                    onFinish={handleStaffClockInOut}
                                     style={{ width: '100%' }}
                                 >
                                     <Form.Item
-                                        name="customerCode"
-                                        label="Customer Code"
-                                        rules={[{ required: true, message: 'Please enter customer code' }]}
+                                        name="staffPin"
+                                        label="Staff PIN"
+                                        rules={[
+                                            { required: true, message: 'Please enter your 4-digit PIN' },
+                                            { pattern: /^\d{4}$/, message: 'PIN must be exactly 4 digits' }
+                                        ]}
                                     >
-                                        <Input placeholder="Enter customer code" />
+                                        <Input
+                                            prefix={<UserOutlined />}
+                                            placeholder="Enter 4-digit PIN"
+                                            maxLength={4}
+                                        />
                                     </Form.Item>
 
-                                    <Space direction="vertical" style={{ width: '100%' }}>
-                                        <Button
-                                            type="primary"
-                                            htmlType="submit"
-                                            block
-                                            disabled={loading}
-                                            icon={<QrcodeOutlined />}
-                                            loading={loading}
-                                        >
-                                            Log Visit
-                                        </Button>
-                                        <Button
-                                            type="default"
-                                            block
-                                            icon={<UserAddOutlined />}
-                                            onClick={() => setRegistrationMode(true)}
-                                        >
-                                            No Code? Get One
-                                        </Button>
-                                    </Space>
+                                    <Button
+                                        type="primary"
+                                        htmlType="submit"
+                                        block
+                                        icon={<ClockCircleOutlined />}
+                                        loading={loading}
+                                    >
+                                        Clock In/Out
+                                    </Button>
                                 </Form>
                             )}
                         </div>
@@ -350,4 +280,4 @@ const CustomerVisitTracker = () => {
     );
 };
 
-export default CustomerVisitTracker;
+export default StaffClockTracker;

@@ -82,6 +82,9 @@ axiosInstance.interceptors.response.use(
         } else if (response.status === 404) {
             handleError(response.data.message);
         }
+        else if (response.status === 600) {
+            handleError(response.data.message);
+        }
 
         else {
             handleError("An error occurred while processing your request.");

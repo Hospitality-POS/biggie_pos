@@ -2,6 +2,7 @@
 import { ProLayout } from "@ant-design/pro-components";
 import { Button, Dropdown, Typography } from "antd/lib";
 import {
+  DashboardOutlined,
   PoweroffOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -9,7 +10,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { logoutUser } from "@features/Auth/AuthActions";
 import { reset } from "@features/Auth/AuthSlice";
-import { Image } from "antd";
+import { Avatar, Image, Space } from "antd";
 import useProLayoutNav from "./defaultprops";
 import StaffModal from "@components/staffCard/LoginModal";
 import { useState } from "react";
@@ -25,6 +26,35 @@ const ProNavbar = () => {
     navigation("/login");
   };
 
+  const userMenuItems = [
+    {
+      key: "profile",
+      icon: <UserOutlined />,
+      label: "Profile",
+      onClick: () => navigation(`/profile/${user?.id}`),
+    },
+    { type: "divider" },
+    ...(user?.role === "admin"
+      ? [
+        {
+          key: "dashboard",
+          icon: <DashboardOutlined />,
+          label: "Dashboard",
+          onClick: () => {
+            localStorage.removeItem("shopId"),
+              navigation("/admin/dashboard")
+          },
+        },
+      ]
+      : []),
+    {
+      key: "logout",
+      icon: <PoweroffOutlined />,
+      label: "Logout",
+      onClick: handleLogout,
+      danger: true,
+    },
+  ];
 
 
   const [open, setOpen] = useState(false);
@@ -81,19 +111,23 @@ const ProNavbar = () => {
               {user ? (
                 <>
                   <Dropdown
-                    menu={{
-                      disabled: user ? false : true,
-                      items: [
-                        {
-                          key: "logout",
-                          icon: <UserOutlined />,
-                          label: "Profile",
-                          onClick: () => navigation(`/profile/${user?.id}`)
-                        },
-                      ],
-                    }}
+                    menu={{ items: userMenuItems }}
+                    placement="bottomRight"
+                    trigger={["click"]}
                   >
-                    {dom}
+                    <Space style={{ cursor: "pointer" }}>
+                      <Avatar
+                        src={
+                          user?.avatar ||
+                          "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"
+                        }
+                        alt={user.name}
+                        size="default"
+                      />
+                      <Typography.Text strong style={{ fontSize: "18px", color: "#fff" }}>
+                        {user.name}
+                      </Typography.Text>
+                    </Space>
                   </Dropdown>
                   <Button icon={<PoweroffOutlined />} onClick={handleLogout}>logout</Button>
                 </>

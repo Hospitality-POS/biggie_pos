@@ -18,6 +18,7 @@ import NubaLoader from "@components/spinner/NubaLoader";
 import StaffLoginPage from "@pages/Login/login";
 import Dashboard from "@pages/Dashboard/Dashboard";
 import CustomerRegistration from "@pages/Customer/Customer";
+import StaffClockTracker from "@pages/staff/ClockInTracker";
 import HelpCenter from "src/AdminDashboard/HelpCenter/HelpCenterPage";
 import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
 import ShopManagement from "src/AdminDashboard/Shops/MainShopPage";
@@ -443,6 +444,20 @@ const routes = createBrowserRouter(
             >
 
               <CustomerRegistration />
+
+            </Suspense>
+          }
+        />
+        <Route
+          path="staff-clock-in"
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+              }
+            >
+
+              <StaffClockTracker />
 
             </Suspense>
           }
