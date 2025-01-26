@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Row, Col, Typography, Button, Form, Input, Space, Result } from 'antd';
+import { Row, Col, Typography, Button, Form, Input, Space, Result, message } from 'antd';
 import {
     SaveOutlined,
     QrcodeOutlined,
     UserAddOutlined,
-    MailOutlined
+    MailOutlined,
+    CopyOutlined
 } from '@ant-design/icons';
 
 import { logCustomerVisit, addNewCustomer } from "@services/customers";
@@ -16,6 +17,8 @@ const CustomerVisitTracker = () => {
     const [loading, setLoading] = useState(false);
     const [registrationMode, setRegistrationMode] = useState(false);
     const [visitCompleted, setVisitCompleted] = useState(false);
+    const [generatedCode, setGeneratedCode] = useState(null);
+    const [visitType, setVisitType] = useState(null);
 
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -28,7 +31,6 @@ const CustomerVisitTracker = () => {
 
     const handleCustomerRegistration = async (values) => {
         setLoading(true);
-
         const { email, name, phone } = values;
 
         const payload = {
@@ -40,6 +42,9 @@ const CustomerVisitTracker = () => {
         };
         const response = await addNewCustomer(payload);
         if (response && response.status === 201) {
+            const customerCode = response.data.customer.code;
+            setGeneratedCode(customerCode);
+            setVisitType('registration');
             setVisitCompleted(true);
         }
         setLoading(false);
@@ -56,15 +61,29 @@ const CustomerVisitTracker = () => {
         };
         const resp = await logCustomerVisit(payload);
         if (resp && resp.status === 200) {
+            setVisitType('visit');
             setVisitCompleted(true);
         }
         setLoading(false);
+    };
+
+    const copyCodeToClipboard = () => {
+        if (generatedCode) {
+            navigator.clipboard.writeText(generatedCode).then(() => {
+                message.success('Customer code copied to clipboard');
+            }).catch(err => {
+                message.error('Failed to copy customer code');
+            });
+        }
     };
 
     const resetState = () => {
         setCustomerDetails(null);
         setRegistrationMode(false);
         setVisitCompleted(false);
+        setGeneratedCode(null);
+        setVisitType(null);
+        form.resetFields();
     };
 
     const RetailBackground = () => (
@@ -117,7 +136,7 @@ const CustomerVisitTracker = () => {
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",
-                padding: "1rem" // Add padding for smaller screens
+                padding: "1rem"
             }}
         >
             <ProCard
@@ -132,11 +151,11 @@ const CustomerVisitTracker = () => {
             >
                 <Row>
                     <Col
-                        xs={24}
+                        xs={0}
                         md={12}
                         style={{
                             background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
-                            padding: "1rem", // Reduced padding for mobile
+                            padding: "1rem",
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
@@ -144,10 +163,7 @@ const CustomerVisitTracker = () => {
                             minHeight: "500px",
                             position: "relative",
                             overflow: "hidden",
-                            borderRadius: {
-                                xs: "8px", // Full border radius on mobile
-                                md: "8px 0 0 8px" // Original border radius on larger screens
-                            }
+                            borderRadius: "8px 0 0 8px"
                         }}
                     >
                         <RetailBackground />
@@ -157,10 +173,7 @@ const CustomerVisitTracker = () => {
                                 zIndex: 1,
                                 textAlign: "center",
                                 background: "rgba(255, 255, 255, 0.1)",
-                                padding: {
-                                    xs: "1rem", // Reduced padding on mobile
-                                    md: "2rem"
-                                },
+                                padding: "2rem",
                                 borderRadius: "16px",
                                 backdropFilter: "blur(10px)",
                                 boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
@@ -183,10 +196,7 @@ const CustomerVisitTracker = () => {
                             <h2
                                 style={{
                                     color: "white",
-                                    fontSize: {
-                                        xs: "22px", // Smaller font on mobile
-                                        md: "28px"
-                                    },
+                                    fontSize: "28px",
                                     marginBottom: "1rem",
                                     fontWeight: "600",
                                     textShadow: "0 2px 4px rgba(0,0,0,0.2)",
@@ -200,10 +210,7 @@ const CustomerVisitTracker = () => {
                                     textAlign: "center",
                                     textShadow: "0 2px 4px rgba(0,0,0,0.2)",
                                     lineHeight: "1.6",
-                                    fontSize: {
-                                        xs: "14px", // Smaller font on mobile
-                                        md: "16px"
-                                    },
+                                    fontSize: "16px",
                                     maxWidth: "280px",
                                     margin: "0 auto",
                                 }}
@@ -216,10 +223,7 @@ const CustomerVisitTracker = () => {
                         xs={24}
                         md={12}
                         style={{
-                            padding: {
-                                xs: "1rem", // Reduced padding on mobile
-                                md: "2rem"
-                            },
+                            padding: "1rem",
                             display: "flex",
                             justifyContent: "center",
                             alignItems: "center",
@@ -238,12 +242,50 @@ const CustomerVisitTracker = () => {
                             {visitCompleted ? (
                                 <Result
                                     status="success"
-                                    title="Thank You for Visiting!"
-                                    subTitle={`We hope you enjoyed your experience at ${clientName}. Come again next time!`}
+                                    title={visitType === 'registration' ? "Registration Successful!" : "Visit Logged Successfully"}
+                                    subTitle={visitType === 'registration'
+                                        ? "Thank you for registering with us!"
+                                        : "Thank you for visiting our shop!"
+                                    }
                                     extra={
-                                        <Button type="primary" onClick={resetState}>
-                                            Log Another Visit
-                                        </Button>
+                                        <Space direction="vertical" style={{ width: '100%' }}>
+                                            {generatedCode && (
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    backgroundColor: '#f0f0f0',
+                                                    padding: '10px',
+                                                    borderRadius: '8px'
+                                                }}>
+                                                    <Typography.Text
+                                                        strong
+                                                        style={{
+                                                            marginRight: '10px',
+                                                            fontSize: '16px'
+                                                        }}
+                                                    >
+                                                        {generatedCode}
+                                                    </Typography.Text>
+                                                    <Button
+                                                        icon={<CopyOutlined />}
+                                                        onClick={copyCodeToClipboard}
+                                                    >
+                                                        Copy
+                                                    </Button>
+                                                </div>
+                                            )}
+                                            <Typography.Text type="secondary" style={{ textAlign: 'center', display: 'block' }}>
+                                                We look forward to serving you again soon! Please visit us again and tell your friends.
+                                            </Typography.Text>
+                                            <Button
+                                                type="primary"
+                                                block
+                                                onClick={resetState}
+                                            >
+                                                Back
+                                            </Button>
+                                        </Space>
                                     }
                                 />
                             ) : registrationMode ? (
