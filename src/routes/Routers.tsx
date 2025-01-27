@@ -24,6 +24,7 @@ import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
 import ShopManagement from "src/AdminDashboard/Shops/MainShopPage";
 import Invoices from "@pages/Invoices/Invoices";
 import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
+import Customer from "src/pages/Customer/CustomerList";
 
 const Layout = lazy(() => import("@components/layout/Layout"));
 
@@ -157,6 +158,18 @@ const routes = createBrowserRouter(
             <Suspense fallback={<NubaLoader />}>
               <Private>
                 <Invoices />
+              </Private>
+            </Suspense>
+          }
+        // errorElement={<NotFound/>}
+        />
+        <Route
+          path="/customers"
+          errorElement={<NotFound />}
+          element={
+            <Suspense fallback={<NubaLoader />}>
+              <Private>
+                <Customer />
               </Private>
             </Suspense>
           }

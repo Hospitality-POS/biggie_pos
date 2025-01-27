@@ -249,7 +249,7 @@ const CustomerVisitTracker = () => {
                                     }
                                     extra={
                                         <Space direction="vertical" style={{ width: '100%' }}>
-                                            {generatedCode && (
+                                            {/* {generatedCode && (
                                                 <div style={{
                                                     display: 'flex',
                                                     alignItems: 'center',
@@ -274,7 +274,7 @@ const CustomerVisitTracker = () => {
                                                         Copy
                                                     </Button>
                                                 </div>
-                                            )}
+                                            )} */}
                                             <Typography.Text type="secondary" style={{ textAlign: 'center', display: 'block' }}>
                                                 We look forward to serving you again soon! Please visit us again and tell your friends.
                                             </Typography.Text>
@@ -356,10 +356,13 @@ const CustomerVisitTracker = () => {
                                 >
                                     <Form.Item
                                         name="customerCode"
-                                        label="Customer Code"
-                                        rules={[{ required: true, message: 'Please enter customer code' }]}
+                                        label="Phone Number"
+                                        rules={[
+                                            { required: true, message: 'Please enter phone number' },
+                                            { pattern: /^[0-9]{10}$/, message: 'Please enter a valid 10-digit phone number' }
+                                        ]}
                                     >
-                                        <Input placeholder="Enter customer code" />
+                                        <Input placeholder="Enter 10-digit phone number" />
                                     </Form.Item>
 
                                     <Space direction="vertical" style={{ width: '100%' }}>
