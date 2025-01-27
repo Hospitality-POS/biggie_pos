@@ -1,4 +1,5 @@
 import { ApiFilled, CalculatorFilled, BarChartOutlined, FolderFilled, HomeFilled, PrinterFilled, SmileFilled, SolutionOutlined } from "@ant-design/icons";
+import { PeopleOutlined } from "@mui/icons-material";
 import { useAppSelector } from "src/store";
 
 const useProLayoutNav = () => {
@@ -23,6 +24,11 @@ const useProLayoutNav = () => {
           path: "/invoices",
           name: "Invoices",
           icon: <PrinterFilled />,
+        },
+        {
+          path: "/customers",
+          name: "Customers",
+          icon: <PeopleOutlined />,
         },
         {
           path: "/store",

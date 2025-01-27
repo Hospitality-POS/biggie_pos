@@ -5,6 +5,23 @@ import axiosInstance from "./request";
 const categ_url = `${BASE_URL}/customers`;
 
 //  categories
+
+export const fetchAllCustomers = async (data: ParamsType) => {
+    try {
+
+        const shopId = localStorage.getItem("shopId");
+
+
+        const response = await axiosInstance.get(categ_url, {
+            params: { shop_id: shopId, customer_name: data.customer_name, email: data.email, phone: data.phone, code: data.code },
+        });
+        return response.data;
+    } catch (error) {
+        throw new Error(error?.message);
+    }
+};
+
+
 export const addNewCustomer = async (params: ParamsType) => {
     try {
         const response = await axiosInstance.post(categ_url, { ...params });
