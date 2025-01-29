@@ -36,13 +36,13 @@ export const addNewCustomer = async (params: ParamsType) => {
 };
 export const staffClockInOut = async (params: ParamsType) => {
     try {
-        console.log('params', params);
+        // console.log('params', params);
         const response = await axiosInstance.post(categ_url + '/clock-in', { ...params });
         // message.success("Customer visit logged  successfully");
         return response;
     } catch (error) {
-
-        throw new Error("You have already clocked in and out for today");
+        console.log("error", error);
+        throw new Error(error?.response?.data?.message || "Failed to clock in/out");
     }
 };
 
