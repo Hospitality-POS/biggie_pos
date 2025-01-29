@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Row, Col, Typography, Button, Space, Result, message } from "antd";
-import { ClockCircleOutlined, DeleteOutlined, LockOutlined, QrcodeOutlined, SendOutlined } from "@ant-design/icons";
+import { Row, Col, Typography, Button, Space, Result, Modal } from "antd";
+import { ClockCircleOutlined, DeleteOutlined, LeftOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import { staffClockInOut } from "@services/customers";
 
@@ -9,13 +9,13 @@ const { Title, Text, Paragraph } = Typography;
 const StaffClockTracker = () => {
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
-  const [pinEntered, setPinEntered] = useState(false);
-  const [pinError, setPinError] = useState(false);
-    const [clockStatus, setClockStatus] = useState({
-        isClockIn: undefined,
-        timestamp: "",
-        staffName: "",
-    });
+  const [clockStatus, setClockStatus] = useState({
+    isClockIn: undefined,
+    timestamp: "",
+    staffName: "",
+    message: "",
+  });
+  const [isModalVisible, setIsModalVisible] = useState(false); // State for modal visibility
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -28,57 +28,62 @@ const StaffClockTracker = () => {
   const handlePinSubmit = async () => {
     setLoading(true);
     try {
+      const payload = {
+        pin: pin,
+        tenant_id: tenantId,
+        shop_id: shopId,
+      };
 
+      const response = await staffClockInOut(payload);
 
-                // const { staffPin } = values;
-
-                const payload = {
-                  pin: pin,
-                  tenant_id: tenantId,
-                  shop_id: shopId,
-                };
-
-                const response = await staffClockInOut(payload);
-
-                console.log("clock in status", response.status);
-                const isClockIn =
-                  response &&
-                  (response.status === 200
-                    ? true
-                    : response.status === 201
-                    ? false
-                    : undefined);
-
-                setClockStatus({
-                  isClockIn,
-                  timestamp: new Date().toLocaleString(),
-                  staffName: response.data.staffClockRecord.staff_id.username,
-                });
-              } catch (error) {
-                console.error("Clock in/out failed", error);
-              } finally {
-                setLoading(false);
-              }
-            };
-
-//       if (pin) {
-//         setPinEntered(true);
-//         message.success("Pin entered successfully!");
-//       } else {
-//         setPinError(true);
-//         message.error("Incorrect pin. Please try again.");
-//       }
-//     } catch (error) {
-//       message.error("Something went wrong. Please try again.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
+      if (
+        response.message === "You have already clocked in and out for today"
+      ) {
+        setClockStatus({
+          isClockIn: false,
+          timestamp: new Date().toLocaleString(),
+          staffName: response.staffClockRecord?.staff_id?.username || "",
+          message: response?.message,
+        });
+        setIsModalVisible(true); // Show modal for warning
+      } else {
+        const isClockIn = response.message.includes("Clocked in");
+        setClockStatus({
+          isClockIn,
+          timestamp: new Date().toLocaleString(),
+          staffName: response.staffClockRecord.staff_id.username,
+          message: response.message,
+        });
+        setIsModalVisible(true); // Show modal for success
+      }
+    } catch (error) {
+      console.error("Clock in/out failed", error);
+      setClockStatus({
+        isClockIn: undefined,
+        timestamp: "",
+        staffName: "",
+        message: error.message,
+      });
+      setIsModalVisible(true); // Show modal for error
+    } finally {
+      setLoading(false);
+      setPin(""); // Reset PIN after submission
+    }
+  };
 
   const resetPinState = () => {
-    setPinEntered(false);
+    setClockStatus({
+      isClockIn: undefined,
+      timestamp: "",
+      staffName: "",
+      message: "",
+    });
     setPin("");
-    setPinError(false);
+    setIsModalVisible(false); // Close modal
+  };
+
+  const handleModalClose = () => {
+    setIsModalVisible(false); // Close modal
   };
 
   const MobileHeader = () => (
@@ -111,7 +116,7 @@ const StaffClockTracker = () => {
         Welcome to {clientName}
       </Title>
       <Text style={{ color: "#e0e0e0", fontSize: "14px" }}>
-        Clock In to Start Your Day" or "Clock Out to End Your Day
+        Clock In to Start Your Day or Clock Out to End Your Day
       </Text>
     </div>
   );
@@ -181,7 +186,7 @@ const StaffClockTracker = () => {
               textShadow: "0 1px 2px rgba(0,0,0,0.1)",
             }}
           >
-            Clock In to Start Your Day" or "Clock Out to End Your Day
+            Clock In to Start Your Day or Clock Out to End Your Day
           </Paragraph>
         </div>
       </div>
@@ -190,91 +195,70 @@ const StaffClockTracker = () => {
 
   const MainContent = () => (
     <div style={{ maxWidth: "400px", width: "100%", margin: "0 auto" }}>
-      {pinEntered ? (
-        <Result
-          status="success"
-          title={<Title level={3}>Pin Entered Successfully!</Title>}
-          subTitle={
-            <Text style={{ fontSize: "16px", color: "#666" }}>
-              Welcome to the secure area.
-            </Text>
-          }
-          extra={
-            <Space direction="vertical" size="large" style={{ width: "100%" }}>
-              <Button type="primary" size="large" block onClick={resetPinState}>
-                Back to Home
-              </Button>
-            </Space>
-          }
-        />
-      ) : (
-        <div>
-          <div style={{ marginBottom: "24px", textAlign: "center" }}>
-            <Text style={{ fontSize: "16px", color: "#666" }}>
-              Enter your 4-digit pin to proceed:
-            </Text>
-          </div>
-          <div style={{ textAlign: "center", marginBottom: "16px" }}>
-            <Text style={{ fontSize: "24px", fontWeight: "bold" }}>
-              {pin.padEnd(4, "*")}
-            </Text>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "16px",
-            }}
-          >
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => (
-              <Button
-                key={number}
-                // type="primary"
-                size="large"
-                onClick={() =>
-                  setPin((prevPin) =>
-                    prevPin.length < 4 ? prevPin + number : prevPin
-                  )
-                }
-                disabled={pin.length >= 4}
-              >
-                {number}
-              </Button>
-            ))}
+      <div>
+        <div style={{ marginBottom: "24px", textAlign: "center" }}>
+          <Text style={{ fontSize: "16px", color: "#666" }}>
+            Enter your 4-digit pin to proceed:
+          </Text>
+        </div>
+        <div style={{ textAlign: "center", marginBottom: "16px" }}>
+          <Text style={{ fontSize: "24px", fontWeight: "bold" }}>
+            {pin.padEnd(4, "*")}
+          </Text>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: "16px",
+          }}
+        >
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => (
             <Button
-              type="primary"
-              size="large"
-              onClick={() => setPin("")}
-              disabled={pin.length === 0}
-              icon={<DeleteOutlined />}
-            >
-              Clear
-            </Button>
-            <Button
-            //   type="primary"
+              key={number}
               size="large"
               onClick={() =>
                 setPin((prevPin) =>
-                  prevPin.length < 4 ? prevPin + "0" : prevPin
+                  prevPin.length < 4 ? prevPin + number : prevPin
                 )
               }
               disabled={pin.length >= 4}
             >
-              0
+              {number}
             </Button>
-            <Button
-              type="primary"
-              size="large"
-              onClick={handlePinSubmit}
-              disabled={pin.length !== 4}
-              loading={loading}
-              icon={<ClockCircleOutlined />}
-            >
+          ))}
+          <Button
+            type="primary"
+            size="large"
+            onClick={() => setPin("")}
+            disabled={pin.length === 0}
+            icon={<DeleteOutlined />}
+          >
+            Clear
+          </Button>
+          <Button
+            size="large"
+            onClick={() =>
+              setPin((prevPin) =>
+                prevPin.length < 4 ? prevPin + "0" : prevPin
+              )
+            }
+            disabled={pin.length >= 4}
+          >
+            0
+          </Button>
+          <Button
+            type="primary"
+            size="large"
+            onClick={handlePinSubmit}
+            disabled={pin.length !== 4}
+            loading={loading}
+            icon={<ClockCircleOutlined />}
+          >
             In/Out
-            </Button>
-          </div>
+          </Button>
         </div>
-      )}
+      </div>
     </div>
   );
 
@@ -331,6 +315,69 @@ const StaffClockTracker = () => {
           </Col>
         </Row>
       </ProCard>
+
+      {/* Modal for Feedback */}
+      <Modal
+        open={isModalVisible}
+        onCancel={handleModalClose}
+        footer={[
+          <Button
+            key="back"
+            onClick={resetPinState}
+            block
+            size="large"
+            icon={<ClockCircleOutlined />}
+            type="primary"
+          >
+            Back to Clock In/Out
+          </Button>,
+        ]}
+        centered
+        style={{
+          borderRadius: "16px",
+          maxWidth: "90%", 
+        }}
+        styles={{
+          body: { padding: "24px" },
+          mask: { backdropFilter: "blur(5px)" },
+        }}
+        width={400}
+      >
+        <Result
+          status={
+            clockStatus.message.includes("successfully")
+              ? "success"
+              : clockStatus.message.includes("already")
+              ? "warning"
+              : "error"
+          }
+          title={
+            <Text
+              style={{
+                fontSize: "20px",
+                fontWeight: 600,
+                color: clockStatus.message.includes("successfully")
+                  ? "#52c41a"
+                  : clockStatus.message.includes("already")
+                  ? "#faad14"
+                  : "#ff4d4f",
+              }}
+            >
+              {clockStatus.message}
+            </Text>
+          }
+          subTitle={
+            clockStatus.staffName && (
+              <Text
+                style={{ fontSize: "16px", color: "#666", marginTop: "8px" }}
+              >
+                {clockStatus.staffName} at {clockStatus.timestamp}
+              </Text>
+            )
+          }
+          style={{ padding: 0 }}
+        />
+      </Modal>
     </div>
   );
 };
