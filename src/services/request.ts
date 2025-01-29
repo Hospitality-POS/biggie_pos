@@ -29,7 +29,7 @@ axiosInstance.interceptors.request.use(
 
                 config.headers['Authorization'] = `Bearer ${token}`;
                 config.headers['currentUser'] = userObject._id || userObject.id;
-                console.log('Token added to headers:', config.headers['Authorization']);
+                // console.log('Token added to headers:', config.headers['Authorization']);
             }
             if (shopId && !(config.url?.includes('/users') || config.url?.includes('/shops'))) {
                 if (config.method === 'get') {
@@ -52,7 +52,7 @@ axiosInstance.interceptors.request.use(
 
         }
 
-        console.log('nice', config);
+        // console.log('nice', config);
         return config;
     },
     (error) => {
@@ -68,7 +68,7 @@ axiosInstance.interceptors.response.use(
     (error) => {
 
         const { response } = error;
-        console.log('resp', response);
+        // console.log('resp', response);
         if (response && response.status === 401) {
             handleError("Unauthorized. Please login again.");
         } else if (response.status === 403) {
@@ -78,16 +78,16 @@ axiosInstance.interceptors.response.use(
             handleError("Company does not exist kindly contact support ");
         }
         else if (response.status === 400) {
-            handleError("Failed to make payment  ");
+            handleError("An error occurred while processing your request. ");
         } else if (response.status === 404) {
             handleError(response.data.message);
         }
-        else if (response.status === 600) {
-            handleError(response.data.message);
-        }
-
         else {
-            handleError("An error occurred while processing your request.");
+            // handleError("An error occurred while processing your request.");
+            console.log(
+              "An error occurred while processing your request.",
+              error
+            );
         }
         return Promise.reject(error);
     }
