@@ -4,6 +4,7 @@ import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 import { createAsyncThunk } from "@reduxjs/toolkit";
 const userUrl = `${BASE_URL}/users`;
+const tenantUrl = `${BASE_URL}/tenants`;
 
 export const fetchAllUsersList = async (data: ParamsType) => {
   try {
@@ -39,7 +40,7 @@ export const updateSubscription = createAsyncThunk(
 
 export const verifyCompanyCode = async (data: ParamsType) => {
   try {
-    const url = `${BASE_URL}/users/verify`;
+    const url = `${tenantUrl}/verify`;
 
     // Create the request body
     const requestBody = {
