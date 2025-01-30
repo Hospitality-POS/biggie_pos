@@ -26,9 +26,11 @@ import {
     CopyOutlined,
     UsergroupAddOutlined,
     ReloadOutlined,
-    WarningOutlined
+    WarningOutlined,
+    MoneyCollectOutlined
 } from '@ant-design/icons';
 import { getDashboardAnalysis } from "@services/orders";
+import { PeopleOutlineRounded } from '@mui/icons-material';
 
 const { Title, Text } = Typography;
 
@@ -92,7 +94,7 @@ const STOCK_COLUMNS = [
 ];
 
 const StatisticCard = ({ title, value, prefix, loading }) => (
-    <Col xs={24} sm={12} lg={6}>
+    <Col xs={24} sm={12} lg={4}>
         <Card>
             {loading ? (
                 <Skeleton active paragraph={false} />
@@ -226,6 +228,16 @@ const Dashboard = () => {
             title: "Active Orders",
             value: data?.activeOrders,
             prefix: <ShopOutlined />
+        },
+        {
+            title: "Customers",
+            value: data?.customerCount,
+            prefix: <PeopleOutlineRounded />
+        },
+        {
+            title: "Invoices",
+            value: data?.invoiceCount,
+            prefix: <MoneyCollectOutlined />
         },
         {
             title: "Active Shifts",

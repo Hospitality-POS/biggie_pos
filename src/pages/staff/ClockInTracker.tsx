@@ -35,24 +35,25 @@ const StaffClockTracker = () => {
       };
 
       const response = await staffClockInOut(payload);
-
+      console.log('my resp', response);
       if (
-        response.message === "You have already clocked in and out for today"
+        response.data.message === "You have already clocked in and out for today"
+
       ) {
         setClockStatus({
           isClockIn: false,
           timestamp: new Date().toLocaleString(),
-          staffName: response.staffClockRecord?.staff_id?.username || "",
-          message: response?.message,
+          staffName: response.data?.staffClockRecord?.staff_id?.username || "",
+          message: response?.data?.message,
         });
         setIsModalVisible(true); // Show modal for warning
       } else {
-        const isClockIn = response.message.includes("Clocked in");
+        const isClockIn = response?.data?.message.includes("Clocked in");
         setClockStatus({
           isClockIn,
           timestamp: new Date().toLocaleString(),
-          staffName: response.staffClockRecord.staff_id.username,
-          message: response.message,
+          staffName: response.data?.staffClockRecord.staff_id.username,
+          message: response?.data?.message,
         });
         setIsModalVisible(true); // Show modal for success
       }
@@ -335,7 +336,7 @@ const StaffClockTracker = () => {
         centered
         style={{
           borderRadius: "16px",
-          maxWidth: "90%", 
+          maxWidth: "90%",
         }}
         styles={{
           body: { padding: "24px" },
@@ -348,8 +349,8 @@ const StaffClockTracker = () => {
             clockStatus.message.includes("successfully")
               ? "success"
               : clockStatus.message.includes("already")
-              ? "warning"
-              : "error"
+                ? "warning"
+                : "error"
           }
           title={
             <Text
@@ -359,8 +360,8 @@ const StaffClockTracker = () => {
                 color: clockStatus.message.includes("successfully")
                   ? "#52c41a"
                   : clockStatus.message.includes("already")
-                  ? "#faad14"
-                  : "#ff4d4f",
+                    ? "#faad14"
+                    : "#ff4d4f",
               }}
             >
               {clockStatus.message}
