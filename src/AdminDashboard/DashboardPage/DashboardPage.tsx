@@ -22,6 +22,7 @@ import {
   TeamOutlined,
   WarningOutlined,
   ReloadOutlined,
+  MoneyCollectOutlined,
 } from "@ant-design/icons";
 import { getAdminDashboardAnalysis } from "@services/orders";
 import {
@@ -50,6 +51,12 @@ const QUICK_ACCESS_BUTTONS = [
     text: "Staff",
     route: "/admin/staff-management",
     color: "#722ed1",
+  },
+  {
+    icon: <MoneyCollectOutlined />,
+    text: "Billing",
+    route: "/admin/billing",
+    color: "#52c41a",
   },
   {
     icon: <HelpCenterOutlined />,
