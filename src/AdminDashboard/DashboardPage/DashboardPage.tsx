@@ -23,6 +23,7 @@ import {
   WarningOutlined,
   ReloadOutlined,
   MoneyCollectOutlined,
+  ClockCircleOutlined,
 } from "@ant-design/icons";
 import { getAdminDashboardAnalysis } from "@services/orders";
 import {
@@ -30,6 +31,7 @@ import {
   HelpCenterOutlined,
   PeopleAltOutlined,
 } from "@mui/icons-material";
+import { CheckCard } from "@ant-design/pro-components";
 
 const { Title, Text } = Typography;
 
@@ -52,12 +54,12 @@ const QUICK_ACCESS_BUTTONS = [
     route: "/admin/staff-management",
     color: "#722ed1",
   },
-  {
-    icon: <MoneyCollectOutlined />,
-    text: "Billing",
-    route: "/admin/billing",
-    color: "#52c41a",
-  },
+  // {
+  //   icon: <MoneyCollectOutlined />,
+  //   text: "Billing",
+  //   route: "/admin/billing",
+  //   color: "#52c41a",
+  // },
   {
     icon: <HelpCenterOutlined />,
     text: "Help",
@@ -100,6 +102,7 @@ const STOCK_COLUMNS = [
     title: "Item Name",
     dataIndex: "name",
     key: "name",
+    ellipsis: true,
   },
   {
     title: "Shop",
@@ -112,7 +115,7 @@ const STOCK_COLUMNS = [
     key: "quantity",
   },
   {
-    title: "Minimum Required",
+    title: "Min Required",
     dataIndex: "min_viable_quantity",
     key: "min_viable_quantity",
   },
@@ -144,14 +147,19 @@ const StatisticCard = ({ title, value, prefix, loading }) => (
 
 const QuickAccessButton = ({ icon, text, route, color, onClick }) => (
   <Col xs={12} sm={8} lg={6}>
-    <Card hoverable style={{ textAlign: "center" }} onClick={onClick}>
+    <CheckCard
+      hoverable
+      style={{ textAlign: "center", width: "100%" }}
+      onClick={onClick}
+      cover
+    >
       <Space direction="vertical">
         {React.cloneElement(icon, {
           style: { fontSize: 24, color },
         })}
         <Text>{text}</Text>
       </Space>
-    </Card>
+    </CheckCard>
   </Col>
 );
 
@@ -217,17 +225,35 @@ const DashboardAdminPage = () => {
     },
   ];
 
+   const dateOptions = {
+     weekday: "long",
+     year: "numeric",
+     month: "long",
+     day: "numeric",
+     hour: "numeric",
+     minute: "numeric",
+     hour12: true,
+   };
+
   return (
-    <ConfigProvider>
+    <>
       {contextHolder}
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: 0 }}>
         <Row
           justify="space-between"
           align="middle"
           style={{ marginBottom: 24 }}
         >
-          <Title level={2}>Dashboard</Title>
+          <Title level={4}>Today's Overview</Title>
           <Space>
+            <Button
+              type="dashed"
+              loading={isLoading || isRefetching}
+              icon={<ClockCircleOutlined />}
+              size="large"
+            >
+              {new Date().toLocaleString("en-US", dateOptions)}
+            </Button>
             <Button
               type="primary"
               icon={<ReloadOutlined spin={isRefetching} />}
@@ -237,7 +263,6 @@ const DashboardAdminPage = () => {
             >
               {isRefetching ? "Refreshing..." : "Refresh"}
             </Button>
-            <Text>{new Date().toLocaleString()}</Text>
           </Space>
         </Row>
 
@@ -265,7 +290,7 @@ const DashboardAdminPage = () => {
           <Col xs={24} lg={12}>
             <Card
               title="Recent Orders"
-            // extra={<a href="/orders">View All</a>}
+              // extra={<a href="/orders">View All</a>}
             >
               {isLoading || isRefetching ? (
                 <Skeleton active />
@@ -275,7 +300,10 @@ const DashboardAdminPage = () => {
                   dataSource={
                     Array.isArray(data?.currentOrders) ? data.currentOrders : []
                   }
-                  pagination={false}
+                  pagination={{
+                    hideOnSinglePage: true,
+                    defaultPageSize: 5,
+                  }}
                   size="small"
                 />
               )}
@@ -289,7 +317,7 @@ const DashboardAdminPage = () => {
                   Low Stock Alerts
                 </Space>
               }
-            // extra={<a href="/inventory">View All</a>}
+              // extra={<a href="/inventory">View All</a>}
             >
               {isLoading || isRefetching ? (
                 <Skeleton active />
@@ -299,7 +327,10 @@ const DashboardAdminPage = () => {
                   dataSource={
                     Array.isArray(data?.lowStockItems) ? data.lowStockItems : []
                   }
-                  pagination={false}
+                  pagination={{
+                    hideOnSinglePage: true,
+                    defaultPageSize: 5,
+                  }}
                   size="small"
                 />
               )}
@@ -307,7 +338,7 @@ const DashboardAdminPage = () => {
           </Col>
         </Row>
       </div>
-    </ConfigProvider>
+    </>
   );
 };
 
