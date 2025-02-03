@@ -94,7 +94,7 @@ function Layout() {
       return (
         <div style={{ maxWidth: "1920px" }}>
           <App>
-            <ProNavbar />
+            <ProNavbar>
             <PageContainer
               header={{
                 extra: [renderBreadcrumbs(role)],
@@ -109,6 +109,7 @@ function Layout() {
             >
               <Outlet />
             </PageContainer>
+            </ProNavbar>
           </App>
         </div>
       );
