@@ -11,20 +11,20 @@ function UsersMainSettings() {
   return (
     <ProCard
       bordered
-      title={
-        <Typography.Title
-          level={4}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            margin: 0,
-            fontWeight: "bold",
-          }}
-        >
-          <UsergroupAddOutlined style={{ marginRight: 8 }} />
-          Users Main Settings
-        </Typography.Title>
-      }
+      // title={
+      //   <Typography.Title
+      //     level={4}
+      //     style={{
+      //       display: "flex",
+      //       alignItems: "center",
+      //       margin: 0,
+      //       fontWeight: "bold",
+      //     }}
+      //   >
+      //     <UsergroupAddOutlined style={{ marginRight: 8 }} />
+      //     Staff Management
+      //   </Typography.Title>
+      // }
       tabs={{
         type: "card",
         defaultActiveKey: "users",
