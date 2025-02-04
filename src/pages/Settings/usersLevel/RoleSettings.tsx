@@ -16,6 +16,9 @@ function RoleSettings() {
     onError: () => message.error("Failed to delete role"),
   });
 
+  // Define the restricted roles. Use lowercase to simplify comparisons.
+  const restrictedRoles = ["waiter", "admin", "cashier"];
+
   const columns = [
     {
       title: "Role Type",
@@ -48,28 +51,40 @@ function RoleSettings() {
       title: "Actions",
       key: "actions",
       search: false,
-      render: (_, record) => (
-        <Space size="middle">
-          <Tooltip title="Edit">
-            <RoleModal actionRef={actionRef} edit={true} data={record} />
-          </Tooltip>
-          <Popconfirm
-            title="Are you sure you want to delete this role?"
-            onConfirm={() => deleteRoleMutation.mutate(record._id)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button
-              type="primary"
-              danger
-              icon={<DeleteOutlined />}
-              size="small"
+      render: (_, record) => {
+        if (restrictedRoles.includes(record.role_type.toLowerCase())) {
+          return (
+            <Space size="middle">
+              <Tooltip title="This role's actions are restricted">
+                <span style={{ color: "gray" }}>Restricted</span>
+              </Tooltip>
+            </Space>
+          );
+        }
+
+        return (
+          <Space size="middle">
+            <Tooltip title="Edit">
+              <RoleModal actionRef={actionRef} edit={true} data={record} />
+            </Tooltip>
+            <Popconfirm
+              title="Are you sure you want to delete this role?"
+              onConfirm={() => deleteRoleMutation.mutate(record._id)}
+              okText="Yes"
+              cancelText="No"
             >
-              Delete
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+              <Button
+                type="primary"
+                danger
+                icon={<DeleteOutlined />}
+                size="small"
+              >
+                Delete
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ];
 
