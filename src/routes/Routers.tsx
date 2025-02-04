@@ -26,6 +26,7 @@ import Invoices from "@pages/Invoices/Invoices";
 import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
 import Customer from "src/pages/Customer/CustomerList";
 import PaymentSubscriptionPage from "src/components/billing/Billing";
+import AdminCustomersList from "src/AdminDashboard/Customers/CustomerList";
 
 const Layout = lazy(() => import("@components/layout/Layout"));
 
@@ -441,6 +442,21 @@ const routes = createBrowserRouter(
             >
               <AdminRoute>
                 <UsersMainSettings />
+              </AdminRoute>
+            </Suspense>
+          }
+        />
+        <Route
+          path="customer-list"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+              }
+            >
+              <AdminRoute>
+                <AdminCustomersList />
               </AdminRoute>
             </Suspense>
           }
