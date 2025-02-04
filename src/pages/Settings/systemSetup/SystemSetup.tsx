@@ -11,7 +11,8 @@ import {
 import { ConfigProvider, Space, Typography, Divider } from "antd";
 import Profile from "./Profile";
 import PrinterConfig from "./PrinterConfig";
-import Billing from "@components/billing/Billing";
+import ComingSoon from "@components/coming-soon/ComingSoon";
+// import Billing from "@components/billing/Billing";
 
 const SystemSetup: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("profile");
@@ -115,10 +116,9 @@ const SystemSetup: React.FC = () => {
             borderRadius: "8px",
           }}
         >
-          <Billing />
+          <ComingSoon />
         </div>
       </ProCard.TabPane>
-
 
       <ProCard.TabPane
         key="offers"
@@ -137,11 +137,9 @@ const SystemSetup: React.FC = () => {
             borderRadius: "8px",
           }}
         >
-          <Billing />
+          <ComingSoon />
         </div>
       </ProCard.TabPane>
-
-      <Divider style={{ margin: 0 }} />
     </ProCard>
     // </ConfigProvider>
   );

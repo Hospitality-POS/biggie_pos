@@ -78,7 +78,6 @@ function SystemSetup() {
   if (isLoading) {
     return <Skeleton active />;
   }
-
   return (
     <Card
       title={
@@ -96,13 +95,13 @@ function SystemSetup() {
         initialValues={
           data
             ? {
-              ...data,
-              phoneNumber: reversePhoneNumber(data?.phone),
-              paymentDetailId: {
-                value: data?.paymentDetails?._id,
-                label: data?.paymentDetails?.name,
-              },
-            }
+                ...data,
+                phoneNumber: reversePhoneNumber(data?.phone),
+                paymentDetailId: {
+                  value: data?.paymentDetails?._id,
+                  label: data?.paymentDetails?.name,
+                },
+              }
             : {}
         }
         submitter={{
