@@ -3,9 +3,11 @@ import { Badge, Breadcrumb, Button, Dropdown, Image, Space, Typography } from "a
 import { PageContainer, ProLayout } from "@ant-design/pro-components";
 import {
   BellOutlined,
+  CompassOutlined,
   DashboardOutlined,
   HomeFilled,
   PoweroffOutlined,
+  SettingOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -112,16 +114,28 @@ const AdminDashboard: React.FC = () => {
               {user ? (
                 <>
                   <Dropdown
+                  arrow
                     menu={{
                       disabled: user ? false : true,
                       items: [
                         {
-                          key: "logout",
+                          key: "profile",
                           icon: <UserOutlined />,
                           label: "Profile",
                           onClick: () => navigate(`/admin/profile/${user?.id}`),
                         },
                         { type: "divider" },
+                        {
+                          key: "Help Center",
+                          icon: <CompassOutlined />,
+                          label: "Help Center",
+                          onClick: () => navigate("/admin/help-center"),
+                        },
+                        {
+                          key: "Settings",
+                          icon: <SettingOutlined />,
+                          label: "Settings",
+                        },
                         {
                           key: "logout",
                           icon: <PoweroffOutlined />,
