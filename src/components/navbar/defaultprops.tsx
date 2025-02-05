@@ -1,4 +1,13 @@
-import { ApiFilled, CalculatorFilled, BarChartOutlined, FolderFilled, HomeFilled, PrinterFilled, SmileFilled, SolutionOutlined } from "@ant-design/icons";
+import {
+  ApiFilled,
+  CalculatorFilled,
+  BarChartOutlined,
+  FolderFilled,
+  HomeFilled,
+  PrinterFilled,
+  SmileFilled,
+  SolutionOutlined,
+} from "@ant-design/icons";
 import { PeopleOutlined } from "@mui/icons-material";
 import { useAppSelector } from "src/store";
 
@@ -14,6 +23,11 @@ const useProLayoutNav = () => {
           name: "Home",
           icon: <HomeFilled />,
         },
+        {
+          path: "/home-dashboard",
+          name: "Dashboard",
+          icon: <BarChartOutlined />,
+        },
 
         {
           path: "/orders",
@@ -26,11 +40,6 @@ const useProLayoutNav = () => {
           icon: <PrinterFilled />,
         },
         {
-          path: "/customers",
-          name: "Customers",
-          icon: <PeopleOutlined />,
-        },
-        {
           path: "/store",
           name: "Store",
           icon: <FolderFilled />,
@@ -41,14 +50,14 @@ const useProLayoutNav = () => {
           icon: <SolutionOutlined />,
         },
         {
+          path: "/customers",
+          name: "Customers",
+          icon: <PeopleOutlined />,
+        },
+        {
           path: "/reports",
           name: "Reports",
           icon: <ApiFilled />,
-        },
-        {
-          path: "/home-dashboard",
-          name: "Dashboard",
-          icon: <BarChartOutlined />,
         },
       ],
     },
@@ -113,4 +122,4 @@ const useProLayoutNav = () => {
   };
   return state ? adminMenu : userMenu;
 };
-export default useProLayoutNav
+export default useProLayoutNav;

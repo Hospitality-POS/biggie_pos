@@ -4,18 +4,20 @@ import { Button, Dropdown, Typography } from "antd/lib";
 import {
   DashboardOutlined,
   PoweroffOutlined,
+  QuestionCircleOutlined,
+  SettingOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { logoutUser } from "@features/Auth/AuthActions";
 import { reset } from "@features/Auth/AuthSlice";
-import { Avatar, Image, Space } from "antd";
+import { Avatar, Image, Space, Tag } from "antd";
 import useProLayoutNav from "./defaultprops";
 import StaffModal from "@components/staffCard/LoginModal";
 import { useState } from "react";
 
-const ProNavbar = () => {
+const ProNavbar = ({ children }) => {
   const dispatch = useAppDispatch();
   const navigation = useNavigate();
   const navRoutes = useProLayoutNav();
@@ -36,17 +38,28 @@ const ProNavbar = () => {
     { type: "divider" },
     ...(user?.role === "admin"
       ? [
-        {
-          key: "dashboard",
-          icon: <DashboardOutlined />,
-          label: "Dashboard",
-          onClick: () => {
-            localStorage.removeItem("shopId"),
-              navigation("/admin/dashboard")
+          {
+            key: "dashboard",
+            icon: <DashboardOutlined />,
+            label: "Dashboard",
+            onClick: () => {
+              localStorage.removeItem("shopId"), navigation("/admin/dashboard");
+            },
           },
-        },
-      ]
+        ]
       : []),
+    {
+      key: "faqs",
+      icon: <QuestionCircleOutlined />,
+      label: "FAQs",
+      onClick: () => navigation("/fss-faqs"),
+    },
+    {
+      key: "Settings",
+      icon: <SettingOutlined />,
+      label: "Settings",
+      onClick: () => navigation("/system-setup"),
+    },
     {
       key: "logout",
       icon: <PoweroffOutlined />,
@@ -55,7 +68,6 @@ const ProNavbar = () => {
       danger: true,
     },
   ];
-
 
   const [open, setOpen] = useState(false);
   const tbl = "staff";
@@ -112,8 +124,9 @@ const ProNavbar = () => {
                 <>
                   <Dropdown
                     menu={{ items: userMenuItems }}
-                    placement="bottomRight"
-                    trigger={["click"]}
+                    // placement="bottomRight"
+                    // trigger={["click"]}
+                    arrow
                   >
                     <Space style={{ cursor: "pointer" }}>
                       <Avatar
@@ -124,15 +137,18 @@ const ProNavbar = () => {
                         alt={user.name}
                         size="default"
                       />
-                      <Typography.Text strong style={{ fontSize: "18px", color: "#fff" }}>
-                        {user.name}
-                      </Typography.Text>
+                      <Tag color="default">{user.name}</Tag>
                     </Space>
                   </Dropdown>
-                  <Button icon={<PoweroffOutlined />} onClick={handleLogout}>logout</Button>
+                  {/* <Button icon={<PoweroffOutlined />} onClick={handleLogout}>logout</Button> */}
                 </>
               ) : (
-                <StaffModal setOpen={setOpen} open={open} tbl={tbl} showButton />
+                <StaffModal
+                  setOpen={setOpen}
+                  open={open}
+                  tbl={tbl}
+                  showButton
+                />
               )}
             </>
           );
@@ -153,14 +169,13 @@ const ProNavbar = () => {
           colorTextMenuSecondary: "#f6ffed",
           colorBgMenuItemHover: "#f6ffed",
         },
-        pageContainer: {
-          paddingInlinePageContainerContent: 0,
-        },
       }}
       menuItemRender={(item, dom) => (
         <NavLink to={item?.path || "/"}>{dom}</NavLink>
       )}
-    />
+    >
+      {children}
+    </ProLayout>
   );
 };
 
