@@ -68,7 +68,7 @@ export const authSlice = createSlice({
       state.newmessage = "";
       state.IsError = false;
     },
-       updateUserDetails: (state, action: PayloadAction<User>) => {
+    updateUserDetails: (state, action: PayloadAction<User>) => {
       state.selected = action.payload;
     },
   },
@@ -92,6 +92,7 @@ export const authSlice = createSlice({
           state.message = "Login successful";
           state.user = action.payload;
           state.token = action.payload.Token;
+          localStorage.setItem("shopId", action.payload?.shopId);
         }
       )
       .addCase(logoutUser.fulfilled, (state) => {
@@ -159,7 +160,7 @@ export const authSlice = createSlice({
         state.isError = true;
         state.message = action.payload as string;
       })
-       .addCase(updateUser.pending, (state) => {
+      .addCase(updateUser.pending, (state) => {
         state.isLoading = true;
       })
       .addCase(updateUser.fulfilled, (state, action: PayloadAction<User>) => {

@@ -208,7 +208,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
                     ),
                   }}
                 />
-                )}
+              )}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -271,33 +271,33 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
                 />
               )}
             />
-                  <Controller
-                    name="isAdmin"
-                    control={control}
-                    defaultValue={newUser.isAdmin}
-                    render={({ field }) => (
-                      <TextField
-                        label="isAdmin"
-                        variant="outlined"
-                        select
-                        {...field}
-                        fullWidth
-                        margin="dense"
-                        error={!!errors.isAdmin}
-                        helperText={errors.isAdmin?.message}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <AccountCircleIcon />
-                            </InputAdornment>
-                          ),
-                        }}
-                      >
-                        <MenuItem value="true">True</MenuItem>
-                        <MenuItem value="false">False</MenuItem>
-                      </TextField>
-                    )}
-                  />
+            <Controller
+              name="isAdmin"
+              control={control}
+              defaultValue={newUser.isAdmin}
+              render={({ field }) => (
+                <TextField
+                  label="isAdmin"
+                  variant="outlined"
+                  select
+                  {...field}
+                  fullWidth
+                  margin="dense"
+                  error={!!errors.isAdmin}
+                  helperText={errors.isAdmin?.message}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <AccountCircleIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                >
+                  <MenuItem value="true">True</MenuItem>
+                  <MenuItem value="false">False</MenuItem>
+                </TextField>
+              )}
+            />
           </Grid>
           <Grid item xs={12} sm={6}>
             <Controller

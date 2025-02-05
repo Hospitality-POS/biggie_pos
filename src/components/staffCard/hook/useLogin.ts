@@ -43,6 +43,8 @@ export const useLogin = (setOpen: { (value: SetStateAction<boolean>): void; (arg
       // Dispatch login action
       const resp = await dispatch(loginUser({ pin }));
 
+      console.log('my user alert', resp);
+
 
       // Handle rejected login
       if (resp?.error?.message === "Rejected") {
