@@ -17,6 +17,7 @@ import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberU
 import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
 import { useAppSelector } from "src/store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchAllShops } from "@services/shops";
 
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
@@ -41,7 +42,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   const [open, setOpen] = useState(false);
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
-  // console.log("xxxxxxxxxxxxxxxxxxxx", isAdmin);
+  const isEditingOwnProfile = edit && data?._id === userId;
 
   const queryClient = useQueryClient();
 
@@ -64,46 +65,60 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
   const { handleConfirmAddUser } = useAddEditUserModal({ onAddUser });
 
-
-    const onFinish = async (values) => {
-      const phoneNumber = getPhoneNumber(values?.phoneNumber);
-      const value = { ...values, phone: phoneNumber };
-      const confirmed = await ShowConfirm({
-        title: `Are you sure you want to ${
-          edit ? "update this" : "add new"
-        } ${isProfile? "profile" : "user"}?`,
-        position: true,
-      });
-      if (confirmed) {
-        if (edit) {
-          await updateUsers({
-            value,
-            _id: data._id,
-          });
-          // Invalidate the query to update the user details
-          isProfile && await queryClient.invalidateQueries(["user", userId]);
-        } else {
-          await handleConfirmAddUser(value);
-        }
-        actionRef.current?.reload();
-        return true;
+  const onFinish = async (values) => {
+    const phoneNumber = getPhoneNumber(values?.phoneNumber);
+    const value = { ...values, phone: phoneNumber };
+    const confirmed = await ShowConfirm({
+      title: `Are you sure you want to ${edit ? "update this" : "add new"} ${isProfile ? "profile" : "user"
+        }?`,
+      position: true,
+    });
+    if (confirmed) {
+      if (edit) {
+        await updateUsers({
+          value,
+          _id: data._id,
+        });
+        // Invalidate the query to update the user details
+        isProfile && (await queryClient.invalidateQueries(["user", userId]));
+      } else {
+        await handleConfirmAddUser(value);
       }
-    };
+      actionRef.current?.reload();
+      return true;
+    }
+  };
 
-     const { data: userRoles } = useQuery({
-       queryKey: ["userRoles"],
-       queryFn: fetchUserRoles,
-       retry: 3,
-       refetchInterval: 5000,
-       networkMode: "always",
-     });
+  const { data: userRoles } = useQuery({
+    queryKey: ["userRoles"],
+    queryFn: fetchUserRoles,
+    retry: 3,
+    refetchInterval: 5000,
+    networkMode: "always",
+  });
 
-    const roleRequest = async () => {
-      const values = userRoles.map((e: { role_type: any; _id: any }) => {
-        return { label: e.role_type, value: e._id };
-      });
-      return values;
-    };
+  const roleRequest = async () => {
+    const values = userRoles.map((e: { role_type: any; _id: any }) => {
+      return { label: e.role_type, value: e._id };
+    });
+    return values;
+  };
+
+  // handle shops
+  const { data: shops } = useQuery({
+    queryKey: ["shops"],
+    queryFn: fetchAllShops,
+    retry: 3,
+    refetchInterval: 5000,
+    networkMode: "always",
+  });
+
+  const shopRequest = async () => {
+    const values = shops.map((e: { name: any; _id: any }) => {
+      return { label: e.name, value: e._id };
+    });
+    return values;
+  };
 
   return (
     <ModalForm
@@ -120,13 +135,17 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       initialValues={
         edit
           ? {
-              ...data,
-              phoneNumber: reversePhoneNumber(data?.phone),
-              roleId: {
-                value: data?.role?._id,
-                label: data?.role?.role_type,
-              },
-            }
+            ...data,
+            phoneNumber: reversePhoneNumber(data?.phone),
+            roleId: {
+              value: data?.role?._id,
+              label: data?.role?.role_type,
+            },
+            shop_id: {
+              value: data?.shop_id?._id,
+              label: data?.shop_id?.name,
+            },
+          }
           : {}
       }
       trigger={
@@ -144,8 +163,8 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
             Edit
           </Button>
         ) : (
-          <Button key="button" icon={<UsergroupAddOutlined />}>
-            New
+          <Button type="primary" key="button" icon={<UsergroupAddOutlined />}>
+            New Staff
           </Button>
         )
       }
@@ -187,7 +206,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
             width="md"
             name="roleId"
             label="Roles"
-            disabled={isProfile}
+            disabled={isProfile || isEditingOwnProfile} // Prevent admin from changing their own role
             rules={[{ required: true, message: "Roles is required" }]}
             showSearch
             placeholder="Select role"
@@ -236,22 +255,20 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
           ]}
           placeholder="Enter user National ID"
         />
+        {/* Conditionally render the shop field */}
+        {user?.role !== "cashier" && (!isAdmin || !isEditingOwnProfile) ? (
+          <ProFormSelect
+            hasFeedback
+            width="md"
+            name="shop_id"
+            label="Shop Name"
+            rules={[{ required: true, message: "Shop is required" }]}
+            showSearch
+            placeholder="Select shop name"
+            request={shopRequest}
+          />
+        ) : null}
 
-        {/* <ProFormDigit
-          hasFeedback
-          width="md"
-          name="phone"
-          label="Phone"
-          tooltip="Users Phone Number include 10 digits only"
-          rules={[
-            {
-              required: true,
-              message: "Invalid phone no. include 10 digits only.",
-              pattern: /^\d{10}$/,
-            },
-          ]}
-          placeholder="Enter supplier phone"
-        /> */}
         <PhoneInput label="Phone" owner="phoneNumber" />
       </ProForm.Group>
     </ModalForm>
