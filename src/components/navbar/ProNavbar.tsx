@@ -22,6 +22,7 @@ const ProNavbar = () => {
   const { user } = useAppSelector((state) => state.auth);
   const handleLogout = () => {
     dispatch(logoutUser());
+    localStorage.removeItem("shopId");
     dispatch(reset());
     navigation("/login");
   };
