@@ -1,6 +1,7 @@
 import axios from "axios";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
+import { json } from "react-router-dom";
 
 
 // Helper function to handle errors
@@ -22,16 +23,17 @@ axiosInstance.interceptors.request.use(
 
 
         if (user) {
-            ``
             const userObject = JSON.parse(user);
             const token = userObject.Token;
             if (token) {
 
                 config.headers['Authorization'] = `Bearer ${token}`;
                 config.headers['currentUser'] = userObject._id || userObject.id;
-                // console.log('Token added to headers:', config.headers['Authorization']);
+
             }
-            if (shopId && !(config.url?.includes('/users') || config.url?.includes('/shops'))) {
+
+            if ((shopId && shopId !== 'undefined') && !(config.url?.includes('/users') || config.url?.includes('/shops'))) {
+
                 if (config.method === 'get') {
                     config.params = {
                         ...config.params,
@@ -45,6 +47,7 @@ axiosInstance.interceptors.request.use(
                     };
                 }
             }
+
         }
         const storedCode = localStorage.getItem("companyCode");
         if (storedCode || config.data?.companyCode) {
@@ -52,11 +55,13 @@ axiosInstance.interceptors.request.use(
 
         }
 
-        // console.log('nice', config);
+
+
+
         return config;
     },
     (error) => {
-        console.log('my error', error);
+
         handleError("Request failed");
         return Promise.reject(error);
     }
@@ -68,7 +73,6 @@ axiosInstance.interceptors.response.use(
     (error) => {
 
         const { response } = error;
-        // console.log('resp', response);
         if (response && response.status === 401) {
             handleError("Unauthorized. Please login again.");
         } else if (response.status === 403) {
@@ -77,17 +81,12 @@ axiosInstance.interceptors.response.use(
         else if (response.status === 409) {
             handleError("Company does not exist kindly contact support ");
         }
-        else if (response.status === 400) {
-            handleError("An error occurred while processing your request. ");
-        } else if (response.status === 404) {
+        else if (response.status === 404) {
             handleError(response.data.message);
         }
+
         else {
             // handleError("An error occurred while processing your request.");
-            console.log(
-              "An error occurred while processing your request.",
-              error
-            );
         }
         return Promise.reject(error);
     }
