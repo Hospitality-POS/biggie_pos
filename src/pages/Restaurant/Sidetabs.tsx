@@ -83,7 +83,7 @@ const VerticalTabs: React.FC<VerticalTabProps> = ({ handleSub }) => {
 
   const siderStyle: React.CSSProperties = {
     position: isMobile ? 'fixed' : 'relative',
-    height: '730px',
+    height: '100%',
     transform: isDrawerOpen ? 'translateX(0)' : 'translateX(-100%)',
     transition: 'transform 0.3s ease-in-out',
     background: '#6c1c2c',
