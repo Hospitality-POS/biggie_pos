@@ -474,7 +474,6 @@ const PaymentDrawer: React.FC = () => {
             />
           )}
         </Space>
-        <Divider />
         <Typography.Title level={4}>
           <ClockCircleOutlined /> Recent Transactions
         </Typography.Title>
