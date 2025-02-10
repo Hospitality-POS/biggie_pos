@@ -21,7 +21,7 @@ export const getAllOrders = async (data: ParamsType) => {
 export const getDashboardAnalysis = async () => {
   try {
     const response = await axiosInstance.get(`${BASE_URL}/orders/dashboard/summary`);
-    console.log('resp', response);
+    console.log('resp mmmmmm ', response);
     return response.data;
   } catch (error) {
     console.log(error);

@@ -9,6 +9,7 @@ import {
   Space,
   Result,
   message,
+  Rate,
 } from "antd";
 import {
   SaveOutlined,
@@ -18,6 +19,8 @@ import {
   CopyOutlined,
   UserOutlined,
   LeftOutlined,
+  StarOutlined,
+  CommentOutlined,
 } from "@ant-design/icons";
 import { logCustomerVisit, addNewCustomer } from "@services/customers";
 import { ProCard } from "@ant-design/pro-components";
@@ -25,6 +28,7 @@ import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 
 const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
 
 const CustomerVisitTracker = () => {
   const [form] = Form.useForm();
@@ -42,26 +46,25 @@ const CustomerVisitTracker = () => {
   const tenantId = params.get("tenant_id");
   const shopId = params.get("shop_id");
 
- const welcomeMessages = [
-   "🎉 Great to see you again! 🙌",
-   "We missed you, welcome back! ❤️",
-   "Hello again, ready for something new? 🚀",
-   "It's awesome to have you back! 😄",
-   "You're back! Let's get started! 💪",
-   "Back at it again! We've got more in store for you! 🎁",
-   "Welcome back, your favorite spot is waiting! 🏆",
-   "Always a pleasure to see you return! 🌟",
-   "We’re thrilled to have you back! 💙",
- ];
-
+  const welcomeMessages = [
+    "🎉 Great to see you again! 🙌",
+    "We missed you, welcome back! ❤️",
+    "Hello again, ready for something new? 🚀",
+    "It's awesome to have you back! 😄",
+    "You're back! Let's get started! 💪",
+    "Back at it again! We've got more in store for you! 🎁",
+    "Welcome back, your favorite spot is waiting! 🏆",
+    "Always a pleasure to see you return! 🌟",
+    "We're thrilled to have you back! 💙",
+  ];
 
   const getRandomWelcomeMessage = () => {
     const randomIndex = Math.floor(Math.random() * welcomeMessages.length);
     return welcomeMessages[randomIndex];
   };
 
-   const randomMessage = getRandomWelcomeMessage();
-  // Business logic functions remain the same
+  const randomMessage = getRandomWelcomeMessage();
+
   const handleCustomerRegistration = async (values) => {
     setLoading(true);
     try {
@@ -92,12 +95,15 @@ const CustomerVisitTracker = () => {
   const handleVisitLog = async (values) => {
     setLoading(true);
     try {
-      const { phoneNumber } = values;
+
+      const { phoneNumber, rating, review } = values;
       const customerCode = getPhoneNumber(phoneNumber);
       const payload = {
         customerCode,
         tenant_id: tenantId,
         shop_id: shopId,
+        rating,
+        review,
       };
       const resp = await logCustomerVisit(payload);
       if (resp?.status === 200) {
@@ -295,7 +301,7 @@ const CustomerVisitTracker = () => {
             <Text style={{ fontSize: "16px", color: "#666" }}>
               {visitType === "registration"
                 ? "Welcome to our community!"
-                : "Thank you for visiting us today!"}
+                : "Thank you for your feedback and for visiting us today!"}
             </Text>
           }
           extra={
@@ -340,10 +346,7 @@ const CustomerVisitTracker = () => {
             label="Enter your full name"
             rules={[{ required: true, message: "Please enter your name" }]}
           >
-            <Input
-              prefix={<UserOutlined />}
-              placeholder="Enter your full name"
-            />
+            <Input prefix={<UserOutlined />} placeholder="Enter your full name" />
           </Form.Item>
 
           <PhoneInput label="Enter your phone number" owner="phoneNumber" />
@@ -391,14 +394,42 @@ const CustomerVisitTracker = () => {
           size="large"
           style={{ width: "100%" }}
         >
-          <Title
-            level={5}
-            style={{ marginBottom: "24px", textAlign: "center" }}
-          >
+          <Title level={5} style={{ marginBottom: "24px", textAlign: "center" }}>
             {randomMessage}
           </Title>
 
           <PhoneInput label="Enter your phone number" owner="phoneNumber" />
+
+          <Form.Item
+            name="rating"
+            label={
+              <Space>
+                <StarOutlined />
+                <span>Rate your experience</span>
+              </Space>
+            }
+            rules={[{ required: true, message: "Please rate your experience" }]}
+            style={{ width: "100%" }}
+          >
+            <Rate style={{ fontSize: "24px", width: "100%" }} />
+          </Form.Item>
+
+          <Form.Item
+            name="review"
+            label={
+              <Space>
+                <CommentOutlined />
+                <span>Share your feedback (optional)</span>
+              </Space>
+            }
+          >
+            <TextArea
+              placeholder="Tell us about your experience..."
+              rows={4}
+              showCount
+              maxLength={500}
+            />
+          </Form.Item>
 
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
             <Button
@@ -409,7 +440,7 @@ const CustomerVisitTracker = () => {
               icon={<QrcodeOutlined />}
               loading={loading}
             >
-              Log Visit
+              Log Visit & Submit Feedback
             </Button>
             <Button
               type="default"
@@ -452,17 +483,12 @@ const CustomerVisitTracker = () => {
         }}
       >
         <Row>
-          {/* Desktop Sidebar - Hidden on Mobile */}
           <Col xs={0} md={12} style={{ height: "500px" }}>
             <DesktopSidebar />
           </Col>
-
-          {/* Mobile Header - Shown only on Mobile */}
           <Col xs={24} md={0}>
             <MobileHeader />
           </Col>
-
-          {/* Main Content */}
           <Col xs={24} md={12}>
             <div
               style={{
