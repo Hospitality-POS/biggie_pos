@@ -218,7 +218,7 @@ const StaffLoginPage = () => {
                                     textShadow: "0 2px 4px rgba(0,0,0,0.2)",
                                 }}
                             >
-                                Hospitality POS Portal
+                                Relia POS Portal
                             </h2>
                             {companyName && (
                                 <Text

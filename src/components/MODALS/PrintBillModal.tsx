@@ -60,23 +60,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         </Button>
       }
       onFinish={async () => {
-        try {
-          const confirmed = await ShowConfirm({
-            title: `Do you want to print this bill with ETR machine?`,
-            position: true,
-            cancelText: "Without ETR",
-          });
-          if (confirmed) {
-            await printInvoice({ cart_id: cartDetails?._id, print_etr: true, print: true });
-            return true;
-          } else {
-            await printInvoice({ cart_id: cartDetails?._id, print_etr: false, print: true });
-            return true;
-          }
-        } catch (error) {
-          console.log(error);
-          return false;
-        }
+        handlePrint();
+        return true;
       }}
     >
       <div className="receipt" id="receipt" ref={componentRef}>

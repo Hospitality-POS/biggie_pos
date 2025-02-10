@@ -41,7 +41,7 @@ const useProLayoutNav = () => {
         },
         {
           path: "/store",
-          name: "Store",
+          name: "Services",
           icon: <FolderFilled />,
         },
         {
