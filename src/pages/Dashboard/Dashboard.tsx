@@ -149,7 +149,7 @@ const StatisticCard = ({ title, value, prefix, loading }) => (
 );
 
 const QuickAccessButton = ({ icon, text, route, color, onClick }) => (
-   <Col xs={12} sm={8} lg={6}>
+   <Col xs={12} sm={8} lg={4}>
     <CheckCard hoverable style={{ textAlign: "center", width: "100%" }} onClick={onClick} cover>
       <Space direction="vertical">
         {React.cloneElement(icon, {
