@@ -4,7 +4,7 @@ import {
   ActionType,
   ProFormInstance,
 } from "@ant-design/pro-components";
-import { fetchAllCustomers } from "@services/customers";
+import { fetchAdminAllCustomers } from "@services/customers";
 import ExpandedRowContent from "./ExpandableCustomer";
 import parsePhoneNumberFromString, {
   formatIncompletePhoneNumber,
@@ -103,7 +103,7 @@ const AdminCustomersTable: React.FC = () => {
       rowKey="_id"
       columns={columns}
       request={async (params) => {
-        const data = await fetchAllCustomers(params);
+        const data = await fetchAdminAllCustomers(params);
         return { data, success: true, total: data.length };
       }}
       actionRef={actionRef}
