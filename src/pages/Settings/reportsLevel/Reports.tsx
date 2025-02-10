@@ -276,7 +276,7 @@ const Reports: React.FC = () => {
               Tips  Report
             </Space>
           }
-          key="usage"
+          key="tips"
         >
           <Space direction="vertical" size={16}>
             <RangePicker
