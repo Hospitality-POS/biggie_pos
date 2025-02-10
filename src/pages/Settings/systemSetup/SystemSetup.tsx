@@ -78,13 +78,13 @@ const SystemSetup: React.FC = () => {
         </div>
       </ProCard.TabPane>
 
-      <ProCard.TabPane
+      {/* <ProCard.TabPane
         key="printer"
         tab={
           <Space>
-            <PrinterOutlined style={{ color: "#1890ff" }} />{" "}
+            <PrinterOutlined style={{ color: "#1890ff" }} />{" "} */}
             {/* Blue color for printer config */}
-            <Typography.Text>Printer Config</Typography.Text>
+            {/* <Typography.Text>Printer Config</Typography.Text>
           </Space>
         }
       >
@@ -97,7 +97,7 @@ const SystemSetup: React.FC = () => {
         >
           <PrinterConfig />
         </div>
-      </ProCard.TabPane>
+      </ProCard.TabPane> */}
 
       <ProCard.TabPane
         key="billing"

@@ -21,6 +21,17 @@ export const fetchAllCustomers = async (data: ParamsType) => {
     }
 };
 
+export const fetchAdminAllCustomers = async (data: ParamsType) => {
+    try {
+        const response = await axiosInstance.get(categ_url, {
+            params: { customer_name: data.customer_name, email: data.email, phone: data.phone, code: data.code },
+        });
+        return response.data;
+    } catch (error) {
+        throw new Error(error?.message);
+    }
+};
+
 
 export const addNewCustomer = async (params: ParamsType) => {
     try {

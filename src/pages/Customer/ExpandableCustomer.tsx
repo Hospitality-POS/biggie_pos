@@ -32,7 +32,7 @@ const ExportableVisitsTable = ({ record }) => {
       dataIndex: 'date',
       key: 'date',
       width: '20%',
-      sorter: (a, b) => new Date(a.rawDate) - new Date(b.rawDate),
+      sorter: (a, b) => new Date(a.rawDate).getTime() - new Date(b.rawDate).getTime(),
     },
     {
       title: 'Visit Time',
@@ -49,7 +49,7 @@ const ExportableVisitsTable = ({ record }) => {
       render: (rating) => (
         <Space>
           <Rate disabled defaultValue={rating} />
-          <Text className="text-gray-600">({rating})</Text>
+          <Text>({rating})</Text>
         </Space>
       ),
     },
@@ -57,26 +57,37 @@ const ExportableVisitsTable = ({ record }) => {
       title: 'Review',
       dataIndex: 'review',
       key: 'review',
+      ellipsis: true,
       width: '35%',
       render: (review) => {
-        if (!review) return <Text className="text-gray-400">No review provided</Text>;
+        if (!review) return <Text>No review provided</Text>;
         return (
           <Tooltip title={review} placement="topLeft">
-            <Text className="line-clamp-2">{review}</Text>
+            <Text>{review}</Text>
           </Tooltip>
         );
       },
     },
-    {
-      title: 'Created By',
-      dataIndex: 'createdBy',
-      key: 'createdBy',
-      width: '15%',
-      render: (text) => <Tag color="blue">{text}</Tag>,
-    },
+    // {
+    //   title: 'Created By',
+    //   dataIndex: 'createdBy',
+    //   key: 'createdBy',
+    //   width: '15%',
+    //   render: (text) => <Tag color="blue">{text}</Tag>,
+    // },
   ];
 
-  const tableData = useMemo(() => {
+  interface TableData {
+    key: string | number;
+    date: string;
+    time: string;
+    rating: number;
+    review: string;
+    createdBy: string | undefined;
+    rawDate: string;
+  }
+
+  const tableData: TableData[] = useMemo(() => {
     return visits.map((visit, index) => {
       const { date, time } = formatTimeDisplay(visit.createdAt);
       return {
@@ -150,13 +161,13 @@ const ExportableVisitsTable = ({ record }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <Space direction="vertical" size="small">
-          <Title level={5} className="m-0">Visit History</Title>
+          <Title level={5}>Visit History</Title>
         </Space>
         <Space>
-          <Button icon={<FileExcelOutlined />} onClick={exportToExcel} className="bg-green-600 text-white hover:bg-green-700">Export to Excel</Button>
-          <Button icon={<FilePdfOutlined />} onClick={exportToPDF} className="bg-red-600 text-white hover:bg-red-700">Export to PDF</Button>
+          <Button icon={<FileExcelOutlined />} onClick={exportToExcel} >Export to Excel</Button>
+          <Button icon={<FilePdfOutlined />} onClick={exportToPDF} >Export to PDF</Button>
         </Space>
       </div>
 
@@ -164,9 +175,8 @@ const ExportableVisitsTable = ({ record }) => {
         columns={columns}
         dataSource={tableData}
         size="middle"
-        pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} visits` }}
+        pagination={{ pageSize: 5, showSizeChanger: true, showTotal: (total) => `Total ${total} visits` }}
         scroll={{ x: true }}
-        className="bg-white rounded-lg shadow"
       />
     </div>
   );
