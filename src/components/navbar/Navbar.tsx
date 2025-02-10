@@ -186,7 +186,7 @@ function Navbar() {
                         fontSize="inherit"
                         onClick={() => navigate("/store")}
                       >
-                        Store
+                        Services
                       </Typography>
                     ) : page === "Orders" ? (
                       <Typography
@@ -229,7 +229,7 @@ function Navbar() {
                         user?.role === "admin" ? (
                         <>
                           <StoreIcon style={{ fontSize: "16px" }} />
-                          <Typography fontSize="inherit">Store</Typography>
+                          <Typography fontSize="inherit">Services</Typography>
                         </>
                       ) : page === "Orders" &&
                         user?.role === "admin" ? (

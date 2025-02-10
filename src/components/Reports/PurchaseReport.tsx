@@ -1,23 +1,29 @@
-import React, { useRef } from "react";
+import React, { Key, useRef } from "react";
 import {
+  Button,
   Dialog,
   DialogContent,
   Typography,
-  Button,
   TableContainer,
   Table,
+  TableBody,
+  TableCell,
   TableHead,
   TableRow,
-  TableCell,
-  TableBody,
+  Paper,
   Box,
 } from "@mui/material";
-import { Spin } from "antd";
+import LocalPrintshopIcon from "@mui/icons-material/LocalPrintshop";
+import PrintDisabledIcon from "@mui/icons-material/PrintDisabled";
 import { useReactToPrint } from "react-to-print";
 import { useAppSelector } from "../../store";
+import Spinner from "../spinner/Spinner";
+import "../MODALS/bill.css";
+import { Spin } from "antd/lib";
+import { BRAND_NAME, COOP_NAME } from "@utils/config";
 import moment from "moment";
 import useSystemDetails from "@hooks/useSystemDetails";
-import { COOP_NAME } from "@utils/config";
+import NubaLoader from "@components/spinner/NubaLoader";
 
 interface PurchaseReportProps {
   openM: boolean;
@@ -34,82 +40,101 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
 }) => {
   const { BRAND_NAME1 } = useSystemDetails();
   const componentRef = useRef<HTMLDivElement>(null);
-
-  const { purchaseReport: data, loading, error } = useAppSelector(
+  const { purchaseReport: data, loading } = useAppSelector(
     (state) => state.Report
   );
-
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
-    onAfterPrint: onCloseM,
+    // onAfterPrint: onCloseM,
   });
-
   if (loading) {
     return (
       <Spin
         size="large"
         fullscreen
-        tip="Generating Purchase Report, please wait..."
+        indicator={<NubaLoader />}
+        tip="Generating Purchase report Please wait ..."
       />
     );
   }
-
-  if (error) return null;
-
   return (
     <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
-      <DialogContent>
-        <div ref={componentRef} style={{ padding: 24 }}>
-          <div style={{ textAlign: "center", marginBottom: 24 }}>
-            <Typography variant="h5" style={{ fontWeight: "bold" }}>
-              {BRAND_NAME1}
-            </Typography>
-            <Typography variant="h6">Purchase Report</Typography>
-            <Typography>
-              From: {moment(startDate).format("MMM-DD-YYYY H:MM A")}
-            </Typography>
-            <Typography>
-              To: {moment(endDate).format("MMM-DD-YYYY H:MM A")}
+      <DialogContent className="receiptM" ref={componentRef}>
+        <div className="receipt" id="receipt">
+          <div
+            className="logo-print"
+            style={{ display: "flex", flexDirection: "column" }}
+          >
+            {BRAND_NAME1 && BRAND_NAME1 !== "undefined undefined" && (
+              <Typography
+                variant="h5"
+                textAlign={"center"}
+                sx={{ fontFamily: "monospace", fontWeight: "bold" }}
+              >
+                {BRAND_NAME1}
+              </Typography>
+            )}
+            <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
+              SALES REPORT
             </Typography>
           </div>
+          <p style={{ textAlign: "center", padding: "10px" }}>
+            From: {moment(startDate).format("MMM-DD-YYYY H:MM A")} <br /> to{" "}
+            <br /> {moment(endDate).format("MMM-DD-YYYY H:MM A")}
+          </p>
 
-          <TableContainer style={{ marginBottom: 24 }}>
+          <TableContainer sx={{ mt: 2, width: "100%", mb: 2 }}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell style={{ fontWeight: "bold" }}>No.</TableCell>
-                  <TableCell style={{ fontWeight: "bold" }}>Method</TableCell>
-                  <TableCell style={{ fontWeight: "bold", textAlign: "right" }}>
-                    Amount (Ksh)
+                  <TableCell sx={{ fontWeight: "bold" }}>NO.</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", padding: 0 }}>
+                    METHOD
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", textAlign: "right" }}>
+                    AMOUNT(Ksh.)
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {data?.payment_methods.map((item: any, index: number) => (
                   <TableRow key={item.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell style={{ textAlign: "right" }}>
+                    <TableCell>{item.id ? <>{index + 1}</> : ""}</TableCell>
+                    <TableCell sx={{ padding: "8px", fontWeight: "bold" }}>
+                      {item.name}
+                    </TableCell>
+                    <TableCell sx={{ textAlign: "right", fontWeight: "bold" }}>
                       {item.amount.toLocaleString()}
                     </TableCell>
                   </TableRow>
                 ))}
                 <TableRow>
-                  <TableCell colSpan={3} style={{ textAlign: "center" }}>
-                    <strong>Overall Total: </strong>
-                    {data?.totalCost.toLocaleString()}
+                  <TableCell
+                    colSpan={3}
+                    sx={{ fontWeight: "bold", textAlign: "center" }}
+                  >
+                    Overall Total: {data?.totalCost.toLocaleString()}
+                  </TableCell>
+                </TableRow>
+
+                <TableRow>
+                  <TableCell
+                    colSpan={3}
+                    sx={{ fontWeight: "bold", textAlign: "center" }}
+                  >
+                    Overall Discount:{" "}
+                    <span>{data?.totalDiscountAmount?.toLocaleString()}</span>
                   </TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell colSpan={3} style={{ textAlign: "center" }}>
-                    <strong>Overall Discount: </strong>
-                    {data?.totalDiscountAmount?.toLocaleString()}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell colSpan={3} style={{ textAlign: "center" }}>
-                    <strong>Overall Inclusive Discount: </strong>
-                    {data?.totalInclusiveDiscount?.toLocaleString()}
+                  <TableCell
+                    colSpan={3}
+                    sx={{ fontWeight: "bold", textAlign: "center" }}
+                  >
+                    Overall inclusive discount:{" "}
+                    <span>
+                      {data?.totalInclusiveDiscount?.toLocaleString()}
+                    </span>
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -117,37 +142,64 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
           </TableContainer>
 
           <Typography
-            style={{ textAlign: "center", fontWeight: "bold", marginBottom: 16 }}
+            variant="body1"
+            style={{
+              fontSize: "1em",
+              fontFamily: "monospace",
+              textAlign: "center",
+            }}
           >
             Powered by: {COOP_NAME}
           </Typography>
           <Typography
-            style={{ textAlign: "center", fontSize: "0.9em" }}
+            variant="body1"
+            sx={{ textAlign: "center", fontSize: "0.9em" }}
           >
-            Generated on {moment().format("MMM/DD/YYYY H:MM A")}
+            Generated on {moment(Date()).format("MMM/DD/YYYY H:MM A")}
           </Typography>
         </div>
 
         <Box
-          style={{
+          className="hidden-print"
+          sx={{
+            mt: 2,
             display: "flex",
-            justifyContent: "space-between",
-            marginTop: 16,
+            justifyContent: "space-evenly",
+            columnGap: 5,
           }}
         >
           <Button
-            variant="contained"
-            color="primary"
+            className="hidden-print"
+            variant="outlined"
+            sx={{
+              pl: 2,
+              color: "#6c1c2c",
+              borderColor: "#6c1c2c",
+              "&:hover": {
+                borderColor: "#bc8c7c",
+                color: "#bc8c7c",
+              },
+            }}
             onClick={handlePrint}
+            endIcon={<LocalPrintshopIcon />}
           >
             Print
           </Button>
           <Button
+            className="hidden-print"
             variant="contained"
-            color="secondary"
+            sx={{
+              pl: 2,
+              bgcolor: "#6c1c2c",
+              "&:hover": {
+                bgcolor: "#bc8c7c",
+                color: "#ffff",
+              },
+            }}
             onClick={onCloseM}
+            endIcon={<PrintDisabledIcon />}
           >
-            Close
+            Cancel
           </Button>
         </Box>
       </DialogContent>

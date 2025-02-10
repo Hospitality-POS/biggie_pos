@@ -7,13 +7,13 @@ function CategoryCard({
   id,
   handleSelectedCard,
 }: any) {
- 
+
   return (
     <CheckCard
       onClick={() => handleSelectedCard(id)}
       title={
         <Space style={{ justifyContent: "center", width: "100vw" }}>
-          <Image preview={false} src={icon ? icon : "/chip4.png"} width={50} />
+          <Image preview={false} src={icon ? icon : "/categoryIcon.svg"} width={50} />
         </Space>
       }
       description={

@@ -14,15 +14,9 @@ import "./bill.css";
 import { useReactToPrint } from "react-to-print";
 import { ENTITY_NAME } from "@utils/config";
 import useSystemDetails from "@hooks/useSystemDetails";
-import {
-  PrinterFilled,
-  PrinterOutlined,
-  RestOutlined,
-} from "@ant-design/icons";
+import { PrinterFilled, PrinterOutlined, RestOutlined } from "@ant-design/icons";
 import { Button } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
-import { printInvoice } from "@services/cart";
-import ShowConfirm from "@utils/ConfirmUtil";
 
 interface PrintBillProps {
   cartDetails: any;
@@ -37,7 +31,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 }) => {
   const componentRef = useRef<HTMLDivElement>(null);
 
-  const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs } =
+
+  const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs, Paybill_ac, TILL_NO } =
     useSystemDetails();
 
   const handlePrint = useReactToPrint({
@@ -50,7 +45,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
       modalProps={{
         centered: true,
         destroyOnClose: true,
-        cancelText: "close",
+        cancelText: "cancel",
         okText: "Confirm Print",
         okButtonProps: { icon: <PrinterFilled /> },
       }}
@@ -60,23 +55,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         </Button>
       }
       onFinish={async () => {
-        try {
-          const confirmed = await ShowConfirm({
-            title: `Do you want to print this bill with ETR machine?`,
-            position: true,
-            cancelText: "Without ETR",
-          });
-          if (confirmed) {
-            await printInvoice({ cart_id: cartDetails?._id, print_etr: true, print: true });
-            return true;
-          } else {
-            await printInvoice({ cart_id: cartDetails?._id, print_etr: false, print: true });
-            return true;
-          }
-        } catch (error) {
-          console.log(error);
-          return false;
-        }
+        handlePrint();
+        return true;
       }}
     >
       <div className="receipt" id="receipt" ref={componentRef}>
@@ -96,28 +76,50 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               /> */}
           <Typography
             variant="body1"
-            style={{ fontFamily: "monospace", fontSize: "1.3em", textAlign: "center" }}
+            style={{ fontFamily: "monospace", fontSize: "1.3em" }}
           >
             {BRAND_NAME1}
           </Typography>
-          <Typography
+          {/* <Typography
             variant="body1"
             style={{ fontFamily: "monospace", fontSize: "1.2em" }}
           >
             {ENTITY_NAME}
-          </Typography>
+          </Typography> */}
           <Typography
             variant="body1"
             style={{ fontSize: "1.2em", fontFamily: "monospace" }}
           >
             Phone: {PHONE_NO}
           </Typography>
-          <Typography
-            variant="body1"
-            style={{ fontSize: "1.2em", fontFamily: "monospace" }}
-          >
-            Till: {Paybill_bs}
-          </Typography>
+          {TILL_NO ? (
+            <Typography
+              variant="body1"
+              style={{ fontSize: "1.2em", fontFamily: "monospace" }}
+            >
+              Till No : {TILL_NO}
+            </Typography>
+          ) : (
+            <>
+              {Paybill_bs && (
+                <Typography
+                  variant="body1"
+                  style={{ fontSize: "1.2em", fontFamily: "monospace" }}
+                >
+                  Business No : {Paybill_bs}
+                </Typography>
+              )}
+              {Paybill_ac && (
+                <Typography
+                  variant="body1"
+                  style={{ fontSize: "1.2em", fontFamily: "monospace" }}
+                >
+                  Account No : {Paybill_ac}
+                </Typography>
+              )}
+            </>
+          )}
+
           {/* <Typography
               variant="body1"
               style={{ fontSize: "1em", fontFamily: "monospace" }}
@@ -128,7 +130,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             variant="body1"
             style={{ fontSize: "1em", fontFamily: "monospace" }}
           >
-            Client Pin: {cartDetails?.clientPin}
+            {cartDetails?.clientPin && `Client Pin: ${cartDetails?.clientPin}`}
           </Typography>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -295,9 +297,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         >
           ============================
         </Typography>
-        {/* <div className="qrcoded" style={{ marginTop: 4 }}>
+        <div className="qrcoded" style={{ marginTop: 4 }}>
           <QRCodeCanvas value={QR_Code} size={80} className="qrcode" />
-        </div> */}
+        </div>
         <Typography
           variant="body1"
           style={{
@@ -307,7 +309,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             marginTop: 10,
           }}
         >
-          Thank you! and come again!
+          Thank you for your support!
         </Typography>
         <Typography
           variant="body1"
@@ -325,7 +327,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             fontSize: "0.8em",
             fontFamily: "monospace",
             textAlign: "center",
-            marginBottom: 8,
           }}
         >
           Generated on {new Date().toLocaleDateString()}
@@ -335,12 +336,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           style={{
             fontSize: "0.8em",
             fontFamily: "monospace",
-            fontWeight: "bold",
             textAlign: "center",
           }}
         >
-          A product of RELIA TECH  for more Info
-          <br /> contact us on 0747665877
+          A product of Relia Tech Solutions
         </Typography>
       </div>
       <Box

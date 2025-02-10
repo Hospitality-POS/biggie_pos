@@ -9,6 +9,7 @@ function useSystemDetails() {
     refetchInterval: 3000,
     networkMode: "always",
   });
+  console.log("my system details", data);
   return {
     BRAND_NAME1: `${data?.name} ${data?.location}`,
     PHONE_NO: data?.phone,
