@@ -6,6 +6,8 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 const userUrl = `${BASE_URL}/users`;
 const tenantUrl = `${BASE_URL}/tenants`;
 
+const shopId = localStorage.getItem("shopId");
+
 export const fetchAllUsersList = async (data: ParamsType) => {
   try {
     const url = `${BASE_URL}/users/all`;
@@ -18,6 +20,17 @@ export const fetchAllUsersList = async (data: ParamsType) => {
     throw new Error(error?.message);
   }
 };
+
+export const fetchAllUsersByShopId = async () => {
+  try {
+    const url = `${BASE_URL}/users/shop/${shopId}`;
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error) {
+    throw new Error(error?.message);
+  }
+};
+
 
 export const updateSubscription = createAsyncThunk(
   "subscription/update",

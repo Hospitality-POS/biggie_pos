@@ -233,7 +233,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
             },
           ]}
           placeholder="Select if the product should auto deduct Inventory"
-          initialValue={true}
+          initialValue={false}
         />
 
 

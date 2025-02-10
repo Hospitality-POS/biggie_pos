@@ -1,11 +1,10 @@
 import { useState } from "react";
 import dayjs from "dayjs";
 import {
+  generateDeliveryReport,
   generatePurchaseReport,
   generateSalesReport,
   generateVoidedReport,
-  generateDeliveryReport,
-  generateInventoryUsageReport
 } from "@features/Report/reportActions";
 import { useAppDispatch } from "../../../store";
 import { TimeRangePickerProps } from "antd/lib";
@@ -15,9 +14,7 @@ export const useReport = (reportType: string) => {
   const [openVoidedModal, setOpenVoidedModal] = useState(false);
   const [openPurchaseModal, setOpenPurchaseModal] = useState(false);
   const [openDeliveryModal, setOpenDeliveryModal] = useState(false);
-  const [openInventoryUsageModal, setOpenInventoryUsageModal] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("sale");
-
   const [salesDateTimeRange, setSalesDateTimeRange] = useState<
     [string, string]
   >(["", ""]);
@@ -30,13 +27,19 @@ export const useReport = (reportType: string) => {
   const [deliveryDateTimeRange, setDeliveryDateTimeRange] = useState<
     [string, string]
   >(["", ""]);
-  const [inventoryUsageDateTimeRange, setInventoryUsageDateTimeRange] = useState<
-    [string, string]
-  >(["", ""]);
-
-
-
-
+  const [params, setParams] = useState<{
+    createdBy?: string;
+    servedBy?: string;
+    commission?: number;
+    locationId?: string;
+    shop_id?: string;
+  }>({
+    createdBy: "",
+    servedBy: "",
+    commission: 0,
+    locationId: "",
+    shop_id: "",
+  });
   const dispatch = useAppDispatch();
 
   const handleTabChange = (key: string) => {
@@ -45,15 +48,22 @@ export const useReport = (reportType: string) => {
     setOpenPurchaseModal(false);
     setOpenVoidedModal(false);
     setOpenDeliveryModal(false);
-    setOpenInventoryUsageModal(false);
   };
 
   const generateReportHandler = () => {
-    let formattedPayload: { startDate: string; endDate: string } = {
+    let formattedPayload: {
+      startDate: string;
+      endDate: string;
+      commission?: number;
+      createdBy?: string;
+      servedBy?: string;
+      locationId?: string;
+      shop_id?: string;
+    } = {
       startDate: "",
       endDate: "",
     };
-    console.log('report type', reportType, inventoryUsageDateTimeRange,);
+
     if (
       reportType === "sale" &&
       salesDateTimeRange[0] &&
@@ -62,6 +72,7 @@ export const useReport = (reportType: string) => {
       formattedPayload = {
         startDate: salesDateTimeRange[0],
         endDate: salesDateTimeRange[1],
+        ...params,
       };
       dispatch(generateSalesReport(formattedPayload));
       setOpenSalesModal(true);
@@ -98,17 +109,6 @@ export const useReport = (reportType: string) => {
       };
       dispatch(generateDeliveryReport(formattedPayload));
       setOpenDeliveryModal(true);
-    } else if (
-      reportType === "usage" &&
-      inventoryUsageDateTimeRange[0] &&
-      inventoryUsageDateTimeRange[1]
-    ) {
-      formattedPayload = {
-        startDate: inventoryUsageDateTimeRange[0],
-        endDate: inventoryUsageDateTimeRange[1],
-      };
-      dispatch(generateInventoryUsageReport(formattedPayload));
-      setOpenInventoryUsageModal(true);
     }
   };
 
@@ -121,8 +121,6 @@ export const useReport = (reportType: string) => {
       (!voidedDateTimeRange[0] || !voidedDateTimeRange[1])) ||
     (reportType === "delivery" &&
       (!deliveryDateTimeRange[0] || !deliveryDateTimeRange[1]));
-  (reportType === "usage" &&
-    (!inventoryUsageDateTimeRange[0] || !inventoryUsageDateTimeRange[1]));
 
   const onCloseSalesModal = () => {
     setOpenSalesModal(false);
@@ -139,11 +137,10 @@ export const useReport = (reportType: string) => {
   const onCloseDeliveryModal = () => {
     setOpenDeliveryModal(false);
   };
-  const onCloseInventoryUsageModal = () => {
-    setOpenInventoryUsageModal(false);
-  };
 
   const rangePresets: TimeRangePickerProps["presets"] = [
+    { label: "Today", value: [dayjs().startOf('day'), dayjs().endOf('day')] },
+    { label: "Yesterday", value: [dayjs().add(-1, "d"), dayjs()] },
     { label: "Last 7 Days", value: [dayjs().add(-7, "d"), dayjs()] },
     { label: "Last 14 Days", value: [dayjs().add(-14, "d"), dayjs()] },
     { label: "Last 30 Days", value: [dayjs().add(-30, "d"), dayjs()] },
@@ -175,17 +172,13 @@ export const useReport = (reportType: string) => {
     onCloseDeliveryModal,
     deliveryDateTimeRange,
 
-    setOpenInventoryUsageModal,
-    onCloseInventoryUsageModal,
-    setInventoryUsageDateTimeRange,
-    openInventoryUsageModal,
-    inventoryUsageDateTimeRange,
-
     generateReportHandler,
     isGenerateButtonDisabled,
     rangePresets,
     handleTabChange,
     activeTab,
     setActiveTab,
+
+    setParams,
   };
 };
