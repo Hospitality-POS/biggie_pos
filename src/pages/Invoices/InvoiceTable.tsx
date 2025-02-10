@@ -7,9 +7,10 @@ import {
 } from "@ant-design/pro-components";
 import ExpandedRowContent from "./ExpandableInvoice";
 import { Button, Space, Tag, Typography } from "antd";
-import {  PrinterOutlined, UserOutlined } from "@ant-design/icons";
+import { PrinterOutlined, UserOutlined } from "@ant-design/icons";
 import { getAllInvoices, rePrintInvoice } from "@services/cart";
 import { useMutation } from "@tanstack/react-query";
+import InvoiceReprintModal from "./InvoiceReprintModal";
 
 const InvoicesTable = () => {
   const actionRef = useRef<ActionType>();
@@ -17,7 +18,7 @@ const InvoicesTable = () => {
 
   const reprintMutattion = useMutation(rePrintInvoice, {
     onSuccess: (data) => {
-        actionRef?.current?.reload();
+      actionRef?.current?.reload();
     },
     onError: (error) => {
       console.log(error);
@@ -31,7 +32,7 @@ const InvoicesTable = () => {
       key: "action",
       render: (_, record) => (
         <Space size="middle">
-          <Button
+          {/* <Button
             type="dashed"
             loading={reprintMutattion.isLoading}
             style={{ cursor: "pointer" }}
@@ -39,9 +40,13 @@ const InvoicesTable = () => {
           >
             <PrinterOutlined />
             <Typography.Text>
-             {reprintMutattion.isLoading ? "Printing..." : "Re-print"}
+              {reprintMutattion.isLoading ? "Printing..." : "Re-print"}
             </Typography.Text>
-          </Button>
+          </Button> */}
+          <InvoiceReprintModal
+            invoiceId={record?._id}
+            orderNo={record?.order_no}
+          />
         </Space>
       ),
     },
@@ -110,7 +115,8 @@ const InvoicesTable = () => {
             hideInSearch: true,
             valueType: "dateTime",
             sorter: (a, b) =>
-              new Date(a.createdAt as string).getTime() - new Date(b.createdAt as string).getTime(),
+              new Date(a.createdAt as string).getTime() -
+              new Date(b.createdAt as string).getTime(),
           },
           ...ActionsColumn,
         ]}
@@ -119,11 +125,11 @@ const InvoicesTable = () => {
           return {
             data: data,
             success: true,
-            total: data.length,
+            total: data?.length,
           };
         }}
         tableAlertRender={({ selectedRowKeys }) => {
-          return <p>You have selected {selectedRowKeys.length}</p>;
+          return <p>You have selected {selectedRowKeys?.length}</p>;
         }}
         formRef={ref}
         actionRef={actionRef}

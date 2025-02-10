@@ -4,7 +4,7 @@ import { Typography, List, Divider } from "antd";
 interface InvoiceDetailsInterface {
   served_by: {
     username: string;
-    };
+  };
   created_by: {
     username: string;
   };
@@ -45,7 +45,7 @@ const ExpandedRowContent = ({ record }: ExpandedRowContentProps) => {
 
   // Function to safely format price
   const formatPrice = (price: number) => {
-    return isNaN(price) ? '0' : price.toLocaleString();
+    return isNaN(price) ? "0" : price.toLocaleString();
   };
 
   return (
@@ -86,7 +86,7 @@ const ExpandedRowContent = ({ record }: ExpandedRowContentProps) => {
         )}
       />
       <Divider />
-      <div style={{ paddingLeft: 28, paddingRight: 28, textAlign: 'right' }}>
+      <div style={{ paddingLeft: 28, paddingRight: 28, textAlign: "right" }}>
         <Typography.Text strong>
           Total: Ksh.{formatPrice(totalPrice)}
         </Typography.Text>
