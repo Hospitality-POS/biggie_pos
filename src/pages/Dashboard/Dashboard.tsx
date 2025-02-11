@@ -32,53 +32,63 @@ import {
   ContactsOutlined,
 } from "@ant-design/icons";
 import { getDashboardAnalysis } from "@services/orders";
-import { PeopleOutlineRounded } from "@mui/icons-material";
 import { CheckCard } from "@ant-design/pro-components";
 
 const { Title, Text } = Typography;
+
+const COLORS = {
+  primary: "#6366f1",
+  success: "#10b981",
+  warning: "#f59e0b",
+  error: "#ef4444",
+  info: "#3b82f6",
+  purple: "#8b5cf6",
+  orange: "#f97316",
+  cyan: "#06b6d4",
+};
 
 const QUICK_ACCESS_BUTTONS = [
   {
     icon: <ShoppingCartOutlined />,
     text: "Orders",
     route: "/orders",
-    color: "#1890ff",
+    color: COLORS.primary,
   },
   {
     icon: <ShopOutlined />,
     text: "Inventory",
     route: "/inventory",
-    color: "#52c41a",
+    color: COLORS.success,
   },
   {
     icon: <TruckOutlined />,
     text: "Deliveries",
     route: "/inventory",
-    color: "#722ed1",
+    color: COLORS.purple,
   },
   {
     icon: <TeamOutlined />,
     text: "Suppliers",
     route: "/suppliers",
-    color: "#faad14",
+    color: COLORS.warning,
   },
   {
     icon: <ClockCircleOutlined />,
     text: "Shifts",
     route: "/employee-shift",
-    color: "#eb2f96",
+    color: COLORS.error,
   },
   {
     icon: <TableOutlined />,
     text: "Tables",
     route: "/table-settings",
-    color: "#fa541c",
+    color: COLORS.orange,
   },
   {
     icon: <UsergroupAddOutlined />,
     text: "Customers",
     route: "/customers",
-    color: "#13c2c2",
+    color: COLORS.cyan,
   },
 ];
 
@@ -132,16 +142,30 @@ const STOCK_COLUMNS = [
 ];
 
 const StatisticCard = ({ title, value, prefix, loading }) => (
-  <Col xs={24} sm={12} lg={4}>
-    <Card>
+  <Col xs={24} sm={12} lg={6}>
+    <Card
+      bordered={false}
+      style={{
+        background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+        boxShadow: "0 8px 16px rgba(0,0,0,0.05)",
+        borderRadius: 12,
+      }}
+    >
       {loading ? (
         <Skeleton active paragraph={false} />
       ) : (
         <Statistic
-          title={title}
+          title={
+            <span style={{ color: "#6b7280", fontWeight: 500 }}>{title}</span>
+          }
           value={value}
           prefix={prefix}
           precision={title === "Revenue" ? 2 : 0}
+          valueStyle={{
+            color: "#1f2937",
+            fontSize: "1.8rem",
+            fontWeight: 600,
+          }}
         />
       )}
     </Card>
@@ -149,19 +173,41 @@ const StatisticCard = ({ title, value, prefix, loading }) => (
 );
 
 const QuickAccessButton = ({ icon, text, route, color, onClick }) => (
-   <Col xs={12} sm={8} lg={4}>
-    <CheckCard hoverable style={{ textAlign: "center", width: "100%" }} onClick={onClick} cover>
+  <Col xs={12} sm={8} lg={6}>
+    <CheckCard
+      hoverable
+      style={{
+        textAlign: "center",
+        width: "100%",
+        borderRadius: 8,
+        transition: "all 0.3s",
+        border: `1px solid ${color}20`,
+        background: `${color}10`,
+        cursor: "pointer",
+      }}
+      onClick={onClick}
+    >
       <Space direction="vertical">
         {React.cloneElement(icon, {
-          style: { fontSize: 24, color },
+          style: {
+            fontSize: 28, // Ensure consistent size for all icons
+            color,
+            background: `${color}20`,
+            padding: 12,
+            borderRadius: "50%",
+            transition: "all 0.3s",
+          },
         })}
-        <Text>{text}</Text>
+        <Text strong style={{ color: "#1f2937", fontSize: 16 }}>
+          {text}
+        </Text>
       </Space>
     </CheckCard>
   </Col>
 );
 
 const Dashboard = () => {
+  // const { token } = useToken();
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -270,7 +316,7 @@ const Dashboard = () => {
     {
       title: "Customers",
       value: data?.customerCount,
-      prefix:<ContactsOutlined />,
+      prefix: <ContactsOutlined />,
     },
     {
       title: "Invoices",
@@ -283,7 +329,6 @@ const Dashboard = () => {
       prefix: <TeamOutlined />,
     },
   ];
-
 
   const dateOptions = {
     weekday: "long",
@@ -298,110 +343,114 @@ const Dashboard = () => {
   return (
     <>
       {contextHolder}
-      <div style={{ padding: 0 }}>
-        <Row
-          justify="space-between"
-          align="middle"
-          style={{ marginBottom: 24 }}
-        >
-          <Title level={4}>Today's Overview</Title>
-          <Space>
-            <Button
-              type="dashed"
-              loading={isLoading || isRefetching}
-              icon={<ClockCircleOutlined />}
-              size="large"
-            >
-              {new Date().toLocaleString("en-US", dateOptions)}
+
+      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            Today's Overview
+          </Title>
+          <Text type="secondary" style={{ fontSize: 14 }}>
+            {new Date().toLocaleString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </Text>
+        </div>
+        <Space wrap>
+          <Button
+            type="primary"
+            icon={<ReloadOutlined spin={isRefetching} />}
+            onClick={handleRefresh}
+            loading={isLoading || isRefetching}
+            style={{ fontWeight: 500 }}
+          >
+            {isRefetching ? "Refreshing..." : "Refresh Data"}
+          </Button>
+          <Tooltip title="Copy Customer URL">
+            <Button icon={<CopyOutlined />} onClick={handleCopyCustomerUrl}>
+              Customer URL
             </Button>
-            <Button
-              type="primary"
-              icon={<ReloadOutlined spin={isRefetching} />}
-              onClick={handleRefresh}
-              loading={isLoading || isRefetching}
-              disabled={isLoading || isRefetching}
-            >
-              {isRefetching ? "Refreshing..." : "Refresh"}
+          </Tooltip>
+          <Tooltip title="Copy Staff URL">
+            <Button icon={<CopyOutlined />} onClick={handleCopyStaffUrl}>
+              Staff URL
             </Button>
-            <Tooltip title="Copy Customer URL">
-              <Button icon={<CopyOutlined />} onClick={handleCopyCustomerUrl}>
-                Copy Customer URL
-              </Button>
-            </Tooltip>
-            <Tooltip title="Copy Staff URL">
-              <Button icon={<CopyOutlined />} onClick={handleCopyStaffUrl}>
-                Copy Staff URL
-              </Button>
-            </Tooltip>
-            {/* <Text>{new Date().toLocaleString()}</Text> */}
-          </Space>
-        </Row>
+          </Tooltip>
+        </Space>
+      </Row>
 
-        <Row gutter={[16, 16]}>
-          {statisticsData.map((stat, index) => (
-            <StatisticCard
-              key={index}
-              loading={isLoading || isRefetching}
-              {...stat}
-            />
-          ))}
-        </Row>
+      <Row gutter={[16, 16]}>
+        {statisticsData.map((stat, index) => (
+          <StatisticCard
+            key={index}
+            loading={isLoading || isRefetching}
+            {...stat}
+          />
+        ))}
+      </Row>
 
-        <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-          {QUICK_ACCESS_BUTTONS.map((button, index) => (
-            <QuickAccessButton
-              key={index}
-              {...button}
-              onClick={() => navigate(button.route)}
-            />
-          ))}
-        </Row>
+      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+        <Col span={24}>
+          <Title level={5} style={{ color: "#64748b", marginBottom: 16 }}>
+            Quick Links
+          </Title>
+        </Col>
+        {QUICK_ACCESS_BUTTONS.map((button, index) => (
+          <QuickAccessButton
+            key={index}
+            {...button}
+            onClick={() => navigate(button.route)}
+          />
+        ))}
+      </Row>
 
-        <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-          <Col xs={24} lg={12}>
-            <Card title="Recent Orders" extra={<a href="/orders">View All</a>}>
-              {isLoading || isRefetching ? (
-                <Skeleton active />
-              ) : (
-                <Table
-                  columns={ORDER_COLUMNS}
-                  dataSource={data?.currentOrders}
-                  pagination={{
-                    hideOnSinglePage: true,
-                    defaultPageSize: 5,
-                  }}
-                  size="small"
-                />
-              )}
-            </Card>
-          </Col>
-          <Col xs={24} lg={12}>
-            <Card
-              title={
-                <Space>
-                  <WarningOutlined style={{ color: "#ff4d4f" }} />
-                  Low Stock Alerts
-                </Space>
-              }
-              extra={<a href="/inventory">View All</a>}
-            >
-              {isLoading || isRefetching ? (
-                <Skeleton active />
-              ) : (
-                <Table
-                  columns={STOCK_COLUMNS}
-                  dataSource={data?.lowStockItems}
-                  pagination={{
-                    hideOnSinglePage: true,
-                    defaultPageSize: 5,
-                  }}
-                  size="small"
-                />
-              )}
-            </Card>
-          </Col>
-        </Row>
-      </div>
+      <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
+        <Col xs={24} lg={12}>
+          <Card
+            title="Recent Orders"
+            extra={<a href="/orders">View All</a>}
+            style={{ borderRadius: 12 }}
+          >
+            {isLoading || isRefetching ? (
+              <Skeleton active />
+            ) : (
+              <Table
+                columns={ORDER_COLUMNS}
+                dataSource={data?.currentOrders}
+                pagination={false}
+                size="middle"
+                rowClassName="hover-row"
+              />
+            )}
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <Space>
+                <WarningOutlined style={{ color: COLORS.error }} />
+                Low Stock Alerts
+              </Space>
+            }
+            extra={<a href="/inventory">View All</a>}
+            style={{ borderRadius: 12 }}
+          >
+            {isLoading || isRefetching ? (
+              <Skeleton active />
+            ) : (
+              <Table
+                columns={STOCK_COLUMNS}
+                dataSource={data?.lowStockItems}
+                pagination={false}
+                size="middle"
+                rowClassName="hover-row"
+              />
+            )}
+          </Card>
+        </Col>
+      </Row>
     </>
   );
 };
