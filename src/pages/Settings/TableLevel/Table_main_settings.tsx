@@ -80,8 +80,7 @@ const TableMainSettings: React.FC = () => {
           <TableSetting />
         </div>
       </ProCard.TabPane>
-
-      <Divider style={{ margin: 0 }} />
+    
     </ProCard>
   );
 };

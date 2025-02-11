@@ -94,9 +94,7 @@ function InventoryMainSettings() {
         >
           <DeliverySettings />
         </div>
-      </ProCard.TabPane>
-
-      <Divider style={{ margin: 0 }} />
+      </ProCard.TabPane>    
     </ProCard>
   );
 }

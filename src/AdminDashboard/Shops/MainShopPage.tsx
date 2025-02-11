@@ -100,8 +100,6 @@ const ShopManagement: React.FC = () => {
           {/* <ShopStaffSettings /> */}
         {/* </div>
       </ProCard.TabPane> */}
-
-      <Divider style={{ margin: 0 }} />
     </ProCard>
   );
 };
