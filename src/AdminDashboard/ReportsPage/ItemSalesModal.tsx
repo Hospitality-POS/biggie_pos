@@ -129,13 +129,15 @@ const ReportHeader = ({ brandName, startDate, endDate }) => (
       className="logo-print"
       style={{ display: "flex", flexDirection: "column" }}
     >
-      <Typography
-        variant="h5"
-        textAlign="center"
-        sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-      >
-        {brandName}
-      </Typography>
+      {brandName && brandName !== "undefined undefined" && (
+        <Typography
+          variant="h5"
+          textAlign="center"
+          sx={{ fontFamily: "monospace", fontWeight: "bold" }}
+        >
+          {brandName}
+        </Typography>
+      )}
       <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
         ITEM SALES REPORT
       </Typography>
