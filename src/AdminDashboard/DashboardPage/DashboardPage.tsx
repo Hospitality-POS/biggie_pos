@@ -276,7 +276,7 @@ const DashboardAdminPage = () => {
               fontWeight: 500,
             }}
           >
-            Refresh Data
+            Refresh
           </Button>
         </Space>
       <WelcomeBanner />
@@ -295,7 +295,7 @@ const DashboardAdminPage = () => {
 
       <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col span={24}>
-          <Title level={5} style={{ color: "#64748b", marginBottom: 16 }}>
+          <Title level={5} style={{ color: "#64748b", marginBottom: 16 }} title="Click to navigate">
             Quick Links
           </Title>
         </Col>
