@@ -207,11 +207,11 @@ const DashboardAdminPage = () => {
     },
     onSuccess: () => {
       if (isRefetching) {
-        notification.success({
-          message: "Dashboard refreshed successfully!",
-          duration: 2,
-          placement: "bottomRight",
-        });
+        // notification.success({
+        //   message: "Dashboard refreshed successfully!",
+        //   duration: 2,
+        //   placement: "bottomRight",
+        // });
       }
     },
   });
