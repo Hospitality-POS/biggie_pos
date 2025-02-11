@@ -10,7 +10,7 @@ const WelcomeBanner = () => {
     position: "relative",
     overflow: "hidden",
     padding: "40px",
-    backgroundImage: `url('https://media.istockphoto.com/id/1954841243/photo/data-analysis-chart-graph-3d-statistics-background.webp?b=1&s=612x612&w=0&k=20&c=2RO_u5WmpvIuvs7zNbTTDYDjGFCa8WkNFX4Q0Rf9a3c=')`,
+    backgroundImage: `url('/dashboard-welcome-banner.png')`,
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
