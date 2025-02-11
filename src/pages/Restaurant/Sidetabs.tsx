@@ -137,7 +137,7 @@ const VerticalTabs: React.FC<VerticalTabProps> = ({ handleSub }) => {
       )}
 
       <Sider
-        width={250}
+        width={200}
         collapsedWidth={60}
         collapsed={isCollapsed}
         collapsible={!isMobile}

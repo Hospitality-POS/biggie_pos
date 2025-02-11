@@ -17,11 +17,11 @@ function CategoryCard({
         </Space>
       }
       description={
-        <Typography.Title level={4} ellipsis={{ rows: 3 }}>
+        <Typography.Title level={5} ellipsis={{ rows: 3 }} style={{textAlign:"center"}}>
           {name}
         </Typography.Title>
       }
-      style={{ width: 200, height: 200, overflow: "hidden" }}
+      style={{ width: 200, overflow: "hidden" }}
     />
   );
 }

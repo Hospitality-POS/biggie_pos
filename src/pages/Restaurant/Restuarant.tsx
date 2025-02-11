@@ -139,10 +139,10 @@ const RestaurantPage: React.FC = () => {
 
   return (
     <>
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
         {/* Left Column */}
         <Grid item xs={8}>
-          <Paper elevation={3} style={{ padding: "16px", height: "85vh" }}>
+          <Paper elevation={3} style={{ padding: "16px", height: "80vh" }}>
             <AppBar position="static" sx={{ mb: 2, bgcolor: "#6c1c2c" }}>
               <Tabs
                 value={value}
@@ -154,40 +154,46 @@ const RestaurantPage: React.FC = () => {
               >
                 {Maincategories?.length
                   ? Maincategories?.map(
-                    (
-                      categ: {
-                        _id: React.Key | null | undefined;
-                        name:
-                        | string
-                        | number
-                        | boolean
-                        | React.ReactElement<
-                          any,
-                          string | React.JSXElementConstructor<any>
-                        >
-                        | Iterable<React.ReactNode>
-                        | React.ReactPortal
-                        | null
-                        | undefined;
-                      },
-                      index: any
-                    ) => (
-                      <Tab
-                        key={categ._id}
-                        onClick={() => handleChangeMainCategory(categ._id)}
-                        iconPosition="start"
-                        style={{ height: 20 }}
-                        label={categ.name}
-                        {...a11yProps(index)}
-                      />
+                      (
+                        categ: {
+                          _id: React.Key | null | undefined;
+                          name:
+                            | string
+                            | number
+                            | boolean
+                            | React.ReactElement<
+                                any,
+                                string | React.JSXElementConstructor<any>
+                              >
+                            | Iterable<React.ReactNode>
+                            | React.ReactPortal
+                            | null
+                            | undefined;
+                        },
+                        index: any
+                      ) => (
+                        <Tab
+                          key={categ._id}
+                          onClick={() => handleChangeMainCategory(categ._id)}
+                          iconPosition="start"
+                          style={{ height: 20 }}
+                          label={categ.name}
+                          {...a11yProps(index)}
+                        />
+                      )
                     )
-                  )
                   : ""}
               </Tabs>
             </AppBar>
             <Divider sx={{ mt: 2, mb: 2 }} />
             {Subcategories.length ? (
-              <div style={{ display: "flex", flexDirection: "row", height: "500px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  height: "500px",
+                }}
+              >
                 {isLoadingData && categLoading ? <CartLoader /> : ""}
                 <div style={{ height: "inherit" }}>
                   <VerticalTabs handleSub={handleBack} />
@@ -201,9 +207,9 @@ const RestaurantPage: React.FC = () => {
                         alignItems: "flex-start",
                         justifyContent: "flex-start",
                         gap: "10px",
-                        paddingLeft: "4px",
+                        // paddingLeft: "4px",
                         marginLeft: "10px",
-                        marginTop: 38,
+                        marginTop: 4,
                       }}
                     >
                       {categories.length ? (
