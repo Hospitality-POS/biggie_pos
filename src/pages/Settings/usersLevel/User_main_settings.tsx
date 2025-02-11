@@ -90,8 +90,6 @@ function UsersMainSettings() {
           <PermissionSettings />
         </div>
       </ProCard.TabPane>
-
-      <Divider style={{ margin: 0 }} />
     </ProCard>
   );
 }

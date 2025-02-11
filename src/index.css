@@ -59,3 +59,28 @@ input[type="checkbox" i]:active {
   grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   /* gap: 0.3em; */
 }
+
+.ant-card {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+  transition: all 0.2s ease;
+}
+
+.ant-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+  transform: translateY(-2px);
+}
+
+
+.modern-table-row td {
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+
+.ant-pro-checkcard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.ant-pro-checkcard:hover .anticon {
+  transform: scale(1.1);
+}
