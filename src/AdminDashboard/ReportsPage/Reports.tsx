@@ -68,6 +68,7 @@ const AdminReports: React.FC = () => {
     form.resetFields();
   };
   const onFinish = async (values) => {
+
     const { dateRange, servedBy, commission, locationId, shop_id } = values;
     const [startDate, endDate] = dateRange || [];
     setSalesDateTimeRange([
@@ -85,13 +86,14 @@ const AdminReports: React.FC = () => {
     // <ItemSalesModal data={data} loading={isLoading}/>
 
     if (startDate) {
+
       setQueryKey({
         startDate: startDate?.format("YYYY-MM-DD HH:mm") || "",
         endDate: endDate?.format("YYYY-MM-DD HH:mm") || "",
         servedBy,
         commission,
-        shop_id,
         locationId,
+        shop_id,
       });
       queryClient.invalidateQueries(["itemsales"]);
     }
