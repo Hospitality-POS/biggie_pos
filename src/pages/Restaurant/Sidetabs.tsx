@@ -170,7 +170,7 @@ const VerticalTabs: React.FC<VerticalTabProps> = ({ handleSub }) => {
                   placement="right"
                   mouseEnterDelay={0.5}
                 >
-                  <span>{subcateg.name}</span>
+                  <span title={subcateg?.name}>{subcateg.name}</span>
                 </Tooltip>
               ),
               onClick: () => handleChangeSubCategory(subcateg._id),
