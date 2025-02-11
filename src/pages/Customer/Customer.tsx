@@ -21,6 +21,7 @@ import {
   LeftOutlined,
   StarOutlined,
   CommentOutlined,
+  PhoneOutlined,
 } from "@ant-design/icons";
 import { logCustomerVisit, addNewCustomer } from "@services/customers";
 import { ProCard } from "@ant-design/pro-components";
@@ -56,6 +57,7 @@ const CustomerVisitTracker = () => {
     "Welcome back, your favorite spot is waiting! 🏆",
     "Always a pleasure to see you return! 🌟",
     "We're thrilled to have you back! 💙",
+    // "We're dedicated to delivering a seamless and personalized experience that puts your needs first."
   ];
 
   const getRandomWelcomeMessage = () => {
@@ -95,7 +97,6 @@ const CustomerVisitTracker = () => {
   const handleVisitLog = async (values) => {
     setLoading(true);
     try {
-
       const { phoneNumber, rating, review } = values;
       const customerCode = getPhoneNumber(phoneNumber);
       const payload = {
@@ -204,9 +205,15 @@ const CustomerVisitTracker = () => {
       >
         Welcome to {clientName}
       </Title>
-      <Text style={{ color: "#e0e0e0", fontSize: "14px" }}>
-        We're dedicated to delivering a seamless and personalized experience
-        that puts your needs first.
+
+      <Text
+        style={{
+          textAlign: "center",
+          color: "#e0e0e0",
+          fontSize: "14px",
+        }}
+      >
+        {randomMessage}
       </Text>
     </div>
   );
@@ -215,10 +222,9 @@ const CustomerVisitTracker = () => {
     <div
       style={{
         position: "relative",
-        height: "500px",
-        minHeight: "500px",
+        height: "100%",
         background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
-        padding: "32px",
+        padding: "24px",
         borderRadius: "16px 0 0 16px",
         overflow: "hidden",
       }}
@@ -277,8 +283,7 @@ const CustomerVisitTracker = () => {
               textShadow: "0 1px 2px rgba(0,0,0,0.1)",
             }}
           >
-            We're dedicated to delivering a seamless and personalized experience
-            that puts your needs first.
+            {randomMessage}
           </Paragraph>
         </div>
       </div>
@@ -346,7 +351,10 @@ const CustomerVisitTracker = () => {
             label="Enter your full name"
             rules={[{ required: true, message: "Please enter your name" }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Enter your full name" />
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="Enter your full name"
+            />
           </Form.Item>
 
           <PhoneInput label="Enter your phone number" owner="phoneNumber" />
@@ -394,32 +402,43 @@ const CustomerVisitTracker = () => {
           size="large"
           style={{ width: "100%" }}
         >
-          <Title level={5} style={{ marginBottom: "24px", textAlign: "center" }}>
-            {randomMessage}
-          </Title>
-
-          <PhoneInput label="Enter your phone number" owner="phoneNumber" />
+          <PhoneInput
+            label={
+              <Space>
+                <PhoneOutlined style={{ color: "#6c1c2c", fontSize: "18px" }} />
+                <Text strong>Enter your phone number</Text>
+              </Space>
+            }
+            owner="phoneNumber"
+          />
 
           <Form.Item
             name="rating"
             label={
               <Space>
-                <StarOutlined />
-                <span>Rate your experience</span>
+                <StarOutlined style={{ color: "#6c1c2c", fontSize: "18px" }} />
+                <Text strong>Rate your experience</Text>
               </Space>
             }
             rules={[{ required: true, message: "Please rate your experience" }]}
             style={{ width: "100%" }}
           >
-            <Rate style={{ fontSize: "24px", width: "100%" }} />
+            <Rate
+              style={{ fontSize: "24px", width: "100%" }}
+              allowClear
+              id="rate"
+              tooltips={["Okay", "Good", "Pretty good", "Great", "Amazing"]}
+            />
           </Form.Item>
 
           <Form.Item
             name="review"
             label={
               <Space>
-                <CommentOutlined />
-                <span>Share your feedback (optional)</span>
+                <CommentOutlined
+                  style={{ color: "#6c1c2c", fontSize: "18px" }}
+                />
+                <Text strong>Share your feedback (optional)</Text>
               </Space>
             }
           >
@@ -483,7 +502,7 @@ const CustomerVisitTracker = () => {
         }}
       >
         <Row>
-          <Col xs={0} md={12} style={{ height: "500px" }}>
+          <Col xs={0} md={12}>
             <DesktopSidebar />
           </Col>
           <Col xs={24} md={0}>
