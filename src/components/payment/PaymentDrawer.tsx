@@ -9,14 +9,12 @@ import { logoutUser } from "@features/Auth/AuthActions";
 import { reset } from "@features/Auth/AuthSlice";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
-import dayjs from "dayjs";
 import {
   Alert,
   Button,
   Col,
   Divider,
   Form,
-  InputNumber,
   Modal,
   Row,
   Space,
@@ -42,7 +40,6 @@ import { DrawerForm, ProCard } from "@ant-design/pro-components";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import DiscountModal from "@components/MODALS/pro/DiscountModal";
 import { getAllOrders } from "@services/orders";
-import TipModal from "@components/MODALS/pro/TipModal";
 
 const PaymentDrawer: React.FC = () => {
   const [form] = Form.useForm();
@@ -159,7 +156,7 @@ const PaymentDrawer: React.FC = () => {
     if (!error) {
       dispatch(createCart(id));
       // dispatch(logoutUser());
-      //dispatch(reset());
+      // dispatch(reset());
       navigate("/tables");
     }
   };
@@ -196,8 +193,8 @@ const PaymentDrawer: React.FC = () => {
       content: "Voided bill Succesfully",
       centered: true,
     });
-    dispatch(logoutUser());
-    dispatch(reset());
+    // dispatch(logoutUser());
+    // dispatch(reset());
     navigate("/tables");
   };
 
@@ -239,7 +236,6 @@ const PaymentDrawer: React.FC = () => {
             Payment
           </Typography.Text>
           <DiscountModal data={cartDetails} />
-          <TipModal data={cartDetails} />
         </Space>
       }
       key={"payment"}
@@ -273,26 +269,12 @@ const PaymentDrawer: React.FC = () => {
               precision={2}
             />
           </Col>
-          <Col span={6}>
+          <Col span={12}>
             <Statistic
               title="Discount"
               value={cartDetails?.discount}
               prefix={
                 cartDetails?.discount_type === "percentage" ? (
-                  <PercentageOutlined />
-                ) : (
-                  "Ksh."
-                )
-              }
-              precision={2}
-            />
-          </Col>
-          <Col span={6}>
-            <Statistic
-              title="Tip Value"
-              value={cartDetails?.tip_amount}
-              prefix={
-                cartDetails?.tip_type === "percentage" ? (
                   <PercentageOutlined />
                 ) : (
                   "Ksh."
@@ -418,7 +400,7 @@ const PaymentDrawer: React.FC = () => {
               marginTop: 4,
             }}
           >
-            {user?.role === "admin" && (
+            {(user?.role === "admin" || user?.role === "cashier") && (
               <Button
                 danger
                 onClick={() => {
@@ -429,7 +411,7 @@ const PaymentDrawer: React.FC = () => {
                 Clear
               </Button>
             )}
-            {user?.role === "admin" && (
+            {(user?.role === "admin" || user?.role === "Cashier") && (
               <Button
                 type="default"
                 onClick={handleVoidBill}
@@ -474,6 +456,7 @@ const PaymentDrawer: React.FC = () => {
             />
           )}
         </Space>
+        <Divider />
         <Typography.Title level={4}>
           <ClockCircleOutlined /> Recent Transactions
         </Typography.Title>
