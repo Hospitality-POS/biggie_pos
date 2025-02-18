@@ -6,17 +6,21 @@ import { DeleteOutlined } from "@ant-design/icons";
 import { deleteMainCategory, fetchMainCategories } from "@services/categories";
 import MainCategoryModal from "@components/MODALS/pro/MainCategoryModal";
 import { useMutation } from "@tanstack/react-query";
+import { useAppSelector } from "src/store";
 
 const MainCategorySettings = () => {
   const actionRef = useRef<ActionType>();
- 
-  const  DeleteMainCategoryMutation = useMutation(deleteMainCategory, {
+
+  const DeleteMainCategoryMutation = useMutation(deleteMainCategory, {
     onSuccess: () => {
       actionRef.current?.reload();
       message.success("Main-Category deleted successfully");
     },
     onError: () => message.error("Failed to delete main-category"),
   });
+
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
 
   const actionColumn = {
     title: "Actions",
@@ -33,7 +37,7 @@ const MainCategorySettings = () => {
           okText="Yes"
           cancelText="No"
         >
-          <Button type="primary" danger icon={<DeleteOutlined />} size="small">
+          <Button type="primary" disabled={!isAdmin} danger icon={<DeleteOutlined />} size="small">
             Delete
           </Button>
         </Popconfirm>

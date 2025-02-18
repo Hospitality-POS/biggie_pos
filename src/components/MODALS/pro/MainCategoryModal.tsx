@@ -4,6 +4,7 @@ import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import { CrownOutlined, EditOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewMainCategory, editMainCategory } from "@services/categories";
+import { useAppSelector } from "src/store";
 
 interface MainCategoryModalProps {
   actionRef: any;
@@ -18,7 +19,9 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
-   const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
 
   useEffect(() => {
     if (open && data) {
@@ -50,6 +53,7 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
       trigger={
         edit ? (
           <Button
+            disabled={!isAdmin}
             size="small"
             key="button"
             icon={
@@ -60,7 +64,7 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
             }
           >Edit</Button>
         ) : (
-          <Button type="primary" key="button" icon={<CrownOutlined />}>
+          <Button disabled={!isAdmin} type="primary" key="button" icon={<CrownOutlined />}>
             New Main Category
           </Button>
         )
@@ -72,10 +76,9 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
       }}
       onFinish={async (values) => {
         const confirmed = await ShowConfirm({
-          title: `Are you sure you want to ${
-            edit ? "update this" : "add new"
-          } main category?`,
-           position: true,
+          title: `Are you sure you want to ${edit ? "update this" : "add new"
+            } main category?`,
+          position: true,
         });
         if (confirmed) {
           edit
@@ -94,14 +97,14 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
         },
       }}
     >
-        <ProFormText
-          name="name"
-          label="Create New Main Category"
-          rules={[
-            { required: true, message: "Main Category Name is required" },
-          ]}
-          placeholder="Enter Main Category Name"
-        />
+      <ProFormText
+        name="name"
+        label="Create New Main Category"
+        rules={[
+          { required: true, message: "Main Category Name is required" },
+        ]}
+        placeholder="Enter Main Category Name"
+      />
     </ModalForm>
   );
 };

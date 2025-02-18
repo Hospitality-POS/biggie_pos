@@ -22,6 +22,7 @@ import { addNewProduct, editProduct } from "@services/products";
 import { getAllModifierAddons } from "@services/modifierAddons";
 import { useQuery } from "@tanstack/react-query";
 import { FormInstance } from "antd/lib";
+import { useAppSelector } from "src/store";
 
 interface StoreModalProps {
   edit?: boolean;
@@ -56,6 +57,10 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
     networkMode: "always",
   });
 
+
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
+
   const AddonsRequest = async () => {
     const values = allAddons?.map((modifierAddon: modifiersAddonsType) => ({
       label: modifierAddon?.name,
@@ -81,6 +86,9 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
     return values;
   };
 
+
+
+
   const editPayload = {
     ...data,
     category: {
@@ -92,6 +100,9 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
       label: addon.name,
     })),
   };
+
+
+
 
   const HandleOnFinish = async (values) => {
     const confirmed = await ShowConfirm({
@@ -135,6 +146,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
         edit ? (
           <Button
             type="link"
+            disabled={!isAdmin}
             key="button"
             icon={
               <EditOutlined
@@ -144,7 +156,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
             }
           ></Button>
         ) : (
-          <Button type="primary" block>
+          <Button type="primary" disabled={!isAdmin} block>
             <PlusCircleFilled />
             New Item
           </Button>

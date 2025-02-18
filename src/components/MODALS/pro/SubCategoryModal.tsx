@@ -10,6 +10,7 @@ import {
   fetchMainCategories,
 } from "@services/categories";
 import { useQuery } from "@tanstack/react-query";
+import { useAppSelector } from "src/store";
 
 interface SubCategoryModalProps {
   actionRef: any;
@@ -37,6 +38,10 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
       });
     }
   }, [open, data, form]);
+
+
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
 
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
@@ -73,17 +78,18 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
       initialValues={
         edit
           ? {
-              ...data,
-              main_category: {
-                value: data?.main_category?._id,
-                lable: data?.main_category?.name,
-              },
-            }
+            ...data,
+            main_category: {
+              value: data?.main_category?._id,
+              lable: data?.main_category?.name,
+            },
+          }
           : {}
       }
       trigger={
         edit ? (
           <Button
+            disabled={!isAdmin}
             key="button"
             size="small"
             icon={
@@ -96,7 +102,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
             Edit
           </Button>
         ) : (
-          <Button type="primary" key="button" icon={<SubnodeOutlined />}>
+          <Button type="primary" disabled={!isAdmin} key="button" icon={<SubnodeOutlined />}>
             New Sub-category
           </Button>
         )
@@ -108,9 +114,8 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
       }}
       onFinish={async (values) => {
         const confirmed = await ShowConfirm({
-          title: `Are you sure you want to ${
-            edit ? "update this" : "add new"
-          } SubCategory?`,
+          title: `Are you sure you want to ${edit ? "update this" : "add new"
+            } SubCategory?`,
           position: true,
         });
         if (confirmed) {

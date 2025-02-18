@@ -2,7 +2,7 @@ import React from "react";
 import CircleIcon from "@mui/icons-material/Circle";
 import EditProductModal from "./EditProductModal";
 // import { deleteProduct } from "../../features/Product/ProductAction";
-import { useAppDispatch } from "../../store";
+import { useAppDispatch, useAppSelector } from "../../store";
 import { Card, Typography } from "antd";
 import { DeleteFilled, SettingOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
@@ -34,6 +34,11 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
     setModalOpen(true);
   };
 
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
+
+
+
   const handleCloseModal = () => {
     setModalOpen(false);
   };
@@ -61,6 +66,8 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
           <DeleteFilled
             key="delete"
             onClick={async () => {
+              if (!isAdmin) return; // Prevent click if not admin
+
               const confirm = await ShowConfirm({
                 title: `Are you sure you want to delete ${name}?`,
                 position: true
@@ -69,7 +76,12 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
                 deleteProduct(productId);
               }
             }}
-            style={{ fontSize: "25px", color: "white" }}
+            style={{
+              fontSize: "25px",
+              color: isAdmin ? "white" : "gray", // Optional: Change color if disabled
+              pointerEvents: !isAdmin ? "none" : "auto", // Prevent clicks if disabled
+              opacity: !isAdmin ? 0.5 : 1, // Make it visually disabled
+            }}
           />,
         ]}
       >

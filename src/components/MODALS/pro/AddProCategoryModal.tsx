@@ -15,6 +15,7 @@ import {
 import { ApartmentOutlined, EditOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { useQuery } from "@tanstack/react-query";
+import { useAppSelector } from "src/store";
 
 interface AddCategoryDialogProps {
   actionRef: any;
@@ -52,7 +53,10 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
     }
   };
 
-  const {data: subCategories} = useQuery({
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
+
+  const { data: subCategories } = useQuery({
     queryKey: ["subCategories"],
     queryFn: fetchSubCategories,
     retry: 3,
@@ -82,14 +86,15 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
       initialValues={
         edit
           ? {
-              name: data?.name,
-              subcategory_id: data?.sub_category?._id,
-            }
+            name: data?.name,
+            subcategory_id: data?.sub_category?._id,
+          }
           : {}
       }
       trigger={
         edit ? (
           <Button
+            disabled={!isAdmin}
             size="small"
             key="button"
             icon={<EditOutlined style={{ color: "#914F1E" }} />}
@@ -98,7 +103,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
             Edit
           </Button>
         ) : (
-          <Button type="primary" key="button" icon={<ApartmentOutlined />}>
+          <Button type="primary" disabled={!isAdmin} key="button" icon={<ApartmentOutlined />}>
             New Category
           </Button>
         )
@@ -110,9 +115,8 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
       }}
       onFinish={async (values) => {
         const confirmed = await ShowConfirm({
-          title: `Are you sure you want to ${
-            edit ? "update this" : "add new"
-          } Category?`,
+          title: `Are you sure you want to ${edit ? "update this" : "add new"
+            } Category?`,
           position: true,
         });
         if (confirmed) {

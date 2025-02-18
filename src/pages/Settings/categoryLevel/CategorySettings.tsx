@@ -6,6 +6,7 @@ import { Tooltip, Button, Space, Popconfirm, message } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import AddProCategoryModal from "@components/MODALS/pro/AddProCategoryModal";
 import { useMutation } from "@tanstack/react-query";
+import { useAppSelector } from "src/store";
 
 const CategorySettings = () => {
   const actionRef = useRef<ActionType>();
@@ -17,6 +18,9 @@ const CategorySettings = () => {
     },
     onError: () => message.error("Failed to delete category"),
   });
+
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
 
   const actionColumn = {
     title: "Actions",
@@ -39,6 +43,7 @@ const CategorySettings = () => {
           cancelText="No"
         >
           <Button
+            disabled={!isAdmin}
             size="small"
             type="primary"
             danger
