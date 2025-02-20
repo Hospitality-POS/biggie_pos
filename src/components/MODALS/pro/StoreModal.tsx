@@ -156,7 +156,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
             }
           ></Button>
         ) : (
-          <Button type="primary" disabled={!isAdmin} block>
+          <Button type="primary" block>
             <PlusCircleFilled />
             New Item
           </Button>

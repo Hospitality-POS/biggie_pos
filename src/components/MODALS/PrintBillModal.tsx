@@ -14,7 +14,7 @@ import "./bill.css";
 import { useReactToPrint } from "react-to-print";
 import { ENTITY_NAME } from "@utils/config";
 import useSystemDetails from "@hooks/useSystemDetails";
-import { PrinterFilled, PrinterOutlined, RestOutlined } from "@ant-design/icons";
+import { PrinterFilled, PrinterOutlined, RestOutlined, SafetyCertificateFilled } from "@ant-design/icons";
 import { Button } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
 
@@ -30,14 +30,74 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   totalAmount,
 }) => {
   const componentRef = useRef<HTMLDivElement>(null);
-
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const isElectronicsStore = tenant?.business_type?.name === "Electronics";
 
   const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs, Paybill_ac, TILL_NO } =
     useSystemDetails();
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
+    pageStyle: `
+      @media print {
+        * {
+          color-adjust: exact !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color: black !important;
+          font-weight: bold !important;
+        }
+      }
+    `
   });
+
+  const baseTextStyle = {
+    fontFamily: "monospace",
+    fontWeight: 700,
+    color: "#000000",
+  };
+
+  const headerStyle = {
+    ...baseTextStyle,
+    fontSize: "1.4em",
+    fontWeight: 900,
+  };
+
+  const subheaderStyle = {
+    ...baseTextStyle,
+    fontSize: "1.2em",
+    fontWeight: 800,
+  };
+
+  const normalTextStyle = {
+    ...baseTextStyle,
+    fontSize: "1.1em",
+  };
+
+  const tableHeaderStyle = {
+    padding: 1,
+    fontWeight: 900,
+    fontSize: "1.2em",
+    color: "#000000",
+  };
+
+  const tableDataStyle = {
+    padding: 1,
+    fontWeight: 700,
+    fontSize: "1.1em",
+    color: "#000000",
+  };
+
+  const warrantyStyle = {
+    ...subheaderStyle,
+    textAlign: "center",
+    border: "2px solid #000",
+    padding: "8px",
+    margin: "10px 0",
+    backgroundColor: "#f9f9f9",
+    fontWeight: 900,
+  };
 
   return (
     <ModalForm
@@ -59,7 +119,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         return true;
       }}
     >
-      <div className="receipt" id="receipt" ref={componentRef}>
+      <div
+        className="receipt"
+        id="receipt"
+        ref={componentRef}
+        style={{ color: "#000000" }}
+      >
         <div
           className="logo-print"
           style={{
@@ -68,82 +133,39 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             marginBottom: 15,
           }}
         >
-          {/* <img
-                src="/logokil.png"
-                className="image--logo reciept"
-                alt="Restaurant Logo"
-                style={{ width: "70%" }}
-              /> */}
-          <Typography
-            variant="body1"
-            style={{ fontFamily: "monospace", fontSize: "1.3em" }}
-          >
+          <Typography variant="body1" style={headerStyle}>
             {BRAND_NAME1}
           </Typography>
-          {/* <Typography
-            variant="body1"
-            style={{ fontFamily: "monospace", fontSize: "1.2em" }}
-          >
-            {ENTITY_NAME}
-          </Typography> */}
-          <Typography
-            variant="body1"
-            style={{ fontSize: "1.2em", fontFamily: "monospace" }}
-          >
+          <Typography variant="body1" style={subheaderStyle}>
             Phone: {PHONE_NO}
           </Typography>
           {TILL_NO ? (
-            <Typography
-              variant="body1"
-              style={{ fontSize: "1.2em", fontFamily: "monospace" }}
-            >
-              Till No : {TILL_NO}
+            <Typography variant="body1" style={subheaderStyle}>
+              Till No: {TILL_NO}
             </Typography>
           ) : (
             <>
               {Paybill_bs && (
-                <Typography
-                  variant="body1"
-                  style={{ fontSize: "1.2em", fontFamily: "monospace" }}
-                >
-                  Business No : {Paybill_bs}
+                <Typography variant="body1" style={subheaderStyle}>
+                  Business No: {Paybill_bs}
                 </Typography>
               )}
               {Paybill_ac && (
-                <Typography
-                  variant="body1"
-                  style={{ fontSize: "1.2em", fontFamily: "monospace" }}
-                >
-                  Account No : {Paybill_ac}
+                <Typography variant="body1" style={subheaderStyle}>
+                  Account No: {Paybill_ac}
                 </Typography>
               )}
             </>
           )}
-
-          {/* <Typography
-              variant="body1"
-              style={{ fontSize: "1em", fontFamily: "monospace" }}
-            >
-              PIN: {PIN}
-            </Typography> */}
-          <Typography
-            variant="body1"
-            style={{ fontSize: "1em", fontFamily: "monospace" }}
-          >
+          <Typography variant="body1" style={normalTextStyle}>
             {cartDetails?.clientPin && `Client Pin: ${cartDetails?.clientPin}`}
           </Typography>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <Typography
-            variant="body1"
-            style={{ fontSize: "1.15em", fontFamily: "monospace" }}
-          >
+          <Typography variant="body1" style={subheaderStyle}>
             {cartDetails?.order_no}
           </Typography>
-          <Typography
-            variant="body1"
-            style={{ fontSize: "1.15em", fontFamily: "monospace" }}
-          >
+          <Typography variant="body1" style={subheaderStyle}>
             Served By: {cartDetails?.created_by?.username}
           </Typography>
         </div>
@@ -154,16 +176,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             marginBottom: "-15px",
           }}
         >
-          <Typography
-            variant="body1"
-            style={{ fontSize: "1.15em", fontFamily: "monospace" }}
-          >
+          <Typography variant="body1" style={subheaderStyle}>
             Table: {cartDetails?.table_id?.name}
           </Typography>
-          <Typography
-            variant="body1"
-            style={{ fontSize: "1em", fontFamily: "monospace" }}
-          >
+          <Typography variant="body1" style={normalTextStyle}>
             Date: {new Date().toLocaleDateString()} {new Date().getHours()}:
             {new Date().getMinutes()}
           </Typography>
@@ -172,21 +188,13 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           <Table style={{ tableLayout: "fixed" }}>
             <TableHead>
               <TableRow>
-                <TableCell
-                  sx={{ padding: 1, fontWeight: "bold", width: "10%" }}
-                >
+                <TableCell sx={{ ...tableHeaderStyle, width: "10%" }}>
                   #
                 </TableCell>
-                <TableCell sx={{ padding: 1, fontWeight: "bold" }}>
+                <TableCell sx={tableHeaderStyle}>
                   ITEM
                 </TableCell>
-                <TableCell
-                  sx={{
-                    padding: 1,
-                    textAlign: "right",
-                    fontWeight: "bold",
-                  }}
-                >
+                <TableCell sx={{ ...tableHeaderStyle, textAlign: "right" }}>
                   PRICE(.Ksh)
                 </TableCell>
               </TableRow>
@@ -195,42 +203,18 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
               {data?.map(
                 (item: {
                   _id: React.Key | null | undefined;
-                  quantity:
-                  | string
-                  | number
-                  | boolean
-                  | React.ReactElement<
-                    any,
-                    string | React.JSXElementConstructor<any>
-                  >
-                  | Iterable<React.ReactNode>
-                  | React.ReactPortal
-                  | null
-                  | undefined;
+                  quantity: any;
                   product_id: {
-                    name:
-                    | string
-                    | number
-                    | boolean
-                    | React.ReactElement<
-                      any,
-                      string | React.JSXElementConstructor<any>
-                    >
-                    | Iterable<React.ReactNode>
-                    | React.ReactPortal
-                    | null
-                    | undefined;
+                    name: any;
                   };
                   price: number;
                 }) => (
                   <TableRow key={item._id}>
                     <TableCell
                       sx={{
-                        padding: 1.2,
-                        fontSize: "1em",
+                        ...tableDataStyle,
                         width: "5%",
                         textAlign: "left",
-                        fontWeight: "bold",
                       }}
                     >
                       {item.quantity}
@@ -239,9 +223,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                       component="th"
                       scope="row"
                       sx={{
-                        padding: 1,
-                        fontSize: "1.2em",
-                        fontWeight: "bold",
+                        ...tableDataStyle,
                         wordWrap: "break-word",
                       }}
                     >
@@ -249,10 +231,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                     </TableCell>
                     <TableCell
                       sx={{
-                        padding: 1,
+                        ...tableDataStyle,
                         textAlign: "right",
-                        fontSize: "1em",
-                        fontWeight: "bold",
                       }}
                     >
                       {item?.price?.toFixed(2)}
@@ -267,44 +247,58 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           <Typography
             variant="body1"
             style={{
-              fontSize: "1.2em",
-              fontFamily: "monospace",
+              ...subheaderStyle,
               textAlign: "center",
-              fontWeight: "bold",
             }}
           >
             <RestOutlined /> Discount:
             {cartDetails?.discount_type === "amount"
-              ? `KSH. ${cartDetails?.discount?.toLocaleString()}`
-              : `${cartDetails?.discount}%`}
+              ? ` KSH. ${cartDetails?.discount?.toLocaleString()}`
+              : ` ${cartDetails?.discount}%`}
           </Typography>
         )}
         <Typography
           variant="body1"
           style={{
-            fontSize: "1.2em",
-            fontFamily: "monospace",
+            ...headerStyle,
             textAlign: "center",
-            fontWeight: "bold",
+            textDecoration: "underline",
           }}
         >
           Amount Due: Ksh.{totalAmount?.toFixed(2)}
         </Typography>
 
+        {isElectronicsStore && (
+          <>
+            <div style={{ margin: "15px 0" }}>
+              <Typography variant="body1" style={warrantyStyle}>
+                <SafetyCertificateFilled /> WARRANTY: 6 MONTHS <SafetyCertificateFilled />
+              </Typography>
+            </div>
+            <div style={{ margin: "10px 0" }}>
+              <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
+                * This receipt serves as your warranty certificate *
+              </Typography>
+              <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
+                * Please retain for warranty claims *
+              </Typography>
+            </div>
+          </>
+        )}
+
         <Typography
           variant="body1"
-          sx={{ textAlign: "center", fontWeight: "12px" }}
+          sx={{ textAlign: "center", fontWeight: 900 }}
         >
           ============================
         </Typography>
-        <div className="qrcoded" style={{ marginTop: 4 }}>
-          <QRCodeCanvas value={QR_Code} size={80} className="qrcode" />
+        <div className="qrcoded" style={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
+          <QRCodeCanvas value={QR_Code} size={100} className="qrcode" />
         </div>
         <Typography
           variant="body1"
           style={{
-            fontSize: "0.9em",
-            fontFamily: "monospace",
+            ...subheaderStyle,
             textAlign: "center",
             marginTop: 10,
           }}
@@ -314,8 +308,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         <Typography
           variant="body1"
           style={{
-            fontSize: "0.9em",
-            fontFamily: "monospace",
+            ...normalTextStyle,
             textAlign: "center",
           }}
         >
@@ -324,8 +317,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         <Typography
           variant="body1"
           style={{
-            fontSize: "0.8em",
-            fontFamily: "monospace",
+            ...normalTextStyle,
             textAlign: "center",
           }}
         >
@@ -334,12 +326,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         <Typography
           variant="body1"
           style={{
-            fontSize: "0.8em",
-            fontFamily: "monospace",
+            ...normalTextStyle,
             textAlign: "center",
           }}
         >
-          A product of Relia Tech Solutions
+          Powered By Relia Tech Solutions
         </Typography>
       </div>
       <Box
