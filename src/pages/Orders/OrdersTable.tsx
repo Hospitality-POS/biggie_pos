@@ -14,6 +14,7 @@ import moment from "moment";
 import { useQuery } from "@tanstack/react-query";
 import { ENTITY_NAME } from "@utils/config";
 import { DeleteOutlined, UserOutlined } from "@ant-design/icons";
+import { useAppSelector } from "src/store";
 
 const OrdersTable = () => {
   const actionRef = useRef<ActionType>();
@@ -24,15 +25,18 @@ const OrdersTable = () => {
     networkMode: "always",
   });
 
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
+
   const handleExportCSV = () => {
     const csvData =
       data?.length > 0
         ? data.map((order) => ({
-            OrderNo: order?.order_no,
-            Amount: order?.order_amount,
-            UpdatedBy: order?.updated_by?.username,
-            CreatedAt: moment(order?.createdAt).format("MMM-DD-YY, h:mm a"),
-          }))
+          OrderNo: order?.order_no,
+          Amount: order?.order_amount,
+          UpdatedBy: order?.updated_by?.username,
+          CreatedAt: moment(order?.createdAt).format("MMM-DD-YY, h:mm a"),
+        }))
         : [];
 
     const csvHeaders = [
@@ -92,8 +96,14 @@ const OrdersTable = () => {
           <Tag
             color={"error"}
             title="Delete"
-            style={{ cursor: "pointer" }}
+            style={{
+              cursor: isAdmin ? "pointer" : "not-allowed", // Change cursor when disabled
+              opacity: isAdmin ? 1 : 0.5, // Dim when disabled
+              pointerEvents: isAdmin ? "auto" : "none", // Prevent clicks when disabled
+            }}
             onClick={async () => {
+              if (!isAdmin) return; // Prevent function execution if disabled
+
               const success = await deleteOrderById(record._id);
               if (success && actionRef.current) {
                 actionRef.current.reload();
@@ -105,6 +115,7 @@ const OrdersTable = () => {
               {record.status === "pending" ? "Cancel" : "Delete"}
             </Typography.Text>
           </Tag>
+
         </Space>
       ),
     },

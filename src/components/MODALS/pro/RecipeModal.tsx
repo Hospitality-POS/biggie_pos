@@ -21,6 +21,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchAllInventoryItems, fetchAllUnits } from "@services/products";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { createRecipe, deleteRecipe, fetchRecipe, updateRecipe } from "@services/recipe";
+import { useAppSelector } from "src/store";
 
 interface RecipeModalProps {
   productId: string;
@@ -152,6 +153,11 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
     setModalVisible(false);
   };
 
+
+
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
+
   const handleOnFinish = async (values: any) => {
     const confirmed = await ShowConfirm({
       title: `Are you sure you want to ${form.getFieldValue("recipeItems")?.length > 1 ? "update" : "save"
@@ -218,7 +224,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
                 }}
               />
             }
-            disabled={!activateInventory}
+            disabled={!activateInventory || !isAdmin}
             style={{
               border: 'none',  // Remove border around the button
             }}
@@ -237,7 +243,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
                   }}
                 />
               }
-              disabled={!activateInventory}
+              disabled={!activateInventory || !isAdmin}
               style={{
                 border: 'none',  // Remove border around the button
               }}

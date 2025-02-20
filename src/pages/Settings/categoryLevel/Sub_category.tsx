@@ -13,6 +13,7 @@ import { deleteSubCategory, fetchSubCategories } from "@services/categories";
 import useCategorySettings from "../hooks/useCategorySettings";
 import SubCategoryModal from "@components/MODALS/pro/SubCategoryModal";
 import { useMutation } from "@tanstack/react-query";
+import { useAppSelector } from "src/store";
 
 const SubCategorySettings = () => {
   const actionRef = useRef<ActionType>();
@@ -23,6 +24,9 @@ const SubCategorySettings = () => {
     },
     onError: () => message.error("Failed to delete sub-category"),
   });
+
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
 
   const actionColumn = {
     title: "Actions",
@@ -40,7 +44,7 @@ const SubCategorySettings = () => {
           okText="Yes"
           cancelText="No"
         >
-          <Button size="small" type="primary" danger icon={<DeleteOutlined />}>
+          <Button size="small" disabled={!isAdmin} type="primary" danger icon={<DeleteOutlined />}>
             Delete
           </Button>
         </Popconfirm>
