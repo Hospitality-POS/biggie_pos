@@ -8,6 +8,7 @@ import {
     UserOutlined,
     UsergroupAddOutlined,
     SwapOutlined,
+    EyeInvisibleOutlined, EyeOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { verifyCompanyCode } from "@services/users";
@@ -41,6 +42,8 @@ const StaffLoginPage = () => {
             setStep("pin");
         }
     }, []);
+
+    const [visible, setVisible] = useState(false);
 
     const handleCompanyCodeSubmit = async (code: string) => {
         setError(null);
@@ -317,6 +320,14 @@ const StaffLoginPage = () => {
                                         size="large"
                                         value={companyCode || ""}
                                         autoComplete="off"
+                                        type={visible ? "text" : "password"} // Toggle between "text" and "password"
+                                        suffix={
+                                            visible ? (
+                                                <EyeOutlined onClick={() => setVisible(false)} style={{ cursor: "pointer" }} />
+                                            ) : (
+                                                <EyeInvisibleOutlined onClick={() => setVisible(true)} style={{ cursor: "pointer" }} />
+                                            )
+                                        }
                                     />
                                     <Button
                                         type="primary"
