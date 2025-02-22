@@ -59,6 +59,8 @@ const VerticalTabs: React.FC<VerticalTabProps> = ({ handleSubCategoryChange, sub
     minWidth: isCollapsed ? '80px' : '200px',
     background: '#6c1c2c',
     transition: 'all 0.3s ease-in-out',
+    overflowY: 'auto',
+    maxHeight: '100vh',
   };
 
   return (
@@ -71,7 +73,7 @@ const VerticalTabs: React.FC<VerticalTabProps> = ({ handleSubCategoryChange, sub
         />
       )}
       <Sider
-        width={200}
+        width={180}
         collapsedWidth={80}
         collapsed={isCollapsed}
         collapsible={!isMobile}
