@@ -131,6 +131,7 @@ const StaffModal: React.FC<StaffModalProps> = ({
                 message: "Company Code is required",
               },
             ]}
+
           />
         )}
         {step === "pin" && (

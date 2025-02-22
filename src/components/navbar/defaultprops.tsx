@@ -14,6 +14,11 @@ import { useAppSelector } from "src/store";
 const useProLayoutNav = () => {
   const { user } = useAppSelector((state) => state.auth);
   const state = !!(user?.role === "admin" || user?.role === "cashier");
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const storeName = tenant?.business_type?.name === "Electronics" ? "Services" : "Store";
+  const tableName = tenant?.business_type?.name === "Electronics" ? "Slots" : "Tables";
+
   const adminMenu = {
     route: {
       path: "/",
@@ -41,7 +46,7 @@ const useProLayoutNav = () => {
         },
         {
           path: "/store",
-          name: "Services",
+          name: storeName,
           icon: <FolderFilled />,
         },
         {
@@ -71,7 +76,7 @@ const useProLayoutNav = () => {
       },
       {
         icon: "/circle-table.png",
-        title: "Tables",
+        title: tableName,
         desc: "Manage Tables location and naming.",
         url: "/table-settings",
       },

@@ -18,6 +18,10 @@ const TableMainSettings: React.FC = () => {
     setActiveTab(key);
   };
 
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const tableName = tenant?.business_type?.name === "Electronics" ? "Slots" : "Tables";
+  const staffName = tenant?.business_type?.name === "Electronics" ? "Staff" : "Locations";
   return (
     <ProCard
       bordered
@@ -31,7 +35,7 @@ const TableMainSettings: React.FC = () => {
           }}
         >
           <AppstoreOutlined style={{ marginRight: 8 }} />
-          Tables Main Settings
+          {tableName} Main Settings
         </Typography.Title>
       }
       tabs={{
@@ -46,7 +50,7 @@ const TableMainSettings: React.FC = () => {
         tab={
           <Space>
             <EnvironmentOutlined style={{ color: "#52c41a" }} />
-            <Text>Location Settings</Text>
+            <Text>{staffName} Settings</Text>
           </Space>
         }
       >
@@ -66,7 +70,7 @@ const TableMainSettings: React.FC = () => {
         tab={
           <Space>
             <TableOutlined style={{ color: "#1890ff" }} />
-            <Text>Table Settings</Text>
+            <Text>{tableName} Settings</Text>
           </Space>
         }
       >
@@ -80,7 +84,7 @@ const TableMainSettings: React.FC = () => {
           <TableSetting />
         </div>
       </ProCard.TabPane>
-    
+
     </ProCard>
   );
 };

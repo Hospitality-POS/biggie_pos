@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Alert,
   AlertTitle,
@@ -23,7 +23,6 @@ import { useParams } from "react-router-dom";
 import { getCart } from "../../features/Cart/CartActions";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 import VerticalTabs from "./Sidetabs";
-import { fetchsubcategories } from "../../features/Category/CategoryActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchTableById } from "../../features/Table/TableActions";
 import CartLoader from "../../components/spinner/cartLoader";
@@ -45,12 +44,6 @@ const RestaurantPage: React.FC = () => {
   const { cartDetails } = useAppSelector((state) => state.cart);
   const { tableData } = useAppSelector((state) => state.Tables);
   const { products, loading } = useAppSelector((state) => state.product);
-  const { category: categories, loading: categLoading } = useAppSelector(
-    (state) => state.Categories
-  );
-  const { subCategory: Subcategories } = useAppSelector(
-    (state) => state.Categories
-  );
   const dispatch = useAppDispatch();
   const [selectedCard, setSelectedCard] = useState(null);
   const [showCategories, setShowCategories] = useState(true);
@@ -59,23 +52,62 @@ const RestaurantPage: React.FC = () => {
   const [categoryChosen, setCategoryChosen] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [value, setValue] = React.useState(0);
+  const [Subcategories, setSubcategories] = useState([]);
+  const [categories, setCategories] = useState([]);
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
 
   const handleChangeMainCategory = (maincategoryid) => {
-    dispatch(fetchsubcategories(maincategoryid));
+    if (!Maincategories) return;
+    const mainCategory = Maincategories.find(categ => categ._id === maincategoryid);
+
+    if (mainCategory) {
+      setSubcategories(mainCategory.sub_categories || []);
+      if (mainCategory.sub_categories.length > 0) {
+        setCategories(mainCategory.sub_categories[0].categories || []);
+      } else {
+        setCategories([]);
+      }
+    }
+  };
+
+  const handleChangeSubCategory = (subcategoryid) => {
+    const subCategory = Subcategories.find(sub => sub._id === subcategoryid);
+    if (subCategory) {
+      setCategories(subCategory.categories || []);
+    }
   };
 
   const { id } = useParams();
 
-  const { data: Maincategories } = useQuery({
+  const { data: Maincategories, isLoading: mainCategoriesLoading } = useQuery({
     queryKey: ["Maincategories"],
     queryFn: fetchMainCategories,
     retry: 3,
     networkMode: "always",
+    onSuccess: (data) => {
+      if (data?.length > 0) {
+        const firstCategoryId = data[0]._id; // Use the first category's ID
+        handleChangeMainCategory(firstCategoryId);
+      }
+      setIsLoadingData(false);
+    },
+    onError: (error) => {
+      console.error("Error fetching main categories:", error); // Handle error if necessary
+      setIsLoadingData(false);
+    }
   });
+
+  useEffect(() => {
+    if (Maincategories?.length > 0) {
+      const firstCategoryId = Maincategories[0]._id;
+      handleChangeMainCategory(firstCategoryId);
+    }
+  }, [Maincategories]);
+
+  console.log("Maincategories", Maincategories);
 
   const handleCartOpen = () => {
     setCartOpen(true);
@@ -98,43 +130,6 @@ const RestaurantPage: React.FC = () => {
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const dispatchfetchsubcateg = useCallback(async () => {
-    setIsLoadingData(true);
-    try {
-      const mainCategoriesData = fetchMainCategories();
-      if (mainCategoriesData?.length > 0) {
-        const firstCategoryId = mainCategoriesData[0]._id; // Use the first category's ID
-        await dispatch(fetchsubcategories(firstCategoryId));
-      }
-    } catch (error) {
-      console.error("Error fetching subcategories:", error); // Handle error if necessary
-    } finally {
-      setIsLoadingData(false);
-    }
-  }, [dispatch]);
-
-
-  const dispatchfetctaldata = useCallback(async () => {
-    setIsLoadingData(true);
-    try {
-      await dispatch(fetchTableById(id));
-    } catch (error) {
-      // Handle error if necessary
-    } finally {
-      setIsLoadingData(false);
-    }
-  }, [dispatch, id]);
-
-  useEffect(() => {
-    dispatchfetchsubcateg();
-    dispatchfetctaldata();
-  }, [cartDetails._id, dispatchfetchsubcateg, dispatchfetctaldata]);
-
-
-  useEffect(() => {
-    setIsLoadingData(false);
-  }, []);
-
   return (
     <Grid container spacing={2}>
       {/* Left Column */}
@@ -151,7 +146,7 @@ const RestaurantPage: React.FC = () => {
               aria-label="full width tabs example"
             >
               {Maincategories?.length
-                ? Maincategories?.map((categ, index) => (
+                ? Maincategories.map((categ, index) => (
                   <Tab
                     key={categ._id}
                     onClick={() => handleChangeMainCategory(categ._id)}
@@ -170,17 +165,20 @@ const RestaurantPage: React.FC = () => {
               style={{
                 display: "flex",
                 flexDirection: isMobile ? "column" : "row",
-                height: isMobile ? "auto" : "700px",
+                height: isMobile ? "auto" : "580px",
               }}
             >
-              {isLoadingData && categLoading ? <CartLoader /> : ""}
+              {isLoadingData && mainCategoriesLoading ? <CartLoader /> : ""}
               <div
                 style={{
                   height: isMobile ? "auto" : "inherit",
                   width: isMobile ? "100%" : "auto",
                 }}
               >
-                <VerticalTabs handleSub={handleBack} />
+                <VerticalTabs
+                  subcategories={Subcategories}
+                  handleSubCategoryChange={handleChangeSubCategory}
+                />
               </div>
               <div
                 style={{
