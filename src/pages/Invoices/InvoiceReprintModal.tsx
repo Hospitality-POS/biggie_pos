@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { ModalForm } from "@ant-design/pro-form";
 import { Button, Spin } from "antd";
-import { PrinterOutlined, PrinterFilled } from "@ant-design/icons";
+import { PrinterOutlined, PrinterFilled, SafetyCertificateFilled } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
 import {
   Box,
@@ -61,6 +61,12 @@ const PrintableContent = React.forwardRef<HTMLDivElement, {
   }
 
 
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+
+  const isElectronicsStore = tenant?.business_type?.name === "Electronics";
+
+
   const smallTextStyle = { fontSize: "0.9em", fontWeight: 800, }; // Ensures better fit for thermal printer
 
 
@@ -80,6 +86,17 @@ const PrintableContent = React.forwardRef<HTMLDivElement, {
     ...baseTextStyle,
     fontSize: "0.9em",
     fontWeight: 800,
+  };
+
+
+  const warrantyStyle = {
+    ...subheaderStyle,
+    textAlign: "center",
+    border: "2px solid #000",
+    padding: "8px",
+    margin: "10px 0",
+    backgroundColor: "#f9f9f9",
+    fontWeight: 900,
   };
 
   const normalTextStyle = {
@@ -219,6 +236,24 @@ const PrintableContent = React.forwardRef<HTMLDivElement, {
       <Typography variant="body1" style={{ ...headerStyle, textAlign: "center", textDecoration: "underline", marginTop: 10 }}>
         Total Amount: Ksh. {(total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </Typography>
+
+      {isElectronicsStore && (
+        <>
+          <div style={{ margin: "15px 0" }}>
+            <Typography variant="body1" style={warrantyStyle}>
+              <SafetyCertificateFilled /> WARRANTY: 6 MONTHS <SafetyCertificateFilled />
+            </Typography>
+          </div>
+          <div style={{ margin: "10px 0" }}>
+            <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
+              * This receipt serves as your warranty certificate *
+            </Typography>
+            <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
+              * Please retain for warranty claims *
+            </Typography>
+          </div>
+        </>
+      )}
 
       <Typography variant="body1" sx={{ textAlign: "center", fontWeight: 900, margin: "15px 0" }}>
         ============================
