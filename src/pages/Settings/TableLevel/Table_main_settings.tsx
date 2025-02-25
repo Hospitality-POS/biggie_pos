@@ -20,8 +20,8 @@ const TableMainSettings: React.FC = () => {
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const tableName = tenant?.business_type?.name === "Electronics" ? "Slots" : "Tables";
-  const staffName = tenant?.business_type?.name === "Electronics" ? "Staff" : "Locations";
+  const tableName = tenant?.business_type?.name === "Electronics" || tenant?.business_type?.name === "massage_parlour" ? "Slots" : "Tables";
+  const staffName = tenant?.business_type?.name === "Electronics" || tenant?.business_type?.name === "massage_parlour" ? "Staff" : "Locations";
   return (
     <ProCard
       bordered

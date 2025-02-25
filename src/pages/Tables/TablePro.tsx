@@ -1,17 +1,18 @@
-import { AppstoreOutlined, HolderOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, HolderOutlined, PlusOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import SuccesssModal from "@components/MODALS/SuccessModal";
 import TableCard from "@components/TableCard/TableCard";
 import StaffModal from "@components/staffCard/LoginModal";
 import { fetchTableUsequery } from "@services/tables";
 import { useQuery } from "@tanstack/react-query";
-import { ConfigProvider, Skeleton, Typography, Card } from "antd";
+import { ConfigProvider, Skeleton, Typography, Result, Button } from "antd";
 import { Space } from "antd/lib";
 import Lottie from "lottie-react";
 import React, { useState, useEffect } from "react";
 import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/fss loader.json";
 import EmptyPage from "@routes/EmptyPage";
+import { useNavigate } from "react-router-dom";
 
 const TableSkeleton = () => <Skeleton.Image active style={{ width: "50%", height: "100px" }} />;
 
@@ -47,11 +48,14 @@ const LoadingTabs = () => (
 export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
-  const [activeTabId, setActiveTabId] = useState<string>("");
+  const { user } = useAppSelector((state) => state.auth);
+  const [activeTabId, setActiveTabId] = useState<string>("overview");
   const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
   const { openModal: successmodal, loading } = useAppSelector(
     (state) => state.order
   );
+
+  const navigate = useNavigate();
 
   const storedCode = localStorage.getItem("companyCode");
   console.log('nice', storedCode);
@@ -96,6 +100,39 @@ export default function TablePro() {
   if (successmodal) {
     return <SuccesssModal />;
   }
+
+  const DefaultView = () => (
+    <div
+      style={{
+        height: "calc(100vh - 280px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#fafafa",
+        borderRadius: "8px",
+        padding: "20px",
+      }}
+    >
+      <Result
+        icon={
+          <AppstoreOutlined style={{ fontSize: "64px", color: "#6c1c2c" }} />
+        }
+        title="Welcome to Slots Management"
+        subTitle="Please select a staff slot from above to view its Customer Slots"
+        extra={[
+          <Button
+            type="primary"
+            onClick={() => navigate("/table-settings")}
+            style={{ backgroundColor: "#6c1c2c" }}
+            icon={<PlusOutlined />}
+            disabled={user?.role !== "admin" && user?.role !== "cashier"}
+          >
+            Add New Slot
+          </Button>,
+        ]}
+      />
+    </div>
+  );
 
   const tabsItems = data?.map(
     (item: { _id: string; name: string; tables?: any[] }) => ({
@@ -203,6 +240,21 @@ export default function TablePro() {
       );
     }
 
+    const allTabItems = [
+      {
+        key: "overview",
+        tab: "Overview",
+        label: (
+          <Space>
+            <AppstoreOutlined />
+            Overview
+          </Space>
+        ),
+        children: <DefaultView />,
+      },
+      ...(tabsItems || []),
+    ];
+
     return (
       <ConfigProvider
         theme={{
@@ -225,7 +277,7 @@ export default function TablePro() {
           }
           tabs={{
             type: "card",
-            items: tabsItems,
+            items: allTabItems,
             onChange: (key) => setActiveTabId(key),
             activeKey: activeTabId,
           }}
