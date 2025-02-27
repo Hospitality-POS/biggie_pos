@@ -229,17 +229,9 @@ const CartDrawer: React.FC = () => {
                 display: "flex",
                 justifyContent: "space-between",
                 flexWrap: "wrap",
+                marginBottom: "10px",
               }}
             >
-              {user?.role === "admin" && (
-                <Button
-                  danger
-                  onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
-                  icon={<CloseCircleOutlined />}
-                >
-                  Clear
-                </Button>
-              )}
               <Button
                 onClick={() => dispatch(cartSent(cartDetails))}
                 icon={<SendOutlined />}
@@ -260,8 +252,18 @@ const CartDrawer: React.FC = () => {
                 cartDetails={cartDetails}
                 data={data}
                 totalAmount={totalAmount}
-              />
+                />
             </Space>
+                {user?.role === "admin" && (
+                  <Button
+                    danger
+                    block
+                    onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
+                    icon={<CloseCircleOutlined />}
+                  >
+                    Clear
+                  </Button>
+                )}
           </Space>
         ) : (
           <Card className={classes.cardm}>
