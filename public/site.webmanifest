@@ -1,20 +1,107 @@
 {
-    "name": " Relia POS Services",
-    "short_name": "Relia POS",
-    "start_url": "/",
-    "icons": [
-        {
-            "src": "/android-chrome-192x192.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "/android-chrome-512x512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        }
-    ],
-    "theme_color": "#ffffff",
-    "background_color": "#ffffff",
-    "display": "standalone"
+  "name": "Relia Pos",
+  "short_name": "",
+  "description": "ReliaPos is a POS system that is easy to use and has a modern design. It is designed to be a reliable solution for small and medium-sized businesses. It is also designed to be scalable, so it can be used by larger businesses as well.",
+  "start_url": "/",
+  "display": "minimal-ui",
+  "background_color": "#b43838",
+  "theme_color": "#b62e2e",
+  "display-override": ["window-controls-overlay"],
+  "icons": [
+    {
+      "src": "icons/icon-48x48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-180x180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-167x167.png",
+      "sizes": "167x167",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-120x120.png",
+      "sizes": "120x120",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-76x76.png",
+      "sizes": "76x76",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-70x70.png",
+      "sizes": "70x70",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-150x150.png",
+      "sizes": "150x150",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-310x310.png",
+      "sizes": "310x310",
+      "type": "image/png"
+    }
+  ],
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "en",
+  "screenshots": [
+    
+    {
+      "src": "screenshots/image.png",
+      "sizes": "1601x872",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "screenshots/image2.png",
+      "sizes": "1843x937",
+      "type": "image/png"
+    },
+    {
+      "src": "screenshots/shot.png",
+      "sizes": "601x824",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
 }
