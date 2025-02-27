@@ -45,23 +45,23 @@ function Layout() {
     return (
       <div className="flex items-center justify-between w-full">
         <Breadcrumb style={{ cursor: "pointer" }}>
-          <Breadcrumb.Item onClick={() => navigate("/tables")}>
+          <Breadcrumb.Item onClick={() => navigate("/tables")} key="home">
             <HomeFilled /> <span>Home</span>
           </Breadcrumb.Item>
           {currentShop && (
-            <Breadcrumb.Item>
+            <Breadcrumb.Item key="shop">
               <ShopOutlined /> <Text strong>{currentShop?.name}</Text>
             </Breadcrumb.Item>
           )}
-          <Breadcrumb.Item>
+          <Breadcrumb.Item key="dashboard">
             <DashboardOutlined /> <span>Dashboard</span>
           </Breadcrumb.Item>
           {(role === "admin" || role === "cashier") && (
             <>
-              <Breadcrumb.Item onClick={() => navigate("/store")}>
+              <Breadcrumb.Item onClick={() => navigate("/store")} key="store">
                 <FolderAddOutlined /> <span>Store</span>
               </Breadcrumb.Item>
-              <Breadcrumb.Item onClick={() => navigate("/reports")}>
+              <Breadcrumb.Item onClick={() => navigate("/reports")} key="reports">
                 <PaperClipOutlined /> <span>Reports</span>
               </Breadcrumb.Item>
             </>

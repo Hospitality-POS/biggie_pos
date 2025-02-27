@@ -58,9 +58,9 @@ const AdminDashboard: React.FC = () => {
 
       return {
         title: isLast ? (
-          <span>{label}</span>
+          <span key={path}>{label}</span>
         ) : (
-          <NavLink to={url}>{label}</NavLink>
+          <NavLink to={url} key={path}>{label}</NavLink>
         ),
       };
     });
@@ -192,11 +192,11 @@ const AdminDashboard: React.FC = () => {
         }}
         header={{
           extra: [
-            <Breadcrumb style={{ cursor: "pointer" }}>
-              <Breadcrumb.Item onClick={() => navigate("/admin")}>
+            <Breadcrumb style={{ cursor: "pointer" }} key="breadcrumb">
+              <Breadcrumb.Item onClick={() => navigate("/admin")} key="admin-home">
                 <HomeFilled /> <span>Home</span>
               </Breadcrumb.Item>
-              <Breadcrumb.Item>
+              <Breadcrumb.Item key="admin-dashboard">
                 <DashboardOutlined /> <span>Dashboard</span>
               </Breadcrumb.Item>
             </Breadcrumb>,

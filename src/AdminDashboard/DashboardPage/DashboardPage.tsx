@@ -318,6 +318,7 @@ const DashboardAdminPage = () => {
               <Skeleton active />
             ) : (
               <Table
+                key={data?.currentOrders}
                 columns={ORDER_COLUMNS}
                 dataSource={
                   Array.isArray(data?.currentOrders) ? data.currentOrders : []
@@ -348,6 +349,7 @@ const DashboardAdminPage = () => {
               <Skeleton active />
             ) : (
               <Table
+                key={data?.lowStockItems}
                 columns={STOCK_COLUMNS}
                 dataSource={
                   Array.isArray(data?.lowStockItems) ? data.lowStockItems : []

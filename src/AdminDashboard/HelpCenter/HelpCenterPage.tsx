@@ -155,6 +155,7 @@ const ArticleDetail = ({ article, onClose, visible }) => {
     <Drawer
       title={
         <Breadcrumb
+          key={article.id}
           items={[{ title: "Help Center" }, { title: article.title }]}
         />
       }

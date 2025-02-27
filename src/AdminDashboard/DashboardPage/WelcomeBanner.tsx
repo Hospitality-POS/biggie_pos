@@ -14,7 +14,7 @@ const WelcomeBanner = () => {
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
-    "@media (max-width: 768px)": {
+    "@media (maxWidth: 768px)": {
       height: "auto",
       padding: "20px",
     },
@@ -27,7 +27,7 @@ const WelcomeBanner = () => {
     justifyContent: "center",
     position: "relative",
     zIndex: 2,
-    "@media (max-width: 768px)": {
+    "@media (maxWidth: 768px)": {
       width: "100%",
       textAlign: "center",
       alignItems: "center",
@@ -38,10 +38,10 @@ const WelcomeBanner = () => {
     fontSize: "36px",
     marginBottom: "16px",
     fontWeight: "bold",
-    "@media (max-width: 768px)": {
+    "@media (maxWidth: 768px)": {
       fontSize: "28px",
     },
-    "@media (max-width: 480px)": {
+    "@media (maxWidth: 480px)": {
       fontSize: "24px",
     },
   };
@@ -49,7 +49,7 @@ const WelcomeBanner = () => {
   const subtitleStyle = {
     fontSize: "16px",
     marginBottom: "24px",
-    "@media (max-width: 768px)": {
+    "@media (maxWidth: 768px)": {
       fontSize: "14px",
     },
   };
