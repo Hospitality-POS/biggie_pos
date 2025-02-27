@@ -134,7 +134,15 @@ const RestaurantPage: React.FC = () => {
     <Grid container spacing={2}>
       {/* Left Column */}
       <Grid item xs={12} md={8}>
-        <Paper elevation={3} style={{ padding: "16px", height: "85vh" }}>
+        <Paper
+          elevation={3}
+          style={{
+            padding: "16px",
+            height: "80vh",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <AppBar position="static" sx={{ mb: 2, bgcolor: "#6c1c2c" }}>
             <Tabs
               value={value}
@@ -147,15 +155,15 @@ const RestaurantPage: React.FC = () => {
             >
               {Maincategories?.length
                 ? Maincategories.map((categ, index) => (
-                  <Tab
-                    key={categ._id}
-                    onClick={() => handleChangeMainCategory(categ._id)}
-                    iconPosition="start"
-                    style={{ height: isMobile ? "auto" : 20 }}
-                    label={categ.name}
-                    {...a11yProps(index)}
-                  />
-                ))
+                    <Tab
+                      key={categ._id}
+                      onClick={() => handleChangeMainCategory(categ._id)}
+                      iconPosition="start"
+                      style={{ height: isMobile ? "auto" : 20 }}
+                      label={categ.name}
+                      {...a11yProps(index)}
+                    />
+                  ))
                 : ""}
             </Tabs>
           </AppBar>
@@ -165,7 +173,7 @@ const RestaurantPage: React.FC = () => {
               style={{
                 display: "flex",
                 flexDirection: isMobile ? "column" : "row",
-                height: isMobile ? "auto" : "580px",
+                height: isMobile ? "auto" : "64vh",
               }}
             >
               {isLoadingData && mainCategoriesLoading ? <CartLoader /> : ""}
@@ -181,9 +189,13 @@ const RestaurantPage: React.FC = () => {
                 />
               </div>
               <div
+                // style={{
+                //   width: "100%",
+                //   overflowY: isMobile ? "visible" : "auto",
+                // }}
                 style={{
-                  width: "100%",
-                  overflowY: isMobile ? "visible" : "auto",
+                  flex: 1,
+                  overflowY: "auto",
                 }}
               >
                 {showCategories ? (
@@ -207,8 +219,8 @@ const RestaurantPage: React.FC = () => {
                             flex: isMobile
                               ? "0 0 100%"
                               : isTablet
-                                ? "0 0 45%"
-                                : `0 0 ${100 / categories?.length}%`,
+                              ? "0 0 45%"
+                              : `0 0 ${100 / categories?.length}%`,
                             display: "flex",
                             justifyContent: "center",
                             alignItems: "center",
@@ -287,7 +299,6 @@ const RestaurantPage: React.FC = () => {
                           justifyContent: "flex-start",
                           gap: "10px",
                           marginLeft: 4,
-                          // paddingLeft: "4px",
                           width: "inherit",
                           maxHeight: isMobile ? "none" : "70vh",
                           overflowY: isMobile ? "visible" : "auto",
@@ -303,8 +314,8 @@ const RestaurantPage: React.FC = () => {
                                 flex: isMobile
                                   ? "0 0 100%"
                                   : isTablet
-                                    ? "0 0 45%"
-                                    : "0 0 30%",
+                                  ? "0 0 45%"
+                                  : "0 0 30%",
                                 marginBottom: "10px",
                               }}
                             />
