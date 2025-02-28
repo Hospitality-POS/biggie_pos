@@ -62,9 +62,9 @@ const WelcomeBanner = () => {
     bottom: 0,
     zIndex: 1,
   };
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const clientName = tenant ? tenant.name : "Relia Pos";
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const clientName = tenant ? tenant.name : "Relia Pos";
 
   return (
     <div style={bannerStyle}>
@@ -92,3 +92,7 @@ const WelcomeBanner = () => {
 };
 
 export default WelcomeBanner;
+
+
+
+
