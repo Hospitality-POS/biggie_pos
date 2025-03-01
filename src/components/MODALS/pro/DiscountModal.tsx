@@ -1,10 +1,11 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Button, Space } from "antd";
 import {
   ModalForm,
   ProForm,
   ProFormDigit,
   ProFormSelect,
+  ProFormText,
 } from "@ant-design/pro-form";
 import { PercentageOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
@@ -19,12 +20,14 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
   const [form] = ProForm.useForm();
   const formRef = useRef<any>();
   const dispatch = useAppDispatch();
+  const [discountType, setDiscountType] = useState<string>("amount");
 
   const { user } = useAppSelector((state) => state.auth);
 
   const discountOptions = [
     { value: "amount", label: "Amount" },
     { value: "percentage", label: "Percentage" },
+    { value: "code", label: "Gift Card" },
   ];
 
   return (
@@ -67,7 +70,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: "Give Discount",
+          submitText: "Apply Discount",
         },
       }}
     >
@@ -78,16 +81,28 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
           options={discountOptions}
           width={"sm"}
           rules={[{ required: true, message: "Please select a discount type" }]}
+          onChange={(value) => setDiscountType(value)}
         />
-        <ProFormDigit
-          name="discount"
-          label="Discount Amount"
-          width={"sm"}
-          rules={[
-            { required: true, message: "Please enter the discount amount" },
-          ]}
-        />
+        {discountType === "amount" || discountType === "percentage" ? (
+          <ProFormDigit
+            name="discount"
+            label={discountType === "percentage" ? "Discount (%)" : "Discount Amount"}
+            width={"sm"}
+            rules={[
+              { required: true, message: "Please enter the discount amount" },
+            ]}
+          />
+        ) : discountType === "code" ? (
+          <ProFormText
+            name="discount_code"
+            label="Gift Card Code"
+            width={"sm"}
+            rules={[{ required: true, message: "Please enter the gift card code" }]}
+          />
+        ) : null}
       </ProForm.Group>
+
+
     </ModalForm>
   );
 };
