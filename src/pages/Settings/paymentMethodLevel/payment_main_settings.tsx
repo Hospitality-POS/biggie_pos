@@ -3,6 +3,7 @@ import { Space, Typography, Divider } from "antd";
 import { MoneyCollectOutlined } from "@ant-design/icons";
 import PaymentsMethodSettings from "./PaymentSettings";
 
+
 const { Text } = Typography;
 
 function PaymentMainSettings() {
@@ -46,7 +47,11 @@ function PaymentMainSettings() {
         >
           <PaymentsMethodSettings />
         </div>
-      </ProCard.TabPane>    
+      </ProCard.TabPane>
+
+
+
+      <Divider style={{ margin: 0 }} />
     </ProCard>
   );
 }

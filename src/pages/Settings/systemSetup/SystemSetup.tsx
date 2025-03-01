@@ -5,17 +5,19 @@ import {
   PrinterOutlined,
   SettingOutlined,
   CrownOutlined,
-  UnlockOutlined
+  UnlockOutlined,
+  DollarCircleOutlined
 
 } from "@ant-design/icons"; // Selected icons to ensure consistency in theme
 import { ConfigProvider, Space, Typography, Divider } from "antd";
 import Profile from "./Profile";
 import PrinterConfig from "./PrinterConfig";
 import ComingSoon from "@components/coming-soon/ComingSoon";
+import PaymentDetailsSettings from "../paymentMethodLevel/PaymentDetailsSettings";
 // import Billing from "@components/billing/Billing";
 
 const SystemSetup: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>("profile");
+  const [activeTab, setActiveTab] = useState<string>("payment-detail");
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
@@ -58,6 +60,25 @@ const SystemSetup: React.FC = () => {
       }}
     >
       <ProCard.TabPane
+        key="payment-detail"
+        tab={
+          <Space>
+            <DollarCircleOutlined />
+            <Typography.Text>Payment Details</Typography.Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <PaymentDetailsSettings />
+        </div>
+      </ProCard.TabPane>
+      <ProCard.TabPane
         key="profile"
         tab={
           <Space>
@@ -83,8 +104,8 @@ const SystemSetup: React.FC = () => {
         tab={
           <Space>
             <PrinterOutlined style={{ color: "#1890ff" }} />{" "} */}
-            {/* Blue color for printer config */}
-            {/* <Typography.Text>Printer Config</Typography.Text>
+      {/* Blue color for printer config */}
+      {/* <Typography.Text>Printer Config</Typography.Text>
           </Space>
         }
       >
