@@ -49,7 +49,11 @@ export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const { user } = useAppSelector((state) => state.auth);
-  const [activeTabId, setActiveTabId] = useState<string>("overview");
+  // Initialize the activeTabId from localStorage, falling back to "overview" if not found
+  const [activeTabId, setActiveTabId] = useState<string>(() => {
+    const savedTabId = localStorage.getItem("activeTableTabId");
+    return savedTabId || "overview";
+  });
   const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
   const { openModal: successmodal, loading } = useAppSelector(
     (state) => state.order
@@ -59,6 +63,7 @@ export default function TablePro() {
 
   const storedCode = localStorage.getItem("companyCode");
   console.log('nice', storedCode);
+
   // Show login modal and blur background if companyCode is not present
   useEffect(() => {
     if (!storedCode) {
@@ -72,6 +77,11 @@ export default function TablePro() {
   useEffect(() => {
     console.log('open state:', open);
   }, [open]);
+
+  // Save the activeTabId to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("activeTableTabId", activeTabId);
+  }, [activeTabId]);
 
   const handleOpen = (productId: React.SetStateAction<null>) => {
     setOpen(true);
@@ -92,10 +102,22 @@ export default function TablePro() {
   });
 
   useEffect(() => {
-    if (data && data.length > 0 && !activeTabId) {
-      setActiveTabId(data[0]._id);
+    if (data && data.length > 0 && activeTabId === "overview") {
+      // Only set the activeTabId if we're on the overview and data is available
+      const savedTabId = localStorage.getItem("activeTableTabId");
+      if (savedTabId && savedTabId !== "overview") {
+        // Check if saved tab exists in the data
+        const tabExists = data.some((item) => item._id === savedTabId);
+        if (tabExists) {
+          setActiveTabId(savedTabId);
+        } else {
+          setActiveTabId(data[0]._id);
+        }
+      } else {
+        setActiveTabId(data[0]._id);
+      }
     }
-  }, [data]);
+  }, [data, activeTabId]);
 
   if (successmodal) {
     return <SuccesssModal />;
