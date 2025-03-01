@@ -21,6 +21,7 @@ export const fetchAllUsersList = async (data: ParamsType) => {
   }
 };
 
+
 export const fetchAllUsersByShopId = async () => {
   try {
     const url = `${BASE_URL}/users/shop/${shopId}`;
