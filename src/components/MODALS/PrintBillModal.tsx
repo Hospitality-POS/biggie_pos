@@ -139,23 +139,23 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           <Typography variant="body1" style={subheaderStyle}>
             Phone: {PHONE_NO}
           </Typography>
-          {TILL_NO ? (
-            <Typography variant="body1" style={subheaderStyle}>
-              Till No: {TILL_NO}
-            </Typography>
-          ) : (
+          {Paybill_bs ? (
             <>
-              {Paybill_bs && (
-                <Typography variant="body1" style={subheaderStyle}>
-                  Business No: {Paybill_bs}
-                </Typography>
-              )}
+              <Typography variant="body1" style={subheaderStyle}>
+                Business No: {Paybill_bs}
+              </Typography>
               {Paybill_ac && (
                 <Typography variant="body1" style={subheaderStyle}>
                   Account No: {Paybill_ac}
                 </Typography>
               )}
             </>
+          ) : (
+            TILL_NO && (
+              <Typography variant="body1" style={subheaderStyle}>
+                Till No: {TILL_NO}
+              </Typography>
+            )
           )}
           <Typography variant="body1" style={normalTextStyle}>
             {cartDetails?.clientPin && `Client Pin: ${cartDetails?.clientPin}`}
@@ -263,6 +263,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             ...headerStyle,
             textAlign: "center",
             textDecoration: "underline",
+            marginBottom: isElectronicsStore ? 0 : 10,
           }}
         >
           Amount Due: Ksh.{totalAmount?.toFixed(2)}
@@ -288,11 +289,19 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
         <Typography
           variant="body1"
-          sx={{ textAlign: "center", fontWeight: 900 }}
+          sx={{
+            textAlign: "center",
+            fontWeight: 900,
+            marginTop: isElectronicsStore ? 0 : 5,
+          }}
         >
           ============================
         </Typography>
-        <div className="qrcoded" style={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
+        <div className="qrcoded" style={{
+          marginTop: 4,
+          display: "flex",
+          justifyContent: "center"
+        }}>
           <QRCodeCanvas value={QR_Code} size={100} className="qrcode" />
         </div>
         <Typography

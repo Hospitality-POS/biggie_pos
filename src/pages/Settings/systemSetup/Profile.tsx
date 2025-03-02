@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ProForm,
@@ -37,10 +37,15 @@ function SystemSetup() {
   const { data, isLoading } = useQuery({
     queryKey: ["systemsettings"],
     queryFn: fetchSystemSetupDetailsById,
-    // retry: 3,
-    // refetchInterval: 3000,
     networkMode: "always",
   });
+
+  // Initialize the form's conditional display based on existing data
+  useEffect(() => {
+    if (data && data.paymentDetails) {
+      setShowPaybillDetails(data.paymentDetails.name === "Paybill");
+    }
+  }, [data]);
 
   const onPaymentDetailsChange = (value) => {
     setShowPaybillDetails(value === "Paybill");
@@ -51,12 +56,11 @@ function SystemSetup() {
     const formData = {
       ...values,
       phone: phoneNumber,
-      paymentDetailId: values.paymentDetailId.value,
+      paymentDetailId: values.paymentDetailId,
     };
 
     const confirmed = await ShowConfirm({
-      title: `Are you sure you want to ${data ? "Update" : "Add new"
-        } system setup details?`,
+      title: `Are you sure you want to ${data ? "Update" : "Add new"} system setup details?`,
       position: true,
     });
 
@@ -78,6 +82,7 @@ function SystemSetup() {
   if (isLoading) {
     return <Skeleton active />;
   }
+
   return (
     <Card
       title={
@@ -95,13 +100,13 @@ function SystemSetup() {
         initialValues={
           data
             ? {
-                ...data,
-                phoneNumber: reversePhoneNumber(data?.phone),
-                paymentDetailId: {
-                  value: data?.paymentDetails?._id,
-                  label: data?.paymentDetails?.name,
-                },
-              }
+              ...data,
+              phoneNumber: reversePhoneNumber(data?.phone),
+              paymentDetailId: {
+                value: data?.paymentDetails?._id,
+                label: data?.paymentDetails?.name,
+              },
+            }
             : {}
         }
         submitter={{
@@ -241,7 +246,7 @@ function SystemSetup() {
                     placeholder="Enter account number"
                     rules={[
                       {
-                        required: true,
+                        required: showPaybillDetails,
                         message: "Please enter the account number",
                       },
                     ]}
@@ -256,7 +261,7 @@ function SystemSetup() {
                     placeholder="Enter business number"
                     rules={[
                       {
-                        required: true,
+                        required: showPaybillDetails,
                         message: "Please enter the business number",
                       },
                     ]}
@@ -271,7 +276,10 @@ function SystemSetup() {
                 label="Till No."
                 placeholder="Enter till number"
                 rules={[
-                  { required: true, message: "Please enter the till number" },
+                  {
+                    required: !showPaybillDetails,
+                    message: "Please enter the till number"
+                  },
                 ]}
                 fieldProps={{ size: "large" }}
                 style={{ borderRadius: "4px" }}
