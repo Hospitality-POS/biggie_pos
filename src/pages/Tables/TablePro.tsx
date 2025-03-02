@@ -49,11 +49,17 @@ export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const { user } = useAppSelector((state) => state.auth);
-  // Initialize the activeTabId from localStorage, falling back to "overview" if not found
+
+  // Initialize the activeTabId with improved logic for first visit vs subsequent visits
   const [activeTabId, setActiveTabId] = useState<string>(() => {
+    const isFirstVisit = localStorage.getItem("hasVisitedTablesBefore") !== "true";
     const savedTabId = localStorage.getItem("activeTableTabId");
-    return savedTabId || "overview";
+
+    // If it's first visit, return "overview"
+    // Otherwise, return saved tab or "overview" as fallback
+    return isFirstVisit ? "overview" : (savedTabId || "overview");
   });
+
   const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
   const { openModal: successmodal, loading } = useAppSelector(
     (state) => state.order
@@ -63,6 +69,11 @@ export default function TablePro() {
 
   const storedCode = localStorage.getItem("companyCode");
   console.log('nice', storedCode);
+
+  // Mark that user has visited the page when component mounts
+  useEffect(() => {
+    localStorage.setItem("hasVisitedTablesBefore", "true");
+  }, []);
 
   // Show login modal and blur background if companyCode is not present
   useEffect(() => {
@@ -101,20 +112,28 @@ export default function TablePro() {
     enabled: !!storedCode, // Disable query if storedCode is undefined
   });
 
+  // Modified effect for tab selection logic
   useEffect(() => {
-    if (data && data.length > 0 && activeTabId === "overview") {
-      // Only set the activeTabId if we're on the overview and data is available
+    const isFirstVisit = localStorage.getItem("hasVisitedTablesBefore") !== "true";
+
+    // Only proceed if we have data and we're either on the overview tab 
+    // or this is the first visit
+    if (data && data.length > 0 && (activeTabId === "overview" || isFirstVisit)) {
       const savedTabId = localStorage.getItem("activeTableTabId");
-      if (savedTabId && savedTabId !== "overview") {
+
+      // If we have a saved tab (that isn't "overview") and this isn't first visit
+      if (savedTabId && savedTabId !== "overview" && !isFirstVisit) {
         // Check if saved tab exists in the data
         const tabExists = data.some((item) => item._id === savedTabId);
         if (tabExists) {
           setActiveTabId(savedTabId);
         } else {
+          // Fallback to first tab if saved tab doesn't exist
           setActiveTabId(data[0]._id);
         }
-      } else {
-        setActiveTabId(data[0]._id);
+      } else if (isFirstVisit) {
+        // First visit - stay on overview, but mark as visited
+        localStorage.setItem("hasVisitedTablesBefore", "true");
       }
     }
   }, [data, activeTabId]);

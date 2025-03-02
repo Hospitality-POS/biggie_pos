@@ -1,3 +1,4 @@
+// Fix 1: Import redux-thunk properly to handle async actions
 import React, { useRef, useState, useEffect } from "react";
 import {
   ProTable,
@@ -17,7 +18,8 @@ import {
   EyeOutlined,
   EditOutlined,
   CopyOutlined,
-  HistoryOutlined
+  HistoryOutlined,
+  FilePdfOutlined
 } from "@ant-design/icons";
 import {
   Tag,
@@ -34,51 +36,44 @@ import {
   Tabs,
   Table,
   Tooltip,
-  Popconfirm
+  Popconfirm,
+  App // Fix 2: Import App component for message context
 } from "antd";
+import { useDispatch } from "react-redux";
+import { createGiftCard, sendGiftCard, fetchAllGiftCards } from "@services/customers";
 
-// Mock function for fetching customer gift cards - replace with actual implementation
-const fetchCustomerGiftCards = (customerId) => {
-  // This would connect to your backend service
-  return Promise.resolve([]);
-};
+const { Title, Paragraph, Text } = Typography;
+const { TabPane } = Tabs;
 
-// Mock function for issuing gift cards - replace with actual implementation
-const issueGiftCard = (customerId, amount, message) => {
-  // Generate a unique code for the gift card
-  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoiding similar looking characters
+
+
+
+const issueGiftCard = (customerId, amount, message, dispatch) => {
+  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 12; i++) {
     if (i > 0 && i % 4 === 0) code += '-';
     code += characters.charAt(Math.floor(Math.random() * characters.length));
   }
 
-  // This would connect to your backend service
+  const safeMessage = message || "";
+
   return {
-    id: `GC-${Math.floor(Math.random() * 10000)}`,
+    card_no: `GC-${Math.floor(Math.random() * 10000)}`,
     code: code,
     amount,
-    message,
-    issueDate: new Date().toISOString(),
-    expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year expiry
-    customerId,
-    status: 'Active'
+    message: safeMessage,
+    expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    customer_id: customerId,
+    status: true,
   };
 };
 
-// Mock function for sending email - replace with actual implementation
-const sendGiftCardEmail = (email, giftCard, customerName) => {
-  // This would connect to your email service
-  console.log(`Sending gift card ${giftCard.id} to ${email}`);
-  return Promise.resolve({ success: true });
-};
-
-const { Title, Paragraph, Text } = Typography;
-const { TabPane } = Tabs;
-
-const AdminCustomersTable: React.FC = () => {
-  const actionRef = useRef<ActionType>();
-  const formRef = useRef<ProFormInstance>();
+const AdminCustomersTable = () => {
+  const dispatch = useDispatch();
+  const actionRef = useRef();
+  const formRef = useRef();
+  const giftCardRef = useRef(null);
   const [isGiftCardModalVisible, setIsGiftCardModalVisible] = useState(false);
   const [isPreviewModalVisible, setIsPreviewModalVisible] = useState(false);
   const [isSendEmailModalVisible, setIsSendEmailModalVisible] = useState(false);
@@ -90,16 +85,18 @@ const AdminCustomersTable: React.FC = () => {
   const [customerGiftCards, setCustomerGiftCards] = useState([]);
   const [loadingGiftCards, setLoadingGiftCards] = useState(false);
   const [clientName, setClientName] = useState("Relia Pos");
+  const [savingPDF, setSavingPDF] = useState(false);
+  // Fix 3: Add messageApi reference
+  const { message: messageApi } = App.useApp();
 
   useEffect(() => {
-    // Get client name from localStorage
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
     const name = tenant ? tenant.name : "Relia Pos";
     setClientName(name);
   }, []);
 
-  const getLastVisit = (visits: { createdAt: string }[]): string => {
+  const getLastVisit = (visits) => {
     if (!visits?.length) return "No visits";
     const latestVisit = visits.reduce((prev, curr) =>
       new Date(curr.createdAt) > new Date(prev.createdAt) ? curr : prev
@@ -107,68 +104,155 @@ const AdminCustomersTable: React.FC = () => {
     return latestVisit.createdAt;
   };
 
+
+
   const showGiftCardModal = (record) => {
+    console.log('nice', record);
     setCurrentCustomer(record);
+    const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
     giftCardForm.resetFields();
+    giftCardForm.setFieldsValue({
+      message: defaultMessage
+    });
     setIsGiftCardModalVisible(true);
   };
 
   const showGiftCardsHistory = async (record) => {
+
     setCurrentCustomer(record);
     setIsViewGiftCardsModalVisible(true);
     setLoadingGiftCards(true);
 
     try {
-      const giftCards = await fetchCustomerGiftCards(record._id);
+      // Use the service directly without Redux, matching your existing pattern
+
+      const giftCards = await fetchAllGiftCards(record);
+      console.log('my record', giftCards);
       setCustomerGiftCards(giftCards);
     } catch (error) {
       console.error("Failed to fetch gift cards:", error);
-      message.error("Failed to load gift cards");
+      messageApi.error("Failed to load gift cards");
     } finally {
       setLoadingGiftCards(false);
     }
   };
 
+  // Fix 4: Modified to handle async Redux action properly
   const handleGiftCardSubmit = async () => {
     try {
       const values = await giftCardForm.validateFields();
+
+      const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
+      const cardMessage = (values.message === undefined || values.message === null)
+        ? defaultMessage
+        : values.message;
+
       const giftCard = issueGiftCard(
         currentCustomer._id,
         values.amount,
-        values.message
+        cardMessage,
+        dispatch
       );
-      console.log('oooo my', giftCard);
+
       setCurrentGiftCard(giftCard);
       setIsGiftCardModalVisible(false);
       setIsPreviewModalVisible(true);
+
+      // Fix: Convert async action to use await
+      try {
+        // Handle createGiftCard as a promise
+        await dispatch(createGiftCard(giftCard) as AnyAction).unwrap();
+      } catch (error) {
+        console.error("Error creating gift card:", error);
+        messageApi.error("Failed to create gift card");
+      }
     } catch (error) {
       console.error("Gift card form validation failed:", error);
     }
   };
 
+  // Fix 5: Modified to handle async Redux action properly
   const handleSendEmail = async () => {
     try {
-      const values = await emailForm.validateFields();
-      await sendGiftCardEmail(values.email, currentGiftCard, currentCustomer.customer_name);
-      message.success("Gift card sent successfully!");
-      setIsSendEmailModalVisible(false);
+      // Get the values directly from the form without validation
+      const values = emailForm.getFieldsValue();
 
-      // Add the new gift card to the customer's gift cards list
-      setCustomerGiftCards(prev => [...prev, currentGiftCard]);
+      const storedTenant = localStorage.getItem("tenant");
+      const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+
+      const payload = {
+        email: values.email,
+        giftCard: currentGiftCard,
+        customerName: currentCustomer.customer_name,
+        tenant: tenant
+      };
+
+      try {
+        // Handle sendGiftCard as a promise
+        await dispatch(sendGiftCard(payload)).unwrap();
+        messageApi.success("Gift card sent successfully!");
+
+        setIsSendEmailModalVisible(false);
+        setIsPreviewModalVisible(false);
+
+        setCustomerGiftCards(prev => [...prev, currentGiftCard]);
+
+        // Reset form fields if needed
+        emailForm.resetFields();
+      } catch (error) {
+        console.error("Error sending gift card:", error);
+        messageApi.error("Failed to send gift card");
+      }
     } catch (error) {
       console.error("Email form validation failed:", error);
-      message.error("Failed to send gift card email");
     }
-  };
+  }
 
   const copyGiftCardCode = (code) => {
     navigator.clipboard.writeText(code)
       .then(() => {
-        message.success("Gift card code copied to clipboard");
+        messageApi.success("Gift card code copied to clipboard");
       })
       .catch(() => {
-        message.error("Failed to copy code");
+        messageApi.error("Failed to copy code");
       });
+  };
+
+  const saveGiftCardAsPDF = () => {
+    if (!giftCardRef.current) return;
+
+    setSavingPDF(true);
+    try {
+      const originalContent = document.body.innerHTML;
+      const originalBodyStyle = document.body.style.cssText;
+
+      const giftCardHTML = giftCardRef.current.outerHTML;
+
+      document.body.innerHTML = `
+                <style>
+                    @media print {
+                        body { margin: 0; padding: 40px; }
+                        @page { size: A4; margin: 0; }
+                    }
+                </style>
+                <div style="display: flex; justify-content: center; padding: 20px;">
+                    ${giftCardHTML}
+                </div>
+            `;
+
+      window.print();
+
+      setTimeout(() => {
+        document.body.innerHTML = originalContent;
+        document.body.style.cssText = originalBodyStyle;
+        setSavingPDF(false);
+        messageApi.success('Print dialog opened. Save as PDF in your browser print options.');
+      }, 500);
+    } catch (error) {
+      console.error('Error printing gift card:', error);
+      messageApi.error('Failed to print gift card');
+      setSavingPDF(false);
+    }
   };
 
   const giftCardColumns = [
@@ -193,29 +277,42 @@ const AdminCustomersTable: React.FC = () => {
       title: "Amount",
       dataIndex: "amount",
       key: "amount",
-      render: (amount) => `$${amount}`,
+      render: (amount) => `ksh ${amount}`,
     },
     {
       title: "Issue Date",
-      dataIndex: "issueDate",
-      key: "issueDate",
+      dataIndex: "createdAt",
+      key: "createdAt",
       render: (date) => new Date(date).toLocaleDateString(),
     },
     {
       title: "Expiry Date",
-      dataIndex: "expiryDate",
-      key: "expiryDate",
+      dataIndex: "expiry_date",
+      key: "expiry_date",
       render: (date) => new Date(date).toLocaleDateString(),
     },
     {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (status) => (
-        <Tag color={status === 'Active' ? 'green' : status === 'Redeemed' ? 'blue' : 'red'}>
-          {status}
-        </Tag>
-      ),
+      render: (status) => {
+        let color = 'red';
+        let displayText = 'Inactive';
+
+        if (status === true) {
+          color = 'green';
+          displayText = 'Active';
+        } else if (status === false) {
+          color = 'blue';
+          displayText = 'Pending';
+        }
+
+        return (
+          <Tag color={color}>
+            {displayText}
+          </Tag>
+        );
+      },
     },
     {
       title: "Actions",
@@ -342,7 +439,8 @@ const AdminCustomersTable: React.FC = () => {
   ];
 
   return (
-    <>
+    // Fix 6: Wrap component in App component to provide message context
+    <App>
       <ProTable
         rowKey="_id"
         columns={columns}
@@ -377,10 +475,9 @@ const AdminCustomersTable: React.FC = () => {
         rowSelection={{ alwaysShowAlert: false }}
       />
 
-      {/* Gift Card Creation Modal */}
       <Modal
         title={`Issue Gift Card for ${currentCustomer?.customer_name || ""}`}
-        visible={isGiftCardModalVisible}
+        open={isGiftCardModalVisible} // Fix 7: Change visible to open (newer Ant Design version)
         onOk={handleGiftCardSubmit}
         onCancel={() => setIsGiftCardModalVisible(false)}
       >
@@ -392,7 +489,7 @@ const AdminCustomersTable: React.FC = () => {
           >
             <InputNumber
               min={1}
-              prefix="kshs"
+              prefix="ksh"
               style={{ width: "100%" }}
               placeholder="Enter amount"
             />
@@ -400,23 +497,31 @@ const AdminCustomersTable: React.FC = () => {
           <Form.Item
             name="message"
             label="Personalized Message"
+            initialValue={`Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
           >
             <Input.TextArea
               rows={4}
               placeholder="Add a personalized message for the gift card"
-              defaultValue={`Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
             />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* Gift Card Preview Modal */}
       <Modal
         title="Gift Card Preview"
-        visible={isPreviewModalVisible}
+        open={isPreviewModalVisible} // Fix 8: Change visible to open
         footer={[
           <Button key="back" onClick={() => setIsPreviewModalVisible(false)}>
             Close
+          </Button>,
+          <Button
+            key="download"
+            type="primary"
+            icon={<FilePdfOutlined />}
+            loading={savingPDF}
+            onClick={saveGiftCardAsPDF}
+          >
+            Print/Save PDF
           </Button>,
           <Button
             key="submit"
@@ -435,11 +540,15 @@ const AdminCustomersTable: React.FC = () => {
         width={500}
       >
         {currentGiftCard && (
-          <Card bordered style={{
-            background: "linear-gradient(135deg, #6C1C2C 0%, #6C1C2C 100%)",
-            color: "white",
-            borderRadius: "8px"
-          }}>
+          <Card
+            ref={giftCardRef}
+            bordered
+            style={{
+              background: "linear-gradient(135deg, #6C1C2C 0%, #6C1C2C 100%)",
+              color: "white",
+              borderRadius: "8px"
+            }}
+          >
             <div style={{ padding: "16px", textAlign: "center" }}>
               <GiftOutlined style={{ fontSize: "32px", marginBottom: "16px" }} />
               <Title level={3} style={{ color: "white", margin: "8px 0" }}>
@@ -458,10 +567,10 @@ const AdminCustomersTable: React.FC = () => {
                   Code: {currentGiftCard.code}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.8)" }}>
-                  Card #: {currentGiftCard.id}
+                  Card #: {currentGiftCard.id || currentGiftCard.card_no}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.8)" }}>
-                  Expires: {new Date(currentGiftCard.expiryDate).toLocaleDateString()}
+                  Expires: {new Date(currentGiftCard.expiryDate || currentGiftCard.expiry_date).toLocaleDateString()}
                 </Text>
               </div>
             </div>
@@ -469,10 +578,9 @@ const AdminCustomersTable: React.FC = () => {
         )}
       </Modal>
 
-      {/* Email Sending Modal */}
       <Modal
         title="Share Gift Card"
-        visible={isSendEmailModalVisible}
+        open={isSendEmailModalVisible} // Fix 9: Change visible to open
         onOk={handleSendEmail}
         onCancel={() => setIsSendEmailModalVisible(false)}
       >
@@ -500,7 +608,7 @@ const AdminCustomersTable: React.FC = () => {
                       amount: value
                     }));
                   }}
-                  prefix="kshs"
+                  prefix="ksh"
                   style={{ width: "100%" }}
                 />
               </Form.Item>
@@ -523,14 +631,13 @@ const AdminCustomersTable: React.FC = () => {
               <Form.Item label="Message">
                 <Input.TextArea
                   rows={3}
-                  value={currentGiftCard.message}
+                  value={currentGiftCard.message || `Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
                   onChange={(e) => {
                     setCurrentGiftCard(prev => ({
                       ...prev,
-                      message: e.target.value
+                      message: e.target.value || `Welcome to ${clientName}! We're delighted to have you as our valued customer.`
                     }));
                   }}
-                  placeholder={`Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
                 />
               </Form.Item>
             </>
@@ -542,10 +649,9 @@ const AdminCustomersTable: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* View Customer Gift Cards Modal */}
       <Modal
         title={`Gift Cards for ${currentCustomer?.customer_name || ""}`}
-        visible={isViewGiftCardsModalVisible}
+        open={isViewGiftCardsModalVisible} // Fix 10: Change visible to open
         onCancel={() => setIsViewGiftCardsModalVisible(false)}
         footer={[
           <Button key="close" onClick={() => setIsViewGiftCardsModalVisible(false)}>
@@ -574,7 +680,7 @@ const AdminCustomersTable: React.FC = () => {
           locale={{ emptyText: "No gift cards found for this customer" }}
         />
       </Modal>
-    </>
+    </App>
   );
 };
 

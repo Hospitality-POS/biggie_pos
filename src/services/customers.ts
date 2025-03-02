@@ -74,7 +74,6 @@ export const logCustomerVisit = async (params: ParamsType) => {
 
 export const fetchAllGiftCards = async (data: any) => {
     try {
-        console.log('wewe', data);
         const url = `${categ_url}/all-cards`;
 
         const response = await axiosInstance.get(url, {
@@ -113,3 +112,56 @@ export const sendGiftCard = createAsyncThunk(
     }
 );
 
+// Schedule operations
+export const createSchedule = createAsyncThunk(
+    'schedule/create',
+    async (scheduleData, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.post(categ_url + '/new-schedule', scheduleData);
+            return response.data;
+        } catch (error: any) {
+            message.error(error?.message || "Failed to create schedule");
+            return rejectWithValue(error?.message || "Failed to create schedule");
+        }
+    }
+);
+
+export const updateSchedule = createAsyncThunk(
+    'schedule/update',
+    async ({ id, data }, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.put(`${categ_url}/update-schedule/${id}`, data);
+            return response.data;
+        } catch (error: any) {
+            message.error(error?.message || "Failed to update schedule");
+            return rejectWithValue(error?.message || "Failed to update schedule");
+        }
+    }
+);
+
+export const removeSchedule = createAsyncThunk(
+    'schedule/remove',
+    async (scheduleId, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.delete(`${categ_url}/delete-schedule/${scheduleId}`);
+            return response.data;
+        } catch (error: any) {
+            message.error(error?.message || "Failed to delete schedule");
+            return rejectWithValue(error?.message || "Failed to delete schedule");
+        }
+    }
+);
+
+export const fetchAllSchedules = async (date?: string) => {
+    try {
+        const url = `${categ_url}/all-schedules`;
+        const params = date ? { date } : {};
+
+        const response = await axiosInstance.get(url, {
+            params
+        });
+        return response.data;
+    } catch (error) {
+        throw new Error(error?.message);
+    }
+};

@@ -3,6 +3,7 @@ import { ProCard } from "@ant-design/pro-components";
 import { FileDoneOutlined, PrinterFilled } from "@ant-design/icons";
 import { Space, Typography } from "antd";
 import CustomerTable from "./CustomerTable";
+import Schedule from "../staff/schedule";
 
 const { Title } = Typography;
 
@@ -34,6 +35,17 @@ function Customers() {
                 }
             >
                 <CustomerTable />
+            </ProCard.TabPane>
+            <ProCard.TabPane
+                key="schedule"
+                tab={
+                    <Space>
+                        <FileDoneOutlined style={{ color: "#52c41a", fontSize: "18px" }} />
+                        <Typography.Text>Customer Schedule</Typography.Text>
+                    </Space>
+                }
+            >
+                <Schedule />
             </ProCard.TabPane>
         </ProCard>
     );
