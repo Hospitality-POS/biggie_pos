@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Typography, Button, Space, Modal, Table, Card, Avatar, Form, Select, TimePicker, Tabs, Badge, Tooltip, message, Spin, Popconfirm, DatePicker } from "antd";
+import { Typography, Button, Space, Modal, Table, Card, Avatar, Form, Select, TimePicker, Tabs, Badge, Tooltip, message, Spin, Popconfirm, DatePicker, Radio, Input } from "antd";
 import { LeftOutlined, RightOutlined, PlusOutlined, ClockCircleOutlined, CheckCircleOutlined, EditOutlined, DeleteOutlined, CalendarOutlined } from "@ant-design/icons";
 import { fetchAllUsersList } from "@services/users";
 import { createSchedule, fetchAllCustomers, fetchAllSchedules, updateSchedule, removeSchedule } from "@services/customers";
@@ -24,19 +24,25 @@ const SpaReservationSystem = () => {
     const [editingAppointment, setEditingAppointment] = useState(null);
     const [isEditMode, setIsEditMode] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [customClientName, setCustomClientName] = useState("");
+    const [clientInputMode, setClientInputMode] = useState("existing");
 
-    // Time slots configuration
+    // Updated time slots configuration with extended hours (8AM to 10PM)
     const timeSlotGroups = {
+        early_morning: ['8:00 AM', '8:15 AM', '8:30 AM', '8:45 AM'],
         morning: ['9:00 AM', '9:15 AM', '9:30 AM', '9:45 AM', '10:00 AM', '10:15 AM', '10:30 AM', '10:45 AM', '11:00 AM', '11:15 AM', '11:30 AM', '11:45 AM'],
         afternoon: ['12:00 PM', '12:15 PM', '12:30 PM', '12:45 PM', '1:00 PM', '1:15 PM', '1:30 PM', '1:45 PM', '2:00 PM', '2:15 PM', '2:30 PM', '2:45 PM'],
-        evening: ['3:00 PM', '3:15 PM', '3:30 PM', '3:45 PM', '4:00 PM', '4:15 PM', '4:30 PM', '4:45 PM', '5:00 PM', '5:15 PM', '5:30 PM', '5:45 PM', '6:00 PM']
+        evening: ['3:00 PM', '3:15 PM', '3:30 PM', '3:45 PM', '4:00 PM', '4:15 PM', '4:30 PM', '4:45 PM', '5:00 PM', '5:15 PM', '5:30 PM', '5:45 PM', '6:00 PM'],
+        late_evening: ['6:15 PM', '6:30 PM', '6:45 PM', '7:00 PM', '7:15 PM', '7:30 PM', '7:45 PM', '8:00 PM', '8:15 PM', '8:30 PM', '8:45 PM', '9:00 PM', '9:15 PM', '9:30 PM', '9:45 PM', '10:00 PM']
     };
 
     // All time slots flattened
     const allTimeSlots = [
+        ...timeSlotGroups.early_morning,
         ...timeSlotGroups.morning,
         ...timeSlotGroups.afternoon,
-        ...timeSlotGroups.evening
+        ...timeSlotGroups.evening,
+        ...timeSlotGroups.late_evening
     ];
 
     // API Queries
@@ -136,8 +142,9 @@ const SpaReservationSystem = () => {
             staffId: appointment.staff_id?._id,
             start_time: appointment.start_time,
             end_time: appointment.end_time,
-            client: appointment.customer_id?.customer_name || "Unknown Client",
+            client: appointment.customer_id?.customer_name || appointment.custom_client_name || "Unknown Client",
             clientId: appointment.customer_id?._id,
+            customClientName: appointment.custom_client_name,
             service: appointment.service_id?.name || "Unknown Service",
             serviceId: appointment.service_id?._id,
             duration: appointment.duration || "Unknown Duration",
@@ -267,7 +274,13 @@ const SpaReservationSystem = () => {
         setReservationMode("timeRange"); // Default to time range mode
         setEditingAppointment(null);
         setIsEditMode(false);
+        setCustomClientName("");
+        setClientInputMode("existing");
         setShowReservationForm(true);
+    };
+
+    const handleCustomClientNameChange = (event) => {
+        setCustomClientName(event.target.value);
     };
 
     const handleEditAppointment = (appointment) => {
@@ -276,6 +289,8 @@ const SpaReservationSystem = () => {
         setSelectedTimeSlot(appointment.start_time);
         setSelectedStaff(appointment.staffId);
         setReservationMode(appointment.isTimeRange ? "timeRange" : "singleSlot");
+        setCustomClientName(appointment.customClientName || "");
+        setClientInputMode(appointment.customClientName ? "custom" : "existing");
         setShowReservationForm(true);
     };
 
@@ -290,11 +305,12 @@ const SpaReservationSystem = () => {
     };
 
     const handleFormSubmit = async (values) => {
-        const clientName = values.clientName;
+        const clientId = clientInputMode === "existing" ? values.clientName : null;
         const service = values.service;
         const staffMember = values.staff || selectedStaff;
         const mode = values.reservationMode || reservationMode;
         const appointmentDate = values.appointmentDate ? values.appointmentDate.format('YYYY-MM-DD') : selectedDate.toISOString().split('T')[0];
+        const customName = clientInputMode === "custom" ? values.customClientName : null;
 
         // Find staff name for checking conflicts (but use ID for submission)
         const staffName = staffMembers.find(staff => staff.id === staffMember)?.name || "Unknown Staff";
@@ -388,7 +404,8 @@ const SpaReservationSystem = () => {
                 staff_id: staffMember, // Use the ID here, not the name
                 start_time: matchingStartTime,
                 end_time: matchingEndTime,
-                client_id: clientName,
+                client_id: clientId,
+                custom_client_name: customName, // Add the custom client name field
                 service_id: service,
                 duration: `${Math.round((endIndex - startIndex) * 15)} mins`,
                 isTimeRange: true,
@@ -442,7 +459,8 @@ const SpaReservationSystem = () => {
                 staff_id: staffMember, // Use the ID here, not the name
                 start_time: timeSlot,
                 end_time: timeSlot, // Same as start for single slot
-                client_id: clientName,
+                client_id: clientId,
+                custom_client_name: customName, // Add the custom client name field
                 service_id: service,
                 duration: `${duration} mins`,
                 appointment_date: appointmentDate
@@ -520,7 +538,7 @@ const SpaReservationSystem = () => {
                         return (
                             <Tooltip title={
                                 <>
-                                    <div><strong>Client:</strong> {appointment.client}</div>
+                                    <div><strong>Client:</strong> {appointment.customClientName || appointment.client}</div>
                                     <div><strong>Service:</strong> {appointment.service}</div>
                                     <div><strong>Time:</strong> {appointment.isTimeRange
                                         ? appointment.timeRangeDescription
@@ -540,7 +558,7 @@ const SpaReservationSystem = () => {
                                     onClick={() => handleEditAppointment(appointment)}
                                 >
                                     <div style={{ fontWeight: 'bold', color: '#1890ff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {appointment.client}
+                                        {appointment.customClientName || appointment.client}
                                     </div>
                                     <div style={{ fontSize: '11px', color: '#8c8c8c', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                         {appointment.isTimeRange
@@ -618,6 +636,21 @@ const SpaReservationSystem = () => {
     // Prepare tab items for the time periods
     const items = [
         {
+            key: "early_morning",
+            label: "Early (8AM - 9AM)",
+            children: (
+                <Table
+                    columns={renderScheduleColumns(timeSlotGroups.early_morning)}
+                    dataSource={getScheduleTableData(timeSlotGroups.early_morning)}
+                    pagination={false}
+                    bordered
+                    size="small"
+                    scroll={{ x: 'max-content' }}
+                    loading={isLoading || isLoadingScheduleData}
+                />
+            )
+        },
+        {
             key: "morning",
             label: "Morning (9AM - 12PM)",
             children: (
@@ -654,6 +687,21 @@ const SpaReservationSystem = () => {
                 <Table
                     columns={renderScheduleColumns(timeSlotGroups.evening)}
                     dataSource={getScheduleTableData(timeSlotGroups.evening)}
+                    pagination={false}
+                    bordered
+                    size="small"
+                    scroll={{ x: 'max-content' }}
+                    loading={isLoading || isLoadingScheduleData}
+                />
+            )
+        },
+        {
+            key: "late_evening",
+            label: "Late (6PM - 10PM)",
+            children: (
+                <Table
+                    columns={renderScheduleColumns(timeSlotGroups.late_evening)}
+                    dataSource={getScheduleTableData(timeSlotGroups.late_evening)}
                     pagination={false}
                     bordered
                     size="small"
@@ -717,6 +765,7 @@ const SpaReservationSystem = () => {
                         timeSlot: editingAppointment.start_time,
                         staff: editingAppointment.staffId,
                         clientName: editingAppointment.clientId,
+                        customClientName: editingAppointment.customClientName || "",
                         service: editingAppointment.serviceId,
                         reservationMode: editingAppointment.isTimeRange ? "timeRange" : "singleSlot",
                         appointmentDate: editingAppointment.originalData?.appointment_date ?
@@ -748,7 +797,7 @@ const SpaReservationSystem = () => {
                         name="timeRange"
                         label="Select Time Range"
                         rules={[{ required: true, message: 'Please select a time range' }]}
-                        extra="Select start and end times from available slots (9:00 AM - 6:00 PM)"
+                        extra="Select start and end times from available slots (8:00 AM - 10:00 PM)"
                     >
                         <RangePicker
                             format="h:mm A"
@@ -762,7 +811,7 @@ const SpaReservationSystem = () => {
                                 use12Hours: true
                             }}
                             disabledTime={() => ({
-                                disabledHours: () => [0, 1, 2, 3, 4, 5, 6, 7, 8, 19, 20, 21, 22, 23],
+                                disabledHours: () => [0, 1, 2, 3, 4, 5, 6, 7, 22, 23],
                                 disabledMinutes: (hour) => {
                                     // Only allow 0, 15, 30, 45 minute intervals
                                     return Array.from({ length: 60 }).map((_, i) => i)
@@ -785,26 +834,71 @@ const SpaReservationSystem = () => {
                     </Form.Item>
 
                     <Form.Item
-                        name="clientName"
-                        label="Client Name"
-                        rules={[{ required: true, message: 'Please enter client name' }]}
+                        label="Client Information"
+                        required
                     >
-                        <Select
-                            placeholder="Select or enter client name"
-                            showSearch
-                            allowClear
-                            loading={isLoadingCustomers}
-                            maxTagCount={1}
-                            style={{ width: '100%' }}
-                            optionFilterProp="children"
-                            filterOption={(input, option) =>
-                                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-                            }
-                        >
-                            {customers && Array.isArray(customers) ? customers.map(customer => (
-                                <Option key={customer._id} value={customer._id}>{customer.customer_name}</Option>
-                            )) : null}
-                        </Select>
+                        <div style={{ marginBottom: '10px' }}>
+                            <Radio.Group
+                                defaultValue={editingAppointment && editingAppointment.customClientName ? "custom" : "existing"}
+                                buttonStyle="solid"
+                                style={{ marginBottom: '15px', width: '100%' }}
+                                onChange={(e) => setClientInputMode(e.target.value)}
+                                value={clientInputMode}
+                            >
+                                <Radio.Button value="existing" style={{ width: '50%', textAlign: 'center' }}>
+                                    Select Existing Client
+                                </Radio.Button>
+                                <Radio.Button value="custom" style={{ width: '50%', textAlign: 'center' }}>
+                                    Enter New Client
+                                </Radio.Button>
+                            </Radio.Group>
+                        </div>
+
+                        {clientInputMode === "existing" ? (
+                            <Form.Item
+                                name="clientName"
+                                noStyle
+                                rules={[
+                                    {
+                                        required: clientInputMode === "existing",
+                                        message: 'Please select a client'
+                                    }
+                                ]}
+                            >
+                                <Select
+                                    placeholder="Select client"
+                                    showSearch
+                                    allowClear
+                                    loading={isLoadingCustomers}
+                                    style={{ width: '100%' }}
+                                    optionFilterProp="children"
+                                    filterOption={(input, option) =>
+                                        option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                                    }
+                                >
+                                    {customers && Array.isArray(customers) ? customers.map(customer => (
+                                        <Option key={customer._id} value={customer._id}>{customer.customer_name}</Option>
+                                    )) : null}
+                                </Select>
+                            </Form.Item>
+                        ) : (
+                            <Form.Item
+                                name="customClientName"
+                                noStyle
+                                rules={[
+                                    {
+                                        required: clientInputMode === "custom",
+                                        message: 'Please enter client name'
+                                    }
+                                ]}
+                            >
+                                <Input
+                                    placeholder="Enter client name"
+                                    value={customClientName}
+                                    onChange={handleCustomClientNameChange}
+                                />
+                            </Form.Item>
+                        )}
                     </Form.Item>
 
                     <Form.Item

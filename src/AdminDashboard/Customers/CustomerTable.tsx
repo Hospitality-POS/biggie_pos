@@ -303,8 +303,8 @@ const AdminCustomersTable = () => {
           color = 'green';
           displayText = 'Active';
         } else if (status === false) {
-          color = 'blue';
-          displayText = 'Pending';
+          color = 'red';
+          displayText = 'Inactive';
         }
 
         return (

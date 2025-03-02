@@ -72,6 +72,33 @@ export const logCustomerVisit = async (params: ParamsType) => {
     }
 };
 
+export const fetchGiftCard = async (data: any) => {
+    try {
+        const url = `${categ_url}/get-gift-card`;
+
+        const response = await axiosInstance.get(url, {
+            params: { code: data },
+        });
+        return response.data;
+    } catch (error) {
+        throw new Error(error?.message);
+    }
+};
+
+export const updateGiftCard = createAsyncThunk(
+    'giftCard/update',
+    async ({ id, data }, { rejectWithValue }) => {
+        console.log('cilli', data);
+        try {
+            const response = await axiosInstance.put(`${categ_url}/update-gift-card/${id}`, data);
+            return response.data;
+        } catch (error: any) {
+            message.error(error?.message || "Failed to update gift card");
+            return rejectWithValue(error?.message || "Failed to update gift card");
+        }
+    }
+);
+
 export const fetchAllGiftCards = async (data: any) => {
     try {
         const url = `${categ_url}/all-cards`;
