@@ -52,6 +52,7 @@ const StaffLoginPage = () => {
 
         try {
             const result = await verifyCompanyCode({ companyCode: code });
+
             localStorage.setItem("tenant", JSON.stringify(result.data));
             localStorage.setItem("companyCode", code);
 

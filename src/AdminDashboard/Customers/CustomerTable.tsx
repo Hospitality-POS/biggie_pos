@@ -107,7 +107,6 @@ const AdminCustomersTable = () => {
 
 
   const showGiftCardModal = (record) => {
-    console.log('nice', record);
     setCurrentCustomer(record);
     const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
     giftCardForm.resetFields();
@@ -127,7 +126,6 @@ const AdminCustomersTable = () => {
       // Use the service directly without Redux, matching your existing pattern
 
       const giftCards = await fetchAllGiftCards(record);
-      console.log('my record', giftCards);
       setCustomerGiftCards(giftCards);
     } catch (error) {
       console.error("Failed to fetch gift cards:", error);

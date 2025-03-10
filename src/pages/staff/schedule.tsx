@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Typography, Button, Space, Modal, Table, Card, Avatar, Form, Select, TimePicker, Tabs, Badge, Tooltip, message, Spin, Popconfirm, DatePicker, Radio, Input } from "antd";
-import { LeftOutlined, RightOutlined, PlusOutlined, ClockCircleOutlined, CheckCircleOutlined, EditOutlined, DeleteOutlined, CalendarOutlined } from "@ant-design/icons";
+import { Typography, Button, Space, Modal, Table, Card, Avatar, Form, Select, TimePicker, Tabs, Badge, Tooltip, message, Spin, Popconfirm, DatePicker, Radio, Input, Row, Col } from "antd";
+import { LeftOutlined, RightOutlined, PlusOutlined, ClockCircleOutlined, CheckCircleOutlined, EditOutlined, DeleteOutlined, CalendarOutlined, ShopOutlined, DownloadOutlined } from "@ant-design/icons";
 import { fetchAllUsersList } from "@services/users";
 import { createSchedule, fetchAllCustomers, fetchAllSchedules, updateSchedule, removeSchedule } from "@services/customers";
 import { getAllProducts } from "@services/products";
@@ -78,6 +78,14 @@ const SpaReservationSystem = () => {
         retry: 1,
         refetchInterval: 5000,
         networkMode: "always",
+        // Add a select function to filter the data after fetching
+        select: (data) => {
+            // Filter out users with admin or cleaner roles
+            return data ? data.filter(user => {
+                const roleType = user.role?.role_type?.toLowerCase();
+                return roleType !== 'admin' && roleType !== 'cleaner';
+            }) : [];
+        }
     });
 
     // Processed Data
@@ -713,30 +721,91 @@ const SpaReservationSystem = () => {
     ];
 
     return (
-        <div style={{ height: '100vh', background: '#f0f2f5' }}>
-            {/* Daily Schedule */}
+        <div style={{ height: '100vh', background: '#f7f9fc' }}>
+            {/* Fresha-style Header Card */}
             <Card
+                style={{ marginBottom: '16px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)' }}
+                bordered={false}
+            >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <ShopOutlined style={{ fontSize: "24px", marginRight: "10px", color: "#6c1c2c" }} />
+                        <div>
+                            <Typography.Title level={4} style={{ margin: 0 }}>Spa Reservation</Typography.Title>
+                            <Typography.Text type="secondary">Daily Schedule</Typography.Text>
+                        </div>
+                    </div>
+
+                    <Space>
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={handleNewReservationClick}
+                        >
+                            New Reservation
+                        </Button>
+                    </Space>
+                </div>
+            </Card>
+
+            {/* Daily Schedule Card */}
+            <Card
+                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)' }}
+                bordered={false}
                 title={
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>Daily Schedule</span>
-                        <Space>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <Button
                                 icon={<LeftOutlined />}
                                 onClick={() => navigateDay(-1)}
                             />
-                            <span>{selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                            <DatePicker
+                                value={moment(selectedDate)}
+                                onChange={handleDateChange}
+                                format="MMM D, YYYY"
+                                allowClear={false}
+                                bordered={false}
+                                suffixIcon={null}
+                                style={{ fontSize: "16px", fontWeight: "bold" }}
+                            />
                             <Button
                                 icon={<RightOutlined />}
                                 onClick={() => navigateDay(1)}
                             />
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={handleNewReservationClick}
-                            >
-                                New Reservation
+                            <Button type="link" onClick={() => setSelectedDate(new Date())}>
+                                Today
                             </Button>
-                        </Space>
+                        </div>
+
+                        {/* <Space>
+                            <Select
+                                placeholder="Filter by staff"
+                                style={{ width: 160 }}
+                                allowClear
+                                onChange={(value) => {
+                                    // Filter staff by ID if needed
+                                }}
+                            >
+                                {staffMembers && staffMembers
+                                    .filter(staff => {
+                                        // Filter out users with admin or cleaner roles
+                                        const roleType = staff.role?.toLowerCase();
+                                        return roleType !== 'admin' && roleType !== 'cleaner';
+                                    })
+                                    .map(staff => (
+                                        <Select.Option key={staff.id} value={staff.id}>
+                                            <Space>
+                                                <Avatar src={staff.avatar} size="small" />
+                                                {staff.name}
+                                            </Space>
+                                        </Select.Option>
+                                    ))}
+                            </Select>
+
+                            <Tooltip title="Export Schedule">
+                                <Button icon={<DownloadOutlined />} />
+                            </Tooltip>
+                        </Space> */}
                     </div>
                 }
             >
@@ -747,16 +816,25 @@ const SpaReservationSystem = () => {
                     animated
                     size="small"
                     tabBarStyle={{ marginBottom: '8px' }}
+                    type="card"
                 />
             </Card>
 
-            {/* Reservation Form Modal */}
+            {/* Fresha-style Reservation Form Modal */}
             <Modal
-                title={isEditMode ? "Edit Appointment" : "New Reservation"}
+                title={
+                    <div style={{ fontSize: '18px', color: '#2a2f3d' }}>
+                        <Space>
+                            {isEditMode ? <EditOutlined /> : <PlusOutlined />}
+                            {isEditMode ? "Edit Appointment" : "New Reservation"}
+                        </Space>
+                    </div>
+                }
                 open={showReservationForm}
                 onCancel={() => setShowReservationForm(false)}
                 footer={null}
                 destroyOnClose
+                width={600}
             >
                 <Form
                     layout="vertical"
@@ -777,21 +855,50 @@ const SpaReservationSystem = () => {
                         appointmentDate: moment(selectedDate)
                     }}
                 >
-                    <Form.Item
-                        name="appointmentDate"
-                        label="Appointment Date"
-                        rules={[{ required: true, message: 'Please select a date' }]}
-                    >
-                        <DatePicker
-                            style={{ width: '100%' }}
-                            format="YYYY-MM-DD"
-                            disabledDate={(current) => {
-                                // Can't select days before today
-                                return current && current < moment().startOf('day');
-                            }}
-                            onChange={handleDateChange}
-                        />
-                    </Form.Item>
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item
+                                name="appointmentDate"
+                                label="Appointment Date"
+                                rules={[{ required: true, message: 'Please select a date' }]}
+                            >
+                                <DatePicker
+                                    style={{ width: '100%' }}
+                                    format="YYYY-MM-DD"
+                                    disabledDate={(current) => {
+                                        // Can't select days before today
+                                        return current && current < moment().startOf('day');
+                                    }}
+                                    onChange={handleDateChange}
+                                />
+                            </Form.Item>
+                        </Col>
+
+                        <Col span={12}>
+                            <Form.Item
+                                name="staff"
+                                label="Staff Member"
+                                rules={[{ required: true, message: 'Please select a staff member' }]}
+                            >
+                                <Select placeholder="Select staff" loading={isLoading}>
+                                    {staffMembers && staffMembers
+                                        .filter(staff => {
+                                            // Filter out users with admin or cleaner roles
+                                            const roleType = staff.role?.toLowerCase();
+                                            return roleType !== 'admin' && roleType !== 'cleaner';
+                                        })
+                                        .map(staff => (
+                                            <Select.Option key={staff.id} value={staff.id}>
+                                                <Space>
+                                                    <Avatar src={staff.avatar} size="small" />
+                                                    {staff.name}
+                                                </Space>
+                                            </Select.Option>
+                                        ))}
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
                     <Form.Item
                         name="timeRange"
@@ -819,18 +926,6 @@ const SpaReservationSystem = () => {
                                 }
                             })}
                         />
-                    </Form.Item>
-
-                    <Form.Item
-                        name="staff"
-                        label="Staff Member"
-                        rules={[{ required: true, message: 'Please select a staff member' }]}
-                    >
-                        <Select placeholder="Select staff" loading={isLoading}>
-                            {staffMembers && staffMembers.map(staff => (
-                                <Option key={staff.id} value={staff.id}>{staff.name} ({staff.role})</Option>
-                            ))}
-                        </Select>
                     </Form.Item>
 
                     <Form.Item
@@ -877,7 +972,7 @@ const SpaReservationSystem = () => {
                                     }
                                 >
                                     {customers && Array.isArray(customers) ? customers.map(customer => (
-                                        <Option key={customer._id} value={customer._id}>{customer.customer_name}</Option>
+                                        <Select.Option key={customer._id} value={customer._id}>{customer.customer_name}</Select.Option>
                                     )) : null}
                                 </Select>
                             </Form.Item>
@@ -918,14 +1013,14 @@ const SpaReservationSystem = () => {
                             notFoundContent={isLoadingProducts ? <Spin size="small" /> : "No services found"}
                         >
                             {formattedProducts.map(product => (
-                                <Option key={product.id} value={product.id}>
+                                <Select.Option key={product.id} value={product.id}>
                                     {product.name} - {product.category} (ksh {product.price})
-                                </Option>
+                                </Select.Option>
                             ))}
                         </Select>
                     </Form.Item>
 
-                    <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
                         <Space>
                             {isEditMode && editingAppointment && (
                                 <Popconfirm
@@ -951,9 +1046,46 @@ const SpaReservationSystem = () => {
                                 {isEditMode ? 'Update Appointment' : 'Confirm Booking'}
                             </Button>
                         </Space>
-                    </Form.Item>
+                    </div>
                 </Form>
             </Modal>
+
+            {/* Apply Fresha-style CSS */}
+            <style jsx global>{`
+            .ant-card-head {
+              border-bottom: none;
+              padding: 12px 24px;
+              min-height: auto;
+            }
+            
+            .ant-card-body {
+              padding: 16px 24px 24px;
+            }
+            
+            .ant-tabs-card > .ant-tabs-nav .ant-tabs-tab-active {
+              background-color: #e6f7ff;
+              border-color: #91caff;
+            }
+            
+            .ant-tabs-card > .ant-tabs-nav .ant-tabs-tab {
+              border-radius: 4px 4px 0 0;
+            }
+            
+            .ant-table-thead > tr > th {
+              background-color: #f7f9fc;
+              color: #646b82;
+              font-weight: 500;
+            }
+            
+            .ant-table-cell {
+              padding: 8px !important;
+            }
+            
+            .ant-form-item-label > label {
+              font-weight: 500;
+              color: #2a2f3d;
+            }
+          `}</style>
         </div>
     );
 };

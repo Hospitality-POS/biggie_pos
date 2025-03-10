@@ -56,6 +56,8 @@ const StaffModal: React.FC<StaffModalProps> = ({
 
       const result = await verifyCompanyCode({ companyCode: code });
 
+      console.log('nice again', result);
+
       localStorage.setItem("tenant", JSON.stringify(result.data));
 
       dispatch({ type: 'VERIFY_COMPANY_CODE_SUCCESS', payload: result });
