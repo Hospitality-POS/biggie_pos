@@ -1006,19 +1006,24 @@ const SpaReservationSystem = () => {
                             showSearch
                             allowClear
                             loading={isLoadingProducts}
-                            optionFilterProp="children"
+                            optionFilterProp="label"
                             filterOption={(input, option) =>
-                                option.children && option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                                option?.label?.toLowerCase().includes(input.toLowerCase())
                             }
                             notFoundContent={isLoadingProducts ? <Spin size="small" /> : "No services found"}
                         >
                             {formattedProducts.map(product => (
-                                <Select.Option key={product.id} value={product.id}>
+                                <Select.Option
+                                    key={product.id}
+                                    value={product.id}
+                                    label={`${product.name} - ${product.category} (ksh ${product.price})`}
+                                >
                                     {product.name} - {product.category} (ksh {product.price})
                                 </Select.Option>
                             ))}
                         </Select>
                     </Form.Item>
+
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
                         <Space>
