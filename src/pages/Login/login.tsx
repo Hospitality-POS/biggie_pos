@@ -30,16 +30,23 @@ const StaffLoginPage = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [pin, setPin] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [tenant, setTenant] = useState<any>(null);
+
 
     useEffect(() => {
         const storedCode = localStorage.getItem("companyCode");
         const storedTenant = localStorage.getItem("tenant");
 
         if (storedCode && storedTenant) {
-            const tenant = JSON.parse(storedTenant);
-            setCompanyCode(storedCode);
-            setCompanyName(tenant.name || "");
-            setStep("pin");
+            try {
+                const parsedTenant = JSON.parse(storedTenant);
+                setCompanyCode(storedCode);
+                setCompanyName(parsedTenant?.name || "");
+                setTenant(parsedTenant); // Ensure tenant is set
+                setStep("pin");
+            } catch (error) {
+                console.error("Error parsing tenant:", error);
+            }
         }
     }, []);
 
@@ -205,13 +212,24 @@ const StaffLoginPage = () => {
                                     display: "inline-block",
                                 }}
                             >
-                                <img
-                                    src="/relia.png"
-                                    alt="relia-logo"
-                                    width="100%"
-                                    height="auto"
-                                />
+                                {tenant?.tenant_code === "RPOS-000004" ? (
+                                    <img
+                                        src="/logo.png"
+                                        alt="relia-logo"
+                                        width="70%"
+                                        height="auto"
+                                    />
+
+                                ) : (
+                                    <img
+                                        src="/relia.png"
+                                        alt="relia-logo"
+                                        width="100%"
+                                        height="auto"
+                                    />
+                                )}
                             </div>
+
                             <h2
                                 style={{
                                     color: "white",
@@ -221,7 +239,7 @@ const StaffLoginPage = () => {
                                     textShadow: "0 2px 4px rgba(0,0,0,0.2)",
                                 }}
                             >
-                                Relia POS Portal
+                                POS Management Portal
                             </h2>
                             {companyName && (
                                 <Text
