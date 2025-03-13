@@ -77,12 +77,15 @@
   0% {
     background-color: transparent;
   }
+
   30% {
     background-color: var(--cell-color);
   }
+
   60% {
     background-color: transparent;
   }
+
   100% {
     background-color: transparent;
   }

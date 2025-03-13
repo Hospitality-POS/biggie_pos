@@ -86,6 +86,15 @@ const AdminCustomersTable = () => {
     const [loadingGiftCards, setLoadingGiftCards] = useState(false);
     const [clientName, setClientName] = useState("Relia Pos");
     const [savingPDF, setSavingPDF] = useState(false);
+    const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+    useEffect(() => {
+        const storedTenant = localStorage.getItem("tenant");
+        const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+        if (tenant && tenant.primary_color) {
+            setPrimaryColor(tenant.primary_color);
+        }
+    }, []);
+
     // Fix 3: Add messageApi reference
     const { message: messageApi } = App.useApp();
 
@@ -544,32 +553,32 @@ const AdminCustomersTable = () => {
                         ref={giftCardRef}
                         bordered
                         style={{
-                            background: "linear-gradient(135deg, #6C1C2C 0%, #6C1C2C 100%)",
+                            background: "linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor} 100%)",
                             color: "white",
                             borderRadius: "8px"
                         }}
                     >
                         <div style={{ padding: "16px", textAlign: "center" }}>
                             <GiftOutlined style={{ fontSize: "32px", marginBottom: "16px" }} />
-                            <Title level={3} style={{ color: "white", margin: "8px 0" }}>
+                            <Title level={3} style={{ color: "black", margin: "8px 0" }}>
                                 {clientName} Gift Card
                             </Title>
                             <Divider style={{ background: "rgba(255,255,255,0.2)", margin: "12px 0" }} />
-                            <Title level={4} style={{ color: "white" }}>
+                            <Title level={4} style={{ color: "black" }}>
                                 ksh {currentGiftCard.amount}
                             </Title>
-                            <Paragraph style={{ color: "rgba(255,255,255,0.8)" }}>
+                            <Paragraph style={{ color: "black" }}>
                                 {currentGiftCard.message || `Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
                             </Paragraph>
                             <Divider style={{ background: "rgba(255,255,255,0.2)", margin: "12px 0" }} />
                             <div style={{ display: "flex", justifyContent: "space-between", flexDirection: "column", gap: "8px" }}>
-                                <Text style={{ color: "rgba(255,255,255,0.8)" }}>
+                                <Text style={{ color: "black" }}>
                                     Code: {currentGiftCard.code}
                                 </Text>
-                                <Text style={{ color: "rgba(255,255,255,0.8)" }}>
+                                <Text style={{ color: "black" }}>
                                     Card #: {currentGiftCard.id || currentGiftCard.card_no}
                                 </Text>
-                                <Text style={{ color: "rgba(255,255,255,0.8)" }}>
+                                <Text style={{ color: "black" }}>
                                     Expires: {new Date(currentGiftCard.expiryDate || currentGiftCard.expiry_date).toLocaleDateString()}
                                 </Text>
                             </div>

@@ -36,24 +36,33 @@ interface EditUserDialogProps {
 }
 
 const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }) => {
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
+
   const { selected } = useAppSelector((state) => state.auth);
   const {
     handleSubmit,
     control,
-    formState: { errors,isDirty  },
+    formState: { errors, isDirty },
     reset,
   } = useForm<User>();
-
-//   console.log(selected);
 
   const { newmessage, IsError, isLoading } = useAppSelector((state) => state.auth);
   const [showPassword, setShowPassword] = useState(false);
   const dispatch = useAppDispatch();
 
   const handleConfirmAddUser = (userDetails: User) => {
-      if(!isDirty){
-        return
-      }
+    if (!isDirty) {
+      return
+    }
     dispatch(resetMessage());
     dispatch(updateUser({ userId, userDetails }));
     handleClose();
@@ -65,7 +74,7 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
   };
 
   useEffect(() => {
-      reset({
+    reset({
       fullname: selected?.fullname || "",
       username: selected?.username || "",
       email: selected?.email || "",
@@ -74,14 +83,14 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
       isAdmin: selected?.isAdmin || false,
       idNumber: selected?.idNumber || 0,
     });
-}, [reset, selected]);
+  }, [reset, selected]);
 
 
   return (
     <Dialog open={open} maxWidth="md" onClose={handleClose}>
       <DialogTitle
         style={{
-          backgroundColor: "#6c1c2c",
+          backgroundColor: primaryColor,
           color: "white",
           display: "flex",
           justifyContent: "space-between",
@@ -205,52 +214,52 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
                 )}
               />
             </Grid>
-           <Grid item xs={12} sm={6}>
-  <Controller
-    name="pin"
-    control={control}
-    defaultValue={selected?.pin || ""}
-    rules={{
-      required: "PIN is required",
-      pattern: {
-        value: /^[0-9]{4}$/,
-        message: "PIN must be 4 digits",
-      },
-    }}
-    render={({ field }) => (
-      <TextField
-        label="PIN"
-        type={showPassword ? "text" : "password"}
-        variant="outlined"
-        {...field}
-        fullWidth
-        margin="dense"
-        error={!!errors.pin}
-        helperText={errors.pin?.message}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <VpnKeyIcon />
-            </InputAdornment>
-          ),
-          endAdornment: (
-            <InputAdornment position="end">
-              {showPassword ? (
-                <IconButton onClick={() => setShowPassword(!showPassword)}>
-                  <VisibilityIcon />
-                </IconButton>
-              ) : (
-                <IconButton onClick={() => setShowPassword(!showPassword)}>
-                  <VisibilityOffIcon />
-                </IconButton>
-              )}
-            </InputAdornment>
-          ),
-        }}
-      />
-    )}
-  />
-</Grid>
+            <Grid item xs={12} sm={6}>
+              <Controller
+                name="pin"
+                control={control}
+                defaultValue={selected?.pin || ""}
+                rules={{
+                  required: "PIN is required",
+                  pattern: {
+                    value: /^[0-9]{4}$/,
+                    message: "PIN must be 4 digits",
+                  },
+                }}
+                render={({ field }) => (
+                  <TextField
+                    label="PIN"
+                    type={showPassword ? "text" : "password"}
+                    variant="outlined"
+                    {...field}
+                    fullWidth
+                    margin="dense"
+                    error={!!errors.pin}
+                    helperText={errors.pin?.message}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <VpnKeyIcon />
+                        </InputAdornment>
+                      ),
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          {showPassword ? (
+                            <IconButton onClick={() => setShowPassword(!showPassword)}>
+                              <VisibilityIcon />
+                            </IconButton>
+                          ) : (
+                            <IconButton onClick={() => setShowPassword(!showPassword)}>
+                              <VisibilityOffIcon />
+                            </IconButton>
+                          )}
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
             <Grid item xs={12} sm={6}>
               <Controller
                 name="phone"
@@ -343,8 +352,8 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
               variant="outlined"
               sx={{
                 pl: 2,
-                color: "#6c1c2c",
-                borderColor: "#6c1c2c",
+                color: primaryColor,
+                borderColor: primaryColor,
                 "&:hover": {
                   borderColor: "#bc8c7c",
                   color: "#bc8c7c",

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -21,6 +21,16 @@ const AcceptDeliveryDialog: React.FC<AcceptDeliveryDialogProps> = ({
   onConfirm,
 }) => {
   const [receivedQuantity, setReceivedQuantity] = useState<number>(0);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   const handleAcceptDeliveryConfirm = () => {
     onConfirm(receivedQuantity);
@@ -29,7 +39,7 @@ const AcceptDeliveryDialog: React.FC<AcceptDeliveryDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle style={{ backgroundColor: "#6c1c2c", color: "white" }}>
+      <DialogTitle style={{ backgroundColor: primaryColor, color: "white" }}>
         Accept Delivery
       </DialogTitle>
       <DialogContent style={{ paddingTop: 16 }}>

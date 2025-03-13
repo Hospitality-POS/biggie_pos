@@ -32,6 +32,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   const componentRef = useRef<HTMLDivElement>(null);
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  console.log('nice working with', tenant);
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
 
   const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs, Paybill_ac, TILL_NO } =

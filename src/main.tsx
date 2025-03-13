@@ -12,6 +12,23 @@ import { CssBaseline } from "@mui/material";
 import { ConfigProvider } from "antd";
 import enUS from "antd/locale/en_US";
 
+// Get tenant primary color from localStorage or use default
+const getThemeColor = () => {
+  // Default color
+  const defaultColor = "#6c1c2c";
+
+  try {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    return tenant && tenant.primary_color ? tenant.primary_color : defaultColor;
+  } catch (error) {
+    console.error("Error getting tenant color:", error);
+    return defaultColor;
+  }
+};
+
+const primaryColor = getThemeColor();
+
 const theme = createTheme({
   typography: {
     fontFamily: "Inter, sans-serif",
@@ -30,7 +47,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             locale={enUS}
             theme={{
               token: {
-                colorPrimary: "#6c1c2c",
+                colorPrimary: primaryColor,
                 colorBgContainer: "#f6ffed",
               },
               components: {
@@ -38,7 +55,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
                   primaryShadow: "#f6ffed",
                 },
                 Card: {
-                  actionsBg: "#6c1c2c",
+                  actionsBg: primaryColor,
                 },
               },
             }}

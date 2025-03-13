@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import  CloseIcon  from '@mui/icons-material/Close';
+import React, { useState, useEffect } from "react";
+import CloseIcon from '@mui/icons-material/Close';
 import {
   Dialog,
   DialogTitle,
@@ -23,6 +23,16 @@ const AddNewTableLocationDialog: React.FC<AddLocationDialogProps> = ({
   onAddLocation,
 }) => {
   const [location, setLocation] = useState<string>("");
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   const handleAddLocation = () => {
     if (location.trim() !== "") {
@@ -36,14 +46,14 @@ const AddNewTableLocationDialog: React.FC<AddLocationDialogProps> = ({
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle
         style={{
-          backgroundColor: "#6c1c2c",
+          backgroundColor: primaryColor,
           color: "white",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
-       <div
+        <div
           style={{
             gap: "40px",
             color: "white",
@@ -51,7 +61,7 @@ const AddNewTableLocationDialog: React.FC<AddLocationDialogProps> = ({
             alignItems: "center",
           }}
         >
-        
+
           Add New Table location
         </div>
         <IconButton onClick={onClose}>
@@ -75,9 +85,9 @@ const AddNewTableLocationDialog: React.FC<AddLocationDialogProps> = ({
           variant="outlined"
           color="primary"
           fullWidth
-          style={{
-            color: "#6c1c2c",
-            borderColor: "#6c1c2c",
+          sx={{
+            color: primaryColor,
+            borderColor: primaryColor,
             "&:hover": {
               borderColor: "#bc8c7c",
               color: "#bc8c7c",

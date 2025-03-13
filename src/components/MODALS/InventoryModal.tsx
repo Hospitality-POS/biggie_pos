@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -42,6 +42,17 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   onClose,
   onAddProduct,
 }) => {
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
+
   const { handleSubmit, control, formState, reset, setValue } =
     useForm<NewProduct>({
       defaultValues: {
@@ -108,7 +119,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     <Dialog open={open} maxWidth="md" onClose={handleClose}>
       <DialogTitle
         style={{
-          backgroundColor: "#6c1c2c",
+          backgroundColor: primaryColor,
           color: "white",
           display: "flex",
           justifyContent: "space-between",
@@ -275,9 +286,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             variant="outlined"
             sx={{
               pl: 2,
-              color: "#6c1c2c",
-              borderColor: "#6c1c2c",
-
+              color: primaryColor,
+              borderColor: primaryColor,
               "&:hover": {
                 borderColor: "#bc8c7c",
                 color: "#bc8c7c",

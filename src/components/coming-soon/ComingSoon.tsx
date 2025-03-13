@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import { Typography, Space, Avatar, Row, Col, Button } from "antd";
 import {
@@ -13,6 +13,18 @@ import {
 const { Title, Paragraph } = Typography;
 
 const ComingSoon: React.FC = () => {
+  // State to hold the primary color
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
+
   const avatarStyle: React.CSSProperties = {
     backgroundColor: "#f5f5f5",
     color: "#1890ff",
@@ -32,7 +44,7 @@ const ComingSoon: React.FC = () => {
     <>
       <div style={{ padding: "40px 24px" }}>
         <Space size="middle" style={{ marginBottom: "12px" }}>
-          <ClockCircleOutlined style={{ color: "#6c1c2c", fontSize: "24px" }} />
+          <ClockCircleOutlined style={{ color: primaryColor, fontSize: "24px" }} />
           <Title level={3} style={{ margin: 0 }}>
             Coming Soon
           </Title>
@@ -51,14 +63,14 @@ const ComingSoon: React.FC = () => {
           {[
             {
               icon: (
-                <BuildOutlined style={{ fontSize: "32px", color: "#6c1c2c" }} />
+                <BuildOutlined style={{ fontSize: "32px", color: primaryColor }} />
               ),
               title: "In Development",
               description: "Crafting the perfect experience",
             },
             {
               icon: (
-                <ToolOutlined style={{ fontSize: "32px", color: "#6c1c2c" }} />
+                <ToolOutlined style={{ fontSize: "32px", color: primaryColor }} />
               ),
               title: "Fine Tuning",
               description: "Perfecting every detail",
@@ -66,7 +78,7 @@ const ComingSoon: React.FC = () => {
             {
               icon: (
                 <RocketOutlined
-                  style={{ fontSize: "32px", color: "#6c1c2c" }}
+                  style={{ fontSize: "32px", color: primaryColor }}
                 />
               ),
               title: "Launch Ready",
@@ -114,7 +126,7 @@ const ComingSoon: React.FC = () => {
                   <Avatar
                     key={index}
                     style={{
-                      backgroundColor: index % 2 === 0 ? "#6c1c2c" : "#7f767f",
+                      backgroundColor: index % 2 === 0 ? primaryColor : "#7f767f",
                     }}
                     icon={<UserOutlined />}
                   />
