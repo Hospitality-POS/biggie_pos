@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import { useDispatch, useSelector } from "react-redux";
@@ -30,6 +30,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const { user } = useAppSelector((state) => state.auth);
   const { cartDetails, loading } = useAppSelector((state) => state.cart);
   const [quantity, setQuantity] = useState(0);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   const dispatch = useAppDispatch();
   const { id } = useParams();
@@ -94,7 +102,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         width: "180px",
         overflow: "hidden",
         cursor: "pointer",
-        backgroundColor: "#6c1c2c",
+        backgroundColor: primaryColor,
         transition: "background-color 0.3s",
       }}
       onMouseEnter={(e) => {
@@ -102,7 +110,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         e.currentTarget.style.color = "white";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "#6c1c2c";
+        e.currentTarget.style.backgroundColor = primaryColor;
         e.currentTarget.style.color = "Black";
       }}
     >

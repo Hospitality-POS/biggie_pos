@@ -1,5 +1,10 @@
+/* Primary color variable - will be overridden by JavaScript */
+:root {
+  --primary-color: #6c1c2c;
+}
+
 * {
-	box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 body {
@@ -8,17 +13,17 @@ body {
   min-height: 100vh;
 }
 
-
-.staff-section{
-	font-family: 'Lato', sans-serif;
-	min-height: 100vh;
+.staff-section {
+  font-family: 'Lato', sans-serif;
+  min-height: 100vh;
   margin-top: -10px;
   background-color: #F0F1F7;
 }
+
 .cards {
-	display: flex;
-	align-items: center;
-	justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 20px;
   flex-wrap: wrap;
 }
@@ -29,31 +34,30 @@ body {
   }
 }
 
-.ant-table-thead > tr > th {
+.ant-table-thead>tr>th {
   color: white !important;
-  background-color: #6c1c2c !important;
+  background-color: var(--primary-color) !important;
 }
+
 .ant-btn-primary {
-    background-color: #6c1c2c !important;
-    color: white !important; 
-
+  background-color: var(--primary-color) !important;
+  color: white !important;
 }
+
 input[type="checkbox" i]:active {
-      background-color: #6c1c2c !important;
-
+  background-color: var(--primary-color) !important;
 }
-
 
 :where(.css-dev-only-do-not-override-v3wdz2) a:hover {
-    color: #6c1c2c;
+  color: var(--primary-color);
 }
-
 
 .wrapper {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
   gap: 0.4em;
 }
+
 .wrapper2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
@@ -61,20 +65,18 @@ input[type="checkbox" i]:active {
 }
 
 .ant-card {
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
   transition: all 0.2s ease;
 }
 
 .ant-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
   transform: translateY(-2px);
 }
-
 
 .modern-table-row td {
   border-bottom: 1px solid #f1f5f9 !important;
 }
-
 
 .ant-pro-checkcard:hover {
   transform: translateY(-4px);

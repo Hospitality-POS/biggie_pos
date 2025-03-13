@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   UserOutlined,
   MailOutlined,
@@ -36,10 +36,20 @@ function AdminProfile() {
   const [isPinVisible, setIsPinVisible] = useState(false);
   const [pin, setPin] = useState("*********");
   const params = useParams();
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
 
   const userRef = useRef<ActionType>();
 
   const { id } = params;
+
+  // Get tenant primary color from localStorage
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   const { data: userDetails, isLoading } = useQuery({
     queryKey: ["user", id],
@@ -47,8 +57,6 @@ function AdminProfile() {
     refetchOnWindowFocus: false,
     networkMode: "always",
   });
-
-  const primaryColor = "#6c1c2c";
 
   const togglePinVisibility = async () => {
     if (!isPinVisible) {

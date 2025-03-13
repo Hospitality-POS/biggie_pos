@@ -21,6 +21,17 @@ const VerticalTabs: React.FC<VerticalTabProps> = ({ handleSubCategoryChange, sub
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
+
 
   useEffect(() => {
     const checkMobile = () => {
@@ -57,7 +68,7 @@ const VerticalTabs: React.FC<VerticalTabProps> = ({ handleSubCategoryChange, sub
     height: '100%',
     maxWidth: '33%',
     minWidth: isCollapsed ? '80px' : '200px',
-    background: '#6c1c2c',
+    background: primaryColor,
     transition: 'all 0.3s ease-in-out',
     overflowY: 'auto',
     maxHeight: '100vh',

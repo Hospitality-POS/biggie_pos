@@ -45,6 +45,8 @@ const LoadingTabs = () => (
   </div>
 );
 
+
+
 export default function TablePro() {
   // Ref to track component mount status
   const isMounted = useRef(false);
@@ -58,6 +60,19 @@ export default function TablePro() {
 
   // Initialize activeTabId - simplified to ensure overview is default
   const [activeTabId, setActiveTabId] = useState<string>("overview");
+
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
+
+
 
   // Explicitly load and log the saved tab ID on component mount 
   useEffect(() => {
@@ -187,7 +202,7 @@ export default function TablePro() {
     >
       <Result
         icon={
-          <AppstoreOutlined style={{ fontSize: "64px", color: "#6c1c2c" }} />
+          <AppstoreOutlined style={{ fontSize: "64px", color: primaryColor }} />
         }
         title="Welcome to Slots Management"
         subTitle="Please select a staff slot from above to view its Customer Slots"
@@ -195,7 +210,7 @@ export default function TablePro() {
           <Button
             type="primary"
             onClick={() => navigate("/table-settings")}
-            style={{ backgroundColor: "#6c1c2c" }}
+            style={{ backgroundColor: primaryColor }}
             icon={<PlusOutlined />}
             disabled={user?.role !== "admin" && user?.role !== "cashier"}
           >
@@ -291,7 +306,7 @@ export default function TablePro() {
                 itemActiveColor: "#000",
                 itemHoverColor: "#aa846f",
                 itemSelectedColor: "#000",
-                cardBg: "#6c1c2c",
+                cardBg: primaryColor,
               },
             },
           }}
@@ -339,7 +354,7 @@ export default function TablePro() {
               itemActiveColor: "#000",
               itemHoverColor: "#aa846f",
               itemSelectedColor: "#000",
-              cardBg: "#6c1c2c",
+              cardBg: primaryColor,
             },
           },
         }}

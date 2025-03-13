@@ -12,7 +12,7 @@ import {
   Typography,
 } from "antd";
 import { Space } from "antd/lib";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import EmptyPage from "@routes/EmptyPage";
 import { getAllProducts } from "@services/products";
 import StoreProductCard from "@components/store/StoreProductCard";
@@ -25,6 +25,14 @@ export default function MainStore() {
   const [setErrorDialogOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["products"],
@@ -141,7 +149,7 @@ export default function MainStore() {
                   itemActiveColor: "#000",
                   itemHoverColor: "#aa846f",
                   itemSelectedColor: "#000",
-                  cardBg: "#6c1c2c",
+                  cardBg: primaryColor,
                 },
               },
             }}

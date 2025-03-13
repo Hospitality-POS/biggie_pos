@@ -38,6 +38,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
 
   const [open, setOpen] = useState(false);
   const { user } = useAppSelector((state) => state.auth);
@@ -45,6 +46,15 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   const isEditingOwnProfile = edit && data?._id === userId;
 
   const queryClient = useQueryClient();
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   useEffect(() => {
     if (open && data) {
@@ -154,7 +164,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
             key="button"
             icon={
               <EditOutlined
-                style={{ color: "#6c1c2c" }}
+                style={{ color: primaryColor }}
                 onClick={() => form.setFieldsValue(data)}
               />
             }

@@ -42,6 +42,16 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [open, setOpen] = useState(false);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   useEffect(() => {
     if (open && data) {
@@ -125,9 +135,8 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
 
   const handleFinish = async (values) => {
     const confirmed = await ShowConfirm({
-      title: `Are you sure you want to ${
-        edit ? "update this" : "add new"
-      } Delivery?`,
+      title: `Are you sure you want to ${edit ? "update this" : "add new"
+        } Delivery?`,
       position: true,
     });
     if (confirmed) {
@@ -153,7 +162,7 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
         edit ? (
           <Button
             key="button"
-            icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
+            icon={<EditOutlined style={{ color: primaryColor }} />}
             onClick={() => form.setFieldsValue(data)}
             size="small"
           >
@@ -216,16 +225,16 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
           initialValues={
             edit
               ? {
-                  ...data,
-                  supplier_id: {
-                    value: data?.supplier_id?._id,
-                    label: data?.supplier_id?.name,
-                  },
-                  received_by: {
-                    value: data?.received_by?._id,
-                    label: data?.received_by?.fullname,
-                  },
-                }
+                ...data,
+                supplier_id: {
+                  value: data?.supplier_id?._id,
+                  label: data?.supplier_id?.name,
+                },
+                received_by: {
+                  value: data?.received_by?._id,
+                  label: data?.received_by?.fullname,
+                },
+              }
               : {}
           }
         >
@@ -283,18 +292,18 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
           initialValues={
             edit
               ? {
-                  delivery_items: data?.delivery_items?.map((item: any) => ({
-                    inventory_id: {
-                      value: item?.inventory_id?._id,
-                      label: item?.inventory_id?.name,
-                    },
-                    unit_id: {
-                      value: item?.unit_id?._id,
-                      label: item?.unit_id?.name,
-                    },
-                    quantity: item?.quantity,
-                  })),
-                }
+                delivery_items: data?.delivery_items?.map((item: any) => ({
+                  inventory_id: {
+                    value: item?.inventory_id?._id,
+                    label: item?.inventory_id?.name,
+                  },
+                  unit_id: {
+                    value: item?.unit_id?._id,
+                    label: item?.unit_id?.name,
+                  },
+                  quantity: item?.quantity,
+                })),
+              }
               : {}
           }
         >

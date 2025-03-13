@@ -25,10 +25,20 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
   const [connectionType, setConnectionType] = useState<"NETWORK" | "USB">(
     data?.connectionType || "NETWORK"
   );
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [form] = Form.useForm();
   const formRef = useRef();
 
   const [open, setOpen] = useState(false);
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   useEffect(() => {
     if (open && data) {
@@ -50,12 +60,12 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
       form.resetFields();
     }
   };
-    const { data: mainCategoryData } = useQuery({
-      queryKey: ["printer-main-category"],
-      queryFn: () => fetchMainCategories(),
-      refetchInterval: 5000,
-      networkMode: "always",
-    });
+  const { data: mainCategoryData } = useQuery({
+    queryKey: ["printer-main-category"],
+    queryFn: () => fetchMainCategories(),
+    refetchInterval: 5000,
+    networkMode: "always",
+  });
 
   const mainCategoryRequest = async () => {
     const values = mainCategoryData?.map((e: { name: any; _id: any }) => {
@@ -114,7 +124,7 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
             size="small"
             icon={
               <EditOutlined
-                style={{ color: "#6c1c2c" }}
+                style={{ color: primaryColor }}
                 onClick={() => form.setFieldsValue(editPrinterPayload)}
               />
             }
@@ -181,7 +191,7 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
         )}
 
         <ProFormSwitch
-        width="md"
+          width="md"
           id="defaultPrinter"
           name="defaultPrinter"
           label="Set as Default Printer?"

@@ -26,6 +26,16 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({
   const [form] = Form.useForm();
   const formRef = useRef();
   const [open, setOpen] = useState(false);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   useEffect(() => {
     if (open && data) {
@@ -74,7 +84,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({
             size="small"
             icon={
               <EditOutlined
-                style={{ color: "#6c1c2c" }}
+                style={{ color: primaryColor }}
                 onClick={() => form.setFieldsValue(data)}
               />
             }

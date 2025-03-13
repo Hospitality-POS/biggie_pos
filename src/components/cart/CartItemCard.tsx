@@ -7,7 +7,7 @@ import {
   Grid,
   IconButton,
 } from "@mui/material";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { deleteCartItem } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
@@ -26,6 +26,16 @@ function formatQuantity(quantity: number) {
 // eslint-disable-next-line react-refresh/only-export-components
 const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const dispatch = useAppDispatch();
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   const { user } = useAppSelector((state) => state.auth);
 
@@ -45,7 +55,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       sx={{
         mb: 1,
         boxShadow: "none",
-        backgroundColor: cartItem.sent ? "#6c1c2c" : "#f6ffed",
+        backgroundColor: cartItem.sent ? primaryColor : "#f6ffed",
         color: cartItem.sent ? "#fff" : "black",
       }}
     >
@@ -92,7 +102,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                       dispatch(deleteCartItem(cartItem._id));
                       // refetch();
                       invalidate();
-                      
+
                     }}
                   ></Button>
                 )}
@@ -108,7 +118,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                   icon={<DeleteOutlined />}
                   onClick={() => {
                     dispatch(deleteCartItem(cartItem._id));
-                    refetch();
+                    invalidate();
                   }}
                 ></Button>
               </>

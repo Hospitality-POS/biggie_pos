@@ -15,7 +15,13 @@ import { reset } from "@features/Auth/AuthSlice";
 import { Avatar, Image, Space, Tag } from "antd";
 import useProLayoutNav from "./defaultprops";
 import StaffModal from "@components/staffCard/LoginModal";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+
+interface Tenant {
+  tenant_code?: string;
+  primary_color?: string;
+}
 
 const ProNavbar = ({ children }) => {
   const dispatch = useAppDispatch();
@@ -29,6 +35,25 @@ const ProNavbar = ({ children }) => {
     navigation("/login");
   };
 
+
+
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const parsedTenant = storedTenant ? JSON.parse(storedTenant) : null;
+
+    if (parsedTenant) {
+      setTenant(parsedTenant);
+      if (parsedTenant.primary_color) {
+        setPrimaryColor(parsedTenant.primary_color);
+      }
+    }
+  }, []);
+
+
   const userMenuItems = [
     {
       key: "profile",
@@ -39,15 +64,15 @@ const ProNavbar = ({ children }) => {
     { type: "divider" },
     ...(user?.role === "admin"
       ? [
-          {
-            key: "dashboard",
-            icon: <DashboardOutlined />,
-            label: "Dashboard",
-            onClick: () => {
-              localStorage.removeItem("shopId"), navigation("/admin/dashboard");
-            },
+        {
+          key: "dashboard",
+          icon: <DashboardOutlined />,
+          label: "Dashboard",
+          onClick: () => {
+            localStorage.removeItem("shopId"), navigation("/admin/dashboard");
           },
-        ]
+        },
+      ]
       : []),
     {
       key: "faqs",
@@ -72,19 +97,28 @@ const ProNavbar = ({ children }) => {
 
   const [open, setOpen] = useState(false);
   const tbl = "staff";
-
   return (
     <ProLayout
       style={{ maxWidth: "1920px" }}
       logo={
-        <Image
-          src="/relia.png"
-          height={55}
-          width={120}
-          preview={true}
-          alt="fss-logo"
-          style={{ padding: 12 }}
-        />
+        tenant?.tenant_code === "RPOS-000004" ? (
+          <Image
+            src="/android-chrome-512x512.png"
+            height={60}
+            preview={true}
+            alt="fss-logo"
+            style={{ padding: 5 }}
+          />
+        ) : (
+          <Image
+            src="/relia.png"
+            height={55}
+            width={120}
+            preview={true}
+            alt="relia-logo"
+            style={{ padding: 12 }}
+          />
+        )
       }
       title=""
       menuHeaderRender={(logo, title) => (
@@ -158,14 +192,14 @@ const ProNavbar = ({ children }) => {
       {...navRoutes}
       token={{
         bgLayout: "#f6ffed",
-        colorPrimary: "#6c1c2c",
+        colorPrimary: primaryColor,
         colorTextAppListIconHover: "black",
         colorTextAppListIcon: "white",
         colorBgAppListIconHover: "white",
         hashId: "fss001",
         header: {
           colorBgMenuItemSelected: "#f6ffed",
-          colorBgHeader: "#6c1c2c",
+          colorBgHeader: primaryColor,
           colorTextMenu: "#ffff",
           colorTextMenuSecondary: "#f6ffed",
           colorBgMenuItemHover: "#f6ffed",

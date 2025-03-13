@@ -3,7 +3,8 @@ import { Row, Col, Typography, Button, Space, Result, Modal } from "antd";
 import { ClockCircleOutlined, DeleteOutlined, LeftOutlined } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import { staffClockInOut } from "@services/customers";
-
+import { useQuery } from "@tanstack/react-query";
+import { fetchTenantById } from "@services/users";
 const { Title, Text, Paragraph } = Typography;
 
 const StaffClockTracker = () => {
@@ -18,11 +19,23 @@ const StaffClockTracker = () => {
   const [isModalVisible, setIsModalVisible] = useState(false); // State for modal visibility
 
   const storedTenant = localStorage.getItem("tenant");
-  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const clientName = tenant ? tenant.name : "Relia";
+  let tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
   const params = new URLSearchParams(window.location.search);
   const tenantId = params.get("tenant_id");
+
+  const { data: tenantData } = useQuery({
+    queryKey: ["tenant", tenantId],
+    queryFn: () => fetchTenantById(tenantId), // Ensure it's a function reference
+    retry: 1,
+    refetchInterval: 5000,
+    networkMode: "always",
+  });
+  if (!tenant) {
+    tenant = tenantData;
+  }
+  const clientName = tenant ? tenant.name : "Relia";
+
   const shopId = params.get("shop_id");
 
   const handlePinSubmit = async () => {
@@ -155,16 +168,32 @@ const StaffClockTracker = () => {
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
           }}
         >
-          <img
-            src="/relia.png"
-            alt="store-logo"
-            style={{
-              width: "192px",
-              height: "auto",
-              marginBottom: "24px",
-              margin: "0 auto",
-            }}
-          />
+          {tenant?.tenant_code === "RPOS-000004" ? (
+            <img
+              src="/logo.png"
+              alt="store-logo"
+              style={{
+                width: "190px",
+                height: "auto",
+                marginBottom: "0px",
+                margin: "0 auto",
+              }}
+            />
+
+
+          ) : (
+            <img
+              src="/relia.png"
+              alt="store-logo"
+              style={{
+                width: "192px",
+                height: "auto",
+                marginBottom: "24px",
+                margin: "0 auto",
+              }}
+            />
+          )}
+
           <Title
             level={2}
             style={{

@@ -54,6 +54,17 @@ const RestaurantPage: React.FC = () => {
   const [value, setValue] = React.useState(0);
   const [Subcategories, setSubcategories] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
+
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
@@ -143,7 +154,7 @@ const RestaurantPage: React.FC = () => {
             flexDirection: "column",
           }}
         >
-          <AppBar position="static" sx={{ mb: 2, bgcolor: "#6c1c2c" }}>
+          <AppBar position="static" sx={{ mb: 2, bgcolor: primaryColor }}>
             <Tabs
               value={value}
               onChange={handleChange}
@@ -155,15 +166,15 @@ const RestaurantPage: React.FC = () => {
             >
               {Maincategories?.length
                 ? Maincategories.map((categ, index) => (
-                    <Tab
-                      key={categ._id}
-                      onClick={() => handleChangeMainCategory(categ._id)}
-                      iconPosition="start"
-                      style={{ height: isMobile ? "auto" : 20 }}
-                      label={categ.name}
-                      {...a11yProps(index)}
-                    />
-                  ))
+                  <Tab
+                    key={categ._id}
+                    onClick={() => handleChangeMainCategory(categ._id)}
+                    iconPosition="start"
+                    style={{ height: isMobile ? "auto" : 20 }}
+                    label={categ.name}
+                    {...a11yProps(index)}
+                  />
+                ))
                 : ""}
             </Tabs>
           </AppBar>
@@ -219,8 +230,8 @@ const RestaurantPage: React.FC = () => {
                             flex: isMobile
                               ? "0 0 100%"
                               : isTablet
-                              ? "0 0 45%"
-                              : `0 0 ${100 / categories?.length}%`,
+                                ? "0 0 45%"
+                                : `0 0 ${100 / categories?.length}%`,
                             display: "flex",
                             justifyContent: "center",
                             alignItems: "center",
@@ -262,7 +273,7 @@ const RestaurantPage: React.FC = () => {
                       <IconButton
                         onClick={handleBack}
                         sx={{
-                          color: "#6c1c2c",
+                          color: primaryColor,
                           "&:hover": {
                             color: "#bc8c7c",
                           },
@@ -314,8 +325,8 @@ const RestaurantPage: React.FC = () => {
                                 flex: isMobile
                                   ? "0 0 100%"
                                   : isTablet
-                                  ? "0 0 45%"
-                                  : "0 0 30%",
+                                    ? "0 0 45%"
+                                    : "0 0 30%",
                                 marginBottom: "10px",
                               }}
                             />
