@@ -27,6 +27,8 @@ import { logCustomerVisit, addNewCustomer } from "@services/customers";
 import { ProCard } from "@ant-design/pro-components";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
+import { fetchTenantById } from "@services/users";
+import { useQuery } from "@tanstack/react-query";
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -39,12 +41,28 @@ const CustomerVisitTracker = () => {
   const [generatedCode, setGeneratedCode] = useState(null);
   const [visitType, setVisitType] = useState(null);
 
+  //const defaultColor = "#6c1c2c";
   const storedTenant = localStorage.getItem("tenant");
-  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const clientName = tenant ? tenant.name : "Relia";
+  let tenant = storedTenant ? JSON.parse(storedTenant) : null;
+
+
+  // const primaryColor = tenant && tenant.primary_color ? tenant.primary_color : defaultColor;
 
   const params = new URLSearchParams(window.location.search);
   const tenantId = params.get("tenant_id");
+
+  const { data: tenantData } = useQuery({
+    queryKey: ["tenant", tenantId],
+    queryFn: () => fetchTenantById(tenantId), // Ensure it's a function reference
+    retry: 1,
+    refetchInterval: 5000,
+    networkMode: "always",
+  });
+  if (!tenant) {
+    tenant = tenantData;
+  }
+  const clientName = tenant ? tenant.name : "Relia";
+
   const shopId = params.get("shop_id");
 
   const welcomeMessages = [
@@ -185,16 +203,32 @@ const CustomerVisitTracker = () => {
         borderRadius: "16px 16px 0 0",
       }}
     >
-      <img
-        src="/relia.png"
-        alt="store-logo"
-        style={{
-          width: "128px",
-          height: "auto",
-          marginBottom: "16px",
-          margin: "0 auto",
-        }}
-      />
+      {tenant?.tenant_code === "RPOS-000004" ? (
+        <img
+          src="/logo.png"
+          alt="store-logo"
+          style={{
+            width: "170px",
+            height: "auto",
+            marginBottom: "16px",
+            margin: "0 auto",
+          }}
+        />
+
+
+      ) : (
+        <img
+          src="/relia.png"
+          alt="store-logo"
+          style={{
+            width: "128px",
+            height: "auto",
+            marginBottom: "16px",
+            margin: "0 auto",
+          }}
+        />
+      )}
+
       <Title
         level={4}
         style={{
@@ -251,16 +285,35 @@ const CustomerVisitTracker = () => {
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
           }}
         >
-          <img
-            src="/relia.png"
-            alt="store-logo"
-            style={{
-              width: "192px",
-              height: "auto",
-              marginBottom: "24px",
-              margin: "0 auto",
-            }}
-          />
+
+
+          {tenant?.tenant_code === "RPOS-000004" ? (
+            <img
+              src="/logo.png"
+              alt="store-logo"
+              style={{
+                width: "200px",
+                height: "auto",
+                marginBottom: "24px",
+                margin: "0 auto",
+              }}
+            />
+
+
+          ) : (
+            <img
+              src="/relia.png"
+              alt="store-logo"
+              style={{
+                width: "192px",
+                height: "auto",
+                marginBottom: "24px",
+                margin: "0 auto",
+              }}
+            />
+          )}
+
+
           <Title
             level={2}
             style={{
@@ -458,6 +511,7 @@ const CustomerVisitTracker = () => {
               size="large"
               icon={<QrcodeOutlined />}
               loading={loading}
+
             >
               Log Visit & Submit Feedback
             </Button>

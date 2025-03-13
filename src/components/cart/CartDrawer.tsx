@@ -3,6 +3,7 @@ import { Divider, CardMedia } from "@mui/material";
 import CartItemCard from "./CartItemCard";
 import classes from "./Cart.module.css";
 import PrintBillModal from "../MODALS/PrintBillModal";
+import PrintBillSpaModal from "../MODALS/printBillSpaModal";
 import {
   cartSent,
   deleteAllCartItems,
@@ -33,6 +34,9 @@ const CartDrawer: React.FC = () => {
   // const [openM, setOpenM] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  console.log('nice working with', tenant);
   const {
     cartDetails,
     totalAmount,
@@ -258,11 +262,11 @@ const CartDrawer: React.FC = () => {
                 Send Bill
               </Button>
               <ClientPin cart={cartDetails} />
-              <PrintBillModal
-                cartDetails={cartDetails}
-                data={data}
-                totalAmount={totalAmount}
-              />
+              {tenant?.business_type?.name === "massage_parlour" ? (
+                <PrintBillSpaModal cartDetails={cartDetails} data={data} totalAmount={totalAmount} />
+              ) : (
+                <PrintBillModal cartDetails={cartDetails} data={data} totalAmount={totalAmount} />
+              )}
             </Space>
             {user?.role === "admin" && (
               <Button
