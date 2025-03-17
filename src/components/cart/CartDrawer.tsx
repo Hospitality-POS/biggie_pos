@@ -3,6 +3,7 @@ import { Divider, CardMedia } from "@mui/material";
 import CartItemCard from "./CartItemCard";
 import classes from "./Cart.module.css";
 import PrintBillModal from "../MODALS/PrintBillModal";
+import PrintBillSpaModal from "../MODALS/printBillSpaModal";
 import {
   cartSent,
   deleteAllCartItems,
@@ -32,6 +33,10 @@ import ClientPin from "@components/MODALS/ClientPin";
 const CartDrawer: React.FC = () => {
   // const [openM, setOpenM] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  console.log('nice working with', tenant);
   const {
     cartDetails,
     totalAmount,
@@ -46,6 +51,15 @@ const CartDrawer: React.FC = () => {
   const { tableData: td } = useAppSelector((state) => state.Tables);
 
   const navigate = useNavigate();
+
+  // Load tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   const CartItemCardMemo = React.memo(CartItemCard);
 
@@ -118,8 +132,8 @@ const CartDrawer: React.FC = () => {
           <Button
             style={{
               pl: 2,
-              color: "#6c1c2c",
-              borderColor: "#6c1c2c",
+              color: primaryColor,
+              borderColor: primaryColor,
               "&:hover": {
                 borderColor: "#bc8c7c",
                 color: "#bc8c7c",
@@ -237,8 +251,8 @@ const CartDrawer: React.FC = () => {
                 icon={<SendOutlined />}
                 // disabled={cartDetails?.status === "sent"}
                 style={{
-                  color: "#6c1c2c",
-                  borderColor: "#6c1c2c",
+                  color: primaryColor,
+                  borderColor: primaryColor,
                   "&:hover": {
                     borderColor: "#bc8c7c",
                     color: "#bc8c7c",
@@ -248,22 +262,22 @@ const CartDrawer: React.FC = () => {
                 Send Bill
               </Button>
               <ClientPin cart={cartDetails} />
-              <PrintBillModal
-                cartDetails={cartDetails}
-                data={data}
-                totalAmount={totalAmount}
-                />
+              {tenant?.business_type?.name === "massage_parlour" ? (
+                <PrintBillSpaModal cartDetails={cartDetails} data={data} totalAmount={totalAmount} />
+              ) : (
+                <PrintBillModal cartDetails={cartDetails} data={data} totalAmount={totalAmount} />
+              )}
             </Space>
-                {user?.role === "admin" && (
-                  <Button
-                    danger
-                    block
-                    onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
-                    icon={<CloseCircleOutlined />}
-                  >
-                    Clear
-                  </Button>
-                )}
+            {user?.role === "admin" && (
+              <Button
+                danger
+                block
+                onClick={() => dispatch(deleteAllCartItems(cartDetails?._id))}
+                icon={<CloseCircleOutlined />}
+              >
+                Clear
+              </Button>
+            )}
           </Space>
         ) : (
           <Card className={classes.cardm}>

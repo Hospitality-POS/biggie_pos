@@ -78,6 +78,7 @@ export const updateUsers = async (data: ParamsType) => {
   try {
     const response = await axiosInstance.put(`${url}/${data?._id}`, data?.value);
     message.success("User updated successfully");
+
     return response.data;
   } catch (error: any) {
     if (error?.response?.status != 403) {
@@ -94,6 +95,20 @@ export const fetchUserRoles = async () => {
     return response.data;
   } catch (error) {
     console.log(error);
+  }
+};
+
+export const fetchTenantById = async (id: string) => {
+  try {
+    const response = await axiosInstance.get(`${tenantUrl}/${id}`);
+    console.log('asdfnadsmd', response);
+    if (response && response.data) {
+      localStorage.setItem("tenant", JSON.stringify(response.data));
+    }
+    return response.data;
+  } catch (error) {
+    console.log(error);
+    throw new Error("Error fetching tenant");
   }
 };
 

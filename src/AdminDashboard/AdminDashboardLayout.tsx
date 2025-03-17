@@ -17,10 +17,19 @@ import { getAdminDashboardAnalysis } from "@services/orders";
 import { useQuery } from "@tanstack/react-query";
 
 const AdminDashboard: React.FC = () => {
+
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const navRoutes = useProLayoutNav();
   const { user } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Default color value
+  const defaultColor = "#6c1c2c";
+  // Use tenant primary color if it exists, otherwise use default
+  const primaryColor = tenant && tenant.primary_color ? tenant.primary_color : defaultColor;
+
 
   const handleLogin = () => {
     navigate("/login");
@@ -31,14 +40,14 @@ const AdminDashboard: React.FC = () => {
   };
 
 
-   const { data } = useQuery({
-     queryKey: ["admindashBoardAlerts"],
-     queryFn: getAdminDashboardAnalysis,
-     networkMode: "always",
-     refetchOnWindowFocus: false, 
-     staleTime: 30000, 
-     retry: 2, 
-   });
+  const { data } = useQuery({
+    queryKey: ["admindashBoardAlerts"],
+    queryFn: getAdminDashboardAnalysis,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+    retry: 2,
+  });
 
   const breadcrumbItems = location.pathname
     .split("/")
@@ -52,7 +61,7 @@ const AdminDashboard: React.FC = () => {
         /^[a-f0-9]{24}$/i.test(path) || /^[0-9]+$/.test(path); // Regex for MongoDB ObjectId or numeric IDs
       const label = isDynamicSegment
         ? "Details" // Generic label for dynamic segments
-        :  path
+        : path
           .replace(/-/g, " ") // Replace hyphens with spaces
           .replace(/(^\w|\s\w)/g, (match) => match.toUpperCase());  // Map or format unknown paths
 
@@ -68,14 +77,24 @@ const AdminDashboard: React.FC = () => {
   return (
     <ProLayout
       logo={
-        <Image
-          src="/relia.png"
-          height={55}
-          width={120}
-          preview={true}
-          alt="relia-logo"
-          style={{ padding: 12 }}
-        />
+        tenant?.tenant_code === "RPOS-000004" ? (
+          <Image
+            src="/android-chrome-512x512.png"
+            height={60}
+            preview={true}
+            alt="fss-logo"
+            style={{ padding: 5 }}
+          />
+        ) : (
+          <Image
+            src="/relia.png"
+            height={55}
+            width={120}
+            preview={true}
+            alt="relia-logo"
+            style={{ padding: 12 }}
+          />
+        )
       }
       title=""
       contentWidth="Fluid"
@@ -114,7 +133,7 @@ const AdminDashboard: React.FC = () => {
               {user ? (
                 <>
                   <Dropdown
-                  arrow
+                    arrow
                     menu={{
                       disabled: user ? false : true,
                       items: [
@@ -160,14 +179,14 @@ const AdminDashboard: React.FC = () => {
       }}
       token={{
         bgLayout: "#f6ffed",
-        colorPrimary: "#6c1c2c",
+        colorPrimary: primaryColor,
         colorTextAppListIconHover: "black",
         colorTextAppListIcon: "white",
         colorBgAppListIconHover: "white",
         hashId: "fss001",
         header: {
           colorBgMenuItemSelected: "#f6ffed",
-          colorBgHeader: "#6c1c2c",
+          colorBgHeader: primaryColor,
           colorTextMenu: "#ffff",
           colorTextMenuSecondary: "#f6ffed",
           colorBgMenuItemHover: "#f6ffed",

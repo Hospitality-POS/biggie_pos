@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import CircleIcon from "@mui/icons-material/Circle";
 import EditProductModal from "./EditProductModal";
 // import { deleteProduct } from "../../features/Product/ProductAction";
@@ -27,8 +27,17 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
   productId,
   activateInventory,
 }) => {
-  console.log('nice', product);
+
   const [modalOpen, setModalOpen] = React.useState(false);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
+
   const dispatch = useAppDispatch();
   const handleEditClick = () => {
     setModalOpen(true);
@@ -99,7 +108,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
             Ksh.{price?.toLocaleString()}
           </Typography.Text>
           <Typography>
-            <CircleIcon style={{ fontSize: "10px", color: "#6c1c2c" }} />
+            <CircleIcon style={{ fontSize: "10px", color: primaryColor }} />
           </Typography>
           <Typography.Text ellipsis>{bowls}</Typography.Text>
           <Typography.Text> Item{bowls <= 1 ? " " : "s"}</Typography.Text>

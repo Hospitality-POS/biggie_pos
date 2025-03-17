@@ -86,6 +86,8 @@ const AdminCustomersTable = () => {
   const [loadingGiftCards, setLoadingGiftCards] = useState(false);
   const [clientName, setClientName] = useState("Relia Pos");
   const [savingPDF, setSavingPDF] = useState(false);
+  // Default color value
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   // Fix 3: Add messageApi reference
   const { message: messageApi } = App.useApp();
 
@@ -94,6 +96,11 @@ const AdminCustomersTable = () => {
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
     const name = tenant ? tenant.name : "Relia Pos";
     setClientName(name);
+
+    // Set primary color based on tenant settings or use default
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
   }, []);
 
   const getLastVisit = (visits) => {
@@ -542,7 +549,7 @@ const AdminCustomersTable = () => {
             ref={giftCardRef}
             bordered
             style={{
-              background: "linear-gradient(135deg, #6C1C2C 0%, #6C1C2C 100%)",
+              background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor} 100%)`,
               color: "white",
               borderRadius: "8px"
             }}

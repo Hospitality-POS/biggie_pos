@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -44,13 +44,24 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
   setAmount2,
   handleSplitConfirm,
 }) => {
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
+
   const { control } = useForm();
 
   return (
     <Dialog open={open} onClose={handleModalClose} maxWidth="md">
       <DialogTitle
         style={{
-          backgroundColor: "#6c1c2c",
+          backgroundColor: primaryColor,
           color: "white",
           display: "flex",
           justifyContent: "space-between",
@@ -153,7 +164,7 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
           sx={{
             pl: 2,
             color: "#fff",
-            bgcolor: "#6c1c2c",
+            bgcolor: primaryColor,
             "&:hover": {
               bgcolor: "#bc8c7c",
               color: "#fff",
@@ -161,7 +172,7 @@ const SplitBillDialog: React.FC<SplitBillDialogProps> = ({
           }}
           fullWidth
           onClick={handleSplitConfirm}
-          disabled={!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || amount1+amount2 !== totalAmount}
+          disabled={!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || amount1 + amount2 !== totalAmount}
         >
           Confirm Split & confirm payment
         </Button>

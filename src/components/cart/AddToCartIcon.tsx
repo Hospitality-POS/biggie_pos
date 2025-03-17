@@ -3,12 +3,22 @@ import { green } from "@mui/material/colors";
 import Draggable from "react-draggable";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { useSelector } from "react-redux";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "../../services/request";
 
 function AddToCartIcon({ OpenCart }: any) {
   const { cartDetails } = useSelector((state: any) => state.cart);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Load tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
   const { data: cartItems } = useQuery(
     ["cartItems", cartDetails?._id],
@@ -59,11 +69,11 @@ function AddToCartIcon({ OpenCart }: any) {
             color="primary"
             onClick={OpenCart}
             sx={{
-              backgroundColor: "#6c1c2c",
+              backgroundColor: primaryColor,
               width: "60px",
               height: "60px",
               "&:hover": {
-                backgroundColor: "#6c1c2c",
+                backgroundColor: primaryColor,
               },
             }}
           >
