@@ -215,7 +215,7 @@ const StaffLoginPage = () => {
                             >
                                 {tenant?.tenant_code === "RPOS-000004" ? (
                                     <img
-                                        src="/logo.png"
+                                        src="/logo2.png"
                                         alt="relia-logo"
                                         width="70%"
                                         height="auto"

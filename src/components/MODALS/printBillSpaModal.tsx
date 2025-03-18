@@ -36,23 +36,29 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
 
     const handlePrint = useReactToPrint({
         content: () => componentRef.current,
+        // Add print specific options for thermal printers
         pageStyle: `
             @page {
-                size: 80mm auto;
-                margin: 0mm;
+                size: 80mm auto;  /* Common thermal receipt width */
+                margin: 0mm;     /* No margins for thermal printing */
             }
             @media print {
                 body {
-                    width: 80mm !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                    font-weight: bold !important;
                 }
-                .receipt {
-                    width: 76mm !important;
-                    font-size: 10px !important;
+                * {
+                    font-weight: bold !important;
                 }
-                table {
-                    width: 100% !important;
+                div, p, span, h1, h2, h3, h4, h5, h6, th, td, tr {
+                    font-weight: bold !important;
+                }
+                table, thead, tbody, tr, th, td {
+                    font-weight: bold !important;
+                }
+                .receipt * {
+                    font-weight: bold !important;
                 }
             }
         `,
@@ -83,9 +89,12 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                 id="receipt"
                 ref={componentRef}
                 style={{
-                    width: "80mm",
+                    width: "80mm",  // Standard thermal receipt width
                     maxWidth: "80mm",
-                    margin: "0 auto"
+                    backgroundColor: "#ffffff",
+                    padding: "3mm",
+                    fontFamily: "'Courier New', monospace", // Better for thermal printers
+                    fontWeight: "bold", // Everything bold
                 }}
             >
                 <div
@@ -94,261 +103,318 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                         display: "flex",
                         flexDirection: "column",
                         marginBottom: 10,
+                        textAlign: "center",
                     }}
                 >
                     <Typography
-                        variant="body1"
-                        style={{ fontFamily: "monospace", fontSize: "12px" }}
+                        style={{
+                            fontFamily: "'Courier New', monospace",
+                            fontSize: "14pt",
+                            fontWeight: "bold",
+                            margin: "2mm 0",
+                        }}
                     >
                         {BRAND_NAME1}
                     </Typography>
                     <Typography
-                        variant="body1"
-                        style={{ fontFamily: "monospace", fontSize: "11px" }}
+                        style={{
+                            fontFamily: "'Courier New', monospace",
+                            fontSize: "12pt",
+                            fontWeight: "bold",
+                            margin: "1mm 0",
+                        }}
                     >
                         {ENTITY_NAME}
                     </Typography>
                     <Typography
-                        variant="body1"
-                        style={{ fontSize: "11px", fontFamily: "monospace" }}
+                        style={{
+                            fontSize: "11pt",
+                            fontFamily: "'Courier New', monospace",
+                            margin: "1mm 0",
+                            fontWeight: "bold",
+                        }}
                     >
                         Phone: {PHONE_NO}
                     </Typography>
-                    {Paybill_bs ? (
-                        <>
-                            <Typography variant="body1" style={{ fontSize: "10px" }}>
-                                Business No: {Paybill_bs}
-                            </Typography>
-                            {Paybill_ac && (
-                                <Typography variant="body1" style={{ fontSize: "10px" }}>
-                                    Account No: {Paybill_ac}
-                                </Typography>
-                            )}
-                        </>
-                    ) : (
-                        TILL_NO && (
-                            <Typography variant="body1" style={{ fontSize: "10px" }}>
-                                Till No: {TILL_NO}
-                            </Typography>
-                        )
-                    )}
+
                     <Typography
-                        variant="body1"
-                        style={{ fontSize: "10px", fontFamily: "monospace" }}
+                        style={{
+                            fontSize: "11pt",
+                            fontFamily: "'Courier New', monospace",
+                            margin: "1mm 0",
+                            fontWeight: "bold",
+                        }}
                     >
-                        {cartDetails?.clientPin && `Client Pin: ${cartDetails?.clientPin}`}
+                        Business No: {Paybill_bs}
                     </Typography>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <Typography
-                        variant="body1"
-                        style={{ fontSize: "10px", fontFamily: "monospace" }}
+                        style={{
+                            fontSize: "11pt",
+                            fontFamily: "'Courier New', monospace",
+                            margin: "1mm 0",
+                            fontWeight: "bold",
+                        }}
+                    >
+                        Account No: {Paybill_ac}
+                    </Typography>
+                    {cartDetails?.clientPin && (
+                        <Typography
+                            style={{
+                                fontSize: "11pt",
+                                fontFamily: "'Courier New', monospace",
+                                margin: "1mm 0",
+                                fontWeight: "bold",
+                            }}
+                        >
+                            Client Pin: {cartDetails?.clientPin}
+                        </Typography>
+                    )}
+                </div>
+
+                {/* Divider line */}
+                <div style={{
+                    borderTop: "1px dashed #000",
+                    margin: "2mm 0",
+                    borderWidth: "2px",
+                }}></div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", margin: "2mm 0" }}>
+                    <Typography
+                        style={{
+                            fontSize: "11pt",
+                            fontFamily: "'Courier New', monospace",
+                            fontWeight: "bold",
+                        }}
                     >
                         {cartDetails?.order_no}
                     </Typography>
                     <Typography
-                        variant="body1"
-                        style={{ fontSize: "10px", fontFamily: "monospace" }}
+                        style={{
+                            fontSize: "11pt",
+                            fontFamily: "'Courier New', monospace",
+                            fontWeight: "bold",
+                        }}
                     >
-                        Served By: {cartDetails?.created_by?.username}
+                        By: {cartDetails?.created_by?.username}
                     </Typography>
                 </div>
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginBottom: "-8px",
-                    }}
-                >
+
+                <div style={{ display: "flex", justifyContent: "space-between", margin: "2mm 0" }}>
                     <Typography
-                        variant="body1"
-                        style={{ fontSize: "10px", fontFamily: "monospace" }}
+                        style={{
+                            fontSize: "11pt",
+                            fontFamily: "'Courier New', monospace",
+                            fontWeight: "bold",
+                        }}
                     >
                         Table: {cartDetails?.table_id?.name}
                     </Typography>
                     <Typography
-                        variant="body1"
-                        style={{ fontSize: "10px", fontFamily: "monospace" }}
-                    >
-                        Date: {new Date().toLocaleDateString()} {new Date().getHours()}:
-                        {String(new Date().getMinutes()).padStart(2, '0')}
-                    </Typography>
-                </div>
-                <TableContainer sx={{ mt: 2, width: "100%" }}>
-                    <Table style={{ tableLayout: "fixed", width: "100%" }}>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell
-                                    sx={{ padding: 0.5, fontWeight: "bold", width: "10%", fontSize: "10px" }}
-                                >
-                                    #
-                                </TableCell>
-                                <TableCell sx={{ padding: 0.5, fontWeight: "bold", fontSize: "10px" }}>
-                                    ITEM
-                                </TableCell>
-                                <TableCell
-                                    sx={{
-                                        padding: 0.5,
-                                        textAlign: "right",
-                                        fontWeight: "bold",
-                                        fontSize: "10px"
-                                    }}
-                                >
-                                    PRICE(.Ksh)
-                                </TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {data?.map(
-                                (item: {
-                                    _id: React.Key | null | undefined;
-                                    quantity:
-                                    | string
-                                    | number
-                                    | boolean
-                                    | React.ReactElement<
-                                        any,
-                                        string | React.JSXElementConstructor<any>
-                                    >
-                                    | Iterable<React.ReactNode>
-                                    | React.ReactPortal
-                                    | null
-                                    | undefined;
-                                    product_id: {
-                                        name:
-                                        | string
-                                        | number
-                                        | boolean
-                                        | React.ReactElement<
-                                            any,
-                                            string | React.JSXElementConstructor<any>
-                                        >
-                                        | Iterable<React.ReactNode>
-                                        | React.ReactPortal
-                                        | null
-                                        | undefined;
-                                    };
-                                    price: number;
-                                }) => (
-                                    <TableRow key={item._id}>
-                                        <TableCell
-                                            sx={{
-                                                padding: 0.5,
-                                                fontSize: "10px",
-                                                width: "5%",
-                                                textAlign: "left",
-                                                fontWeight: "bold",
-                                            }}
-                                        >
-                                            {item.quantity}
-                                        </TableCell>
-                                        <TableCell
-                                            component="th"
-                                            scope="row"
-                                            sx={{
-                                                padding: 0.5,
-                                                fontSize: "10px",
-                                                fontWeight: "bold",
-                                                wordWrap: "break-word",
-                                                maxWidth: "50mm",
-                                            }}
-                                        >
-                                            {item?.product_id?.name}
-                                        </TableCell>
-                                        <TableCell
-                                            sx={{
-                                                padding: 0.5,
-                                                textAlign: "right",
-                                                fontSize: "10px",
-                                                fontWeight: "bold",
-                                            }}
-                                        >
-                                            {item?.price?.toFixed(2)}
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-                {cartDetails?.discount && (
-                    <Typography
-                        variant="body1"
                         style={{
-                            fontSize: "10px",
-                            fontFamily: "monospace",
-                            textAlign: "center",
+                            fontSize: "11pt",
+                            fontFamily: "'Courier New', monospace",
                             fontWeight: "bold",
                         }}
                     >
-                        <RestOutlined /> Discount:
+                        {new Date().toLocaleDateString()} {String(new Date().getHours()).padStart(2, '0')}:
+                        {String(new Date().getMinutes()).padStart(2, '0')}
+                    </Typography>
+                </div>
+
+                {/* Another divider */}
+                <div style={{
+                    borderTop: "1px dashed #000",
+                    margin: "2mm 0",
+                    borderWidth: "2px",
+                }}></div>
+
+                {/* Items table with higher contrast for thermal printing */}
+                <table style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    tableLayout: "fixed",
+                }}>
+                    <thead>
+                        <tr>
+                            <th style={{
+                                padding: "1mm",
+                                fontWeight: "bold",
+                                width: "10%",
+                                textAlign: "left",
+                                fontSize: "11pt",
+                                fontFamily: "'Courier New', monospace",
+                            }}>
+                                #
+                            </th>
+                            <th style={{
+                                padding: "1mm",
+                                fontWeight: "bold",
+                                textAlign: "left",
+                                fontSize: "11pt",
+                                fontFamily: "'Courier New', monospace",
+                            }}>
+                                ITEM
+                            </th>
+                            <th style={{
+                                padding: "1mm",
+                                textAlign: "right",
+                                fontWeight: "bold",
+                                fontSize: "11pt",
+                                fontFamily: "'Courier New', monospace",
+                            }}>
+                                PRICE(Ksh)
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data?.map(
+                            (item: {
+                                _id: React.Key | null | undefined;
+                                quantity: string | number | boolean | React.ReactElement<any>;
+                                product_id: {
+                                    name: string | number | boolean | React.ReactElement<any>;
+                                };
+                                price: number;
+                            }) => (
+                                <tr key={item._id}>
+                                    <td style={{
+                                        padding: "1mm",
+                                        fontSize: "11pt",
+                                        width: "5%",
+                                        textAlign: "left",
+                                        fontWeight: "bold",
+                                        fontFamily: "'Courier New', monospace",
+                                    }}>
+                                        {item.quantity}
+                                    </td>
+                                    <td style={{
+                                        padding: "1mm",
+                                        fontSize: "11pt",
+                                        fontWeight: "bold",
+                                        wordWrap: "break-word",
+                                        fontFamily: "'Courier New', monospace",
+                                    }}>
+                                        {item?.product_id?.name}
+                                    </td>
+                                    <td style={{
+                                        padding: "1mm",
+                                        textAlign: "right",
+                                        fontSize: "11pt",
+                                        fontWeight: "bold",
+                                        fontFamily: "'Courier New', monospace",
+                                    }}>
+                                        {item?.price?.toFixed(2)}
+                                    </td>
+                                </tr>
+                            )
+                        )}
+                    </tbody>
+                </table>
+
+                {/* Divider before total */}
+                <div style={{
+                    borderTop: "1px dashed #000",
+                    margin: "2mm 0",
+                    borderWidth: "2px",
+                }}></div>
+
+                {/* Discount section with higher visibility */}
+                {cartDetails?.discount && (
+                    <Typography
+                        style={{
+                            fontSize: "12pt",
+                            fontFamily: "'Courier New', monospace",
+                            textAlign: "center",
+                            fontWeight: "bold",
+                            margin: "2mm 0",
+                        }}
+                    >
+                        <RestOutlined /> Discount:{" "}
                         {cartDetails?.discount_type === "amount"
                             ? `KSH. ${cartDetails?.discount?.toLocaleString()}`
                             : `${cartDetails?.discount}%`}
                     </Typography>
                 )}
+
+                {/* Total amount with emphasized styling */}
                 <Typography
-                    variant="body1"
                     style={{
-                        fontSize: "10px",
-                        fontFamily: "monospace",
+                        fontSize: "14pt",
+                        fontFamily: "'Courier New', monospace",
                         textAlign: "center",
                         fontWeight: "bold",
-                        marginTop: "5px"
+                        margin: "3mm 0",
                     }}
                 >
                     Amount Due: Ksh.{totalAmount?.toFixed(2)}
                 </Typography>
 
-                <Typography
-                    variant="body1"
-                    sx={{ textAlign: "center", fontWeight: "12px", fontSize: "10px" }}
-                >
-                    ============================
-                </Typography>
-                <div className="qrcoded" style={{ marginTop: 4, textAlign: "center" }}>
-                    <QRCodeCanvas value={QR_Code} size={60} className="qrcode" />
+                {/* Divider */}
+                <div style={{
+                    borderTop: "1px dashed #000",
+                    margin: "2mm 0",
+                    borderWidth: "2px",
+                }}></div>
+
+                {/* QR code - higher density for better thermal printing */}
+                <div style={{
+                    textAlign: "center",
+                    margin: "3mm 0",
+                }}>
+                    <QRCodeCanvas
+                        value={QR_Code}
+                        size={100}
+                        level="H" // Higher error correction for thermal printers
+                        style={{
+                            margin: "0 auto",
+                        }}
+                    />
                 </div>
+
+                {/* Footer information */}
                 <Typography
-                    variant="body1"
                     style={{
-                        fontSize: "9px",
-                        fontFamily: "monospace",
+                        fontSize: "10pt",
+                        fontFamily: "'Courier New', monospace",
                         textAlign: "center",
-                        marginTop: 8,
+                        marginTop: "2mm",
+                        fontWeight: "bold",
                     }}
                 >
                     Thank you for your support!
                 </Typography>
                 <Typography
-                    variant="body1"
                     style={{
-                        fontSize: "9px",
-                        fontFamily: "monospace",
+                        fontSize: "10pt",
+                        fontFamily: "'Courier New', monospace",
                         textAlign: "center",
+                        fontWeight: "bold",
                     }}
                 >
                     Info email: {EMAIL_URL}
                 </Typography>
                 <Typography
-                    variant="body1"
                     style={{
-                        fontSize: "9px",
-                        fontFamily: "monospace",
+                        fontSize: "10pt",
+                        fontFamily: "'Courier New', monospace",
                         textAlign: "center",
+                        fontWeight: "bold",
                     }}
                 >
                     Generated on {new Date().toLocaleDateString()}
                 </Typography>
+                <Typography
+                    style={{
+                        fontSize: "10pt",
+                        fontFamily: "'Courier New', monospace",
+                        textAlign: "center",
+                        marginBottom: "2mm",
+                        fontWeight: "bold",
+                    }}
+                >
+                    Powered by Relia Tech Solutions
+                </Typography>
             </div>
-            <Box
-                sx={{
-                    mt: 2,
-                    display: "flex",
-                    justifyContent: "space-evenly",
-                    columnGap: 5,
-                }}
-            ></Box>
         </ModalForm>
     );
 };
