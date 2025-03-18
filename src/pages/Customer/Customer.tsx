@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   Row,
   Col,
@@ -33,6 +33,19 @@ import { useQuery } from "@tanstack/react-query";
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
+// Pre-define welcome messages outside component to avoid recreation on each render
+const welcomeMessages = [
+  "🎉 Great to see you again! 🙌",
+  "We missed you, welcome back! ❤️",
+  "Hello again, ready for something new? 🚀",
+  "It's awesome to have you back! 😄",
+  "You're back! Let's get started! 💪",
+  "Back at it again! We've got more in store for you! 🎁",
+  "Welcome back, your favorite spot is waiting! 🏆",
+  "Always a pleasure to see you return! 🌟",
+  "We're thrilled to have you back! 💙",
+];
+
 const CustomerVisitTracker = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -41,51 +54,41 @@ const CustomerVisitTracker = () => {
   const [generatedCode, setGeneratedCode] = useState(null);
   const [visitType, setVisitType] = useState(null);
 
-  //const defaultColor = "#6c1c2c";
-  const storedTenant = localStorage.getItem("tenant");
-  let tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  // Get URL parameters once
+  const params = useMemo(() => new URLSearchParams(window.location.search), []);
+  const tenantId = useMemo(() => params.get("tenant_id"), [params]);
+  const shopId = useMemo(() => params.get("shop_id"), [params]);
 
+  // Get tenant data from localStorage efficiently
+  const storedTenant = useMemo(() => {
+    const stored = localStorage.getItem("tenant");
+    return stored ? JSON.parse(stored) : null;
+  }, []);
 
-  // const primaryColor = tenant && tenant.primary_color ? tenant.primary_color : defaultColor;
-
-  const params = new URLSearchParams(window.location.search);
-  const tenantId = params.get("tenant_id");
-
+  // Fetch tenant data only if not in localStorage (optimized querying)
   const { data: tenantData } = useQuery({
     queryKey: ["tenant", tenantId],
-    queryFn: () => fetchTenantById(tenantId), // Ensure it's a function reference
+    queryFn: () => fetchTenantById(tenantId),
     retry: 1,
-    refetchInterval: 5000,
-    networkMode: "always",
+    enabled: !storedTenant && !!tenantId,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
-  if (!tenant) {
-    tenant = tenantData;
-  }
-  const clientName = tenant ? tenant.name : "Relia";
 
-  const shopId = params.get("shop_id");
+  // Calculate derived values efficiently with memoization
+  const tenant = useMemo(() => storedTenant || tenantData, [storedTenant, tenantData]);
+  const clientName = useMemo(() => tenant ? tenant.name : "Relia", [tenant]);
 
-  const welcomeMessages = [
-    "🎉 Great to see you again! 🙌",
-    "We missed you, welcome back! ❤️",
-    "Hello again, ready for something new? 🚀",
-    "It's awesome to have you back! 😄",
-    "You're back! Let's get started! 💪",
-    "Back at it again! We've got more in store for you! 🎁",
-    "Welcome back, your favorite spot is waiting! 🏆",
-    "Always a pleasure to see you return! 🌟",
-    "We're thrilled to have you back! 💙",
-    // "We're dedicated to delivering a seamless and personalized experience that puts your needs first."
-  ];
-
-  const getRandomWelcomeMessage = () => {
+  // Get welcome message only once on component mount
+  const randomMessage = useMemo(() => {
     const randomIndex = Math.floor(Math.random() * welcomeMessages.length);
     return welcomeMessages[randomIndex];
-  };
+  }, []);
 
-  const randomMessage = getRandomWelcomeMessage();
+  // Optimized handlers with useCallback
+  const handleCustomerRegistration = useCallback(async (values) => {
+    if (loading) return;
 
-  const handleCustomerRegistration = async (values) => {
     setLoading(true);
     try {
       const { email, name, phoneNumber } = values;
@@ -97,7 +100,9 @@ const CustomerVisitTracker = () => {
         tenant_id: tenantId,
         shop_id: shopId,
       };
+
       const response = await addNewCustomer(payload);
+
       if (response?.status === 201) {
         const customerCode = response.data.customer.code;
         setGeneratedCode(customerCode);
@@ -106,13 +111,16 @@ const CustomerVisitTracker = () => {
         message.success("Registration successful!");
       }
     } catch (error) {
+      console.error("Registration error:", error);
       message.error("Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading, tenantId, shopId]);
 
-  const handleVisitLog = async (values) => {
+  const handleVisitLog = useCallback(async (values) => {
+    if (loading) return;
+
     setLoading(true);
     try {
       const { phoneNumber, rating, review } = values;
@@ -124,37 +132,44 @@ const CustomerVisitTracker = () => {
         rating,
         review,
       };
+
       const resp = await logCustomerVisit(payload);
+
       if (resp?.status === 200) {
         setVisitType("visit");
         setVisitCompleted(true);
         message.success("Visit logged successfully!");
       }
     } catch (error) {
+      console.error("Visit log error:", error);
       message.error("Failed to log visit. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading, tenantId, shopId]);
 
-  const copyCodeToClipboard = () => {
-    if (generatedCode) {
-      navigator.clipboard
-        .writeText(generatedCode)
-        .then(() => message.success("Customer code copied to clipboard"))
-        .catch(() => message.error("Failed to copy customer code"));
-    }
-  };
+  const copyCodeToClipboard = useCallback(() => {
+    if (!generatedCode) return;
 
-  const resetState = () => {
+    navigator.clipboard
+      .writeText(generatedCode)
+      .then(() => message.success("Customer code copied to clipboard"))
+      .catch((err) => {
+        console.error("Clipboard error:", err);
+        message.error("Failed to copy customer code");
+      });
+  }, [generatedCode]);
+
+  const resetState = useCallback(() => {
     setRegistrationMode(false);
     setVisitCompleted(false);
     setGeneratedCode(null);
     setVisitType(null);
     form.resetFields();
-  };
+  }, [form]);
 
-  const RetailBackground = () => (
+  // Memoized UI components to prevent re-rendering
+  const RetailBackground = useMemo(() => (
     <svg
       style={{
         position: "absolute",
@@ -192,9 +207,9 @@ const CustomerVisitTracker = () => {
       </defs>
       <rect width="100" height="100" fill="url(#retail-grid)" />
     </svg>
-  );
+  ), []);
 
-  const MobileHeader = () => (
+  const MobileHeader = useMemo(() => (
     <div
       style={{
         padding: "24px",
@@ -213,9 +228,8 @@ const CustomerVisitTracker = () => {
             marginBottom: "16px",
             margin: "0 auto",
           }}
+          loading="lazy"
         />
-
-
       ) : (
         <img
           src="/relia.png"
@@ -226,6 +240,7 @@ const CustomerVisitTracker = () => {
             marginBottom: "16px",
             margin: "0 auto",
           }}
+          loading="lazy"
         />
       )}
 
@@ -250,9 +265,9 @@ const CustomerVisitTracker = () => {
         {randomMessage}
       </Text>
     </div>
-  );
+  ), [tenant, clientName, randomMessage]);
 
-  const DesktopSidebar = () => (
+  const DesktopSidebar = useMemo(() => (
     <div
       style={{
         position: "relative",
@@ -263,7 +278,7 @@ const CustomerVisitTracker = () => {
         overflow: "hidden",
       }}
     >
-      <RetailBackground />
+      {RetailBackground}
       <div
         style={{
           position: "relative",
@@ -285,8 +300,6 @@ const CustomerVisitTracker = () => {
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
           }}
         >
-
-
           {tenant?.tenant_code === "RPOS-000004" ? (
             <img
               src="/logo.png"
@@ -297,9 +310,8 @@ const CustomerVisitTracker = () => {
                 marginBottom: "24px",
                 margin: "0 auto",
               }}
+              loading="lazy"
             />
-
-
           ) : (
             <img
               src="/relia.png"
@@ -310,9 +322,9 @@ const CustomerVisitTracker = () => {
                 marginBottom: "24px",
                 margin: "0 auto",
               }}
+              loading="lazy"
             />
           )}
-
 
           <Title
             level={2}
@@ -341,11 +353,12 @@ const CustomerVisitTracker = () => {
         </div>
       </div>
     </div>
-  );
+  ), [tenant, randomMessage, RetailBackground]);
 
-  const MainContent = () => (
-    <div style={{ maxWidth: "400px", width: "100%", margin: "0 auto" }}>
-      {visitCompleted ? (
+  // Render main content based on state
+  const MainContent = () => {
+    if (visitCompleted) {
+      return (
         <Result
           status="success"
           title={
@@ -391,7 +404,11 @@ const CustomerVisitTracker = () => {
             </Space>
           }
         />
-      ) : registrationMode ? (
+      );
+    }
+
+    if (registrationMode) {
+      return (
         <Form
           form={form}
           layout="vertical"
@@ -442,93 +459,96 @@ const CustomerVisitTracker = () => {
               size="large"
               onClick={() => setRegistrationMode(false)}
               icon={<LeftOutlined />}
+              disabled={loading}
             >
               Go Back
             </Button>
           </Space>
         </Form>
-      ) : (
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleVisitLog}
-          size="large"
+      );
+    }
+
+    return (
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleVisitLog}
+        size="large"
+        style={{ width: "100%" }}
+      >
+        <PhoneInput
+          label={
+            <Space>
+              <PhoneOutlined style={{ color: "#6c1c2c", fontSize: "18px" }} />
+              <Text strong>Enter your phone number</Text>
+            </Space>
+          }
+          owner="phoneNumber"
+        />
+
+        <Form.Item
+          name="rating"
+          label={
+            <Space>
+              <StarOutlined style={{ color: "#6c1c2c", fontSize: "18px" }} />
+              <Text strong>Rate your experience</Text>
+            </Space>
+          }
+          rules={[{ required: true, message: "Please rate your experience" }]}
           style={{ width: "100%" }}
         >
-          <PhoneInput
-            label={
-              <Space>
-                <PhoneOutlined style={{ color: "#6c1c2c", fontSize: "18px" }} />
-                <Text strong>Enter your phone number</Text>
-              </Space>
-            }
-            owner="phoneNumber"
+          <Rate
+            style={{ fontSize: "24px", width: "100%" }}
+            allowClear
+            id="rate"
+            tooltips={["Okay", "Good", "Pretty good", "Great", "Amazing"]}
           />
+        </Form.Item>
 
-          <Form.Item
-            name="rating"
-            label={
-              <Space>
-                <StarOutlined style={{ color: "#6c1c2c", fontSize: "18px" }} />
-                <Text strong>Rate your experience</Text>
-              </Space>
-            }
-            rules={[{ required: true, message: "Please rate your experience" }]}
-            style={{ width: "100%" }}
+        <Form.Item
+          name="review"
+          label={
+            <Space>
+              <CommentOutlined
+                style={{ color: "#6c1c2c", fontSize: "18px" }}
+              />
+              <Text strong>Share your feedback (optional)</Text>
+            </Space>
+          }
+        >
+          <TextArea
+            placeholder="Tell us about your experience..."
+            rows={4}
+            showCount
+            maxLength={500}
+          />
+        </Form.Item>
+
+        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            size="large"
+            icon={<QrcodeOutlined />}
+            loading={loading}
           >
-            <Rate
-              style={{ fontSize: "24px", width: "100%" }}
-              allowClear
-              id="rate"
-              tooltips={["Okay", "Good", "Pretty good", "Great", "Amazing"]}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="review"
-            label={
-              <Space>
-                <CommentOutlined
-                  style={{ color: "#6c1c2c", fontSize: "18px" }}
-                />
-                <Text strong>Share your feedback (optional)</Text>
-              </Space>
-            }
+            Log Visit & Submit Feedback
+          </Button>
+          <Button
+            type="default"
+            block
+            size="large"
+            icon={<UserAddOutlined />}
+            onClick={() => setRegistrationMode(true)}
+            disabled={loading}
           >
-            <TextArea
-              placeholder="Tell us about your experience..."
-              rows={4}
-              showCount
-              maxLength={500}
-            />
-          </Form.Item>
-
-          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-            <Button
-              type="primary"
-              htmlType="submit"
-              block
-              size="large"
-              icon={<QrcodeOutlined />}
-              loading={loading}
-
-            >
-              Log Visit & Submit Feedback
-            </Button>
-            <Button
-              type="default"
-              block
-              size="large"
-              icon={<UserAddOutlined />}
-              onClick={() => setRegistrationMode(true)}
-            >
-              First Time? Register Here
-            </Button>
-          </Space>
-        </Form>
-      )}
-    </div>
-  );
+            First Time? Register Here
+          </Button>
+        </Space>
+      </Form>
+    );
+  };
 
   return (
     <div
@@ -538,8 +558,11 @@ const CustomerVisitTracker = () => {
         alignItems: "center",
         justifyContent: "center",
         padding: "16px",
-        backgroundSize: "cover",
+        // Use solid color background first for fast initial render
+        backgroundColor: "#f5f5f5",
+        // Then load the image background
         backgroundImage: `url("/try.png")`,
+        backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
@@ -557,10 +580,10 @@ const CustomerVisitTracker = () => {
       >
         <Row>
           <Col xs={0} md={12}>
-            <DesktopSidebar />
+            {DesktopSidebar}
           </Col>
           <Col xs={24} md={0}>
-            <MobileHeader />
+            {MobileHeader}
           </Col>
           <Col xs={24} md={12}>
             <div
@@ -573,7 +596,9 @@ const CustomerVisitTracker = () => {
                 height: "100%",
               }}
             >
-              <MainContent />
+              <div style={{ maxWidth: "400px", width: "100%", margin: "0 auto" }}>
+                <MainContent />
+              </div>
             </div>
           </Col>
         </Row>

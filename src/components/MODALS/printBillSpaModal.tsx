@@ -31,7 +31,7 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
 }) => {
     const componentRef = useRef<HTMLDivElement>(null);
 
-    const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs, Paybill_ac } =
+    const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs, Paybill_ac, TILL_NO } =
         useSystemDetails();
 
     const handlePrint = useReactToPrint({
@@ -46,7 +46,19 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                 body {
                     -webkit-print-color-adjust: exact;
                     print-color-adjust: exact;
-                    font-weight: bold;
+                    font-weight: bold !important;
+                }
+                * {
+                    font-weight: bold !important;
+                }
+                div, p, span, h1, h2, h3, h4, h5, h6, th, td, tr {
+                    font-weight: bold !important;
+                }
+                table, thead, tbody, tr, th, td {
+                    font-weight: bold !important;
+                }
+                .receipt * {
+                    font-weight: bold !important;
                 }
             }
         `,
@@ -124,6 +136,7 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                     >
                         Phone: {PHONE_NO}
                     </Typography>
+
                     <Typography
                         style={{
                             fontSize: "11pt",
