@@ -32,7 +32,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
   const componentRef = useRef<HTMLDivElement>(null);
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
 
   const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs, Paybill_ac, TILL_NO } =
@@ -264,7 +263,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             ...headerStyle,
             textAlign: "center",
             textDecoration: "underline",
-            marginBottom: isElectronicsStore ? 0 : 10,
+            marginBottom: isElectronicsStore ? 0 : 0,
           }}
         >
           Amount Due: Ksh.{totalAmount?.toFixed(2)}

@@ -31,12 +31,31 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
 }) => {
     const componentRef = useRef<HTMLDivElement>(null);
 
-
-    const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs, Paybill_ac } =
+    const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs, Paybill_ac, TILL_NO } =
         useSystemDetails();
 
     const handlePrint = useReactToPrint({
         content: () => componentRef.current,
+        pageStyle: `
+            @page {
+                size: 80mm auto;
+                margin: 0mm;
+            }
+            @media print {
+                body {
+                    width: 80mm !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                .receipt {
+                    width: 76mm !important;
+                    font-size: 10px !important;
+                }
+                table {
+                    width: 100% !important;
+                }
+            }
+        `,
     });
 
     return (
@@ -59,60 +78,63 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                 return true;
             }}
         >
-            <div className="receipt" id="receipt" ref={componentRef}>
+            <div
+                className="receipt"
+                id="receipt"
+                ref={componentRef}
+                style={{
+                    width: "80mm",
+                    maxWidth: "80mm",
+                    margin: "0 auto"
+                }}
+            >
                 <div
                     className="logo-print"
                     style={{
                         display: "flex",
                         flexDirection: "column",
-                        marginBottom: 15,
+                        marginBottom: 10,
                     }}
                 >
-                    {/* <img
-                src="/logokil.png"
-                className="image--logo reciept"
-                alt="Restaurant Logo"
-                style={{ width: "70%" }}
-              /> */}
                     <Typography
                         variant="body1"
-                        style={{ fontFamily: "monospace", fontSize: "1.3em" }}
+                        style={{ fontFamily: "monospace", fontSize: "12px" }}
                     >
                         {BRAND_NAME1}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontFamily: "monospace", fontSize: "1.2em" }}
+                        style={{ fontFamily: "monospace", fontSize: "11px" }}
                     >
                         {ENTITY_NAME}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "1.2em", fontFamily: "monospace" }}
+                        style={{ fontSize: "11px", fontFamily: "monospace" }}
                     >
                         Phone: {PHONE_NO}
                     </Typography>
+                    {Paybill_bs ? (
+                        <>
+                            <Typography variant="body1" style={{ fontSize: "10px" }}>
+                                Business No: {Paybill_bs}
+                            </Typography>
+                            {Paybill_ac && (
+                                <Typography variant="body1" style={{ fontSize: "10px" }}>
+                                    Account No: {Paybill_ac}
+                                </Typography>
+                            )}
+                        </>
+                    ) : (
+                        TILL_NO && (
+                            <Typography variant="body1" style={{ fontSize: "10px" }}>
+                                Till No: {TILL_NO}
+                            </Typography>
+                        )
+                    )}
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "1.2em", fontFamily: "monospace" }}
-                    >
-                        Business No : {Paybill_bs}
-                    </Typography>
-                    <Typography
-                        variant="body1"
-                        style={{ fontSize: "1.2em", fontFamily: "monospace" }}
-                    >
-                        Account No : {Paybill_ac}
-                    </Typography>
-                    {/* <Typography
-              variant="body1"
-              style={{ fontSize: "1em", fontFamily: "monospace" }}
-            >
-              PIN: {PIN}
-            </Typography> */}
-                    <Typography
-                        variant="body1"
-                        style={{ fontSize: "1em", fontFamily: "monospace" }}
+                        style={{ fontSize: "10px", fontFamily: "monospace" }}
                     >
                         {cartDetails?.clientPin && `Client Pin: ${cartDetails?.clientPin}`}
                     </Typography>
@@ -120,13 +142,13 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "1.15em", fontFamily: "monospace" }}
+                        style={{ fontSize: "10px", fontFamily: "monospace" }}
                     >
                         {cartDetails?.order_no}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "1.15em", fontFamily: "monospace" }}
+                        style={{ fontSize: "10px", fontFamily: "monospace" }}
                     >
                         Served By: {cartDetails?.created_by?.username}
                     </Typography>
@@ -135,40 +157,41 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                     style={{
                         display: "flex",
                         justifyContent: "space-between",
-                        marginBottom: "-15px",
+                        marginBottom: "-8px",
                     }}
                 >
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "1.15em", fontFamily: "monospace" }}
+                        style={{ fontSize: "10px", fontFamily: "monospace" }}
                     >
                         Table: {cartDetails?.table_id?.name}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "1em", fontFamily: "monospace" }}
+                        style={{ fontSize: "10px", fontFamily: "monospace" }}
                     >
                         Date: {new Date().toLocaleDateString()} {new Date().getHours()}:
-                        {new Date().getMinutes()}
+                        {String(new Date().getMinutes()).padStart(2, '0')}
                     </Typography>
                 </div>
-                <TableContainer sx={{ mt: 3, width: "inherit" }}>
-                    <Table style={{ tableLayout: "fixed" }}>
+                <TableContainer sx={{ mt: 2, width: "100%" }}>
+                    <Table style={{ tableLayout: "fixed", width: "100%" }}>
                         <TableHead>
                             <TableRow>
                                 <TableCell
-                                    sx={{ padding: 1, fontWeight: "bold", width: "10%" }}
+                                    sx={{ padding: 0.5, fontWeight: "bold", width: "10%", fontSize: "10px" }}
                                 >
                                     #
                                 </TableCell>
-                                <TableCell sx={{ padding: 1, fontWeight: "bold" }}>
+                                <TableCell sx={{ padding: 0.5, fontWeight: "bold", fontSize: "10px" }}>
                                     ITEM
                                 </TableCell>
                                 <TableCell
                                     sx={{
-                                        padding: 1,
+                                        padding: 0.5,
                                         textAlign: "right",
                                         fontWeight: "bold",
+                                        fontSize: "10px"
                                     }}
                                 >
                                     PRICE(.Ksh)
@@ -210,8 +233,8 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                                     <TableRow key={item._id}>
                                         <TableCell
                                             sx={{
-                                                padding: 1.2,
-                                                fontSize: "1em",
+                                                padding: 0.5,
+                                                fontSize: "10px",
                                                 width: "5%",
                                                 textAlign: "left",
                                                 fontWeight: "bold",
@@ -223,19 +246,20 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                                             component="th"
                                             scope="row"
                                             sx={{
-                                                padding: 1,
-                                                fontSize: "1.2em",
+                                                padding: 0.5,
+                                                fontSize: "10px",
                                                 fontWeight: "bold",
                                                 wordWrap: "break-word",
+                                                maxWidth: "50mm",
                                             }}
                                         >
                                             {item?.product_id?.name}
                                         </TableCell>
                                         <TableCell
                                             sx={{
-                                                padding: 1,
+                                                padding: 0.5,
                                                 textAlign: "right",
-                                                fontSize: "1em",
+                                                fontSize: "10px",
                                                 fontWeight: "bold",
                                             }}
                                         >
@@ -251,7 +275,7 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                     <Typography
                         variant="body1"
                         style={{
-                            fontSize: "1.2em",
+                            fontSize: "10px",
                             fontFamily: "monospace",
                             textAlign: "center",
                             fontWeight: "bold",
@@ -266,10 +290,11 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                 <Typography
                     variant="body1"
                     style={{
-                        fontSize: "1.2em",
+                        fontSize: "10px",
                         fontFamily: "monospace",
                         textAlign: "center",
                         fontWeight: "bold",
+                        marginTop: "5px"
                     }}
                 >
                     Amount Due: Ksh.{totalAmount?.toFixed(2)}
@@ -277,20 +302,20 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
 
                 <Typography
                     variant="body1"
-                    sx={{ textAlign: "center", fontWeight: "12px" }}
+                    sx={{ textAlign: "center", fontWeight: "12px", fontSize: "10px" }}
                 >
                     ============================
                 </Typography>
-                <div className="qrcoded" style={{ marginTop: 4 }}>
-                    <QRCodeCanvas value={QR_Code} size={80} className="qrcode" />
+                <div className="qrcoded" style={{ marginTop: 4, textAlign: "center" }}>
+                    <QRCodeCanvas value={QR_Code} size={60} className="qrcode" />
                 </div>
                 <Typography
                     variant="body1"
                     style={{
-                        fontSize: "0.9em",
+                        fontSize: "9px",
                         fontFamily: "monospace",
                         textAlign: "center",
-                        marginTop: 10,
+                        marginTop: 8,
                     }}
                 >
                     Thank you for your support!
@@ -298,7 +323,7 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                 <Typography
                     variant="body1"
                     style={{
-                        fontSize: "0.9em",
+                        fontSize: "9px",
                         fontFamily: "monospace",
                         textAlign: "center",
                     }}
@@ -308,23 +333,13 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                 <Typography
                     variant="body1"
                     style={{
-                        fontSize: "0.8em",
+                        fontSize: "9px",
                         fontFamily: "monospace",
                         textAlign: "center",
                     }}
                 >
                     Generated on {new Date().toLocaleDateString()}
                 </Typography>
-                {/* <Typography
-              variant="body1"
-              style={{
-                fontSize: "0.8em",
-                fontFamily: "monospace",
-                textAlign: "center",
-              }}
-            >
-              Powered by: FSS ltd.
-            </Typography> */}
             </div>
             <Box
                 sx={{

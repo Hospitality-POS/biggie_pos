@@ -1,17 +1,50 @@
 import React, { useEffect, useState } from "react";
 
 function NubaLoader() {
+  const [cssLoaded, setCssLoaded] = useState(false);
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const isRposTenant = tenant?.tenant_code === "RPOS-000004";
+  const isRposTenant = tenant?.business_type?.name === "massage_parlour";
+
+  // For debugging
+  useEffect(() => {
+    console.log("Tenant business type:", tenant?.business_type?.name);
+    console.log("isRposTenant:", isRposTenant);
+  }, [tenant, isRposTenant]);
 
   useEffect(() => {
+    // Reset the CSS loaded state when tenant changes
+    setCssLoaded(false);
+
     if (isRposTenant) {
-      import("./NubaOriginal.css");
+      console.log("Loading NubaOriginal.css");
+      import("./NubaOriginal.css")
+        .then(() => {
+          console.log("NubaOriginal.css loaded successfully");
+          setCssLoaded(true);
+        })
+        .catch(error => {
+          console.error("Failed to load NubaOriginal.css:", error);
+          // Fallback to the default CSS if the specific one fails
+          import("./NubaLoader.css").then(() => setCssLoaded(true));
+        });
     } else {
-      import("./NubaLoader.css");
+      console.log("Loading NubaLoader.css");
+      import("./NubaLoader.css")
+        .then(() => {
+          console.log("NubaLoader.css loaded successfully");
+          setCssLoaded(true);
+        })
+        .catch(error => {
+          console.error("Failed to load NubaLoader.css:", error);
+        });
     }
   }, [isRposTenant]);
+
+  // Show a minimal loading indicator until CSS is loaded
+  if (!cssLoaded) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100px' }}>Loading...</div>;
+  }
 
   if (isRposTenant) {
     return (
