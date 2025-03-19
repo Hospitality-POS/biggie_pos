@@ -116,7 +116,7 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                     >
                         {BRAND_NAME1}
                     </Typography>
-                    <Typography
+                    {/* <Typography
                         style={{
                             fontFamily: "'Courier New', monospace",
                             fontSize: "12pt",
@@ -125,7 +125,7 @@ const PrintBillSpaModal: React.FC<PrintBillProps> = ({
                         }}
                     >
                         {ENTITY_NAME}
-                    </Typography>
+                    </Typography> */}
                     <Typography
                         style={{
                             fontSize: "11pt",
