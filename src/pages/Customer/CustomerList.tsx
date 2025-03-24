@@ -1,9 +1,10 @@
 import React from "react";
 import { ProCard } from "@ant-design/pro-components";
-import { FileDoneOutlined, PrinterFilled } from "@ant-design/icons";
+import { FileDoneOutlined, PrinterFilled, GiftOutlined } from "@ant-design/icons";
 import { Space, Typography } from "antd";
 import CustomerTable from "./CustomerTable";
 import Schedule from "../staff/schedule";
+import AdminCustomersTable from "./CustomerTable";
 
 const { Title } = Typography;
 
@@ -46,6 +47,17 @@ function Customers() {
                 }
             >
                 <Schedule />
+            </ProCard.TabPane>
+            <ProCard.TabPane
+                key="giftCards"
+                tab={
+                    <Space>
+                        <GiftOutlined style={{ color: "#9a6e44", fontSize: "18px" }} />
+                        <Typography.Text>Gift Certificates</Typography.Text>
+                    </Space>
+                }
+            >
+                <AdminCustomersTable nonCustomerEnabled={true} />
             </ProCard.TabPane>
         </ProCard>
     );
