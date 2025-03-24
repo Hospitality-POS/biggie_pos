@@ -1,4 +1,3 @@
-// Fix 1: Import redux-thunk properly to handle async actions
 import React, { useRef, useState, useEffect } from "react";
 import {
     ProTable,
@@ -19,7 +18,12 @@ import {
     EditOutlined,
     CopyOutlined,
     HistoryOutlined,
-    FilePdfOutlined
+    FilePdfOutlined,
+    UserAddOutlined,
+    UserOutlined,
+    PhoneOutlined,
+    CalendarOutlined,
+    BarsOutlined
 } from "@ant-design/icons";
 import {
     Tag,
@@ -29,7 +33,6 @@ import {
     Input,
     InputNumber,
     Space,
-    message,
     Card,
     Typography,
     Divider,
@@ -37,18 +40,21 @@ import {
     Table,
     Tooltip,
     Popconfirm,
-    App // Fix 2: Import App component for message context
+    App,
+    Radio,
+    DatePicker,
+    Row,
+    Col
 } from "antd";
 import { useDispatch } from "react-redux";
 import { createGiftCard, sendGiftCard, fetchAllGiftCards } from "@services/customers";
+import moment from "moment";
 
 const { Title, Paragraph, Text } = Typography;
 const { TabPane } = Tabs;
+const { TextArea } = Input;
 
-
-
-
-const issueGiftCard = (customerId, amount, message, dispatch) => {
+const issueGiftCard = (customerId, customerName, email, phone, amount, message) => {
     const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
     for (let i = 0; i < 12; i++) {
@@ -57,36 +63,54 @@ const issueGiftCard = (customerId, amount, message, dispatch) => {
     }
 
     const safeMessage = message || "";
-
-    return {
+    const card = {
         card_no: `GC-${Math.floor(Math.random() * 10000)}`,
         code: code,
         amount,
         message: safeMessage,
-        expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-        customer_id: customerId,
+        expiry_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
         status: true,
     };
+
+    // Add customer details based on which type it is
+    if (customerId) {
+        card.customer_id = customerId;
+    } else {
+        card.customer_name = customerName;
+        card.email = email;
+        card.phone = phone;
+    }
+
+    return card;
 };
 
-const AdminCustomersTable = () => {
+const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
     const dispatch = useDispatch();
     const actionRef = useRef();
     const formRef = useRef();
     const giftCardRef = useRef(null);
     const [isGiftCardModalVisible, setIsGiftCardModalVisible] = useState(false);
+    const [isNewRecipientModalVisible, setIsNewRecipientModalVisible] = useState(false);
     const [isPreviewModalVisible, setIsPreviewModalVisible] = useState(false);
     const [isSendEmailModalVisible, setIsSendEmailModalVisible] = useState(false);
     const [isViewGiftCardsModalVisible, setIsViewGiftCardsModalVisible] = useState(false);
+    const [isAllGiftCardsModalVisible, setIsAllGiftCardsModalVisible] = useState(false);
     const [currentCustomer, setCurrentCustomer] = useState(null);
     const [giftCardForm] = Form.useForm();
+    const [newRecipientForm] = Form.useForm();
     const [emailForm] = Form.useForm();
     const [currentGiftCard, setCurrentGiftCard] = useState(null);
     const [customerGiftCards, setCustomerGiftCards] = useState([]);
+    const [allGiftCards, setAllGiftCards] = useState([]);
     const [loadingGiftCards, setLoadingGiftCards] = useState(false);
+    const [loadingAllGiftCards, setLoadingAllGiftCards] = useState(false);
     const [clientName, setClientName] = useState("Relia Pos");
     const [savingPDF, setSavingPDF] = useState(false);
-    const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+    const [primaryColor, setPrimaryColor] = useState("#9a6e44");
+    const [activeTabKey, setActiveTabKey] = useState("customers");
+
+    const { message: messageApi } = App.useApp();
+
     useEffect(() => {
         const storedTenant = localStorage.getItem("tenant");
         const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -94,9 +118,6 @@ const AdminCustomersTable = () => {
             setPrimaryColor(tenant.primary_color);
         }
     }, []);
-
-    // Fix 3: Add messageApi reference
-    const { message: messageApi } = App.useApp();
 
     useEffect(() => {
         const storedTenant = localStorage.getItem("tenant");
@@ -113,10 +134,7 @@ const AdminCustomersTable = () => {
         return latestVisit.createdAt;
     };
 
-
-
     const showGiftCardModal = (record) => {
-        console.log('nice', record);
         setCurrentCustomer(record);
         const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
         giftCardForm.resetFields();
@@ -126,17 +144,23 @@ const AdminCustomersTable = () => {
         setIsGiftCardModalVisible(true);
     };
 
-    const showGiftCardsHistory = async (record) => {
+    const showNewRecipientModal = () => {
+        newRecipientForm.resetFields();
+        const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
+        newRecipientForm.setFieldsValue({
+            message: defaultMessage,
+            expiry_date: moment().add(3, 'months')
+        });
+        setIsNewRecipientModalVisible(true);
+    };
 
+    const showGiftCardsHistory = async (record) => {
         setCurrentCustomer(record);
         setIsViewGiftCardsModalVisible(true);
         setLoadingGiftCards(true);
 
         try {
-            // Use the service directly without Redux, matching your existing pattern
-
             const giftCards = await fetchAllGiftCards(record);
-            console.log('my record', giftCards);
             setCustomerGiftCards(giftCards);
         } catch (error) {
             console.error("Failed to fetch gift cards:", error);
@@ -146,7 +170,22 @@ const AdminCustomersTable = () => {
         }
     };
 
-    // Fix 4: Modified to handle async Redux action properly
+    const showAllGiftCards = async () => {
+        setIsAllGiftCardsModalVisible(true);
+        setLoadingAllGiftCards(true);
+
+        try {
+            // Fix: Call fetchAllGiftCards without parameters to get all gift cards
+            const response = await fetchAllGiftCards();
+            setAllGiftCards(response);
+        } catch (error) {
+            console.error("Failed to fetch all gift cards:", error);
+            messageApi.error("Failed to load gift cards");
+        } finally {
+            setLoadingAllGiftCards(false);
+        }
+    };
+
     const handleGiftCardSubmit = async () => {
         try {
             const values = await giftCardForm.validateFields();
@@ -158,64 +197,123 @@ const AdminCustomersTable = () => {
 
             const giftCard = issueGiftCard(
                 currentCustomer._id,
+                currentCustomer.customer_name,
+                currentCustomer.email,
+                currentCustomer.phone,
                 values.amount,
-                cardMessage,
-                dispatch
+                cardMessage
             );
 
             setCurrentGiftCard(giftCard);
             setIsGiftCardModalVisible(false);
             setIsPreviewModalVisible(true);
-
-            // Fix: Convert async action to use await
-            try {
-                // Handle createGiftCard as a promise
-                await dispatch(createGiftCard(giftCard) as AnyAction).unwrap();
-            } catch (error) {
-                console.error("Error creating gift card:", error);
-                messageApi.error("Failed to create gift card");
-            }
         } catch (error) {
             console.error("Gift card form validation failed:", error);
         }
     };
 
-    // Fix 5: Modified to handle async Redux action properly
+    const handleNewRecipientSubmit = async () => {
+        try {
+            const values = await newRecipientForm.validateFields();
+
+            const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
+            const cardMessage = (values.message === undefined || values.message === null)
+                ? defaultMessage
+                : values.message;
+
+            const giftCard = issueGiftCard(
+                null, // No customer_id for non-customers
+                values.customer_name,
+                values.email,
+                values.phone,
+                values.amount,
+                cardMessage
+            );
+
+            // Add expiry date from the form
+            giftCard.expiry_date = values.expiry_date.toISOString();
+
+            setCurrentGiftCard(giftCard);
+            setIsNewRecipientModalVisible(false);
+            setIsPreviewModalVisible(true);
+        } catch (error) {
+            console.error("New recipient form validation failed:", error);
+        }
+    };
+
+    const handleCreateGiftCard = async () => {
+        try {
+            // Make a copy of the current gift card to send
+            const giftCardToCreate = { ...currentGiftCard };
+
+            const response = await dispatch(createGiftCard(giftCardToCreate));
+
+            if (response && response.payload) {
+                messageApi.success("Gift certificate created successfully");
+
+                // If the gift card was created for an existing customer, add it to the list
+                if (giftCardToCreate.customer_id && currentCustomer) {
+                    setCustomerGiftCards(prev => [...prev, { ...giftCardToCreate, _id: response.payload._id }]);
+                }
+
+                // Add the new gift card to allGiftCards if that list is loaded
+                if (allGiftCards.length > 0) {
+                    setAllGiftCards(prev => [...prev, { ...giftCardToCreate, _id: response.payload._id }]);
+                }
+
+                setIsPreviewModalVisible(false);
+            } else {
+                messageApi.error("Failed to create gift card");
+            }
+        } catch (error) {
+            console.error("Error creating gift card:", error);
+            messageApi.error("Failed to create gift card: " + error.message);
+        }
+    };
+
     const handleSendEmail = async () => {
         try {
-            // Get the values directly from the form without validation
-            const values = emailForm.getFieldsValue();
+            const values = await emailForm.validateFields();
 
             const storedTenant = localStorage.getItem("tenant");
             const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
+            const customerName = currentGiftCard.customer_id
+                ? currentCustomer?.customer_name
+                : currentGiftCard.customer_name;
+
             const payload = {
                 email: values.email,
-                giftCard: currentGiftCard,
-                customerName: currentCustomer.customer_name,
+                giftCard: { ...currentGiftCard },
+                customerName: customerName,
                 tenant: tenant
             };
 
             try {
-                // Handle sendGiftCard as a promise
-                await dispatch(sendGiftCard(payload)).unwrap();
-                messageApi.success("Gift card sent successfully!");
+                const response = await dispatch(sendGiftCard(payload));
 
-                setIsSendEmailModalVisible(false);
-                setIsPreviewModalVisible(false);
+                if (response && response.payload && response.payload.success) {
+                    messageApi.success("Gift card sent successfully!");
 
-                setCustomerGiftCards(prev => [...prev, currentGiftCard]);
+                    setIsSendEmailModalVisible(false);
 
-                // Reset form fields if needed
-                emailForm.resetFields();
+                    // Don't close the preview modal automatically
+                    // setIsPreviewModalVisible(false);
+
+                    // Reset form fields
+                    emailForm.resetFields();
+                } else {
+                    messageApi.error("Failed to send gift card email");
+                }
             } catch (error) {
                 console.error("Error sending gift card:", error);
-                messageApi.error("Failed to send gift card");
+                messageApi.error("Failed to send gift card: " + error.message);
             }
         } catch (error) {
             console.error("Email form validation failed:", error);
+            messageApi.error("Please fill in all required fields");
         }
-    }
+    };
 
     const copyGiftCardCode = (code) => {
         navigator.clipboard.writeText(code)
@@ -265,34 +363,45 @@ const AdminCustomersTable = () => {
     };
 
     const giftCardColumns = [
-        {
-            title: "Code",
-            dataIndex: "code",
-            key: "code",
-            render: (text) => (
-                <Space>
-                    <Text copyable={false}>{text}</Text>
-                    <Tooltip title="Copy Code">
-                        <Button
-                            type="text"
-                            icon={<CopyOutlined />}
-                            onClick={() => copyGiftCardCode(text)}
-                        />
-                    </Tooltip>
-                </Space>
-            ),
-        },
+        // {
+        //     title: "Code",
+        //     dataIndex: "code",
+        //     key: "code",
+        //     render: (text) => (
+        //         <Space>
+        //             <Text copyable={false}>{text}</Text>
+        //             <Tooltip title="Copy Code">
+        //                 <Button
+        //                     type="text"
+        //                     icon={<CopyOutlined />}
+        //                     onClick={() => copyGiftCardCode(text)}
+        //                 />
+        //             </Tooltip>
+        //         </Space>
+        //     ),
+        // },
         {
             title: "Amount",
             dataIndex: "amount",
             key: "amount",
-            render: (amount) => `ksh ${amount}`,
+            render: (amount) => `KSh ${amount}`,
+        },
+        {
+            title: "Recipient",
+            dataIndex: "customer_name",
+            key: "recipient",
+            render: (name, record) => record.customer_name || (record.customer_id ? record.customer_id.customer_name : "Unknown"),
+        },
+        {
+            title: "Email",
+            dataIndex: "email",
+            key: "email",
         },
         {
             title: "Issue Date",
             dataIndex: "createdAt",
             key: "createdAt",
-            render: (date) => new Date(date).toLocaleDateString(),
+            render: (date) => date ? new Date(date).toLocaleDateString() : "N/A",
         },
         {
             title: "Expiry Date",
@@ -332,6 +441,16 @@ const AdminCustomersTable = () => {
                         icon={<EyeOutlined />}
                         onClick={() => {
                             setCurrentGiftCard(record);
+                            // If viewing a customer's gift card, set the current customer
+                            if (record.customer_id && currentCustomer?._id === record.customer_id) {
+                                // Current customer already set
+                            } else if (record.customer_id) {
+                                // This is a gift card for a customer, but we're viewing all gift cards
+                                setCurrentCustomer({ _id: record.customer_id });
+                            } else {
+                                // This is a gift card for a non-customer
+                                setCurrentCustomer(null);
+                            }
                             setIsPreviewModalVisible(true);
                         }}
                     >
@@ -341,7 +460,7 @@ const AdminCustomersTable = () => {
                         icon={<MailOutlined />}
                         onClick={() => {
                             setCurrentGiftCard(record);
-                            emailForm.setFieldsValue({ email: currentCustomer?.email || "" });
+                            emailForm.setFieldsValue({ email: record.email || currentCustomer?.email || "" });
                             setIsSendEmailModalVisible(true);
                         }}
                     >
@@ -448,8 +567,30 @@ const AdminCustomersTable = () => {
     ];
 
     return (
-        // Fix 6: Wrap component in App component to provide message context
         <App>
+            {nonCustomerEnabled && (
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+                    <div>
+                        <Button
+                            icon={<BarsOutlined />}
+                            onClick={showAllGiftCards}
+                        >
+                            View All Gift Certificates
+                        </Button>
+                    </div>
+                    <div>
+                        <Button
+                            type="primary"
+                            icon={<UserAddOutlined />}
+                            onClick={showNewRecipientModal}
+                            style={{ background: primaryColor, borderColor: primaryColor }}
+                        >
+                            Create Gift Card for Non-Customer
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             <ProTable
                 rowKey="_id"
                 columns={columns}
@@ -484,9 +625,10 @@ const AdminCustomersTable = () => {
                 rowSelection={{ alwaysShowAlert: false }}
             />
 
+            {/* Modal for existing customers */}
             <Modal
                 title={`Issue Gift Card for ${currentCustomer?.customer_name || ""}`}
-                open={isGiftCardModalVisible} // Fix 7: Change visible to open (newer Ant Design version)
+                open={isGiftCardModalVisible}
                 onOk={handleGiftCardSubmit}
                 onCancel={() => setIsGiftCardModalVisible(false)}
             >
@@ -498,7 +640,7 @@ const AdminCustomersTable = () => {
                     >
                         <InputNumber
                             min={1}
-                            prefix="ksh"
+                            prefix="KSh"
                             style={{ width: "100%" }}
                             placeholder="Enter amount"
                         />
@@ -508,7 +650,7 @@ const AdminCustomersTable = () => {
                         label="Personalized Message"
                         initialValue={`Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
                     >
-                        <Input.TextArea
+                        <TextArea
                             rows={4}
                             placeholder="Add a personalized message for the gift card"
                         />
@@ -516,35 +658,157 @@ const AdminCustomersTable = () => {
                 </Form>
             </Modal>
 
+            {/* New Modal for non-customers */}
             <Modal
-                title="Gift Card Preview"
-                open={isPreviewModalVisible} // Fix 8: Change visible to open
-                footer={[
-                    <Button key="back" onClick={() => setIsPreviewModalVisible(false)}>
-                        Close
-                    </Button>,
-                    <Button
-                        key="download"
-                        type="primary"
-                        icon={<FilePdfOutlined />}
-                        loading={savingPDF}
-                        onClick={saveGiftCardAsPDF}
+                title="Issue Gift Card for New Recipient"
+                open={isNewRecipientModalVisible}
+                onOk={handleNewRecipientSubmit}
+                onCancel={() => setIsNewRecipientModalVisible(false)}
+                width={700}
+            >
+                <Form form={newRecipientForm} layout="vertical">
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                        <Form.Item
+                            name="customer_name"
+                            label="Recipient Name"
+                            rules={[{ required: true, message: "Please enter recipient name" }]}
+                            style={{ flex: 1 }}
+                        >
+                            <Input
+                                prefix={<UserOutlined />}
+                                placeholder="Enter recipient name"
+                            />
+                        </Form.Item>
+
+                        <Form.Item
+                            name="email"
+                            label="Email"
+                            rules={[
+                                { required: true, message: "Please enter recipient email" },
+                                { type: 'email', message: "Please enter a valid email" }
+                            ]}
+                            style={{ flex: 1 }}
+                        >
+                            <Input
+                                prefix={<MailOutlined />}
+                                placeholder="Enter recipient email"
+                            />
+                        </Form.Item>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                        <Form.Item
+                            name="phone"
+                            label="Phone Number"
+                            rules={[{ required: true, message: "Please enter recipient phone" }]}
+                            style={{ flex: 1 }}
+                        >
+                            <Input
+                                prefix={<PhoneOutlined />}
+                                placeholder="Enter phone number"
+                            />
+                        </Form.Item>
+
+                        <Form.Item
+                            name="amount"
+                            label="Gift Card Amount"
+                            rules={[{ required: true, message: "Please enter the gift card amount" }]}
+                            style={{ flex: 1 }}
+                        >
+                            <InputNumber
+                                min={1}
+                                prefix="KSh"
+                                style={{ width: "100%" }}
+                                placeholder="Enter amount"
+                            />
+                        </Form.Item>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                        <Form.Item
+                            name="expiry_date"
+                            label="Expiry Date"
+                            rules={[{ required: true, message: "Please select expiry date" }]}
+                            style={{ flex: 1 }}
+                            initialValue={moment().add(3, 'months')}
+                        >
+                            <DatePicker
+                                style={{ width: '100%' }}
+                                format="YYYY-MM-DD"
+                                disabledDate={(current) => {
+                                    // Can not select days before today
+                                    return current && current < moment().endOf('day');
+                                }}
+                            />
+                        </Form.Item>
+                    </div>
+
+                    <Form.Item
+                        name="message"
+                        label="Personalized Message"
+                        initialValue={`Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
                     >
-                        Print/Save PDF
-                    </Button>,
-                    <Button
-                        key="submit"
-                        type="primary"
-                        icon={<MailOutlined />}
-                        onClick={() => {
-                            setIsPreviewModalVisible(false);
-                            emailForm.setFieldsValue({ email: currentCustomer?.email || "" });
-                            setIsSendEmailModalVisible(true);
-                        }}
-                    >
-                        Share via Email
-                    </Button>,
-                ]}
+                        <TextArea
+                            rows={4}
+                            placeholder="Add a personalized message for the gift card"
+                        />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            {/* Gift Card Preview Modal */}
+            <Modal
+                title="Gift Certificate Preview"
+                open={isPreviewModalVisible}
+                footer={
+                    <Row gutter={[8, 8]}>
+                        <Col xs={24} sm={12} md={6}>
+                            <Button
+                                block
+                                onClick={() => setIsPreviewModalVisible(false)}
+                            >
+                                Close
+                            </Button>
+                        </Col>
+                        <Col xs={24} sm={12} md={6}>
+                            <Button
+                                block
+                                type="primary"
+                                icon={<FilePdfOutlined />}
+                                loading={savingPDF}
+                                onClick={saveGiftCardAsPDF}
+                            >
+                                export PDF
+                            </Button>
+                        </Col>
+                        <Col xs={24} sm={12} md={6}>
+                            <Button
+                                block
+                                type="primary"
+                                onClick={handleCreateGiftCard}
+                            >
+                                Create Gift Card
+                            </Button>
+                        </Col>
+                        <Col xs={24} sm={12} md={6}>
+                            <Button
+                                block
+                                type="primary"
+                                icon={<MailOutlined />}
+                                onClick={() => {
+                                    emailForm.setFieldsValue({
+                                        email: currentGiftCard.customer_id
+                                            ? currentCustomer?.email || ""
+                                            : currentGiftCard.email || ""
+                                    });
+                                    setIsSendEmailModalVisible(true);
+                                }}
+                            >
+                                Share Email
+                            </Button>
+                        </Col>
+                    </Row>
+                }
                 onCancel={() => setIsPreviewModalVisible(false)}
                 width={500}
             >
@@ -553,45 +817,125 @@ const AdminCustomersTable = () => {
                         ref={giftCardRef}
                         bordered
                         style={{
-                            background: "linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor} 100%)",
-                            color: "white",
+                            background: `#f8f0e5`,
+                            color: "#9a6e44",
                             borderRadius: "8px"
                         }}
                     >
                         <div style={{ padding: "16px", textAlign: "center" }}>
-                            <GiftOutlined style={{ fontSize: "32px", marginBottom: "16px" }} />
-                            <Title level={3} style={{ color: "black", margin: "8px 0" }}>
-                                {clientName} Gift Card
+                            <Title level={2} style={{ color: "#9a6e44", margin: "8px 0", textTransform: "uppercase", letterSpacing: "2px", fontWeight: 300 }}>
+                                Gift Certificate
                             </Title>
-                            <Divider style={{ background: "rgba(255,255,255,0.2)", margin: "12px 0" }} />
-                            <Title level={4} style={{ color: "black" }}>
-                                ksh {currentGiftCard.amount}
-                            </Title>
-                            <Paragraph style={{ color: "black" }}>
-                                {currentGiftCard.message || `Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
+                            <Divider style={{ background: "rgba(154,110,68,0.2)", margin: "12px 0" }} />
+
+                            <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
+                                <div style={{ textAlign: "center" }}>
+                                    <div style={{ fontSize: "32px", fontWeight: 300, textTransform: "uppercase", letterSpacing: "2px", color: "#9a6e44" }}>
+                                        Treat <span style={{ fontStyle: "italic", fontWeight: 300, textTransform: "none", color: "#b08968" }}>yourself</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", marginTop: "20px" }}>
+                                <div style={{ width: "48%", textAlign: "left", marginBottom: "15px" }}>
+                                    <div style={{ color: "#9a6e44", fontWeight: 500, marginBottom: "5px" }}>To:</div>
+                                    <div style={{
+                                        backgroundColor: "white",
+                                        padding: "12px",
+                                        borderRadius: "4px",
+                                        color: "#333",
+                                        minHeight: "42px"
+                                    }}>
+                                        {currentGiftCard.customer_id ? currentGiftCard?.customer_id?.customer_name : currentGiftCard.customer_name}
+                                    </div>
+                                </div>
+
+                                <div style={{ width: "48%", textAlign: "left", marginBottom: "15px" }}>
+                                    <div style={{ color: "#9a6e44", fontWeight: 500, marginBottom: "5px" }}>From:</div>
+                                    <div style={{
+                                        backgroundColor: "white",
+                                        padding: "12px",
+                                        borderRadius: "4px",
+                                        color: "#333",
+                                        minHeight: "42px"
+                                    }}>
+                                        {clientName}
+                                    </div>
+                                </div>
+
+                                <div style={{ width: "48%", textAlign: "left", marginBottom: "15px" }}>
+                                    <div style={{ color: "#9a6e44", fontWeight: 500, marginBottom: "5px" }}>Amount:</div>
+                                    <div style={{
+                                        backgroundColor: "white",
+                                        padding: "12px",
+                                        borderRadius: "4px",
+                                        color: "#333",
+                                        minHeight: "42px"
+                                    }}>
+                                        KSh {currentGiftCard.amount}
+                                    </div>
+                                </div>
+
+                                <div style={{ width: "48%", textAlign: "left", marginBottom: "15px" }}>
+                                    <div style={{ color: "#9a6e44", fontWeight: 500, marginBottom: "5px" }}>Valid to:</div>
+                                    <div style={{
+                                        backgroundColor: "white",
+                                        padding: "12px",
+                                        borderRadius: "4px",
+                                        color: "#333",
+                                        minHeight: "42px"
+                                    }}>
+                                        {new Date(currentGiftCard.expiry_date).toLocaleDateString()}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style={{
+                                backgroundColor: "white",
+                                padding: "15px",
+                                margin: "20px 0",
+                                borderRadius: "8px",
+                                fontFamily: "monospace",
+                                letterSpacing: "2px",
+                                fontSize: "22px",
+                                color: "#333",
+                                border: "1px solid #e8d5c4"
+                            }}>
+                                {currentGiftCard.code}
+                            </div>
+
+                            <Paragraph style={{ fontSize: "14px", color: "#757575", margin: "20px 0", textAlign: "center" }}>
+                                Our gift certificates are valid for three months from the date of issue. Please note that they must be used within this period, as they cannot be extended or redeemed after expiration.
                             </Paragraph>
-                            <Divider style={{ background: "rgba(255,255,255,0.2)", margin: "12px 0" }} />
-                            <div style={{ display: "flex", justifyContent: "space-between", flexDirection: "column", gap: "8px" }}>
-                                <Text style={{ color: "black" }}>
-                                    Code: {currentGiftCard.code}
-                                </Text>
-                                <Text style={{ color: "black" }}>
-                                    Card #: {currentGiftCard.id || currentGiftCard.card_no}
-                                </Text>
-                                <Text style={{ color: "black" }}>
-                                    Expires: {new Date(currentGiftCard.expiryDate || currentGiftCard.expiry_date).toLocaleDateString()}
-                                </Text>
+
+                            <div style={{ textAlign: "right", marginTop: "20px" }}>
+                                <div style={{
+                                    display: "inline-block",
+                                    width: "80px",
+                                    height: "80px",
+                                    borderRadius: "50%",
+                                    border: "1px solid #9a6e44",
+                                    textAlign: "center",
+                                    lineHeight: "80px",
+                                    fontSize: "24px",
+                                    color: "#9a6e44",
+                                    fontWeight: 300
+                                }}>
+                                    {clientName.substring(0, 1)}
+                                </div>
                             </div>
                         </div>
                     </Card>
                 )}
             </Modal>
 
+            {/* Send Email Modal - Updated */}
             <Modal
                 title="Share Gift Card"
-                open={isSendEmailModalVisible} // Fix 9: Change visible to open
+                open={isSendEmailModalVisible}
                 onOk={handleSendEmail}
                 onCancel={() => setIsSendEmailModalVisible(false)}
+                okText="Send Email"
+                okButtonProps={{ icon: <MailOutlined /> }}
             >
                 <Form form={emailForm} layout="vertical">
                     <Form.Item
@@ -602,7 +946,10 @@ const AdminCustomersTable = () => {
                             { type: "email", message: "Please enter a valid email" }
                         ]}
                     >
-                        <Input placeholder="Enter email address" />
+                        <Input
+                            placeholder="Enter email address"
+                            prefix={<MailOutlined />}
+                        />
                     </Form.Item>
 
                     {currentGiftCard && (
@@ -617,7 +964,7 @@ const AdminCustomersTable = () => {
                                             amount: value
                                         }));
                                     }}
-                                    prefix="ksh"
+                                    prefix="KSh"
                                     style={{ width: "100%" }}
                                 />
                             </Form.Item>
@@ -638,7 +985,7 @@ const AdminCustomersTable = () => {
                             </Form.Item>
 
                             <Form.Item label="Message">
-                                <Input.TextArea
+                                <TextArea
                                     rows={3}
                                     value={currentGiftCard.message || `Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
                                     onChange={(e) => {
@@ -658,9 +1005,10 @@ const AdminCustomersTable = () => {
                 </Form>
             </Modal>
 
+            {/* View Customer Gift Cards Modal */}
             <Modal
                 title={`Gift Cards for ${currentCustomer?.customer_name || ""}`}
-                open={isViewGiftCardsModalVisible} // Fix 10: Change visible to open
+                open={isViewGiftCardsModalVisible}
                 onCancel={() => setIsViewGiftCardsModalVisible(false)}
                 footer={[
                     <Button key="close" onClick={() => setIsViewGiftCardsModalVisible(false)}>
@@ -678,16 +1026,83 @@ const AdminCustomersTable = () => {
                         Issue New Gift Card
                     </Button>,
                 ]}
-                width={800}
+                width={900}
+                bodyStyle={{ maxHeight: "70vh", overflow: "auto" }}
             >
                 <Table
                     columns={giftCardColumns}
                     dataSource={customerGiftCards}
-                    rowKey="id"
+                    rowKey="_id"
                     loading={loadingGiftCards}
                     pagination={{ pageSize: 5 }}
                     locale={{ emptyText: "No gift cards found for this customer" }}
+                    scroll={{ x: 800 }}
+                    size="middle"
                 />
+            </Modal>
+
+            {/* All Gift Cards Modal (New) */}
+            <Modal
+                title="All Gift Certificates"
+                open={isAllGiftCardsModalVisible}
+                onCancel={() => setIsAllGiftCardsModalVisible(false)}
+                footer={[
+                    <Button key="close" onClick={() => setIsAllGiftCardsModalVisible(false)}>
+                        Close
+                    </Button>,
+                    <Button
+                        key="new"
+                        type="primary"
+                        icon={<UserAddOutlined />}
+                        onClick={() => {
+                            setIsAllGiftCardsModalVisible(false);
+                            showNewRecipientModal();
+                        }}
+                    >
+                        New Non-Customer Gift Card
+                    </Button>,
+                ]}
+                width={1000}
+                bodyStyle={{ maxHeight: "70vh", overflow: "auto" }}
+            >
+                <Tabs defaultActiveKey="all" onChange={(key) => setActiveTabKey(key)}>
+                    <TabPane tab="All Gift Cards" key="all">
+                        <Table
+                            columns={giftCardColumns}
+                            dataSource={allGiftCards}
+                            rowKey="_id"
+                            loading={loadingAllGiftCards}
+                            pagination={{ pageSize: 10 }}
+                            locale={{ emptyText: "No gift cards found" }}
+                            scroll={{ x: 850 }}
+                            size="middle"
+                        />
+                    </TabPane>
+                    <TabPane tab="Non-Customer Gift Cards" key="nonCustomers">
+                        <Table
+                            columns={giftCardColumns}
+                            dataSource={allGiftCards.filter(card => !card.customer_id)}
+                            rowKey="_id"
+                            loading={loadingAllGiftCards}
+                            pagination={{ pageSize: 10 }}
+                            locale={{ emptyText: "No non-customer gift cards found" }}
+                            scroll={{ x: 850 }}
+                            size="middle"
+                        />
+                    </TabPane>
+                    <TabPane tab="Customer Gift Cards" key="customers">
+                        <Table
+                            columns={giftCardColumns}
+                            dataSource={allGiftCards.filter(card => card.customer_id)}
+                            rowKey="_id"
+                            loading={loadingAllGiftCards}
+                            pagination={{ pageSize: 10 }}
+                            locale={{ emptyText: "No customer gift cards found" }}
+                            scroll={{ x: 850 }}
+                            size="middle"
+                        />
+                    </TabPane>
+                </Tabs>
             </Modal>
         </App>
     );
