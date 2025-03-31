@@ -12,6 +12,8 @@ import {
   useMediaQuery,
   useTheme,
   Paper,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +21,7 @@ import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
 import CartDrawer from "../../components/cart/CartDrawer";
 import BackspaceIcon from "@mui/icons-material/Backspace";
+import SearchIcon from "@mui/icons-material/Search";
 import { useParams } from "react-router-dom";
 import { getCart } from "../../features/Cart/CartActions";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
@@ -56,6 +59,10 @@ const RestaurantPage: React.FC = () => {
   const [categories, setCategories] = useState([]);
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
 
+  // Search state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState([]);
+
   // Get tenant primary color on component mount
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
@@ -65,6 +72,23 @@ const RestaurantPage: React.FC = () => {
     }
   }, []);
 
+  // Filter products when search term or products change
+  useEffect(() => {
+    if (!products) {
+      setFilteredProducts([]);
+      return;
+    }
+
+    if (!searchTerm.trim()) {
+      setFilteredProducts(products);
+      return;
+    }
+
+    const filtered = products.filter(product =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredProducts(filtered);
+  }, [searchTerm, products]);
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
@@ -82,6 +106,8 @@ const RestaurantPage: React.FC = () => {
         setCategories([]);
       }
     }
+    // Clear search when changing categories
+    setSearchTerm("");
   };
 
   const handleChangeSubCategory = (subcategoryid) => {
@@ -89,6 +115,12 @@ const RestaurantPage: React.FC = () => {
     if (subCategory) {
       setCategories(subCategory.categories || []);
     }
+    // Clear search when changing sub-categories
+    setSearchTerm("");
+  };
+
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
   };
 
   const { id } = useParams();
@@ -118,8 +150,6 @@ const RestaurantPage: React.FC = () => {
     }
   }, [Maincategories]);
 
-  console.log("Maincategories", Maincategories);
-
   const handleCartOpen = () => {
     setCartOpen(true);
     dispatch(getCart(id));
@@ -127,6 +157,7 @@ const RestaurantPage: React.FC = () => {
 
   const handleBack = () => {
     setShowCategories(true);
+    setSearchTerm(""); // Clear search when going back to categories
   };
 
   const handleSelectCard = (card) => {
@@ -134,10 +165,11 @@ const RestaurantPage: React.FC = () => {
     dispatch(fetchProductsByCategory(card));
     setCategoryChosen(true);
     setShowCategories(false);
+    setSearchTerm(""); // Clear search when selecting a new category
   };
 
-  const areProductsAvailable = products && products.length > 0;
-  const sortedProducts = products
+  const areProductsAvailable = filteredProducts && filteredProducts.length > 0;
+  const sortedProducts = filteredProducts
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -200,10 +232,6 @@ const RestaurantPage: React.FC = () => {
                 />
               </div>
               <div
-                // style={{
-                //   width: "100%",
-                //   overflowY: isMobile ? "visible" : "auto",
-                // }}
                 style={{
                   flex: 1,
                   overflowY: "auto",
@@ -266,10 +294,42 @@ const RestaurantPage: React.FC = () => {
                     <div
                       style={{
                         display: "flex",
-                        alignItems: "flex-end",
-                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: "16px",
                       }}
                     >
+                      {/* Search Bar */}
+                      <TextField
+                        placeholder="Search products..."
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        sx={{
+                          maxWidth: isMobile ? "80%" : "100%",
+                          padding: "0 8px",
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "20px",
+                            borderColor: primaryColor,
+                            "&:hover .MuiOutlinedInput-notchedOutline": {
+                              borderColor: primaryColor,
+                            },
+                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                              borderColor: primaryColor,
+                            },
+                          },
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchIcon style={{ color: primaryColor }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+
                       <IconButton
                         onClick={handleBack}
                         sx={{
@@ -331,6 +391,26 @@ const RestaurantPage: React.FC = () => {
                               }}
                             />
                           ))
+                        ) : searchTerm ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: "100%",
+                              padding: "16px",
+                            }}
+                          >
+                            <Alert
+                              variant="filled"
+                              severity="info"
+                              sx={{ width: "100%", bgcolor: "#DEAC80" }}
+                            >
+                              <AlertTitle>No Results</AlertTitle>
+                              No products match your search "{searchTerm}"
+                            </Alert>
+                          </div>
                         ) : categoryChosen ? (
                           <div
                             style={{

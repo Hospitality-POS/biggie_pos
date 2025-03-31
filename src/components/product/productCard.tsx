@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Paper from "@mui/material/Paper";
-import Button from "@mui/material/Button";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
 import { addItem, subtractItem } from "../../features/Cart/CartSlice";
@@ -15,13 +14,17 @@ interface menudetails {
   name: string;
   price: number;
   desc: string;
+  thumbnail?: string;
 }
+
 interface ProductCardProps {
   menu: menudetails;
 }
+
 function formatPrice(price: number) {
   return price?.toLocaleString();
 }
+
 function formatQuantity(quantity: number) {
   return quantity?.toLocaleString();
 }
@@ -31,6 +34,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const { cartDetails, loading } = useAppSelector((state) => state.cart);
   const [quantity, setQuantity] = useState(0);
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  const [isHovered, setIsHovered] = useState(false);
+
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -64,13 +69,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   };
 
   const { invalidate } = useCartItemsData();
+
   const handleIncrement = () => {
     dispatch(addItem(menu._id));
     dispatch(fetchCartItems(cartDetails?._id));
-    // refetch();
     invalidate();
   };
-
 
   const handleDecrement = () => {
     if (quantity > 0) {
@@ -82,9 +86,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
   const formattedPrice = useMemo(() => formatPrice(menu.price), [menu.price]);
 
+  // Default image path
+  const defaultImagePath = "/download.png";
+
   return (
     <Paper
-      elevation={3}
+      elevation={isHovered ? 6 : 3}
       onClick={() => {
         if (!loading) {
           handleIncrement();
@@ -94,45 +101,118 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
       style={{
         display: "flex",
         flexDirection: "column",
-        alignItems: "flex-start",
-        justifyContent: "center",
-        padding: "10px",
-        // maxWidth: "200px",
-        height: "170px",
+        alignItems: "center",
+        padding: "0",
         width: "180px",
+        height: "250px", // Increased height to accommodate the image
         overflow: "hidden",
         cursor: "pointer",
-        backgroundColor: primaryColor,
-        transition: "background-color 0.3s",
+        backgroundColor: isHovered ? "#8a2e42" : primaryColor,
+        transition: "all 0.3s ease",
+        borderRadius: "8px",
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "grey";
-        e.currentTarget.style.color = "white";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = primaryColor;
-        e.currentTarget.style.color = "Black";
-      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <Typography.Title
-        level={4}
-        ellipsis={{ rows: 3 }}
+      {/* Image Container */}
+      <div
         style={{
-          fontWeight: "inherit",
-          whiteSpace: "normal",
-          wordWrap: "break-word",
-          color: "white",
-          textOverflow: "ellipsis",
+          width: "100%",
+          height: "120px",
+          overflow: "hidden",
+          position: "relative",
+          borderTopLeftRadius: "8px",
+          borderTopRightRadius: "8px",
         }}
       >
-        {menu.name}
-      </Typography.Title>
-      <Typography.Text
-        strong
-        style={{ opacity: 0.9, marginTop: "auto", color: "white" }}
+        <img
+          src={menu.thumbnail || defaultImagePath}
+          alt={menu.name}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transition: "transform 0.3s ease",
+            transform: isHovered ? "scale(1.05)" : "scale(1)",
+          }}
+          onError={(e) => {
+            e.currentTarget.src = defaultImagePath; // Fallback to default image on error
+          }}
+        />
+      </div>
+
+      {/* Content Container */}
+      <div
+        style={{
+          padding: "12px",
+          display: "flex",
+          flexDirection: "column",
+          width: "100%",
+          flexGrow: 1,
+        }}
       >
-        Ksh. {formattedPrice}
-      </Typography.Text>
+        <Typography.Title
+          level={4}
+          ellipsis={{ rows: 2 }}
+          style={{
+            fontSize: "16px",
+            margin: "0 0 8px 0",
+            color: "white",
+            textAlign: "center",
+            fontWeight: "600",
+          }}
+        >
+          {menu.name}
+        </Typography.Title>
+
+        {menu.desc && (
+          <Typography.Paragraph
+            ellipsis={{ rows: 2 }}
+            style={{
+              fontSize: "12px",
+              margin: "0 0 8px 0",
+              color: "rgba(255, 255, 255, 0.85)",
+              textAlign: "center",
+            }}
+          >
+            {menu.desc}
+          </Typography.Paragraph>
+        )}
+
+        <div style={{ marginTop: "auto", textAlign: "center" }}>
+          <Typography.Text
+            strong
+            style={{
+              fontSize: "18px",
+              color: "white",
+              display: "block",
+              fontWeight: "bold",
+            }}
+          >
+            Ksh. {formattedPrice}
+          </Typography.Text>
+
+          <div
+            style={{
+              marginTop: "8px",
+              backgroundColor: "rgba(255, 255, 255, 0.15)",
+              padding: "4px 12px",
+              borderRadius: "4px",
+              display: "inline-block",
+              transition: "background-color 0.3s ease",
+            }}
+          >
+            <Typography.Text
+              style={{
+                color: "white",
+                fontSize: "12px",
+              }}
+            >
+              Add to Cart
+            </Typography.Text>
+          </div>
+        </div>
+      </div>
     </Paper>
   );
 };
