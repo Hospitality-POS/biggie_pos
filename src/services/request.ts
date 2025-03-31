@@ -1,8 +1,6 @@
 import axios from "axios";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
-import { json } from "react-router-dom";
-
 
 // Helper function to handle errors
 const handleError = (errorMessage: string) => {
@@ -20,20 +18,17 @@ axiosInstance.interceptors.request.use(
         const user = localStorage.getItem("user");
         const shopId = localStorage.getItem("shopId");
 
-
+        console.log('my shop', shopId);
 
         if (user) {
             const userObject = JSON.parse(user);
             const token = userObject.Token;
             if (token) {
-
                 config.headers['Authorization'] = `Bearer ${token}`;
                 config.headers['currentUser'] = userObject._id || userObject.id;
-
             }
 
             if ((shopId && shopId !== 'undefined') && !(config.url?.includes('/users') || config.url?.includes('/shops'))) {
-
                 if (config.method === 'get') {
                     config.params = {
                         ...config.params,
@@ -41,27 +36,40 @@ axiosInstance.interceptors.request.use(
                         role: userObject?.role
                     };
                 } else {
-                    config.data = {
-                        ...config.data,
-                        shop_id: shopId,
-                    };
+                    // Robust handling of different data types
+                    if (config.data instanceof FormData) {
+                        // If it's FormData, append the shop_id
+                        config.data.append('shop_id', shopId);
+                    } else if (config.data instanceof Object) {
+                        // If it's a plain object, add shop_id directly
+                        config.data = {
+                            ...config.data,
+                            shop_id: shopId
+                        };
+                    } else {
+                        // If it's some other type, create a new FormData
+                        const formData = new FormData();
+                        formData.append('shop_id', shopId);
+
+                        // If the original data is not null/undefined, append it
+                        if (config.data != null) {
+                            formData.append('data', config.data);
+                        }
+
+                        config.data = formData;
+                    }
                 }
             }
-
         }
+
         const storedCode = localStorage.getItem("companyCode");
         if (storedCode || config.data?.companyCode) {
             config.headers['companyCode'] = storedCode || config.data?.companyCode;
-
         }
-
-
-
 
         return config;
     },
     (error) => {
-
         handleError("Request failed");
         return Promise.reject(error);
     }
@@ -71,22 +79,25 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
-
         const { response } = error;
-        if (response && response.status === 401) {
-            handleError("Unauthorized. Please login again.");
-        } else if (response.status === 403) {
-            handleError(response.data.message);
-        }
-        else if (response.status === 409) {
-            handleError("Company does not exist kindly contact support ");
-        }
-        else if (response.status === 404) {
-            handleError(response.data.message);
-        }
-
-        else {
-            // handleError("An error occurred while processing your request.");
+        if (response) {
+            switch (response.status) {
+                case 401:
+                    handleError("Unauthorized. Please login again.");
+                    break;
+                case 403:
+                    handleError(response.data.message);
+                    break;
+                case 409:
+                    handleError("Company does not exist kindly contact support");
+                    break;
+                case 404:
+                    handleError(response.data.message);
+                    break;
+                default:
+                // Optional: generic error handling
+                // handleError("An error occurred while processing your request.");
+            }
         }
         return Promise.reject(error);
     }
