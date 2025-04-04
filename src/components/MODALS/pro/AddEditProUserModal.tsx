@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Form, Space } from "antd";
+import { Button, Form, Space, Upload, message } from "antd";
 import {
   ModalForm,
   ProFormText,
   ProForm,
   ProFormSelect,
 } from "@ant-design/pro-form";
-import { EditOutlined, UsergroupAddOutlined } from "@ant-design/icons";
+import { EditOutlined, UsergroupAddOutlined, InboxOutlined } from "@ant-design/icons";
 import useAddEditUserModal from "../Hooks/useAddEditUserModal";
 import { ProFormDigit } from "@ant-design/pro-components";
 import { fetchUserRoles, updateUsers } from "@services/users";
@@ -18,6 +18,8 @@ import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNu
 import { useAppSelector } from "src/store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllShops } from "@services/shops";
+import { RcFile } from "antd/lib/upload";
+import { UploadFile, UploadProps } from "antd/lib";
 
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
@@ -39,13 +41,16 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   const [form] = Form.useForm();
   const formRef = useRef();
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-
   const [open, setOpen] = useState(false);
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
   const isEditingOwnProfile = edit && data?._id === userId;
-
   const queryClient = useQueryClient();
+
+  // Image upload state
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   // Get tenant primary color on component mount
   useEffect(() => {
@@ -63,6 +68,19 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         phoneNumber: reversePhoneNumber(data?.phone),
         roleId: data?.role?._id,
       });
+
+      // Set initial image if editing a user with an existing thumbnail
+      if (data?.thumbnail) {
+        setPreviewImage(data.thumbnail);
+        setFileList([
+          {
+            uid: '-1',
+            name: 'profile-image.png',
+            status: 'done',
+            url: data.thumbnail,
+          },
+        ]);
+      }
     }
   }, [open, data, form]);
 
@@ -70,32 +88,90 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
     setOpen(newOpen);
     if (!newOpen) {
       form.resetFields();
+      setFileList([]);
+      setPreviewImage(null);
+      setUploadedFile(null);
     }
   };
 
   const { handleConfirmAddUser } = useAddEditUserModal({ onAddUser });
 
+  // File upload handlers
+  const beforeUpload = (file: RcFile) => {
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      message.error('You can only upload image files!');
+      return false;
+    }
+
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error('Image must be smaller than 5MB!');
+      return false;
+    }
+
+    // Store the file directly
+    setUploadedFile(file);
+    return false; // Prevent auto upload
+  };
+
+  const handleChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
+    if (newFileList.length > 0 && newFileList[0].originFileObj) {
+      // Store the file and update preview
+      const file = newFileList[0].originFileObj;
+      setUploadedFile(file);
+      setPreviewImage(URL.createObjectURL(file));
+    } else if (newFileList.length > 0 && newFileList[0].url) {
+      setPreviewImage(newFileList[0].url);
+    } else {
+      setPreviewImage(null);
+      setUploadedFile(null);
+    }
+
+    setFileList(newFileList);
+  };
+
+  const customRequest = ({ onSuccess }: any) => {
+    // This function prevents automatic upload and stores the file locally
+    setTimeout(() => {
+      onSuccess && onSuccess("ok");
+    }, 0);
+  };
+
   const onFinish = async (values) => {
     const phoneNumber = getPhoneNumber(values?.phoneNumber);
     const value = { ...values, phone: phoneNumber };
+
+    // Add the file to the values if it exists
+    if (uploadedFile) {
+      value.imageFile = uploadedFile;
+    }
+
     const confirmed = await ShowConfirm({
       title: `Are you sure you want to ${edit ? "update this" : "add new"} ${isProfile ? "profile" : "user"
         }?`,
       position: true,
     });
+
     if (confirmed) {
-      if (edit) {
-        await updateUsers({
-          value,
-          _id: data._id,
-        });
-        // Invalidate the query to update the user details
-        isProfile && (await queryClient.invalidateQueries(["user", userId]));
-      } else {
-        await handleConfirmAddUser(value);
+      try {
+        if (edit) {
+          await updateUsers({
+            value,
+            _id: data._id,
+          });
+          // Invalidate the query to update the user details
+          isProfile && (await queryClient.invalidateQueries(["user", userId]));
+        } else {
+          await handleConfirmAddUser(value);
+        }
+        actionRef.current?.reload();
+        return true;
+      } catch (error) {
+        console.error("Error submitting form:", error);
+        message.error("Failed to save user");
+        return false;
       }
-      actionRef.current?.reload();
-      return true;
     }
   };
 
@@ -139,7 +215,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       title={
         <Space>
           {isProfile ? <EditOutlined /> : <UsergroupAddOutlined />}
-          {edit ? `Edit ${isProfile ? "Profile" : "User"}` : "Add New User"}
+          {edit ? `Edit ${isProfile ? "Profile" : "User"}` : "Add New User "}
         </Space>
       }
       initialValues={
@@ -281,6 +357,39 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
         <PhoneInput label="Phone" owner="phoneNumber" />
       </ProForm.Group>
+
+      {/* User Profile Image Upload Section */}
+      <div style={{ padding: '0 24px', marginBottom: '24px' }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '16px' }}>Profile Image</div>
+        <Upload.Dragger
+          fileList={fileList}
+          beforeUpload={beforeUpload}
+          onChange={handleChange}
+          maxCount={1}
+          showUploadList={{ showRemoveIcon: true }}
+          accept="image/*"
+          style={{ width: '100%' }}
+          customRequest={customRequest}
+        >
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined style={{ fontSize: 48, color: '#40a9ff' }} />
+          </p>
+          <p className="ant-upload-text">Click or drag file to upload</p>
+          <p className="ant-upload-hint">
+            Support for a single image file. Maximum size: 5MB.
+          </p>
+        </Upload.Dragger>
+
+        {previewImage && (
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <img
+              src={previewImage}
+              alt="Profile preview"
+              style={{ maxHeight: 200, maxWidth: '100%', objectFit: 'contain', borderRadius: '50%' }}
+            />
+          </div>
+        )}
+      </div>
     </ModalForm>
   );
 };

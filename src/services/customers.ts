@@ -153,6 +153,21 @@ export const createSchedule = createAsyncThunk(
     }
 );
 
+
+export const fetchAllSchedules = async (date?: string) => {
+    try {
+        const url = `${categ_url}/all-schedules`;
+        const params = date ? { date } : {};
+
+        const response = await axiosInstance.get(url, {
+            params
+        });
+        return response.data;
+    } catch (error) {
+        throw new Error(error?.message);
+    }
+};
+
 export const updateSchedule = createAsyncThunk(
     'schedule/update',
     async ({ id, data }, { rejectWithValue }) => {
@@ -179,16 +194,3 @@ export const removeSchedule = createAsyncThunk(
     }
 );
 
-export const fetchAllSchedules = async (date?: string) => {
-    try {
-        const url = `${categ_url}/all-schedules`;
-        const params = date ? { date } : {};
-
-        const response = await axiosInstance.get(url, {
-            params
-        });
-        return response.data;
-    } catch (error) {
-        throw new Error(error?.message);
-    }
-};
