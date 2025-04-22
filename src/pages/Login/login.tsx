@@ -60,10 +60,13 @@ const StaffLoginPage = () => {
         try {
             const result = await verifyCompanyCode({ companyCode: code });
 
+            // Store in localStorage
             localStorage.setItem("tenant", JSON.stringify(result.data));
             localStorage.setItem("companyCode", code);
 
+            // Update all state values immediately
             setCompanyName(result.data.name || "");
+            setTenant(result.data); // Immediately update tenant to reflect logo change
             dispatch({ type: "VERIFY_COMPANY_CODE_SUCCESS", payload: result });
             setCompanyCode(code);
             setStep("pin");
@@ -89,9 +92,10 @@ const StaffLoginPage = () => {
         localStorage.removeItem("companyCode");
         localStorage.removeItem("tenant");
 
-        // Reset state
+        // Reset state immediately
         setCompanyCode(null);
         setCompanyName("");
+        setTenant(null); // Immediately clear tenant to reset logo and colors
         setStep("companyCode");
         setPin("");
         setError(null);
@@ -181,7 +185,10 @@ const StaffLoginPage = () => {
                         xs={24}
                         md={12}
                         style={{
-                            background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+                            background: tenant?.tenant_code === "RPOS-000004"
+                                ? "linear-gradient(135deg, #914E1E 0%, #c26d2e 100%)"
+                                : "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+                            transition: "background 0.3s ease",
                             padding: "2rem",
                             display: "flex",
                             flexDirection: "column",
@@ -208,8 +215,7 @@ const StaffLoginPage = () => {
                         >
                             <div
                                 style={{
-                                    padding: "1.5rem",
-                                    marginBottom: "1.5rem",
+                                    marginBottom: tenant?.tenant_code === "RPOS-000004" ? "0.5rem" : "1.5rem",
                                     display: "inline-block",
                                 }}
                             >
@@ -219,6 +225,7 @@ const StaffLoginPage = () => {
                                         alt="relia-logo"
                                         width="70%"
                                         height="auto"
+                                        style={{ transition: "all 0.3s ease" }}
                                     />
 
                                 ) : (
@@ -227,6 +234,7 @@ const StaffLoginPage = () => {
                                         alt="relia-logo"
                                         width="100%"
                                         height="auto"
+                                        style={{ transition: "all 0.3s ease" }}
                                     />
                                 )}
                             </div>
