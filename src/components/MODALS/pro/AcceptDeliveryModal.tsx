@@ -93,9 +93,17 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
     networkMode: "always",
   });
 
+  // Convert users data to the required format for ProFormSelect
   const UserRequest = async () => {
-    const data = users?.map((e: { username: string; _id: string }) => {
-      return { label: e.username, value: e._id };
+    if (!users || users.length === 0) {
+      return [];
+    }
+
+    const data = users.map((user: any) => {
+      return {
+        label: user.fullname || user.username || user.email || user._id,
+        value: user._id
+      };
     });
     return data;
   };
@@ -232,7 +240,7 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                 },
                 received_by: {
                   value: data?.received_by?._id,
-                  label: data?.received_by?.fullname,
+                  label: data?.received_by?.fullname || data?.received_by?.username,
                 },
               }
               : {}
@@ -256,9 +264,12 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                 width="md"
                 showSearch
                 label="Received By"
-                placeholder="Select delivery to"
+                placeholder="Select user"
                 rules={[{ required: true }]}
                 request={UserRequest}
+                fieldProps={{
+                  notFoundContent: users?.length ? "No matching users" : "Loading users..."
+                }}
               />
             </Col>
             <Col xs={24} md={12}>
@@ -365,7 +376,6 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                   <Button
                     type="dashed"
                     onClick={() => add()}
-                    // block
                     icon={<PlusOutlined />}
                   >
                     Add Delivery Item

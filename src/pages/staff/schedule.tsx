@@ -129,6 +129,7 @@ const SpaReservationSystem = () => {
 
     // Process schedule data to match the format needed for the component
     const formattedScheduleData = useMemo(() => {
+        console.log('my schedule data', scheduleData);
         if (!scheduleData || !Array.isArray(scheduleData)) return [];
 
         // Filter schedules for the selected date
