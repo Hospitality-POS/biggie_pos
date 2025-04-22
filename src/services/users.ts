@@ -32,6 +32,7 @@ export const fetchAllUsersList = async (data: ParamsType) => {
     const response = await axiosInstance.get(url, {
       params: { fullname: data.fullname, email: data.email },
     });
+
     return response.data;
   } catch (error) {
     throw new Error(error?.message);
