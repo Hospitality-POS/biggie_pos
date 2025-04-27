@@ -38,6 +38,10 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
         content: () => componentRef.current,
     });
 
+    // Define dark and bold text styling to use throughout the component
+    const darkTextColor = "#000000";
+    const boldFontWeight = 700; // Bold font weight
+
     return (
         <ModalForm
             className="receiptM"
@@ -58,62 +62,64 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 return true;
             }}
         >
-            <div className="receipt" id="receipt" ref={componentRef}>
+            <div className="receipt" id="receipt" ref={componentRef} style={{ color: darkTextColor, fontWeight: boldFontWeight }}>
                 <div
                     className="logo-print"
                     style={{
                         display: "flex",
                         flexDirection: "column",
-                        marginBottom: 10, // Reduced margin
+                        marginBottom: 10,
+                        color: darkTextColor,
+                        fontWeight: boldFontWeight,
                     }}
                 >
                     <Typography
                         variant="body1"
-                        style={{ fontFamily: "monospace", fontSize: "1em" }} // Reduced from 1.3em
+                        style={{ fontFamily: "monospace", fontSize: "1em", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         {BRAND_NAME1}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontFamily: "monospace", fontSize: "0.9em" }} // Reduced from 1.2em
+                        style={{ fontFamily: "monospace", fontSize: "0.9em", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         {ENTITY_NAME}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "0.9em", fontFamily: "monospace" }} // Reduced from 1.2em
+                        style={{ fontSize: "0.9em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         Phone: {PHONE_NO}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "0.9em", fontFamily: "monospace" }} // Reduced from 1.2em
+                        style={{ fontSize: "0.9em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         Business No: {Paybill_bs}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "0.9em", fontFamily: "monospace" }} // Reduced from 1.2em
+                        style={{ fontSize: "0.9em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         Account No: {Paybill_ac}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "0.8em", fontFamily: "monospace" }} // Reduced from 1em
+                        style={{ fontSize: "0.8em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         {cartDetails?.clientPin && `Client Pin: ${cartDetails?.clientPin}`}
                     </Typography>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", color: darkTextColor, fontWeight: boldFontWeight }}>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "0.9em", fontFamily: "monospace" }} // Reduced from 1.15em
+                        style={{ fontSize: "0.9em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         {cartDetails?.order_no}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "0.9em", fontFamily: "monospace" }} // Reduced from 1.15em
+                        style={{ fontSize: "0.9em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         Served By: {cartDetails?.created_by?.username}
                     </Typography>
@@ -122,40 +128,43 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                     style={{
                         display: "flex",
                         justifyContent: "space-between",
-                        marginBottom: "-10px", // Reduced from -15px
+                        marginBottom: "-10px",
+                        color: darkTextColor,
+                        fontWeight: boldFontWeight,
                     }}
                 >
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "0.9em", fontFamily: "monospace" }} // Reduced from 1.15em
+                        style={{ fontSize: "0.9em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         Table: {cartDetails?.table_id?.name}
                     </Typography>
                     <Typography
                         variant="body1"
-                        style={{ fontSize: "0.8em", fontFamily: "monospace" }} // Reduced from 1em
+                        style={{ fontSize: "0.8em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         Date: {new Date().toLocaleDateString()} {new Date().getHours()}:
                         {new Date().getMinutes()}
                     </Typography>
                 </div>
-                <TableContainer sx={{ mt: 2, width: "inherit" }}> {/* Reduced margin top */}
-                    <Table style={{ tableLayout: "fixed" }}>
+                <TableContainer sx={{ mt: 2, width: "inherit" }}>
+                    <Table style={{ tableLayout: "fixed", color: darkTextColor }}>
                         <TableHead>
                             <TableRow>
                                 <TableCell
-                                    sx={{ padding: 0.5, fontWeight: "bold", width: "10%" }} // Reduced padding
+                                    sx={{ padding: 0.5, fontWeight: boldFontWeight, width: "10%", color: darkTextColor }}
                                 >
                                     #
                                 </TableCell>
-                                <TableCell sx={{ padding: 0.5, fontWeight: "bold" }}> {/* Reduced padding */}
+                                <TableCell sx={{ padding: 0.5, fontWeight: boldFontWeight, color: darkTextColor }}>
                                     ITEM
                                 </TableCell>
                                 <TableCell
                                     sx={{
-                                        padding: 0.5, // Reduced padding
+                                        padding: 0.5,
                                         textAlign: "right",
-                                        fontWeight: "bold",
+                                        fontWeight: boldFontWeight,
+                                        color: darkTextColor,
                                     }}
                                 >
                                     PRICE(.Ksh)
@@ -197,11 +206,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                                     <TableRow key={item._id}>
                                         <TableCell
                                             sx={{
-                                                padding: 0.8, // Reduced padding
-                                                fontSize: "0.9em", // Reduced from 1em
+                                                padding: 0.8,
+                                                fontSize: "0.9em",
                                                 width: "5%",
                                                 textAlign: "left",
-                                                fontWeight: "bold",
+                                                fontWeight: boldFontWeight,
+                                                color: darkTextColor,
                                             }}
                                         >
                                             {item.quantity}
@@ -210,20 +220,22 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                                             component="th"
                                             scope="row"
                                             sx={{
-                                                padding: 0.8, // Reduced padding
-                                                fontSize: "0.9em", // Reduced from 1.2em
-                                                fontWeight: "bold",
+                                                padding: 0.8,
+                                                fontSize: "0.9em",
+                                                fontWeight: boldFontWeight,
                                                 wordWrap: "break-word",
+                                                color: darkTextColor,
                                             }}
                                         >
                                             {item?.product_id?.name}
                                         </TableCell>
                                         <TableCell
                                             sx={{
-                                                padding: 0.8, // Reduced padding
+                                                padding: 0.8,
                                                 textAlign: "right",
-                                                fontSize: "0.9em", // Reduced from 1em
-                                                fontWeight: "bold",
+                                                fontSize: "0.9em",
+                                                fontWeight: boldFontWeight,
+                                                color: darkTextColor,
                                             }}
                                         >
                                             {item?.price?.toFixed(2)}
@@ -238,13 +250,14 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                     <Typography
                         variant="body1"
                         style={{
-                            fontSize: "0.9em", // Reduced from 1.2em
+                            fontSize: "0.9em",
                             fontFamily: "monospace",
                             textAlign: "center",
-                            fontWeight: "bold",
+                            fontWeight: boldFontWeight,
+                            color: darkTextColor,
                         }}
                     >
-                        <RestOutlined /> Discount:
+                        <RestOutlined style={{ color: darkTextColor }} /> Discount:
                         {cartDetails?.discount_type === "amount"
                             ? `KSH. ${cartDetails?.discount?.toLocaleString()}`
                             : `${cartDetails?.discount}%`}
@@ -253,10 +266,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 <Typography
                     variant="body1"
                     style={{
-                        fontSize: "1em", // Reduced from 1.2em
+                        fontSize: "1em",
                         fontFamily: "monospace",
                         textAlign: "center",
-                        fontWeight: "bold",
+                        fontWeight: boldFontWeight,
+                        color: darkTextColor,
                     }}
                 >
                     Amount Due: Ksh.{totalAmount?.toFixed(2)}
@@ -264,20 +278,22 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
 
                 <Typography
                     variant="body1"
-                    sx={{ textAlign: "center", fontWeight: "12px" }}
+                    sx={{ textAlign: "center", fontWeight: boldFontWeight, color: darkTextColor }}
                 >
                     ============================
                 </Typography>
                 <div className="qrcoded" style={{ marginTop: 4 }}>
-                    <QRCodeCanvas value={QR_Code} size={70} className="qrcode" /> {/* Reduced size from 80 */}
+                    <QRCodeCanvas value={QR_Code} size={70} className="qrcode" />
                 </div>
                 <Typography
                     variant="body1"
                     style={{
-                        fontSize: "0.8em", // Reduced from 0.9em
+                        fontSize: "0.8em",
                         fontFamily: "monospace",
                         textAlign: "center",
-                        marginTop: 8, // Reduced from 10
+                        marginTop: 8,
+                        color: darkTextColor,
+                        fontWeight: boldFontWeight,
                     }}
                 >
                     Thank you for your support!
@@ -285,9 +301,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 <Typography
                     variant="body1"
                     style={{
-                        fontSize: "0.8em", // Reduced from 0.9em
+                        fontSize: "0.8em",
                         fontFamily: "monospace",
                         textAlign: "center",
+                        color: darkTextColor,
+                        fontWeight: boldFontWeight,
                     }}
                 >
                     Info email: {EMAIL_URL}
@@ -295,9 +313,11 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 <Typography
                     variant="body1"
                     style={{
-                        fontSize: "0.7em", // Reduced from 0.8em
+                        fontSize: "0.7em",
                         fontFamily: "monospace",
                         textAlign: "center",
+                        color: darkTextColor,
+                        fontWeight: boldFontWeight,
                     }}
                 >
                     Generated on {new Date().toLocaleDateString()}

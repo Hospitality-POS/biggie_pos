@@ -1,27 +1,135 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
+import { Modal, Typography, Button, Spin } from "antd";
+import { PrinterOutlined, CloseOutlined } from "@ant-design/icons";
+import { useReactToPrint } from "react-to-print";
+import moment from "moment";
 import {
-  Button,
-  Dialog,
-  DialogContent,
-  Typography,
   TableContainer,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  Paper,
-  Box,
 } from "@mui/material";
-import { Spin } from "antd";
-import { CloseOutlined } from "@ant-design/icons";
 import { useAppSelector } from "../../store";
-import moment from "moment";
-import useSystemDetails from "@hooks/useSystemDetails";
 import { COOP_NAME } from "@utils/config";
-import { useReactToPrint } from "react-to-print";
-import LocalPrintshopIcon from "@mui/icons-material/LocalPrintshop";
-import PrintDisabledIcon from "@mui/icons-material/PrintDisabled";
+import useSystemDetails from "@hooks/useSystemDetails";
+import NubaLoader from "@components/spinner/NubaLoader";
+import "@components/MODALS/bill.css";
+
+// Color palette
+const colors = {
+  primary: "#6c1c2c",
+  secondary: "#bc8c7c",
+  tableHeader: "#f0f0f0",
+  tableBorder: "#ddd",
+  darkText: "#000000",
+};
+
+// Inject CSS for thermal printer compatibility
+const injectThermalPrintCSS = () => {
+  const styleId = "thermal-print-styles-delivery-report";
+
+  // Only add if it doesn't already exist
+  if (!document.getElementById(styleId)) {
+    const styleElement = document.createElement("style");
+    styleElement.id = styleId;
+    styleElement.innerHTML = `
+      @media print {
+        .receipt {
+          width: 80mm;
+          font-family: 'Courier New', monospace;
+          color: #000000 !important;
+          font-weight: bold !important;
+        }
+        
+        /* Hide elements not needed for printing */
+        .ant-modal-header,
+        .ant-modal-footer,
+        .ant-modal-close {
+          display: none !important;
+        }
+        
+        /* Ensure text is dark and bold for thermal printing */
+        .MuiTypography-root {
+          color: #000000 !important;
+          font-weight: bold !important;
+        }
+        
+        /* Table styles for thermal printing */
+        .MuiTableCell-root {
+          border: 1px solid #000 !important;
+          padding: 4px !important;
+          color: #000000 !important;
+          font-weight: bold !important;
+          font-size: 12px !important;
+          white-space: nowrap !important;
+          overflow: visible !important;
+          text-overflow: clip !important;
+        }
+        
+        .MuiTableHead-root .MuiTableCell-root {
+          background-color: #f0f0f0 !important;
+        }
+        
+        /* Prevent text truncation */
+        * {
+          overflow: visible !important;
+          white-space: normal !important;
+        }
+        
+        /* Set table to full width */
+        .MuiTable-root {
+          width: 100% !important;
+          table-layout: fixed !important;
+        }
+        
+        /* Ensure receipt fits on paper */
+        @page {
+          size: 80mm auto;
+          margin: 0mm;
+        }
+      }
+
+      /* Regular view styles */
+      .MuiTableCell-root {
+        color: #000000;
+        font-weight: bold;
+      }
+      
+      .MuiTableHead-root .MuiTableCell-root {
+        background-color: ${colors.tableHeader};
+      }
+
+      .receipt {
+        max-width: 100%;
+        padding: 24px;
+        color: #000000;
+        font-weight: bold;
+      }
+      
+      /* Adjust header styling */
+      .report-header {
+        text-align: center;
+        margin-bottom: 24px;
+      }
+      
+      /* Summary section */
+      .summary-row {
+        text-align: center;
+        font-weight: bold;
+        font-size: 12px;
+      }
+      
+      /* Footer styling */
+      .report-footer {
+        text-align: center;
+        margin-top: 24px;
+      }
+    `;
+    document.head.appendChild(styleElement);
+  }
+};
 
 interface DeliveryReportProps {
   openM: boolean;
@@ -36,6 +144,11 @@ const DeliveryReportModal: React.FC<DeliveryReportProps> = ({
   startDate,
   endDate,
 }) => {
+  // Inject the CSS for thermal printing when component mounts
+  useEffect(() => {
+    injectThermalPrintCSS();
+  }, []);
+
   const componentRef = useRef<HTMLDivElement>(null);
   const { BRAND_NAME1 } = useSystemDetails();
 
@@ -47,7 +160,7 @@ const DeliveryReportModal: React.FC<DeliveryReportProps> = ({
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
-    // onAfterPrint: onCloseM,
+    onAfterPrint: onCloseM,
   });
 
   // Calculate total cost
@@ -56,147 +169,243 @@ const DeliveryReportModal: React.FC<DeliveryReportProps> = ({
       const itemTotal = (Number(item.supplier_price) || 0) * Number(item.quantity);
       return acc + itemTotal;
     }, 0)
-    .toFixed(2);
+    ?.toFixed(2) || "0.00";
 
   if (error) return null;
 
   if (loading) {
-    return <Spin size="large" fullscreen tip="Generating Delivery Report..." />;
+    return (
+      <Spin
+        size="large"
+        fullscreen
+        indicator={<NubaLoader />}
+        tip="Generating Delivery Report, please wait..."
+      />
+    );
   }
 
   return (
-    <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
-      <DialogContent className="receiptM" ref={componentRef}>
-        <div className="receipt" id="receipt">
-          <div
-            className="logo-print"
-            style={{ display: "flex", flexDirection: "column" }}
+    <Modal
+      open={openM}
+      onCancel={onCloseM}
+      width={1000}
+      style={{ top: 20 }}
+      bodyStyle={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
+      footer={[
+        <Button
+          key="print"
+          type="primary"
+          icon={<PrinterOutlined />}
+          onClick={handlePrint}
+          style={{
+            backgroundColor: colors.primary,
+            borderColor: colors.primary
+          }}
+        >
+          Print
+        </Button>,
+        <Button
+          key="close"
+          danger
+          icon={<CloseOutlined />}
+          onClick={onCloseM}
+        >
+          Close
+        </Button>,
+      ]}
+    >
+      <div
+        ref={componentRef}
+        className="receipt"
+        id="receipt"
+        style={{
+          padding: 24,
+          color: colors.darkText,
+          fontWeight: "bold"
+        }}
+      >
+        <div
+          className="logo-print"
+          style={{ display: "flex", flexDirection: "column" }}
+        >
+          <Typography.Title
+            level={3}
+            style={{
+              textAlign: "center",
+              marginBottom: 8,
+              color: colors.darkText,
+              fontWeight: "bold",
+              fontFamily: "monospace"
+            }}
           >
-            {BRAND_NAME1 && BRAND_NAME1 !== "undefined undefined" && (
-              <Typography
-                variant="h5"
-                textAlign={"center"}
-                sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-              >
-                {BRAND_NAME1}
-              </Typography>
-            )}
-            <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
-              DELIVERY REPORT
-            </Typography>
-          </div>
-          <p style={{ textAlign: "center", padding: "10px" }}>
-            From: {moment(startDate).format("MMM-DD-YYYY H:MM A")} <br /> to
-            <br /> {moment(endDate).format("MMM-DD-YYYY H:MM A")}
-          </p>
+            {BRAND_NAME1}
+          </Typography.Title>
+          <Typography.Title
+            level={4}
+            style={{
+              textAlign: "center",
+              marginBottom: 16,
+              color: colors.darkText,
+              fontWeight: "bold",
+              fontFamily: "monospace"
+            }}
+          >
+            DELIVERY REPORT
+          </Typography.Title>
+        </div>
 
-          <TableContainer sx={{ mt: 2, width: "100%", mb: 2 }}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: "bold" }}>Item(s)</TableCell>
-                  <TableCell sx={{ fontWeight: "bold", textAlign: "right" }}>
-                    Unit(s)
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: "bold", textAlign: "right" }}>
-                    Qty
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: "bold", textAlign: "right" }}>
-                    Price
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data?.map((item: any, index: number) => (
-                  <TableRow key={item.inventory_id}>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell sx={{ textAlign: "right" }}>
-                      {item.uom}
-                    </TableCell>
-                    <TableCell sx={{ textAlign: "right" }}>
-                      {item.quantity?.toFixed(1) || 0}
-                    </TableCell>
-                    <TableCell sx={{ textAlign: "right" }}>
-                      {item.supplier_price?.toFixed(2) || 0}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
+        <p style={{ textAlign: "center", fontFamily: "monospace" }}>
+          From: {moment(startDate).format("MMM-DD-YYYY H:mm A")} <br /> to <br />
+          {moment(endDate).format("MMM-DD-YYYY H:mm A")}
+        </p>
+
+        <TableContainer sx={{ mt: 2, width: "inherit", mb: 2, overflowX: "visible" }}>
+          <Table>
+            <TableHead>
               <TableRow>
                 <TableCell
-                  colSpan={3}
-                  sx={{ fontWeight: "bold", textAlign: "center" }}
+                  sx={{
+                    fontSize: "1em",
+                    padding: 1,
+                    fontWeight: "bold",
+                    backgroundColor: colors.tableHeader,
+                    borderColor: colors.tableBorder,
+                    whiteSpace: "nowrap",
+                    width: "40%"
+                  }}
                 >
-                  Total Cost : Ksh. {totalCost?.toLocaleString()}
+                  Item(s)
                 </TableCell>
-                {/* <TableCell sx={{ textAlign: "right" }}>{totalCost}</TableCell> */}
+                <TableCell
+                  sx={{
+                    fontSize: "1em",
+                    padding: 1,
+                    fontWeight: "bold",
+                    backgroundColor: colors.tableHeader,
+                    borderColor: colors.tableBorder,
+                    whiteSpace: "nowrap",
+                    textAlign: "right",
+                    width: "20%"
+                  }}
+                >
+                  Unit(s)
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: "1em",
+                    padding: 1,
+                    fontWeight: "bold",
+                    backgroundColor: colors.tableHeader,
+                    borderColor: colors.tableBorder,
+                    whiteSpace: "nowrap",
+                    textAlign: "right",
+                    width: "20%"
+                  }}
+                >
+                  Qty
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: "1em",
+                    padding: 1,
+                    fontWeight: "bold",
+                    backgroundColor: colors.tableHeader,
+                    borderColor: colors.tableBorder,
+                    whiteSpace: "nowrap",
+                    textAlign: "right",
+                    width: "20%"
+                  }}
+                >
+                  Price
+                </TableCell>
               </TableRow>
-            </Table>
-          </TableContainer>
+            </TableHead>
+            <TableBody>
+              {data?.map((item: any) => (
+                <TableRow key={item.inventory_id}>
+                  <TableCell
+                    sx={{
+                      padding: 1,
+                      borderColor: colors.tableBorder,
+                      fontWeight: "bold",
+                      wordBreak: "break-word"
+                    }}
+                  >
+                    {item.name}
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      padding: 1,
+                      borderColor: colors.tableBorder,
+                      textAlign: "right"
+                    }}
+                  >
+                    {item.uom}
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      padding: 1,
+                      borderColor: colors.tableBorder,
+                      textAlign: "right"
+                    }}
+                  >
+                    {item.quantity?.toFixed(1) || 0}
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      padding: 1,
+                      borderColor: colors.tableBorder,
+                      textAlign: "right"
+                    }}
+                  >
+                    {item.supplier_price?.toFixed(2) || 0}
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell
+                  colSpan={4}
+                  sx={{
+                    fontWeight: "bold",
+                    textAlign: "center",
+                    padding: 1,
+                    borderColor: colors.tableBorder,
+                    backgroundColor: colors.tableHeader,
+                  }}
+                >
+                  Total Cost: Ksh. {totalCost?.toLocaleString()}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-          <Typography
-            variant="body1"
+        <div style={{ textAlign: "center", marginTop: 16 }}>
+          <Typography.Text
             style={{
-              fontSize: "1em",
-              fontFamily: "monospace",
-              textAlign: "center",
+              display: "block",
+              color: colors.darkText,
+              fontSize: "14px",
+              fontWeight: "bold",
+              fontFamily: "monospace"
             }}
           >
             Powered by: {COOP_NAME}
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{ textAlign: "center", fontSize: "0.9em" }}
+          </Typography.Text>
+          <Typography.Text
+            style={{
+              display: "block",
+              color: colors.darkText,
+              fontSize: "12px",
+              fontWeight: "bold",
+              fontFamily: "monospace"
+            }}
           >
             Generated on {moment().format("MMM/DD/YYYY H:MM A")}
-          </Typography>
+          </Typography.Text>
         </div>
-
-        <Box
-          className="hidden-print"
-          sx={{
-            mt: 2,
-            display: "flex",
-            justifyContent: "space-evenly",
-            columnGap: 5,
-          }}
-        >
-          <Button
-            className="hidden-print"
-            variant="outlined"
-            sx={{
-              pl: 2,
-              color: "#6c1c2c",
-              borderColor: "#6c1c2c",
-              "&:hover": {
-                borderColor: "#bc8c7c",
-                color: "#bc8c7c",
-              },
-            }}
-            onClick={handlePrint}
-            endIcon={<LocalPrintshopIcon />}
-          >
-            Print
-          </Button>
-          <Button
-            className="hidden-print"
-            variant="contained"
-            sx={{
-              pl: 2,
-              bgcolor: "#6c1c2c",
-              "&:hover": {
-                bgcolor: "#bc8c7c",
-                color: "#ffff",
-              },
-            }}
-            onClick={onCloseM}
-            endIcon={<PrintDisabledIcon />}
-          >
-            Cancel
-          </Button>
-        </Box>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </Modal>
   );
 };
 

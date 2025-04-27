@@ -161,7 +161,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
   const handleOnFinish = async (values: any) => {
     const confirmed = await ShowConfirm({
       title: `Are you sure you want to ${form.getFieldValue("recipeItems")?.length > 1 ? "update" : "save"
-        } this recipe?`,
+        } this Formula?`,
       position: true,
     });
 
@@ -175,7 +175,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
         handleModalClose();
         return true;
       } catch (error) {
-        console.error("Error saving recipe:", error);
+        console.error("Error saving Formula:", error);
         return false;
       }
     }
@@ -205,7 +205,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
               }}
             >
               {`${form.getFieldValue("recipeItems")?.length > 1 ? "Update" : "Add"
-                } Recipe for ${productName}`}
+                } Formula for ${productName}`}
             </span>
           </Tooltip>
         </Flex>
@@ -381,7 +381,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
                   </Row>
                 ))}
                 <Button type="dashed" block onClick={() => add()}>
-                  <PlusCircleFilled /> Add Recipe Item
+                  <PlusCircleFilled /> Add Formula Item
                 </Button>
               </>
             )}

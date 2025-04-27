@@ -20,6 +20,7 @@ import ItemSalesModal from "./ItemSalesModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTableLocation } from "@services/tables";
 import DeliveryReportModal from "@components/Reports/DeliveryReport";
+import InventoryUsageReportModal from "@components/Reports/InventoryUsageReport";
 
 const { RangePicker } = DatePicker;
 
@@ -53,6 +54,13 @@ const Reports: React.FC = () => {
     onCloseDeliveryModal,
     deliveryDateTimeRange,
     openDeliveryModal,
+
+    openInventoryUsageModal,
+    setInventoryUsageDateTimeRange,
+    onCloseInventoryUsageModal,
+    inventoryUsageDateTimeRange,
+
+
   } = useReport(activeTab);
 
   const handleTabChange = (key: string) => {
@@ -373,6 +381,59 @@ const Reports: React.FC = () => {
         </Form>
       ),
     },
+    {
+      key: "inventory_usage",
+      tab: "inventory_usage",
+      label: (
+        <Space>
+          <CarOutlined style={{ color: "#1890ff" }} />
+          Generate Inventory Usage  Report
+        </Space>
+      ),
+      children: (
+        <Form form={form} onFinish={onFinish} layout="inline">
+          <Form.Item
+            name="dateRange"
+            label="Date & Time"
+            style={{ marginBottom: 16 }}
+            rules={[
+              {
+                required: true,
+                message: "kindly select date & time range",
+              },
+            ]}
+          >
+            <RangePicker
+              showTime={{ format: "HH:mm" }}
+              format="YYYY-MM-DD HH:mm"
+              presets={rangePresets}
+              onChange={(dates) =>
+                setInventoryUsageDateTimeRange([
+                  dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                  dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                ])
+              }
+            />
+          </Form.Item>
+          <Button
+            type="primary"
+            onClick={generateReportHandler}
+            disabled={isGenerateButtonDisabled}
+            icon={<BarChartOutlined />}
+            htmlType="submit"
+          >
+            Generate Inventory Usage Report
+          </Button>
+          <InventoryUsageReportModal
+            openM={openInventoryUsageModal}
+            onCloseM={onCloseInventoryUsageModal}
+            startDate={inventoryUsageDateTimeRange[0]}
+            endDate={inventoryUsageDateTimeRange[1]}
+          />
+        </Form>
+      ),
+    },
+
   ];
 
   return (

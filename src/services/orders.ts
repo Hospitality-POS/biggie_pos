@@ -18,21 +18,40 @@ export const getAllOrders = async (data: ParamsType) => {
 };
 
 
-export const getDashboardAnalysis = async () => {
+export const getDashboardAnalysis = async (startDate: string, endDate: string) => {
   try {
-    const response = await axiosInstance.get(`${BASE_URL}/orders/dashboard/summary`);
-    console.log('resp mmmmmm ', response);
+    // Build query parameters for the date range
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    const queryString = params.toString();
+    const url = `${BASE_URL}/orders/dashboard/summary${queryString ? `?${queryString}` : ''}`;
+
+    const response = await axiosInstance.get(url);
+    console.log('Dashboard response with date range:', response);
     return response.data;
   } catch (error) {
-    console.log(error);
+    console.log('Dashboard analysis error:', error);
+    throw error; // Re-throw the error so it can be handled by the query's onError
   }
 };
-export const getAdminDashboardAnalysis = async () => {
+export const getAdminDashboardAnalysis = async (startDate: string, endDate: string) => {
   try {
-    const response = await axiosInstance.get(`${BASE_URL}/orders/admin-dashboard/summary`);
+    // Build query parameters for the date range
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    const queryString = params.toString();
+    const url = `${BASE_URL}/orders/admin-dashboard/summary${queryString ? `?${queryString}` : ''}`;
+
+    const response = await axiosInstance.get(url);
+    console.log('Admin dashboard response:', response);
     return response.data;
   } catch (error) {
-    console.log(error);
+    console.log('Admin dashboard error:', error);
+    throw error; // Re-throw the error so it can be handled by the query's onError
   }
 };
 

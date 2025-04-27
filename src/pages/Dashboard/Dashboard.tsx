@@ -1,9 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Button,
-  ConfigProvider,
   Typography,
   Card,
   Row,
@@ -15,6 +14,10 @@ import {
   Skeleton,
   message,
   Tooltip,
+  Radio,
+  DatePicker,
+  Divider,
+  Flex,
 } from "antd";
 import {
   ShoppingCartOutlined,
@@ -30,11 +33,14 @@ import {
   MoneyCollectOutlined,
   SnippetsOutlined,
   ContactsOutlined,
+  CalendarOutlined,
 } from "@ant-design/icons";
 import { getDashboardAnalysis } from "@services/orders";
 import { CheckCard } from "@ant-design/pro-components";
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
+const { RangePicker } = DatePicker;
 
 const COLORS = {
   primary: "#6366f1",
@@ -207,13 +213,59 @@ const QuickAccessButton = ({ icon, text, route, color, onClick }) => (
 );
 
 const Dashboard = () => {
-  // const { token } = useToken();
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
+  const [periodFilter, setPeriodFilter] = useState("day");
+  const [customDateRange, setCustomDateRange] = useState([]);
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+
+  // Calculate date ranges based on the selected period
+  const getDateRange = () => {
+    const today = dayjs();
+    let startDate, endDate;
+
+    switch (periodFilter) {
+      case "day":
+        startDate = today.startOf("day");
+        endDate = today.endOf("day");
+        break;
+      case "week":
+        startDate = today.startOf("week");
+        endDate = today.endOf("week");
+        break;
+      case "month":
+        startDate = today.startOf("month");
+        endDate = today.endOf("month");
+        break;
+      case "year":
+        startDate = today.startOf("year");
+        endDate = today.endOf("year");
+        break;
+      case "custom":
+        if (customDateRange && customDateRange.length === 2) {
+          startDate = customDateRange[0].startOf("day");
+          endDate = customDateRange[1].endOf("day");
+        } else {
+          startDate = today.startOf("day");
+          endDate = today.endOf("day");
+        }
+        break;
+      default:
+        startDate = today.startOf("day");
+        endDate = today.endOf("day");
+    }
+
+    return { startDate, endDate };
+  };
+
+  const { startDate, endDate } = getDateRange();
 
   const { data, isLoading, refetch, isRefetching, error } = useQuery({
-    queryKey: ["dashBoardAnalysis"],
-    queryFn: getDashboardAnalysis,
+    queryKey: ["dashBoardAnalysis", startDate.format(), endDate.format()],
+    queryFn: () => getDashboardAnalysis(
+      startDate.toISOString(),
+      endDate.toISOString()
+    ),
     networkMode: "always",
     refetchOnWindowFocus: false,
     staleTime: 30000,
@@ -245,15 +297,28 @@ const Dashboard = () => {
     }
   };
 
+  const handlePeriodChange = (e) => {
+    const value = e.target.value;
+    setPeriodFilter(value);
+    if (value === "custom") {
+      setShowCustomDatePicker(true);
+    } else {
+      setShowCustomDatePicker(false);
+    }
+  };
+
+  const handleCustomDateChange = (dates) => {
+    setCustomDateRange(dates);
+  };
+
   const handleCopyStaffUrl = () => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
     const tenantId = tenant?._id || null;
     const shopId = localStorage.getItem("shopId");
 
-    const customerUrl = `${
-      import.meta.env.VITE_APP_URL
-    }/admin/staff-clock-in?tenant_id=${tenantId}&shop_id=${shopId}`;
+    const customerUrl = `${import.meta.env.VITE_APP_URL
+      }/admin/staff-clock-in?tenant_id=${tenantId}&shop_id=${shopId}`;
 
     navigator.clipboard
       .writeText(customerUrl)
@@ -277,9 +342,8 @@ const Dashboard = () => {
     const tenantId = tenant?._id || null;
     const shopId = localStorage.getItem("shopId");
 
-    const customerUrl = `${
-      import.meta.env.VITE_APP_URL
-    }/admin/customers?tenant_id=${tenantId}&shop_id=${shopId}`;
+    const customerUrl = `${import.meta.env.VITE_APP_URL
+      }/admin/customers?tenant_id=${tenantId}&shop_id=${shopId}`;
 
     navigator.clipboard
       .writeText(customerUrl)
@@ -299,7 +363,7 @@ const Dashboard = () => {
 
   const statisticsData = [
     {
-      title: "Today's Orders",
+      title: "Orders",
       value: data?.totalOrderCount,
       prefix: <ShoppingCartOutlined />,
     },
@@ -330,32 +394,39 @@ const Dashboard = () => {
     },
   ];
 
-  const dateOptions = {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    hour12: true,
+  // Format the date range for display
+  const getFormattedDateRange = () => {
+    const dateFormat = 'MMM D, YYYY';
+    switch (periodFilter) {
+      case "day":
+        return startDate.format('MMMM D, YYYY');
+      case "week":
+        return `${startDate.format(dateFormat)} - ${endDate.format(dateFormat)}`;
+      case "month":
+        return startDate.format('MMMM YYYY');
+      case "year":
+        return startDate.format('YYYY');
+      case "custom":
+        if (customDateRange && customDateRange.length === 2) {
+          return `${customDateRange[0].format(dateFormat)} - ${customDateRange[1].format(dateFormat)}`;
+        }
+        return "Custom Range";
+      default:
+        return startDate.format('MMMM D, YYYY');
+    }
   };
 
   return (
     <>
       {contextHolder}
 
-      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            Today's Overview
+            {periodFilter === "day" ? "Today's Overview" : "Overview"}
           </Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
-            {new Date().toLocaleString("en-US", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+            {getFormattedDateRange()}
           </Text>
         </div>
         <Space wrap>
@@ -380,6 +451,37 @@ const Dashboard = () => {
           </Tooltip>
         </Space>
       </Row>
+
+      {/* Period Filter Section */}
+      <Card style={{ marginBottom: 16, borderRadius: 8 }}>
+        <Flex align="center" wrap="wrap" gap={16}>
+          <Flex align="center">
+            <CalendarOutlined style={{ marginRight: 8, color: COLORS.primary }} />
+            <Text strong>Period:</Text>
+          </Flex>
+          <Radio.Group
+            value={periodFilter}
+            onChange={handlePeriodChange}
+            buttonStyle="solid"
+            size="middle"
+          >
+            <Radio.Button value="day">Day</Radio.Button>
+            <Radio.Button value="week">Week</Radio.Button>
+            <Radio.Button value="month">Month</Radio.Button>
+            <Radio.Button value="year">Year</Radio.Button>
+            <Radio.Button value="custom">Custom</Radio.Button>
+          </Radio.Group>
+
+          {showCustomDatePicker && (
+            <RangePicker
+              value={customDateRange}
+              onChange={handleCustomDateChange}
+              allowClear={false}
+              style={{ flexGrow: 1 }}
+            />
+          )}
+        </Flex>
+      </Card>
 
       <Row gutter={[16, 16]}>
         {statisticsData.map((stat, index) => (
@@ -409,7 +511,7 @@ const Dashboard = () => {
       <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
         <Col xs={24} lg={12}>
           <Card
-            title="Recent Orders"
+            title={`Recent Orders (${getFormattedDateRange()})`}
             extra={<a href="/orders">View All</a>}
             style={{ borderRadius: 12 }}
           >

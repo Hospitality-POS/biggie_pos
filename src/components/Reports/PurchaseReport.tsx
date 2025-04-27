@@ -1,29 +1,158 @@
-import React, { Key, useRef } from "react";
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  Typography,
-  TableContainer,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Paper,
-  Box,
-} from "@mui/material";
-import LocalPrintshopIcon from "@mui/icons-material/LocalPrintshop";
-import PrintDisabledIcon from "@mui/icons-material/PrintDisabled";
-import { useReactToPrint } from "react-to-print";
+import React, { useRef } from "react";
+import { Modal, Table, Typography, Button, Spin } from "antd";
+import { CloseOutlined, PrinterOutlined } from "@ant-design/icons";
 import { useAppSelector } from "../../store";
-import Spinner from "../spinner/Spinner";
-import "../MODALS/bill.css";
-import { Spin } from "antd/lib";
-import { BRAND_NAME, COOP_NAME } from "@utils/config";
 import moment from "moment";
 import useSystemDetails from "@hooks/useSystemDetails";
+import { COOP_NAME } from "@utils/config";
+import { useReactToPrint } from "react-to-print";
 import NubaLoader from "@components/spinner/NubaLoader";
+
+
+// Embedded CSS for thermal printer compatibility
+const styles = {
+  reportContainer: {
+    padding: 24,
+    color: "#000000",
+    fontWeight: "bold",
+  },
+  headerContainer: {
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  titleText: {
+    marginBottom: 8,
+    color: "#000000",
+    fontWeight: "bold",
+  },
+  subtitleText: {
+    marginBottom: 16,
+    color: "#000000",
+    fontWeight: "bold",
+  },
+  dateText: {
+    display: "block",
+    color: "#000000",
+    fontSize: "14px",
+    fontWeight: "bold",
+  },
+  footerContainer: {
+    textAlign: "center",
+    marginTop: 24,
+  },
+  footerText: {
+    display: "block",
+    color: "#000000",
+    fontSize: "14px",
+    fontWeight: "bold",
+  },
+  generatedText: {
+    display: "block",
+    color: "#000000",
+    fontSize: "12px",
+    fontWeight: "bold",
+  },
+  printButton: {
+    backgroundColor: "#6c1c2c",
+    borderColor: "#6c1c2c",
+  },
+  summaryCell: {
+    textAlign: "center",
+    fontWeight: "bold",
+    color: "#000000",
+  },
+};
+
+// Inject CSS for thermal printer compatibility
+const injectThermalPrintCSS = () => {
+  const styleId = "thermal-print-styles";
+
+  // Only add if it doesn't already exist
+  if (!document.getElementById(styleId)) {
+    const styleElement = document.createElement("style");
+    styleElement.id = styleId;
+    styleElement.innerHTML = `
+      @media print {
+        .receipt {
+          width: 80mm;
+          font-family: 'Courier New', monospace;
+          color: #000000 !important;
+          font-weight: bold !important;
+        }
+        
+        /* Hide elements not needed for printing */
+        .ant-modal-header,
+        .ant-modal-footer,
+        .ant-modal-close {
+          display: none !important;
+        }
+        
+        /* Ensure text is dark and bold for thermal printing */
+        .ant-typography {
+          color: #000000 !important;
+          font-weight: bold !important;
+        }
+        
+        /* Table styles for thermal printing */
+        .purchase-report-table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+        }
+        
+        .purchase-report-table th,
+        .purchase-report-table td {
+          border: 1px solid #000 !important;
+          padding: 4px !important;
+          color: #000000 !important;
+          font-weight: bold !important;
+          font-size: 12px !important;
+        }
+        
+        .purchase-report-table th {
+          background-color: #f0f0f0 !important;
+        }
+        
+        /* Summary rows */
+        .ant-table-summary {
+          border-top: 2px solid #000 !important;
+        }
+        
+        .ant-table-summary td {
+          font-weight: bold !important;
+          text-align: center !important;
+          color: #000000 !important;
+        }
+        
+        /* Fix for ant design modal printing */
+        .ant-modal-wrap,
+        .ant-modal-mask,
+        .ant-modal {
+          position: absolute !important;
+        }
+        
+        .ant-modal-content {
+          box-shadow: none !important;
+        }
+        
+        /* Ensure padding is appropriate for thermal paper */
+        .ant-modal-body {
+          padding: 0 !important;
+        }
+      }
+
+      /* Regular view styles */
+      .purchase-report-table .ant-table-cell {
+        color: #000000;
+        font-weight: bold;
+      }
+
+      .receipt {
+        max-width: 100%;
+      }
+    `;
+    document.head.appendChild(styleElement);
+  }
+};
 
 interface PurchaseReportProps {
   openM: boolean;
@@ -38,15 +167,68 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
   startDate,
   endDate,
 }) => {
+  // Inject the CSS for thermal printing when component mounts
+  React.useEffect(() => {
+    injectThermalPrintCSS();
+  }, []);
+
   const { BRAND_NAME1 } = useSystemDetails();
   const componentRef = useRef<HTMLDivElement>(null);
+
   const { purchaseReport: data, loading } = useAppSelector(
     (state) => state.Report
   );
+
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
-    // onAfterPrint: onCloseM,
   });
+
+  // Configure columns for the Ant Design Table
+  const columns = [
+    {
+      title: "NO.",
+      dataIndex: "index",
+      key: "index",
+      width: 60,
+    },
+    {
+      title: "PAYMENT METHOD",
+      dataIndex: "name",
+      key: "name",
+    },
+    {
+      title: "AMOUNT (Ksh.)",
+      dataIndex: "amount",
+      key: "amount",
+      align: "right" as const,
+      render: (value: number) => value.toLocaleString(),
+    },
+  ];
+
+  // Prepare data for the table
+  const tableData = data?.payment_methods.map((item: any, index: number) => ({
+    key: index,
+    index: index + 1,
+    name: item.name,
+    amount: item.amount,
+  }));
+
+  // For summary information
+  const summaryItems = [
+    {
+      label: "Overall Total",
+      value: data?.totalCost || 0,
+    },
+    {
+      label: "Overall Discount",
+      value: data?.totalDiscountAmount || 0,
+    },
+    {
+      label: "Overall Inclusive Discount",
+      value: data?.totalInclusiveDiscount || 0,
+    },
+  ];
+
   if (loading) {
     return (
       <Spin
@@ -57,153 +239,96 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
       />
     );
   }
+
   return (
-    <Dialog open={openM} onClose={onCloseM} maxWidth="sm" fullWidth>
-      <DialogContent className="receiptM" ref={componentRef}>
-        <div className="receipt" id="receipt">
-          <div
-            className="logo-print"
-            style={{ display: "flex", flexDirection: "column" }}
+    <Modal
+      open={openM}
+      onCancel={onCloseM}
+      width={800}
+      footer={[
+        <Button
+          key="print"
+          type="primary"
+          icon={<PrinterOutlined />}
+          onClick={handlePrint}
+          style={styles.printButton}
+        >
+          Print
+        </Button>,
+        <Button
+          key="close"
+          danger
+          icon={<CloseOutlined />}
+          onClick={onCloseM}
+        >
+          Close
+        </Button>,
+      ]}
+    >
+      {/* Print Content */}
+      <div
+        ref={componentRef}
+        style={styles.reportContainer}
+        className="receipt"
+      >
+        <div style={styles.headerContainer}>
+          <Typography.Title
+            level={3}
+            style={styles.titleText}
           >
-            {BRAND_NAME1 && BRAND_NAME1 !== "undefined undefined" && (
-              <Typography
-                variant="h5"
-                textAlign={"center"}
-                sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-              >
-                {BRAND_NAME1}
-              </Typography>
-            )}
-            <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
-              SALES REPORT
-            </Typography>
-          </div>
-          <p style={{ textAlign: "center", padding: "10px" }}>
-            From: {moment(startDate).format("MMM-DD-YYYY H:MM A")} <br /> to{" "}
-            <br /> {moment(endDate).format("MMM-DD-YYYY H:MM A")}
-          </p>
-
-          <TableContainer sx={{ mt: 2, width: "100%", mb: 2 }}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: "bold" }}>NO.</TableCell>
-                  <TableCell sx={{ fontWeight: "bold", padding: 0 }}>
-                    METHOD
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: "bold", textAlign: "right" }}>
-                    AMOUNT(Ksh.)
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data?.payment_methods.map((item: any, index: number) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.id ? <>{index + 1}</> : ""}</TableCell>
-                    <TableCell sx={{ padding: "8px", fontWeight: "bold" }}>
-                      {item.name}
-                    </TableCell>
-                    <TableCell sx={{ textAlign: "right", fontWeight: "bold" }}>
-                      {item.amount.toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                <TableRow>
-                  <TableCell
-                    colSpan={3}
-                    sx={{ fontWeight: "bold", textAlign: "center" }}
-                  >
-                    Overall Total: {data?.totalCost.toLocaleString()}
-                  </TableCell>
-                </TableRow>
-
-                <TableRow>
-                  <TableCell
-                    colSpan={3}
-                    sx={{ fontWeight: "bold", textAlign: "center" }}
-                  >
-                    Overall Discount:{" "}
-                    <span>{data?.totalDiscountAmount?.toLocaleString()}</span>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell
-                    colSpan={3}
-                    sx={{ fontWeight: "bold", textAlign: "center" }}
-                  >
-                    Overall inclusive discount:{" "}
-                    <span>
-                      {data?.totalInclusiveDiscount?.toLocaleString()}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          <Typography
-            variant="body1"
-            style={{
-              fontSize: "1em",
-              fontFamily: "monospace",
-              textAlign: "center",
-            }}
+            {BRAND_NAME1}
+          </Typography.Title>
+          <Typography.Title
+            level={4}
+            style={styles.subtitleText}
           >
-            Powered by: {COOP_NAME}
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{ textAlign: "center", fontSize: "0.9em" }}
-          >
-            Generated on {moment(Date()).format("MMM/DD/YYYY H:MM A")}
-          </Typography>
+            SALES REPORT
+          </Typography.Title>
+
+          <Typography.Text style={styles.dateText}>
+            From: {moment(startDate).format("MMM-DD-YYYY H:MM A")}
+          </Typography.Text>
+          <Typography.Text style={styles.dateText}>
+            To: {moment(endDate).format("MMM-DD-YYYY H:MM A")}
+          </Typography.Text>
         </div>
 
-        <Box
-          className="hidden-print"
-          sx={{
-            mt: 2,
-            display: "flex",
-            justifyContent: "space-evenly",
-            columnGap: 5,
-          }}
-        >
-          <Button
-            className="hidden-print"
-            variant="outlined"
-            sx={{
-              pl: 2,
-              color: "#6c1c2c",
-              borderColor: "#6c1c2c",
-              "&:hover": {
-                borderColor: "#bc8c7c",
-                color: "#bc8c7c",
-              },
-            }}
-            onClick={handlePrint}
-            endIcon={<LocalPrintshopIcon />}
-          >
-            Print
-          </Button>
-          <Button
-            className="hidden-print"
-            variant="contained"
-            sx={{
-              pl: 2,
-              bgcolor: "#6c1c2c",
-              "&:hover": {
-                bgcolor: "#bc8c7c",
-                color: "#ffff",
-              },
-            }}
-            onClick={onCloseM}
-            endIcon={<PrintDisabledIcon />}
-          >
-            Cancel
-          </Button>
-        </Box>
-      </DialogContent>
-    </Dialog>
+        {/* Table optimized for thermal printing */}
+        <Table
+          columns={columns}
+          dataSource={tableData}
+          pagination={false}
+          bordered
+          size="small"
+          style={{ marginBottom: 24 }}
+          summary={() => (
+            <Table.Summary>
+              {summaryItems.map((item, index) => (
+                <Table.Summary.Row key={index}>
+                  <Table.Summary.Cell
+                    index={0}
+                    colSpan={3}
+                    style={styles.summaryCell}
+                  >
+                    {item.label}: {item.value.toLocaleString()}
+                  </Table.Summary.Cell>
+                </Table.Summary.Row>
+              ))}
+            </Table.Summary>
+          )}
+          className="purchase-report-table"
+        />
+
+        <div style={styles.footerContainer}>
+          <Typography.Text style={styles.footerText}>
+            Powered by: {COOP_NAME}
+          </Typography.Text>
+          <Typography.Text style={styles.generatedText}>
+            Generated on {moment().format("MMM/DD/YYYY H:MM A")}
+          </Typography.Text>
+        </div>
+      </div>
+    </Modal>
   );
 };
 

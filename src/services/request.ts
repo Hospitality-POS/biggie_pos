@@ -7,6 +7,17 @@ const handleError = (errorMessage: string) => {
     message.error(`${errorMessage}`)
 };
 
+// Helper function to handle user logout
+const logoutUser = () => {
+    // Clear all relevant storage items
+    localStorage.removeItem("user");
+    localStorage.removeItem("shopId");
+    localStorage.removeItem("companyCode");
+
+    // Redirect to login page
+    window.location.href = "/login"; // Adjust this path to your login route
+};
+
 // Create an axios instance with the base URL and timeout
 const axiosInstance = axios.create({
     baseURL: BASE_URL,
@@ -17,8 +28,6 @@ axiosInstance.interceptors.request.use(
     (config) => {
         const user = localStorage.getItem("user");
         const shopId = localStorage.getItem("shopId");
-
-        console.log('my shop', shopId);
 
         if (user) {
             const userObject = JSON.parse(user);
@@ -83,7 +92,9 @@ axiosInstance.interceptors.response.use(
         if (response) {
             switch (response.status) {
                 case 401:
-                    handleError("Unauthorized. Please login again.");
+                    // Handle token expiration with auto logout
+                    handleError("Session expired. Logging out...");
+                    logoutUser();
                     break;
                 case 403:
                     handleError(response.data.message);

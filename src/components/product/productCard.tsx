@@ -126,7 +126,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         }}
       >
         <img
-          src={menu.thumbnail || defaultImagePath}
+          src={defaultImagePath}
           alt={menu.name}
           style={{
             width: "100%",

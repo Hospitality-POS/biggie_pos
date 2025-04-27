@@ -58,6 +58,13 @@ const AdminReports: React.FC = () => {
     onCloseDeliveryModal,
     deliveryDateTimeRange,
     openDeliveryModal,
+
+
+    openInventoryUsageModal,
+    setInventoryUsageDateTimeRange,
+    onCloseInventoryUsageModal,
+    inventoryUsageDateTimeRange,
+
   } = useReport(activeTab);
 
   const handleTabChange = (key: string) => {
@@ -423,6 +430,75 @@ const AdminReports: React.FC = () => {
             onCloseM={onCloseDeliveryModal}
             startDate={deliveryDateTimeRange[0]}
             endDate={deliveryDateTimeRange[1]}
+          />
+        </Form>
+      ),
+    },
+    {
+      key: "invetory_usage",
+      tab: "usage",
+      label: (
+        <Space>
+          <CarOutlined style={{ color: "#1890ff" }} />
+          Generate Inventory Usage Report
+        </Space>
+      ),
+      children: (
+        <Form form={form} onFinish={onFinish} layout="inline">
+          <Form.Item
+            name="dateRange"
+            label="Date & Time"
+            style={{ marginBottom: 16 }}
+            rules={[
+              {
+                required: true,
+                message: "kindly select date & time range",
+              },
+            ]}
+          >
+            <RangePicker
+              showTime={{ format: "HH:mm" }}
+              format="YYYY-MM-DD HH:mm"
+              presets={rangePresets}
+              onChange={(dates) =>
+                setInventoryUsageDateTimeRange([
+                  dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                  dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                ])
+              }
+            />
+          </Form.Item>
+
+          <Form.Item name="shop_id" style={{ marginBottom: 16 }}>
+            <ProFormSelect
+              width={"md"}
+              name="shop_id"
+              label="Shop Name"
+              showSearch
+              placeholder="Select shop"
+              request={async () => {
+                const data = await fetchAllShops({});
+                return data?.map((e: { name: any; _id: any }) => {
+                  return { label: e.name, value: e._id };
+                });
+              }}
+            />
+          </Form.Item>
+
+          <Button
+            type="primary"
+            onClick={generateReportHandler}
+            disabled={isGenerateButtonDisabled}
+            icon={<BarChartOutlined />}
+            htmlType="submit"
+          >
+            Generate Inventory Usage Report
+          </Button>
+          <DeliveryReportModal
+            openM={openInventoryUsageModal}
+            onCloseM={onCloseInventoryUsageModal}
+            startDate={inventoryUsageDateTimeRange[0]}
+            endDate={inventoryUsageDateTimeRange[1]}
           />
         </Form>
       ),

@@ -42,7 +42,8 @@ export const generateInventoryUsageReport = createAsyncThunk(
           print: true,
         },
       });
-      message.success("Sales report generated successfully");
+      console.log("reportType", response),
+        message.success("Sales report generated successfully");
       return response.data;
     } catch (error: any) {
       message.error("Failed to generate sales report");
