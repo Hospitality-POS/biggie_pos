@@ -24,7 +24,8 @@ import {
     UserOutlined,
     PhoneOutlined,
     EyeOutlined,
-    EyeInvisibleOutlined
+    EyeInvisibleOutlined,
+    GiftOutlined
 } from "@ant-design/icons";
 import { createGiftCard, sendGiftCard } from "@services/customers";
 import moment from "moment";
@@ -310,6 +311,8 @@ const GiftCardModal = ({
                 open={isGiftCardModalVisible}
                 onOk={handleGiftCardSubmit}
                 onCancel={() => setIsGiftCardModalVisible(false)}
+                destroyOnClose
+                centered
             >
                 <Form form={giftCardForm} layout="vertical">
                     <Form.Item
@@ -357,6 +360,8 @@ const GiftCardModal = ({
                 onOk={handleNewRecipientSubmit}
                 onCancel={() => setIsNewRecipientModalVisible(false)}
                 width={700}
+                destroyOnClose
+                centered
             >
                 <Form form={newRecipientForm} layout="vertical">
                     <div style={{ display: 'flex', gap: '16px' }}>
@@ -468,56 +473,44 @@ const GiftCardModal = ({
                 title="Gift Certificate Preview"
                 open={isPreviewModalVisible}
                 footer={
-                    <Row gutter={[8, 8]}>
-                        <Col xs={24} sm={12} md={6}>
-                            <Button
-                                block
-                                onClick={() => setIsPreviewModalVisible(false)}
-                            >
-                                Close
-                            </Button>
-                        </Col>
-                        <Col xs={24} sm={12} md={6}>
-                            <Button
-                                block
-                                type="primary"
-                                icon={<FilePdfOutlined />}
-                                loading={savingPDF}
-                                onClick={saveGiftCardAsPDF}
-                            >
-                                Export PDF
-                            </Button>
-                        </Col>
-                        <Col xs={24} sm={12} md={6}>
-                            <Button
-                                block
-                                type="primary"
-                                onClick={handleCreateGiftCard}
-                            >
-                                Create Gift Card
-                            </Button>
-                        </Col>
-                        <Col xs={24} sm={12} md={6}>
-                            <Button
-                                block
-                                type="primary"
-                                icon={<MailOutlined />}
-                                onClick={() => {
-                                    emailForm.setFieldsValue({
-                                        email: currentGiftCard.customer_id
-                                            ? currentCustomer?.email || ""
-                                            : currentGiftCard.email || ""
-                                    });
-                                    setIsSendEmailModalVisible(true);
-                                }}
-                            >
-                                Share Email
-                            </Button>
-                        </Col>
-                    </Row>
+                    <Space size="large" style={{ width: "100%" }}>
+                        <Button
+                            block
+                            type="primary"
+                            icon={<FilePdfOutlined />}
+                            loading={savingPDF}
+                            onClick={saveGiftCardAsPDF}
+                        >
+                            Export PDF
+                        </Button>
+                        <Button
+                            block
+                            type="primary"
+                            icon={<GiftOutlined />}
+                            onClick={handleCreateGiftCard}
+                        >
+                            Create Gift Card
+                        </Button>
+                        <Button
+                            block
+                            type="primary"
+                            icon={<MailOutlined />}
+                            onClick={() => {
+                                emailForm.setFieldsValue({
+                                    email: currentGiftCard.customer_id
+                                        ? currentCustomer?.email || ""
+                                        : currentGiftCard.email || ""
+                                });
+                                setIsSendEmailModalVisible(true);
+                            }}
+                        >
+                            Share Email
+                        </Button>
+                    </Space>
+
                 }
                 onCancel={() => setIsPreviewModalVisible(false)}
-                width={500}
+                width={560}
                 extra={
                     <Tooltip title={isPriceVisible ? "Hide price" : "Show price"}>
                         <Switch
@@ -655,6 +648,8 @@ const GiftCardModal = ({
                 onCancel={() => setIsSendEmailModalVisible(false)}
                 okText="Send Email"
                 okButtonProps={{ icon: <MailOutlined /> }}
+                destroyOnClose
+                centered
             >
                 <Form form={emailForm} layout="vertical">
                     <Form.Item
