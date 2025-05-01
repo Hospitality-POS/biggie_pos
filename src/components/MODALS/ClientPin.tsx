@@ -48,7 +48,7 @@ function ClientPin({ cart }: ClientPinProps) {
           }}
           icon={<KeyOutlined />}
         >
-          Client Pin
+          Client Details
         </Button>
       }
       onFinish={async (values) => {
@@ -63,7 +63,20 @@ function ClientPin({ cart }: ClientPinProps) {
       }}
     >
       <ProForm.Group>
-        <ProFormText width="md" name="client_pin" placeholder="A**********" />
+        <ProFormText
+          width="md"
+          name="client_pin"
+          label="Client Pin"
+          placeholder="A**********"
+        />
+      </ProForm.Group>
+      <ProForm.Group>
+        <ProFormText
+          width="md"
+          name="client_name"
+          label="Client Name"
+          placeholder="Rachel"
+        />
       </ProForm.Group>
     </ModalForm>
   );
