@@ -77,7 +77,6 @@ const WelcomeBanner = () => {
         <Button
           type="primary"
           style={{
-            backgroundColor: "#00B517",
             width: "fit-content",
             border: "none",
             height: "40px",
