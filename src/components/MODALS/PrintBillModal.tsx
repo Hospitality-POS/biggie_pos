@@ -184,6 +184,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             {new Date().getMinutes()}
           </Typography>
         </div>
+
         <TableContainer sx={{ mt: 3, width: "inherit" }}>
           <Table style={{ tableLayout: "fixed" }}>
             <TableHead>

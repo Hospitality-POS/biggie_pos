@@ -14,6 +14,7 @@ export interface CartDetailsInterface {
   discount: number;
   discount_type: string;
   clientPin: string;
+  clientName: string;
   createdAt: string;
   updatedAt: string;
   __v: number;

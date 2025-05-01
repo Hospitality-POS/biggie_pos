@@ -147,6 +147,24 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                         {new Date().getMinutes()}
                     </Typography>
                 </div>
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginBottom: "10px",
+                        color: darkTextColor,
+                        fontWeight: boldFontWeight,
+                        paddingTop: '10px',
+                    }}
+                >
+                    <Typography variant="body1"
+                        style={{ fontSize: "0.9em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
+                    >
+                        {cartDetails?.clientName && ` Client: ${cartDetails?.clientName}`}
+                    </Typography>
+
+
+                </div>
                 <TableContainer sx={{ mt: 2, width: "inherit" }}>
                     <Table style={{ tableLayout: "fixed", color: darkTextColor }}>
                         <TableHead>

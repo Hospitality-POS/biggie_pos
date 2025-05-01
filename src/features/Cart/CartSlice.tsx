@@ -31,6 +31,7 @@ interface CartDetails {
   tip_amount: number;
   tip_type: string;
   clientPin: string;
+  clientName: string;
   createdAt: string;
   updatedAt: string;
   __v: number;
@@ -74,6 +75,7 @@ const initialState: CartState = {
     tip_amount: 0,
     tip_type: "",
     clientPin: "N/A",
+    clientName: "N/A",
     updatedAt: "",
     __v: 0,
   },
@@ -186,7 +188,7 @@ const cartSlice = createSlice({
         state.cartDetails = action.payload;
         state.cartItems = action.payload.items;
         state.cartDetails.clientPin = action.payload.client_pin;
-
+        state.cartDetails.clientName = action.payload.client_name;
 
         // Calculate the total amount of all cart items using reduce
         state.totalAmount = action.payload?.items?.reduce(
@@ -266,6 +268,7 @@ const cartSlice = createSlice({
         state.cartDetails.discount_type = action.payload.discount_type;
         state.cartDetails.discount = action.payload.discount;
         state.cartDetails.clientPin = action.payload.client_pin;
+        state.cartDetails.clientName = action.payload.client_name;
 
         if (state.cartDetails.discount_type === "amount") {
           state.totalAmount -= state.cartDetails.discount;
