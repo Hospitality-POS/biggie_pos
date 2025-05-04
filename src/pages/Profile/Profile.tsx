@@ -109,7 +109,10 @@ function Profile() {
             <Avatar
               size={100}
               icon={<UserOutlined />}
-              style={{ backgroundColor: primaryColor }}
+              style={{ border: `2px solid ${primaryColor}` }}
+              src={userDetails?.thumbnail || ""}
+              alt={userDetails?.fullname || "User Avatar"}
+              aria-label="User Avatar"
             />
           </Col>
           <Col xs={24} sm={16} md={18} lg={19} xl={20}>
