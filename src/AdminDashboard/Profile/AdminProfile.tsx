@@ -117,7 +117,10 @@ function AdminProfile() {
             <Avatar
               size={100}
               icon={<UserOutlined />}
-              style={{ backgroundColor: primaryColor }}
+              src={userDetails.thumbnail}
+              style={{ border: `2px solid ${primaryColor}` }}
+              alt={userDetails.fullname}
+              aria-label="User Avatar"
             />
           </Col>
           <Col xs={24} sm={16} md={18} lg={19} xl={20}>
