@@ -71,7 +71,7 @@ const RestaurantShiftSchedule = () => {
     select: (data) => data?.filter((user) => user?.role?.role_type !== "admin") || [],
     refetchInterval: 5000,
     networkMode: "always",
-    staleTime:0
+    staleTime: 0
   });
 
   // Delete mutation
@@ -441,10 +441,10 @@ const RestaurantShiftSchedule = () => {
                 />
               </Space>
 
-             
+
 
               <Space>
-               
+
                 <div className="header-bottom-row">
                   <Select
                     placeholder="Filter by time"
@@ -473,7 +473,7 @@ const RestaurantShiftSchedule = () => {
                   icon={<PlusOutlined />}
                   onClick={handleNewShiftClick}
                 >
-                  New Employee Shift
+                  New Shift
                 </Button>
               </Space>
             </Space>
