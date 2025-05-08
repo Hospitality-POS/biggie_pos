@@ -68,8 +68,10 @@ const RestaurantShiftSchedule = () => {
     queryKey: ["users"],
     queryFn: fetchAllUsersList,
     retry: 1,
+    select: (data) => data?.filter((user) => user?.role?.role_type !== "admin") || [],
     refetchInterval: 5000,
     networkMode: "always",
+    staleTime:0
   });
 
   // Delete mutation
@@ -329,10 +331,10 @@ const RestaurantShiftSchedule = () => {
               className="user-list"
               dataSource={users}
               renderItem={user => (
-                <List.Item className="user-list-item">
-                  <Space size={12}>
+                <List.Item className="user-list-item" key={user?._id}>
+                  <Space size={12} align="center" style={{ width: '100%', paddingLeft: '8px' }}>
                     <Avatar
-                      src={user.avatar}
+                      src={user?.thumbnail || ''}
                       icon={<UserOutlined />}
                       style={{ backgroundColor: getEmployeeColor(user._id) }}
                       size={40}
