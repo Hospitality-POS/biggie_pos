@@ -117,7 +117,7 @@ function AdminProfile() {
             <Avatar
               size={100}
               icon={<UserOutlined />}
-              src={userDetails.thumbnail}
+              src={userDetails.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"}
               style={{ border: `2px solid ${primaryColor}` }}
               alt={userDetails.fullname}
               aria-label="User Avatar"
