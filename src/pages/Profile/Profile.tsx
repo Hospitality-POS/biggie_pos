@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   UserOutlined,
   MailOutlined,
@@ -34,6 +34,7 @@ const { Title, Text } = Typography;
 
 function Profile() {
   const [isPinVisible, setIsPinVisible] = useState(false);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [pin, setPin] = useState("*********");
   const params = useParams();
   
@@ -50,8 +51,14 @@ function Profile() {
   }
   );
 
-
-  const primaryColor = "#6c1c2c";
+  // Get tenant primary color from localStorage
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
 
   const togglePinVisibility = async () => {
