@@ -37,18 +37,18 @@ function Profile() {
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [pin, setPin] = useState("*********");
   const params = useParams();
-  
+
   const userRef = useRef<ActionType>();
-  
+
   const { id } = params;
 
-  const {data: userDetails, isLoading} = useQuery(
-  {
-    queryKey: ["user", id],
-    queryFn: () => fetchUserById(id),
-    refetchOnWindowFocus: false,
-    networkMode: "always",
-  }
+  const { data: userDetails, isLoading } = useQuery(
+    {
+      queryKey: ["user", id],
+      queryFn: () => fetchUserById(id),
+      refetchOnWindowFocus: false,
+      networkMode: "always",
+    }
   );
 
   // Get tenant primary color from localStorage
@@ -78,18 +78,22 @@ function Profile() {
   if (!userDetails) {
     return (
       <PageContainer
-        title="User Profile"
-        content="View and manage user information"
+        title="Profile Details"
+        content="Review and manage your personal information"
         style={{ padding: "24px" }}
       >
         <Card>
           <Row gutter={[16, 16]} align="middle">
             <Col span={24}>
-            {isLoading ? (
-              <Skeleton active />
-            ) : (
-             <Result status="404" title="User not found" subTitle="Sorry, the user you visited does not exist." />
-            )}
+              {isLoading ? (
+                <Skeleton active />
+              ) : (
+                <Result
+                  status="404"
+                  title="User Not Found"
+                  subTitle="We couldn't find the user you're looking for. Please check the user ID and try again."
+                />
+              )}
             </Col>
           </Row>
         </Card>
@@ -99,8 +103,8 @@ function Profile() {
 
   return (
     <PageContainer
-      title="User Profile"
-      content="View and manage user information"
+      title="Profile Details"
+      content="Review and manage your personal information"
       style={{ padding: "24px" }}
     >
       <Card>
@@ -164,7 +168,7 @@ function Profile() {
           <Descriptions.Item
             label={
               <Space>
-                <MailOutlined /> Email
+                <MailOutlined /> Email Address
               </Space>
             }
           >
@@ -173,7 +177,7 @@ function Profile() {
           <Descriptions.Item
             label={
               <Space>
-                <PhoneOutlined /> Phone
+                <PhoneOutlined /> Phone Number
               </Space>
             }
           >
@@ -182,7 +186,7 @@ function Profile() {
           <Descriptions.Item
             label={
               <Space>
-                <IdcardOutlined /> ID Number
+                <IdcardOutlined /> National ID
               </Space>
             }
           >
@@ -191,7 +195,7 @@ function Profile() {
           <Descriptions.Item
             label={
               <Space>
-                <LockOutlined /> PIN
+                <LockOutlined /> Security PIN
               </Space>
             }
           >
@@ -199,17 +203,16 @@ function Profile() {
               {pin}
               <Button
                 type="text"
-                icon={isPinVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                icon={isPinVisible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
                 onClick={togglePinVisibility}
                 aria-label={isPinVisible ? "Hide PIN" : "Show PIN"}
               />
-            
             </Space>
           </Descriptions.Item>
           <Descriptions.Item
             label={
               <Space>
-                <CalendarOutlined /> Created At
+                <CalendarOutlined /> Account Created
               </Space>
             }
           >
@@ -218,7 +221,7 @@ function Profile() {
           <Descriptions.Item
             label={
               <Space>
-                <CalendarOutlined /> Last Updated
+                <CalendarOutlined /> Last Modified
               </Space>
             }
           >
