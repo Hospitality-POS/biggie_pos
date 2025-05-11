@@ -75,8 +75,8 @@ function AdminProfile() {
   if (!userDetails) {
     return (
       <PageContainer
-        title="User Profile"
-        content="View and manage user information"
+        title="Profile Details"
+        content="Review and manage your personal information"
         style={{ padding: "24px" }}
       >
         <Card>
@@ -100,131 +100,131 @@ function AdminProfile() {
 
   return (
     <PageContainer
-      title="User Profile"
-      content="View and manage user information"
+      title="Profile Details"
+      content="Review and manage your personal information"
       style={{ padding: "24px" }}
     >
       <Card>
-        <Row gutter={[16, 16]} align="middle">
-          <Col
-            xs={24}
-            sm={8}
-            md={6}
-            lg={5}
-            xl={4}
-            style={{ textAlign: "center" }}
-          >
-            <Avatar
-              size={100}
-              icon={<UserOutlined />}
-              src={userDetails.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"}
-              style={{ border: `2px solid ${primaryColor}` }}
-              alt={userDetails.fullname}
-              aria-label="User Avatar"
-            />
-          </Col>
-          <Col xs={24} sm={16} md={18} lg={19} xl={20}>
-            <Space direction="vertical" size="small" style={{ width: "100%" }}>
-              <Space align="center">
-                <Title level={3} style={{ marginBottom: 0 }}>
-                  {userDetails.fullname}
-                </Title>
-
-                {/* edit user modal */}
-                <AddEditProUserModal
-                  edit={true}
-                  actionRef={userRef}
-                  data={userDetails}
-                  isProfile={true}
-                  userId={userDetails?._id}
-                />
-              </Space>
-              <Text
-                type="secondary"
-                style={{ marginBottom: 8 }}
-              >{`@${userDetails.username}`}</Text>
-              <Space>
-                <Tag color={userDetails.status === "Active" ? "green" : "red"}>
-                  {userDetails.status}
-                </Tag>
-                <Tag color={primaryColor}>
-                  {userDetails.role.role_type.toUpperCase()}
-                </Tag>
-              </Space>
-            </Space>
-          </Col>
-        </Row>
-
-        <Descriptions
-          bordered
-          column={{ xs: 1, sm: 2 }}
-          style={{ marginTop: "24px" }}
-          labelStyle={{ fontWeight: "bold" }}
-          size="small"
+      <Row gutter={[16, 16]} align="middle">
+        <Col
+        xs={24}
+        sm={8}
+        md={6}
+        lg={5}
+        xl={4}
+        style={{ textAlign: "center" }}
         >
-          <Descriptions.Item
-            label={
-              <Space>
-                <MailOutlined /> Email
-              </Space>
-            }
-          >
-            {userDetails.email}
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <PhoneOutlined /> Phone
-              </Space>
-            }
-          >
-            {userDetails.phone}
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <IdcardOutlined /> ID Number
-              </Space>
-            }
-          >
-            {userDetails.idNumber}
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <LockOutlined /> PIN
-              </Space>
-            }
-          >
-            <Space>
-              {pin}
-              <Button
-                type="text"
-                icon={isPinVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                onClick={togglePinVisibility}
-                aria-label={isPinVisible ? "Hide PIN" : "Show PIN"}
-              />
-            </Space>
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <CalendarOutlined /> Created At
-              </Space>
-            }
-          >
-            {new Date(userDetails.createdAt).toLocaleString()}
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <CalendarOutlined /> Last Updated
-              </Space>
-            }
-          >
-            {new Date(userDetails.updatedAt).toLocaleString()}
-          </Descriptions.Item>
-        </Descriptions>
+        <Avatar
+          size={100}
+          icon={<UserOutlined />}
+          src={userDetails.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"}
+          style={{ border: `2px solid ${primaryColor}` }}
+          alt={userDetails.fullname}
+          aria-label="User Avatar"
+        />
+        </Col>
+        <Col xs={24} sm={16} md={18} lg={19} xl={20}>
+        <Space direction="vertical" size="small" style={{ width: "100%" }}>
+          <Space align="center">
+          <Title level={3} style={{ marginBottom: 0 }}>
+            {userDetails.fullname}
+          </Title>
+
+          {/* edit user modal */}
+          <AddEditProUserModal
+            edit={true}
+            actionRef={userRef}
+            data={userDetails}
+            isProfile={true}
+            userId={userDetails?._id}
+          />
+          </Space>
+          <Text
+          type="secondary"
+          style={{ marginBottom: 8 }}
+          >{`@${userDetails.username}`}</Text>
+          <Space>
+          <Tag color={userDetails.status === "Active" ? "green" : "red"}>
+            {userDetails.status}
+          </Tag>
+          <Tag color={primaryColor}>
+            {userDetails.role.role_type.toUpperCase()}
+          </Tag>
+          </Space>
+        </Space>
+        </Col>
+      </Row>
+
+      <Descriptions
+        bordered
+        column={{ xs: 1, sm: 2 }}
+        style={{ marginTop: "24px" }}
+        labelStyle={{ fontWeight: "bold" }}
+        size="small"
+      >
+        <Descriptions.Item
+        label={
+          <Space>
+          <MailOutlined /> Email Address
+          </Space>
+        }
+        >
+        {userDetails.email}
+        </Descriptions.Item>
+        <Descriptions.Item
+        label={
+          <Space>
+          <PhoneOutlined /> Phone Number
+          </Space>
+        }
+        >
+        {userDetails.phone}
+        </Descriptions.Item>
+        <Descriptions.Item
+        label={
+          <Space>
+          <IdcardOutlined /> National ID
+          </Space>
+        }
+        >
+        {userDetails.idNumber}
+        </Descriptions.Item>
+        <Descriptions.Item
+        label={
+          <Space>
+          <LockOutlined /> Security PIN
+          </Space>
+        }
+        >
+        <Space>
+          {pin}
+          <Button
+          type="text"
+          icon={isPinVisible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+          onClick={togglePinVisibility}
+          aria-label={isPinVisible ? "Hide PIN" : "Show PIN"}
+          />
+        </Space>
+        </Descriptions.Item>
+        <Descriptions.Item
+        label={
+          <Space>
+          <CalendarOutlined /> Account Created
+          </Space>
+        }
+        >
+        {new Date(userDetails.createdAt).toLocaleString()}
+        </Descriptions.Item>
+        <Descriptions.Item
+        label={
+          <Space>
+          <CalendarOutlined /> Last Modified
+          </Space>
+        }
+        >
+        {new Date(userDetails.updatedAt).toLocaleString()}
+        </Descriptions.Item>
+      </Descriptions>
       </Card>
     </PageContainer>
   );
