@@ -10,7 +10,7 @@ import { Space } from "antd/lib";
 import Lottie from "lottie-react";
 import React, { useState, useEffect, useRef } from "react";
 import { useAppSelector } from "src/store";
-import fssanimation from "../../components/Loaders/fss loader.json";
+import fssanimation from "../../components/Loaders/tables.json";
 import EmptyPage from "@routes/EmptyPage";
 import { useNavigate } from "react-router-dom";
 
