@@ -45,23 +45,18 @@ const LoadingTabs = () => (
   </div>
 );
 
-
-
 export default function TablePro() {
-  // Ref to track component mount status
-  const isMounted = useRef(false);
-
-  // Ref to track if we've already processed the initial tab selection
-  const initialTabProcessed = useRef(false);
-
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
   const { user } = useAppSelector((state) => state.auth);
-
-  // Initialize activeTabId - simplified to ensure overview is default
-  const [activeTabId, setActiveTabId] = useState<string>("overview");
-
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
+  const { openModal: successmodal, loading } = useAppSelector((state) => state.order);
+  const navigate = useNavigate();
+  const storedCode = localStorage.getItem("companyCode");
+
+  // Initialize with overview - always default to overview tab
+  const [activeTabId, setActiveTabId] = useState("overview");
 
   // Get tenant primary color on component mount
   useEffect(() => {
@@ -72,66 +67,49 @@ export default function TablePro() {
     }
   }, []);
 
-
-
-  // Explicitly load and log the saved tab ID on component mount 
+  // Simplified tab management logic - single useEffect for tab management
   useEffect(() => {
-    // Get saved values
     const isFirstVisit = localStorage.getItem("hasVisitedTablesBefore") !== "true";
-    const savedTabId = localStorage.getItem("activeTableTabId");
 
-    console.log("Component mounted. First visit:", isFirstVisit);
-    console.log("Saved tab ID:", savedTabId);
-
-    // Mark as visited
+    // Mark as visited for future visits
     if (isFirstVisit) {
       localStorage.setItem("hasVisitedTablesBefore", "true");
-      console.log("Setting first visit marker");
-    }
-
-    // Only restore a saved tab if not first visit and we have a valid saved tab
-    if (!isFirstVisit && savedTabId && savedTabId !== "overview") {
-      console.log("Restoring saved tab:", savedTabId);
-      setActiveTabId(savedTabId);
-    } else {
-      console.log("Using overview tab");
-      // Force 'overview' to be the active tab (this is important)
+      // For first visit, always ensure overview tab is selected
       setActiveTabId("overview");
       localStorage.setItem("activeTableTabId", "overview");
+    } else {
+      // For returning visits, try to restore previous tab
+      const savedTabId = localStorage.getItem("activeTableTabId");
+
+      // Important: Default to "overview" if saved tab is null/undefined/empty
+      if (savedTabId && savedTabId !== "undefined" && savedTabId !== "") {
+        setActiveTabId(savedTabId);
+      } else {
+        // Ensure overview is selected and saved if we don't have a valid saved tab
+        setActiveTabId("overview");
+        localStorage.setItem("activeTableTabId", "overview");
+      }
     }
-
-    // Mark as mounted
-    isMounted.current = true;
   }, []);
-
-  const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
-  const { openModal: successmodal, loading } = useAppSelector(
-    (state) => state.order
-  );
-
-  const navigate = useNavigate();
-
-  const storedCode = localStorage.getItem("companyCode");
 
   // Show login modal and blur background if companyCode is not present
   useEffect(() => {
     if (!storedCode) {
       setIsBackgroundBlurred(true);
       setOpen(true); // Open the login modal
-      setSelectedProductId(null); // Use null instead of 'undefined' string
+      setSelectedProductId(null);
     }
   }, [storedCode]);
 
   // Save the activeTabId to localStorage whenever it changes
-  // (but skip the initial render)
   useEffect(() => {
-    if (isMounted.current) {
-      console.log("Saving activeTabId to localStorage:", activeTabId);
+    // Only save valid non-empty tab IDs
+    if (activeTabId && activeTabId !== "undefined" && activeTabId !== "") {
       localStorage.setItem("activeTableTabId", activeTabId);
     }
   }, [activeTabId]);
 
-  const handleOpen = (productId: React.SetStateAction<null>) => {
+  const handleOpen = (productId) => {
     setOpen(true);
     setSelectedProductId(productId);
   };
@@ -146,7 +124,6 @@ export default function TablePro() {
     queryKey: queryKey,
     queryFn: () => {
       if (storedCode) {
-        console.log("Fetching data for tab:", activeTabId);
         return fetchTableUsequery({ id: activeTabId });
       }
       return []; // Return empty array if no storedCode
@@ -154,35 +131,6 @@ export default function TablePro() {
     networkMode: "always",
     enabled: !!storedCode, // Disable query if storedCode is undefined
   });
-
-  // Process data results only once after initial load
-  useEffect(() => {
-    // Skip if already processed or no data
-    if (initialTabProcessed.current || !data || data.length === 0) {
-      return;
-    }
-
-    console.log("Processing data for tab selection. Current tab:", activeTabId);
-
-    // If we're on overview tab and this isn't the first visit, check if we need to restore a tab
-    if (activeTabId === "overview") {
-      const savedTabId = localStorage.getItem("activeTableTabId");
-      const isFirstVisit = localStorage.getItem("hasVisitedTablesBefore") !== "true";
-
-      if (!isFirstVisit && savedTabId && savedTabId !== "overview") {
-        // Check if the saved tab exists in the current data
-        const tabExists = data.some(item => item._id === savedTabId);
-
-        if (tabExists) {
-          console.log("Restoring tab from data:", savedTabId);
-          setActiveTabId(savedTabId);
-        }
-      }
-    }
-
-    // Mark as processed to avoid repeating
-    initialTabProcessed.current = true;
-  }, [data, activeTabId]);
 
   if (successmodal) {
     return <SuccesssModal />;
@@ -222,7 +170,7 @@ export default function TablePro() {
   );
 
   const tabsItems = data?.map(
-    (item: { _id: string; name: string; tables?: any[] }) => ({
+    (item) => ({
       key: `${item._id}`,
       tab: "Table",
       label: (
@@ -343,8 +291,6 @@ export default function TablePro() {
       ...(tabsItems || []),
     ];
 
-    console.log("Rendering tabs with activeTabId:", activeTabId);
-
     return (
       <ConfigProvider
         theme={{
@@ -369,7 +315,7 @@ export default function TablePro() {
             type: "card",
             items: allTabItems,
             onChange: (key) => {
-              console.log("Tab changed to:", key);
+              // Set new active tab when user selects a different tab
               setActiveTabId(key);
             },
             activeKey: activeTabId,
