@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   ActionType,
   ProColumns,
@@ -7,31 +7,155 @@ import {
 } from "@ant-design/pro-components";
 import ExpandedRowContent from "./ExpandableOrderDetails";
 import { deleteOrderById, getAllOrders } from "@services/orders";
-import { Badge, Button, Space, Tag, Typography } from "antd";
+import { Badge, Button, DatePicker, Radio, Space, Tag, Typography } from "antd";
 import { CSVLink } from "react-csv";
 import moment from "moment";
 // import jsPDF from "jspdf";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ENTITY_NAME } from "@utils/config";
-import { DeleteOutlined, UserOutlined } from "@ant-design/icons";
+import { CalendarOutlined, DeleteOutlined, UserOutlined } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
+
+const { RangePicker } = DatePicker;
 
 const OrdersTable = () => {
   const actionRef = useRef<ActionType>();
   const ref = useRef<ProFormInstance>();
-  const { data, isLoading } = useQuery({
-    queryKey: ["orderlist"],
-    queryFn: getAllOrders,
+  const queryClient = useQueryClient();
+
+  // Date filter state
+  const [dateFilterType, setDateFilterType] = useState("all");
+  const [dateRange, setDateRange] = useState<[moment.Moment, moment.Moment] | null>(null);
+
+  // Query parameters state
+  const [queryParams, setQueryParams] = useState({});
+  // Track current orders data separately 
+  const [currentOrders, setCurrentOrders] = useState([]);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["orderlist", queryParams],
+    queryFn: () => getAllOrders(queryParams),
     networkMode: "always",
   });
+
+  // Update currentOrders when data changes
+  useEffect(() => {
+    // Ensure we set currentOrders to an empty array if data is null or undefined
+    setCurrentOrders(data || []);
+  }, [data]);
 
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
 
+  // Function to handle preset date filters
+  const handleDateFilterChange = (e) => {
+    const filterType = e.target.value;
+    setDateFilterType(filterType);
+
+    let startDate = null;
+    let endDate = null;
+
+    switch (filterType) {
+      case "today":
+        startDate = moment().startOf('day');
+        endDate = moment().endOf('day');
+        break;
+      case "yesterday":
+        startDate = moment().subtract(1, 'days').startOf('day');
+        endDate = moment().subtract(1, 'days').endOf('day');
+        break;
+      case "currentWeek":
+        startDate = moment().startOf('week'); // Start of current week (Sunday)
+        endDate = moment().endOf('week'); // End of current week (Saturday)
+        break;
+      case "lastWeek":
+        startDate = moment().subtract(1, 'week').startOf('week');
+        endDate = moment().subtract(1, 'week').endOf('week');
+        break;
+      case "currentMonth":
+        startDate = moment().startOf('month');
+        endDate = moment().endOf('month');
+        break;
+      case "custom":
+        // Don't set dates here, let the user pick from the RangePicker
+        break;
+      default:
+        // "all" - no date filtering
+        startDate = null;
+        endDate = null;
+    }
+
+    // Set date range state
+    setDateRange(startDate && endDate ? [startDate, endDate] : null);
+
+    // Update query parameters
+    const newParams = { ...queryParams };
+    if (startDate && endDate) {
+      newParams.start_date = startDate.toISOString();
+      newParams.end_date = endDate.toISOString();
+    } else {
+      // Remove date filters if "all" is selected
+      delete newParams.start_date;
+      delete newParams.end_date;
+    }
+
+    // Set the new query parameters
+    setQueryParams(newParams);
+
+    // Reset cached data before refetching to ensure stale data isn't shown
+    queryClient.resetQueries(["orderlist"]);
+
+    // Force a data reset to empty array while loading
+    setCurrentOrders([]);
+
+    // Trigger refetch with new parameters
+    setTimeout(() => refetch(), 0);
+  };
+
+  // Function to handle custom date range selection
+  const handleCustomDateChange = (dates) => {
+    if (dates && dates.length === 2) {
+      setDateFilterType("custom");
+      setDateRange(dates);
+
+      const newParams = { ...queryParams };
+      newParams.start_date = dates[0].startOf('day').toISOString();
+      newParams.end_date = dates[1].endOf('day').toISOString();
+      setQueryParams(newParams);
+
+      // Reset cached data before refetching
+      queryClient.resetQueries(["orderlist"]);
+
+      // Force a data reset to empty array while loading
+      setCurrentOrders([]);
+
+      // Trigger refetch with new parameters
+      setTimeout(() => refetch(), 0);
+    } else {
+      setDateFilterType("all");
+      setDateRange(null);
+
+      // Remove date filters
+      const newParams = { ...queryParams };
+      delete newParams.start_date;
+      delete newParams.end_date;
+      setQueryParams(newParams);
+
+      // Reset cached data before refetching
+      queryClient.resetQueries(["orderlist"]);
+
+      // Force a data reset to empty array while loading
+      setCurrentOrders([]);
+
+      // Trigger refetch with new parameters
+      setTimeout(() => refetch(), 0);
+    }
+  };
+
   const handleExportCSV = () => {
     const csvData =
-      data?.length > 0
-        ? data.map((order) => ({
+      currentOrders?.length > 0
+        ? currentOrders.map((order) => ({
           OrderNo: order?.order_no,
           Amount: order?.order_amount,
           UpdatedBy: order?.updated_by?.username,
@@ -50,7 +174,7 @@ const OrdersTable = () => {
       <CSVLink
         data={csvData}
         headers={csvHeaders}
-        filename={`${ENTITY_NAME} ORDERS ${moment(Date()).format(
+        filename={`${ENTITY_NAME} ORDERS ${moment().format(
           "MMM-DD-YY, h:mm a"
         )}.csv`}
         style={{ textDecoration: "none" }}
@@ -60,32 +184,6 @@ const OrdersTable = () => {
     );
   };
 
-  // const handleExportPDF = () => {
-  //   const doc = new jsPDF();
-  //   doc.text("Orders Report", 10, 10);
-
-  //   const tableData =
-  //     data?.length > 0 &&
-  //     data?.map((order, i) => [
-  //       i,
-  //       order?.order_no,
-  //       order?.order_amount,
-  //       order?.updated_by.username,
-  //       moment(order?.createdAt).format("MMMM Do YYYY, h:mm a"),
-  //     ]);
-
-  //   const headers = ["No.", "Order No.", "Amount", "Closed At", "Closed By"];
-  //   const tableY = 20;
-  //   const dataY = tableY + 10;
-
-  //   doc.autoTable({
-  //     head: [headers],
-  //     body: tableData,
-  //     startY: dataY,
-  //   });
-
-  //   doc.save(`orders-${Date.now()}.pdf`);
-  // };
   const ActionsColumn: ProColumns<any>[] = [
     {
       title: "Actions",
@@ -107,6 +205,9 @@ const OrdersTable = () => {
               const success = await deleteOrderById(record._id);
               if (success && actionRef.current) {
                 actionRef.current.reload();
+
+                // Also manually invalidate the query to ensure fresh data
+                queryClient.invalidateQueries(["orderlist"]);
               }
             }}
           >
@@ -115,7 +216,6 @@ const OrdersTable = () => {
               {record.status === "pending" ? "Cancel" : "Delete"}
             </Typography.Text>
           </Tag>
-
         </Space>
       ),
     },
@@ -124,8 +224,42 @@ const OrdersTable = () => {
   const expandedRowRender = (record: any) => {
     return <ExpandedRowContent record={record} />;
   };
+
   return (
     <>
+      {/* Date Filter Controls */}
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+        <Space>
+          <CalendarOutlined style={{ fontSize: '16px' }} />
+          <Typography.Text strong>Date Filter:</Typography.Text>
+        </Space>
+
+        <Radio.Group
+          value={dateFilterType}
+          onChange={handleDateFilterChange}
+          buttonStyle="solid"
+          optionType="button"
+          style={{ marginRight: 16 }}
+        >
+          <Radio.Button value="all">All Time</Radio.Button>
+          <Radio.Button value="today">Today</Radio.Button>
+          <Radio.Button value="yesterday">Yesterday</Radio.Button>
+          <Radio.Button value="currentWeek">Current Week</Radio.Button>
+          <Radio.Button value="lastWeek">Last Week</Radio.Button>
+          <Radio.Button value="currentMonth">Current Month</Radio.Button>
+          <Radio.Button value="custom">Custom</Radio.Button>
+        </Radio.Group>
+
+        {dateFilterType === "custom" && (
+          <RangePicker
+            value={dateRange}
+            onChange={handleCustomDateChange}
+            format="YYYY-MM-DD"
+            allowClear
+          />
+        )}
+      </div>
+
       <ProTable
         rowKey="_id"
         cardBordered
@@ -182,7 +316,6 @@ const OrdersTable = () => {
               </Tag>
             ),
           },
-
           {
             title: "Amount",
             dataIndex: "order_amount",
@@ -190,7 +323,7 @@ const OrdersTable = () => {
             hideInSearch: true,
             ellipsis: true,
             valueType: "money",
-            renderText: (value: number) => `Ksh. ${value.toFixed(2)}`,
+            renderText: (value: number) => `Ksh. ${value?.toFixed(2) || "0.00"}`,
           },
           {
             title: "Time Closed",
@@ -202,14 +335,8 @@ const OrdersTable = () => {
           },
           ...ActionsColumn,
         ]}
-        request={async (params) => {
-          const data = await getAllOrders(params);
-          return {
-            data: data,
-            success: true,
-            total: data.length,
-          };
-        }}
+        dataSource={currentOrders}
+        loading={isLoading}
         tableAlertRender={({ selectedRowKeys }) => {
           return <p>You have selected {selectedRowKeys.length}</p>;
         }}
@@ -224,10 +351,41 @@ const OrdersTable = () => {
           searchText: "Search order",
           resetText: "Reset",
           labelWidth: "auto",
+          onSearch: (values) => {
+            // When search form is submitted, reset the queryParams
+            const newParams = { ...queryParams };
+
+            // Add search form values to queryParams
+            if (values.order_no) {
+              newParams.order_no = values.order_no;
+            } else {
+              delete newParams.order_no;
+            }
+
+            if (values.name) {
+              newParams.name = values.name;
+            } else {
+              delete newParams.name;
+            }
+
+            // Update query params
+            setQueryParams(newParams);
+
+            // Reset cached data and force reload
+            queryClient.resetQueries(["orderlist"]);
+            setCurrentOrders([]);
+            setTimeout(() => refetch(), 0);
+          },
         }}
         options={{
           search: true,
           fullScreen: true,
+          reload: () => {
+            // Reset cached data and force reload
+            queryClient.resetQueries(["orderlist"]);
+            setCurrentOrders([]);
+            refetch();
+          },
         }}
         expandable={{
           expandedRowRender,
@@ -235,7 +393,18 @@ const OrdersTable = () => {
           expandIconColumnIndex: 1,
           columnTitle: " ",
         }}
-        headerTitle="List of All Orders"
+        headerTitle={
+          <div>
+            List of All Orders
+            {dateRange && (
+              <Tag color="blue" style={{ marginLeft: 8 }}>
+                {dateFilterType === "custom"
+                  ? `${dateRange[0].format('MMM DD, YYYY')} - ${dateRange[1].format('MMM DD, YYYY')}`
+                  : dateFilterType}
+              </Tag>
+            )}
+          </div>
+        }
         dateFormatter="string"
         toolBarRender={() => [
           <Button type="primary" loading={isLoading} disabled={isLoading}>

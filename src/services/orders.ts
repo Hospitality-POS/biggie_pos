@@ -5,18 +5,30 @@ import axiosInstance from "./request";
 
 export const getAllOrders = async (data: ParamsType) => {
   try {
+    console.log("Fetching orders with params:", data); // Debug log
+
     const response = await axiosInstance.get(`${BASE_URL}/orders`, {
       params: {
         order_no: data?.order_no || data?.keyword,
         table_name: data?.name,
+        // Include date filter parameters if they exist
+        start_date: data?.start_date,
+        end_date: data?.end_date,
+        // Include any other parameters that might be passed
+        shop_id: data?.shop_id,
       },
     });
-    return response.data;
+
+    console.log("Orders API response:", response.data.length, "results"); // Debug log
+
+    // Ensure we always return an array, even if the response is null/undefined
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error) {
-    console.log(error);
+    console.error("Error fetching orders:", error);
+    // Always return empty array on error
+    return [];
   }
 };
-
 
 export const getDashboardAnalysis = async (startDate: string, endDate: string) => {
   try {

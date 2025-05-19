@@ -91,15 +91,25 @@ export const printInvoice = async (printData: PrintData): Promise<void> => {
 
 export const getAllInvoices = async (params: ParamsType) => {
   try {
+    console.log("Fetching invoices with params:", params); // Debug log
+
     const response = await axiosInstance.get(`${baseUrl}/cart/invoices`, {
       params: {
-        orderNo: params?.order_no || params?.keyword,
-        tableName: params?.table,
+        orderNo: params?.order_no || params?.orderNo || params?.keyword,
+        tableName: params?.table || params?.tableName,
+        // Add date filter parameters
+        start_date: params?.start_date,
+        end_date: params?.end_date
       }
     });
-    return response.data || [];
+
+    console.log("Invoices API response:", response.data?.length, "results"); // Debug log
+
+    // Ensure we always return an array, even if the response is null/undefined
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
-    console.log(error);
+    console.error("Error fetching invoices:", error);
+    return []; // Return empty array on error
   }
 };
 
