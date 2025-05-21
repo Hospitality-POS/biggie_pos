@@ -18,6 +18,9 @@ import { getAllProducts } from "@services/products";
 import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import moment from "moment";
+import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
+import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
+import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
 
 const { Option } = Select;
 const { RangePicker } = TimePicker;
@@ -179,7 +182,6 @@ const SpaReservationSystem = () => {
             originalData: appointment, // Keep the original data for reference
             appointmentDate: appointment.appointment_date,
             specialRequests: appointment.special_requests,
-            email: appointment.email,
             phone: appointment.phone
         }));
     }, [scheduleData, selectedDate]);
@@ -303,6 +305,9 @@ const SpaReservationSystem = () => {
             return;
         }
 
+        // Reset the form first
+        form.resetFields();
+
         // Set initial values for the form - using the property that matches what's in the Form.Item
         setSelectedTimeSlot(time);
         setSelectedStaff(staffMember?.id); // Use id to match the <Option value={staff.id}>
@@ -311,6 +316,7 @@ const SpaReservationSystem = () => {
         // Set the form values for staff and time range
         form.setFieldsValue({
             staff: staffMember?.id,
+            appointmentDate: moment(selectedDate),
             timeRange: [
                 moment(time, 'h:mm A'),
                 moment(getNextTimeSlot(time), 'h:mm A')
@@ -340,19 +346,24 @@ const SpaReservationSystem = () => {
     };
 
     const handleNewReservationClick = () => {
+        // Reset all form state
         setSelectedTimeSlot(null);
         setEditingAppointment(null);
         setIsEditMode(false);
         setCustomClientName("");
         setClientInputMode("existing");
-        setShowReservationForm(true);
 
-        // Auto-select staff if one is already selected
-        if (selectedStaff) {
-            form.setFieldsValue({
-                staff: selectedStaff
-            });
-        }
+        // Clear the form completely
+        form.resetFields();
+
+        // Set only the essential default values
+        form.setFieldsValue({
+            appointmentDate: moment(selectedDate),
+            // Auto-select staff if one is already selected
+            staff: selectedStaff || undefined
+        });
+
+        setShowReservationForm(true);
     };
 
     const handleCustomClientNameChange = (event) => {
@@ -368,6 +379,9 @@ const SpaReservationSystem = () => {
         setClientInputMode(appointment.customClientName ? "custom" : "existing");
         setShowReservationForm(true);
 
+        // Clear the form first
+        form.resetFields();
+
         // Set all form values including the new fields
         form.setFieldsValue({
             staff: appointment.staffId,
@@ -382,8 +396,7 @@ const SpaReservationSystem = () => {
                 moment(appointment.end_time, 'h:mm A')
             ],
             specialRequests: appointment.specialRequests || "",
-            email: appointment.email || "",
-            phone: appointment.phone || ""
+            phoneNumber: appointment.phone ? reversePhoneNumber(appointment.phone) : ""
         });
     };
 
@@ -403,6 +416,7 @@ const SpaReservationSystem = () => {
         const staffMember = values.staff || selectedStaff;
         const appointmentDate = values.appointmentDate ? values.appointmentDate.format('YYYY-MM-DD') : selectedDate.toISOString().split('T')[0];
         const customName = clientInputMode === "custom" ? values.customClientName : null;
+        const phoneNumber = values.phoneNumber ? getPhoneNumber(values.phoneNumber) : null;
 
         // Find staff name for checking conflicts (but use ID for submission)
         const staffName = staffMembers.find(staff => staff.id === staffMember)?.name || "Unknown Staff";
@@ -505,8 +519,8 @@ const SpaReservationSystem = () => {
                 appointment_date: appointmentDate,
                 // Add the new fields to the appointment data
                 special_requests: values.specialRequests,
-                email: values.email,
-                phone: values.phone
+                phone: phoneNumber,
+                source: "admin_portal"
             };
 
             try {
@@ -619,7 +633,7 @@ const SpaReservationSystem = () => {
         );
     };
 
-    // Render the calendar grid with staff columns and appointments
+
     const renderCalendarGrid = () => {
         if (isLoading || !staffMembers || staffMembers.length === 0) {
             return (
@@ -633,209 +647,251 @@ const SpaReservationSystem = () => {
         return (
             <div className="calendar-container" style={{
                 display: 'flex',
-                overflowX: 'auto',
-                overflowY: 'auto',
+                flexDirection: 'column',
+                overflow: 'hidden',
                 maxHeight: 'calc(100vh - 250px)',
                 position: 'relative'
             }}>
-                {/* Time axis on the left */}
-                <div className="time-axis" style={{ width: '60px', flexShrink: 0, borderRight: '1px solid #f0f0f0' }}>
-                    {hourRange.map(hour => {
-                        const displayHour = hour > 12 ? hour - 12 : hour;
-                        const period = hour >= 12 ? 'PM' : 'AM';
-                        return (
-                            <div key={hour} className="hour-marker" style={{
-                                height: '80px',
-                                borderBottom: '1px solid #f0f0f0',
-                                position: 'relative',
-                                display: 'flex',
-                                alignItems: 'flex-start',
-                                justifyContent: 'center',
-                                paddingTop: '5px',
-                                color: '#8c8c8c',
-                                fontWeight: '500',
-                                fontSize: '12px'
-                            }}>
-                                {`${displayHour} ${period}`}
+                {/* Staff headers row */}
+                <div className="staff-headers-row" style={{
+                    display: 'flex',
+                    borderBottom: '1px solid #f0f0f0',
+                    background: '#f7f9fc',
+                    zIndex: 10
+                }}>
+                    {/* Empty cell in top-left corner */}
+                    <div style={{
+                        width: '60px',
+                        flexShrink: 0,
+                        borderRight: '1px solid #f0f0f0'
+                    }}>
+                    </div>
 
-                                {/* Quarter-hour markers */}
-                                <div style={{ position: 'absolute', left: 0, right: 0, top: '20px', borderBottom: '1px dotted #f0f0f0' }}></div>
-                                <div style={{ position: 'absolute', left: 0, right: 0, top: '40px', borderBottom: '1px dotted #f0f0f0' }}></div>
-                                <div style={{ position: 'absolute', left: 0, right: 0, top: '60px', borderBottom: '1px dotted #f0f0f0' }}></div>
-                            </div>
-                        );
-                    })}
+                    {/* Staff header cells */}
+                    {staffMembers.map(staff => (
+                        <div key={staff.id} className="staff-header" style={{
+                            flex: '1 0 180px',
+                            minWidth: '180px',
+                            padding: '8px',
+                            textAlign: 'center',
+                            borderRight: '1px solid #f0f0f0',
+                            position: 'relative' // Added for absolute positioning of button
+                        }}>
+                            <Avatar src={staff.avatar} style={{ marginBottom: 4 }} />
+                            <div style={{ fontWeight: 'bold' }}>{staff.name}</div>
+                            <div style={{ fontSize: '11px', color: '#8c8c8c' }}>{staff.role}</div>
+
+                            {/* Add appointment button for each staff */}
+                            <Button
+                                type="dashed"
+                                icon={<PlusOutlined />}
+                                size="small"
+                                style={{
+                                    position: 'absolute',
+                                    top: '8px',
+                                    right: '8px'
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation(); // Prevent any parent click handlers
+
+                                    // Set the selected staff
+                                    setSelectedStaff(staff.id);
+
+                                    // Reset the form first
+                                    form.resetFields();
+
+                                    // Then set the staff and date values
+                                    setTimeout(() => {
+                                        form.setFieldsValue({
+                                            staff: staff.id,
+                                            appointmentDate: moment(selectedDate)
+                                        });
+
+                                        // Open the new reservation form
+                                        setShowReservationForm(true);
+                                        setIsEditMode(false);
+                                        setEditingAppointment(null);
+                                        setCustomClientName("");
+                                        setClientInputMode("existing");
+                                    }, 0);
+                                }}
+                            >
+                                Add
+                            </Button>
+                        </div>
+                    ))}
                 </div>
 
-                {/* Staff columns with appointments */}
-                <div className="staff-columns" style={{ display: 'flex', flexGrow: 1 }}>
-                    {staffMembers.map(staff => {
-                        const staffAppointments = getStaffAppointments(staff.name);
-
-                        return (
-                            <div key={staff.id} className="staff-column" style={{
-                                flexGrow: 1,
-                                minWidth: '180px',
-                                borderRight: '1px solid #f0f0f0',
-                                position: 'relative'
-                            }}>
-                                {/* Staff header */}
-                                <div className="staff-header" style={{
-                                    position: 'sticky',
-                                    top: 0,
-                                    background: '#f7f9fc',
-                                    padding: '8px',
-                                    textAlign: 'center',
+                {/* Time grid with appointments */}
+                <div style={{
+                    display: 'flex',
+                    overflowY: 'auto',
+                    flexGrow: 1
+                }}>
+                    {/* Time axis on the left */}
+                    <div className="time-axis" style={{
+                        width: '60px',
+                        flexShrink: 0,
+                        borderRight: '1px solid #f0f0f0',
+                        background: '#f7f9fc'
+                    }}>
+                        {hourRange.map(hour => {
+                            const displayHour = hour > 12 ? hour - 12 : hour;
+                            const period = hour >= 12 ? 'PM' : 'AM';
+                            return (
+                                <div key={hour} className="hour-marker" style={{
+                                    height: '80px',
                                     borderBottom: '1px solid #f0f0f0',
-                                    zIndex: 5
+                                    position: 'relative',
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    justifyContent: 'center',
+                                    paddingTop: '5px',
+                                    color: '#8c8c8c',
+                                    fontWeight: '500',
+                                    fontSize: '12px'
                                 }}>
-                                    <Avatar src={staff.avatar} style={{ marginBottom: 4 }} />
-                                    <div style={{ fontWeight: 'bold' }}>{staff.name}</div>
-                                    <div style={{ fontSize: '11px', color: '#8c8c8c' }}>{staff.role}</div>
+                                    {`${displayHour} ${period}`}
+
+                                    {/* Quarter-hour markers */}
+                                    <div style={{ position: 'absolute', left: 0, right: 0, top: '20px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                    <div style={{ position: 'absolute', left: 0, right: 0, top: '40px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                    <div style={{ position: 'absolute', left: 0, right: 0, top: '60px', borderBottom: '1px dotted #f0f0f0' }}></div>
                                 </div>
+                            );
+                        })}
+                    </div>
 
-                                {/* Hour grid */}
-                                <div className="hour-grid">
-                                    {hourRange.map(hour => (
-                                        <div key={hour} className="hour-block" style={{
-                                            height: '80px',
-                                            borderBottom: '1px solid #f0f0f0',
-                                            position: 'relative'
-                                        }}>
-                                            {/* Quarter-hour markers */}
-                                            <div style={{ position: 'absolute', left: 0, right: 0, top: '20px', borderBottom: '1px dotted #f0f0f0', zIndex: 1 }}></div>
-                                            <div style={{ position: 'absolute', left: 0, right: 0, top: '40px', borderBottom: '1px dotted #f0f0f0', zIndex: 1 }}></div>
-                                            <div style={{ position: 'absolute', left: 0, right: 0, top: '60px', borderBottom: '1px dotted #f0f0f0', zIndex: 1 }}></div>
+                    {/* Staff columns with appointments */}
+                    <div className="staff-columns" style={{ display: 'flex', flexGrow: 1 }}>
+                        {staffMembers.map(staff => {
+                            const staffAppointments = getStaffAppointments(staff.name);
 
-                                            {/* Time slot areas - 15 min increments */}
-                                            {[0, 1, 2, 3].map(quarterIdx => {
-                                                const minutes = quarterIdx * 15;
-                                                const quarterHour = `${hour}:${minutes < 10 ? '0' + minutes : minutes}`;
-                                                const period = hour >= 12 ? 'PM' : 'AM';
-                                                const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
-                                                const timeSlot = `${displayHour}:${minutes < 10 ? '0' + minutes : minutes} ${period}`;
+                            return (
+                                <div key={staff.id} className="staff-column" style={{
+                                    flex: '1 0 180px',
+                                    minWidth: '180px',
+                                    borderRight: '1px solid #f0f0f0',
+                                    position: 'relative'
+                                }}>
+                                    {/* Hour grid */}
+                                    <div className="hour-grid">
+                                        {hourRange.map(hour => (
+                                            <div key={hour} className="hour-block" style={{
+                                                height: '80px',
+                                                borderBottom: '1px solid #f0f0f0',
+                                                position: 'relative'
+                                            }}>
+                                                {/* Quarter-hour markers */}
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '20px', borderBottom: '1px dotted #f0f0f0', zIndex: 1 }}></div>
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '40px', borderBottom: '1px dotted #f0f0f0', zIndex: 1 }}></div>
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '60px', borderBottom: '1px dotted #f0f0f0', zIndex: 1 }}></div>
 
-                                                const isBooked = isTimeSlotBooked(staff.name, timeSlot);
+                                                {/* Time slot areas - 15 min increments */}
+                                                {[0, 1, 2, 3].map(quarterIdx => {
+                                                    const minutes = quarterIdx * 15;
+                                                    const quarterHour = `${hour}:${minutes < 10 ? '0' + minutes : minutes}`;
+                                                    const period = hour >= 12 ? 'PM' : 'AM';
+                                                    const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+                                                    const timeSlot = `${displayHour}:${minutes < 10 ? '0' + minutes : minutes} ${period}`;
 
-                                                // Only add click handlers to slots that aren't already part of a time range
-                                                return (
-                                                    <div
-                                                        key={quarterIdx}
-                                                        className="quarter-hour-slot"
-                                                        style={{
-                                                            position: 'absolute',
-                                                            left: 0,
-                                                            right: 0,
-                                                            top: `${quarterIdx * 20}px`,
-                                                            height: '20px',
-                                                            cursor: isBooked ? 'default' : 'pointer',
-                                                            zIndex: 2
-                                                        }}
-                                                        onClick={isBooked ? undefined : () => handleTimeSlotClick(timeSlot, staff.name)}
-                                                    ></div>
-                                                );
-                                            })}
-                                        </div>
-                                    ))}
-                                </div>
+                                                    const isBooked = isTimeSlotBooked(staff.name, timeSlot);
 
-                                {/* Appointments */}
-                                {staffAppointments.map(appointment => {
-                                    const { top, height } = getAppointmentPosition(appointment.start_time, appointment.end_time);
+                                                    // Only add click handlers to slots that aren't already part of a time range
+                                                    return (
+                                                        <div
+                                                            key={quarterIdx}
+                                                            className="quarter-hour-slot"
+                                                            style={{
+                                                                position: 'absolute',
+                                                                left: 0,
+                                                                right: 0,
+                                                                top: `${quarterIdx * 20}px`,
+                                                                height: '20px',
+                                                                cursor: isBooked ? 'default' : 'pointer',
+                                                                zIndex: 2
+                                                            }}
+                                                            onClick={isBooked ? undefined : () => handleTimeSlotClick(timeSlot, staff.name)}
+                                                        ></div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))}
+                                    </div>
 
-                                    return (
-                                        <Tooltip key={appointment.id} title={
-                                            <>
-                                                <div><strong>Client:</strong> {appointment.customClientName || appointment.client}</div>
-                                                <div><strong>Service:</strong> {appointment.service}</div>
-                                                <div><strong>Time:</strong> {appointment.timeRangeDescription}</div>
-                                                {appointment.email && <div><strong>Email:</strong> {appointment.email}</div>}
-                                                {appointment.phone && <div><strong>Phone:</strong> {appointment.phone}</div>}
-                                                {appointment.specialRequests && <div><strong>Special Requests:</strong> {appointment.specialRequests}</div>}
-                                                <div style={{ marginTop: '8px', fontSize: '11px' }}>Click to edit or remove</div>
-                                            </>
-                                        }>
-                                            <div
-                                                className="appointment"
-                                                style={{
-                                                    position: 'absolute',
-                                                    top: `${top + 60}px`, // Add staff header height
-                                                    left: '4px',
-                                                    right: '4px',
-                                                    height: `${height}px`,
-                                                    backgroundColor: '#e6f7ff',
-                                                    borderLeft: '3px solid #1890ff',
-                                                    borderRadius: '3px',
-                                                    padding: '4px 6px',
-                                                    overflow: 'hidden',
-                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                                                    cursor: 'pointer',
-                                                    zIndex: 3
-                                                }}
-                                                onClick={() => handleEditAppointment(appointment)}
-                                            >
-                                                <div style={{
-                                                    fontWeight: 'bold',
-                                                    fontSize: '12px',
-                                                    whiteSpace: 'nowrap',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis'
-                                                }}>
-                                                    {appointment.customClientName || appointment.client}
-                                                </div>
-                                                {height > 30 && (
+                                    {/* Appointments */}
+                                    {staffAppointments.map(appointment => {
+                                        const { top, height } = getAppointmentPosition(appointment.start_time, appointment.end_time);
+
+                                        return (
+                                            <Tooltip key={appointment.id} title={
+                                                <>
+                                                    <div><strong>Client:</strong> {appointment.customClientName || appointment.client}</div>
+                                                    <div><strong>Service:</strong> {appointment.service}</div>
+                                                    <div><strong>Time:</strong> {appointment.timeRangeDescription}</div>
+                                                    {appointment.phone && <div><strong>Phone:</strong> {appointment.phone}</div>}
+                                                    {appointment.specialRequests && <div><strong>Special Requests:</strong> {appointment.specialRequests}</div>}
+                                                    <div style={{ marginTop: '8px', fontSize: '11px' }}>Click to edit or remove</div>
+                                                </>
+                                            }>
+                                                <div
+                                                    className="appointment"
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: `${top}px`,
+                                                        left: '4px',
+                                                        right: '4px',
+                                                        height: `${height}px`,
+                                                        backgroundColor: '#e6f7ff',
+                                                        borderLeft: '3px solid #1890ff',
+                                                        borderRadius: '3px',
+                                                        padding: '4px 6px',
+                                                        overflow: 'hidden',
+                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                                        cursor: 'pointer',
+                                                        zIndex: 3
+                                                    }}
+                                                    onClick={() => handleEditAppointment(appointment)}
+                                                >
                                                     <div style={{
-                                                        fontSize: '11px',
-                                                        color: '#666',
+                                                        fontWeight: 'bold',
+                                                        fontSize: '12px',
                                                         whiteSpace: 'nowrap',
                                                         overflow: 'hidden',
                                                         textOverflow: 'ellipsis'
                                                     }}>
-                                                        {appointment.service}
+                                                        {appointment.customClientName || appointment.client}
                                                     </div>
-                                                )}
-                                                {height > 45 && (
-                                                    <div style={{ fontSize: '10px', marginTop: '2px' }}>
-                                                        <ClockCircleOutlined style={{ marginRight: '2px', fontSize: '9px' }} />
-                                                        {appointment.start_time} - {appointment.end_time}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </Tooltip>
-                                    );
-                                })}
-
-                                {/* Add appointment button at the top of each column */}
-                                <Button
-                                    type="dashed"
-                                    icon={<PlusOutlined />}
-                                    size="small"
-                                    style={{
-                                        position: 'absolute',
-                                        top: '36px',
-                                        right: '8px',
-                                        zIndex: 10
-                                    }}
-                                    onClick={() => {
-                                        setSelectedStaff(staff.id);
-                                        // Auto-set staff in form
-                                        form.setFieldsValue({
-                                            staff: staff.id
-                                        });
-                                        handleNewReservationClick();
-                                    }}
-                                >
-                                    Add
-                                </Button>
-                            </div>
-                        );
-                    })}
+                                                    {height > 30 && (
+                                                        <div style={{
+                                                            fontSize: '11px',
+                                                            color: '#666',
+                                                            whiteSpace: 'nowrap',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis'
+                                                        }}>
+                                                            {appointment.service}
+                                                        </div>
+                                                    )}
+                                                    {height > 45 && (
+                                                        <div style={{ fontSize: '10px', marginTop: '2px' }}>
+                                                            <ClockCircleOutlined style={{ marginRight: '2px', fontSize: '9px' }} />
+                                                            {appointment.start_time} - {appointment.end_time}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </Tooltip>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         );
     };
 
-    // Render appointments for the week view
     const renderWeekView = () => {
         // Get the start of the week (Sunday) for the selected date
         const startOfWeek = new Date(selectedDate);
@@ -851,92 +907,58 @@ const SpaReservationSystem = () => {
         return (
             <div className="week-view" style={{
                 display: 'flex',
-                overflowX: 'auto',
-                overflowY: 'auto',
+                flexDirection: 'column',
+                overflow: 'hidden',
                 maxHeight: 'calc(100vh - 250px)'
             }}>
-                {/* Time axis on the left */}
-                <div className="time-axis" style={{ width: '60px', flexShrink: 0, borderRight: '1px solid #f0f0f0' }}>
-                    {hourRange.map(hour => {
-                        const displayHour = hour > 12 ? hour - 12 : hour;
-                        const period = hour >= 12 ? 'PM' : 'AM';
-                        return (
-                            <div key={hour} className="hour-marker" style={{
-                                height: '80px',
-                                borderBottom: '1px solid #f0f0f0',
-                                position: 'relative',
-                                display: 'flex',
-                                alignItems: 'flex-start',
-                                justifyContent: 'center',
-                                paddingTop: '5px',
-                                color: '#8c8c8c',
-                                fontWeight: '500',
-                                fontSize: '12px'
-                            }}>
-                                {`${displayHour} ${period}`}
-                            </div>
-                        );
-                    })}
-                </div>
+                {/* Day headers row */}
+                <div className="day-headers-row" style={{
+                    display: 'flex',
+                    borderBottom: '1px solid #f0f0f0',
+                    background: '#f7f9fc',
+                    zIndex: 10
+                }}>
+                    {/* Empty cell in top-left corner */}
+                    <div style={{
+                        width: '60px',
+                        flexShrink: 0,
+                        borderRight: '1px solid #f0f0f0'
+                    }}>
+                    </div>
 
-                {/* Day columns */}
-                <div className="day-columns" style={{ display: 'flex', flexGrow: 1 }}>
+                    {/* Day header cells */}
                     {weekDates.map((date, index) => {
                         const isToday = new Date().toDateString() === date.toDateString();
                         const isSelected = selectedDate.toDateString() === date.toDateString();
 
                         return (
-                            <div key={index} className="day-column" style={{
-                                flexGrow: 1,
-                                minWidth: '120px',
-                                borderRight: '1px solid #f0f0f0',
-                                position: 'relative',
-                                background: isSelected ? '#f0f7ff' : (isToday ? '#fffbe6' : 'transparent')
-                            }}>
-                                {/* Day header */}
-                                <div className="day-header" style={{
-                                    position: 'sticky',
-                                    top: 0,
-                                    background: isSelected ? '#e6f7ff' : (isToday ? '#fffbe6' : '#f7f9fc'),
+                            <div
+                                key={index}
+                                className="day-header"
+                                style={{
+                                    flex: '1 0 120px',
+                                    minWidth: '120px',
                                     padding: '8px',
                                     textAlign: 'center',
-                                    borderBottom: '1px solid #f0f0f0',
-                                    fontWeight: isToday ? 'bold' : 'normal',
-                                    cursor: 'pointer',
-                                    zIndex: 5
+                                    borderRight: '1px solid #f0f0f0',
+                                    background: isSelected ? '#e6f7ff' : (isToday ? '#fffbe6' : '#f7f9fc'),
+                                    cursor: 'pointer'
                                 }}
-                                    onClick={() => setSelectedDate(new Date(date))}
-                                >
-                                    <div style={{ fontWeight: 'bold' }}>{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                                    <div style={{
-                                        fontSize: '16px',
-                                        color: isToday ? '#1890ff' : '#262626',
-                                        fontWeight: isToday ? 'bold' : 'normal'
-                                    }}>
-                                        {date.getDate()}
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                                        {date.toLocaleDateString('en-US', { month: 'short' })}
-                                    </div>
+                                onClick={() => setSelectedDate(new Date(date))}
+                            >
+                                <div style={{ fontWeight: 'bold' }}>{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                                <div style={{
+                                    fontSize: '16px',
+                                    color: isToday ? '#1890ff' : '#262626',
+                                    fontWeight: isToday ? 'bold' : 'normal'
+                                }}>
+                                    {date.getDate()}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                                    {date.toLocaleDateString('en-US', { month: 'short' })}
                                 </div>
 
-                                {/* Hour grid */}
-                                <div className="hour-grid">
-                                    {hourRange.map(hour => (
-                                        <div key={hour} className="hour-block" style={{
-                                            height: '80px',
-                                            borderBottom: '1px solid #f0f0f0',
-                                            position: 'relative'
-                                        }}>
-                                            {/* Quarter-hour markers */}
-                                            <div style={{ position: 'absolute', left: 0, right: 0, top: '20px', borderBottom: '1px dotted #f0f0f0' }}></div>
-                                            <div style={{ position: 'absolute', left: 0, right: 0, top: '40px', borderBottom: '1px dotted #f0f0f0' }}></div>
-                                            <div style={{ position: 'absolute', left: 0, right: 0, top: '60px', borderBottom: '1px dotted #f0f0f0' }}></div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Add appointment button at the top of each day */}
+                                {/* Add appointment button for selected day */}
                                 {isSelected && (
                                     <Button
                                         type="dashed"
@@ -944,11 +966,14 @@ const SpaReservationSystem = () => {
                                         size="small"
                                         style={{
                                             position: 'absolute',
-                                            top: '36px',
+                                            top: '8px',
                                             right: '8px',
                                             zIndex: 10
                                         }}
-                                        onClick={handleNewReservationClick}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleNewReservationClick();
+                                        }}
                                     >
                                         Add
                                     </Button>
@@ -956,6 +981,76 @@ const SpaReservationSystem = () => {
                             </div>
                         );
                     })}
+                </div>
+
+                {/* Time grid with hour slots */}
+                <div style={{
+                    display: 'flex',
+                    overflowY: 'auto',
+                    flexGrow: 1
+                }}>
+                    {/* Time axis on the left */}
+                    <div className="time-axis" style={{
+                        width: '60px',
+                        flexShrink: 0,
+                        borderRight: '1px solid #f0f0f0',
+                        background: '#f7f9fc'
+                    }}>
+                        {hourRange.map(hour => {
+                            const displayHour = hour > 12 ? hour - 12 : hour;
+                            const period = hour >= 12 ? 'PM' : 'AM';
+                            return (
+                                <div key={hour} className="hour-marker" style={{
+                                    height: '80px',
+                                    borderBottom: '1px solid #f0f0f0',
+                                    position: 'relative',
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    justifyContent: 'center',
+                                    paddingTop: '5px',
+                                    color: '#8c8c8c',
+                                    fontWeight: '500',
+                                    fontSize: '12px'
+                                }}>
+                                    {`${displayHour} ${period}`}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Day columns */}
+                    <div className="day-columns" style={{ display: 'flex', flexGrow: 1 }}>
+                        {weekDates.map((date, index) => {
+                            const isToday = new Date().toDateString() === date.toDateString();
+                            const isSelected = selectedDate.toDateString() === date.toDateString();
+
+                            return (
+                                <div key={index} className="day-column" style={{
+                                    flex: '1 0 120px',
+                                    minWidth: '120px',
+                                    borderRight: '1px solid #f0f0f0',
+                                    position: 'relative',
+                                    background: isSelected ? '#f0f7ff' : (isToday ? '#fffbe6' : 'transparent')
+                                }}>
+                                    {/* Hour grid */}
+                                    <div className="hour-grid">
+                                        {hourRange.map(hour => (
+                                            <div key={hour} className="hour-block" style={{
+                                                height: '80px',
+                                                borderBottom: '1px solid #f0f0f0',
+                                                position: 'relative'
+                                            }}>
+                                                {/* Quarter-hour markers */}
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '20px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '40px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '60px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         );
@@ -1036,8 +1131,7 @@ const SpaReservationSystem = () => {
                             moment(editingAppointment.end_time, 'h:mm A')
                         ],
                         specialRequests: editingAppointment.specialRequests || "",
-                        email: editingAppointment.email || "",
-                        phone: editingAppointment.phone || ""
+                        phoneNumber: editingAppointment.phone ? reversePhoneNumber(editingAppointment.phone) : ""
                     } : {
                         staff: selectedStaff,
                         appointmentDate: moment(selectedDate),
@@ -1184,41 +1278,8 @@ const SpaReservationSystem = () => {
                         )}
                     </Form.Item>
 
-                    {/* New fields for email and phone */}
-                    <Row gutter={16}>
-                        <Col span={12}>
-                            <Form.Item
-                                name="email"
-                                label="Email"
-                                rules={[
-                                    {
-                                        required: true,
-                                        message: 'Please enter email'
-                                    },
-                                    {
-                                        type: 'email',
-                                        message: 'Please enter a valid email'
-                                    }
-                                ]}
-                            >
-                                <Input placeholder="Enter email address" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item
-                                name="phone"
-                                label="Phone"
-                                rules={[
-                                    {
-                                        required: true,
-                                        message: 'Please enter phone number'
-                                    }
-                                ]}
-                            >
-                                <Input placeholder="Enter phone number" />
-                            </Form.Item>
-                        </Col>
-                    </Row>
+                    {/* Phone Number field using PhoneInput component */}
+                    <PhoneInput label="Phone" owner="phoneNumber" />
 
                     <Form.Item
                         name="service"
@@ -1248,7 +1309,7 @@ const SpaReservationSystem = () => {
                         </Select>
                     </Form.Item>
 
-                    {/* New field for special requests */}
+                    {/* Field for special requests */}
                     <Form.Item
                         name="specialRequests"
                         label="Special Requests"
