@@ -340,7 +340,8 @@ const StaffLoginPage = () => {
                                     style={{ width: "100%" }}
                                 >
                                     <Input
-                                        autoFocus
+                                        autoFocus 
+                                        onPressEnter={() => handleCompanyCodeSubmit(companyCode!)}
                                         prefix={<UsergroupAddOutlined />}
                                         placeholder="Company Code"
                                         onChange={(e) => setCompanyCode(e.target.value)}
