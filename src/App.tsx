@@ -6,11 +6,16 @@ const App = () => {
     // Service Worker Registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.ts').then((registration) => {
+        navigator.serviceWorker.register('/sw.js').then((registration) => {
           console.log('ServiceWorker registered with scope:', registration.scope);
         }).catch((error) => {
           console.error('ServiceWorker registration failed:', error);
         });
+      });
+
+      // Reload when a new service worker takes control
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload(); // Reload when a new SW takes control
       });
     }
 

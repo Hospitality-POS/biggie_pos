@@ -79,12 +79,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                     >
                         {BRAND_NAME1}
                     </Typography>
-                    <Typography
+                    {/* <Typography
                         variant="body1"
                         style={{ fontFamily: "monospace", fontSize: "0.9em", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
                         {ENTITY_NAME}
-                    </Typography>
+                    </Typography> */}
                     <Typography
                         variant="body1"
                         style={{ fontSize: "0.9em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
@@ -95,7 +95,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                         variant="body1"
                         style={{ fontSize: "0.9em", fontFamily: "monospace", color: darkTextColor, fontWeight: boldFontWeight }}
                     >
-                        Business No: {Paybill_bs}
+                        Paybill No: {Paybill_bs}
                     </Typography>
                     <Typography
                         variant="body1"

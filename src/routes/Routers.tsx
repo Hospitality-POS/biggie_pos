@@ -62,6 +62,7 @@ const Reports = lazy(() => import("@pages/Settings/reportsLevel/Reports"));
 const Profile = lazy(() => import("@pages/Profile/Profile"));
 const AdminProfile = lazy(() => import("src/AdminDashboard/Profile/AdminProfile"));
 const EmployeeShift = lazy(() => import("@pages/EmployeeShift/Employee"));
+const Notification = lazy(() => import("@pages/Notification/notification"));
 // const ShopManagement = lazy(() => import("src/AdminDashboard/Shops/MainShopPage"));
 
 // const Invoices = lazy(() => import("@pages/Invoices/Invoices"));
@@ -120,6 +121,19 @@ const routes = createBrowserRouter(
               }
             >
               <StaffLoginPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/notifications"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+              }
+            >
+              <Notification />
             </Suspense>
           }
         />
@@ -395,6 +409,19 @@ const routes = createBrowserRouter(
           }
         />
         <Route
+          path="/admin/notifications"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+              }
+            >
+              <Notification />
+            </Suspense>
+          }
+        />
+        <Route
           path="shop-management"
           errorElement={<NotFound />}
           element={
@@ -431,6 +458,7 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
+
         <Route
           path="staff-management"
           errorElement={<NotFound />}

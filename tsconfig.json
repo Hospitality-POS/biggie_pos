@@ -2,11 +2,15 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable",
+      "WebWorker"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     "outDir": "build",
-
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
@@ -15,24 +19,44 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": "./",
-
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-
     /* Paths for absolute imports */
     "paths": {
-      "@components/*": ["./src/components/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@features/*": ["./src/features/*"],
-      "@pages/*": ["./src/pages/*"],
-      "@services/*": ["./src/services/*"],
-      "@routes/*": ["./src/routes/*"],
-      "@hooks/*": ["./src/hooks/*"]
+      "@components/*": [
+        "./src/components/*"
+      ],
+      "@utils/*": [
+        "./src/utils/*"
+      ],
+      "@features/*": [
+        "./src/features/*"
+      ],
+      "@pages/*": [
+        "./src/pages/*"
+      ],
+      "@services/*": [
+        "./src/services/*"
+      ],
+      "@routes/*": [
+        "./src/routes/*"
+      ],
+      "@hooks/*": [
+        "./src/hooks/*"
+      ]
     }
   },
-  "include": ["src", "public", "workbox-config.js"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": [
+    "src",
+    "public",
+    "workbox-config.js"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }

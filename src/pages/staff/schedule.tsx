@@ -1,49 +1,70 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Typography, Button, Space, Modal, Table, Card, Avatar, Form, Select, TimePicker, Tabs, Badge, Tooltip, message, Spin, Popconfirm, DatePicker, Radio, Input, Row, Col } from "antd";
-import { LeftOutlined, RightOutlined, PlusOutlined, ClockCircleOutlined, CheckCircleOutlined, EditOutlined, DeleteOutlined, CalendarOutlined, ShopOutlined, DownloadOutlined } from "@ant-design/icons";
+import {
+    Typography, Button, Space, Modal, Card, Avatar, Form,
+    Select, TimePicker, Badge, Tooltip, message, Spin,
+    Popconfirm, DatePicker, Radio, Input, Row, Col
+} from "antd";
+import {
+    LeftOutlined, RightOutlined, PlusOutlined, ClockCircleOutlined,
+    CheckCircleOutlined, EditOutlined, DeleteOutlined,
+    CalendarOutlined, ShopOutlined, DownloadOutlined
+} from "@ant-design/icons";
 import { fetchAllUsersList } from "@services/users";
-import { createSchedule, fetchAllCustomers, fetchAllSchedules, updateSchedule, removeSchedule } from "@services/customers";
+import {
+    createSchedule, fetchAllCustomers, fetchAllSchedules,
+    updateSchedule, removeSchedule
+} from "@services/customers";
 import { getAllProducts } from "@services/products";
 import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import moment from "moment";
+import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
+import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
+import { reversePhoneNumber } from "@components/PhoneNumber/utils/reversePhoneNumberFormat";
 
 const { Option } = Select;
 const { RangePicker } = TimePicker;
+const { TextArea } = Input;
 
 // Main App Component
 const SpaReservationSystem = () => {
     const dispatch = useDispatch();
+
     // UI State
     const [showReservationForm, setShowReservationForm] = useState(false);
     const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
     const [selectedStaff, setSelectedStaff] = useState(null);
     const [selectedTimeRange, setSelectedTimeRange] = useState(null);
-    const [activeTimeSlice, setActiveTimeSlice] = useState("morning");
-    const [reservationMode, setReservationMode] = useState("timeRange"); // "timeRange" or "singleSlot"
     const [editingAppointment, setEditingAppointment] = useState(null);
     const [isEditMode, setIsEditMode] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [customClientName, setCustomClientName] = useState("");
     const [clientInputMode, setClientInputMode] = useState("existing");
+    const [visibleHours, setVisibleHours] = useState([8, 22]); // Default: 8am to 10pm
+    const [calendarView, setCalendarView] = useState("day"); // "day" or "week"
+    const [form] = Form.useForm(); // Using form instance to set values programmatically
 
-    // Updated time slots configuration with extended hours (8AM to 10PM)
-    const timeSlotGroups = {
-        early_morning: ['8:00 AM', '8:15 AM', '8:30 AM', '8:45 AM'],
-        morning: ['9:00 AM', '9:15 AM', '9:30 AM', '9:45 AM', '10:00 AM', '10:15 AM', '10:30 AM', '10:45 AM', '11:00 AM', '11:15 AM', '11:30 AM', '11:45 AM'],
-        afternoon: ['12:00 PM', '12:15 PM', '12:30 PM', '12:45 PM', '1:00 PM', '1:15 PM', '1:30 PM', '1:45 PM', '2:00 PM', '2:15 PM', '2:30 PM', '2:45 PM'],
-        evening: ['3:00 PM', '3:15 PM', '3:30 PM', '3:45 PM', '4:00 PM', '4:15 PM', '4:30 PM', '4:45 PM', '5:00 PM', '5:15 PM', '5:30 PM', '5:45 PM', '6:00 PM'],
-        late_evening: ['6:15 PM', '6:30 PM', '6:45 PM', '7:00 PM', '7:15 PM', '7:30 PM', '7:45 PM', '8:00 PM', '8:15 PM', '8:30 PM', '8:45 PM', '9:00 PM', '9:15 PM', '9:30 PM', '9:45 PM', '10:00 PM']
+    // Time configuration
+    const hourRange = Array.from({ length: 15 }, (_, i) => i + 8); // 8AM to 10PM
+
+    // Quarter-hour slots
+    const generateTimeSlots = () => {
+        const slots = [];
+        hourRange.forEach(hour => {
+            [0, 15, 30, 45].forEach(minutes => {
+                // Don't add 10:15, 10:30, 10:45 PM slots
+                if (hour === 22 && minutes > 0) return;
+
+                const period = hour >= 12 ? 'PM' : 'AM';
+                const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+                const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+                slots.push(`${displayHour}:${formattedMinutes} ${period}`);
+            });
+        });
+        return slots;
     };
 
-    // All time slots flattened
-    const allTimeSlots = [
-        ...timeSlotGroups.early_morning,
-        ...timeSlotGroups.morning,
-        ...timeSlotGroups.afternoon,
-        ...timeSlotGroups.evening,
-        ...timeSlotGroups.late_evening
-    ];
+    const allTimeSlots = generateTimeSlots();
 
     // API Queries
     // Customer list from API
@@ -129,7 +150,6 @@ const SpaReservationSystem = () => {
 
     // Process schedule data to match the format needed for the component
     const formattedScheduleData = useMemo(() => {
-        console.log('my schedule data', scheduleData);
         if (!scheduleData || !Array.isArray(scheduleData)) return [];
 
         // Filter schedules for the selected date
@@ -160,11 +180,12 @@ const SpaReservationSystem = () => {
             isTimeRange: appointment.start_time !== appointment.end_time,
             timeRangeDescription: appointment.timeRangeDescription || `${appointment.start_time} - ${appointment.end_time}`,
             originalData: appointment, // Keep the original data for reference
-            appointmentDate: appointment.appointment_date
+            appointmentDate: appointment.appointment_date,
+            specialRequests: appointment.special_requests,
+            phone: appointment.phone
         }));
     }, [scheduleData, selectedDate]);
 
-    // Time slot utility functions
     // Function to check if a time slot is already booked for a specific staff member
     const isTimeSlotBooked = (staffName, timeSlot) => {
         // Get current selected date string for comparison
@@ -223,6 +244,7 @@ const SpaReservationSystem = () => {
         return true;
     };
 
+    // Find appointment for a specific staff member and time slot
     const getAppointment = (staffName, time) => {
         // Get the selected date string for comparison
         const selectedDateStr = selectedDate.toISOString().split('T')[0];
@@ -241,6 +263,25 @@ const SpaReservationSystem = () => {
         });
     };
 
+    // Function to get all appointments for a staff member
+    const getStaffAppointments = (staffName) => {
+        // Get the selected date string for comparison
+        const selectedDateStr = selectedDate.toISOString().split('T')[0];
+
+        return formattedScheduleData.filter(item => {
+            // Check if appointment is for the selected date
+            if (item.appointmentDate) {
+                const appointmentDateStr = new Date(item.appointmentDate).toISOString().split('T')[0];
+                if (appointmentDateStr !== selectedDateStr) {
+                    return false; // Skip appointments for other dates
+                }
+            }
+
+            // Match staff
+            return item.staff === staffName;
+        });
+    };
+
     // Event handlers
     const handleTimeRangeChange = (range) => {
         if (range && range.length === 2) {
@@ -254,15 +295,42 @@ const SpaReservationSystem = () => {
 
         // Check if the time slot is already booked
         if (isTimeSlotBooked(staffName, time)) {
-            message.warning(`This time slot is already booked for ${staffName}.`);
+            // Find the appointment to edit
+            const appointment = getAppointment(staffName, time);
+            if (appointment) {
+                handleEditAppointment(appointment);
+            } else {
+                message.warning(`This time slot is already booked for ${staffName}.`);
+            }
             return;
         }
+
+        // Reset the form first
+        form.resetFields();
 
         // Set initial values for the form - using the property that matches what's in the Form.Item
         setSelectedTimeSlot(time);
         setSelectedStaff(staffMember?.id); // Use id to match the <Option value={staff.id}>
-        setReservationMode("timeRange");
         setShowReservationForm(true);
+
+        // Set the form values for staff and time range
+        form.setFieldsValue({
+            staff: staffMember?.id,
+            appointmentDate: moment(selectedDate),
+            timeRange: [
+                moment(time, 'h:mm A'),
+                moment(getNextTimeSlot(time), 'h:mm A')
+            ]
+        });
+    };
+
+    // Helper function to get the next time slot (15 min increment)
+    const getNextTimeSlot = (timeSlot) => {
+        const index = allTimeSlots.indexOf(timeSlot);
+        if (index !== -1 && index < allTimeSlots.length - 1) {
+            return allTimeSlots[index + 1];
+        }
+        return timeSlot; // Return same time if can't find next
     };
 
     const handleDateChange = (date) => {
@@ -278,13 +346,23 @@ const SpaReservationSystem = () => {
     };
 
     const handleNewReservationClick = () => {
+        // Reset all form state
         setSelectedTimeSlot(null);
-        setSelectedStaff(null);
-        setReservationMode("timeRange"); // Default to time range mode
         setEditingAppointment(null);
         setIsEditMode(false);
         setCustomClientName("");
         setClientInputMode("existing");
+
+        // Clear the form completely
+        form.resetFields();
+
+        // Set only the essential default values
+        form.setFieldsValue({
+            appointmentDate: moment(selectedDate),
+            // Auto-select staff if one is already selected
+            staff: selectedStaff || undefined
+        });
+
         setShowReservationForm(true);
     };
 
@@ -297,10 +375,29 @@ const SpaReservationSystem = () => {
         setIsEditMode(true);
         setSelectedTimeSlot(appointment.start_time);
         setSelectedStaff(appointment.staffId);
-        setReservationMode(appointment.isTimeRange ? "timeRange" : "singleSlot");
         setCustomClientName(appointment.customClientName || "");
         setClientInputMode(appointment.customClientName ? "custom" : "existing");
         setShowReservationForm(true);
+
+        // Clear the form first
+        form.resetFields();
+
+        // Set all form values including the new fields
+        form.setFieldsValue({
+            staff: appointment.staffId,
+            clientName: appointment.clientId,
+            customClientName: appointment.customClientName || "",
+            service: appointment.serviceId,
+            appointmentDate: appointment.originalData?.appointment_date ?
+                moment(appointment.originalData.appointment_date) :
+                moment(selectedDate),
+            timeRange: [
+                moment(appointment.start_time, 'h:mm A'),
+                moment(appointment.end_time, 'h:mm A')
+            ],
+            specialRequests: appointment.specialRequests || "",
+            phoneNumber: appointment.phone ? reversePhoneNumber(appointment.phone) : ""
+        });
     };
 
     const handleDeleteAppointment = async (appointmentId) => {
@@ -317,15 +414,15 @@ const SpaReservationSystem = () => {
         const clientId = clientInputMode === "existing" ? values.clientName : null;
         const service = values.service;
         const staffMember = values.staff || selectedStaff;
-        const mode = values.reservationMode || reservationMode;
         const appointmentDate = values.appointmentDate ? values.appointmentDate.format('YYYY-MM-DD') : selectedDate.toISOString().split('T')[0];
         const customName = clientInputMode === "custom" ? values.customClientName : null;
+        const phoneNumber = values.phoneNumber ? getPhoneNumber(values.phoneNumber) : null;
 
         // Find staff name for checking conflicts (but use ID for submission)
         const staffName = staffMembers.find(staff => staff.id === staffMember)?.name || "Unknown Staff";
 
         // Handle time range booking
-        if (mode === "timeRange" && values.timeRange) {
+        if (values.timeRange) {
             // Convert time range values to formatted strings
             const startTime = values.timeRange[0].format('h:mm A');
             const endTime = values.timeRange[1].format('h:mm A');
@@ -419,7 +516,11 @@ const SpaReservationSystem = () => {
                 duration: `${Math.round((endIndex - startIndex) * 15)} mins`,
                 isTimeRange: true,
                 timeRangeDescription,
-                appointment_date: appointmentDate
+                appointment_date: appointmentDate,
+                // Add the new fields to the appointment data
+                special_requests: values.specialRequests,
+                phone: phoneNumber,
+                source: "admin_portal"
             };
 
             try {
@@ -442,284 +543,518 @@ const SpaReservationSystem = () => {
                 const actionType = isEditMode ? "update" : "create";
                 message.error(`Failed to ${actionType} appointment: ${error.message || 'Unknown error'}`);
             }
-        } else if (mode === "singleSlot") {
-            // Handle regular single time slot booking
-            const timeSlot = values.timeSlot;
-            const duration = values.duration || "60";
-
-            if (!timeSlot) {
-                message.error(`Please select a time slot.`);
-                return;
-            }
-
-            // Skip conflict check if editing current appointment
-            let skipConflictCheck = false;
-            if (isEditMode && editingAppointment && editingAppointment.start_time === timeSlot) {
-                skipConflictCheck = true;
-            }
-
-            // Check if the time slot is available (skip if editing the current appointment)
-            if (!skipConflictCheck && isTimeSlotBooked(staffName, timeSlot)) {
-                message.error(`This time slot is already booked for ${staffName}.`);
-                return;
-            }
-
-            const appointmentData = {
-                staff_id: staffMember, // Use the ID here, not the name
-                start_time: timeSlot,
-                end_time: timeSlot, // Same as start for single slot
-                client_id: clientId,
-                custom_client_name: customName, // Add the custom client name field
-                service_id: service,
-                duration: `${duration} mins`,
-                appointment_date: appointmentDate
-            };
-
-            try {
-                if (isEditMode && editingAppointment) {
-                    // Update existing appointment
-                    await dispatch(updateSchedule({
-                        id: editingAppointment.id,
-                        data: appointmentData
-                    })).unwrap();
-                    message.success(`Appointment updated successfully.`);
-                } else {
-                    // Create new appointment
-                    await dispatch(createSchedule(appointmentData)).unwrap();
-                    message.success(`Appointment booked successfully.`);
-                }
-                setShowReservationForm(false);
-                // Refresh data after creating/updating appointment
-                refetchScheduleData();
-            } catch (error) {
-                const actionType = isEditMode ? "update" : "create";
-                message.error(`Failed to ${actionType} appointment: ${error.message || 'Unknown error'}`);
-            }
+        } else {
+            message.error(`Please select a valid time range for the appointment.`);
         }
     };
 
-    // Schedule columns for the table
-    const renderScheduleColumns = (timeSlots) => {
-        if (isLoading || !staffMembers || staffMembers.length === 0) {
-            // Return loading or empty state columns
-            return [
-                {
-                    title: 'Time',
-                    dataIndex: 'time',
-                    key: 'time',
-                    width: 100,
-                    render: (text) => <span>{text}</span>
-                },
-                {
-                    title: 'Loading staff data...',
-                    key: 'loading',
-                    render: () => <div style={{ textAlign: 'center' }}>Loading...</div>
-                }
-            ];
-        }
+    // Calendar rendering functions
+    const renderCalendarHeader = () => {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Button
+                        icon={<LeftOutlined />}
+                        onClick={() => navigateDay(-1)}
+                    />
+                    <DatePicker
+                        value={moment(selectedDate)}
+                        onChange={handleDateChange}
+                        format="MMM D, YYYY"
+                        allowClear={false}
+                        bordered={false}
+                        suffixIcon={null}
+                        style={{ fontSize: "16px", fontWeight: "bold" }}
+                    />
+                    <Button
+                        icon={<RightOutlined />}
+                        onClick={() => navigateDay(1)}
+                    />
+                    <Button type="link" onClick={() => setSelectedDate(new Date())}>
+                        Today
+                    </Button>
+                </div>
 
-        const columns = [
-            {
-                title: 'Time',
-                dataIndex: 'time',
-                key: 'time',
-                width: 100,
-                render: (text) => <span>{text}</span>
-            }
-        ];
+                <Space>
+                    <Radio.Group
+                        value={calendarView}
+                        onChange={(e) => setCalendarView(e.target.value)}
+                        buttonStyle="solid"
+                    >
+                        <Radio.Button value="day">Day</Radio.Button>
+                        <Radio.Button value="week">Week</Radio.Button>
+                    </Radio.Group>
+                </Space>
+            </div>
+        );
+    };
 
-        staffMembers.forEach(staff => {
-            columns.push({
-                title: (
-                    <div style={{ textAlign: 'center' }}>
-                        <Avatar src={staff.avatar} style={{ marginRight: 8 }} />
-                        <div>{staff.name}</div>
-                        <div style={{ fontSize: '11px', color: '#8c8c8c' }}>{staff.role}</div>
-                    </div>
-                ),
-                dataIndex: staff.name,
-                key: staff.name,
-                render: (text, record) => {
-                    const appointment = getAppointment(staff.name, record.time);
-                    const isBooked = isTimeSlotBooked(staff.name, record.time);
+    // Calculate position and height for an appointment in the calendar grid
+    const getAppointmentPosition = (startTime, endTime) => {
+        const startIndex = allTimeSlots.indexOf(startTime);
+        const endIndex = allTimeSlots.indexOf(endTime);
 
-                    if (appointment) {
+        if (startIndex === -1) return { top: 0, height: 0 };
+
+        // Each time slot is 15 minutes and we have 4 slots per hour
+        const slotHeight = 20; // Height in pixels for each 15-minute slot
+        const top = startIndex * slotHeight;
+        const height = (endIndex - startIndex) * slotHeight || slotHeight; // Default to one slot if same time
+
+        return { top, height };
+    };
+
+    // Render a vertical timeline for the day view
+    const renderDayTimeline = () => {
+        return (
+            <div className="timeline-container" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 250px)' }}>
+                <div className="time-labels" style={{ position: 'sticky', left: 0, width: '60px', background: '#f7f9fc' }}>
+                    {hourRange.map(hour => {
+                        const displayHour = hour > 12 ? hour - 12 : hour;
+                        const period = hour >= 12 ? 'PM' : 'AM';
                         return (
-                            <Tooltip title={
-                                <>
-                                    <div><strong>Client:</strong> {appointment.customClientName || appointment.client}</div>
-                                    <div><strong>Service:</strong> {appointment.service}</div>
-                                    <div><strong>Time:</strong> {appointment.isTimeRange
-                                        ? appointment.timeRangeDescription
-                                        : appointment.start_time + ' (' + appointment.duration + ')'}</div>
-                                    <div style={{ marginTop: '8px', fontSize: '11px' }}>Click to edit or remove</div>
-                                </>
-                            }>
-                                <Card
-                                    size="small"
-                                    style={{
-                                        background: appointment.isTimeRange ? '#e6f7ff' : '#f0f5ff',
-                                        borderColor: appointment.isTimeRange ? '#91d5ff' : '#d6e4ff',
-                                        borderRadius: '4px',
-                                        overflow: 'hidden',
-                                        cursor: 'pointer'
-                                    }}
-                                    onClick={() => handleEditAppointment(appointment)}
-                                >
-                                    <div style={{ fontWeight: 'bold', color: '#1890ff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {appointment.customClientName || appointment.client}
-                                    </div>
-                                    <div style={{ fontSize: '11px', color: '#8c8c8c', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {appointment.isTimeRange
-                                            ? <Badge status="processing" text={appointment.timeRangeDescription} />
-                                            : <ClockCircleOutlined style={{ marginRight: '4px' }} />}
-                                    </div>
-                                </Card>
-                            </Tooltip>
-                        );
-                    } else if (isBooked) {
-                        // Time slot is part of a time range but not the starting time
-                        return (
-                            <div style={{
-                                height: '100%',
-                                background: '#f5f5f5',
-                                border: '1px solid #d9d9d9',
-                                borderRadius: '4px',
-                                color: '#bfbfbf',
-                                textAlign: 'center',
-                                padding: '8px 4px',
+                            <div key={hour} className="time-label" style={{
+                                height: '80px',
+                                borderBottom: '1px solid #f0f0f0',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                justifyContent: 'center',
+                                paddingTop: '5px',
+                                color: '#8c8c8c',
+                                fontWeight: '500',
+                                fontSize: '12px'
                             }}>
-                                <Badge status="default" text="Booked" />
+                                {`${displayHour} ${period}`}
                             </div>
                         );
-                    } else {
-                        return (
-                            <div
+                    })}
+                </div>
+            </div>
+        );
+    };
+
+
+    const renderCalendarGrid = () => {
+        if (isLoading || !staffMembers || staffMembers.length === 0) {
+            return (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
+                    <Spin size="large" />
+                    <div style={{ marginLeft: '12px' }}>Loading staff data...</div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="calendar-container" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                maxHeight: 'calc(100vh - 250px)',
+                position: 'relative'
+            }}>
+                {/* Staff headers row */}
+                <div className="staff-headers-row" style={{
+                    display: 'flex',
+                    borderBottom: '1px solid #f0f0f0',
+                    background: '#f7f9fc',
+                    zIndex: 10
+                }}>
+                    {/* Empty cell in top-left corner */}
+                    <div style={{
+                        width: '60px',
+                        flexShrink: 0,
+                        borderRight: '1px solid #f0f0f0'
+                    }}>
+                    </div>
+
+                    {/* Staff header cells */}
+                    {staffMembers.map(staff => (
+                        <div key={staff.id} className="staff-header" style={{
+                            flex: '1 0 180px',
+                            minWidth: '180px',
+                            padding: '8px',
+                            textAlign: 'center',
+                            borderRight: '1px solid #f0f0f0',
+                            position: 'relative' // Added for absolute positioning of button
+                        }}>
+                            <Avatar src={staff.avatar} style={{ marginBottom: 4 }} />
+                            <div style={{ fontWeight: 'bold' }}>{staff.name}</div>
+                            <div style={{ fontSize: '11px', color: '#8c8c8c' }}>{staff.role}</div>
+
+                            {/* Add appointment button for each staff */}
+                            <Button
+                                type="dashed"
+                                icon={<PlusOutlined />}
+                                size="small"
                                 style={{
-                                    textAlign: 'center',
-                                    cursor: 'pointer',
-                                    padding: '8px 4px',
-                                    color: '#1890ff',
-                                    borderRadius: '4px',
-                                    border: '1px dashed #d9d9d9',
-                                    height: '100%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.3s'
+                                    position: 'absolute',
+                                    top: '8px',
+                                    right: '8px'
                                 }}
-                                onClick={() => handleTimeSlotClick(record.time, staff.name)}
-                                onMouseOver={(e) => {
-                                    e.currentTarget.style.backgroundColor = '#f0f7ff';
-                                    e.currentTarget.style.borderColor = '#91caff';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'transparent';
-                                    e.currentTarget.style.borderColor = '#d9d9d9';
+                                onClick={(e) => {
+                                    e.stopPropagation(); // Prevent any parent click handlers
+
+                                    // Set the selected staff
+                                    setSelectedStaff(staff.id);
+
+                                    // Reset the form first
+                                    form.resetFields();
+
+                                    // Then set the staff and date values
+                                    setTimeout(() => {
+                                        form.setFieldsValue({
+                                            staff: staff.id,
+                                            appointmentDate: moment(selectedDate)
+                                        });
+
+                                        // Open the new reservation form
+                                        setShowReservationForm(true);
+                                        setIsEditMode(false);
+                                        setEditingAppointment(null);
+                                        setCustomClientName("");
+                                        setClientInputMode("existing");
+                                    }, 0);
                                 }}
                             >
-                                <PlusOutlined style={{ fontSize: '12px' }} />
+                                Add
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Time grid with appointments */}
+                <div style={{
+                    display: 'flex',
+                    overflowY: 'auto',
+                    flexGrow: 1
+                }}>
+                    {/* Time axis on the left */}
+                    <div className="time-axis" style={{
+                        width: '60px',
+                        flexShrink: 0,
+                        borderRight: '1px solid #f0f0f0',
+                        background: '#f7f9fc'
+                    }}>
+                        {hourRange.map(hour => {
+                            const displayHour = hour > 12 ? hour - 12 : hour;
+                            const period = hour >= 12 ? 'PM' : 'AM';
+                            return (
+                                <div key={hour} className="hour-marker" style={{
+                                    height: '80px',
+                                    borderBottom: '1px solid #f0f0f0',
+                                    position: 'relative',
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    justifyContent: 'center',
+                                    paddingTop: '5px',
+                                    color: '#8c8c8c',
+                                    fontWeight: '500',
+                                    fontSize: '12px'
+                                }}>
+                                    {`${displayHour} ${period}`}
+
+                                    {/* Quarter-hour markers */}
+                                    <div style={{ position: 'absolute', left: 0, right: 0, top: '20px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                    <div style={{ position: 'absolute', left: 0, right: 0, top: '40px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                    <div style={{ position: 'absolute', left: 0, right: 0, top: '60px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Staff columns with appointments */}
+                    <div className="staff-columns" style={{ display: 'flex', flexGrow: 1 }}>
+                        {staffMembers.map(staff => {
+                            const staffAppointments = getStaffAppointments(staff.name);
+
+                            return (
+                                <div key={staff.id} className="staff-column" style={{
+                                    flex: '1 0 180px',
+                                    minWidth: '180px',
+                                    borderRight: '1px solid #f0f0f0',
+                                    position: 'relative'
+                                }}>
+                                    {/* Hour grid */}
+                                    <div className="hour-grid">
+                                        {hourRange.map(hour => (
+                                            <div key={hour} className="hour-block" style={{
+                                                height: '80px',
+                                                borderBottom: '1px solid #f0f0f0',
+                                                position: 'relative'
+                                            }}>
+                                                {/* Quarter-hour markers */}
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '20px', borderBottom: '1px dotted #f0f0f0', zIndex: 1 }}></div>
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '40px', borderBottom: '1px dotted #f0f0f0', zIndex: 1 }}></div>
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '60px', borderBottom: '1px dotted #f0f0f0', zIndex: 1 }}></div>
+
+                                                {/* Time slot areas - 15 min increments */}
+                                                {[0, 1, 2, 3].map(quarterIdx => {
+                                                    const minutes = quarterIdx * 15;
+                                                    const quarterHour = `${hour}:${minutes < 10 ? '0' + minutes : minutes}`;
+                                                    const period = hour >= 12 ? 'PM' : 'AM';
+                                                    const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+                                                    const timeSlot = `${displayHour}:${minutes < 10 ? '0' + minutes : minutes} ${period}`;
+
+                                                    const isBooked = isTimeSlotBooked(staff.name, timeSlot);
+
+                                                    // Only add click handlers to slots that aren't already part of a time range
+                                                    return (
+                                                        <div
+                                                            key={quarterIdx}
+                                                            className="quarter-hour-slot"
+                                                            style={{
+                                                                position: 'absolute',
+                                                                left: 0,
+                                                                right: 0,
+                                                                top: `${quarterIdx * 20}px`,
+                                                                height: '20px',
+                                                                cursor: isBooked ? 'default' : 'pointer',
+                                                                zIndex: 2
+                                                            }}
+                                                            onClick={isBooked ? undefined : () => handleTimeSlotClick(timeSlot, staff.name)}
+                                                        ></div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Appointments */}
+                                    {staffAppointments.map(appointment => {
+                                        const { top, height } = getAppointmentPosition(appointment.start_time, appointment.end_time);
+
+                                        return (
+                                            <Tooltip key={appointment.id} title={
+                                                <>
+                                                    <div><strong>Client:</strong> {appointment.customClientName || appointment.client}</div>
+                                                    <div><strong>Service:</strong> {appointment.service}</div>
+                                                    <div><strong>Time:</strong> {appointment.timeRangeDescription}</div>
+                                                    {appointment.phone && <div><strong>Phone:</strong> {appointment.phone}</div>}
+                                                    {appointment.specialRequests && <div><strong>Special Requests:</strong> {appointment.specialRequests}</div>}
+                                                    <div style={{ marginTop: '8px', fontSize: '11px' }}>Click to edit or remove</div>
+                                                </>
+                                            }>
+                                                <div
+                                                    className="appointment"
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: `${top}px`,
+                                                        left: '4px',
+                                                        right: '4px',
+                                                        height: `${height}px`,
+                                                        backgroundColor: '#e6f7ff',
+                                                        borderLeft: '3px solid #1890ff',
+                                                        borderRadius: '3px',
+                                                        padding: '4px 6px',
+                                                        overflow: 'hidden',
+                                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                                        cursor: 'pointer',
+                                                        zIndex: 3
+                                                    }}
+                                                    onClick={() => handleEditAppointment(appointment)}
+                                                >
+                                                    <div style={{
+                                                        fontWeight: 'bold',
+                                                        fontSize: '12px',
+                                                        whiteSpace: 'nowrap',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis'
+                                                    }}>
+                                                        {appointment.customClientName || appointment.client}
+                                                    </div>
+                                                    {height > 30 && (
+                                                        <div style={{
+                                                            fontSize: '11px',
+                                                            color: '#666',
+                                                            whiteSpace: 'nowrap',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis'
+                                                        }}>
+                                                            {appointment.service}
+                                                        </div>
+                                                    )}
+                                                    {height > 45 && (
+                                                        <div style={{ fontSize: '10px', marginTop: '2px' }}>
+                                                            <ClockCircleOutlined style={{ marginRight: '2px', fontSize: '9px' }} />
+                                                            {appointment.start_time} - {appointment.end_time}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </Tooltip>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderWeekView = () => {
+        // Get the start of the week (Sunday) for the selected date
+        const startOfWeek = new Date(selectedDate);
+        startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
+
+        // Create array of dates for the week
+        const weekDates = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date(startOfWeek);
+            date.setDate(startOfWeek.getDate() + i);
+            return date;
+        });
+
+        return (
+            <div className="week-view" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                maxHeight: 'calc(100vh - 250px)'
+            }}>
+                {/* Day headers row */}
+                <div className="day-headers-row" style={{
+                    display: 'flex',
+                    borderBottom: '1px solid #f0f0f0',
+                    background: '#f7f9fc',
+                    zIndex: 10
+                }}>
+                    {/* Empty cell in top-left corner */}
+                    <div style={{
+                        width: '60px',
+                        flexShrink: 0,
+                        borderRight: '1px solid #f0f0f0'
+                    }}>
+                    </div>
+
+                    {/* Day header cells */}
+                    {weekDates.map((date, index) => {
+                        const isToday = new Date().toDateString() === date.toDateString();
+                        const isSelected = selectedDate.toDateString() === date.toDateString();
+
+                        return (
+                            <div
+                                key={index}
+                                className="day-header"
+                                style={{
+                                    flex: '1 0 120px',
+                                    minWidth: '120px',
+                                    padding: '8px',
+                                    textAlign: 'center',
+                                    borderRight: '1px solid #f0f0f0',
+                                    background: isSelected ? '#e6f7ff' : (isToday ? '#fffbe6' : '#f7f9fc'),
+                                    cursor: 'pointer'
+                                }}
+                                onClick={() => setSelectedDate(new Date(date))}
+                            >
+                                <div style={{ fontWeight: 'bold' }}>{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                                <div style={{
+                                    fontSize: '16px',
+                                    color: isToday ? '#1890ff' : '#262626',
+                                    fontWeight: isToday ? 'bold' : 'normal'
+                                }}>
+                                    {date.getDate()}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                                    {date.toLocaleDateString('en-US', { month: 'short' })}
+                                </div>
+
+                                {/* Add appointment button for selected day */}
+                                {isSelected && (
+                                    <Button
+                                        type="dashed"
+                                        icon={<PlusOutlined />}
+                                        size="small"
+                                        style={{
+                                            position: 'absolute',
+                                            top: '8px',
+                                            right: '8px',
+                                            zIndex: 10
+                                        }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleNewReservationClick();
+                                        }}
+                                    >
+                                        Add
+                                    </Button>
+                                )}
                             </div>
                         );
-                    }
-                }
-            });
-        });
+                    })}
+                </div>
 
-        return columns;
+                {/* Time grid with hour slots */}
+                <div style={{
+                    display: 'flex',
+                    overflowY: 'auto',
+                    flexGrow: 1
+                }}>
+                    {/* Time axis on the left */}
+                    <div className="time-axis" style={{
+                        width: '60px',
+                        flexShrink: 0,
+                        borderRight: '1px solid #f0f0f0',
+                        background: '#f7f9fc'
+                    }}>
+                        {hourRange.map(hour => {
+                            const displayHour = hour > 12 ? hour - 12 : hour;
+                            const period = hour >= 12 ? 'PM' : 'AM';
+                            return (
+                                <div key={hour} className="hour-marker" style={{
+                                    height: '80px',
+                                    borderBottom: '1px solid #f0f0f0',
+                                    position: 'relative',
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    justifyContent: 'center',
+                                    paddingTop: '5px',
+                                    color: '#8c8c8c',
+                                    fontWeight: '500',
+                                    fontSize: '12px'
+                                }}>
+                                    {`${displayHour} ${period}`}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Day columns */}
+                    <div className="day-columns" style={{ display: 'flex', flexGrow: 1 }}>
+                        {weekDates.map((date, index) => {
+                            const isToday = new Date().toDateString() === date.toDateString();
+                            const isSelected = selectedDate.toDateString() === date.toDateString();
+
+                            return (
+                                <div key={index} className="day-column" style={{
+                                    flex: '1 0 120px',
+                                    minWidth: '120px',
+                                    borderRight: '1px solid #f0f0f0',
+                                    position: 'relative',
+                                    background: isSelected ? '#f0f7ff' : (isToday ? '#fffbe6' : 'transparent')
+                                }}>
+                                    {/* Hour grid */}
+                                    <div className="hour-grid">
+                                        {hourRange.map(hour => (
+                                            <div key={hour} className="hour-block" style={{
+                                                height: '80px',
+                                                borderBottom: '1px solid #f0f0f0',
+                                                position: 'relative'
+                                            }}>
+                                                {/* Quarter-hour markers */}
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '20px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '40px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                                <div style={{ position: 'absolute', left: 0, right: 0, top: '60px', borderBottom: '1px dotted #f0f0f0' }}></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        );
     };
-
-    // Schedule data for the table based on selected time slice
-    const getScheduleTableData = (timeSlots) => {
-        return timeSlots.map(time => {
-            const row = { time, key: time, start_time: time };
-            if (staffMembers && staffMembers.length > 0) {
-                staffMembers.forEach(staff => {
-                    row[staff.name] = null; // Will be rendered by the column render function
-                });
-            }
-            return row;
-        });
-    };
-
-    // Prepare tab items for the time periods
-    const items = [
-        {
-            key: "early_morning",
-            label: "Early (8AM - 9AM)",
-            children: (
-                <Table
-                    columns={renderScheduleColumns(timeSlotGroups.early_morning)}
-                    dataSource={getScheduleTableData(timeSlotGroups.early_morning)}
-                    pagination={false}
-                    bordered
-                    size="small"
-                    scroll={{ x: 'max-content' }}
-                    loading={isLoading || isLoadingScheduleData}
-                />
-            )
-        },
-        {
-            key: "morning",
-            label: "Morning (9AM - 12PM)",
-            children: (
-                <Table
-                    columns={renderScheduleColumns(timeSlotGroups.morning)}
-                    dataSource={getScheduleTableData(timeSlotGroups.morning)}
-                    pagination={false}
-                    bordered
-                    size="small"
-                    scroll={{ x: 'max-content' }}
-                    loading={isLoading || isLoadingScheduleData}
-                />
-            )
-        },
-        {
-            key: "afternoon",
-            label: "Afternoon (12PM - 3PM)",
-            children: (
-                <Table
-                    columns={renderScheduleColumns(timeSlotGroups.afternoon)}
-                    dataSource={getScheduleTableData(timeSlotGroups.afternoon)}
-                    pagination={false}
-                    bordered
-                    size="small"
-                    scroll={{ x: 'max-content' }}
-                    loading={isLoading || isLoadingScheduleData}
-                />
-            )
-        },
-        {
-            key: "evening",
-            label: "Evening (3PM - 6PM)",
-            children: (
-                <Table
-                    columns={renderScheduleColumns(timeSlotGroups.evening)}
-                    dataSource={getScheduleTableData(timeSlotGroups.evening)}
-                    pagination={false}
-                    bordered
-                    size="small"
-                    scroll={{ x: 'max-content' }}
-                    loading={isLoading || isLoadingScheduleData}
-                />
-            )
-        },
-        {
-            key: "late_evening",
-            label: "Late (6PM - 10PM)",
-            children: (
-                <Table
-                    columns={renderScheduleColumns(timeSlotGroups.late_evening)}
-                    dataSource={getScheduleTableData(timeSlotGroups.late_evening)}
-                    pagination={false}
-                    bordered
-                    size="small"
-                    scroll={{ x: 'max-content' }}
-                    loading={isLoading || isLoadingScheduleData}
-                />
-            )
-        }
-    ];
 
     return (
         <div style={{ height: '100vh', background: '#f7f9fc' }}>
@@ -732,8 +1067,8 @@ const SpaReservationSystem = () => {
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                         <ShopOutlined style={{ fontSize: "24px", marginRight: "10px", color: "#6c1c2c" }} />
                         <div>
-                            <Typography.Title level={4} style={{ margin: 0 }}>Spa Reservation</Typography.Title>
-                            <Typography.Text type="secondary">Daily Schedule</Typography.Text>
+                            <Typography.Title level={4} style={{ margin: 0 }}>Spa Calendar</Typography.Title>
+                            <Typography.Text type="secondary">Appointment Scheduler</Typography.Text>
                         </div>
                     </div>
 
@@ -749,79 +1084,20 @@ const SpaReservationSystem = () => {
                 </div>
             </Card>
 
-            {/* Daily Schedule Card */}
+            {/* Calendar View Card */}
             <Card
-                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)' }}
+                style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)', margin: '0' }}
                 bordered={false}
-                title={
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Button
-                                icon={<LeftOutlined />}
-                                onClick={() => navigateDay(-1)}
-                            />
-                            <DatePicker
-                                value={moment(selectedDate)}
-                                onChange={handleDateChange}
-                                format="MMM D, YYYY"
-                                allowClear={false}
-                                bordered={false}
-                                suffixIcon={null}
-                                style={{ fontSize: "16px", fontWeight: "bold" }}
-                            />
-                            <Button
-                                icon={<RightOutlined />}
-                                onClick={() => navigateDay(1)}
-                            />
-                            <Button type="link" onClick={() => setSelectedDate(new Date())}>
-                                Today
-                            </Button>
-                        </div>
-
-                        {/* <Space>
-                            <Select
-                                placeholder="Filter by staff"
-                                style={{ width: 160 }}
-                                allowClear
-                                onChange={(value) => {
-                                    // Filter staff by ID if needed
-                                }}
-                            >
-                                {staffMembers && staffMembers
-                                    .filter(staff => {
-                                        // Filter out users with admin or cleaner roles
-                                        const roleType = staff.role?.toLowerCase();
-                                        return roleType !== 'admin' && roleType !== 'cleaner';
-                                    })
-                                    .map(staff => (
-                                        <Select.Option key={staff.id} value={staff.id}>
-                                            <Space>
-                                                <Avatar src={staff.avatar} size="small" />
-                                                {staff.name}
-                                            </Space>
-                                        </Select.Option>
-                                    ))}
-                            </Select>
-
-                            <Tooltip title="Export Schedule">
-                                <Button icon={<DownloadOutlined />} />
-                            </Tooltip>
-                        </Space> */}
-                    </div>
-                }
+                bodyStyle={{ padding: 0 }}
+                title={renderCalendarHeader()}
             >
-                <Tabs
-                    defaultActiveKey="morning"
-                    items={items}
-                    onChange={setActiveTimeSlice}
-                    animated
-                    size="small"
-                    tabBarStyle={{ marginBottom: '8px' }}
-                    type="card"
-                />
+                {/* Calendar main area */}
+                <div className="calendar-view">
+                    {calendarView === 'day' ? renderCalendarGrid() : renderWeekView()}
+                </div>
             </Card>
 
-            {/* Fresha-style Reservation Form Modal */}
+            {/* Appointment Form Modal */}
             <Modal
                 title={
                     <div style={{ fontSize: '18px', color: '#2a2f3d' }}>
@@ -838,22 +1114,27 @@ const SpaReservationSystem = () => {
                 width={600}
             >
                 <Form
+                    form={form}
                     layout="vertical"
                     onFinish={handleFormSubmit}
                     initialValues={isEditMode && editingAppointment ? {
-                        timeSlot: editingAppointment.start_time,
                         staff: editingAppointment.staffId,
                         clientName: editingAppointment.clientId,
                         customClientName: editingAppointment.customClientName || "",
                         service: editingAppointment.serviceId,
-                        reservationMode: editingAppointment.isTimeRange ? "timeRange" : "singleSlot",
                         appointmentDate: editingAppointment.originalData?.appointment_date ?
                             moment(editingAppointment.originalData.appointment_date) :
-                            moment(selectedDate)
+                            moment(selectedDate),
+                        // For time range in the time picker
+                        timeRange: [
+                            moment(editingAppointment.start_time, 'h:mm A'),
+                            moment(editingAppointment.end_time, 'h:mm A')
+                        ],
+                        specialRequests: editingAppointment.specialRequests || "",
+                        phoneNumber: editingAppointment.phone ? reversePhoneNumber(editingAppointment.phone) : ""
                     } : {
-                        timeSlot: selectedTimeSlot,
                         staff: selectedStaff,
-                        appointmentDate: moment(selectedDate)
+                        appointmentDate: moment(selectedDate),
                     }}
                 >
                     <Row gutter={16}>
@@ -903,9 +1184,9 @@ const SpaReservationSystem = () => {
 
                     <Form.Item
                         name="timeRange"
-                        label="Select Time Range"
+                        label="Time Range"
                         rules={[{ required: true, message: 'Please select a time range' }]}
-                        extra="Select start and end times from available slots (8:00 AM - 10:00 PM)"
+                        extra="Select start and end times for the appointment (8:00 AM - 10:00 PM)"
                     >
                         <RangePicker
                             format="h:mm A"
@@ -997,6 +1278,9 @@ const SpaReservationSystem = () => {
                         )}
                     </Form.Item>
 
+                    {/* Phone Number field using PhoneInput component */}
+                    <PhoneInput label="Phone" owner="phoneNumber" />
+
                     <Form.Item
                         name="service"
                         label="Service"
@@ -1025,6 +1309,16 @@ const SpaReservationSystem = () => {
                         </Select>
                     </Form.Item>
 
+                    {/* Field for special requests */}
+                    <Form.Item
+                        name="specialRequests"
+                        label="Special Requests"
+                    >
+                        <TextArea
+                            placeholder="Enter any special requests or notes"
+                            rows={4}
+                        />
+                    </Form.Item>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
                         <Space>
@@ -1055,43 +1349,6 @@ const SpaReservationSystem = () => {
                     </div>
                 </Form>
             </Modal>
-
-            {/* Apply Fresha-style CSS */}
-            <style jsx global>{`
-            .ant-card-head {
-              border-bottom: none;
-              padding: 12px 24px;
-              min-height: auto;
-            }
-            
-            .ant-card-body {
-              padding: 16px 24px 24px;
-            }
-            
-            .ant-tabs-card > .ant-tabs-nav .ant-tabs-tab-active {
-              background-color: #e6f7ff;
-              border-color: #91caff;
-            }
-            
-            .ant-tabs-card > .ant-tabs-nav .ant-tabs-tab {
-              border-radius: 4px 4px 0 0;
-            }
-            
-            .ant-table-thead > tr > th {
-              background-color: #f7f9fc;
-              color: #646b82;
-              font-weight: 500;
-            }
-            
-            .ant-table-cell {
-              padding: 8px !important;
-            }
-            
-            .ant-form-item-label > label {
-              font-weight: 500;
-              color: #2a2f3d;
-            }
-          `}</style>
         </div>
     );
 };
