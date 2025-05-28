@@ -14,7 +14,7 @@ import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
-import { Button, Card, Space, Typography } from "antd";
+import { Button, Card, Space, Typography, Tag } from "antd";
 import {
   CloseCircleOutlined,
   OrderedListOutlined,
@@ -26,17 +26,12 @@ import {
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
 
-// function formatTotal(totalAmount: { toLocaleString: () => number | string }) {
-//   return totalAmount?.toLocaleString();
-// }
-
 const CartDrawer: React.FC = () => {
-  // const [openM, setOpenM] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  console.log('nice working with', tenant);
+
   const {
     cartDetails,
     totalAmount,
@@ -84,7 +79,19 @@ const CartDrawer: React.FC = () => {
       return totalAmountCheck.toLocaleString();
     }
   };
-  // const formattedTotal = useMemo(() => formatTotal(calculateFinalAmount()), [calculateFinalAmount()]);
+
+  // Calculate the total discount amount
+  const discountAmount = useMemo(() => {
+    if (!cartDetails?.discount) {
+      return 0;
+    }
+    if (cartDetails?.discount_type === "percentage") {
+      return totalCartAmount * (cartDetails?.discount / 100);
+    } else {
+      return cartDetails?.discount;
+    }
+  }, [totalCartAmount, cartDetails?.discount, cartDetails?.discount_type]);
+
   const orderNumber = useMemo(
     () => cartDetails?.order_no,
     [cartDetails?.order_no]
@@ -106,10 +113,7 @@ const CartDrawer: React.FC = () => {
     };
 
     dispatchFetchCart();
-    // clearCartDetails();
   }, [dispatch, id, td._id]);
-
-  // console.log("============", data);
 
   return (
     <Card
@@ -150,7 +154,7 @@ const CartDrawer: React.FC = () => {
             {td?.name}
           </Button>
         </Space>
-        {/* <Card> */}
+
         <Space
           style={{
             display: "flex",
@@ -165,8 +169,18 @@ const CartDrawer: React.FC = () => {
           <Typography.Title level={5}>Price</Typography.Title>
         </Space>
 
+        {cartDetails?.discount && (
+          <div style={{ marginTop: -15, marginBottom: 10 }}>
+            <Tag color="green">
+              {cartDetails?.discount_type === "percentage"
+                ? `${cartDetails?.discount}% Discount Applied`
+                : `KSH ${cartDetails?.discount?.toLocaleString()} Discount Applied`}
+            </Tag>
+          </div>
+        )}
+
         <Divider />
-        {/* </Card> */}
+
         <div
           style={{
             maxHeight: "calc(92vh - 460px)",
@@ -206,7 +220,6 @@ const CartDrawer: React.FC = () => {
                     : ` ${cartDetails?.tip_amount}%`}
                 </Typography.Text>
               )}
-              {/* <DiscountModal data={cartDetails} /> */}
             </div>
             <div
               style={{
@@ -217,25 +230,26 @@ const CartDrawer: React.FC = () => {
                 alignItems: "baseline",
               }}
             >
-              {/* <div style={{ display: "grid", gap: 2 }}> */}
-
-              <Typography.Text strong>
-                Amount Due : Ksh.{" "}
-                {totalAmount ? (
-                  calculateFinalAmount()
-                ) : (
-                  <Typography>Calculating...</Typography>
+              <Space direction="vertical">
+                {cartDetails?.discount && (
+                  <>
+                    <Typography.Text delete style={{ opacity: 0.7 }}>
+                      Original Amount: KSH. {totalCartAmount.toLocaleString()}
+                    </Typography.Text>
+                    <Typography.Text strong>
+                      Discount: KSH. {discountAmount.toLocaleString()} {cartDetails?.discount_type === "percentage" ? `(${cartDetails?.discount}%)` : ''}
+                    </Typography.Text>
+                  </>
                 )}
-              </Typography.Text>
-              {cartDetails?.discount && (
-                <Typography.Text strong>
-                  <RestOutlined /> Discount:
-                  {cartDetails?.discount_type === "amount"
-                    ? ` KSH. ${cartDetails?.discount?.toLocaleString()}`
-                    : ` ${cartDetails?.discount}%`}
+                <Typography.Text strong style={{ fontSize: '16px' }}>
+                  Amount Due: KSH.{" "}
+                  {totalAmount ? (
+                    calculateFinalAmount()
+                  ) : (
+                    <Typography>Calculating...</Typography>
+                  )}
                 </Typography.Text>
-              )}
-
+              </Space>
             </div>
 
             <Space
@@ -249,7 +263,6 @@ const CartDrawer: React.FC = () => {
               <Button
                 onClick={() => dispatch(cartSent(cartDetails))}
                 icon={<SendOutlined />}
-                // disabled={cartDetails?.status === "sent"}
                 style={{
                   color: primaryColor,
                   borderColor: primaryColor,

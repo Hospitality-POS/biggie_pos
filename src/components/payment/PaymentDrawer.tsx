@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { grey } from "@mui/material/colors";
@@ -21,16 +20,14 @@ import {
   Spin,
   Statistic,
   Typography,
+  message,
 } from "antd";
 import {
-  ClockCircleOutlined,
   CloseCircleOutlined,
   CreditCardOutlined,
   DollarOutlined,
   FileAddOutlined,
   FileOutlined,
-  LikeOutlined,
-  LoadingOutlined,
   MobileOutlined,
   PercentageOutlined,
   StopOutlined,
@@ -39,10 +36,10 @@ import {
 import { DrawerForm, ProCard } from "@ant-design/pro-components";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import DiscountModal from "@components/MODALS/pro/DiscountModal";
-import { getAllOrders } from "@services/orders";
 
 const PaymentDrawer: React.FC = () => {
   const [form] = Form.useForm();
+  const [drawerVisible, setDrawerVisible] = useState(false);
 
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -56,15 +53,10 @@ const PaymentDrawer: React.FC = () => {
   const [amount1, setAmount1] = useState(0);
   const [amount2, setAmount2] = useState(0);
 
-  const { data: paymentHistory } = useQuery({
-    queryKey: ["paymentHistory"],
-    queryFn: getAllOrders,
-    networkMode: "always",
-  });
-
   const totalCartAmount = cartDetails?.items.reduce((acc, item) => {
     return acc + item.price;
-  }, 0);
+  }, 0) || 0;
+
   // Function to calculate the final amount after discount
   const calculateFinalAmount = () => {
     if (!cartDetails?.discount) {
@@ -76,35 +68,11 @@ const PaymentDrawer: React.FC = () => {
       return totalCartAmount - cartDetails?.discount;
     }
   };
-  const today = new Date();
-  const todayOrders = paymentHistory?.filter((order) => {
-    const orderDate = new Date(order.createdAt);
-    return (
-      orderDate.getDate() === today.getDate() &&
-      orderDate.getMonth() === today.getMonth() &&
-      orderDate.getFullYear() === today.getFullYear()
-    );
-  });
-
-  // Function to check if a date is today
-  const isToday = (someDate: Date) => {
-    const today = new Date();
-    return (
-      someDate.getDate() === today.getDate() &&
-      someDate.getMonth() === today.getMonth() &&
-      someDate.getFullYear() === today.getFullYear()
-    );
-  };
-
-  // Filter today's payments
-  const todaysPayments =
-    paymentHistory?.filter((payment) => isToday(new Date(payment.createdAt))) ||
-    [];
 
   const {
     isLoading,
     error: Derror,
-    data,
+    data: paymentMethods
   } = useQuery({
     queryKey: ["paymentMethods"],
     queryFn: fetchAllPaymentMethods,
@@ -122,7 +90,6 @@ const PaymentDrawer: React.FC = () => {
 
   const handleModalClose = () => {
     setOpenModal(false);
-    setSelectedMethod(null);
     setSecondMethod(null);
     setAmount1(0);
     setAmount2(0);
@@ -137,6 +104,7 @@ const PaymentDrawer: React.FC = () => {
       amount2 < 1 ||
       totalAmountCheck !== totalAmount
     ) {
+      message.error("The split amounts must equal the total amount.");
       return;
     }
 
@@ -151,21 +119,30 @@ const PaymentDrawer: React.FC = () => {
       cart_items: cartDetails.items,
       method_id: twoMethods,
     };
+
     dispatch(createOrder(orderDetails));
-    // dispatch(getCart(id))
+
+    // Close drawer after payment processing
+    setDrawerVisible(false);
+
     if (!error) {
       dispatch(createCart(id));
-      // dispatch(logoutUser());
-      // dispatch(reset());
       navigate("/tables");
+      message.success("Payment successful!");
     }
   };
 
-  const handlePayment = (methodId: string) => {
+  const handlePayment = () => {
+    if (!selectedMethod) {
+      message.error("Please select a payment method.");
+      return;
+    }
+
     if (secondMethod) {
-      // logic to open the modal for splitting the bill
+      // Open the modal for splitting the bill
       setOpenModal(true);
     } else {
+      // Process single payment method
       const orderDetails = {
         cart_id: cartDetails?._id,
         order_amount: totalAmount,
@@ -173,29 +150,40 @@ const PaymentDrawer: React.FC = () => {
         updated_by: user?.id,
         order_no: cartDetails?.order_no,
         cart_items: cartDetails.items,
-        method_id: methodId,
+        method_id: selectedMethod,
       };
+
       dispatch(createOrder(orderDetails));
+
+      // Close drawer after payment processing
+      setDrawerVisible(false);
+
       if (!error) {
         dispatch(createCart(id));
-        // dispatch(logoutUser());
-        // dispatch(reset());
         navigate("/tables");
+        message.success("Payment successful!");
       }
     }
   };
 
   const handleVoidBill = () => {
-    dispatch(cartVoid(cartDetails));
-    dispatch(createCart(id));
-    Modal.info({
+    Modal.confirm({
       title: "Void Bill",
-      content: "Voided bill Succesfully",
-      centered: true,
+      content: "Are you sure you want to void this bill?",
+      okText: "Yes, Void it",
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: () => {
+        dispatch(cartVoid(cartDetails));
+        dispatch(createCart(id));
+
+        // Close drawer after voiding
+        setDrawerVisible(false);
+
+        message.success("Bill voided successfully.");
+        navigate("/tables");
+      }
     });
-    // dispatch(logoutUser());
-    // dispatch(reset());
-    navigate("/tables");
   };
 
   if (isLoading) {
@@ -244,18 +232,51 @@ const PaymentDrawer: React.FC = () => {
         maxWidth: window.innerWidth * 0.8,
         minWidth: 560,
       }}
-      submitter={false}
+      open={drawerVisible}
+      onOpenChange={setDrawerVisible}
+      submitter={{
+        render: () => [
+          <Button
+            key="cancel"
+            onClick={() => setDrawerVisible(false)}
+            style={{ marginRight: 8 }}
+          >
+            Cancel
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            onClick={handlePayment}
+            loading={loading}
+            disabled={!selectedMethod}
+            icon={<FileOutlined />}
+            block
+          >
+            Confirm Order Payment
+          </Button>,
+        ],
+      }}
       form={form}
       drawerProps={{
         destroyOnClose: true,
       }}
       trigger={
-        <Button type="primary" block>
+        <Button
+          type="primary"
+          block
+          onClick={() => {
+            // Validate cart has items before opening payment drawer
+            if (!cartDetails?.items || cartDetails.items.length === 0) {
+              message.error("Cart is empty. Please add items before proceeding to payment.");
+              return;
+            }
+            setDrawerVisible(true);
+          }}
+        >
           Proceed to Payment
         </Button>
       }
     >
-      {/* <Divider /> */}
       <Space direction="vertical" style={{ width: "100%" }}>
         <Typography.Text strong style={{ fontSize: "20px" }}>
           Order Summary
@@ -272,7 +293,7 @@ const PaymentDrawer: React.FC = () => {
           <Col span={12}>
             <Statistic
               title="Discount"
-              value={cartDetails?.discount}
+              value={cartDetails?.discount || 0}
               prefix={
                 cartDetails?.discount_type === "percentage" ? (
                   <PercentageOutlined />
@@ -292,7 +313,7 @@ const PaymentDrawer: React.FC = () => {
           style={{ marginTop: 16 }}
         />
 
-        <Space direction="vertical" style={{ width: "100%" }}>
+        <Space direction="vertical" style={{ width: "100%", marginTop: 24 }}>
           <Typography.Title level={4}>Payment Method</Typography.Title>
           <Space
             style={{
@@ -302,23 +323,21 @@ const PaymentDrawer: React.FC = () => {
               marginBottom: 10,
             }}
           >
-            {data.map((method: { _id: string; name: string }) => (
+            {paymentMethods?.map((method: { _id: string; name: string }) => (
               <ProCard
                 key={method._id}
                 bodyStyle={{ paddingInline: "20px", paddingBlock: "26px" }}
                 bordered
                 onClick={() => handleSelectMethod(method._id)}
                 style={{
-                  backgroundColor: `${selectedMethod === method._id ? "#6c1c2c" : grey[400]
-                    }`,
+                  backgroundColor: `${selectedMethod === method._id ? "#6c1c2c" : grey[400]}`,
                   cursor: "pointer",
                   transition: "background-color 0.3s ease",
                 }}
               >
                 <Space
                   style={{
-                    color: `${selectedMethod === method._id ? "white" : "inherit"
-                      }`,
+                    color: `${selectedMethod === method._id ? "white" : "inherit"}`,
                   }}
                 >
                   {method.name === "Cash" ? (
@@ -327,8 +346,7 @@ const PaymentDrawer: React.FC = () => {
                       <Typography.Text
                         strong
                         style={{
-                          color: `${selectedMethod === method._id ? "white" : "inherit"
-                            }`,
+                          color: `${selectedMethod === method._id ? "white" : "inherit"}`,
                         }}
                       >
                         Cash
@@ -340,8 +358,7 @@ const PaymentDrawer: React.FC = () => {
                       <Typography.Text
                         strong
                         style={{
-                          color: `${selectedMethod === method._id ? "white" : "inherit"
-                            }`,
+                          color: `${selectedMethod === method._id ? "white" : "inherit"}`,
                         }}
                       >
                         Mpesa
@@ -353,8 +370,7 @@ const PaymentDrawer: React.FC = () => {
                       <Typography.Text
                         strong
                         style={{
-                          color: `${selectedMethod === method._id ? "white" : "inherit"
-                            }`,
+                          color: `${selectedMethod === method._id ? "white" : "inherit"}`,
                         }}
                       >
                         Card
@@ -366,8 +382,7 @@ const PaymentDrawer: React.FC = () => {
                       <Typography.Text
                         strong
                         style={{
-                          color: `${selectedMethod === method._id ? "white" : "inherit"
-                            }`,
+                          color: `${selectedMethod === method._id ? "white" : "inherit"}`,
                         }}
                       >
                         Debt
@@ -379,8 +394,7 @@ const PaymentDrawer: React.FC = () => {
                       <Typography.Text
                         strong
                         style={{
-                          color: `${selectedMethod === method._id ? "white" : "inherit"
-                            }`,
+                          color: `${selectedMethod === method._id ? "white" : "inherit"}`,
                         }}
                       >
                         {method?.name[0]?.toUpperCase()}
@@ -397,7 +411,7 @@ const PaymentDrawer: React.FC = () => {
               display: "flex",
               justifyContent: "space-between",
               flexWrap: "wrap",
-              marginTop: 4,
+              marginTop: 16,
             }}
           >
             {(user?.role === "admin" || user?.role === "cashier") && (
@@ -428,21 +442,13 @@ const PaymentDrawer: React.FC = () => {
                 Void Bill
               </Button>
             )}
-            <Button
-              type="primary"
-              icon={loading ? <LoadingOutlined /> : <LikeOutlined />}
-              onClick={() => handlePayment(selectedMethod as string)}
-              disabled={!selectedMethod}
-            >
-              Confirm
-            </Button>
           </Space>
 
           {selectedMethod !== secondMethod && (
             <SplitBillDialog
               open={openModal}
               handleModalClose={handleModalClose}
-              data={data}
+              data={paymentMethods}
               selectedMethod={selectedMethod}
               secondMethod={secondMethod}
               totalAmount={totalAmount}
@@ -456,47 +462,7 @@ const PaymentDrawer: React.FC = () => {
             />
           )}
         </Space>
-        <Divider />
-        <Typography.Title level={4}>
-          <ClockCircleOutlined /> Recent Transactions
-        </Typography.Title>
-        <Space direction="vertical" style={{ width: "100%" }}>
-          {todaysPayments
-            ?.slice(0, 3)
-            .map(({ order_amount, _id, createdAt, order_payments }: any) => (
-              <Row key={_id} justify="space-between" align="middle">
-                <Col>
-                  <Typography.Text>
-                    {new Date(createdAt).toLocaleString()}
-                  </Typography.Text>
-                </Col>
-                <Col>
-                  <Typography.Text strong>{`KSh. ${order_amount.toFixed(
-                    2
-                  )}`}</Typography.Text>
-                </Col>
-                <Col>
-                  <Typography.Text type="secondary">
-                    {order_payments[0]?.name}
-                  </Typography.Text>
-                </Col>
-              </Row>
-            ))}
-        </Space>
-        {todayOrders?.length > 4 && (
-          <Typography.Text type="secondary">
-            {todayOrders?.length > 0
-              ? `${todayOrders.length} order${todayOrders.length > 1 ? "s" : ""
-              } today`
-              : "No orders today"}
-          </Typography.Text>
-        )}
-        {!todayOrders?.length && (
-          <Typography.Text type="secondary">No orders today</Typography.Text>
-        )}
       </Space>
-      <Divider />
-      <Button type="primary" block onClick={() => navigate("/orders")} icon={<FileOutlined />}>View All Transactions</Button>
     </DrawerForm>
   );
 };

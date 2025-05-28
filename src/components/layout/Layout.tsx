@@ -28,16 +28,19 @@ function Layout() {
   const isAdminRoute =
     location.pathname === "/admin" || location.pathname.startsWith("/admin");
 
-  const shopId = localStorage.getItem("shopId");
-
+  const shopId = localStorage.getItem("shopId") || undefined;
+  console.log("shopId", shopId);
   const { data: currentShop } = useQuery(
     ["currentShop", shopId],
-    () => fetchShop(shopId as string),
+    () => {
+      if (!shopId || shopId === 'undefined') return Promise.reject("No shopId");
+      return fetchShop(shopId);
+    },
     {
       enabled: !!shopId,
       networkMode: "always",
       cacheTime: 0,
-      staleTime: 0
+      staleTime: 0,
     }
   );
 
@@ -95,20 +98,20 @@ function Layout() {
         <div style={{ maxWidth: "1920px" }}>
           <App>
             <ProNavbar>
-            <PageContainer
-              header={{
-                extra: [renderBreadcrumbs(role)],
-                title: currentShop?.name && (
-                  <Space>
-                    <ShopOutlined />
-                    <Text strong>{currentShop?.name}</Text>
-                  </Space>
-                ),
-              }}
-              ghost
-            >
-              <Outlet />
-            </PageContainer>
+              <PageContainer
+                header={{
+                  extra: [renderBreadcrumbs(role)],
+                  title: currentShop?.name && (
+                    <Space>
+                      <ShopOutlined />
+                      <Text strong>{currentShop?.name}</Text>
+                    </Space>
+                  ),
+                }}
+                ghost
+              >
+                <Outlet />
+              </PageContainer>
             </ProNavbar>
           </App>
         </div>

@@ -29,7 +29,6 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
     if (open && data) {
       form.setFieldsValue({
         ...data,
-
       });
     }
   }, [open, data, form]);
@@ -47,8 +46,8 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
       onOpenChange={handleOpenChange}
       title={
         <Space>
-          <AppstoreAddOutlined />
-          Add New Table
+          {edit ? <EditOutlined /> : <AppstoreAddOutlined />}
+          {edit ? "Edit Table" : "Add New Table"}
         </Space>
       }
       trigger={
@@ -71,8 +70,7 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
       }
       onFinish={async (values) => {
         const confirmed = await ShowConfirm({
-          title: `Are you sure you want to ${edit ? "update this" : "add new"
-            } table?`,
+          title: `Are you sure you want to ${edit ? "update this" : "add new"} table?`,
           position: true,
         });
         if (confirmed) {
@@ -83,12 +81,11 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
           return true;
         }
       }}
-
       form={form}
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: "Add Table",
+          submitText: edit ? "Update Table" : "Add Table",
         },
       }}
       modalProps={{

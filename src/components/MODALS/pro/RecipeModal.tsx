@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Button,
   Form,
@@ -9,6 +9,11 @@ import {
   Spin,
   message,
   Flex,
+  Radio,
+  Tag,
+  Divider,
+  Space,
+  Select
 } from "antd";
 import { ModalForm, ProForm, ProFormSelect } from "@ant-design/pro-form";
 import {
@@ -16,6 +21,7 @@ import {
   MinusCircleOutlined,
   CarryOutOutlined,
   CheckCircleOutlined,
+  InfoCircleOutlined
 } from "@ant-design/icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchAllInventoryItems, fetchAllUnits } from "@services/products";
@@ -23,39 +29,11 @@ import ShowConfirm from "@utils/ConfirmUtil";
 import { createRecipe, deleteRecipe, fetchRecipe, updateRecipe } from "@services/recipe";
 import { useAppSelector } from "src/store";
 
-interface RecipeModalProps {
-  productId: string;
-  productName: string;
-  activateInventory: boolean;
-}
-
-interface inventoryItemType {
-  name: string;
-  _id: string;
-  unit_id: { _id: string; name: string };
-}
-
-interface unitType {
-  name: string;
-  _id: string;
-}
-
-interface recipeItemType {
-  _id: string;
-  inventory_id: { _id: string; name: string };
-  unit_id: { _id: string; name: string };
-  quantity: number;
-}
-
-const RecipeModal: React.FC<RecipeModalProps> = ({
-  productId,
-  productName,
-  activateInventory,
-}) => {
+const RecipeModal = ({ productId, productName, activateInventory }) => {
   const [form] = Form.useForm();
   const formRef = useRef(null);
-  const [modalVisible, setModalVisible] = React.useState(false);
-  const [recipeItems, setRecipeItems] = React.useState<any[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [recipeItems, setRecipeItems] = useState([]);
 
   // Mutation for deleting recipe item
   const { mutate: deleteRecipeMutation } = useMutation({
@@ -77,28 +55,30 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
     onSuccess: (data) => {
       setRecipeItems(data); // Store original recipe data
 
-      const formattedData = data?.map((item: recipeItemType) => ({
+      const formattedData = data?.map((item) => ({
         _id: item?._id, // Store the recipe ID
         item: item?.inventory_id?._id || "missing_inventory",
         unit: item?.unit_id?._id,
         quantity: item?.quantity,
+        itemFormat: item?.formatType || "direct",
+        ratio: item?.ratio || 1
       })) || [{}];
 
       form.setFieldsValue({
-        recipeItems: formattedData,
+        recipeItems: formattedData
       });
       setModalVisible(true);
     },
     onError: (error) => {
       console.error("Failed to fetch recipe:", error);
       form.setFieldsValue({
-        recipeItems: [{}],
+        recipeItems: [{}]
       });
       setModalVisible(true);
     },
   });
 
-  const handleDeleteRecipeItem = async (recipeId: string, name: number) => {
+  const handleDeleteRecipeItem = async (recipeId, name) => {
     const confirmed = await ShowConfirm({
       title: "Are you sure you want to delete this recipe item?",
       position: true,
@@ -111,13 +91,12 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
       } else {
         // If no recipe ID (new item), just remove from form
         const currentItems = form.getFieldValue("recipeItems");
-        const newItems = currentItems.filter(
-          (_: any, index: number) => index !== name
-        );
+        const newItems = currentItems.filter((_, index) => index !== name);
         form.setFieldsValue({ recipeItems: newItems });
       }
     }
   };
+
   // Fetch inventory items and units
   const { data: inventoryItems, isLoading: isLoadingInventory } = useQuery({
     queryKey: ["inventoryItems"],
@@ -135,13 +114,12 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
   });
 
   const InventoryRequest = useCallback(async () => {
-    return inventoryItems?.map((item: inventoryItemType) => ({
+    return inventoryItems?.map((item) => ({
       label: item?.name,
       value: item?._id,
       unit: item?.unit_id,
     }));
   }, [inventoryItems]);
-
 
   const handleTriggerClick = () => {
     form.resetFields();
@@ -153,29 +131,47 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
     setModalVisible(false);
   };
 
-
+  const handleItemFormatChange = (name, value) => {
+    // Update the ratio when format changes
+    const currentItems = form.getFieldValue("recipeItems");
+    const updatedItems = [...currentItems];
+    updatedItems[name] = {
+      ...updatedItems[name],
+      itemFormat: value,
+      ratio: value === "ratio" ? (updatedItems[name].ratio || 3) : 1
+    };
+    form.setFieldsValue({ recipeItems: updatedItems });
+  };
 
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
 
-  const handleOnFinish = async (values: any) => {
+  const handleOnFinish = async (values) => {
     const confirmed = await ShowConfirm({
-      title: `Are you sure you want to ${form.getFieldValue("recipeItems")?.length > 1 ? "update" : "save"
-        } this Formula?`,
+      title: `Are you sure you want to ${form.getFieldValue("recipeItems")?.length > 1 ? "update" : "save"} this Formula?`,
       position: true,
     });
 
     if (confirmed) {
       try {
-        if (form.getFieldValue("recipeItems")?.length > 1) {
-          await updateRecipe(productId, values.recipeItems);
+        // Each item has its own format and ratio
+        const payload = {
+          ...values,
+          recipeItems: values.recipeItems
+        };
+
+        if (recipeItems.length > 0) {
+          await updateRecipe(productId, payload);
         } else {
-          await createRecipe(productId, values.recipeItems);
+          await createRecipe(productId, payload);
         }
+
+        message.success(`Formula ${recipeItems.length > 0 ? "updated" : "created"} successfully`);
         handleModalClose();
         return true;
       } catch (error) {
         console.error("Error saving Formula:", error);
+        message.error("Failed to save formula");
         return false;
       }
     }
@@ -204,8 +200,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
                 display: "inline-block",
               }}
             >
-              {`${form.getFieldValue("recipeItems")?.length > 1 ? "Update" : "Add"
-                } Formula for ${productName}`}
+              {`${recipeItems.length > 0 ? "Update" : "Add"} Formula for ${productName}`}
             </span>
           </Tooltip>
         </Flex>
@@ -220,13 +215,13 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
               <CarryOutOutlined
                 style={{
                   fontSize: "25px",
-                  color: "white" // Button appears active when activateInventory is true
+                  color: "white"
                 }}
               />
             }
             disabled={!activateInventory || !isAdmin}
             style={{
-              border: 'none',  // Remove border around the button
+              border: 'none',
             }}
           />
         ) : (
@@ -239,40 +234,38 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
                 <CarryOutOutlined
                   style={{
                     fontSize: "25px",
-                    color: "gray" // Button appears inactive when activateInventory is false
+                    color: "gray"
                   }}
                 />
               }
               disabled={!activateInventory || !isAdmin}
               style={{
-                border: 'none',  // Remove border around the button
+                border: 'none',
               }}
             />
           </Tooltip>
         )
       }
-
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
         centered: true,
         onCancel: handleModalClose,
+        width: 900,
       }}
       onFinish={handleOnFinish}
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: `${form.getFieldValue("recipeItems")?.length > 1 ? "Update" : "Save"
-            } Recipe`,
+          submitText: `${recipeItems.length > 0 ? "Update" : "Save"} Formula`,
         },
         submitButtonProps: {
           disabled: isLoadingRecipe,
-          icon:
-            form.getFieldValue("recipeItems")?.length > 1 ? (
-              <CheckCircleOutlined />
-            ) : (
-              <PlusCircleFilled />
-            ),
+          icon: recipeItems.length > 0 ? (
+            <CheckCircleOutlined />
+          ) : (
+            <PlusCircleFilled />
+          ),
           loading: isLoadingRecipe || isLoadingInventory || isLoadingUnits,
         },
       }}
@@ -282,111 +275,173 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
           <Spin tip="Please wait a moment..." />
         </div>
       ) : (
-        <div
-          style={{
-            maxHeight: "300px",
-            overflowY: "auto",
-            overflowX: "hidden",
-            marginBottom: "16px",
-          }}
-        >
-          <Form.List name="recipeItems" initialValue={[{}]}>
-            {(fields, { add, remove }) => (
-              <>
-                {fields.map(({ key, name, fieldKey, ...restField }) => (
-                  <Row
-                    key={key}
-                    gutter={[16, 16]}
-                    style={{ marginBottom: "8px" }}
-                  >
-                    <Col xs={24} sm={12} md={8}>
-                      <ProFormSelect
-                        {...restField}
-                        name={[name, "item"]}
-                        showSearch
-                        label="Inventory Item"
-                        placeholder="Select inventory item"
-                        rules={[
-                          {
-                            required: true,
-                            message: "Inventory item is required",
-                          },
-                        ]}
-                        request={InventoryRequest}
-                        width="sm"
-                        fieldProps={{
-                          onChange: (value, option: any) => {
-                            const selectedUnit = option.unit;
-                            form.setFieldValue(
-                              ["recipeItems", name, "unit"],
-                              selectedUnit._id
-                            );
-                          },
-                        }}
-                      />
-                    </Col>
-                    <Col xs={24} sm={12} md={6}>
-                      <ProForm.Item
-                        {...restField}
-                        name={[name, "quantity"]}
-                        label="Quantity"
-                        rules={[
-                          { required: true, message: "Quantity is required" },
-                        ]}
+        <>
+          <div style={{ padding: "8px", backgroundColor: "#f5f5f5", borderRadius: "4px", marginBottom: "16px" }}>
+            <InfoCircleOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+            <span>
+              Each inventory item can use its own deduction format. Direct format uses 1:1 deduction,
+              while Ratio format allows multiple sales before deducting inventory.
+            </span>
+          </div>
+
+          <Divider orientation="left">Recipe Items</Divider>
+
+          <div
+            style={{
+              maxHeight: "400px",
+              overflowY: "auto",
+              overflowX: "hidden",
+              marginBottom: "16px",
+            }}
+          >
+            <Form.List name="recipeItems" initialValue={[{}]}>
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map(({ key, name, fieldKey, ...restField }) => {
+                    const itemFormat = form.getFieldValue(["recipeItems", name, "itemFormat"]) || "direct";
+
+                    return (
+                      <Row
+                        key={key}
+                        gutter={[16, 16]}
+                        style={{ marginBottom: "16px", borderBottom: "1px solid #f0f0f0", paddingBottom: "16px" }}
                       >
-                        <InputNumber
-                          min={0.1}
-                          placeholder="Enter quantity"
-                          style={{ width: "100%" }}
-                        />
-                      </ProForm.Item>
-                    </Col>
-                    <Col xs={24} sm={12} md={6}>
-                      <ProFormSelect
-                        {...restField}
-                        name={[name, "unit"]}
-                        label="Unit"
-                        placeholder="Unit will be auto-filled"
-                        fieldProps={{
-                          disabled: true,
-                        }}
-                        options={units?.map((unit: unitType) => ({
-                          label: unit.name,
-                          value: unit._id,
-                        }))}
-                      />
-                    </Col>
-                    <Col
-                      xs={24}
-                      sm={12}
-                      md={2}
-                      style={{ display: "flex", alignItems: "center" }}
-                    >
-                      <Button
-                        type="link"
-                        danger
-                        icon={<MinusCircleOutlined />}
-                        onClick={() => {
-                          const recipeId = form.getFieldValue([
-                            "recipeItems",
-                            name,
-                            "_id",
-                          ]);
-                          handleDeleteRecipeItem(recipeId, name);
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    </Col>
-                  </Row>
-                ))}
-                <Button type="dashed" block onClick={() => add()}>
-                  <PlusCircleFilled /> Add Formula Item
-                </Button>
-              </>
-            )}
-          </Form.List>
-        </div>
+                        <Col xs={24} sm={12} md={6}>
+                          <ProFormSelect
+                            {...restField}
+                            name={[name, "item"]}
+                            showSearch
+                            label="Inventory Item"
+                            placeholder="Select inventory item"
+                            rules={[
+                              {
+                                required: true,
+                                message: "Inventory item is required",
+                              },
+                            ]}
+                            request={InventoryRequest}
+                            width="sm"
+                            fieldProps={{
+                              onChange: (value, option) => {
+                                const selectedUnit = option.unit;
+                                form.setFieldValue(
+                                  ["recipeItems", name, "unit"],
+                                  selectedUnit._id
+                                );
+                              },
+                            }}
+                          />
+                        </Col>
+
+                        <Col xs={24} sm={12} md={4}>
+                          <ProForm.Item
+                            {...restField}
+                            name={[name, "quantity"]}
+                            label="Quantity"
+                            rules={[
+                              { required: true, message: "Quantity is required" },
+                            ]}
+                          >
+                            <InputNumber
+                              min={0.1}
+                              placeholder="Enter quantity"
+                              style={{ width: "100%" }}
+                            />
+                          </ProForm.Item>
+                        </Col>
+
+                        <Col xs={24} sm={12} md={4}>
+                          <ProFormSelect
+                            {...restField}
+                            name={[name, "unit"]}
+                            label="Unit"
+                            placeholder="Auto-filled"
+                            fieldProps={{
+                              disabled: true,
+                            }}
+                            options={units?.map((unit) => ({
+                              label: unit.name,
+                              value: unit._id,
+                            }))}
+                          />
+                        </Col>
+
+                        <Col xs={24} sm={12} md={4}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, "itemFormat"]}
+                            label="Format"
+                            initialValue="direct"
+                            rules={[{ required: true }]}
+                          >
+                            <Select
+                              onChange={(value) => handleItemFormatChange(name, value)}
+                              style={{ width: "100%" }}
+                            >
+                              <Select.Option value="direct">
+                                <Tag color="blue">Direct</Tag>
+                              </Select.Option>
+                              <Select.Option value="ratio">
+                                <Tag color="green">Ratio</Tag>
+                              </Select.Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+
+                        {itemFormat === "ratio" && (
+                          <Col xs={24} sm={12} md={4}>
+                            <ProForm.Item
+                              {...restField}
+                              name={[name, "ratio"]}
+                              label="Service Ratio"
+                              tooltip="How many service sales per 1 inventory deduction"
+                              initialValue={3}
+                              rules={[
+                                { required: true, message: "Ratio is required" },
+                              ]}
+                            >
+                              <InputNumber
+                                min={1}
+                                placeholder="Enter ratio"
+                                style={{ width: "100%" }}
+                              />
+                            </ProForm.Item>
+                          </Col>
+                        )}
+
+                        <Col
+                          xs={24}
+                          sm={12}
+                          md={2}
+                          style={{ display: "flex", alignItems: "center" }}
+                        >
+                          <Button
+                            type="link"
+                            danger
+                            icon={<MinusCircleOutlined />}
+                            onClick={() => {
+                              const recipeId = form.getFieldValue([
+                                "recipeItems",
+                                name,
+                                "_id",
+                              ]);
+                              handleDeleteRecipeItem(recipeId, name);
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </Col>
+                      </Row>
+                    );
+                  })}
+                  <Button type="dashed" block onClick={() => add()}>
+                    <PlusCircleFilled /> Add Formula Item
+                  </Button>
+                </>
+              )}
+            </Form.List>
+          </div>
+        </>
       )}
     </ModalForm>
   );

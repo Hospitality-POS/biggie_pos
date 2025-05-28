@@ -27,6 +27,7 @@ function formatQuantity(quantity: number) {
 const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const dispatch = useAppDispatch();
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  const { cartDetails } = useAppSelector((state) => state.cart);
 
   // Get tenant primary color on component mount
   useEffect(() => {
@@ -48,6 +49,23 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     [cartItem.quantity]
   );
   const { invalidate } = useCartItemsData();
+
+  // Calculate the discounted price for this item
+  const discountedPrice = useMemo(() => {
+    if (!cartDetails?.discount) return null;
+
+    let discountAmount = 0;
+    if (cartDetails?.discount_type === "percentage") {
+      discountAmount = cartItem.price * (cartDetails.discount / 100);
+    } else {
+      // For fixed amount discount, distribute proportionally based on item price
+      const totalCartAmount = cartDetails.items.reduce((acc, item) => acc + item.price, 0);
+      discountAmount = (cartItem.price / totalCartAmount) * cartDetails.discount;
+    }
+
+    const newPrice = cartItem.price - discountAmount;
+    return newPrice > 0 ? newPrice.toLocaleString() : "0";
+  }, [cartItem.price, cartDetails?.discount, cartDetails?.discount_type, cartDetails?.items]);
 
   return (
     <Card
@@ -83,12 +101,35 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
             </Box>
           </Grid>
           <Grid item xs={3} ml={-3}>
-            <Typography.Text
-              strong
-              style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
-            >
-              {formattedPrice ? formattedPrice : 0}
-            </Typography.Text>
+            {discountedPrice ? (
+              <div>
+                <Typography.Text
+                  delete
+                  style={{
+                    color: `${cartItem.sent ? "#fff" : "#000"}`,
+                    opacity: 0.7
+                  }}
+                >
+                  {formattedPrice}
+                </Typography.Text>
+                <br />
+                <Typography.Text
+                  strong
+                  style={{
+                    color: `${cartItem.sent ? "#fff" : "#000"}`,
+                  }}
+                >
+                  {discountedPrice}
+                </Typography.Text>
+              </div>
+            ) : (
+              <Typography.Text
+                strong
+                style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
+              >
+                {formattedPrice ? formattedPrice : 0}
+              </Typography.Text>
+            )}
           </Grid>
           <Grid item xs={3}>
             {cartItem.sent ? (
@@ -100,9 +141,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     icon={<DeleteOutlined />}
                     onClick={() => {
                       dispatch(deleteCartItem(cartItem._id));
-                      // refetch();
                       invalidate();
-
                     }}
                   ></Button>
                 )}
