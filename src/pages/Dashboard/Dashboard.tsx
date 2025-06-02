@@ -430,6 +430,38 @@ const Dashboard = () => {
           </Text>
         </div>
         <Space wrap>
+          {/* Period Filter Section */}
+          <>
+            <Flex align="center" wrap="wrap" gap={16}>
+              <Flex align="center">
+                <CalendarOutlined style={{ marginRight: 8, color: COLORS.primary }} />
+                <Title level={5} style={{ margin: 0 }}>
+                  Filter by Period
+                </Title>
+              </Flex>
+              <Radio.Group
+                value={periodFilter}
+                onChange={handlePeriodChange}
+                buttonStyle="solid"
+                size="middle"
+              >
+                <Radio.Button value="day">Day</Radio.Button>
+                <Radio.Button value="week">Week</Radio.Button>
+                <Radio.Button value="month">Month</Radio.Button>
+                <Radio.Button value="year">Year</Radio.Button>
+                <Radio.Button value="custom">Custom</Radio.Button>
+              </Radio.Group>
+
+              {showCustomDatePicker && (
+                <RangePicker
+                  value={customDateRange}
+                  onChange={handleCustomDateChange}
+                  allowClear={false}
+                  style={{ flexGrow: 1 }}
+                />
+              )}
+            </Flex>
+          </>
           <Button
             type="primary"
             icon={<ReloadOutlined spin={isRefetching} />}
@@ -452,36 +484,6 @@ const Dashboard = () => {
         </Space>
       </Row>
 
-      {/* Period Filter Section */}
-      <Card style={{ marginBottom: 16, borderRadius: 8 }}>
-        <Flex align="center" wrap="wrap" gap={16}>
-          <Flex align="center">
-            <CalendarOutlined style={{ marginRight: 8, color: COLORS.primary }} />
-            <Text strong>Period:</Text>
-          </Flex>
-          <Radio.Group
-            value={periodFilter}
-            onChange={handlePeriodChange}
-            buttonStyle="solid"
-            size="middle"
-          >
-            <Radio.Button value="day">Day</Radio.Button>
-            <Radio.Button value="week">Week</Radio.Button>
-            <Radio.Button value="month">Month</Radio.Button>
-            <Radio.Button value="year">Year</Radio.Button>
-            <Radio.Button value="custom">Custom</Radio.Button>
-          </Radio.Group>
-
-          {showCustomDatePicker && (
-            <RangePicker
-              value={customDateRange}
-              onChange={handleCustomDateChange}
-              allowClear={false}
-              style={{ flexGrow: 1 }}
-            />
-          )}
-        </Flex>
-      </Card>
 
       <Row gutter={[16, 16]}>
         {statisticsData.map((stat, index) => (

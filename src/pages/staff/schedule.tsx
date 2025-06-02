@@ -1111,6 +1111,7 @@ const SpaReservationSystem = () => {
                 onCancel={() => setShowReservationForm(false)}
                 footer={null}
                 destroyOnClose
+                centered
                 width={600}
             >
                 <Form

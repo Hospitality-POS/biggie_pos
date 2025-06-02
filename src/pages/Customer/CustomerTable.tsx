@@ -414,7 +414,7 @@ const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
                         Issue New Gift Card
                     </Button>,
                 ]}
-                width={900}
+                width={950}
                 bodyStyle={{ maxHeight: "70vh", overflow: "auto" }}
             >
                 <Table
