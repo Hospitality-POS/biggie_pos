@@ -24,11 +24,18 @@ const OrdersTable = () => {
   const queryClient = useQueryClient();
 
   // Date filter state
-  const [dateFilterType, setDateFilterType] = useState("all");
-  const [dateRange, setDateRange] = useState<[moment.Moment, moment.Moment] | null>(null);
+  const [dateFilterType, setDateFilterType] = useState("today");
+
+  const todayStart = moment().startOf('day');
+  const todayEnd = moment().endOf('day');
+
+  const [dateRange, setDateRange] = useState<[moment.Moment, moment.Moment]>([todayStart, todayEnd]);
 
   // Query parameters state
-  const [queryParams, setQueryParams] = useState({});
+  const [queryParams, setQueryParams] = useState({
+    start_date: todayStart.toISOString(),
+    end_date: todayEnd.toISOString(),
+  });
   // Track current orders data separately 
   const [currentOrders, setCurrentOrders] = useState([]);
 
