@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   UserOutlined,
   MailOutlined,
@@ -34,24 +34,31 @@ const { Title, Text } = Typography;
 
 function Profile() {
   const [isPinVisible, setIsPinVisible] = useState(false);
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [pin, setPin] = useState("*********");
   const params = useParams();
-  
+
   const userRef = useRef<ActionType>();
-  
+
   const { id } = params;
 
-  const {data: userDetails, isLoading} = useQuery(
-  {
-    queryKey: ["user", id],
-    queryFn: () => fetchUserById(id),
-    refetchOnWindowFocus: false,
-    networkMode: "always",
-  }
+  const { data: userDetails, isLoading } = useQuery(
+    {
+      queryKey: ["user", id],
+      queryFn: () => fetchUserById(id),
+      refetchOnWindowFocus: false,
+      networkMode: "always",
+    }
   );
 
-
-  const primaryColor = "#6c1c2c";
+  // Get tenant primary color from localStorage
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.primary_color) {
+      setPrimaryColor(tenant.primary_color);
+    }
+  }, []);
 
 
   const togglePinVisibility = async () => {
@@ -71,18 +78,22 @@ function Profile() {
   if (!userDetails) {
     return (
       <PageContainer
-        title="User Profile"
-        content="View and manage user information"
+        title="Profile Details"
+        content="Review and manage your personal information"
         style={{ padding: "24px" }}
       >
         <Card>
           <Row gutter={[16, 16]} align="middle">
             <Col span={24}>
-            {isLoading ? (
-              <Skeleton active />
-            ) : (
-             <Result status="404" title="User not found" subTitle="Sorry, the user you visited does not exist." />
-            )}
+              {isLoading ? (
+                <Skeleton active />
+              ) : (
+                <Result
+                  status="404"
+                  title="User Not Found"
+                  subTitle="We couldn't find the user you're looking for. Please check the user ID and try again."
+                />
+              )}
             </Col>
           </Row>
         </Card>
@@ -92,8 +103,8 @@ function Profile() {
 
   return (
     <PageContainer
-      title="User Profile"
-      content="View and manage user information"
+      title="Profile Details"
+      content="Review and manage your personal information"
       style={{ padding: "24px" }}
     >
       <Card>
@@ -109,7 +120,10 @@ function Profile() {
             <Avatar
               size={100}
               icon={<UserOutlined />}
-              style={{ backgroundColor: primaryColor }}
+              style={{ border: `2px solid ${primaryColor}` }}
+              src={userDetails?.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"}
+              alt={userDetails?.fullname || "User Avatar"}
+              aria-label="User Avatar"
             />
           </Col>
           <Col xs={24} sm={16} md={18} lg={19} xl={20}>
@@ -154,7 +168,7 @@ function Profile() {
           <Descriptions.Item
             label={
               <Space>
-                <MailOutlined /> Email
+                <MailOutlined /> Email Address
               </Space>
             }
           >
@@ -163,7 +177,7 @@ function Profile() {
           <Descriptions.Item
             label={
               <Space>
-                <PhoneOutlined /> Phone
+                <PhoneOutlined /> Phone Number
               </Space>
             }
           >
@@ -172,7 +186,7 @@ function Profile() {
           <Descriptions.Item
             label={
               <Space>
-                <IdcardOutlined /> ID Number
+                <IdcardOutlined /> National ID
               </Space>
             }
           >
@@ -181,7 +195,7 @@ function Profile() {
           <Descriptions.Item
             label={
               <Space>
-                <LockOutlined /> PIN
+                <LockOutlined /> Security PIN
               </Space>
             }
           >
@@ -189,17 +203,16 @@ function Profile() {
               {pin}
               <Button
                 type="text"
-                icon={isPinVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                icon={isPinVisible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
                 onClick={togglePinVisibility}
                 aria-label={isPinVisible ? "Hide PIN" : "Show PIN"}
               />
-            
             </Space>
           </Descriptions.Item>
           <Descriptions.Item
             label={
               <Space>
-                <CalendarOutlined /> Created At
+                <CalendarOutlined /> Account Created
               </Space>
             }
           >
@@ -208,7 +221,7 @@ function Profile() {
           <Descriptions.Item
             label={
               <Space>
-                <CalendarOutlined /> Last Updated
+                <CalendarOutlined /> Last Modified
               </Space>
             }
           >

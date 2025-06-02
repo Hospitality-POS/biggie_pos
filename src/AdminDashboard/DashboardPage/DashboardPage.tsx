@@ -256,15 +256,6 @@ const DashboardAdminPage = () => {
         placement: "bottomRight",
       });
     },
-    onSuccess: () => {
-      if (isRefetching) {
-        // notification.success({
-        //   message: "Dashboard refreshed successfully!",
-        //   duration: 2,
-        //   placement: "bottomRight",
-        // });
-      }
-    },
   });
 
   const handleRefresh = async () => {
@@ -354,6 +345,38 @@ const DashboardAdminPage = () => {
           </Text>
         </div>
         <Space>
+          {/* Period Filter Section */}
+          <>
+            <Flex align="center" wrap="wrap" gap={16}>
+              <Flex align="center">
+                <CalendarOutlined style={{ marginRight: 8, color: "#1890ff" }} />
+                <Title level={5} style={{ margin: 0, color: "#1e293b" }}>
+                  Filter by Period
+                </Title>
+              </Flex>
+              <Radio.Group
+                value={periodFilter}
+                onChange={handlePeriodChange}
+                buttonStyle="solid"
+                size="middle"
+              >
+                <Radio.Button value="day">Day</Radio.Button>
+                <Radio.Button value="week">Week</Radio.Button>
+                <Radio.Button value="month">Month</Radio.Button>
+                <Radio.Button value="year">Year</Radio.Button>
+                <Radio.Button value="custom">Custom</Radio.Button>
+              </Radio.Group>
+
+              {showCustomDatePicker && (
+                <RangePicker
+                  value={customDateRange}
+                  onChange={handleCustomDateChange}
+                  allowClear={false}
+                  style={{ flexGrow: 1 }}
+                />
+              )}
+            </Flex>
+          </>
           <Button
             type="text"
             icon={<ReloadOutlined spin={isRefetching} />}
@@ -371,36 +394,7 @@ const DashboardAdminPage = () => {
         <WelcomeBanner />
       </Row>
 
-      {/* Period Filter Section */}
-      <Card style={{ marginBottom: 16, borderRadius: 8 }}>
-        <Flex align="center" wrap="wrap" gap={16}>
-          <Flex align="center">
-            <CalendarOutlined style={{ marginRight: 8, color: "#1890ff" }} />
-            <Text strong>Period:</Text>
-          </Flex>
-          <Radio.Group
-            value={periodFilter}
-            onChange={handlePeriodChange}
-            buttonStyle="solid"
-            size="middle"
-          >
-            <Radio.Button value="day">Day</Radio.Button>
-            <Radio.Button value="week">Week</Radio.Button>
-            <Radio.Button value="month">Month</Radio.Button>
-            <Radio.Button value="year">Year</Radio.Button>
-            <Radio.Button value="custom">Custom</Radio.Button>
-          </Radio.Group>
-
-          {showCustomDatePicker && (
-            <RangePicker
-              value={customDateRange}
-              onChange={handleCustomDateChange}
-              allowClear={false}
-              style={{ flexGrow: 1 }}
-            />
-          )}
-        </Flex>
-      </Card>
+      
 
       <Row gutter={[16, 16]}>
         {statisticsData.map((stat, index) => (

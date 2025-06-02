@@ -68,8 +68,10 @@ const RestaurantShiftSchedule = () => {
     queryKey: ["users"],
     queryFn: fetchAllUsersList,
     retry: 1,
+    select: (data) => data?.filter((user) => user?.role?.role_type !== "admin") || [],
     refetchInterval: 5000,
     networkMode: "always",
+    staleTime: 0
   });
 
   // Delete mutation
@@ -329,10 +331,10 @@ const RestaurantShiftSchedule = () => {
               className="user-list"
               dataSource={users}
               renderItem={user => (
-                <List.Item className="user-list-item">
-                  <Space size={12}>
+                <List.Item className="user-list-item" key={user?._id}>
+                  <Space size={12} align="center" style={{ width: '100%', paddingLeft: '8px' }}>
                     <Avatar
-                      src={user.avatar}
+                      src={user?.thumbnail || ''}
                       icon={<UserOutlined />}
                       style={{ backgroundColor: getEmployeeColor(user._id) }}
                       size={40}
@@ -424,6 +426,9 @@ const RestaurantShiftSchedule = () => {
             </Typography.Title>
 
             <Space size={16}>
+              <div className="current-period">
+                {currentDate.format("MMMM YYYY")} - Week {currentDate.week()}
+              </div>
               <Space>
                 <Button
                   icon={<LeftOutlined />}
@@ -436,11 +441,24 @@ const RestaurantShiftSchedule = () => {
                 />
               </Space>
 
-              <div className="current-period">
-                {currentDate.format("MMMM YYYY")} - Week {currentDate.week()}
-              </div>
+
 
               <Space>
+
+                <div className="header-bottom-row">
+                  <Select
+                    placeholder="Filter by time"
+                    style={{ width: 120 }}
+                    value={timeFilter}
+                    onChange={setTimeFilter}
+                    options={[
+                      { value: 'all', label: 'All Hours' },
+                      { value: 'morning', label: 'Morning' },
+                      { value: 'afternoon', label: 'Afternoon' },
+                      { value: 'evening', label: 'Evening' }
+                    ]}
+                  />
+                </div>
                 <Tooltip title="Export as PDF">
                   <Button
                     icon={<FilePdfOutlined />}
@@ -450,33 +468,15 @@ const RestaurantShiftSchedule = () => {
                     Export
                   </Button>
                 </Tooltip>
-
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
                   onClick={handleNewShiftClick}
                 >
-                  New Employee Shift
+                  New Shift
                 </Button>
               </Space>
             </Space>
-          </div>
-
-          <div className="header-bottom-row">
-            <div></div> {/* Empty space for alignment */}
-
-            <Select
-              placeholder="Filter by time"
-              style={{ width: 120 }}
-              value={timeFilter}
-              onChange={setTimeFilter}
-              options={[
-                { value: 'all', label: 'All Hours' },
-                { value: 'morning', label: 'Morning' },
-                { value: 'afternoon', label: 'Afternoon' },
-                { value: 'evening', label: 'Evening' }
-              ]}
-            />
           </div>
         </div>
 

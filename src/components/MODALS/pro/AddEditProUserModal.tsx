@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Form, Space, Upload, message } from "antd";
+import { Avatar, Button, Form, Space, Upload, message } from "antd";
 import {
   ModalForm,
   ProFormText,
   ProForm,
   ProFormSelect,
 } from "@ant-design/pro-form";
-import { EditOutlined, UsergroupAddOutlined, InboxOutlined } from "@ant-design/icons";
+import { EditOutlined, UsergroupAddOutlined, InboxOutlined, UserOutlined } from "@ant-design/icons";
 import useAddEditUserModal from "../Hooks/useAddEditUserModal";
 import { ProFormDigit } from "@ant-design/pro-components";
 import { fetchUserRoles, updateUsers } from "@services/users";
@@ -267,6 +267,42 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         },
       }}
     >
+      {/* User Profile Image Upload Section */}
+      <div style={{ padding: '0 24px', marginBottom: '24px' }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '16px' }}>Profile Image</div>
+        <Upload.Dragger
+          fileList={fileList}
+          beforeUpload={beforeUpload}
+          onChange={handleChange}
+          maxCount={1}
+          showUploadList={{ showRemoveIcon: true }}
+          accept="image/*"
+          style={{ width: '100%' }}
+          customRequest={customRequest}
+        >
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined style={{ fontSize: 48, color: '#40a9ff' }} />
+          </p>
+          <p className="ant-upload-text">Click or drag file to upload</p>
+          <p className="ant-upload-hint">
+            Support for a single image file. Maximum size: 5MB.
+          </p>
+        </Upload.Dragger>
+
+        {previewImage && (
+          <div style={{ marginTop: 16, textAlign: 'center' }}>
+            <Avatar
+              size={100}
+              icon={<UserOutlined />}
+              src={previewImage}
+              style={{ border: `2px solid ${primaryColor}` }}
+              alt={data?.fullname}
+              aria-label="User Avatar"
+            />
+          </div>
+        )}
+      </div>
+      
       <ProForm.Group>
         <ProFormText
           hasFeedback
@@ -357,39 +393,6 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
         <PhoneInput label="Phone" owner="phoneNumber" />
       </ProForm.Group>
-
-      {/* User Profile Image Upload Section */}
-      <div style={{ padding: '0 24px', marginBottom: '24px' }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '16px' }}>Profile Image</div>
-        <Upload.Dragger
-          fileList={fileList}
-          beforeUpload={beforeUpload}
-          onChange={handleChange}
-          maxCount={1}
-          showUploadList={{ showRemoveIcon: true }}
-          accept="image/*"
-          style={{ width: '100%' }}
-          customRequest={customRequest}
-        >
-          <p className="ant-upload-drag-icon">
-            <InboxOutlined style={{ fontSize: 48, color: '#40a9ff' }} />
-          </p>
-          <p className="ant-upload-text">Click or drag file to upload</p>
-          <p className="ant-upload-hint">
-            Support for a single image file. Maximum size: 5MB.
-          </p>
-        </Upload.Dragger>
-
-        {previewImage && (
-          <div style={{ marginTop: 16, textAlign: 'center' }}>
-            <img
-              src={previewImage}
-              alt="Profile preview"
-              style={{ maxHeight: 200, maxWidth: '100%', objectFit: 'contain', borderRadius: '50%' }}
-            />
-          </div>
-        )}
-      </div>
     </ModalForm>
   );
 };
