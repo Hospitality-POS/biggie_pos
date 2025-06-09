@@ -1,9 +1,18 @@
 import { useRef } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Button, message, Popconfirm, Space, Tag } from "antd";
+import { Button, message, Popconfirm, Space, Tag, Image, Tooltip } from "antd";
 import { deleteInventory, fetchAllInventory } from "@services/inventory";
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
-import { DeleteOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  ShoppingCartOutlined,
+  ToolOutlined,
+  SwapOutlined,
+  WarningOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
+  EyeOutlined
+} from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 
 const InventorySettings = () => {
@@ -17,10 +26,116 @@ const InventorySettings = () => {
     onError: () => message.error("Failed to delete inventory"),
   });
 
+  // Usage type render function
+  const renderUsageType = (usageType: string) => {
+    const usageTypeConfig = {
+      selling: { icon: <ShoppingCartOutlined />, color: 'green', text: 'For Sale' },
+      internal: { icon: <ToolOutlined />, color: 'orange', text: 'Internal' },
+      both: { icon: <SwapOutlined />, color: 'blue', text: 'Both' }
+    };
+
+    const config = usageTypeConfig[usageType as keyof typeof usageTypeConfig];
+
+    return (
+      <Tag color={config?.color} icon={config?.icon}>
+        {config?.text}
+      </Tag>
+    );
+  };
+
+  // Status render function
+  const renderStatus = (status: string) => {
+    const statusConfig = {
+      active: { icon: <CheckCircleOutlined />, color: 'success', text: 'Active' },
+      inactive: { icon: <StopOutlined />, color: 'default', text: 'Inactive' },
+      discontinued: { icon: <WarningOutlined />, color: 'warning', text: 'Discontinued' }
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig];
+
+    return (
+      <Tag color={config?.color} icon={config?.icon}>
+        {config?.text}
+      </Tag>
+    );
+  };
+
+  // Stock level render function
+  const renderStockLevel = (record: any) => {
+    const { quantity, min_viable_quantity } = record;
+
+    if (!min_viable_quantity) {
+      return (
+        <span style={{ color: '#1890ff' }}>
+          {quantity?.toLocaleString()}
+        </span>
+      );
+    }
+
+    const isLowStock = quantity <= min_viable_quantity;
+    const isCritical = quantity <= (min_viable_quantity * 0.5);
+
+    return (
+      <Space>
+        <span style={{
+          color: isCritical ? '#ff4d4f' : isLowStock ? '#faad14' : '#52c41a',
+          fontWeight: isLowStock ? 'bold' : 'normal'
+        }}>
+          {quantity?.toLocaleString()}
+        </span>
+        {isLowStock && (
+          <Tooltip title={`Low stock! Minimum: ${min_viable_quantity}`}>
+            <WarningOutlined style={{ color: isCritical ? '#ff4d4f' : '#faad14' }} />
+          </Tooltip>
+        )}
+      </Space>
+    );
+  };
+
+  // Price render function
+  const renderPrice = (record: any) => {
+    const { price, supplier_price, usage_type } = record;
+
+    // Don't show price for internal-only items
+    if (usage_type === 'internal') {
+      return <span style={{ color: '#8c8c8c' }}>N/A</span>;
+    }
+
+    if (!price) {
+      return <span style={{ color: '#ff4d4f' }}>No price set</span>;
+    }
+
+    const margin = supplier_price && price ?
+      ((price - supplier_price) / price * 100).toFixed(1) : null;
+
+    return (
+      <Space direction="vertical" size={2}>
+        <span style={{ fontWeight: 'bold' }}>
+          Ksh. {price?.toLocaleString()}
+        </span>
+        {supplier_price && (
+          <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
+            Cost: Ksh. {supplier_price?.toLocaleString()}
+          </span>
+        )}
+        {margin && (
+          <Tag
+            size="small"
+            color={parseFloat(margin) > 20 ? 'green' : parseFloat(margin) > 10 ? 'orange' : 'red'}
+          >
+            {margin}% margin
+          </Tag>
+        )}
+      </Space>
+    );
+  };
+
   const actionColumn = {
     title: "Actions",
     dataIndex: "actions",
     hideInSearch: true,
+    width: 150,
+    fixed: 'right' as const,
     render: (_, record: any) => [
       <Space size="small" key={record._id}>
         <AddEditProInventoryModal
@@ -29,12 +144,20 @@ const InventorySettings = () => {
           edit={true}
         />
         <Popconfirm
-          title="Are you sure you want to delete this inventory?"
+          title="Delete Inventory Item"
+          description="Are you sure you want to delete this inventory item? This action cannot be undone."
           onConfirm={() => deleteInventoryMutation.mutate(record._id)}
-          okText="Yes"
-          cancelText="No"
+          okText="Yes, Delete"
+          cancelText="Cancel"
+          okButtonProps={{ danger: true }}
         >
-          <Button type="primary" danger icon={<DeleteOutlined />} size="small">
+          <Button
+            type="primary"
+            danger
+            icon={<DeleteOutlined />}
+            size="small"
+            title="Delete item"
+          >
             Delete
           </Button>
         </Popconfirm>
@@ -47,92 +170,299 @@ const InventorySettings = () => {
       <ProTable
         rowKey="_id"
         cardBordered
+        scroll={{ x: 1200 }}
         pagination={{
-          pageSize: 5,
-          showQuickJumper: false,
+          pageSize: 10,
+          showQuickJumper: true,
+          showSizeChanger: true,
           showTotal: (total, range) => (
             <div>{`Showing ${range[0]}-${range[1]} of ${total} total items`}</div>
           ),
         }}
         columns={[
           {
-            title: "code",
+            title: "Image",
+            dataIndex: "thumbnail",
+            hideInSearch: true,
+            width: 80,
+            render: (_, record) => {
+              if (record?.thumbnail) {
+                return (
+                  <Image
+                    width={50}
+                    height={50}
+                    src={record.thumbnail}
+                    style={{ objectFit: 'cover', borderRadius: 4 }}
+                    placeholder={
+                      <div style={{
+                        width: 50,
+                        height: 50,
+                        backgroundColor: '#f5f5f5',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: 4
+                      }}>
+                        <EyeOutlined style={{ color: '#8c8c8c' }} />
+                      </div>
+                    }
+                  />
+                );
+              }
+              return (
+                <div style={{
+                  width: 50,
+                  height: 50,
+                  backgroundColor: '#f5f5f5',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 4
+                }}>
+                  <EyeOutlined style={{ color: '#8c8c8c' }} />
+                </div>
+              );
+            },
+          },
+          {
+            title: "Code",
             dataIndex: "code",
             hideInSearch: false,
+            width: 120,
             fieldProps: {
               placeholder: "Enter Code",
             },
             sorter: true,
+            render: (text) => (
+              <code style={{
+                background: '#f6f8fa',
+                padding: '2px 6px',
+                borderRadius: 3,
+                fontSize: '12px'
+              }}>
+                {text}
+              </code>
+            ),
           },
           {
-            title: "Name",
+            title: "Product Name",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter Product Name",
             },
             sorter: true,
+            ellipsis: true,
+            render: (text, record) => (
+              <Space direction="vertical" size={2}>
+                <span style={{ fontWeight: 'bold' }}>{text}</span>
+                {record.desc && (
+                  <span style={{
+                    fontSize: '12px',
+                    color: '#8c8c8c',
+                    display: 'block',
+                    maxWidth: 200,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {record.desc}
+                  </span>
+                )}
+              </Space>
+            ),
           },
           {
-            title: "Price",
-            dataIndex: "price",
-            hideInSearch: true,
-            valueType: "money",
-            render: (_, record) => {
-              return `ksh. ${record?.price?.toLocaleString()}`;
-            },
-          },
-          {
-            title: "Subcategory",
+            title: "Category",
             dataIndex: "subcategory_id",
             hideInSearch: true,
+            width: 120,
             render: (_, record) => {
-              return record?.subcategory_id?.name;
+              return record?.subcategory_id?.name ? (
+                <Tag color="blue">{record.subcategory_id.name}</Tag>
+              ) : (
+                <span style={{ color: '#8c8c8c' }}>No category</span>
+              );
             },
           },
           {
-            title: "Quantity",
+            title: "Usage Type",
+            dataIndex: "usage_type",
+            hideInSearch: true,
+            width: 110,
+            render: (_, record) => renderUsageType(record.usage_type),
+            filters: [
+              { text: 'For Sale', value: 'selling' },
+              { text: 'Internal', value: 'internal' },
+              { text: 'Both', value: 'both' },
+            ],
+          },
+          {
+            title: "Stock Level",
             dataIndex: "quantity",
             hideInSearch: true,
-            valueType: "digit",
+            width: 120,
+            sorter: true,
+            render: (_, record) => (
+              <Space direction="vertical" size={2}>
+                {renderStockLevel(record)}
+                <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                  {record?.unit_id?.name || 'units'}
+                </span>
+                {record.min_viable_quantity && (
+                  <span style={{ fontSize: '11px', color: '#8c8c8c' }}>
+                    Min: {record.min_viable_quantity}
+                  </span>
+                )}
+              </Space>
+            ),
           },
           {
-            title: "Unit",
-            dataIndex: "unit_id",
+            title: "Pricing",
+            dataIndex: "price",
             hideInSearch: true,
+            width: 150,
+            render: (_, record) => renderPrice(record),
+          },
+          {
+            title: "Supplier",
+            dataIndex: "supplier_id",
+            hideInSearch: true,
+            width: 120,
             render: (_, record) => {
-              return record?.unit_id?.name;
+              if (record?.supplier_id?.name) {
+                return (
+                  <Tooltip title={record.supplier_id.name}>
+                    <Tag color="purple">
+                      {record.supplier_id.name.length > 10
+                        ? `${record.supplier_id.name.substring(0, 10)}...`
+                        : record.supplier_id.name}
+                    </Tag>
+                  </Tooltip>
+                );
+              }
+              return <span style={{ color: '#8c8c8c' }}>No supplier</span>;
             },
+          },
+          {
+            title: "Location",
+            dataIndex: "location",
+            hideInSearch: true,
+            width: 120,
+            render: (text) => text ? (
+              <Tag color="geekblue">{text}</Tag>
+            ) : (
+              <span style={{ color: '#8c8c8c' }}>Not set</span>
+            ),
+          },
+          {
+            title: "Status",
+            dataIndex: "status",
+            hideInSearch: true,
+            width: 100,
+            render: (_, record) => renderStatus(record.status),
+            filters: [
+              { text: 'Active', value: 'active' },
+              { text: 'Inactive', value: 'inactive' },
+              { text: 'Discontinued', value: 'discontinued' },
+            ],
           },
           actionColumn,
         ]}
-        request={async (param) => {
-          const data = await fetchAllInventory(param);
-          // console.log(data);
-          return {
-            data: data,
-            success: true,
-            total: data.length,
-          };
+        request={async (params, sort, filter) => {
+          try {
+            // Convert ProTable params to your API format
+            const queryParams = {
+              ...params,
+              current: params.current || 1,
+              pageSize: params.pageSize || 10,
+              // Add sorting
+              ...(sort && Object.keys(sort).length > 0 && {
+                sortField: Object.keys(sort)[0],
+                sortOrder: Object.values(sort)[0] === 'ascend' ? 'asc' : 'desc'
+              }),
+              // Add filtering
+              ...(filter && Object.keys(filter).length > 0 && {
+                ...filter
+              })
+            };
+
+            const data = await fetchAllInventory(queryParams);
+
+            return {
+              data: data,
+              success: true,
+              total: data.length,
+            };
+          } catch (error) {
+            console.error('Error fetching inventory:', error);
+            message.error('Failed to fetch inventory data');
+            return {
+              data: [],
+              success: false,
+              total: 0,
+            };
+          }
         }}
-        tableAlertRender={({ selectedRowKeys }) => {
-          return <p>You have selected {selectedRowKeys.length}</p>;
+        tableAlertRender={({ selectedRowKeys, selectedRows }) => {
+          const totalValue = selectedRows.reduce((sum, row) => {
+            return sum + ((row.price || 0) * (row.quantity || 0));
+          }, 0);
+
+          return (
+            <Space>
+              <span>
+                Selected {selectedRowKeys.length} items
+              </span>
+              {totalValue > 0 && (
+                <span>
+                  Total value: <strong>Ksh. {totalValue.toLocaleString()}</strong>
+                </span>
+              )}
+            </Space>
+          );
         }}
         actionRef={paymentRef}
         rowSelection={{
-          alwaysShowAlert: false,
-          selections: false,
+          alwaysShowAlert: true,
+          selections: [
+            {
+              key: 'all',
+              text: 'Select All',
+              onSelect: () => { },
+            },
+            {
+              key: 'none',
+              text: 'Clear Selection',
+              onSelect: () => { },
+            },
+            {
+              key: 'invert',
+              text: 'Invert Selection',
+              onSelect: () => { },
+            },
+          ],
         }}
         search={{
-          searchText: "Search Inventory",
+          searchText: "Search",
           resetText: "Reset",
           labelWidth: "auto",
+          collapsed: false,
+          collapseRender: (collapsed) => collapsed ? 'Expand' : 'Collapse',
         }}
         dateFormatter="string"
-        headerTitle="List of Product Inventory"
+        headerTitle="Product Inventory Management"
         toolBarRender={() => [
-          <AddEditProInventoryModal actionRef={paymentRef} />,
+          <AddEditProInventoryModal key="add" actionRef={paymentRef} />,
         ]}
+        options={{
+          setting: {
+            listsHeight: 400,
+          },
+          reload: true,
+          density: true,
+          fullScreen: true,
+        }}
       />
     </>
   );

@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ConfigProvider, Skeleton, Typography, Result, Button } from "antd";
 import { Space } from "antd/lib";
 import Lottie from "lottie-react";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/tables.json";
 import EmptyPage from "@routes/EmptyPage";
@@ -55,8 +55,25 @@ export default function TablePro() {
   const navigate = useNavigate();
   const storedCode = localStorage.getItem("companyCode");
 
+  // Constants for tab management
+  const DEFAULT_TAB = "overview";
+  const STORAGE_KEY = "activeTableTabId";
+  const VISIT_KEY = "hasVisitedTablesBefore";
+
   // Initialize with overview - always default to overview tab
-  const [activeTabId, setActiveTabId] = useState("overview");
+  const [activeTabId, setActiveTabId] = useState(DEFAULT_TAB);
+
+  // Helper function to validate and set tab
+  const setValidActiveTab = (tabId) => {
+    // Ensure we always have a valid tab ID
+    const validTabId = tabId && tabId !== "undefined" && tabId !== "null" && tabId.trim() !== ""
+      ? tabId
+      : DEFAULT_TAB;
+
+    setActiveTabId(validTabId);
+    localStorage.setItem(STORAGE_KEY, validTabId);
+    return validTabId;
+  };
 
   // Get tenant primary color on component mount
   useEffect(() => {
@@ -67,28 +84,19 @@ export default function TablePro() {
     }
   }, []);
 
-  // Simplified tab management logic - single useEffect for tab management
+  // Enhanced tab management logic with better validation
   useEffect(() => {
-    const isFirstVisit = localStorage.getItem("hasVisitedTablesBefore") !== "true";
+    const isFirstVisit = localStorage.getItem(VISIT_KEY) !== "true";
 
-    // Mark as visited for future visits
     if (isFirstVisit) {
-      localStorage.setItem("hasVisitedTablesBefore", "true");
+      // Mark as visited for future visits
+      localStorage.setItem(VISIT_KEY, "true");
       // For first visit, always ensure overview tab is selected
-      setActiveTabId("overview");
-      localStorage.setItem("activeTableTabId", "overview");
+      setValidActiveTab(DEFAULT_TAB);
     } else {
-      // For returning visits, try to restore previous tab
-      const savedTabId = localStorage.getItem("activeTableTabId");
-
-      // Important: Default to "overview" if saved tab is null/undefined/empty
-      if (savedTabId && savedTabId !== "undefined" && savedTabId !== "") {
-        setActiveTabId(savedTabId);
-      } else {
-        // Ensure overview is selected and saved if we don't have a valid saved tab
-        setActiveTabId("overview");
-        localStorage.setItem("activeTableTabId", "overview");
-      }
+      // For returning visits, try to restore previous tab with validation
+      const savedTabId = localStorage.getItem(STORAGE_KEY);
+      setValidActiveTab(savedTabId);
     }
   }, []);
 
@@ -96,27 +104,28 @@ export default function TablePro() {
   useEffect(() => {
     if (!storedCode) {
       setIsBackgroundBlurred(true);
-      setOpen(true); // Open the login modal
+      setOpen(true);
       setSelectedProductId(null);
     }
   }, [storedCode]);
-
-  // Save the activeTabId to localStorage whenever it changes
-  useEffect(() => {
-    // Only save valid non-empty tab IDs
-    if (activeTabId && activeTabId !== "undefined" && activeTabId !== "") {
-      localStorage.setItem("activeTableTabId", activeTabId);
-    }
-  }, [activeTabId]);
 
   const handleOpen = (productId) => {
     setOpen(true);
     setSelectedProductId(productId);
   };
 
-  // IMPORTANT: Take 'activeTabId' out of the queryKey to prevent re-fetches
-  // unless we really want to fetch for a specific table
-  const queryKey = activeTabId === "overview"
+  // Enhanced tab change handler with validation
+  const handleTabChange = (key) => {
+    if (key && key !== "undefined" && key !== "null" && key.trim() !== "") {
+      setValidActiveTab(key);
+    } else {
+      // Fallback to default tab if invalid key
+      setValidActiveTab(DEFAULT_TAB);
+    }
+  };
+
+  // Query setup with better error handling
+  const queryKey = activeTabId === DEFAULT_TAB
     ? ["tables", "overview"]
     : ["tables", activeTabId];
 
@@ -126,10 +135,12 @@ export default function TablePro() {
       if (storedCode) {
         return fetchTableUsequery({ id: activeTabId });
       }
-      return []; // Return empty array if no storedCode
+      return [];
     },
     networkMode: "always",
-    enabled: !!storedCode, // Disable query if storedCode is undefined
+    enabled: !!storedCode,
+    retry: 2,
+    retryDelay: 1000,
   });
 
   if (successmodal) {
@@ -161,6 +172,7 @@ export default function TablePro() {
             style={{ backgroundColor: primaryColor }}
             icon={<PlusOutlined />}
             disabled={user?.role !== "admin" && user?.role !== "cashier"}
+            key="add-slot"
           >
             Add New Slot
           </Button>,
@@ -169,55 +181,80 @@ export default function TablePro() {
     </div>
   );
 
-  const tabsItems = data?.map(
-    (item) => ({
+  // Enhanced tab items generation with better error handling
+  const generateTabItems = () => {
+    const dynamicTabs = data?.map((item) => ({
       key: `${item._id}`,
       tab: "Table",
       label: (
         <Space>
           <HolderOutlined />
-          {item.name}
+          {item.name || 'Unnamed Table'}
         </Space>
       ),
-      children: [
-        item?.tables && item?.tables.length > 0 ? (
-          <div
-            className="wrapper2"
-            style={{
-              display: "grid",
-              rowGap: 30,
-              height: "calc(100vh - 280px)",
-              overflowY: "auto",
-              alignItems: "start",
-            }}
-          >
-            {item.tables.length > 0 ? (
-              item.tables.map((T) => (
-                <div
-                  key={T._id}
-                  className="card"
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-start",
-                    marginTop: "0px",
-                    flexWrap: "wrap",
-                    width: "100%",
-                    bottom: 0,
-                  }}
-                >
-                  <TableCard key={T._id} item={T} openModal={handleOpen} />
-                </div>
-              ))
-            ) : (
-              <EmptyPage />
-            )}
-          </div>
-        ) : (
-          <EmptyPage />
+      children: item?.tables && item?.tables.length > 0 ? (
+        <div
+          className="wrapper2"
+          style={{
+            display: "grid",
+            rowGap: 30,
+            height: "calc(100vh - 280px)",
+            overflowY: "auto",
+            alignItems: "start",
+          }}
+        >
+          {item.tables.map((T) => (
+            <div
+              key={T._id}
+              className="card"
+              style={{
+                display: "flex",
+                justifyContent: "flex-start",
+                marginTop: "0px",
+                flexWrap: "wrap",
+                width: "100%",
+                bottom: 0,
+              }}
+            >
+              <TableCard key={T._id} item={T} openModal={handleOpen} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyPage />
+      ),
+    })) || [];
+
+    // Always ensure the overview tab is included first
+    return [
+      {
+        key: DEFAULT_TAB,
+        tab: "Overview",
+        label: (
+          <Space>
+            <AppstoreOutlined />
+            Overview
+          </Space>
         ),
-      ],
-    })
-  );
+        children: <DefaultView />,
+      },
+      ...dynamicTabs,
+    ];
+  };
+
+  // Validation effect to ensure active tab exists in available tabs
+  useEffect(() => {
+    if (!isLoading && data) {
+      const allTabItems = generateTabItems();
+      const tabKeys = allTabItems.map(item => item.key);
+
+      // Check if current active tab exists in available tabs
+      if (!tabKeys.includes(activeTabId)) {
+        console.warn(`Active tab '${activeTabId}' not found in available tabs. Falling back to default.`);
+        setValidActiveTab(DEFAULT_TAB);
+      }
+    }
+  }, [data, isLoading, activeTabId]);
 
   if (loading) {
     return (
@@ -275,21 +312,12 @@ export default function TablePro() {
       );
     }
 
-    // Always ensure the overview tab is included first
-    const allTabItems = [
-      {
-        key: "overview",
-        tab: "Overview",
-        label: (
-          <Space>
-            <AppstoreOutlined />
-            Overview
-          </Space>
-        ),
-        children: <DefaultView />,
-      },
-      ...(tabsItems || []),
-    ];
+    const allTabItems = generateTabItems();
+
+    // Final safety check - ensure we have a valid active tab
+    const safeActiveTabId = allTabItems.some(item => item.key === activeTabId)
+      ? activeTabId
+      : DEFAULT_TAB;
 
     return (
       <ConfigProvider
@@ -314,11 +342,9 @@ export default function TablePro() {
           tabs={{
             type: "card",
             items: allTabItems,
-            onChange: (key) => {
-              // Set new active tab when user selects a different tab
-              setActiveTabId(key);
-            },
-            activeKey: activeTabId,
+            onChange: handleTabChange,
+            activeKey: safeActiveTabId,
+            destroyInactiveTabPane: false,
           }}
           bordered
           boxShadow

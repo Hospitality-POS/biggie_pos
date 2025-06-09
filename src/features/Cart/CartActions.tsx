@@ -10,6 +10,18 @@ import { updateCartInterface } from "src/interfaces/UpdateCartTypes";
 
 const baseUrl = `${BASE_URL}/cart`;
 
+interface CartItemInfo {
+  cart_id: string;
+  product_id: string;
+  product_type: 'Product' | 'Product_Inventory';
+  price: number;
+  created_by: string;
+  quantity: number;
+  desc: string;
+  table_id: string;
+  duration?: number;
+}
+
 interface CartInfo {
   table_id: string;
   created_by: string;
@@ -19,12 +31,12 @@ interface UpdatedCartItems {
   cart_id: string;
   _id: string;
   product_id: string;
+  product_type?: 'Product' | 'Product_Inventory';
   price: number;
   desc: string;
   quantity: number;
+  duration?: number;
 }
-
-
 
 export const createCart = createAsyncThunk(
   "cart/createCart",
@@ -67,7 +79,7 @@ export const fetchCartItems = createAsyncThunk(
 
 export const addItemToCart = createAsyncThunk(
   "cart/addItemToCart",
-  async (cartItem: CartInfo, { rejectWithValue, dispatch }) => {
+  async (cartItem: CartItemInfo, { rejectWithValue, dispatch }) => {
     try {
       const response = await axiosInstance.post(
         `${baseUrl}/add-item-to-cart`,
@@ -76,8 +88,13 @@ export const addItemToCart = createAsyncThunk(
       dispatch(getCart(cartItem.table_id));
       return response.data;
     } catch (error: any) {
-      if (error.response.status === 400) {
-        Modal.error({ title: "Oops!", content: `${error?.response.data.message}`, centered: true, icon: <AlertOutlined /> });
+      if (error.response?.status === 400) {
+        Modal.error({
+          title: "Oops!",
+          content: `${error?.response?.data?.message}`,
+          centered: true,
+          icon: <AlertOutlined />
+        });
       }
       return rejectWithValue(error.message || error.toString());
     }
@@ -157,7 +174,6 @@ export const transferCartitemsAction = createAsyncThunk(
   "cart/transferCartItems",
   async (data: ParamsType, { rejectWithValue, dispatch }) => {
     try {
-      // console.log({ products: data?.products, table: data?.table?.value });
       const response = await axiosInstance.post(`${baseUrl}/transfer-cart-items`, {
         products: data?.products,
         table: data.table?.value,
@@ -181,12 +197,10 @@ export const transferCartitemsAction = createAsyncThunk(
 export const updateCart = createAsyncThunk(
   "cart/updateCart",
   async (
-
     { cart, data }: updateCartInterface,
     { rejectWithValue, dispatch }: ThunkApi
   ) => {
     try {
-
       const response = await axiosInstance.put(
         `${baseUrl}/update-cart/${cart?._id}`,
         data

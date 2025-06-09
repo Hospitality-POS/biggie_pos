@@ -55,7 +55,7 @@ export const fetchProductsByCategory = createAsyncThunk(
   async (category: string, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.get(`${baseUrl}/category/${category}`);
-      return response.data.products;
+      return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
     }
