@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ConfigProvider, Skeleton, Typography, Result, Button } from "antd";
 import { Space } from "antd/lib";
 import Lottie from "lottie-react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/tables.json";
 import EmptyPage from "@routes/EmptyPage";
@@ -48,24 +48,22 @@ const LoadingTabs = () => (
 export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
-  const { user } = useAppSelector((state) => state.auth);
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
+
+  const { user } = useAppSelector((state) => state.auth);
   const { openModal: successmodal, loading } = useAppSelector((state) => state.order);
   const navigate = useNavigate();
+
   const storedCode = localStorage.getItem("companyCode");
 
-  // Constants for tab management
   const DEFAULT_TAB = "overview";
   const STORAGE_KEY = "activeTableTabId";
   const VISIT_KEY = "hasVisitedTablesBefore";
 
-  // Initialize with overview - always default to overview tab
   const [activeTabId, setActiveTabId] = useState(DEFAULT_TAB);
 
-  // Helper function to validate and set tab
   const setValidActiveTab = (tabId) => {
-    // Ensure we always have a valid tab ID
     const validTabId = tabId && tabId !== "undefined" && tabId !== "null" && tabId.trim() !== ""
       ? tabId
       : DEFAULT_TAB;
@@ -75,7 +73,6 @@ export default function TablePro() {
     return validTabId;
   };
 
-  // Get tenant primary color on component mount
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -84,23 +81,18 @@ export default function TablePro() {
     }
   }, []);
 
-  // Enhanced tab management logic with better validation
   useEffect(() => {
     const isFirstVisit = localStorage.getItem(VISIT_KEY) !== "true";
 
     if (isFirstVisit) {
-      // Mark as visited for future visits
       localStorage.setItem(VISIT_KEY, "true");
-      // For first visit, always ensure overview tab is selected
       setValidActiveTab(DEFAULT_TAB);
     } else {
-      // For returning visits, try to restore previous tab with validation
       const savedTabId = localStorage.getItem(STORAGE_KEY);
       setValidActiveTab(savedTabId);
     }
   }, []);
 
-  // Show login modal and blur background if companyCode is not present
   useEffect(() => {
     if (!storedCode) {
       setIsBackgroundBlurred(true);
@@ -109,25 +101,24 @@ export default function TablePro() {
     }
   }, [storedCode]);
 
+  const queryKey = useMemo(() => {
+    return activeTabId === DEFAULT_TAB
+      ? ["tables", "overview"]
+      : ["tables", activeTabId];
+  }, [activeTabId, DEFAULT_TAB]);
+
   const handleOpen = (productId) => {
     setOpen(true);
     setSelectedProductId(productId);
   };
 
-  // Enhanced tab change handler with validation
   const handleTabChange = (key) => {
     if (key && key !== "undefined" && key !== "null" && key.trim() !== "") {
       setValidActiveTab(key);
     } else {
-      // Fallback to default tab if invalid key
       setValidActiveTab(DEFAULT_TAB);
     }
   };
-
-  // Query setup with better error handling
-  const queryKey = activeTabId === DEFAULT_TAB
-    ? ["tables", "overview"]
-    : ["tables", activeTabId];
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKey,
@@ -143,46 +134,7 @@ export default function TablePro() {
     retryDelay: 1000,
   });
 
-  if (successmodal) {
-    return <SuccesssModal />;
-  }
-
-  const DefaultView = () => (
-    <div
-      style={{
-        height: "calc(100vh - 280px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#fafafa",
-        borderRadius: "8px",
-        padding: "20px",
-      }}
-    >
-      <Result
-        icon={
-          <AppstoreOutlined style={{ fontSize: "64px", color: primaryColor }} />
-        }
-        title="Welcome to Slots Management"
-        subTitle="Please select a staff slot from above to view its Customer Slots"
-        extra={[
-          <Button
-            type="primary"
-            onClick={() => navigate("/table-settings")}
-            style={{ backgroundColor: primaryColor }}
-            icon={<PlusOutlined />}
-            disabled={user?.role !== "admin" && user?.role !== "cashier"}
-            key="add-slot"
-          >
-            Add New Slot
-          </Button>,
-        ]}
-      />
-    </div>
-  );
-
-  // Enhanced tab items generation with better error handling
-  const generateTabItems = () => {
+  const generateTabItems = useMemo(() => {
     const dynamicTabs = data?.map((item) => ({
       key: `${item._id}`,
       tab: "Table",
@@ -225,7 +177,6 @@ export default function TablePro() {
       ),
     })) || [];
 
-    // Always ensure the overview tab is included first
     return [
       {
         key: DEFAULT_TAB,
@@ -236,25 +187,58 @@ export default function TablePro() {
             Overview
           </Space>
         ),
-        children: <DefaultView />,
+        children: (
+          <div
+            style={{
+              height: "calc(100vh - 280px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#fafafa",
+              borderRadius: "8px",
+              padding: "20px",
+            }}
+          >
+            <Result
+              icon={
+                <AppstoreOutlined style={{ fontSize: "64px", color: primaryColor }} />
+              }
+              title="Welcome to Slots Management"
+              subTitle="Please select a staff slot from above to view its Customer Slots"
+              extra={[
+                <Button
+                  type="primary"
+                  onClick={() => navigate("/table-settings")}
+                  style={{ backgroundColor: primaryColor }}
+                  icon={<PlusOutlined />}
+                  disabled={user?.role !== "admin" && user?.role !== "cashier"}
+                  key="add-slot"
+                >
+                  Add New Slot
+                </Button>,
+              ]}
+            />
+          </div>
+        ),
       },
       ...dynamicTabs,
     ];
-  };
+  }, [data, primaryColor, user?.role, navigate]);
 
-  // Validation effect to ensure active tab exists in available tabs
   useEffect(() => {
     if (!isLoading && data) {
-      const allTabItems = generateTabItems();
-      const tabKeys = allTabItems.map(item => item.key);
+      const tabKeys = generateTabItems.map(item => item.key);
 
-      // Check if current active tab exists in available tabs
       if (!tabKeys.includes(activeTabId)) {
         console.warn(`Active tab '${activeTabId}' not found in available tabs. Falling back to default.`);
         setValidActiveTab(DEFAULT_TAB);
       }
     }
-  }, [data, isLoading, activeTabId]);
+  }, [data, isLoading, activeTabId, generateTabItems]);
+
+  if (successmodal) {
+    return <SuccesssModal />;
+  }
 
   if (loading) {
     return (
@@ -279,6 +263,10 @@ export default function TablePro() {
   if (isError) {
     return <EmptyPage />;
   }
+
+  const safeActiveTabId = generateTabItems.some(item => item.key === activeTabId)
+    ? activeTabId
+    : DEFAULT_TAB;
 
   const renderContent = () => {
     if (isLoading) {
@@ -312,13 +300,6 @@ export default function TablePro() {
       );
     }
 
-    const allTabItems = generateTabItems();
-
-    // Final safety check - ensure we have a valid active tab
-    const safeActiveTabId = allTabItems.some(item => item.key === activeTabId)
-      ? activeTabId
-      : DEFAULT_TAB;
-
     return (
       <ConfigProvider
         theme={{
@@ -341,7 +322,7 @@ export default function TablePro() {
           }
           tabs={{
             type: "card",
-            items: allTabItems,
+            items: generateTabItems,
             onChange: handleTabChange,
             activeKey: safeActiveTabId,
             destroyInactiveTabPane: false,

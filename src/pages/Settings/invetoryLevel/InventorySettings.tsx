@@ -388,7 +388,7 @@ const InventorySettings = () => {
             };
 
             const data = await fetchAllInventory(queryParams);
-
+            console.log('Fetched inventory data:', data);
             return {
               data: data,
               success: true,

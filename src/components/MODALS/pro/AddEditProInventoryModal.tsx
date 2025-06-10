@@ -551,17 +551,18 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
 
   // Initialize Form Data for Edit Mode
   useEffect(() => {
+    console.log('Initializing form data for edit mode:', open, edit, data);
     if (open && edit && data) {
       const formValues = {
         ...data,
-        category: data?.category?._id ? {
-          value: data.category._id,
-          label: data.category.name,
-        } : data?.category,
-        subcategory_id: data?.subcategory_id?._id ? {
+        category: data?.subcategory_id?._id ? {
           value: data.subcategory_id._id,
           label: data.subcategory_id.name,
         } : data?.subcategory_id,
+        subcategory_id: data?.category?._id ? {
+          value: data.category._id,
+          label: data.category.name,
+        } : data?.category,
         unit_id: data?.unit_id?._id ? {
           value: data.unit_id._id,
           label: data.unit_id.name,

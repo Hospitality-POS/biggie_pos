@@ -33,7 +33,7 @@ import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchTableById } from "../../features/Table/TableActions";
 import CartLoader from "../../components/spinner/cartLoader";
 import { fetchMainCategories } from "@services/categories";
-import { ShoppingCart, Build, ViewModule } from "@mui/icons-material";
+import { ShoppingCart, Build } from "@mui/icons-material";
 
 function a11yProps(index) {
   return {
@@ -119,7 +119,7 @@ const RestaurantPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [filteredServices, setFilteredServices] = useState([]);
-  const [activeItemType, setActiveItemType] = useState<'all' | 'products' | 'services'>('all');
+  const [activeItemType, setActiveItemType] = useState<'products' | 'services'>('services');
 
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
@@ -146,6 +146,16 @@ const RestaurantPage: React.FC = () => {
     setFilteredProducts(productFiltered);
     setFilteredServices(serviceFiltered);
   }, [searchTerm, products, services]);
+
+  useEffect(() => {
+    if (services && products) {
+      if (services.length === 0 && products.length > 0) {
+        setActiveItemType('products');
+      } else if (services.length > 0) {
+        setActiveItemType('services');
+      }
+    }
+  }, [services, products]);
 
   const { data: Maincategories, isLoading: mainCategoriesLoading } = useQuery({
     queryKey: ["Maincategories"],
@@ -195,6 +205,8 @@ const RestaurantPage: React.FC = () => {
       setCategories(subCategory.categories || []);
     }
     setSearchTerm("");
+    setShowCategories(true);
+    setCategoryChosen(false);
   };
 
   const handleSearchChange = (event) => {
@@ -209,7 +221,7 @@ const RestaurantPage: React.FC = () => {
   const handleBack = () => {
     setShowCategories(true);
     setSearchTerm("");
-    setActiveItemType('all');
+    setActiveItemType('services');
   };
 
   const handleSelectCard = (card) => {
@@ -218,7 +230,7 @@ const RestaurantPage: React.FC = () => {
     setCategoryChosen(true);
     setShowCategories(false);
     setSearchTerm("");
-    setActiveItemType('all');
+    setActiveItemType('services');
   };
 
   const getDisplayItems = () => {
@@ -228,7 +240,7 @@ const RestaurantPage: React.FC = () => {
       case 'services':
         return filteredServices;
       default:
-        return [...filteredProducts, ...filteredServices];
+        return filteredServices;
     }
   };
 
@@ -248,36 +260,6 @@ const RestaurantPage: React.FC = () => {
 
     return (
       <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-        <Chip
-          icon={<ViewModule />}
-          label={`All (${filteredProducts.length + filteredServices.length})`}
-          variant={activeItemType === 'all' ? 'filled' : 'outlined'}
-          onClick={() => setActiveItemType('all')}
-          sx={{
-            backgroundColor: activeItemType === 'all' ? primaryColor : 'transparent',
-            color: activeItemType === 'all' ? 'white' : primaryColor,
-            borderColor: primaryColor,
-            '&:hover': {
-              backgroundColor: activeItemType === 'all' ? primaryColor : 'rgba(108, 28, 44, 0.1)',
-            }
-          }}
-        />
-        {hasProducts && (
-          <Chip
-            icon={<ShoppingCart />}
-            label={`Products (${filteredProducts.length})`}
-            variant={activeItemType === 'products' ? 'filled' : 'outlined'}
-            onClick={() => setActiveItemType('products')}
-            sx={{
-              backgroundColor: activeItemType === 'products' ? primaryColor : 'transparent',
-              color: activeItemType === 'products' ? 'white' : primaryColor,
-              borderColor: primaryColor,
-              '&:hover': {
-                backgroundColor: activeItemType === 'products' ? primaryColor : 'rgba(108, 28, 44, 0.1)',
-              }
-            }}
-          />
-        )}
         {hasServices && (
           <Chip
             icon={<Build />}
@@ -290,6 +272,22 @@ const RestaurantPage: React.FC = () => {
               borderColor: primaryColor,
               '&:hover': {
                 backgroundColor: activeItemType === 'services' ? primaryColor : 'rgba(108, 28, 44, 0.1)',
+              }
+            }}
+          />
+        )}
+        {hasProducts && (
+          <Chip
+            icon={<ShoppingCart />}
+            label={`Products (${filteredProducts.length})`}
+            variant={activeItemType === 'products' ? 'filled' : 'outlined'}
+            onClick={() => setActiveItemType('products')}
+            sx={{
+              backgroundColor: activeItemType === 'products' ? primaryColor : 'transparent',
+              color: activeItemType === 'products' ? 'white' : primaryColor,
+              borderColor: primaryColor,
+              '&:hover': {
+                backgroundColor: activeItemType === 'products' ? primaryColor : 'rgba(108, 28, 44, 0.1)',
               }
             }}
           />
