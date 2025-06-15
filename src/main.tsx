@@ -20,7 +20,7 @@ const getThemeColor = () => {
   try {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    return tenant && tenant.primary_color ? tenant.primary_color : defaultColor;
+    return tenant && tenant.color_scheme.primary ? tenant.color_scheme.primary : defaultColor;
   } catch (error) {
     console.error("Error getting tenant color:", error);
     return defaultColor;

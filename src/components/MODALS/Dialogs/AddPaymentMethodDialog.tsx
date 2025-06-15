@@ -41,8 +41,8 @@ const AddPaymentMethodDialog: React.FC<AddPaymentMethodDialogProps> = ({
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.primary_color) {
-      setPrimaryColor(tenant.primary_color);
+    if (tenant && tenant.color_scheme.primary) {
+      setPrimaryColor(tenant.color_scheme.primary);
     }
   }, []);
 

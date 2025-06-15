@@ -1,4 +1,4 @@
-import { BarChartOutlined, CompassOutlined, ContactsOutlined, MoneyCollectOutlined, ReconciliationOutlined, ShopOutlined, TeamOutlined } from "@ant-design/icons";
+import { BarChartOutlined, CompassOutlined, ContactsOutlined, MoneyCollectOutlined, ReconciliationOutlined, SettingOutlined, ShopOutlined, TeamOutlined } from "@ant-design/icons";
 import { useLocation } from "react-router-dom";
 
 const useProLayoutNav = () => {
@@ -43,6 +43,11 @@ const useProLayoutNav = () => {
           path: "/admin/help-center",
           name: "Help Center",
           icon: <CompassOutlined />,
+        },
+        {
+          path: "/admin/settings",
+          name: "Settings",
+          icon: <SettingOutlined />,
         },
       ],
     },

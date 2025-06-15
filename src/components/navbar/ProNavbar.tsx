@@ -23,7 +23,7 @@ import {
   fetchMyNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead
-} from "@services/notifications"; // Import notification services
+} from "@services/notifications";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
@@ -34,6 +34,18 @@ const { Text, Title } = Typography;
 interface Tenant {
   tenant_code?: string;
   primary_color?: string;
+  color_scheme?: {
+    primary?: string;
+    secondary?: string;
+    accent?: string;
+    background?: string;
+    text?: string;
+  };
+  tenant_logo?: {
+    url?: string;
+    filename?: string;
+    size?: number;
+  };
 }
 
 const ProNavbar = ({ children }) => {
@@ -66,7 +78,10 @@ const ProNavbar = ({ children }) => {
 
     if (parsedTenant) {
       setTenant(parsedTenant);
-      if (parsedTenant.primary_color) {
+      // Use color_scheme.primary if available, otherwise fall back to primary_color
+      if (parsedTenant.color_scheme?.primary) {
+        setPrimaryColor(parsedTenant.color_scheme.primary);
+      } else if (parsedTenant.primary_color) {
         setPrimaryColor(parsedTenant.primary_color);
       }
     }
@@ -78,9 +93,9 @@ const ProNavbar = ({ children }) => {
     queryFn: () => fetchMyNotifications({ pageSize: 10, current: 1 }),
     networkMode: "always",
     refetchOnWindowFocus: true,
-    enabled: !!user?.id, // Only fetch if user is logged in AND has an ID
-    cacheTime: 0, // This prevents cross-user cache contamination
-    staleTime: 0, // Always fetch fresh data for security
+    enabled: !!user?.id,
+    cacheTime: 0,
+    staleTime: 0,
     retry: 2,
     onError: (error) => {
       console.error("Failed to fetch notifications:", error);
@@ -465,13 +480,17 @@ const ProNavbar = ({ children }) => {
       <ProLayout
         style={{ maxWidth: "1920px" }}
         logo={
-          tenant?.tenant_code === "RPOS-000004" ? (
+          tenant?.tenant_logo?.url ? (
             <Image
-              src="/android-chrome-512x512.png"
+              src={tenant.tenant_logo.url}
               height={60}
               preview={true}
-              alt="fss-logo"
-              style={{ padding: 5 }}
+              alt="tenant-logo"
+              style={{
+                padding: 5,
+                objectFit: "contain",
+                maxWidth: "120px"
+              }}
             />
           ) : (
             <Image
@@ -499,7 +518,7 @@ const ProNavbar = ({ children }) => {
             {title}
           </div>
         )}
-        colorPrimary="#6c1c2c"
+        colorPrimary={primaryColor}
         contentWidth="Fluid"
         navTheme="light"
         contentStyle={{ padding: 0, margin: "0 auto" }}
@@ -512,13 +531,6 @@ const ProNavbar = ({ children }) => {
           alt: "image",
           size: "large",
           style: { border: `2px solid white`, width: 32, height: 32 },
-          // title: (
-          //   <Space direction="vertical" style={{ marginLeft: 8, gap: 1 }} size="small">
-          //     <Typography.Text strong={true} style={{ color: "white" }} code={true}>
-          //       {user && user.name}
-          //     </Typography.Text>
-          //   </Space>
-          // ),
           render: (_props, dom) => {
             return (
               <>
@@ -528,7 +540,7 @@ const ProNavbar = ({ children }) => {
                     <Popover
                       content={notificationsContent}
                       placement="bottomRight"
-                      trigger={["hover", "click"]} // Added click for better mobile UX
+                      trigger={["hover", "click"]}
                       overlayStyle={{
                         width: 350,
                         padding: 0
@@ -546,7 +558,7 @@ const ProNavbar = ({ children }) => {
                     >
                       <Badge
                         count={unreadNotificationsCount}
-                        showZero={false} // Only show when there are notifications
+                        showZero={false}
                         offset={[-8, 8]}
                         overflowCount={99}
                         size="small"
@@ -583,7 +595,7 @@ const ProNavbar = ({ children }) => {
                     <Dropdown
                       menu={{ items: userMenuItems }}
                       arrow={{ pointAtCenter: true }}
-                      trigger={["hover", "click"]} // Added click for mobile accessibility
+                      trigger={["hover", "click"]}
                       placement="bottomCenter"
                       overlayClassName="user-dropdown-overlay"
                       overlayStyle={{
@@ -637,7 +649,7 @@ const ProNavbar = ({ children }) => {
                           <div style={{
                             textAlign: "left",
                             lineHeight: 1.2,
-                            minWidth: 0, // Prevents text overflow issues
+                            minWidth: 0,
                             flex: 1
                           }}>
                             <Text
@@ -731,7 +743,6 @@ const ProNavbar = ({ children }) => {
               Close
             </Button>
           ]}
-          // width={700}
         >
           {selectedNotification && (
             <div>
@@ -763,74 +774,5 @@ const ProNavbar = ({ children }) => {
     </>
   );
 };
-
-<style jsx>{`
-  .user-dropdown-trigger:hover .dropdown-arrow {
-    transform: rotate(180deg);
-  }
-  
-  .user-dropdown-overlay .ant-dropdown-menu {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-radius: 12px;
-    padding: 8px 0;
-    border: none;
-  }
-  
-  .user-dropdown-overlay .ant-dropdown-menu-item {
-    padding: 12px 20px;
-    transition: all 0.2s ease;
-  }
-  
-  .user-dropdown-overlay .ant-dropdown-menu-item:hover {
-    background: rgba(24, 144, 255, 0.08);
-  }
-  
-  .user-dropdown-overlay .ant-dropdown-menu-item-divider {
-    margin: 8px 20px;
-    background: rgba(0, 0, 0, 0.08);
-  }
-
-   .notification-button:hover {
-    background: rgba(255, 255, 255, 0.15) !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
-  }
-
-  .notification-button .anticon {
-    transition: transform 0.3s ease;
-  }
-
-  .notification-button:hover .anticon {
-    transform: scale(1.1);
-  }
-
-  .notification-popover-overlay .ant-popover-inner {
-    border-radius: 12px !important;
-    overflow: hidden;
-  }
-
-  .notification-popover-overlay .ant-popover-arrow {
-    display: none; /* Hide default arrow for cleaner look */
-  }
-
-  /* Optional: Add a subtle pulse animation for unread notifications */
-  @keyframes notification-pulse {
-    0% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(255, 77, 79, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0); }
-  }
-
-  .notification-button[data-has-notifications="true"] {
-    animation: notification-pulse 2s infinite;
-  }
-
-  /* Enhanced badge styling */
-  .ant-badge-count {
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  }
-`}</style>
 
 export default ProNavbar;
