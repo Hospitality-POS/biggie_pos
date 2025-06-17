@@ -2,7 +2,6 @@ import { message } from "antd";
 import axiosInstance from "./request";
 
 const tenantUrl = `https://api.admin.reliatech.co.ke/api/tenants`;
-//const tenantUrl = `http://localhost:3010/api/tenants`;
 
 interface Tenant {
     _id?: string;
@@ -65,7 +64,6 @@ interface UpdateTenantData {
     primary_color?: string;
 }
 
-// Helper function to get current tenant ID from localStorage
 export const getCurrentTenantId = (): string | null => {
     try {
         const storedTenant = localStorage.getItem("tenant");
@@ -80,16 +78,13 @@ export const getCurrentTenantId = (): string | null => {
     }
 };
 
-// Helper function to listen for tenant updates
 export const useTenantUpdates = (callback: (tenant: Tenant) => void) => {
     const handleTenantUpdate = (event: CustomEvent) => {
         callback(event.detail);
     };
 
-    // Add event listener
     window.addEventListener('tenantUpdated', handleTenantUpdate as EventListener);
 
-    // Return cleanup function
     return () => {
         window.removeEventListener('tenantUpdated', handleTenantUpdate as EventListener);
     };
@@ -97,7 +92,6 @@ export const useTenantUpdates = (callback: (tenant: Tenant) => void) => {
 
 export const fetchTenantDetails = async (id?: string) => {
     try {
-        // If no ID provided, get current tenant ID from localStorage
         let tenantId = id;
         if (!tenantId) {
             tenantId = getCurrentTenantId();
@@ -116,17 +110,13 @@ export const fetchTenantDetails = async (id?: string) => {
 
 export const updateTenant = async (id: string, tenantData: UpdateTenantData | FormData) => {
     try {
-        // The axiosInstance will automatically add auth headers and company code
         const response = await axiosInstance.put(`${tenantUrl}/${id}`, tenantData);
 
-        // Always fetch fresh tenant data after successful update
         try {
             const freshTenantData = await fetchTenantDetails(id);
             if (freshTenantData?.data) {
-                // Update localStorage with fresh data
                 localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
 
-                // Trigger a custom event to notify other components of the update
                 window.dispatchEvent(new CustomEvent('tenantUpdated', {
                     detail: freshTenantData.data
                 }));
@@ -134,7 +124,6 @@ export const updateTenant = async (id: string, tenantData: UpdateTenantData | Fo
         } catch (fetchError) {
             console.warn("Failed to fetch fresh tenant data after update:", fetchError);
 
-            // Fallback: If fetching fresh data fails and it's not FormData, update manually
             if (!(tenantData instanceof FormData)) {
                 const storedTenant = localStorage.getItem("tenant");
                 if (storedTenant) {
@@ -149,14 +138,12 @@ export const updateTenant = async (id: string, tenantData: UpdateTenantData | Fo
                             updatedAt: new Date().toISOString()
                         };
 
-                        // Also update primary_color if color_scheme.primary is updated
                         if (tenantData.color_scheme?.primary) {
                             updatedTenant.primary_color = tenantData.color_scheme.primary;
                         }
 
                         localStorage.setItem("tenant", JSON.stringify(updatedTenant));
 
-                        // Trigger event for fallback update too
                         window.dispatchEvent(new CustomEvent('tenantUpdated', {
                             detail: updatedTenant
                         }));
@@ -168,6 +155,11 @@ export const updateTenant = async (id: string, tenantData: UpdateTenantData | Fo
         }
 
         message.success("Tenant updated successfully");
+
+        setTimeout(() => {
+            window.location.replace(window.location.href);
+        }, 1000);
+
         return response.data;
     } catch (error: any) {
         if (error?.response?.status !== 403) {

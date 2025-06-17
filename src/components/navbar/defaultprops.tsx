@@ -16,7 +16,7 @@ const useProLayoutNav = () => {
   const state = !!(user?.role === "admin" || user?.role === "cashier");
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const storeName = tenant?.business_type?.name === "Electronics" || tenant?.business_type?.name === "massage_parlour" ? "Services" : "Store";
+  const storeName = 'Services';
   const tableName = tenant?.business_type?.name === "Electronics" || tenant?.business_type?.name === "massage_parlour" ? "Slots" : "Tables";
 
   const adminMenu = {
@@ -47,6 +47,11 @@ const useProLayoutNav = () => {
         {
           path: "/store",
           name: storeName,
+          icon: <FolderFilled />,
+        },
+        {
+          path: "/inventory",
+          name: 'Products',
           icon: <FolderFilled />,
         },
         {

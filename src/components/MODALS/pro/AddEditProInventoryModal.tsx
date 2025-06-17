@@ -560,8 +560,8 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
           label: data.subcategory_id.name,
         } : data?.subcategory_id,
         subcategory_id: data?.category?._id ? {
-          value: data.category._id,
-          label: data.category.name,
+          value: data.category_id._id,
+          label: data.category_id.name,
         } : data?.category,
         unit_id: data?.unit_id?._id ? {
           value: data.unit_id._id,
@@ -580,7 +580,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
 
       // Set category for filtering subcategories in edit mode
       if (data?.category?._id) {
-        setSelectedCategory(data.category._id);
+        setSelectedCategory(data.category_id._id);
       }
 
       // Initialize step data with edit values
