@@ -419,7 +419,7 @@ function TenantSettings() {
                                         </Tag>
                                         {tenant.subscription_id && (
                                             <Tag color="purple">
-                                                {typeof tenant.subscription_id === 'object' ? `${tenant.subscription_id.name} - $${tenant.subscription_id.price}` : 'Subscription'}
+                                                {typeof tenant.subscription_id === 'object' ? `${tenant.subscription_id.name} - ksh ${tenant.subscription_id.price}` : 'Subscription'}
                                             </Tag>
                                         )}
                                     </Space>

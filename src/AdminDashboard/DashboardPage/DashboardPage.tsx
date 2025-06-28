@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -18,6 +18,11 @@ import {
   DatePicker,
   Flex,
   Divider,
+  Tag,
+  Progress,
+  Alert,
+  Empty,
+  Tooltip,
 } from "antd";
 import {
   ShoppingCartOutlined,
@@ -32,9 +37,15 @@ import {
   UserOutlined,
   CalendarOutlined,
   LineChartOutlined,
+  FireOutlined,
+  TrophyOutlined,
+  RiseOutlined,
+  DollarOutlined,
+  FallOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
 import { Line } from '@ant-design/charts';
-import { getAdminDashboardAnalysis } from "@services/orders";
+import { getAdminDashboardAnalysis, getBestSellers, getBestSellersByCategory, getSalesChartData } from "@services/orders";
 import { CheckCard } from "@ant-design/pro-components";
 import WelcomeBanner from "./WelcomeBanner";
 import dayjs from 'dayjs';
@@ -51,210 +62,25 @@ const COLORS = {
   purple: "#722ed1",
   orange: "#fa8c16",
   cyan: "#13c2c2",
+  gray: "#8c8c8c",
+  lightGray: "#f5f7fa",
 };
 
-const processSalesData = (apiData, periodFilter, startDate, endDate) => {
-  const totalRevenue = apiData?.todayRevenue || 0;
-  const totalOrders = apiData?.totalOrderCount || 0;
-
-  if (totalRevenue === 0 || !apiData?.currentOrders || apiData.currentOrders.length === 0) {
-    return [];
-  }
-
-  const orders = apiData.currentOrders;
-
-  const sortedOrders = orders
-    .filter(order => order.createdAt && order.order_amount)
-    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-  if (sortedOrders.length === 0) return [];
-
-  const salesData = [];
-  let cumulativeTotal = 0;
-  let cumulativeOrders = 0;
-
-  const timeGroups = {};
-
-  const generateTimeRange = () => {
-    const timePoints = [];
-    let current = startDate.clone();
-
-    while (current.isBefore(endDate) || current.isSame(endDate)) {
-      let timeKey;
-      let nextIncrement;
-
-      switch (periodFilter) {
-        case "day":
-          timeKey = current.format('HH:mm');
-          nextIncrement = 'hour';
-          if (current.hour() >= 6 && current.hour() <= 23) {
-            timePoints.push({
-              key: timeKey,
-              date: current.clone(),
-              display: timeKey
-            });
-          }
-          break;
-        case "week":
-          timeKey = current.format('ddd');
-          nextIncrement = 'day';
-          timePoints.push({
-            key: timeKey,
-            date: current.clone(),
-            display: current.format('ddd DD')
-          });
-          break;
-        case "month":
-          timeKey = current.format('MMM DD');
-          nextIncrement = 'day';
-          timePoints.push({
-            key: timeKey,
-            date: current.clone(),
-            display: timeKey
-          });
-          break;
-        case "year":
-          timeKey = current.format('MMM');
-          nextIncrement = 'month';
-          timePoints.push({
-            key: timeKey,
-            date: current.clone(),
-            display: timeKey
-          });
-          break;
-        case "custom":
-          const daysDiff = endDate.diff(startDate, 'days');
-          if (daysDiff <= 7) {
-            timeKey = current.format('ddd DD');
-            nextIncrement = 'day';
-          } else if (daysDiff <= 60) {
-            timeKey = current.format('MMM DD');
-            nextIncrement = 'day';
-          } else {
-            timeKey = current.format('MMM');
-            nextIncrement = 'month';
-          }
-          timePoints.push({
-            key: timeKey,
-            date: current.clone(),
-            display: timeKey
-          });
-          break;
-        default:
-          timeKey = current.format('MMM DD');
-          nextIncrement = 'day';
-          timePoints.push({
-            key: timeKey,
-            date: current.clone(),
-            display: timeKey
-          });
-      }
-
-      current = current.add(1, nextIncrement);
-    }
-
-    return timePoints;
-  };
-
-  const timeRange = generateTimeRange();
-
-  timeRange.forEach(timePoint => {
-    timeGroups[timePoint.key] = {
-      time: timePoint.display,
-      orderDate: timePoint.date,
-      orders: [],
-      hasData: false
-    };
-  });
-
-  sortedOrders.forEach(order => {
-    const orderDate = dayjs(order.createdAt);
-    let timeKey;
-
-    switch (periodFilter) {
-      case "day":
-        timeKey = orderDate.format('HH:mm');
-        break;
-      case "week":
-        timeKey = orderDate.format('ddd');
-        break;
-      case "month":
-        timeKey = orderDate.format('MMM DD');
-        break;
-      case "year":
-        timeKey = orderDate.format('MMM');
-        break;
-      case "custom":
-        const daysDiff = endDate.diff(startDate, 'days');
-        if (daysDiff <= 7) {
-          timeKey = orderDate.format('ddd DD');
-        } else if (daysDiff <= 60) {
-          timeKey = orderDate.format('MMM DD');
-        } else {
-          timeKey = orderDate.format('MMM');
-        }
-        break;
-      default:
-        timeKey = orderDate.format('MMM DD');
-    }
-
-    if (timeGroups[timeKey]) {
-      timeGroups[timeKey].orders.push(order);
-      timeGroups[timeKey].hasData = true;
-    }
-  });
-
-  const sortedGroups = Object.values(timeGroups).sort((a, b) =>
-    a.orderDate.isBefore(b.orderDate) ? -1 : 1
-  );
-
-  sortedGroups.forEach(group => {
-    const periodSales = group.orders.reduce((sum, order) => sum + order.order_amount, 0);
-    const periodOrders = group.orders.length;
-
-    cumulativeTotal += periodSales;
-    cumulativeOrders += periodOrders;
-
-    salesData.push({
-      time: group.time,
-      sales: cumulativeTotal,
-      orders: cumulativeOrders,
-      periodSales: periodSales,
-      periodOrders: periodOrders,
-      hasData: group.hasData
-    });
-  });
-
-  if (salesData.length > 0 && cumulativeTotal !== totalRevenue && cumulativeTotal > 0) {
-    const scaleFactor = totalRevenue / cumulativeTotal;
-    salesData.forEach(item => {
-      item.sales = Math.round(item.sales * scaleFactor);
-      item.periodSales = Math.round(item.periodSales * scaleFactor);
-    });
-  }
-
-  if (salesData.every(item => !item.hasData) && totalRevenue > 0) {
-    const revenuePerPeriod = totalRevenue / salesData.length;
-    let runningTotal = 0;
-
-    salesData.forEach(item => {
-      runningTotal += revenuePerPeriod;
-      item.sales = Math.round(runningTotal);
-      item.periodSales = Math.round(revenuePerPeriod);
-      item.orders = Math.round((totalOrders / salesData.length) * (salesData.indexOf(item) + 1));
-      item.periodOrders = totalOrders > salesData.length ? 1 : 0;
-    });
-  }
-
-  return salesData.filter(item => item.sales > 0 || item.periodSales > 0);
+const PERIOD_LABELS = {
+  day: 'Today',
+  week: 'This Week',
+  month: 'This Month',
+  year: 'This Year',
+  custom: 'Custom Period'
 };
 
-const calculateBusinessIndicators = (salesData, apiData, periodFilter) => {
-  const totalRevenue = apiData?.todayRevenue || 0;
-  const totalOrders = apiData?.totalOrderCount || 0;
+const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
+  const totalRevenue = chartData?.data?.summary?.total_sales || apiData?.todayRevenue || 0;
+  const totalOrders = chartData?.data?.summary?.total_orders || apiData?.totalOrderCount || 0;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const growthRate = chartData?.data?.summary?.growth_rate || 0;
 
-  if (!salesData || salesData.length === 0 || totalRevenue === 0) {
+  if (!chartData?.data?.chart_data?.length || totalRevenue === 0) {
     const noSalesPeriod = {
       day: 'No sales today',
       week: 'No sales this week',
@@ -280,92 +106,106 @@ const calculateBusinessIndicators = (salesData, apiData, periodFilter) => {
 
   let performance = 'active';
   let performanceColor = COLORS.primary;
-  let performanceText = 'Business Active';
+  let performanceText = 'Network Active';
 
-  if (totalOrders >= 10) {
+  // Network-wide thresholds (higher than individual shop)
+  if (totalOrders >= 50) {
+    performance = 'excellent';
+    performanceColor = COLORS.success;
+    performanceText = 'Excellent Network Performance';
+  } else if (totalOrders >= 25) {
     performance = 'good';
     performanceColor = COLORS.success;
-    performanceText = 'Strong Activity';
-  } else if (totalOrders >= 5) {
+    performanceText = 'Strong Network Activity';
+  } else if (totalOrders >= 10) {
     performance = 'moderate';
     performanceColor = COLORS.primary;
-    performanceText = 'Moderate Activity';
-  } else if (totalOrders >= 1) {
+    performanceText = 'Moderate Network Activity';
+  } else if (totalOrders >= 3) {
     performance = 'low';
     performanceColor = COLORS.warning;
-    performanceText = 'Low Activity';
+    performanceText = 'Low Network Activity';
+  } else {
+    performance = 'critical';
+    performanceColor = COLORS.error;
+    performanceText = 'Critical - Network Issues';
   }
 
   let trend = 'neutral';
-  let trendColor = '#8c8c8c';
+  let trendColor = COLORS.gray;
   let trendText = 'Stable';
 
-  if (salesData.length > 1) {
-    const recentPeriods = salesData.slice(-Math.ceil(salesData.length / 3));
-    const earlierPeriods = salesData.slice(0, Math.floor(salesData.length / 3));
-
-    const recentAvg = recentPeriods.reduce((sum, item) => sum + (item.periodSales || 0), 0) / recentPeriods.length;
-    const earlierAvg = earlierPeriods.reduce((sum, item) => sum + (item.periodSales || 0), 0) / earlierPeriods.length;
-
-    if (earlierAvg > 0) {
-      const changePercentage = ((recentAvg - earlierAvg) / earlierAvg) * 100;
-
-      if (changePercentage > 15) {
-        trend = 'up-strong';
-        trendColor = COLORS.success;
-        trendText = `Accelerating (+${changePercentage.toFixed(1)}%)`;
-      } else if (changePercentage > 0) {
-        trend = 'up';
-        trendColor = COLORS.success;
-        trendText = `Growing (+${changePercentage.toFixed(1)}%)`;
-      } else if (changePercentage < -30) {
-        trend = 'down-critical';
-        trendColor = COLORS.error;
-        trendText = `Sharp Decline (-${Math.abs(changePercentage).toFixed(1)}%)`;
-      } else if (changePercentage < -10) {
-        trend = 'down-strong';
-        trendColor = COLORS.error;
-        trendText = `Declining (-${Math.abs(changePercentage).toFixed(1)}%)`;
-      } else if (changePercentage < 0) {
-        trend = 'down';
-        trendColor = COLORS.warning;
-        trendText = `Slowing (-${Math.abs(changePercentage).toFixed(1)}%)`;
-      }
-    }
+  if (growthRate > 20) {
+    trend = 'up-strong';
+    trendColor = COLORS.success;
+    trendText = `Network Accelerating (+${growthRate.toFixed(1)}%)`;
+  } else if (growthRate > 5) {
+    trend = 'up';
+    trendColor = COLORS.success;
+    trendText = `Network Growing (+${growthRate.toFixed(1)}%)`;
+  } else if (growthRate > -5) {
+    trend = 'neutral';
+    trendColor = COLORS.gray;
+    trendText = `Network Stable (${growthRate.toFixed(1)}%)`;
+  } else if (growthRate > -15) {
+    trend = 'down';
+    trendColor = COLORS.warning;
+    trendText = `Network Slowing (${growthRate.toFixed(1)}%)`;
+  } else if (growthRate > -30) {
+    trend = 'down-strong';
+    trendColor = COLORS.error;
+    trendText = `Network Declining (${growthRate.toFixed(1)}%)`;
+  } else {
+    trend = 'down-critical';
+    trendColor = COLORS.error;
+    trendText = `Critical Network Decline (${growthRate.toFixed(1)}%)`;
   }
 
   const insights = [];
 
   if (totalOrders > 0) {
-    if (avgOrderValue > 1500) {
-      insights.push({ type: 'positive', text: `Excellent order value: Ksh ${avgOrderValue.toFixed(0)}` });
-    } else if (avgOrderValue < 300) {
-      insights.push({ type: 'warning', text: `Consider upselling - avg: Ksh ${avgOrderValue.toFixed(0)}` });
+    if (avgOrderValue > 2500) {
+      insights.push({ type: 'positive', text: `Excellent network order value: Ksh ${avgOrderValue.toFixed(0)}` });
+    } else if (avgOrderValue > 1500) {
+      insights.push({ type: 'positive', text: `Good network order value: Ksh ${avgOrderValue.toFixed(0)}` });
+    } else if (avgOrderValue < 500) {
+      insights.push({ type: 'warning', text: `Consider network-wide upselling - avg: Ksh ${avgOrderValue.toFixed(0)}` });
     }
   }
 
-  if (periodFilter === 'day') {
+  // Network-specific insights with higher thresholds
+  const networkThresholds = {
+    day: { low: 10, good: 30, excellent: 60 },
+    week: { low: 50, good: 150, excellent: 300 },
+    month: { low: 200, good: 600, excellent: 1200 },
+    year: { low: 2500, good: 7500, excellent: 15000 }
+  };
+
+  const threshold = networkThresholds[periodFilter];
+  if (threshold) {
     if (totalOrders === 0) {
-      insights.push({ type: 'negative', text: 'No orders today - check operations' });
-    } else if (totalOrders < 3) {
-      insights.push({ type: 'warning', text: 'Low daily volume - need more customers' });
-    }
-  } else if (periodFilter === 'week') {
-    if (totalOrders < 10) {
-      insights.push({ type: 'warning', text: 'Weekly sales below expectations' });
-    }
-  } else if (periodFilter === 'month') {
-    if (totalOrders < 30) {
-      insights.push({ type: 'warning', text: 'Monthly performance needs improvement' });
+      insights.push({ type: 'negative', text: `No orders ${PERIOD_LABELS[periodFilter].toLowerCase()} across network - check all operations` });
+    } else if (totalOrders < threshold.low) {
+      insights.push({ type: 'warning', text: `Network ${PERIOD_LABELS[periodFilter].toLowerCase()} volume below expectations` });
+    } else if (totalOrders >= threshold.excellent) {
+      insights.push({ type: 'positive', text: `Outstanding network ${PERIOD_LABELS[periodFilter].toLowerCase()} performance!` });
     }
   }
 
   if (trend === 'down-critical' || trend === 'down-strong') {
-    insights.push({ type: 'negative', text: 'Sales declining - review strategy urgently' });
+    insights.push({ type: 'negative', text: 'Network sales declining - review strategy across all shops urgently' });
   } else if (trend === 'down') {
-    insights.push({ type: 'warning', text: 'Sales slowing - monitor closely' });
+    insights.push({ type: 'warning', text: 'Network sales slowing - monitor all shops closely' });
   } else if (trend === 'up-strong') {
-    insights.push({ type: 'positive', text: 'Strong growth momentum!' });
+    insights.push({ type: 'positive', text: 'Strong network growth momentum across all shops!' });
+  }
+
+  if (chartData?.data?.summary?.peak_period) {
+    const peak = chartData.data.summary.peak_period;
+    insights.push({
+      type: 'positive',
+      text: `Network peak period: ${peak.time} (Ksh ${peak.sales?.toLocaleString()})`
+    });
   }
 
   return {
@@ -385,27 +225,36 @@ const ORDER_COLUMNS = [
     title: "Order No",
     dataIndex: "order_no",
     key: "order_no",
+    width: 120,
   },
   {
     title: "Table",
     dataIndex: "table",
     key: "table",
+    width: 80,
   },
   {
     title: "Shop",
     dataIndex: "shop_name",
     key: "shop_name",
+    ellipsis: true,
   },
   {
     title: "Amount",
     dataIndex: "order_amount",
     key: "order_amount",
-    render: (amount) => `ksh. ${amount.toFixed(2)}`,
+    width: 120,
+    render: (amount) => (
+      <Text strong style={{ color: COLORS.success }}>
+        Ksh {amount?.toFixed(2)}
+      </Text>
+    ),
   },
   {
     title: "Served By",
     dataIndex: "servedBy",
     key: "servedBy",
+    ellipsis: true,
   },
 ];
 
@@ -420,93 +269,236 @@ const STOCK_COLUMNS = [
     title: "Shop",
     dataIndex: "shop_name",
     key: "shop_name",
+    width: 120,
   },
   {
-    title: "Current Stock",
+    title: "Current",
     dataIndex: "quantity",
     key: "quantity",
+    width: 80,
+    render: (quantity) => (
+      <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning }}>
+        {quantity}
+      </Text>
+    ),
   },
   {
     title: "Min Required",
     dataIndex: "min_viable_quantity",
     key: "min_viable_quantity",
+    width: 100,
   },
   {
     title: "Status",
     key: "status",
+    width: 120,
+    render: (_, record) => {
+      const isOutOfStock = record.quantity <= 0;
+      const isLow = record.quantity <= record.min_viable_quantity;
+
+      return (
+        <Badge
+          status={isOutOfStock ? "error" : "warning"}
+          text={
+            isOutOfStock ? "Out of stock" :
+              isLow ? `${record.quantity} left` :
+                "Low stock"
+          }
+        />
+      );
+    },
+  },
+];
+
+const BESTSELLER_COLUMNS = [
+  {
+    title: "Rank",
+    dataIndex: "rank",
+    key: "rank",
+    width: 60,
+    render: (rank) => (
+      <div style={{ textAlign: 'center' }}>
+        {rank === 1 ? (
+          <TrophyOutlined style={{ color: '#ffd700', fontSize: 18 }} />
+        ) : rank === 2 ? (
+          <TrophyOutlined style={{ color: '#c0c0c0', fontSize: 16 }} />
+        ) : rank === 3 ? (
+          <TrophyOutlined style={{ color: '#cd7f32', fontSize: 16 }} />
+        ) : (
+          <span style={{ fontWeight: 600, color: COLORS.primary }}>#{rank}</span>
+        )}
+      </div>
+    ),
+  },
+  {
+    title: "Product",
+    dataIndex: "name",
+    key: "name",
+    render: (name, record) => (
+      <div>
+        <div style={{ fontWeight: 500, marginBottom: 2 }}>{name}</div>
+        <div style={{ fontSize: 12, color: COLORS.gray }}>
+          {record.category?.name || 'Uncategorized'} • {record.product_type}
+        </div>
+      </div>
+    ),
+  },
+  {
+    title: "Sales",
+    dataIndex: ["sales_metrics", "total_quantity_sold"],
+    key: "quantity_sold",
+    sorter: (a, b) => a.sales_metrics.total_quantity_sold - b.sales_metrics.total_quantity_sold,
+    render: (quantity, record) => (
+      <div>
+        <div style={{ fontWeight: 600, color: COLORS.success }}>
+          {quantity} units
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.gray }}>
+          {record.sales_metrics.order_count} orders
+        </div>
+      </div>
+    ),
+  },
+  {
+    title: "Revenue",
+    dataIndex: ["sales_metrics", "total_revenue"],
+    key: "revenue",
+    sorter: (a, b) => a.sales_metrics.total_revenue - b.sales_metrics.total_revenue,
+    render: (revenue, record) => (
+      <div>
+        <div style={{ fontWeight: 600, color: COLORS.primary }}>
+          Ksh {revenue?.toLocaleString()}
+        </div>
+        {record.sales_metrics?.total_profit && (
+          <div style={{ fontSize: 12, color: COLORS.success }}>
+            Profit: Ksh {record.sales_metrics.total_profit.toLocaleString()}
+          </div>
+        )}
+      </div>
+    ),
+  },
+  {
+    title: "Performance",
+    key: "performance",
     render: (_, record) => (
-      <Badge status="error" text={`${record.quantity} remaining`} />
+      <div>
+        <div style={{ marginBottom: 4 }}>
+          <Tag color={record.performance_indicators?.is_top_performer ? 'gold' : 'blue'}>
+            {record.performance_indicators?.is_top_performer ? 'Top Performer' : 'Popular'}
+          </Tag>
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.gray }}>
+          Avg: {record.performance_indicators?.avg_quantity_per_order?.toFixed(1)} per order
+        </div>
+      </div>
     ),
   },
 ];
 
-const StatisticCard = ({ title, value, prefix, loading }) => (
+const StatisticCard = ({ title, value, prefix, loading, trend, onClick }) => (
   <Col xs={24} sm={12} lg={6}>
     <Card
       bordered={false}
+      hoverable={!!onClick}
+      onClick={onClick}
       style={{
-        background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
-        boxShadow: "0 8px 16px rgba(0,0,0,0.05)",
+        background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
         borderRadius: 12,
+        cursor: onClick ? 'pointer' : 'default',
       }}
     >
       {loading ? (
         <Skeleton active paragraph={false} />
       ) : (
-        <Statistic
-          title={
-            <span style={{ color: "#6b7280", fontWeight: 500 }}>{title}</span>
-          }
-          value={value}
-          prefix={prefix}
-          precision={title === "Revenue" ? 2 : 0}
-          valueStyle={{
-            color: "#1f2937",
-            fontSize: "1.8rem",
-            fontWeight: 600,
-          }}
-        />
+        <div>
+          <Statistic
+            title={
+              <span style={{ color: COLORS.gray, fontWeight: 500, fontSize: 14 }}>
+                {title}
+              </span>
+            }
+            value={value || 0}
+            prefix={prefix}
+            precision={title.includes("Revenue") ? 2 : 0}
+            valueStyle={{
+              color: "#1f2937",
+              fontSize: "1.6rem",
+              fontWeight: 600,
+            }}
+          />
+          {trend && (
+            <div style={{ marginTop: 8, fontSize: 12 }}>
+              <Space>
+                {trend > 0 ? (
+                  <RiseOutlined style={{ color: COLORS.success }} />
+                ) : trend < 0 ? (
+                  <FallOutlined style={{ color: COLORS.error }} />
+                ) : (
+                  <CheckCircleOutlined style={{ color: COLORS.gray }} />
+                )}
+                <Text style={{
+                  color: trend > 0 ? COLORS.success : trend < 0 ? COLORS.error : COLORS.gray
+                }}>
+                  {trend > 0 ? '+' : ''}{trend?.toFixed(1)}%
+                </Text>
+              </Space>
+            </div>
+          )}
+        </div>
       )}
     </Card>
   </Col>
 );
 
 const SalesChart = ({ data, loading, title, businessIndicators }) => {
-  const config = {
-    data,
+  const chartData = useMemo(() => {
+    if (!data || !Array.isArray(data)) return [];
+
+    return data.map(item => ({
+      ...item,
+      sales: Number(item.sales) || 0,
+      orders: Number(item.orders) || 0,
+      avgOrderValue: Number(item.avgOrderValue) || 0,
+      cumulativeSales: Number(item.cumulativeSales) || 0,
+    }));
+  }, [data]);
+
+  const config = useMemo(() => ({
+    data: chartData,
     xField: 'time',
     yField: 'sales',
-    height: 300,
+    height: 350,
     smooth: true,
     lineStyle: {
       stroke: COLORS.primary,
       lineWidth: 3,
     },
     point: {
-      size: 4,
+      size: 5,
       style: {
         fill: COLORS.primary,
-        stroke: COLORS.primary,
+        stroke: '#fff',
         lineWidth: 2,
       },
     },
     tooltip: {
       formatter: (datum) => [
         {
-          name: 'Total Sales',
-          value: `Ksh ${datum.sales?.toLocaleString()}`,
+          name: 'Network Sales',
+          value: `Ksh ${Number(datum.sales)?.toLocaleString()}`,
         },
         {
           name: 'Total Orders',
           value: `${datum.orders} orders`,
         },
         {
-          name: 'Period Sales',
-          value: `Ksh ${datum.periodSales?.toLocaleString()}`,
+          name: 'Avg Order Value',
+          value: `Ksh ${Number(datum.avgOrderValue)?.toLocaleString()}`,
         },
         {
-          name: 'Period Orders',
-          value: `${datum.periodOrders} orders`,
+          name: 'Cumulative Sales',
+          value: `Ksh ${Number(datum.cumulativeSales)?.toLocaleString()}`,
         }
       ],
     },
@@ -515,6 +507,12 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
         style: {
           fill: '#64748b',
           fontSize: 12,
+        },
+        autoRotate: true,
+      },
+      line: {
+        style: {
+          stroke: '#e2e8f0',
         },
       },
     },
@@ -525,27 +523,33 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
           fontSize: 12,
         },
         formatter: (value) => {
-          if (value >= 1000000) {
-            return `${(value / 1000000).toFixed(1)}M`;
-          } else if (value >= 1000) {
-            return `${(value / 1000).toFixed(0)}K`;
+          const numValue = Number(value);
+          if (numValue >= 1000000) {
+            return `${(numValue / 1000000).toFixed(1)}M`;
+          } else if (numValue >= 1000) {
+            return `${(numValue / 1000).toFixed(0)}K`;
           }
-          return `Ksh ${value}`;
+          return `${numValue}`;
         },
       },
       min: 0,
-      max: undefined,
-    },
-    grid: {
-      line: {
-        style: {
-          stroke: '#f0f0f0',
-          lineWidth: 1,
-          lineDash: [3, 3],
+      grid: {
+        line: {
+          style: {
+            stroke: '#f0f0f0',
+            lineWidth: 1,
+            lineDash: [3, 3],
+          },
         },
       },
     },
-  };
+    animation: {
+      appear: {
+        animation: 'path-in',
+        duration: 1000,
+      },
+    },
+  }), [chartData]);
 
   return (
     <Card
@@ -562,7 +566,8 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
               <Badge
                 status={businessIndicators.performance === 'excellent' ? 'success' :
                   businessIndicators.performance === 'good' ? 'processing' :
-                    businessIndicators.performance === 'fair' ? 'warning' : 'error'}
+                    businessIndicators.performance === 'moderate' ? 'default' :
+                      businessIndicators.performance === 'low' ? 'warning' : 'error'}
               />
               <Text style={{ color: businessIndicators.performanceColor, fontWeight: 600 }}>
                 {businessIndicators.performanceText}
@@ -579,10 +584,10 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
       style={{ borderRadius: 12, marginBottom: 24 }}
     >
       {loading ? (
-        <Skeleton active paragraph={{ rows: 6 }} />
+        <Skeleton active paragraph={{ rows: 8 }} />
       ) : (
         <>
-          {businessIndicators && businessIndicators.insights.length > 0 && (
+          {businessIndicators?.insights?.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <Space wrap>
                 {businessIndicators.insights.map((insight, index) => (
@@ -608,7 +613,122 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
             </div>
           )}
 
-          <Line {...config} />
+          {chartData.length > 0 ? (
+            <Line {...config} />
+          ) : (
+            <Empty
+              description="No chart data available"
+              style={{ padding: '60px 20px' }}
+            />
+          )}
+        </>
+      )}
+    </Card>
+  );
+};
+
+const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
+  const bestSellers = useMemo(() => {
+    if (!bestSellersData?.data?.best_sellers?.length) return [];
+
+    return bestSellersData.data.best_sellers.map((item, index) => ({
+      ...item,
+      rank: index + 1
+    }));
+  }, [bestSellersData]);
+
+  const summary = bestSellersData?.data?.summary || {};
+
+  if (!bestSellers.length && !loading) {
+    return (
+      <Card
+        title={
+          <Space>
+            <FireOutlined style={{ color: COLORS.orange }} />
+            Best Sellers Across All Shops ({dateRange})
+          </Space>
+        }
+        style={{ borderRadius: 12 }}
+      >
+        <Empty
+          image={<FireOutlined style={{ fontSize: 48, color: COLORS.orange }} />}
+          description={
+            <div>
+              <Title level={4} style={{ color: COLORS.gray }}>No Sales Data</Title>
+              <Text type="secondary">No products have been sold during this period across all shops.</Text>
+            </div>
+          }
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      title={
+        <Space>
+          <FireOutlined style={{ color: COLORS.orange }} />
+          Best Sellers Across All Shops ({dateRange})
+        </Space>
+      }
+      extra={
+        summary.total_products_analyzed > 0 && (
+          <Space>
+            <Badge count={summary.total_products_analyzed} style={{ backgroundColor: COLORS.primary }} />
+            <Text type="secondary">Products analyzed</Text>
+          </Space>
+        )
+      }
+      style={{ borderRadius: 12 }}
+    >
+      {loading ? (
+        <Skeleton active paragraph={{ rows: 6 }} />
+      ) : (
+        <>
+          {summary.total_revenue > 0 && (
+            <div style={{ marginBottom: 16, padding: 16, background: COLORS.lightGray, borderRadius: 8 }}>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Statistic
+                    title="Total Revenue"
+                    value={summary.total_revenue}
+                    prefix="Ksh"
+                    precision={2}
+                    valueStyle={{ fontSize: 16, fontWeight: 600 }}
+                  />
+                </Col>
+                <Col span={8}>
+                  <Statistic
+                    title="Units Sold"
+                    value={summary.total_quantity_sold}
+                    valueStyle={{ fontSize: 16, fontWeight: 600 }}
+                  />
+                </Col>
+                <Col span={8}>
+                  <Statistic
+                    title="Avg Order Value"
+                    value={summary.average_order_value}
+                    prefix="Ksh"
+                    precision={2}
+                    valueStyle={{ fontSize: 16, fontWeight: 600 }}
+                  />
+                </Col>
+              </Row>
+            </div>
+          )}
+
+          <Table
+            columns={BESTSELLER_COLUMNS}
+            dataSource={bestSellers}
+            pagination={{
+              pageSize: 15,
+              showSizeChanger: false,
+              showQuickJumper: true,
+            }}
+            size="middle"
+            rowKey="product_id"
+            scroll={{ x: 800 }}
+          />
         </>
       )}
     </Card>
@@ -622,7 +742,7 @@ const DashboardAdminPage = () => {
   const [customDateRange, setCustomDateRange] = useState([]);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
 
-  const getDateRange = () => {
+  const getDateRange = useCallback(() => {
     const today = dayjs();
     let startDate, endDate;
 
@@ -644,7 +764,7 @@ const DashboardAdminPage = () => {
         endDate = today.endOf("year");
         break;
       case "custom":
-        if (customDateRange && customDateRange.length === 2) {
+        if (customDateRange?.length === 2) {
           startDate = customDateRange[0].startOf("day");
           endDate = customDateRange[1].endOf("day");
         } else {
@@ -658,10 +778,11 @@ const DashboardAdminPage = () => {
     }
 
     return { startDate, endDate };
-  };
+  }, [periodFilter, customDateRange]);
 
   const { startDate, endDate } = getDateRange();
 
+  // Main admin dashboard data query
   const { data, isLoading, refetch, isRefetching, error } = useQuery({
     queryKey: ["admindashBoardAnalysis", startDate.format(), endDate.format()],
     queryFn: () => getAdminDashboardAnalysis(
@@ -681,59 +802,92 @@ const DashboardAdminPage = () => {
     },
   });
 
-  const handleRefresh = async () => {
+  // Sales chart data query - Admin level (all shops combined)
+  const { data: chartData, isLoading: chartLoading } = useQuery({
+    queryKey: ["adminSalesChartData", periodFilter, startDate.format(), endDate.format()],
+    queryFn: () => getSalesChartData({
+      period: periodFilter,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      // No shop_id - admin sees all shops combined
+    }),
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+    retry: 2,
+  });
+
+  // Best Sellers Query - Admin sees all shops' data
+  const { data: bestSellersData, isLoading: bestSellersLoading } = useQuery({
+    queryKey: ["adminBestSellers", startDate.format(), endDate.format()],
+    queryFn: () => getBestSellers({
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      limit: 15 // Show more for admin view
+      // No shop_id filter - admin sees all shops
+    }),
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+    retry: 2,
+  });
+
+  const handleRefresh = useCallback(async () => {
     try {
       await refetch();
+      messageApi.success({
+        content: "Admin dashboard data refreshed successfully!",
+        duration: 2,
+      });
     } catch (error) {
       messageApi.error({
         content: "Failed to refresh dashboard. Please try again.",
         duration: 3,
       });
     }
-  };
+  }, [refetch, messageApi]);
 
-  const handlePeriodChange = (e) => {
+  const handlePeriodChange = useCallback((e) => {
     const value = e.target.value;
     setPeriodFilter(value);
-    if (value === "custom") {
-      setShowCustomDatePicker(true);
-    } else {
-      setShowCustomDatePicker(false);
-    }
-  };
+    setShowCustomDatePicker(value === "custom");
+  }, []);
 
-  const handleCustomDateChange = (dates) => {
-    setCustomDateRange(dates);
-  };
+  const handleCustomDateChange = useCallback((dates) => {
+    setCustomDateRange(dates || []);
+  }, []);
 
-  const statisticsData = [
+  const statisticsData = useMemo(() => [
     {
-      title: periodFilter === "day" ? "Today's Orders" : "Orders",
-      value: data?.totalOrderCount,
-      prefix: <ShoppingCartOutlined />,
+      title: periodFilter === "day" ? "Today's Orders" : "Total Orders",
+      value: chartData?.data?.summary?.total_orders || data?.totalOrderCount,
+      prefix: <ShoppingCartOutlined style={{ color: COLORS.primary }} />,
+      trend: chartData?.data?.summary?.growth_rate,
+      onClick: () => navigate('/orders'),
     },
     {
-      title: "Revenue",
-      value: data?.todayRevenue,
-      prefix: "Ksh.",
+      title: "Network Revenue",
+      value: chartData?.data?.summary?.total_sales || data?.todayRevenue,
+      prefix: <DollarOutlined style={{ color: COLORS.success }} />,
     },
     {
-      title: "Shops",
+      title: "Active Shops",
       value: data?.activeOrders,
-      prefix: <ShopOutlined />,
+      prefix: <ShopOutlined style={{ color: COLORS.orange }} />,
+      onClick: () => navigate('/shops'),
     },
     {
       title: "Active Shifts",
       value: data?.activeShift,
-      prefix: <TeamOutlined />,
+      prefix: <TeamOutlined style={{ color: COLORS.info }} />,
+      onClick: () => navigate('/shifts'),
     },
-  ];
+  ], [chartData, data, navigate, periodFilter]);
 
-  const salesData = processSalesData(data, periodFilter, startDate, endDate);
+  const businessIndicators = useMemo(() =>
+    calculateBusinessIndicators(chartData, data, periodFilter), [chartData, data, periodFilter]);
 
-  const businessIndicators = calculateBusinessIndicators(salesData, data, periodFilter);
-
-  const getFormattedDateRange = () => {
+  const getFormattedDateRange = useCallback(() => {
     const dateFormat = 'MMM D, YYYY';
     switch (periodFilter) {
       case "day":
@@ -745,45 +899,42 @@ const DashboardAdminPage = () => {
       case "year":
         return startDate.format('YYYY');
       case "custom":
-        if (customDateRange && customDateRange.length === 2) {
+        if (customDateRange?.length === 2) {
           return `${customDateRange[0].format(dateFormat)} - ${customDateRange[1].format(dateFormat)}`;
         }
         return "Custom Range";
       default:
         return startDate.format('MMMM D, YYYY');
     }
-  };
+  }, [periodFilter, startDate, endDate, customDateRange]);
+
+  const isDataLoading = isLoading || isRefetching || chartLoading;
 
   return (
     <>
       {contextHolder}
 
-      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+      {/* Header Section */}
+      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
         <div>
-          <Title
-            level={3}
-            style={{ margin: 0, fontWeight: 600, color: "#1e293b" }}
-          >
-            {periodFilter === "day" ? "Today's Overview" : "Overview"}
+          <Title level={2} style={{ margin: 0, fontWeight: 600, color: "#1e293b" }}>
+            {PERIOD_LABELS[periodFilter]} Admin Overview
           </Title>
-          <Text type="secondary" style={{ fontSize: 14 }}>
-            {getFormattedDateRange()}
+          <Text type="secondary" style={{ fontSize: 16 }}>
+            {getFormattedDateRange()} • All Shops Network Performance
           </Text>
         </div>
-        <Space>
-          <>
-            <Flex align="center" wrap="wrap" gap={16}>
-              <Flex align="center">
-                <CalendarOutlined style={{ marginRight: 8, color: "#1890ff" }} />
-                <Title level={5} style={{ margin: 0, color: "#1e293b" }}>
-                  Filter by Period
-                </Title>
-              </Flex>
+
+        <Space wrap size="middle">
+          {/* Period Filter */}
+          <Card size="small" style={{ borderRadius: 8 }}>
+            <Flex align="center" gap={12}>
+              <CalendarOutlined style={{ color: COLORS.primary }} />
               <Radio.Group
                 value={periodFilter}
                 onChange={handlePeriodChange}
                 buttonStyle="solid"
-                size="middle"
+                size="small"
               >
                 <Radio.Button value="day">Day</Radio.Button>
                 <Radio.Button value="week">Week</Radio.Button>
@@ -791,51 +942,73 @@ const DashboardAdminPage = () => {
                 <Radio.Button value="year">Year</Radio.Button>
                 <Radio.Button value="custom">Custom</Radio.Button>
               </Radio.Group>
-
-              {showCustomDatePicker && (
-                <RangePicker
-                  value={customDateRange}
-                  onChange={handleCustomDateChange}
-                  allowClear={false}
-                  style={{ flexGrow: 1 }}
-                />
-              )}
             </Flex>
-          </>
-          <Button
-            type="text"
-            icon={<ReloadOutlined spin={isRefetching} />}
-            onClick={handleRefresh}
-            loading={isLoading || isRefetching}
-            style={{
-              background: "#e2e8f0",
-              borderRadius: 8,
-              fontWeight: 500,
-            }}
-          >
-            Refresh
-          </Button>
+          </Card>
+
+          {/* Custom Date Picker */}
+          {showCustomDatePicker && (
+            <RangePicker
+              value={customDateRange}
+              onChange={handleCustomDateChange}
+              allowClear
+              style={{ minWidth: 280 }}
+              placeholder={['Start date', 'End date']}
+            />
+          )}
+
+          {/* Action Buttons */}
+          <Space>
+            <Button
+              type="primary"
+              icon={<ReloadOutlined spin={isRefetching} />}
+              onClick={handleRefresh}
+              loading={isDataLoading}
+              style={{ fontWeight: 500 }}
+            >
+              {isRefetching ? "Refreshing..." : "Refresh"}
+            </Button>
+          </Space>
         </Space>
-        <WelcomeBanner />
       </Row>
 
-      <Row gutter={[16, 16]}>
+      {/* Welcome Banner */}
+      <WelcomeBanner />
+
+      {/* Performance Alert */}
+      {/* {businessIndicators?.performance === 'critical' && (
+        <Alert
+          message="Critical Network Alert"
+          description={businessIndicators.trendText}
+          type="error"
+          showIcon
+          style={{ marginBottom: 24, marginTop: 16, borderRadius: 8 }}
+          action={
+            <Button size="small" type="primary" danger>
+              Review All Shops
+            </Button>
+          }
+        />
+      )} */}
+
+      {/* Statistics Cards */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16, marginBottom: 24 }}>
         {statisticsData.map((stat, index) => (
           <StatisticCard
             key={index}
-            loading={isLoading || isRefetching}
+            loading={isDataLoading}
             {...stat}
           />
         ))}
       </Row>
 
-      <Row style={{ marginTop: 24 }}>
+      {/* Sales Chart Section */}
+      <Row style={{ marginBottom: 24 }}>
         <Col span={24}>
-          {salesData && salesData.length > 0 ? (
+          {chartData?.data?.chart_data?.length > 0 ? (
             <SalesChart
-              data={salesData}
-              loading={isLoading || isRefetching}
-              title={`Sales Trends - ${getFormattedDateRange()}`}
+              data={chartData.data.chart_data}
+              loading={chartLoading}
+              title={`Network Sales Trends - ${getFormattedDateRange()}`}
               businessIndicators={businessIndicators}
             />
           ) : (
@@ -843,7 +1016,7 @@ const DashboardAdminPage = () => {
               title={
                 <Space>
                   <LineChartOutlined style={{ color: COLORS.primary }} />
-                  {`Sales Trends - ${getFormattedDateRange()}`}
+                  {`Network Sales Trends - ${getFormattedDateRange()}`}
                 </Space>
               }
               extra={
@@ -863,13 +1036,13 @@ const DashboardAdminPage = () => {
                   </Space>
                 )
               }
-              style={{ borderRadius: 12, marginBottom: 24 }}
+              style={{ borderRadius: 12 }}
             >
-              {isLoading || isRefetching ? (
-                <Skeleton active paragraph={{ rows: 6 }} />
+              {chartLoading ? (
+                <Skeleton active paragraph={{ rows: 8 }} />
               ) : (
                 <>
-                  {businessIndicators && businessIndicators.insights.length > 0 && (
+                  {businessIndicators?.insights?.length > 0 && (
                     <div style={{ marginBottom: 16 }}>
                       <Space wrap>
                         {businessIndicators.insights.map((insight, index) => (
@@ -895,27 +1068,31 @@ const DashboardAdminPage = () => {
                     </div>
                   )}
 
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '60px 20px',
-                    color: '#8c8c8c'
-                  }}>
-                    <LineChartOutlined style={{ fontSize: 48, marginBottom: 16, color: '#ff4d4f' }} />
-                    <Title level={4} style={{ color: COLORS.error }}>
-                      {periodFilter === 'day' ? 'No Sales Today' :
-                        periodFilter === 'week' ? 'No Sales This Week' :
-                          periodFilter === 'month' ? 'No Sales This Month' :
-                            periodFilter === 'year' ? 'No Sales This Year' :
-                              'No Sales in Selected Period'}
-                    </Title>
-                    <Text type="secondary">
-                      {periodFilter === 'day' ? 'Focus on attracting customers today. Consider promotions or check if operations are running smoothly.' :
-                        periodFilter === 'week' ? 'Weekly performance is concerning. Review marketing strategies and customer outreach.' :
-                          periodFilter === 'month' ? 'Monthly sales are critical. Immediate action needed to recover business.' :
-                            periodFilter === 'year' ? 'Annual performance requires urgent business strategy review.' :
-                              'Consider adjusting business strategy for the selected time period.'}
-                    </Text>
-                  </div>
+                  <Empty
+                    image={<LineChartOutlined style={{ fontSize: 64, color: COLORS.error }} />}
+                    description={
+                      <div style={{ padding: '20px' }}>
+                        <Title level={4} style={{ color: COLORS.error }}>
+                          {periodFilter === 'day' ? 'No Sales Today Across Network' :
+                            periodFilter === 'week' ? 'No Sales This Week Across Network' :
+                              periodFilter === 'month' ? 'No Sales This Month Across Network' :
+                                periodFilter === 'year' ? 'No Sales This Year Across Network' :
+                                  'No Sales in Selected Period Across Network'}
+                        </Title>
+                        <Text type="secondary" style={{ fontSize: 16 }}>
+                          {periodFilter === 'day' ?
+                            'No sales recorded across all shops today. Check individual shop operations and network connectivity.' :
+                            periodFilter === 'week' ?
+                              'Weekly performance is concerning across the network. Review shop strategies and operational issues.' :
+                              periodFilter === 'month' ?
+                                'Monthly network performance needs immediate attention. Consider emergency business strategy review.' :
+                                periodFilter === 'year' ?
+                                  'Annual network performance requires urgent strategic overhaul across all shops.' :
+                                  'Consider network-wide strategy adjustments for the selected period.'}
+                        </Text>
+                      </div>
+                    }
+                  />
                 </>
               )}
             </Card>
@@ -923,62 +1100,299 @@ const DashboardAdminPage = () => {
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-        <Col xs={24} lg={12}>
-          <Card
-            title={`Recent Orders (${getFormattedDateRange()})`}
-          >
-            {isLoading || isRefetching ? (
-              <Skeleton active />
-            ) : (
-              <Table
-                key={data?.currentOrders}
-                columns={ORDER_COLUMNS}
-                dataSource={
-                  Array.isArray(data?.currentOrders) ? data.currentOrders : []
-                }
-                rowClassName={() => "modern-table-row"}
-                pagination={{
-                  hideOnSinglePage: true,
-                  defaultPageSize: 5,
-                  showSizeChanger: false,
-                  style: { paddingRight: 16 },
-                }}
-                size="middle"
-              />
-            )}
-          </Card>
+      {/* Best Sellers Section */}
+      <Row style={{ marginBottom: 24 }}>
+        <Col span={24}>
+          <BestSellersCard
+            bestSellersData={bestSellersData}
+            loading={bestSellersLoading}
+            dateRange={getFormattedDateRange()}
+          />
         </Col>
+      </Row>
+
+      {/* Recent Orders and Low Stock */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={12}>
           <Card
             title={
               <Space>
-                <WarningOutlined style={{ color: "#ff4d4f" }} />
-                Low Stock Alerts
+                <ShoppingCartOutlined style={{ color: COLORS.primary }} />
+                {`Recent Orders Across Network (${getFormattedDateRange()})`}
               </Space>
             }
+            extra={
+              <Space>
+                <Badge
+                  count={data?.totalOrderCount || 0}
+                  style={{ backgroundColor: COLORS.primary }}
+                />
+                <Button type="link" onClick={() => navigate('/orders')}>
+                  View All
+                </Button>
+              </Space>
+            }
+            style={{ borderRadius: 12 }}
           >
-            {isLoading || isRefetching ? (
-              <Skeleton active />
+            {isDataLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
             ) : (
               <Table
-                key={data?.lowStockItems}
-                columns={STOCK_COLUMNS}
+                columns={ORDER_COLUMNS}
                 dataSource={
-                  Array.isArray(data?.lowStockItems) ? data.lowStockItems : []
+                  Array.isArray(data?.currentOrders) ? data.currentOrders : []
                 }
-                rowClassName={() => "modern-table-row"}
                 pagination={{
+                  pageSize: 5,
                   hideOnSinglePage: true,
-                  defaultPageSize: 5,
                   showSizeChanger: false,
-                  style: { paddingRight: 16 },
                 }}
                 size="middle"
+                rowClassName={() => "hover:bg-gray-50 transition-colors"}
+                locale={{
+                  emptyText: (
+                    <Empty
+                      image={<ShoppingCartOutlined style={{ fontSize: 32, color: COLORS.gray }} />}
+                      description="No recent orders across all shops"
+                      style={{ padding: '20px' }}
+                    />
+                  )
+                }}
               />
             )}
           </Card>
         </Col>
+
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <Space>
+                <WarningOutlined style={{ color: COLORS.error }} />
+                Low Stock Alerts (All Shops)
+              </Space>
+            }
+            extra={
+              <Space>
+                {data?.lowStockItems?.length > 0 && (
+                  <Badge
+                    count={data.lowStockItems.length}
+                    style={{ backgroundColor: COLORS.error }}
+                  />
+                )}
+                <Button type="link" onClick={() => navigate('/inventory')}>
+                  View All
+                </Button>
+              </Space>
+            }
+            style={{ borderRadius: 12 }}
+          >
+            {isDataLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
+            ) : (
+              <Table
+                columns={STOCK_COLUMNS}
+                dataSource={
+                  Array.isArray(data?.lowStockItems) ? data.lowStockItems : []
+                }
+                pagination={{
+                  pageSize: 5,
+                  hideOnSinglePage: true,
+                  showSizeChanger: false,
+                }}
+                size="middle"
+                rowClassName={() => "hover:bg-gray-50 transition-colors"}
+                locale={{
+                  emptyText: (
+                    <Empty
+                      image={<CheckCircleOutlined style={{ fontSize: 32, color: COLORS.success }} />}
+                      description={
+                        <div>
+                          <Text style={{ color: COLORS.success }}>All items are well stocked across all shops</Text>
+                        </div>
+                      }
+                      style={{ padding: '20px' }}
+                    />
+                  )
+                }}
+              />
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Network Performance Summary */}
+      <Row gutter={[16, 16]}>
+        <Col span={24}>
+          <Card
+            title={
+              <Space>
+                <PieChartOutlined style={{ color: COLORS.purple }} />
+                Network Performance Summary ({getFormattedDateRange()})
+              </Space>
+            }
+            style={{ borderRadius: 12 }}
+          >
+            {isDataLoading ? (
+              <Skeleton active paragraph={{ rows: 3 }} />
+            ) : (
+              <Row gutter={[24, 16]}>
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.primary,
+                      marginBottom: 4
+                    }}>
+                      {data?.totalOrderCount || 0}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Total Orders</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Across all shops
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.success,
+                      marginBottom: 4
+                    }}>
+                      Ksh {(data?.todayRevenue || 0).toLocaleString()}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Total Revenue</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Network wide
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.orange,
+                      marginBottom: 4
+                    }}>
+                      {data?.activeOrders || 0}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Active Shops</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Currently operating
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.cyan,
+                      marginBottom: 4
+                    }}>
+                      {data?.activeShift || 0}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Active Shifts</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Staff on duty
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+            )}
+          </Card>
+        </Col>
+
+        {/* Additional Performance Metrics - Only show if chart data is available */}
+        {chartData?.data?.summary && (
+          <Col span={24} style={{ marginTop: 16 }}>
+            <Card
+              title={
+                <Space>
+                  <RiseOutlined style={{ color: COLORS.success }} />
+                  Advanced Network Metrics ({getFormattedDateRange()})
+                </Space>
+              }
+              style={{ borderRadius: 12 }}
+            >
+              <Row gutter={[24, 16]}>
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 24,
+                      fontWeight: 700,
+                      color: COLORS.primary,
+                      marginBottom: 4
+                    }}>
+                      {chartData.data.summary.data_points}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Data Points</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Reporting periods
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 24,
+                      fontWeight: 700,
+                      color: chartData.data.summary.growth_rate >= 0 ? COLORS.success : COLORS.error,
+                      marginBottom: 4
+                    }}>
+                      {chartData.data.summary.growth_rate > 0 ? '+' : ''}
+                      {chartData.data.summary.growth_rate.toFixed(1)}%
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Growth Rate</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Network trend
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 24,
+                      fontWeight: 700,
+                      color: COLORS.orange,
+                      marginBottom: 4
+                    }}>
+                      Ksh {chartData.data.summary.average_order_value?.toLocaleString()}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Avg Order Value</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Network average
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 24,
+                      fontWeight: 700,
+                      color: COLORS.cyan,
+                      marginBottom: 4
+                    }}>
+                      {chartData.data.summary.peak_period?.time || 'N/A'}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Peak Period</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Highest sales time
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
+        )}
       </Row>
     </>
   );

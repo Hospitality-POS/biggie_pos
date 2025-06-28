@@ -47,14 +47,29 @@ const SkeletonTabs = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   return (
-    <Box sx={{ display: 'flex', width: '100%', overflowX: isMobile ? 'scroll' : 'hidden' }}>
+    <Box sx={{
+      display: 'flex',
+      width: '100%',
+      overflowX: 'auto',
+      gap: 1,
+      '&::-webkit-scrollbar': {
+        height: '4px',
+      },
+      '&::-webkit-scrollbar-track': {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+      },
+      '&::-webkit-scrollbar-thumb': {
+        backgroundColor: 'rgba(255,255,255,0.3)',
+        borderRadius: '2px',
+      },
+    }}>
       {[...Array(5)].map((_, index) => (
         <Skeleton
           key={index}
           variant="rectangular"
-          width={isMobile ? 100 : '20%'}
+          width={150}
           height={48}
-          sx={{ mr: 1, borderRadius: 1 }}
+          sx={{ borderRadius: 1, flexShrink: 0 }}
         />
       ))}
     </Box>
@@ -319,17 +334,55 @@ const RestaurantPage: React.FC = () => {
                 onChange={handleChange}
                 indicatorColor="secondary"
                 textColor="inherit"
-                variant={isMobile ? "scrollable" : "fullWidth"}
+                variant="scrollable"
                 scrollButtons="auto"
+                allowScrollButtonsMobile
                 aria-label="main category tabs"
+                sx={{
+                  '& .MuiTabs-scrollButtons': {
+                    color: 'white',
+                    '&.Mui-disabled': {
+                      opacity: 0.3,
+                    },
+                  },
+                  '& .MuiTabs-scroller': {
+                    '&::-webkit-scrollbar': {
+                      height: '4px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      backgroundColor: 'rgba(255,255,255,0.3)',
+                      borderRadius: '2px',
+                    },
+                  },
+                  '& .MuiTab-root': {
+                    minWidth: 'auto',
+                    maxWidth: 'none',
+                    whiteSpace: 'nowrap',
+                    fontSize: isMobile ? '0.875rem' : '1rem',
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    padding: '12px 16px',
+                    overflow: 'visible',
+                    textOverflow: 'clip',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      transition: 'background-color 0.3s ease',
+                    },
+                  },
+                  '& .MuiTabs-indicator': {
+                    backgroundColor: 'white',
+                    height: '3px',
+                  },
+                }}
               >
                 {Maincategories?.length
                   ? Maincategories.map((categ, index) => (
                     <Tab
                       key={categ._id}
                       onClick={() => handleChangeMainCategory(categ._id)}
-                      iconPosition="start"
-                      style={{ height: isMobile ? "auto" : 20 }}
                       label={categ.name}
                       {...a11yProps(index)}
                     />
