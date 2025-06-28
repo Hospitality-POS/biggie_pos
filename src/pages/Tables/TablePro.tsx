@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ConfigProvider, Skeleton, Typography, Result, Button } from "antd";
 import { Space } from "antd/lib";
 import Lottie from "lottie-react";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/tables.json";
 import EmptyPage from "@routes/EmptyPage";
@@ -48,77 +48,77 @@ const LoadingTabs = () => (
 export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
-  const { user } = useAppSelector((state) => state.auth);
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
+
+  const { user } = useAppSelector((state) => state.auth);
   const { openModal: successmodal, loading } = useAppSelector((state) => state.order);
   const navigate = useNavigate();
+
   const storedCode = localStorage.getItem("companyCode");
 
-  // Initialize with overview - always default to overview tab
-  const [activeTabId, setActiveTabId] = useState("overview");
+  const DEFAULT_TAB = "overview";
+  const STORAGE_KEY = "activeTableTabId";
+  const VISIT_KEY = "hasVisitedTablesBefore";
 
-  // Get tenant primary color on component mount
+  const [activeTabId, setActiveTabId] = useState(DEFAULT_TAB);
+
+  const setValidActiveTab = (tabId) => {
+    const validTabId = tabId && tabId !== "undefined" && tabId !== "null" && tabId.trim() !== ""
+      ? tabId
+      : DEFAULT_TAB;
+
+    setActiveTabId(validTabId);
+    localStorage.setItem(STORAGE_KEY, validTabId);
+    return validTabId;
+  };
+
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.primary_color) {
-      setPrimaryColor(tenant.primary_color);
+    if (tenant && tenant.color_scheme.primary) {
+      setPrimaryColor(tenant.color_scheme.primary);
     }
   }, []);
 
-  // Simplified tab management logic - single useEffect for tab management
   useEffect(() => {
-    const isFirstVisit = localStorage.getItem("hasVisitedTablesBefore") !== "true";
+    const isFirstVisit = localStorage.getItem(VISIT_KEY) !== "true";
 
-    // Mark as visited for future visits
     if (isFirstVisit) {
-      localStorage.setItem("hasVisitedTablesBefore", "true");
-      // For first visit, always ensure overview tab is selected
-      setActiveTabId("overview");
-      localStorage.setItem("activeTableTabId", "overview");
+      localStorage.setItem(VISIT_KEY, "true");
+      setValidActiveTab(DEFAULT_TAB);
     } else {
-      // For returning visits, try to restore previous tab
-      const savedTabId = localStorage.getItem("activeTableTabId");
-
-      // Important: Default to "overview" if saved tab is null/undefined/empty
-      if (savedTabId && savedTabId !== "undefined" && savedTabId !== "") {
-        setActiveTabId(savedTabId);
-      } else {
-        // Ensure overview is selected and saved if we don't have a valid saved tab
-        setActiveTabId("overview");
-        localStorage.setItem("activeTableTabId", "overview");
-      }
+      const savedTabId = localStorage.getItem(STORAGE_KEY);
+      setValidActiveTab(savedTabId);
     }
   }, []);
 
-  // Show login modal and blur background if companyCode is not present
   useEffect(() => {
     if (!storedCode) {
       setIsBackgroundBlurred(true);
-      setOpen(true); // Open the login modal
+      setOpen(true);
       setSelectedProductId(null);
     }
   }, [storedCode]);
 
-  // Save the activeTabId to localStorage whenever it changes
-  useEffect(() => {
-    // Only save valid non-empty tab IDs
-    if (activeTabId && activeTabId !== "undefined" && activeTabId !== "") {
-      localStorage.setItem("activeTableTabId", activeTabId);
-    }
-  }, [activeTabId]);
+  const queryKey = useMemo(() => {
+    return activeTabId === DEFAULT_TAB
+      ? ["tables", "overview"]
+      : ["tables", activeTabId];
+  }, [activeTabId, DEFAULT_TAB]);
 
   const handleOpen = (productId) => {
     setOpen(true);
     setSelectedProductId(productId);
   };
 
-  // IMPORTANT: Take 'activeTabId' out of the queryKey to prevent re-fetches
-  // unless we really want to fetch for a specific table
-  const queryKey = activeTabId === "overview"
-    ? ["tables", "overview"]
-    : ["tables", activeTabId];
+  const handleTabChange = (key) => {
+    if (key && key !== "undefined" && key !== "null" && key.trim() !== "") {
+      setValidActiveTab(key);
+    } else {
+      setValidActiveTab(DEFAULT_TAB);
+    }
+  };
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKey,
@@ -126,98 +126,119 @@ export default function TablePro() {
       if (storedCode) {
         return fetchTableUsequery({ id: activeTabId });
       }
-      return []; // Return empty array if no storedCode
+      return [];
     },
     networkMode: "always",
-    enabled: !!storedCode, // Disable query if storedCode is undefined
+    enabled: !!storedCode,
+    retry: 2,
+    retryDelay: 1000,
   });
 
-  if (successmodal) {
-    return <SuccesssModal />;
-  }
-
-  const DefaultView = () => (
-    <div
-      style={{
-        height: "calc(100vh - 280px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#fafafa",
-        borderRadius: "8px",
-        padding: "20px",
-      }}
-    >
-      <Result
-        icon={
-          <AppstoreOutlined style={{ fontSize: "64px", color: primaryColor }} />
-        }
-        title="Welcome to Slots Management"
-        subTitle="Please select a staff slot from above to view its Customer Slots"
-        extra={[
-          <Button
-            type="primary"
-            onClick={() => navigate("/table-settings")}
-            style={{ backgroundColor: primaryColor }}
-            icon={<PlusOutlined />}
-            disabled={user?.role !== "admin" && user?.role !== "cashier"}
-          >
-            Add New Slot
-          </Button>,
-        ]}
-      />
-    </div>
-  );
-
-  const tabsItems = data?.map(
-    (item) => ({
+  const generateTabItems = useMemo(() => {
+    const dynamicTabs = data?.map((item) => ({
       key: `${item._id}`,
       tab: "Table",
       label: (
         <Space>
           <HolderOutlined />
-          {item.name}
+          {item.name || 'Unnamed Table'}
         </Space>
       ),
-      children: [
-        item?.tables && item?.tables.length > 0 ? (
+      children: item?.tables && item?.tables.length > 0 ? (
+        <div
+          className="wrapper2"
+          style={{
+            display: "grid",
+            rowGap: 30,
+            height: "calc(100vh - 280px)",
+            overflowY: "auto",
+            alignItems: "start",
+          }}
+        >
+          {item.tables.map((T) => (
+            <div
+              key={T._id}
+              className="card"
+              style={{
+                display: "flex",
+                justifyContent: "flex-start",
+                marginTop: "0px",
+                flexWrap: "wrap",
+                width: "100%",
+                bottom: 0,
+              }}
+            >
+              <TableCard key={T._id} item={T} openModal={handleOpen} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyPage />
+      ),
+    })) || [];
+
+    return [
+      {
+        key: DEFAULT_TAB,
+        tab: "Overview",
+        label: (
+          <Space>
+            <AppstoreOutlined />
+            Overview
+          </Space>
+        ),
+        children: (
           <div
-            className="wrapper2"
             style={{
-              display: "grid",
-              rowGap: 30,
               height: "calc(100vh - 280px)",
-              overflowY: "auto",
-              alignItems: "start",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#fafafa",
+              borderRadius: "8px",
+              padding: "20px",
             }}
           >
-            {item.tables.length > 0 ? (
-              item.tables.map((T) => (
-                <div
-                  key={T._id}
-                  className="card"
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-start",
-                    marginTop: "0px",
-                    flexWrap: "wrap",
-                    width: "100%",
-                    bottom: 0,
-                  }}
+            <Result
+              icon={
+                <AppstoreOutlined style={{ fontSize: "64px", color: primaryColor }} />
+              }
+              title="Welcome to Slots Management"
+              subTitle="Please select a staff slot from above to view its Customer Slots"
+              extra={[
+                <Button
+                  type="primary"
+                  onClick={() => navigate("/table-settings")}
+                  style={{ backgroundColor: primaryColor }}
+                  icon={<PlusOutlined />}
+                  disabled={user?.role !== "admin" && user?.role !== "cashier"}
+                  key="add-slot"
                 >
-                  <TableCard key={T._id} item={T} openModal={handleOpen} />
-                </div>
-              ))
-            ) : (
-              <EmptyPage />
-            )}
+                  Add New Slot
+                </Button>,
+              ]}
+            />
           </div>
-        ) : (
-          <EmptyPage />
         ),
-      ],
-    })
-  );
+      },
+      ...dynamicTabs,
+    ];
+  }, [data, primaryColor, user?.role, navigate]);
+
+  useEffect(() => {
+    if (!isLoading && data) {
+      const tabKeys = generateTabItems.map(item => item.key);
+
+      if (!tabKeys.includes(activeTabId)) {
+        console.warn(`Active tab '${activeTabId}' not found in available tabs. Falling back to default.`);
+        setValidActiveTab(DEFAULT_TAB);
+      }
+    }
+  }, [data, isLoading, activeTabId, generateTabItems]);
+
+  if (successmodal) {
+    return <SuccesssModal />;
+  }
 
   if (loading) {
     return (
@@ -242,6 +263,10 @@ export default function TablePro() {
   if (isError) {
     return <EmptyPage />;
   }
+
+  const safeActiveTabId = generateTabItems.some(item => item.key === activeTabId)
+    ? activeTabId
+    : DEFAULT_TAB;
 
   const renderContent = () => {
     if (isLoading) {
@@ -275,22 +300,6 @@ export default function TablePro() {
       );
     }
 
-    // Always ensure the overview tab is included first
-    const allTabItems = [
-      {
-        key: "overview",
-        tab: "Overview",
-        label: (
-          <Space>
-            <AppstoreOutlined />
-            Overview
-          </Space>
-        ),
-        children: <DefaultView />,
-      },
-      ...(tabsItems || []),
-    ];
-
     return (
       <ConfigProvider
         theme={{
@@ -313,12 +322,10 @@ export default function TablePro() {
           }
           tabs={{
             type: "card",
-            items: allTabItems,
-            onChange: (key) => {
-              // Set new active tab when user selects a different tab
-              setActiveTabId(key);
-            },
-            activeKey: activeTabId,
+            items: generateTabItems,
+            onChange: handleTabChange,
+            activeKey: safeActiveTabId,
+            destroyInactiveTabPane: false,
           }}
           bordered
           boxShadow

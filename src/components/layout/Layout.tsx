@@ -62,7 +62,7 @@ function Layout() {
           {(role === "admin" || role === "cashier") && (
             <>
               <Breadcrumb.Item onClick={() => navigate("/store")} key="store">
-                <FolderAddOutlined /> <span>Store</span>
+                <FolderAddOutlined /> <span>Services</span>
               </Breadcrumb.Item>
               <Breadcrumb.Item onClick={() => navigate("/reports")} key="reports">
                 <PaperClipOutlined /> <span>Reports</span>

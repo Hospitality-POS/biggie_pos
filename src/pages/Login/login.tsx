@@ -32,7 +32,6 @@ const StaffLoginPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [tenant, setTenant] = useState<any>(null);
 
-
     useEffect(() => {
         const storedCode = localStorage.getItem("companyCode");
         const storedTenant = localStorage.getItem("tenant");
@@ -42,7 +41,7 @@ const StaffLoginPage = () => {
                 const parsedTenant = JSON.parse(storedTenant);
                 setCompanyCode(storedCode);
                 setCompanyName(parsedTenant?.name || "");
-                setTenant(parsedTenant); // Ensure tenant is set
+                setTenant(parsedTenant);
                 setStep("pin");
             } catch (error) {
                 console.error("Error parsing tenant:", error);
@@ -60,13 +59,11 @@ const StaffLoginPage = () => {
         try {
             const result = await verifyCompanyCode({ companyCode: code });
 
-            // Store in localStorage
             localStorage.setItem("tenant", JSON.stringify(result.data));
             localStorage.setItem("companyCode", code);
 
-            // Update all state values immediately
             setCompanyName(result.data.name || "");
-            setTenant(result.data); // Immediately update tenant to reflect logo change
+            setTenant(result.data);
             dispatch({ type: "VERIFY_COMPANY_CODE_SUCCESS", payload: result });
             setCompanyCode(code);
             setStep("pin");
@@ -88,14 +85,12 @@ const StaffLoginPage = () => {
     const handleBackspace = () => setPin((prev) => prev.slice(0, -1));
 
     const handleSwitchCompany = () => {
-        // Clear local storage
         localStorage.removeItem("companyCode");
         localStorage.removeItem("tenant");
 
-        // Reset state immediately
         setCompanyCode(null);
         setCompanyName("");
-        setTenant(null); // Immediately clear tenant to reset logo and colors
+        setTenant(null);
         setStep("companyCode");
         setPin("");
         setError(null);
@@ -116,6 +111,18 @@ const StaffLoginPage = () => {
         }
 
         setLoading(false);
+    };
+
+    // Helper function to get background gradient
+    const getBackgroundGradient = () => {
+        if (tenant?.color_scheme?.primary) {
+            const secondary = tenant.color_scheme.secondary || '#c26d2e';
+            return `linear-gradient(135deg, ${tenant.color_scheme.primary} 0%, ${secondary} 100%)`;
+        }
+        if (tenant?.primary_color) {
+            return `linear-gradient(135deg, ${tenant.color_scheme.primary} 0%, #c26d2e 100%)`;
+        }
+        return "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)";
     };
 
     const RetailBackground = () => (
@@ -185,9 +192,7 @@ const StaffLoginPage = () => {
                         xs={24}
                         md={12}
                         style={{
-                            background: tenant?.tenant_code === "RPOS-000004"
-                                ? "linear-gradient(135deg, #914E1E 0%, #c26d2e 100%)"
-                                : "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+                            background: getBackgroundGradient(),
                             transition: "background 0.3s ease",
                             padding: "2rem",
                             display: "flex",
@@ -215,19 +220,22 @@ const StaffLoginPage = () => {
                         >
                             <div
                                 style={{
-                                    marginBottom: tenant?.tenant_code === "RPOS-000004" ? "0.5rem" : "1.5rem",
+                                    marginBottom: "1.5rem",
                                     display: "inline-block",
                                 }}
                             >
-                                {tenant?.tenant_code === "RPOS-000004" ? (
+                                {tenant?.tenant_logo?.url ? (
                                     <img
-                                        src="/logo2.png"
-                                        alt="relia-logo"
+                                        src={tenant.tenant_logo.url}
+                                        alt="tenant-logo"
                                         width="70%"
                                         height="auto"
-                                        style={{ transition: "all 0.3s ease" }}
+                                        style={{
+                                            transition: "all 0.3s ease",
+                                            maxHeight: "120px",
+                                            objectFit: "contain"
+                                        }}
                                     />
-
                                 ) : (
                                     <img
                                         src="/relia.png"
@@ -340,7 +348,7 @@ const StaffLoginPage = () => {
                                     style={{ width: "100%" }}
                                 >
                                     <Input
-                                        autoFocus 
+                                        autoFocus
                                         onPressEnter={() => handleCompanyCodeSubmit(companyCode!)}
                                         prefix={<UsergroupAddOutlined />}
                                         placeholder="Company Code"
@@ -348,7 +356,7 @@ const StaffLoginPage = () => {
                                         size="large"
                                         value={companyCode || ""}
                                         autoComplete="off"
-                                        type={visible ? "text" : "password"} // Toggle between "text" and "password"
+                                        type={visible ? "text" : "password"}
                                         suffix={
                                             visible ? (
                                                 <EyeOutlined onClick={() => setVisible(false)} style={{ cursor: "pointer" }} />

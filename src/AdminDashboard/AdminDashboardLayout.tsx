@@ -17,7 +17,7 @@ import {
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector } from "src/store";
 import useProLayoutNav from "./defaultprops";
-import { fetchMyNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "@services/notifications"; // Import notification services
+import { fetchMyNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "@services/notifications";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -41,8 +41,8 @@ const AdminDashboard: React.FC = () => {
 
   // Default color value
   const defaultColor = "#6c1c2c";
-  // Use tenant primary color if it exists, otherwise use default
-  const primaryColor = tenant && tenant.primary_color ? tenant.primary_color : defaultColor;
+  // Use tenant color scheme primary or primary_color if available, otherwise use default
+  const primaryColor = tenant?.color_scheme?.primary || tenant?.primary_color || defaultColor;
 
   const handleLogin = () => {
     navigate("/login");
@@ -50,7 +50,6 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogout = () => {
     navigate("/login");
-
     queryClient.removeQueries(['userNotifications']);
   };
 
@@ -60,9 +59,9 @@ const AdminDashboard: React.FC = () => {
     queryFn: () => fetchMyNotifications({ pageSize: 10, current: 1 }),
     networkMode: "always",
     refetchOnWindowFocus: true,
-    enabled: !!user?.id, // Only fetch if user is logged in AND has an ID
-    cacheTime: 0, // This prevents cross-user cache contamination
-    staleTime: 0, // Always fetch fresh data for security
+    enabled: !!user?.id,
+    cacheTime: 0,
+    staleTime: 0,
     retry: 2,
     onError: (error) => {
       console.error("Failed to fetch notifications:", error);
@@ -85,7 +84,7 @@ const AdminDashboard: React.FC = () => {
     onError: (error) => {
       console.error("Failed to mark all notifications as read:", error);
     },
-    cacheTime: 0, 
+    cacheTime: 0,
     networkMode: "always"
   });
 
@@ -292,14 +291,13 @@ const AdminDashboard: React.FC = () => {
       const isLast = index === arr.length - 1;
       const url = `/${arr.slice(0, index + 1).join("/")}`;
 
-      // Check if the path is a dynamic segment (e.g., an ID)
       const isDynamicSegment =
-        /^[a-f0-9]{24}$/i.test(path) || /^[0-9]+$/.test(path); // Regex for MongoDB ObjectId or numeric IDs
+        /^[a-f0-9]{24}$/i.test(path) || /^[0-9]+$/.test(path);
       const label = isDynamicSegment
-        ? "Details" // Generic label for dynamic segments
+        ? "Details"
         : path
-          .replace(/-/g, " ") // Replace hyphens with spaces
-          .replace(/(^\w|\s\w)/g, (match) => match.toUpperCase());  // Map or format unknown paths
+          .replace(/-/g, " ")
+          .replace(/(^\w|\s\w)/g, (match) => match.toUpperCase());
 
       return {
         title: isLast ? (
@@ -313,13 +311,17 @@ const AdminDashboard: React.FC = () => {
   return (
     <ProLayout
       logo={
-        tenant?.tenant_code === "RPOS-000004" ? (
+        tenant?.tenant_logo?.url ? (
           <Image
-            src="/android-chrome-512x512.png"
+            src={tenant.tenant_logo.url}
             height={60}
             preview={true}
-            alt="fss-logo"
-            style={{ padding: 5 }}
+            alt="tenant-logo"
+            style={{
+              padding: 5,
+              objectFit: "contain",
+              maxWidth: "120px"
+            }}
           />
         ) : (
           <Image
@@ -350,7 +352,7 @@ const AdminDashboard: React.FC = () => {
               <Popover
                 content={notificationsContent}
                 placement="bottomRight"
-                trigger={["hover", "click"]} // Added click for better mobile UX
+                trigger={["hover", "click"]}
                 overlayStyle={{
                   width: 350,
                   padding: 0
@@ -368,7 +370,7 @@ const AdminDashboard: React.FC = () => {
               >
                 <Badge
                   count={unreadNotificationsCount}
-                  showZero={false} // Only show when there are notifications
+                  showZero={false}
                   offset={[-8, 8]}
                   overflowCount={99}
                   size="small"
@@ -401,7 +403,7 @@ const AdminDashboard: React.FC = () => {
                   />
                 </Badge>
               </Popover>
-              {user ? ( // Only show dropdown menu when user is logged in
+              {user ? (
                 <>
                   <Dropdown
                     autoFocus
@@ -525,6 +527,7 @@ const AdminDashboard: React.FC = () => {
                           key: "settings",
                           icon: <SettingOutlined style={{ fontSize: 16, color: '#13c2c2' }} />,
                           label: <span style={{ fontWeight: 500 }}>Settings</span>,
+                          onClick: () => navigate("/admin/settings"),
                           style: {
                             padding: '12px 16px',
                             margin: '2px 4px',
@@ -612,7 +615,7 @@ const AdminDashboard: React.FC = () => {
                         <div style={{
                           textAlign: "left",
                           lineHeight: 1.2,
-                          minWidth: 0, // Prevents text overflow issues
+                          minWidth: 0,
                           flex: 1
                         }}>
                           <Text
@@ -662,7 +665,7 @@ const AdminDashboard: React.FC = () => {
                     </Button>
                   </Dropdown>
                 </>
-               ): (
+              ) : (
                 <Button icon={<PoweroffOutlined />} onClick={handleLogin}>
                   Login
                 </Button>
@@ -762,73 +765,4 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-
-<style jsx>{`
-  .user-dropdown-trigger:hover .dropdown-arrow {
-    transform: rotate(180deg);
-  }
-  
-  .user-dropdown-overlay .ant-dropdown-menu {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-radius: 12px;
-    padding: 8px 0;
-    border: none;
-  }
-  
-  .user-dropdown-overlay .ant-dropdown-menu-item {
-    padding: 12px 20px;
-    transition: all 0.2s ease;
-  }
-  
-  .user-dropdown-overlay .ant-dropdown-menu-item:hover {
-    background: rgba(24, 144, 255, 0.08);
-  }
-  
-  .user-dropdown-overlay .ant-dropdown-menu-item-divider {
-    margin: 8px 20px;
-    background: rgba(0, 0, 0, 0.08);
-  }
-
-  .notification-button:hover {
-    background: rgba(255, 255, 255, 0.15) !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
-  }
-
-  .notification-button .anticon {
-    transition: transform 0.3s ease;
-  }
-
-  .notification-button:hover .anticon {
-    transform: scale(1.1);
-  }
-
-  .notification-popover-overlay .ant-popover-inner {
-    border-radius: 12px !important;
-    overflow: hidden;
-  }
-
-  .notification-popover-overlay .ant-popover-arrow {
-    display: none; /* Hide default arrow for cleaner look */
-  }
-
-  /* Optional: Add a subtle pulse animation for unread notifications */
-  @keyframes notification-pulse {
-    0% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(255, 77, 79, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0); }
-  }
-
-  .notification-button[data-has-notifications="true"] {
-    animation: notification-pulse 2s infinite;
-  }
-
-  /* Enhanced badge styling */
-  .ant-badge-count {
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  }
-`}</style>
 export default AdminDashboard;

@@ -25,16 +25,41 @@ const colors = {
   darkText: "#000000",
 };
 
+// Currency formatting utility
+const formatCurrency = (amount, options = {}) => {
+  const {
+    currency = 'KES',
+    showSymbol = true,
+    decimals = 2,
+    locale = 'en-KE'
+  } = options;
+
+  const numericAmount = Number(amount) || 0;
+
+  if (showSymbol) {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(numericAmount);
+  } else {
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(numericAmount);
+  }
+};
+
 // Inject CSS for thermal printer compatibility
 const injectThermalPrintCSS = () => {
   const styleId = "thermal-print-styles-item-sales";
 
-  // Only add if it doesn't already exist
   if (!document.getElementById(styleId)) {
     const styleElement = document.createElement("style");
     styleElement.id = styleId;
     styleElement.innerHTML = `
-         @media print {
+      @media print {
         .receipt {
           width: 80mm;
           font-family: 'Courier New', monospace;
@@ -42,20 +67,17 @@ const injectThermalPrintCSS = () => {
           font-weight: bold !important;
         }
         
-        /* Hide elements not needed for printing */
         .ant-modal-header,
         .ant-modal-footer,
         .ant-modal-close {
           display: none !important;
         }
         
-        /* Ensure text is dark and bold for thermal printing */
         .MuiTypography-root {
           color: #000000 !important;
           font-weight: bold !important;
         }
         
-        /* Table styles for thermal printing */
         .MuiTableCell-root {
           border: 1px solid #000 !important;
           padding: 4px !important;
@@ -71,25 +93,21 @@ const injectThermalPrintCSS = () => {
           background-color: #f0f0f0 !important;
         }
         
-        /* Fix for nested tables */
         .nested-table .MuiTableCell-root {
           font-size: 10px !important;
           padding: 2px !important;
         }
         
-        /* Prevent text truncation */
         * {
           overflow: visible !important;
           white-space: normal !important;
         }
         
-        /* Set table to full width */
         .MuiTable-root {
           width: 100% !important;
           table-layout: fixed !important;
         }
         
-        /* Ensure receipt fits on paper */
         @page {
           size: 80mm auto;
           margin: 0mm;
@@ -108,17 +126,14 @@ const PrintableContent = forwardRef(
       endDate,
       BRAND_NAME1,
       overallTotal,
-      overallupplierTotal,
+      overallSupplierTotal,
       totalCommissionAmount,
       COOP_NAME,
     },
     ref
   ) => (
     <div className="receipt" id="receipt" ref={ref}>
-      <div
-        className="logo-print"
-        style={{ display: "flex", flexDirection: "column" }}
-      >
+      <div className="logo-print" style={{ display: "flex", flexDirection: "column" }}>
         <Typography.Title
           level={3}
           style={{
@@ -146,7 +161,8 @@ const PrintableContent = forwardRef(
       </div>
 
       <p style={{ textAlign: "center", fontFamily: "monospace" }}>
-        From: {moment(startDate).format("MMM-DD-YYYY H:mm A")} <br /> to <br />
+        From: {moment(startDate).format("MMM-DD-YYYY H:mm A")} <br />
+        to <br />
         {moment(endDate).format("MMM-DD-YYYY H:mm A")}
       </p>
 
@@ -175,7 +191,7 @@ const PrintableContent = forwardRef(
                   borderColor: colors.tableBorder
                 }}
               >
-                Amount(.ksh)
+                Amount
               </TableCell>
             </TableRow>
           </TableHead>
@@ -200,7 +216,7 @@ const PrintableContent = forwardRef(
                       borderColor: colors.tableBorder
                     }}
                   >
-                    {getTotalAmount(item.orderItems).toFixed(2)}
+                    {formatCurrency(getTotalAmount(item.orderItems))}
                   </TableCell>
                 </TableRow>
                 {item.orderItems?.length > 0 && (
@@ -248,7 +264,7 @@ const PrintableContent = forwardRef(
                                   borderColor: colors.tableBorder
                                 }}
                               >
-                                PRICE(.Ksh)
+                                PRICE
                               </TableCell>
                             </TableRow>
                           </TableHead>
@@ -262,7 +278,7 @@ const PrintableContent = forwardRef(
                                     borderColor: colors.tableBorder
                                   }}
                                 >
-                                  {orderItem.quantity.toFixed(1)}
+                                  {Number(orderItem.quantity || 0).toFixed(1)}
                                 </TableCell>
                                 <TableCell
                                   sx={{
@@ -282,7 +298,9 @@ const PrintableContent = forwardRef(
                                     borderColor: colors.tableBorder
                                   }}
                                 >
-                                  {(orderItem.supplier_price * orderItem.quantity) || 0}
+                                  {formatCurrency(
+                                    (orderItem.supplier_price || 0) * (orderItem.quantity || 0)
+                                  )}
                                 </TableCell>
                                 <TableCell
                                   sx={{
@@ -292,7 +310,7 @@ const PrintableContent = forwardRef(
                                     borderColor: colors.tableBorder
                                   }}
                                 >
-                                  {orderItem.amount.toFixed(2)}
+                                  {formatCurrency(orderItem.amount || 0)}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -310,13 +328,13 @@ const PrintableContent = forwardRef(
 
       <div style={{ textAlign: "center", marginTop: 12, marginBottom: 12 }}>
         <span style={{ display: "block", fontWeight: "bold", fontSize: "12px" }}>
-          Overall Total: Ksh. {overallTotal?.toLocaleString() || 0}
+          Overall Total: {formatCurrency(overallTotal)}
         </span>
         <span style={{ display: "block", fontWeight: "bold", fontSize: "12px" }}>
-          Overall Stock Total: Ksh. {overallupplierTotal?.toLocaleString() || 0}
+          Overall Stock Total: {formatCurrency(overallSupplierTotal)}
         </span>
         <span style={{ display: "block", fontWeight: "bold", fontSize: "12px" }}>
-          Overall Commission: Ksh. {totalCommissionAmount?.toLocaleString() || 0}
+          Overall Commission: {formatCurrency(totalCommissionAmount)}
         </span>
       </div>
 
@@ -349,30 +367,36 @@ const PrintableContent = forwardRef(
 );
 
 function ItemSalesModal({ data, startDate, endDate, loading }) {
-  // Inject the CSS for thermal printing when component mounts
+  const componentRef = useRef(null);
+  const { BRAND_NAME1 } = useSystemDetails();
+
+  // Inject CSS for thermal printing when component mounts
   useEffect(() => {
     injectThermalPrintCSS();
   }, []);
 
-  const componentRef = useRef(null);
-  const { BRAND_NAME1 } = useSystemDetails();
-
   const { overallTotal, totalCommissionAmount } = useMemo(() => {
     let total = 0;
     let commission = 0;
+
     data?.forEach((item) => {
       total += getTotalAmount(item.orderItems);
-      commission += item.commissionAmt || 0;
+      commission += Number(item.commissionAmt || 0);
     });
-    return { overallTotal: total, totalCommissionAmount: commission };
+
+    return {
+      overallTotal: total,
+      totalCommissionAmount: commission
+    };
   }, [data]);
 
-  const overallupplierTotal = useMemo(() =>
+  const overallSupplierTotal = useMemo(() =>
     data?.reduce(
       (accumulator, item) => accumulator + getSupplierTotalAmount(item.orderItems),
       0
     ) || 0,
-    [data]);
+    [data]
+  );
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
@@ -389,17 +413,26 @@ function ItemSalesModal({ data, startDate, endDate, loading }) {
         okButtonProps: {
           icon: <PrinterFilled />,
           disabled: loading,
-          style: { backgroundColor: colors.primary, borderColor: colors.primary }
+          style: {
+            backgroundColor: colors.primary,
+            borderColor: colors.primary
+          }
         },
         width: 1000,
-        bodyStyle: { maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }
+        bodyStyle: {
+          maxHeight: 'calc(100vh - 150px)',
+          overflowY: 'auto'
+        }
       }}
       trigger={
         <Button
           type="primary"
           icon={<PrinterOutlined />}
           htmlType="submit"
-          style={{ backgroundColor: colors.primary, borderColor: colors.primary }}
+          style={{
+            backgroundColor: colors.primary,
+            borderColor: colors.primary
+          }}
         >
           Print Item Sales Report
         </Button>
@@ -421,7 +454,7 @@ function ItemSalesModal({ data, startDate, endDate, loading }) {
           endDate={endDate}
           BRAND_NAME1={BRAND_NAME1}
           overallTotal={overallTotal}
-          overallupplierTotal={overallupplierTotal}
+          overallSupplierTotal={overallSupplierTotal}
           totalCommissionAmount={totalCommissionAmount}
           COOP_NAME={COOP_NAME}
         />
@@ -430,20 +463,20 @@ function ItemSalesModal({ data, startDate, endDate, loading }) {
   );
 }
 
+// Helper functions
 function getTotalAmount(orderItems) {
-  return orderItems?.reduce((total, item) => total + (item.total_amount || 0), 0) || 0;
+  return orderItems?.reduce(
+    (total, item) => total + Number(item.total_amount || 0),
+    0
+  ) || 0;
 }
 
 function getSupplierTotalAmount(orderItems) {
-  let total = 0;
-
-  orderItems?.forEach((item) => {
-    const supplierPrice = Number(item.supplier_price) || 0;
-    const quantity = Number(item.quantity) || 0;
-    total += supplierPrice * quantity;
-  });
-
-  return total;
+  return orderItems?.reduce((total, item) => {
+    const supplierPrice = Number(item.supplier_price || 0);
+    const quantity = Number(item.quantity || 0);
+    return total + (supplierPrice * quantity);
+  }, 0) || 0;
 }
 
 export default ItemSalesModal;

@@ -98,8 +98,8 @@ const AdminCustomersTable = () => {
     setClientName(name);
 
     // Set primary color based on tenant settings or use default
-    if (tenant && tenant.primary_color) {
-      setPrimaryColor(tenant.primary_color);
+    if (tenant && tenant.color_scheme.primary) {
+      setPrimaryColor(tenant.color_scheme.primary);
     }
   }, []);
 

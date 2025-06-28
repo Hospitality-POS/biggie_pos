@@ -16,6 +16,7 @@ import {
   InputAdornment,
   Skeleton,
   Box,
+  Chip,
 } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchTableById } from "../../features/Table/TableActions";
 import CartLoader from "../../components/spinner/cartLoader";
 import { fetchMainCategories } from "@services/categories";
+import { ShoppingCart, Build } from "@mui/icons-material";
 
 function a11yProps(index) {
   return {
@@ -40,7 +42,6 @@ function a11yProps(index) {
   };
 }
 
-// Skeleton component for main category tabs
 const SkeletonTabs = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -60,7 +61,6 @@ const SkeletonTabs = () => {
   );
 };
 
-// Skeleton component for category cards
 const SkeletonCategoryCards = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -88,7 +88,6 @@ const SkeletonCategoryCards = () => {
   );
 };
 
-// Skeleton for vertical tabs
 const SkeletonVerticalTabs = () => (
   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: 120, mr: 2 }}>
     {[...Array(4)].map((_, index) => (
@@ -105,11 +104,10 @@ const RestaurantPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
   const { cartDetails } = useAppSelector((state) => state.cart);
   const { tableData } = useAppSelector((state) => state.Tables);
-  const { products, loading: productsLoading } = useAppSelector((state) => state.product);
+  const { products, services, loading: productsLoading } = useAppSelector((state) => state.product);
   const dispatch = useAppDispatch();
   const { id } = useParams();
 
-  // State
   const [selectedCard, setSelectedCard] = useState(null);
   const [showCategories, setShowCategories] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
@@ -120,35 +118,45 @@ const RestaurantPage: React.FC = () => {
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [filteredServices, setFilteredServices] = useState([]);
+  const [activeItemType, setActiveItemType] = useState<'products' | 'services'>('services');
 
-  // Get tenant primary color on component mount
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.primary_color) {
-      setPrimaryColor(tenant.primary_color);
+    if (tenant && tenant.color_scheme.primary) {
+      setPrimaryColor(tenant.color_scheme.primary);
     }
   }, []);
 
-  // Filter products when search term or products change
   useEffect(() => {
-    if (!products) {
-      setFilteredProducts([]);
-      return;
-    }
-
     if (!searchTerm.trim()) {
-      setFilteredProducts(products);
+      setFilteredProducts(products || []);
+      setFilteredServices(services || []);
       return;
     }
 
-    const filtered = products.filter(product =>
+    const productFiltered = (products || []).filter(product =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    setFilteredProducts(filtered);
-  }, [searchTerm, products]);
+    const serviceFiltered = (services || []).filter(service =>
+      service.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-  // Fetch main categories
+    setFilteredProducts(productFiltered);
+    setFilteredServices(serviceFiltered);
+  }, [searchTerm, products, services]);
+
+  useEffect(() => {
+    if (services && products) {
+      if (services.length === 0 && products.length > 0) {
+        setActiveItemType('products');
+      } else if (services.length > 0) {
+        setActiveItemType('services');
+      }
+    }
+  }, [services, products]);
+
   const { data: Maincategories, isLoading: mainCategoriesLoading } = useQuery({
     queryKey: ["Maincategories"],
     queryFn: fetchMainCategories,
@@ -165,7 +173,6 @@ const RestaurantPage: React.FC = () => {
     }
   });
 
-  // Set initial main category when data is loaded
   useEffect(() => {
     if (Maincategories?.length > 0) {
       const firstCategoryId = Maincategories[0]._id;
@@ -173,7 +180,6 @@ const RestaurantPage: React.FC = () => {
     }
   }, [Maincategories]);
 
-  // Event handlers
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
@@ -199,6 +205,8 @@ const RestaurantPage: React.FC = () => {
       setCategories(subCategory.categories || []);
     }
     setSearchTerm("");
+    setShowCategories(true);
+    setCategoryChosen(false);
   };
 
   const handleSearchChange = (event) => {
@@ -213,6 +221,7 @@ const RestaurantPage: React.FC = () => {
   const handleBack = () => {
     setShowCategories(true);
     setSearchTerm("");
+    setActiveItemType('services');
   };
 
   const handleSelectCard = (card) => {
@@ -221,19 +230,74 @@ const RestaurantPage: React.FC = () => {
     setCategoryChosen(true);
     setShowCategories(false);
     setSearchTerm("");
+    setActiveItemType('services');
   };
 
-  // Derived state
-  const areProductsAvailable = filteredProducts && filteredProducts.length > 0;
-  const sortedProducts = filteredProducts
+  const getDisplayItems = () => {
+    switch (activeItemType) {
+      case 'products':
+        return filteredProducts;
+      case 'services':
+        return filteredServices;
+      default:
+        return filteredServices;
+    }
+  };
+
+  const displayItems = getDisplayItems();
+  const areItemsAvailable = displayItems && displayItems.length > 0;
+  const sortedItems = displayItems
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const isLoading = mainCategoriesLoading || productsLoading;
 
+  const renderItemTypeFilters = () => {
+    const hasProducts = filteredProducts.length > 0;
+    const hasServices = filteredServices.length > 0;
+
+    if (!hasProducts && !hasServices) return null;
+
+    return (
+      <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+        {hasServices && (
+          <Chip
+            icon={<Build />}
+            label={`Services (${filteredServices.length})`}
+            variant={activeItemType === 'services' ? 'filled' : 'outlined'}
+            onClick={() => setActiveItemType('services')}
+            sx={{
+              backgroundColor: activeItemType === 'services' ? primaryColor : 'transparent',
+              color: activeItemType === 'services' ? 'white' : primaryColor,
+              borderColor: primaryColor,
+              '&:hover': {
+                backgroundColor: activeItemType === 'services' ? primaryColor : 'rgba(108, 28, 44, 0.1)',
+              }
+            }}
+          />
+        )}
+        {hasProducts && (
+          <Chip
+            icon={<ShoppingCart />}
+            label={`Products (${filteredProducts.length})`}
+            variant={activeItemType === 'products' ? 'filled' : 'outlined'}
+            onClick={() => setActiveItemType('products')}
+            sx={{
+              backgroundColor: activeItemType === 'products' ? primaryColor : 'transparent',
+              color: activeItemType === 'products' ? 'white' : primaryColor,
+              borderColor: primaryColor,
+              '&:hover': {
+                backgroundColor: activeItemType === 'products' ? primaryColor : 'rgba(108, 28, 44, 0.1)',
+              }
+            }}
+          />
+        )}
+      </Box>
+    );
+  };
+
   return (
     <Grid container spacing={2}>
-      {/* Left Column */}
       <Grid item xs={12} md={8}>
         <Paper
           elevation={3}
@@ -371,7 +435,6 @@ const RestaurantPage: React.FC = () => {
                         marginBottom: "16px",
                       }}
                     >
-                      {/* Search Bar */}
                       <TextField
                         placeholder="Search Items..."
                         variant="outlined"
@@ -414,6 +477,9 @@ const RestaurantPage: React.FC = () => {
                         <BackspaceIcon fontSize="large" />
                       </IconButton>
                     </div>
+
+                    {renderItemTypeFilters()}
+
                     {productsLoading ? (
                       <section
                         className="cards"
@@ -446,11 +512,11 @@ const RestaurantPage: React.FC = () => {
                           overflowY: isMobile ? "visible" : "auto",
                         }}
                       >
-                        {areProductsAvailable ? (
-                          sortedProducts.map((menu) => (
+                        {areItemsAvailable ? (
+                          sortedItems.map((item) => (
                             <ProductCard
-                              key={menu._id}
-                              menu={menu}
+                              key={item._id}
+                              menu={item}
                               handleCart={handleCartOpen}
                               style={{
                                 flex: isMobile
@@ -479,7 +545,7 @@ const RestaurantPage: React.FC = () => {
                               sx={{ width: "100%", bgcolor: "#DEAC80" }}
                             >
                               <AlertTitle>No Results</AlertTitle>
-                              No products match your search "{searchTerm}"
+                              No items match your search "{searchTerm}"
                             </Alert>
                           </div>
                         ) : categoryChosen ? (
@@ -540,7 +606,6 @@ const RestaurantPage: React.FC = () => {
           )}
         </Paper>
       </Grid>
-      {/* Right Column */}
       <Grid item xs={12} md={4}>
         <CartDrawer />
       </Grid>

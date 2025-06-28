@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import { Modal, Table, Typography, Button, Spin } from "antd";
 import { CloseOutlined, PrinterOutlined } from "@ant-design/icons";
 import { useAppSelector } from "../../store";
@@ -8,6 +8,31 @@ import { COOP_NAME } from "@utils/config";
 import { useReactToPrint } from "react-to-print";
 import NubaLoader from "@components/spinner/NubaLoader";
 
+// Currency formatting utility
+const formatCurrency = (amount, options = {}) => {
+  const {
+    currency = 'KES',
+    showSymbol = true,
+    decimals = 2,
+    locale = 'en-KE'
+  } = options;
+
+  const numericAmount = Number(amount) || 0;
+
+  if (showSymbol) {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(numericAmount);
+  } else {
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(numericAmount);
+  }
+};
 
 // Embedded CSS for thermal printer compatibility
 const styles = {
@@ -65,9 +90,8 @@ const styles = {
 
 // Inject CSS for thermal printer compatibility
 const injectThermalPrintCSS = () => {
-  const styleId = "thermal-print-styles";
+  const styleId = "thermal-print-styles-purchase-report";
 
-  // Only add if it doesn't already exist
   if (!document.getElementById(styleId)) {
     const styleElement = document.createElement("style");
     styleElement.id = styleId;
@@ -80,20 +104,17 @@ const injectThermalPrintCSS = () => {
           font-weight: bold !important;
         }
         
-        /* Hide elements not needed for printing */
         .ant-modal-header,
         .ant-modal-footer,
         .ant-modal-close {
           display: none !important;
         }
         
-        /* Ensure text is dark and bold for thermal printing */
         .ant-typography {
           color: #000000 !important;
           font-weight: bold !important;
         }
         
-        /* Table styles for thermal printing */
         .purchase-report-table {
           width: 100% !important;
           border-collapse: collapse !important;
@@ -112,7 +133,6 @@ const injectThermalPrintCSS = () => {
           background-color: #f0f0f0 !important;
         }
         
-        /* Summary rows */
         .ant-table-summary {
           border-top: 2px solid #000 !important;
         }
@@ -123,7 +143,6 @@ const injectThermalPrintCSS = () => {
           color: #000000 !important;
         }
         
-        /* Fix for ant design modal printing */
         .ant-modal-wrap,
         .ant-modal-mask,
         .ant-modal {
@@ -134,13 +153,16 @@ const injectThermalPrintCSS = () => {
           box-shadow: none !important;
         }
         
-        /* Ensure padding is appropriate for thermal paper */
         .ant-modal-body {
           padding: 0 !important;
         }
+        
+        @page {
+          size: 80mm auto;
+          margin: 0mm;
+        }
       }
 
-      /* Regular view styles */
       .purchase-report-table .ant-table-cell {
         color: #000000;
         font-weight: bold;
@@ -167,17 +189,17 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
   startDate,
   endDate,
 }) => {
-  // Inject the CSS for thermal printing when component mounts
-  React.useEffect(() => {
-    injectThermalPrintCSS();
-  }, []);
-
   const { BRAND_NAME1 } = useSystemDetails();
   const componentRef = useRef<HTMLDivElement>(null);
 
   const { purchaseReport: data, loading } = useAppSelector(
     (state) => state.Report
   );
+
+  // Inject CSS for thermal printing when component mounts
+  useEffect(() => {
+    injectThermalPrintCSS();
+  }, []);
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
@@ -197,35 +219,35 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
       key: "name",
     },
     {
-      title: "AMOUNT (Ksh.)",
+      title: "AMOUNT",
       dataIndex: "amount",
       key: "amount",
       align: "right" as const,
-      render: (value: number) => value.toLocaleString(),
+      render: (value: number) => formatCurrency(value),
     },
   ];
 
   // Prepare data for the table
-  const tableData = data?.payment_methods.map((item: any, index: number) => ({
+  const tableData = data?.payment_methods?.map((item: any, index: number) => ({
     key: index,
     index: index + 1,
-    name: item.name,
-    amount: item.amount,
-  }));
+    name: item.name || 'N/A',
+    amount: Number(item.amount || 0),
+  })) || [];
 
-  // For summary information
+  // Summary information with proper currency formatting
   const summaryItems = [
     {
       label: "Overall Total",
-      value: data?.totalCost || 0,
+      value: Number(data?.totalCost || 0),
     },
     {
       label: "Overall Discount",
-      value: data?.totalDiscountAmount || 0,
+      value: Number(data?.totalDiscountAmount || 0),
     },
     {
       label: "Overall Inclusive Discount",
-      value: data?.totalInclusiveDiscount || 0,
+      value: Number(data?.totalInclusiveDiscount || 0),
     },
   ];
 
@@ -233,9 +255,9 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
     return (
       <Spin
         size="large"
-        fullscreen
+        spinning={true}
         indicator={<NubaLoader />}
-        tip="Generating Purchase report Please wait ..."
+        tip="Generating Purchase report. Please wait..."
       />
     );
   }
@@ -265,7 +287,6 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
         </Button>,
       ]}
     >
-      {/* Print Content */}
       <div
         ref={componentRef}
         style={styles.reportContainer}
@@ -282,18 +303,17 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
             level={4}
             style={styles.subtitleText}
           >
-            SALES REPORT
+            PURCHASE REPORT
           </Typography.Title>
 
           <Typography.Text style={styles.dateText}>
-            From: {moment(startDate).format("MMM-DD-YYYY H:MM A")}
+            From: {moment(startDate).format("MMM-DD-YYYY h:mm A")}
           </Typography.Text>
           <Typography.Text style={styles.dateText}>
-            To: {moment(endDate).format("MMM-DD-YYYY H:MM A")}
+            To: {moment(endDate).format("MMM-DD-YYYY h:mm A")}
           </Typography.Text>
         </div>
 
-        {/* Table optimized for thermal printing */}
         <Table
           columns={columns}
           dataSource={tableData}
@@ -310,7 +330,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
                     colSpan={3}
                     style={styles.summaryCell}
                   >
-                    {item.label}: {item.value.toLocaleString()}
+                    {item.label}: {formatCurrency(item.value)}
                   </Table.Summary.Cell>
                 </Table.Summary.Row>
               ))}
@@ -324,7 +344,7 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({
             Powered by: {COOP_NAME}
           </Typography.Text>
           <Typography.Text style={styles.generatedText}>
-            Generated on {moment().format("MMM/DD/YYYY H:MM A")}
+            Generated on {moment().format("MMM/DD/YYYY h:mm A")}
           </Typography.Text>
         </div>
       </div>
