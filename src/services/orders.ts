@@ -5,34 +5,24 @@ import axiosInstance from "./request";
 
 export const getAllOrders = async (data: ParamsType) => {
   try {
-    console.log("Fetching orders with params:", data); // Debug log
-
     const response = await axiosInstance.get(`${BASE_URL}/orders`, {
       params: {
         order_no: data?.order_no || data?.keyword,
         table_name: data?.name,
-        // Include date filter parameters if they exist
         start_date: data?.start_date,
         end_date: data?.end_date,
-        // Include any other parameters that might be passed
         shop_id: data?.shop_id,
       },
     });
 
-    console.log("Orders API response:", response.data.length, "results"); // Debug log
-
-    // Ensure we always return an array, even if the response is null/undefined
     return Array.isArray(response.data) ? response.data : [];
   } catch (error) {
-    console.error("Error fetching orders:", error);
-    // Always return empty array on error
     return [];
   }
 };
 
 export const getDashboardAnalysis = async (startDate: string, endDate: string) => {
   try {
-    // Build query parameters for the date range
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
@@ -41,16 +31,14 @@ export const getDashboardAnalysis = async (startDate: string, endDate: string) =
     const url = `${BASE_URL}/orders/dashboard/summary${queryString ? `?${queryString}` : ''}`;
 
     const response = await axiosInstance.get(url);
-    console.log('Dashboard response with date range:', response);
     return response.data;
   } catch (error) {
-    console.log('Dashboard analysis error:', error);
-    throw error; // Re-throw the error so it can be handled by the query's onError
+    throw error;
   }
 };
+
 export const getAdminDashboardAnalysis = async (startDate: string, endDate: string) => {
   try {
-    // Build query parameters for the date range
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
@@ -59,11 +47,9 @@ export const getAdminDashboardAnalysis = async (startDate: string, endDate: stri
     const url = `${BASE_URL}/orders/admin-dashboard/summary${queryString ? `?${queryString}` : ''}`;
 
     const response = await axiosInstance.get(url);
-    console.log('Admin dashboard response:', response);
     return response.data;
   } catch (error) {
-    console.log('Admin dashboard error:', error);
-    throw error; // Re-throw the error so it can be handled by the query's onError
+    throw error;
   }
 };
 
@@ -77,10 +63,9 @@ export const getTodayOrdersCount = async (data: ParamsType) => {
     });
     return response.data;
   } catch (error) {
-    console.log(error);
+    throw error;
   }
 };
-
 
 export const deleteOrderById = async (id: string) => {
   try {
@@ -92,5 +77,78 @@ export const deleteOrderById = async (id: string) => {
       message.error("Error deleting order");
     }
     return false;
+  }
+};
+
+interface BestSellersParams {
+  startDate?: string;
+  endDate?: string;
+  shop_id?: string;
+  category_id?: string;
+  product_type?: 'Product' | 'Product_Inventory';
+  limit?: number;
+}
+
+export const getBestSellers = async (params: BestSellersParams = {}) => {
+  try {
+    const response = await axiosInstance.get(`${BASE_URL}/orders/product/best-sellers`, {
+      params: {
+        startDate: params.startDate,
+        endDate: params.endDate,
+        shop_id: params.shop_id,
+        category_id: params.category_id,
+        product_type: params.product_type,
+        limit: params.limit || 10,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+interface BestSellersByCategoryParams {
+  startDate?: string;
+  endDate?: string;
+  shop_id?: string;
+  limit?: number;
+}
+
+export const getBestSellersByCategory = async (params: BestSellersByCategoryParams = {}) => {
+  try {
+    const response = await axiosInstance.get(`${BASE_URL}/orders/best-sellers/by-category`, {
+      params: {
+        startDate: params.startDate,
+        endDate: params.endDate,
+        shop_id: params.shop_id,
+        limit: params.limit || 5,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+interface SalesChartParams {
+  startDate?: string;
+  endDate?: string;
+  shop_id?: string;
+  period?: 'day' | 'week' | 'month' | 'year';
+}
+
+export const getSalesChartData = async (params: SalesChartParams = {}) => {
+  try {
+    const response = await axiosInstance.get(`${BASE_URL}/orders/dashboard/sales-chart`, {
+      params: {
+        startDate: params.startDate,
+        endDate: params.endDate,
+        shop_id: params.shop_id,
+        period: params.period || 'day',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
   }
 };
