@@ -11,6 +11,8 @@ import { ThemeProvider } from "@emotion/react";
 import { CssBaseline } from "@mui/material";
 import { ConfigProvider } from "antd";
 import enUS from "antd/locale/en_US";
+import DraggableTawkWidget from "./components/tawk/DraggableTawkWidget.tsx";
+import ErrorBoundary from "./components/tawk/ErrorBoundary.tsx";
 
 // Get tenant primary color from localStorage or use default
 const getThemeColor = () => {
@@ -61,6 +63,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             }}
           >
             <App />
+            <ErrorBoundary>
+              <DraggableTawkWidget />
+            </ErrorBoundary>
           </ConfigProvider>
         </QueryClientProvider>
       </Provider>

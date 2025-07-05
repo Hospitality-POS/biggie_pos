@@ -15,12 +15,20 @@ import { Space } from "antd/lib";
 import { Button, Typography, notification } from "antd";
 import { DeleteOutlined, LoadingOutlined } from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
+
 interface cartItemCardProps {
   cartItem: any;
 }
 
-function formatQuantity(quantity: number) {
-  return quantity?.toString();
+function formatQuantity(quantity: number | undefined | null): string {
+  return quantity?.toString() || "0";
+}
+
+function formatPrice(price: number | undefined | null): string {
+  if (price === undefined || price === null || isNaN(price)) {
+    return "0";
+  }
+  return price.toLocaleString();
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -40,32 +48,47 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
   const { user } = useAppSelector((state) => state.auth);
 
+  // Safe price formatting with null checks
   const formattedPrice = useMemo(() => {
-    return `${cartItem.price.toLocaleString()}`;
-  }, [cartItem.price]);
+    return formatPrice(cartItem?.price);
+  }, [cartItem?.price]);
 
-  const formattedQuantity = useMemo(
-    () => formatQuantity(cartItem.quantity),
-    [cartItem.quantity]
-  );
+  // Safe quantity formatting with null checks
+  const formattedQuantity = useMemo(() => {
+    return formatQuantity(cartItem?.quantity);
+  }, [cartItem?.quantity]);
+
   const { invalidate } = useCartItemsData();
 
-  // Calculate the discounted price for this item
+  // Calculate the discounted price for this item with null safety
   const discountedPrice = useMemo(() => {
-    if (!cartDetails?.discount) return null;
+    // Check if cartItem.price exists and is valid
+    if (!cartItem?.price || !cartDetails?.discount) return null;
 
     let discountAmount = 0;
+    const itemPrice = cartItem.price || 0;
+
     if (cartDetails?.discount_type === "percentage") {
-      discountAmount = cartItem.price * (cartDetails.discount / 100);
+      discountAmount = itemPrice * ((cartDetails.discount || 0) / 100);
     } else {
       // For fixed amount discount, distribute proportionally based on item price
-      const totalCartAmount = cartDetails.items.reduce((acc, item) => acc + item.price, 0);
-      discountAmount = (cartItem.price / totalCartAmount) * cartDetails.discount;
+      const totalCartAmount = (cartDetails?.items || []).reduce((acc, item) => {
+        return acc + (item?.price || 0);
+      }, 0);
+
+      if (totalCartAmount > 0) {
+        discountAmount = (itemPrice / totalCartAmount) * (cartDetails.discount || 0);
+      }
     }
 
-    const newPrice = cartItem.price - discountAmount;
-    return newPrice > 0 ? newPrice.toLocaleString() : "0";
-  }, [cartItem.price, cartDetails?.discount, cartDetails?.discount_type, cartDetails?.items]);
+    const newPrice = itemPrice - discountAmount;
+    return newPrice > 0 ? formatPrice(newPrice) : "0";
+  }, [cartItem?.price, cartDetails?.discount, cartDetails?.discount_type, cartDetails?.items]);
+
+  // Early return if cartItem is not properly loaded
+  if (!cartItem) {
+    return null;
+  }
 
   return (
     <Card
@@ -84,7 +107,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
               ellipsis={{ rows: 2, expandable: true }}
               style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
             >
-              {cartItem?.product_id?.name}
+              {cartItem?.product_id?.name || "Product Name"}
             </Typography.Text>
           </Grid>
           <Grid item xs={3}>
@@ -96,7 +119,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 strong
                 style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
               >
-                x {cartItem.quantity ? formattedQuantity : <LoadingOutlined />}
+                x {cartItem.quantity !== undefined && cartItem.quantity !== null ? formattedQuantity : <LoadingOutlined />}
               </Typography.Text>
             </Box>
           </Grid>
@@ -110,7 +133,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     opacity: 0.7
                   }}
                 >
-                  {formattedPrice}
+                  Ksh. {formattedPrice}
                 </Typography.Text>
                 <br />
                 <Typography.Text
@@ -119,7 +142,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     color: `${cartItem.sent ? "#fff" : "#000"}`,
                   }}
                 >
-                  {discountedPrice}
+                  Ksh. {discountedPrice}
                 </Typography.Text>
               </div>
             ) : (
@@ -127,7 +150,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 strong
                 style={{ color: `${cartItem.sent ? "#fff" : "#000"}` }}
               >
-                {formattedPrice ? formattedPrice : 0}
+                Ksh. {formattedPrice}
               </Typography.Text>
             )}
           </Grid>
@@ -140,8 +163,10 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     style={{ width: "40px", padding: 0 }}
                     icon={<DeleteOutlined />}
                     onClick={() => {
-                      dispatch(deleteCartItem(cartItem._id));
-                      invalidate();
+                      if (cartItem._id) {
+                        dispatch(deleteCartItem(cartItem._id));
+                        invalidate();
+                      }
                     }}
                   ></Button>
                 )}
@@ -156,8 +181,10 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                   style={{ width: "40px" }}
                   icon={<DeleteOutlined />}
                   onClick={() => {
-                    dispatch(deleteCartItem(cartItem._id));
-                    invalidate();
+                    if (cartItem._id) {
+                      dispatch(deleteCartItem(cartItem._id));
+                      invalidate();
+                    }
                   }}
                 ></Button>
               </>

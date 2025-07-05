@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import Paper from "@mui/material/Paper";
 import { useDispatch } from "react-redux";
 import { addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
@@ -55,6 +55,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const [quantity, setQuantity] = useState(0);
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [isHovered, setIsHovered] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // Local loading state
 
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
@@ -66,14 +67,24 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
   const dispatch = useAppDispatch();
   const { id } = useParams();
+  const { invalidate } = useCartItemsData();
 
   const formattedQuantity = useMemo(() => {
     return 1; // Always use quantity of 1 for cart operations
   }, []);
 
-  const handleAddToCart = () => {
-    if (!loading) {
-      dispatch(
+  // Optimized add to cart function
+  const handleAddToCart = useCallback(async () => {
+    if (loading || isProcessing) return;
+
+    setIsProcessing(true);
+
+    try {
+      // Optimistic UI update first
+      dispatch(addItem(menu._id));
+
+      // Then dispatch the cart action
+      await dispatch(
         addItemToCart({
           cart_id: cartDetails?._id,
           product_id: menu._id,
@@ -86,24 +97,42 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
           ...(menu.type === 'service' && menu.duration && { duration: menu.duration })
         })
       );
+
+      // Only invalidate cache after successful add
+      invalidate();
+
+    } catch (error) {
+      // Revert optimistic update on error
+      dispatch(subtractItem(menu._id));
+      console.error('Failed to add item to cart:', error);
+    } finally {
+      setIsProcessing(false);
     }
-  };
+  }, [
+    loading,
+    isProcessing,
+    dispatch,
+    menu._id,
+    menu.type,
+    menu.price,
+    menu.desc,
+    menu.duration,
+    cartDetails?._id,
+    user?.id,
+    formattedQuantity,
+    id,
+    invalidate
+  ]);
 
-  const { invalidate } = useCartItemsData();
-
-  const handleIncrement = () => {
-    dispatch(addItem(menu._id));
-    dispatch(fetchCartItems(cartDetails?._id));
-    invalidate();
-  };
-
-  const handleDecrement = () => {
+  // Removed redundant handleIncrement function
+  const handleDecrement = useCallback(() => {
     if (quantity > 0) {
       setQuantity(quantity - 1);
       dispatch(subtractItem(menu._id));
-      dispatch(fetchCartItems(cartDetails?._id));
+      // Removed fetchCartItems call to reduce API calls
+      invalidate();
     }
-  };
+  }, [quantity, dispatch, menu._id, invalidate]);
 
   const formattedPrice = useMemo(() => formatPrice(menu.price), [menu.price]);
 
@@ -129,31 +158,35 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const badgeProps = getBadgeProps();
 
   const getActionText = () => {
+    if (isProcessing) return 'Adding...';
     return menu.type === 'service' ? 'Book Service' : 'Add to Cart';
   };
+
+  // Debounced click handler to prevent multiple rapid clicks
+  const handleClick = useCallback(() => {
+    if (!loading && !isProcessing) {
+      handleAddToCart();
+    }
+  }, [loading, isProcessing, handleAddToCart]);
 
   return (
     <Paper
       elevation={isHovered ? 6 : 3}
-      onClick={() => {
-        if (!loading) {
-          handleIncrement();
-          handleAddToCart();
-        }
-      }}
+      onClick={handleClick}
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         padding: "0",
         width: "180px",
-        height: "250px", // Back to original height
+        height: "250px",
         overflow: "hidden",
-        cursor: "pointer",
+        cursor: (loading || isProcessing) ? "wait" : "pointer",
         backgroundColor: isHovered ? "#8a2e42" : primaryColor,
         transition: "all 0.3s ease",
         borderRadius: "8px",
         position: "relative",
+        opacity: (loading || isProcessing) ? 0.7 : 1,
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -179,6 +212,26 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         {badgeProps.icon}
         {badgeProps.text}
       </div>
+
+      {/* Processing Indicator */}
+      {isProcessing && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: "4px",
+            fontSize: "12px",
+            zIndex: 10,
+          }}
+        >
+          Adding...
+        </div>
+      )}
 
       {/* Image Container */}
       <div
