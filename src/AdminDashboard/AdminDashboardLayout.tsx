@@ -13,6 +13,7 @@ import {
   DownOutlined,
   RightOutlined,
   ArrowRightOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector } from "src/store";
@@ -516,6 +517,18 @@ const AdminDashboard: React.FC = () => {
                           icon: <CompassOutlined style={{ fontSize: 16, color: '#722ed1' }} />,
                           label: <span style={{ fontWeight: 500 }}>Help Center</span>,
                           onClick: () => navigate("/admin/help-center"),
+                          style: {
+                            padding: '12px 16px',
+                            margin: '2px 4px',
+                            borderRadius: '6px',
+                            transition: 'all 0.2s ease'
+                          }
+                        },
+                        {
+                          key: "discover",
+                          icon: <GlobalOutlined style={{ fontSize: 16, color: '#722ed1' }} />,
+                          label: <span style={{ fontWeight: 500 }}>Discover</span>,
+                          onClick: () => navigate("/admin/discover"),
                           style: {
                             padding: '12px 16px',
                             margin: '2px 4px',

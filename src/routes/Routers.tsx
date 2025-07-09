@@ -28,6 +28,8 @@ import Customer from "src/pages/Customer/CustomerList";
 import PaymentSubscriptionPage from "src/components/billing/Billing";
 import AdminCustomersList from "src/AdminDashboard/Customers/CustomerList";
 import TenantSettings from "src/AdminDashboard/Settings/TenantSettings";
+import DiscoverPage from "src/AdminDashboard/DiscoverPage";
+import PaymentCallback from "@components/payment/PaymentCallback";
 
 const Layout = lazy(() => import("@components/layout/Layout"));
 
@@ -180,6 +182,19 @@ const routes = createBrowserRouter(
           }
         // errorElement={<NotFound/>}
         />
+        <Route
+          path="/payment-callback"
+          errorElement={<NotFound />}
+          element={
+            <Suspense fallback={<NubaLoader />}>
+              <Private>
+                <PaymentCallback />
+              </Private>
+            </Suspense>
+          }
+        // errorElement={<NotFound/>}
+        />
+
         <Route
           path="/customers"
           errorElement={<NotFound />}
@@ -547,6 +562,20 @@ const routes = createBrowserRouter(
           }
         />
         <Route
+          path="discover"
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+              }
+            >
+              <AdminRoute>
+                <DiscoverPage />
+              </AdminRoute>
+            </Suspense>
+          }
+        />
+        <Route
           path="settings"
           element={
             <Suspense
@@ -560,6 +589,7 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
+
         {/* add redirection for all /admin */}
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="*" element={<NotFound />} />
