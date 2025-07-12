@@ -281,7 +281,7 @@ const PaymentDrawer: React.FC = () => {
     setAmount2(0);
   };
 
-  const handleSplitConfirm = () => {
+  const handleSplitConfirm = async () => {
     const totalAmountCheck = amount1 + amount2;
     if (
       !amount1 ||
@@ -306,13 +306,19 @@ const PaymentDrawer: React.FC = () => {
       method_id: twoMethods,
     };
 
-    dispatch(createOrder(orderDetails));
-    setDrawerVisible(false);
+    try {
+      const result = await dispatch(createOrder(orderDetails));
 
-    if (!error) {
-      dispatch(createCart(id));
-      navigate("/tables");
-      message.success("Payment successful!");
+      // Only proceed after successful order creation
+      if (result.type.endsWith('/fulfilled')) {
+        setDrawerVisible(false);
+        dispatch(createCart(id));
+        navigate("/tables");
+        message.success("Payment successful!");
+      }
+    } catch (error) {
+      // Error handling is managed by Redux, but drawer stays open
+      console.error('Split payment failed:', error);
     }
   };
 
@@ -340,13 +346,19 @@ const PaymentDrawer: React.FC = () => {
         method_id: selectedMethod,
       };
 
-      dispatch(createOrder(orderDetails));
-      setDrawerVisible(false);
+      try {
+        const result = await dispatch(createOrder(orderDetails));
 
-      if (!error) {
-        dispatch(createCart(id));
-        navigate("/tables");
-        message.success("Payment successful!");
+        // Only close drawer and navigate after successful order creation
+        if (result.type.endsWith('/fulfilled')) {
+          setDrawerVisible(false);
+          dispatch(createCart(id));
+          navigate("/tables");
+          message.success("Payment successful!");
+        }
+      } catch (error) {
+        // Error handling is managed by Redux, but drawer stays open
+        console.error('Payment failed:', error);
       }
     }
   };
