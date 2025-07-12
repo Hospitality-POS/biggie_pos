@@ -37,6 +37,7 @@ const RestaurantPage = lazy(() => import("@pages/Restaurant/Restuarant"));
 const MainStore = lazy(() => import("@pages/store/MainStore"));
 const Table = lazy(() => import("@pages/Tables/TablePro"));
 const Faqs = lazy(() => import("@pages/Faqs/Faqs"));
+const Website = lazy(() => import("@pages/Website/website"));
 
 // App list - settings
 const PaymentMainSettings = lazy(
@@ -387,6 +388,21 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
+        <Route
+          path="/website-builder"
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+              }
+            >
+              <Private>
+                <Website />
+              </Private>
+            </Suspense>
+          }
+        />
+
         <Route
           path="/employee-shift"
           errorElement={<NotFound />}
