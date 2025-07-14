@@ -10,7 +10,7 @@ const WelcomeBanner = () => {
     position: "relative",
     overflow: "hidden",
     padding: "40px",
-    backgroundImage: `url('/dashboard-welcome-banner.png')`,
+    backgroundImage: `url('/welcome4.jpg')`,
     backgroundSize: "cover",
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",

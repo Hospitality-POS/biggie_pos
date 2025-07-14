@@ -20,6 +20,7 @@ import {
   Flex,
   Tag,
   Progress,
+  Empty,
 } from "antd";
 import {
   ShoppingCartOutlined,
@@ -41,6 +42,8 @@ import {
   TrophyOutlined,
   RiseOutlined,
   DollarOutlined,
+  CheckCircleOutlined,
+  FallOutlined,
 } from "@ant-design/icons";
 import { Line } from '@ant-design/charts';
 import { getDashboardAnalysis, getBestSellers, getBestSellersByCategory, getSalesChartData } from "@services/orders";
@@ -59,6 +62,16 @@ const COLORS = {
   purple: "#8b5cf6",
   orange: "#f97316",
   cyan: "#06b6d4",
+  gray: "#8c8c8c",
+  lightGray: "#f5f7fa",
+};
+
+const PERIOD_LABELS = {
+  day: 'Today',
+  week: 'This Week',
+  month: 'This Month',
+  year: 'This Year',
+  custom: 'Custom Period'
 };
 
 const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
@@ -93,7 +106,7 @@ const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
 
   let performance = 'active';
   let performanceColor = COLORS.primary;
-  let performanceText = 'Business Active';
+  let performanceText = 'Shop Active';
 
   if (totalOrders >= 10) {
     performance = 'good';
@@ -110,29 +123,29 @@ const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
   }
 
   let trend = 'neutral';
-  let trendColor = '#8c8c8c';
+  let trendColor = COLORS.gray;
   let trendText = 'Stable';
 
   if (growthRate > 15) {
     trend = 'up-strong';
     trendColor = COLORS.success;
-    trendText = `Accelerating (+${growthRate.toFixed(1)}%)`;
+    trendText = `Shop Accelerating (+${growthRate.toFixed(1)}%)`;
   } else if (growthRate > 0) {
     trend = 'up';
     trendColor = COLORS.success;
-    trendText = `Growing (+${growthRate.toFixed(1)}%)`;
+    trendText = `Shop Growing (+${growthRate.toFixed(1)}%)`;
   } else if (growthRate < -30) {
     trend = 'down-critical';
     trendColor = COLORS.error;
-    trendText = `Sharp Decline (-${Math.abs(growthRate).toFixed(1)}%)`;
+    trendText = `Critical Shop Decline (-${Math.abs(growthRate).toFixed(1)}%)`;
   } else if (growthRate < -10) {
     trend = 'down-strong';
     trendColor = COLORS.error;
-    trendText = `Declining (-${Math.abs(growthRate).toFixed(1)}%)`;
+    trendText = `Shop Declining (-${Math.abs(growthRate).toFixed(1)}%)`;
   } else if (growthRate < 0) {
     trend = 'down';
     trendColor = COLORS.warning;
-    trendText = `Slowing (-${Math.abs(growthRate).toFixed(1)}%)`;
+    trendText = `Shop Slowing (-${Math.abs(growthRate).toFixed(1)}%)`;
   }
 
   const insights = [];
@@ -147,7 +160,7 @@ const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
 
   if (periodFilter === 'day') {
     if (totalOrders === 0) {
-      insights.push({ type: 'negative', text: 'No orders today - check operations' });
+      insights.push({ type: 'negative', text: 'No orders today - check shop operations' });
     } else if (totalOrders < 3) {
       insights.push({ type: 'warning', text: 'Low daily volume - need more customers' });
     }
@@ -162,11 +175,11 @@ const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
   }
 
   if (trend === 'down-critical' || trend === 'down-strong') {
-    insights.push({ type: 'negative', text: 'Sales declining - review strategy urgently' });
+    insights.push({ type: 'negative', text: 'Shop sales declining - review strategy urgently' });
   } else if (trend === 'down') {
-    insights.push({ type: 'warning', text: 'Sales slowing - monitor closely' });
+    insights.push({ type: 'warning', text: 'Shop sales slowing - monitor closely' });
   } else if (trend === 'up-strong') {
-    insights.push({ type: 'positive', text: 'Strong growth momentum!' });
+    insights.push({ type: 'positive', text: 'Strong shop growth momentum!' });
   }
 
   if (chartData?.summary?.peak_period) {
@@ -203,7 +216,11 @@ const ORDER_COLUMNS = [
     title: "Amount",
     dataIndex: "order_amount",
     key: "order_amount",
-    render: (amount) => `Ksh ${amount.toFixed(2)}`,
+    render: (amount) => (
+      <Text strong style={{ color: COLORS.success }}>
+        Ksh {amount?.toFixed(2)}
+      </Text>
+    ),
   },
   {
     title: "Served By",
@@ -222,6 +239,11 @@ const STOCK_COLUMNS = [
     title: "Current Stock",
     dataIndex: "quantity",
     key: "quantity",
+    render: (quantity) => (
+      <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning }}>
+        {quantity}
+      </Text>
+    ),
   },
   {
     title: "Minimum Required",
@@ -231,9 +253,21 @@ const STOCK_COLUMNS = [
   {
     title: "Status",
     key: "status",
-    render: (_, record) => (
-      <Badge status="error" text={`${record.quantity} remaining`} />
-    ),
+    render: (_, record) => {
+      const isOutOfStock = record.quantity <= 0;
+      const isLow = record.quantity <= record.min_viable_quantity;
+
+      return (
+        <Badge
+          status={isOutOfStock ? "error" : "warning"}
+          text={
+            isOutOfStock ? "Out of stock" :
+              isLow ? `${record.quantity} left` :
+                "Low stock"
+          }
+        />
+      );
+    },
   },
 ];
 
@@ -264,7 +298,7 @@ const BESTSELLER_COLUMNS = [
     render: (name, record) => (
       <div>
         <div style={{ fontWeight: 500 }}>{name}</div>
-        <div style={{ fontSize: 12, color: '#888' }}>
+        <div style={{ fontSize: 12, color: COLORS.gray }}>
           {record.category?.name || 'Uncategorized'} • {record.product_type}
         </div>
       </div>
@@ -280,7 +314,7 @@ const BESTSELLER_COLUMNS = [
         <div style={{ fontWeight: 600, color: COLORS.success }}>
           {quantity} units
         </div>
-        <div style={{ fontSize: 12, color: '#888' }}>
+        <div style={{ fontSize: 12, color: COLORS.gray }}>
           {record.sales_metrics.order_count} orders
         </div>
       </div>
@@ -294,9 +328,9 @@ const BESTSELLER_COLUMNS = [
     render: (revenue, record) => (
       <div>
         <div style={{ fontWeight: 600, color: COLORS.primary }}>
-          Ksh {revenue.toLocaleString()}
+          Ksh {revenue?.toLocaleString()}
         </div>
-        {record.sales_metrics.total_profit && (
+        {record.sales_metrics?.total_profit && (
           <div style={{ fontSize: 12, color: COLORS.success }}>
             Profit: Ksh {record.sales_metrics.total_profit.toLocaleString()}
           </div>
@@ -310,12 +344,12 @@ const BESTSELLER_COLUMNS = [
     render: (_, record) => (
       <div>
         <div style={{ marginBottom: 4 }}>
-          <Tag color={record.performance_indicators.is_top_performer ? 'gold' : 'blue'}>
-            {record.performance_indicators.is_top_performer ? 'Top Performer' : 'Popular'}
+          <Tag color={record.performance_indicators?.is_top_performer ? 'gold' : 'blue'}>
+            {record.performance_indicators?.is_top_performer ? 'Top Performer' : 'Popular'}
           </Tag>
         </div>
-        <div style={{ fontSize: 12, color: '#888' }}>
-          Avg: {record.performance_indicators.avg_quantity_per_order.toFixed(1)} per order
+        <div style={{ fontSize: 12, color: COLORS.gray }}>
+          Avg: {record.performance_indicators?.avg_quantity_per_order?.toFixed(1)} per order
         </div>
       </div>
     ),
@@ -339,7 +373,7 @@ const StatisticCard = ({ title, value, prefix, loading }) => (
           title={
             <span style={{ color: "#6b7280", fontWeight: 500 }}>{title}</span>
           }
-          value={value}
+          value={value || 0}
           prefix={prefix}
           precision={title === "Revenue" ? 2 : 0}
           valueStyle={{
@@ -398,6 +432,12 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
           fill: '#64748b',
           fontSize: 12,
         },
+        autoRotate: true,
+      },
+      line: {
+        style: {
+          stroke: '#e2e8f0',
+        },
       },
     },
     yAxis: {
@@ -407,22 +447,23 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
           fontSize: 12,
         },
         formatter: (value) => {
-          if (value >= 1000000) {
-            return `${(value / 1000000).toFixed(1)}M`;
-          } else if (value >= 1000) {
-            return `${(value / 1000).toFixed(0)}K`;
+          const numValue = Number(value);
+          if (numValue >= 1000000) {
+            return `${(numValue / 1000000).toFixed(1)}M`;
+          } else if (numValue >= 1000) {
+            return `${(numValue / 1000).toFixed(0)}K`;
           }
-          return `Ksh ${value}`;
+          return `${numValue}`;
         },
       },
       min: 0,
-    },
-    grid: {
-      line: {
-        style: {
-          stroke: '#f0f0f0',
-          lineWidth: 1,
-          lineDash: [3, 3],
+      grid: {
+        line: {
+          style: {
+            stroke: '#f0f0f0',
+            lineWidth: 1,
+            lineDash: [3, 3],
+          },
         },
       },
     },
@@ -503,16 +544,20 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
         title={
           <Space>
             <FireOutlined style={{ color: COLORS.orange }} />
-            Best Sellers ({dateRange})
+            Top Selling Products ({dateRange})
           </Space>
         }
         style={{ borderRadius: 12 }}
       >
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8c8c8c' }}>
-          <FireOutlined style={{ fontSize: 48, marginBottom: 16, color: '#ff7875' }} />
-          <Title level={4} style={{ color: '#8c8c8c' }}>No Sales Data</Title>
-          <Text type="secondary">No products have been sold during this period.</Text>
-        </div>
+        <Empty
+          image={<FireOutlined style={{ fontSize: 48, color: COLORS.orange }} />}
+          description={
+            <div>
+              <Title level={4} style={{ color: COLORS.gray }}>No Sales Data</Title>
+              <Text type="secondary">No products have been sold during this period.</Text>
+            </div>
+          }
+        />
       </Card>
     );
   }
@@ -530,7 +575,7 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
       title={
         <Space>
           <FireOutlined style={{ color: COLORS.orange }} />
-          Best Sellers ({dateRange})
+          Top Selling Products ({dateRange})
         </Space>
       }
       extra={
@@ -548,7 +593,7 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
       ) : (
         <>
           {summary.total_revenue && (
-            <div style={{ marginBottom: 16, padding: 16, background: '#f8fafc', borderRadius: 8 }}>
+            <div style={{ marginBottom: 16, padding: 16, background: COLORS.lightGray, borderRadius: 8 }}>
               <Row gutter={16}>
                 <Col span={8}>
                   <Statistic
@@ -582,7 +627,11 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
           <Table
             columns={BESTSELLER_COLUMNS}
             dataSource={rankedBestSellers}
-            pagination={false}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: false,
+              showQuickJumper: true,
+            }}
             size="middle"
             rowKey="product_id"
             scroll={{ x: 800 }}
@@ -691,6 +740,10 @@ const Dashboard = () => {
   const handleRefresh = async () => {
     try {
       await refetch();
+      messageApi.success({
+        content: "Dashboard data refreshed successfully!",
+        duration: 2,
+      });
     } catch (error) {
       messageApi.error({
         content: "Failed to refresh dashboard. Please try again.",
@@ -819,6 +872,8 @@ const Dashboard = () => {
     }
   };
 
+  const isDataLoading = isLoading || isRefetching || chartLoading;
+
   return (
     <>
       {contextHolder}
@@ -826,7 +881,7 @@ const Dashboard = () => {
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            {periodFilter === "day" ? "Today's Overview" : "Overview"}
+            {PERIOD_LABELS[periodFilter]} Shop Overview
           </Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
             {getFormattedDateRange()}
@@ -888,7 +943,7 @@ const Dashboard = () => {
         {statisticsData.map((stat, index) => (
           <StatisticCard
             key={index}
-            loading={isLoading || isRefetching || chartLoading}
+            loading={isDataLoading}
             {...stat}
           />
         ))}
@@ -900,7 +955,7 @@ const Dashboard = () => {
             <SalesChart
               data={chartData.data.chart_data}
               loading={chartLoading}
-              title={`Sales Trends - ${getFormattedDateRange()}`}
+              title={`Shop Sales Trends - ${getFormattedDateRange()}`}
               businessIndicators={businessIndicators}
             />
           ) : (
@@ -908,7 +963,7 @@ const Dashboard = () => {
               title={
                 <Space>
                   <LineChartOutlined style={{ color: COLORS.primary }} />
-                  {`Sales Trends - ${getFormattedDateRange()}`}
+                  {`Shop Sales Trends - ${getFormattedDateRange()}`}
                 </Space>
               }
               extra={
@@ -960,27 +1015,31 @@ const Dashboard = () => {
                     </div>
                   )}
 
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '60px 20px',
-                    color: '#8c8c8c'
-                  }}>
-                    <LineChartOutlined style={{ fontSize: 48, marginBottom: 16, color: '#ff4d4f' }} />
-                    <Title level={4} style={{ color: COLORS.error }}>
-                      {periodFilter === 'day' ? 'No Sales Today' :
-                        periodFilter === 'week' ? 'No Sales This Week' :
-                          periodFilter === 'month' ? 'No Sales This Month' :
-                            periodFilter === 'year' ? 'No Sales This Year' :
-                              'No Sales in Selected Period'}
-                    </Title>
-                    <Text type="secondary">
-                      {periodFilter === 'day' ? 'Focus on attracting customers today. Consider promotions or check if operations are running smoothly.' :
-                        periodFilter === 'week' ? 'Weekly performance is concerning. Review marketing strategies and customer outreach.' :
-                          periodFilter === 'month' ? 'Monthly sales are critical. Immediate action needed to recover business.' :
-                            periodFilter === 'year' ? 'Annual performance requires urgent business strategy review.' :
-                              'Consider adjusting business strategy for the selected time period.'}
-                    </Text>
-                  </div>
+                  <Empty
+                    image={<LineChartOutlined style={{ fontSize: 64, color: COLORS.error }} />}
+                    description={
+                      <div style={{ padding: '20px' }}>
+                        <Title level={4} style={{ color: COLORS.error }}>
+                          {periodFilter === 'day' ? 'No Sales Today' :
+                            periodFilter === 'week' ? 'No Sales This Week' :
+                              periodFilter === 'month' ? 'No Sales This Month' :
+                                periodFilter === 'year' ? 'No Sales This Year' :
+                                  'No Sales in Selected Period'}
+                        </Title>
+                        <Text type="secondary" style={{ fontSize: 16 }}>
+                          {periodFilter === 'day' ?
+                            'Focus on attracting customers today. Consider promotions or check if shop operations are running smoothly.' :
+                            periodFilter === 'week' ?
+                              'Weekly performance is concerning. Review marketing strategies and customer outreach for this shop.' :
+                              periodFilter === 'month' ?
+                                'Monthly sales are critical. Immediate action needed to recover shop business.' :
+                                periodFilter === 'year' ?
+                                  'Annual performance requires urgent shop strategy review.' :
+                                  'Consider adjusting shop strategy for the selected time period.'}
+                        </Text>
+                      </div>
+                    }
+                  />
                 </>
               )}
             </Card>
@@ -1001,25 +1060,35 @@ const Dashboard = () => {
       <Row gutter={[24, 24]} style={{ marginTop: 24 }}>
         <Col xs={24} lg={12}>
           <Card
-            title={`Recent Orders (${getFormattedDateRange()})`}
-            extra={<a href="/orders">View All</a>}
+            title={
+              <Space>
+                <ShoppingCartOutlined style={{ color: COLORS.primary }} />
+                {`Recent Orders (${getFormattedDateRange()})`}
+              </Space>
+            }
+            extra={<Button type="link" onClick={() => navigate('/orders')}>View All</Button>}
             style={{ borderRadius: 12 }}
           >
-            {isLoading || isRefetching ? (
-              <Skeleton active />
+            {isDataLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
             ) : (
               <Table
                 columns={ORDER_COLUMNS}
-                dataSource={data?.currentOrders}
-                pagination={false}
+                dataSource={Array.isArray(data?.currentOrders) ? data.currentOrders : []}
+                pagination={{
+                  pageSize: 5,
+                  hideOnSinglePage: true,
+                  showSizeChanger: false,
+                }}
                 size="middle"
-                rowClassName="hover-row"
+                rowClassName={() => "hover:bg-gray-50 transition-colors"}
                 locale={{
                   emptyText: (
-                    <div style={{ padding: '20px', color: '#8c8c8c' }}>
-                      <ShoppingCartOutlined style={{ fontSize: 24, marginBottom: 8 }} />
-                      <div>No recent orders</div>
-                    </div>
+                    <Empty
+                      image={<ShoppingCartOutlined style={{ fontSize: 32, color: COLORS.gray }} />}
+                      description="No recent orders"
+                      style={{ padding: '20px' }}
+                    />
                   )
                 }}
               />
@@ -1034,24 +1103,33 @@ const Dashboard = () => {
                 Low Stock Alerts
               </Space>
             }
-            extra={<a href="/inventory">View All</a>}
+            extra={<Button type="link" onClick={() => navigate('/inventory')}>View All</Button>}
             style={{ borderRadius: 12 }}
           >
-            {isLoading || isRefetching ? (
-              <Skeleton active />
+            {isDataLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
             ) : (
               <Table
                 columns={STOCK_COLUMNS}
-                dataSource={data?.lowStockItems}
-                pagination={false}
+                dataSource={Array.isArray(data?.lowStockItems) ? data.lowStockItems : []}
+                pagination={{
+                  pageSize: 5,
+                  hideOnSinglePage: true,
+                  showSizeChanger: false,
+                }}
                 size="middle"
-                rowClassName="hover-row"
+                rowClassName={() => "hover:bg-gray-50 transition-colors"}
                 locale={{
                   emptyText: (
-                    <div style={{ padding: '20px', color: '#8c8c8c' }}>
-                      <Badge status="success" />
-                      <span style={{ marginLeft: 8 }}>All items are well stocked</span>
-                    </div>
+                    <Empty
+                      image={<CheckCircleOutlined style={{ fontSize: 32, color: COLORS.success }} />}
+                      description={
+                        <div>
+                          <Text style={{ color: COLORS.success }}>All items are well stocked</Text>
+                        </div>
+                      }
+                      style={{ padding: '20px' }}
+                    />
                   )
                 }}
               />
@@ -1060,7 +1138,6 @@ const Dashboard = () => {
         </Col>
       </Row>
 
-      {/* Performance Summary */}
       {chartData?.data?.summary && (
         <Row style={{ marginTop: 24 }}>
           <Col span={24}>
@@ -1068,49 +1145,174 @@ const Dashboard = () => {
               title={
                 <Space>
                   <RiseOutlined style={{ color: COLORS.success }} />
-                  Period Performance Summary
+                  Shop Performance Summary ({getFormattedDateRange()})
                 </Space>
               }
               style={{ borderRadius: 12 }}
             >
-              <Row gutter={[24, 16]}>
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: COLORS.primary }}>
-                      {chartData.data.summary.data_points}
+              {isDataLoading ? (
+                <Skeleton active paragraph={{ rows: 3 }} />
+              ) : (
+                <Row gutter={[24, 16]}>
+                  <Col xs={24} sm={12} md={6}>
+                    <div style={{ textAlign: 'center', padding: '16px' }}>
+                      <div style={{
+                        fontSize: 24,
+                        fontWeight: 600,
+                        color: COLORS.primary,
+                        marginBottom: 4
+                      }}>
+                        {chartData.data.summary.data_points}
+                      </div>
+                      <div style={{ color: COLORS.gray, fontSize: 14 }}>Data Points</div>
+                      <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                        Reporting periods
+                      </div>
                     </div>
-                    <div style={{ color: '#8c8c8c', fontSize: 14 }}>Data Points</div>
-                  </div>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: COLORS.success }}>
-                      {chartData.data.summary.growth_rate > 0 ? '+' : ''}{chartData.data.summary.growth_rate.toFixed(1)}%
+                  </Col>
+                  <Col xs={24} sm={12} md={6}>
+                    <div style={{ textAlign: 'center', padding: '16px' }}>
+                      <div style={{
+                        fontSize: 24,
+                        fontWeight: 600,
+                        color: chartData.data.summary.growth_rate >= 0 ? COLORS.success : COLORS.error,
+                        marginBottom: 4
+                      }}>
+                        {chartData.data.summary.growth_rate > 0 ? '+' : ''}
+                        {chartData.data.summary.growth_rate.toFixed(1)}%
+                      </div>
+                      <div style={{ color: COLORS.gray, fontSize: 14 }}>Growth Rate</div>
+                      <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                        Shop trend
+                      </div>
                     </div>
-                    <div style={{ color: '#8c8c8c', fontSize: 14 }}>Growth Rate</div>
-                  </div>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: COLORS.orange }}>
-                      Ksh {chartData.data.summary.average_order_value.toLocaleString()}
+                  </Col>
+                  <Col xs={24} sm={12} md={6}>
+                    <div style={{ textAlign: 'center', padding: '16px' }}>
+                      <div style={{
+                        fontSize: 24,
+                        fontWeight: 600,
+                        color: COLORS.orange,
+                        marginBottom: 4
+                      }}>
+                        Ksh {chartData.data.summary.average_order_value?.toLocaleString()}
+                      </div>
+                      <div style={{ color: COLORS.gray, fontSize: 14 }}>Avg Order Value</div>
+                      <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                        Shop average
+                      </div>
                     </div>
-                    <div style={{ color: '#8c8c8c', fontSize: 14 }}>Avg Order Value</div>
-                  </div>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: COLORS.cyan }}>
-                      {chartData.data.summary.peak_period?.time || 'N/A'}
+                  </Col>
+                  <Col xs={24} sm={12} md={6}>
+                    <div style={{ textAlign: 'center', padding: '16px' }}>
+                      <div style={{
+                        fontSize: 24,
+                        fontWeight: 600,
+                        color: COLORS.cyan,
+                        marginBottom: 4
+                      }}>
+                        {chartData.data.summary.peak_period?.time || 'N/A'}
+                      </div>
+                      <div style={{ color: COLORS.gray, fontSize: 14 }}>Peak Period</div>
+                      <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                        Highest sales time
+                      </div>
                     </div>
-                    <div style={{ color: '#8c8c8c', fontSize: 14 }}>Peak Period</div>
-                  </div>
-                </Col>
-              </Row>
+                  </Col>
+                </Row>
+              )}
             </Card>
           </Col>
         </Row>
       )}
+
+      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+        <Col span={24}>
+          <Card
+            title={
+              <Space>
+                <DollarOutlined style={{ color: COLORS.purple }} />
+                Shop Summary ({getFormattedDateRange()})
+              </Space>
+            }
+            style={{ borderRadius: 12 }}
+          >
+            {isDataLoading ? (
+              <Skeleton active paragraph={{ rows: 3 }} />
+            ) : (
+              <Row gutter={[24, 16]}>
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.primary,
+                      marginBottom: 4
+                    }}>
+                      {data?.totalOrderCount || 0}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Total Orders</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Shop orders
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.success,
+                      marginBottom: 4
+                    }}>
+                      Ksh {(data?.todayRevenue || 0).toLocaleString()}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Total Revenue</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Shop revenue
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.orange,
+                      marginBottom: 4
+                    }}>
+                      {data?.customerCount || 0}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Customers</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Shop customers
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.cyan,
+                      marginBottom: 4
+                    }}>
+                      {data?.activeShift || 0}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Active Shifts</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Staff on duty
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+            )}
+          </Card>
+        </Col>
+      </Row>
     </>
   );
 };
