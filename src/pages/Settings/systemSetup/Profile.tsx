@@ -52,11 +52,13 @@ function SystemSetup() {
   };
 
   const onFinish = async (values) => {
+    const shopId = localStorage.getItem("shopId") || undefined;
     const phoneNumber = getPhoneNumber(values?.phoneNumber);
     const formData = {
       ...values,
       phone: phoneNumber,
       paymentDetailId: values.paymentDetailId,
+      shop_id: shopId
     };
 
     const confirmed = await ShowConfirm({

@@ -10,7 +10,8 @@ const FaqCategoryModal = ({ visible, onCancel, category, onSuccess }) => {
         if (visible) {
             if (isEditing) {
                 form.setFieldsValue({
-                    name: category.name
+                    name: category.name,
+                    shop_id: localStorage.getItem("shopId")
                 });
             } else {
                 form.resetFields();
@@ -25,7 +26,8 @@ const FaqCategoryModal = ({ visible, onCancel, category, onSuccess }) => {
             if (isEditing) {
                 await updateFaqCategory({
                     _id: category._id,
-                    name: values.name
+                    name: values.name,
+                    shop_id: localStorage.getItem("shopId")
                 });
             } else {
                 await addNewFaqCategory(values);

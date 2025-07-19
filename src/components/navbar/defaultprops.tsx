@@ -116,6 +116,12 @@ const useProLayoutNav = () => {
         desc: "Get answers to your most common questions.",
         url: "/fss-faqs",
       },
+      {
+        icon: "/web.png",
+        title: "Website Builder",
+        desc: "Start Building your website content.",
+        url: "/website-builder",
+      },
     ],
   };
   const userMenu = {

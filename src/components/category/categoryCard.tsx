@@ -1,5 +1,6 @@
 import { CheckCard } from "@ant-design/pro-components";
 import { Image, Space, Typography } from "antd";
+import { useEffect, useState } from "react";
 
 function CategoryCard({
   icon,
@@ -7,17 +8,49 @@ function CategoryCard({
   id,
   handleSelectedCard,
 }: any) {
+  // Color state management
+  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
+  // Get tenant primary color on component mount
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    if (tenant && tenant.color_scheme && tenant.color_scheme.primary) {
+      setPrimaryColor(tenant.color_scheme.primary);
+    }
+  }, []);
 
   return (
     <CheckCard
       onClick={() => handleSelectedCard(id)}
       title={
         <Space style={{ justifyContent: "center", width: "100vw" }}>
-          <Image preview={false} src={icon ? icon : "/categoryIcon.svg"} width={50} />
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <Image
+              preview={false}
+              src={icon ? icon : "/categoryIcon.svg"}
+              width={50}
+              style={{
+                filter: "brightness(0) saturate(100%) invert(0%) sepia(100%) saturate(7500%) hue-rotate(0deg) brightness(50%) contrast(100%)",
+              }}
+            />
+            {/* Color overlay to apply primary color to icon */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                mixBlendMode: "multiply",
+                pointerEvents: "none",
+              }}
+            />
+          </div>
         </Space>
       }
       description={
-        <Typography.Title level={5} ellipsis={{ rows: 3 }} style={{textAlign:"center"}}>
+        <Typography.Title level={5} ellipsis={{ rows: 3 }} style={{ textAlign: "center" }}>
           {name}
         </Typography.Title>
       }

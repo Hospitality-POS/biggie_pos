@@ -7,8 +7,40 @@ const EnhancedTawkWidget: React.FC = () => {
     const [position, setPosition] = useState({ x: 20, y: 20 });
     const [hasNewMessage, setHasNewMessage] = useState(false);
     const [isOpening, setIsOpening] = useState(false);
+    const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
     const dragRef = useRef<HTMLDivElement>(null);
     const dragOffset = useRef({ x: 0, y: 0 });
+
+    // Get tenant primary color on component mount
+    useEffect(() => {
+        const storedTenant = localStorage.getItem("tenant");
+        const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+        if (tenant && tenant.color_scheme && tenant.color_scheme.primary) {
+            setPrimaryColor(tenant.color_scheme.primary);
+        }
+    }, []);
+
+    // Helper function to darken color for gradient effect
+    const darkenColor = (color: string, percent: number = 20) => {
+        const hex = color.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+
+        const darkenedR = Math.round(r * (1 - percent / 100));
+        const darkenedG = Math.round(g * (1 - percent / 100));
+        const darkenedB = Math.round(b * (1 - percent / 100));
+
+        return `#${darkenedR.toString(16).padStart(2, '0')}${darkenedG.toString(16).padStart(2, '0')}${darkenedB.toString(16).padStart(2, '0')}`;
+    };
+
+    // Helper function to convert hex to rgba
+    const hexToRgba = (hex: string, alpha: number = 1) => {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
 
     useEffect(() => {
         const hideStyle = document.createElement('style');
@@ -151,6 +183,8 @@ const EnhancedTawkWidget: React.FC = () => {
 
     if (!isVisible) return null;
 
+    const darkenedColor = darkenColor(primaryColor);
+
     return (
         <>
             {/* Main chat widget */}
@@ -176,15 +210,15 @@ const EnhancedTawkWidget: React.FC = () => {
                     fontFamily: 'system-ui, -apple-system, sans-serif',
                     userSelect: 'none',
                     background: isOpening
-                        ? 'linear-gradient(135deg, #8b2332 0%, #6C1C2C 100%)'
-                        : '#6C1C2C',
+                        ? `linear-gradient(135deg, ${darkenedColor} 0%, ${primaryColor} 100%)`
+                        : primaryColor,
                     ...(hasNewMessage && {
                         animation: 'pulse 2s infinite',
-                        boxShadow: '0 0 20px rgba(108, 28, 44, 0.6), 0 8px 32px rgba(0, 0, 0, 0.12)'
+                        boxShadow: `0 0 20px ${hexToRgba(primaryColor, 0.6)}, 0 8px 32px rgba(0, 0, 0, 0.12)`
                     }),
                     ...(isOpening && {
                         transform: 'scale(1.05)',
-                        boxShadow: '0 16px 48px rgba(108, 28, 44, 0.3), 0 8px 24px rgba(0, 0, 0, 0.15)'
+                        boxShadow: `0 16px 48px ${hexToRgba(primaryColor, 0.3)}, 0 8px 24px rgba(0, 0, 0, 0.15)`
                     })
                 }}
                 onMouseDown={handleMouseDown}

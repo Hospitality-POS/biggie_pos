@@ -16,8 +16,8 @@ export const fetchSystemSetupDetails = async () => {
 };
 export const fetchSystemSetupDetailsById = async () => {
   try {
-    const url = `${BASE_URL}/users/fetch-system-setting/6637797763064f893911fd92`;
-    // const url = `${BASE_URL}/users/fetch-system-setting/${localStorage.getItem("businessId")}`;
+    // const url = `${BASE_URL}/users/fetch-system-setting/6637797763064f893911fd92`;
+    const url = `${BASE_URL}/users/fetch-system-setting/${localStorage.getItem("shopId")}`;
     const response = await axiosInstance.get(url);
     // console.log("system..", response.data);
 

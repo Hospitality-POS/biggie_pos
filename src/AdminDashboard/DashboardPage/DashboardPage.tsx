@@ -106,29 +106,28 @@ const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
 
   let performance = 'active';
   let performanceColor = COLORS.primary;
-  let performanceText = 'Network Active';
+  let performanceText = 'Business Active';
 
-  // Network-wide thresholds (higher than individual shop)
   if (totalOrders >= 50) {
     performance = 'excellent';
     performanceColor = COLORS.success;
-    performanceText = 'Excellent Network Performance';
+    performanceText = 'Excellent Business Performance';
   } else if (totalOrders >= 25) {
     performance = 'good';
     performanceColor = COLORS.success;
-    performanceText = 'Strong Network Activity';
+    performanceText = 'Strong Business Activity';
   } else if (totalOrders >= 10) {
     performance = 'moderate';
     performanceColor = COLORS.primary;
-    performanceText = 'Moderate Network Activity';
+    performanceText = 'Moderate Business Activity';
   } else if (totalOrders >= 3) {
     performance = 'low';
     performanceColor = COLORS.warning;
-    performanceText = 'Low Network Activity';
+    performanceText = 'Low Business Activity';
   } else {
     performance = 'critical';
     performanceColor = COLORS.error;
-    performanceText = 'Critical - Network Issues';
+    performanceText = 'Critical - Business Issues';
   }
 
   let trend = 'neutral';
@@ -138,73 +137,72 @@ const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
   if (growthRate > 20) {
     trend = 'up-strong';
     trendColor = COLORS.success;
-    trendText = `Network Accelerating (+${growthRate.toFixed(1)}%)`;
+    trendText = `Business Accelerating (+${growthRate.toFixed(1)}%)`;
   } else if (growthRate > 5) {
     trend = 'up';
     trendColor = COLORS.success;
-    trendText = `Network Growing (+${growthRate.toFixed(1)}%)`;
+    trendText = `Business Growing (+${growthRate.toFixed(1)}%)`;
   } else if (growthRate > -5) {
     trend = 'neutral';
     trendColor = COLORS.gray;
-    trendText = `Network Stable (${growthRate.toFixed(1)}%)`;
+    trendText = `Business Stable (${growthRate.toFixed(1)}%)`;
   } else if (growthRate > -15) {
     trend = 'down';
     trendColor = COLORS.warning;
-    trendText = `Network Slowing (${growthRate.toFixed(1)}%)`;
+    trendText = `Business Slowing (${growthRate.toFixed(1)}%)`;
   } else if (growthRate > -30) {
     trend = 'down-strong';
     trendColor = COLORS.error;
-    trendText = `Network Declining (${growthRate.toFixed(1)}%)`;
+    trendText = `Business Declining (${growthRate.toFixed(1)}%)`;
   } else {
     trend = 'down-critical';
     trendColor = COLORS.error;
-    trendText = `Critical Network Decline (${growthRate.toFixed(1)}%)`;
+    trendText = `Critical Business Decline (${growthRate.toFixed(1)}%)`;
   }
 
   const insights = [];
 
   if (totalOrders > 0) {
     if (avgOrderValue > 2500) {
-      insights.push({ type: 'positive', text: `Excellent network order value: Ksh ${avgOrderValue.toFixed(0)}` });
+      insights.push({ type: 'positive', text: `Excellent order value across all shops: Ksh ${avgOrderValue.toFixed(0)}` });
     } else if (avgOrderValue > 1500) {
-      insights.push({ type: 'positive', text: `Good network order value: Ksh ${avgOrderValue.toFixed(0)}` });
+      insights.push({ type: 'positive', text: `Good order value across all shops: Ksh ${avgOrderValue.toFixed(0)}` });
     } else if (avgOrderValue < 500) {
-      insights.push({ type: 'warning', text: `Consider network-wide upselling - avg: Ksh ${avgOrderValue.toFixed(0)}` });
+      insights.push({ type: 'warning', text: `Consider upselling across all shops - avg: Ksh ${avgOrderValue.toFixed(0)}` });
     }
   }
 
-  // Network-specific insights with higher thresholds
-  const networkThresholds = {
+  const businessThresholds = {
     day: { low: 10, good: 30, excellent: 60 },
     week: { low: 50, good: 150, excellent: 300 },
     month: { low: 200, good: 600, excellent: 1200 },
     year: { low: 2500, good: 7500, excellent: 15000 }
   };
 
-  const threshold = networkThresholds[periodFilter];
+  const threshold = businessThresholds[periodFilter];
   if (threshold) {
     if (totalOrders === 0) {
-      insights.push({ type: 'negative', text: `No orders ${PERIOD_LABELS[periodFilter].toLowerCase()} across network - check all operations` });
+      insights.push({ type: 'negative', text: `No orders ${PERIOD_LABELS[periodFilter].toLowerCase()} across all shops - check operations` });
     } else if (totalOrders < threshold.low) {
-      insights.push({ type: 'warning', text: `Network ${PERIOD_LABELS[periodFilter].toLowerCase()} volume below expectations` });
+      insights.push({ type: 'warning', text: `Business ${PERIOD_LABELS[periodFilter].toLowerCase()} volume below expectations` });
     } else if (totalOrders >= threshold.excellent) {
-      insights.push({ type: 'positive', text: `Outstanding network ${PERIOD_LABELS[periodFilter].toLowerCase()} performance!` });
+      insights.push({ type: 'positive', text: `Outstanding business ${PERIOD_LABELS[periodFilter].toLowerCase()} performance!` });
     }
   }
 
   if (trend === 'down-critical' || trend === 'down-strong') {
-    insights.push({ type: 'negative', text: 'Network sales declining - review strategy across all shops urgently' });
+    insights.push({ type: 'negative', text: 'Business sales declining - review strategy across all shops urgently' });
   } else if (trend === 'down') {
-    insights.push({ type: 'warning', text: 'Network sales slowing - monitor all shops closely' });
+    insights.push({ type: 'warning', text: 'Business sales slowing - monitor all shops closely' });
   } else if (trend === 'up-strong') {
-    insights.push({ type: 'positive', text: 'Strong network growth momentum across all shops!' });
+    insights.push({ type: 'positive', text: 'Strong business growth momentum across all shops!' });
   }
 
   if (chartData?.data?.summary?.peak_period) {
     const peak = chartData.data.summary.peak_period;
     insights.push({
       type: 'positive',
-      text: `Network peak period: ${peak.time} (Ksh ${peak.sales?.toLocaleString()})`
+      text: `Peak business period: ${peak.time} (Ksh ${peak.sales?.toLocaleString()})`
     });
   }
 
@@ -485,7 +483,7 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
     tooltip: {
       formatter: (datum) => [
         {
-          name: 'Network Sales',
+          name: 'Total Sales',
           value: `Ksh ${Number(datum.sales)?.toLocaleString()}`,
         },
         {
@@ -645,7 +643,7 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
         title={
           <Space>
             <FireOutlined style={{ color: COLORS.orange }} />
-            Best Sellers Across All Shops ({dateRange})
+            Top Selling Products Across All Shops ({dateRange})
           </Space>
         }
         style={{ borderRadius: 12 }}
@@ -668,7 +666,7 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
       title={
         <Space>
           <FireOutlined style={{ color: COLORS.orange }} />
-          Best Sellers Across All Shops ({dateRange})
+          Top Selling Products Across All Shops ({dateRange})
         </Space>
       }
       extra={
@@ -782,7 +780,6 @@ const DashboardAdminPage = () => {
 
   const { startDate, endDate } = getDateRange();
 
-  // Main admin dashboard data query
   const { data, isLoading, refetch, isRefetching, error } = useQuery({
     queryKey: ["admindashBoardAnalysis", startDate.format(), endDate.format()],
     queryFn: () => getAdminDashboardAnalysis(
@@ -802,14 +799,12 @@ const DashboardAdminPage = () => {
     },
   });
 
-  // Sales chart data query - Admin level (all shops combined)
   const { data: chartData, isLoading: chartLoading } = useQuery({
     queryKey: ["adminSalesChartData", periodFilter, startDate.format(), endDate.format()],
     queryFn: () => getSalesChartData({
       period: periodFilter,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      // No shop_id - admin sees all shops combined
     }),
     networkMode: "always",
     refetchOnWindowFocus: false,
@@ -817,14 +812,12 @@ const DashboardAdminPage = () => {
     retry: 2,
   });
 
-  // Best Sellers Query - Admin sees all shops' data
   const { data: bestSellersData, isLoading: bestSellersLoading } = useQuery({
     queryKey: ["adminBestSellers", startDate.format(), endDate.format()],
     queryFn: () => getBestSellers({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      limit: 15 // Show more for admin view
-      // No shop_id filter - admin sees all shops
+      limit: 15
     }),
     networkMode: "always",
     refetchOnWindowFocus: false,
@@ -866,7 +859,7 @@ const DashboardAdminPage = () => {
       onClick: () => navigate('/orders'),
     },
     {
-      title: "Network Revenue",
+      title: "Total Revenue",
       value: chartData?.data?.summary?.total_sales || data?.todayRevenue,
       prefix: <DollarOutlined style={{ color: COLORS.success }} />,
     },
@@ -914,19 +907,17 @@ const DashboardAdminPage = () => {
     <>
       {contextHolder}
 
-      {/* Header Section */}
       <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
         <div>
           <Title level={2} style={{ margin: 0, fontWeight: 600, color: "#1e293b" }}>
             {PERIOD_LABELS[periodFilter]} Admin Overview
           </Title>
           <Text type="secondary" style={{ fontSize: 16 }}>
-            {getFormattedDateRange()} • All Shops Network Performance
+            {getFormattedDateRange()} • All Shops Business Performance
           </Text>
         </div>
 
         <Space wrap size="middle">
-          {/* Period Filter */}
           <Card size="small" style={{ borderRadius: 8 }}>
             <Flex align="center" gap={12}>
               <CalendarOutlined style={{ color: COLORS.primary }} />
@@ -945,7 +936,6 @@ const DashboardAdminPage = () => {
             </Flex>
           </Card>
 
-          {/* Custom Date Picker */}
           {showCustomDatePicker && (
             <RangePicker
               value={customDateRange}
@@ -956,7 +946,6 @@ const DashboardAdminPage = () => {
             />
           )}
 
-          {/* Action Buttons */}
           <Space>
             <Button
               type="primary"
@@ -971,26 +960,8 @@ const DashboardAdminPage = () => {
         </Space>
       </Row>
 
-      {/* Welcome Banner */}
       <WelcomeBanner />
 
-      {/* Performance Alert */}
-      {/* {businessIndicators?.performance === 'critical' && (
-        <Alert
-          message="Critical Network Alert"
-          description={businessIndicators.trendText}
-          type="error"
-          showIcon
-          style={{ marginBottom: 24, marginTop: 16, borderRadius: 8 }}
-          action={
-            <Button size="small" type="primary" danger>
-              Review All Shops
-            </Button>
-          }
-        />
-      )} */}
-
-      {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginTop: 16, marginBottom: 24 }}>
         {statisticsData.map((stat, index) => (
           <StatisticCard
@@ -1001,14 +972,13 @@ const DashboardAdminPage = () => {
         ))}
       </Row>
 
-      {/* Sales Chart Section */}
       <Row style={{ marginBottom: 24 }}>
         <Col span={24}>
           {chartData?.data?.chart_data?.length > 0 ? (
             <SalesChart
               data={chartData.data.chart_data}
               loading={chartLoading}
-              title={`Network Sales Trends - ${getFormattedDateRange()}`}
+              title={`Business Sales Trends - ${getFormattedDateRange()}`}
               businessIndicators={businessIndicators}
             />
           ) : (
@@ -1016,7 +986,7 @@ const DashboardAdminPage = () => {
               title={
                 <Space>
                   <LineChartOutlined style={{ color: COLORS.primary }} />
-                  {`Network Sales Trends - ${getFormattedDateRange()}`}
+                  {`Business Sales Trends - ${getFormattedDateRange()}`}
                 </Space>
               }
               extra={
@@ -1073,22 +1043,22 @@ const DashboardAdminPage = () => {
                     description={
                       <div style={{ padding: '20px' }}>
                         <Title level={4} style={{ color: COLORS.error }}>
-                          {periodFilter === 'day' ? 'No Sales Today Across Network' :
-                            periodFilter === 'week' ? 'No Sales This Week Across Network' :
-                              periodFilter === 'month' ? 'No Sales This Month Across Network' :
-                                periodFilter === 'year' ? 'No Sales This Year Across Network' :
-                                  'No Sales in Selected Period Across Network'}
+                          {periodFilter === 'day' ? 'No Sales Today Across All Shops' :
+                            periodFilter === 'week' ? 'No Sales This Week Across All Shops' :
+                              periodFilter === 'month' ? 'No Sales This Month Across All Shops' :
+                                periodFilter === 'year' ? 'No Sales This Year Across All Shops' :
+                                  'No Sales in Selected Period Across All Shops'}
                         </Title>
                         <Text type="secondary" style={{ fontSize: 16 }}>
                           {periodFilter === 'day' ?
-                            'No sales recorded across all shops today. Check individual shop operations and network connectivity.' :
+                            'No sales recorded across all shops today. Check individual shop operations and business connectivity.' :
                             periodFilter === 'week' ?
-                              'Weekly performance is concerning across the network. Review shop strategies and operational issues.' :
+                              'Weekly performance is concerning across all shops. Review shop strategies and operational issues.' :
                               periodFilter === 'month' ?
-                                'Monthly network performance needs immediate attention. Consider emergency business strategy review.' :
+                                'Monthly business performance needs immediate attention. Consider emergency business strategy review.' :
                                 periodFilter === 'year' ?
-                                  'Annual network performance requires urgent strategic overhaul across all shops.' :
-                                  'Consider network-wide strategy adjustments for the selected period.'}
+                                  'Annual business performance requires urgent strategic overhaul across all shops.' :
+                                  'Consider business-wide strategy adjustments for the selected period.'}
                         </Text>
                       </div>
                     }
@@ -1100,7 +1070,6 @@ const DashboardAdminPage = () => {
         </Col>
       </Row>
 
-      {/* Best Sellers Section */}
       <Row style={{ marginBottom: 24 }}>
         <Col span={24}>
           <BestSellersCard
@@ -1111,14 +1080,13 @@ const DashboardAdminPage = () => {
         </Col>
       </Row>
 
-      {/* Recent Orders and Low Stock */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={12}>
           <Card
             title={
               <Space>
                 <ShoppingCartOutlined style={{ color: COLORS.primary }} />
-                {`Recent Orders Across Network (${getFormattedDateRange()})`}
+                {`Recent Orders Across All Shops (${getFormattedDateRange()})`}
               </Space>
             }
             extra={
@@ -1220,14 +1188,13 @@ const DashboardAdminPage = () => {
         </Col>
       </Row>
 
-      {/* Network Performance Summary */}
       <Row gutter={[16, 16]}>
         <Col span={24}>
           <Card
             title={
               <Space>
                 <PieChartOutlined style={{ color: COLORS.purple }} />
-                Network Performance Summary ({getFormattedDateRange()})
+                Business Performance Summary ({getFormattedDateRange()})
               </Space>
             }
             style={{ borderRadius: 12 }}
@@ -1265,7 +1232,7 @@ const DashboardAdminPage = () => {
                     </div>
                     <div style={{ color: COLORS.gray, fontSize: 14 }}>Total Revenue</div>
                     <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Network wide
+                      Business wide
                     </div>
                   </div>
                 </Col>
@@ -1308,14 +1275,13 @@ const DashboardAdminPage = () => {
           </Card>
         </Col>
 
-        {/* Additional Performance Metrics - Only show if chart data is available */}
         {chartData?.data?.summary && (
           <Col span={24} style={{ marginTop: 16 }}>
             <Card
               title={
                 <Space>
                   <RiseOutlined style={{ color: COLORS.success }} />
-                  Advanced Network Metrics ({getFormattedDateRange()})
+                  Advanced Business Metrics ({getFormattedDateRange()})
                 </Space>
               }
               style={{ borderRadius: 12 }}
@@ -1351,7 +1317,7 @@ const DashboardAdminPage = () => {
                     </div>
                     <div style={{ color: COLORS.gray, fontSize: 14 }}>Growth Rate</div>
                     <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Network trend
+                      Business trend
                     </div>
                   </div>
                 </Col>
@@ -1368,7 +1334,7 @@ const DashboardAdminPage = () => {
                     </div>
                     <div style={{ color: COLORS.gray, fontSize: 14 }}>Avg Order Value</div>
                     <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Network average
+                      Business average
                     </div>
                   </div>
                 </Col>
