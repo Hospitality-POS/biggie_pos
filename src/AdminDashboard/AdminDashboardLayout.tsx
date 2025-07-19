@@ -30,7 +30,17 @@ const { Text, Title } = Typography;
 const AdminDashboard: React.FC = () => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const navRoutes = useProLayoutNav();
+  const allNavRoutes = useProLayoutNav();
+  const hiddenRoutes = ['help-center'];
+  const navRoutes = {
+    ...allNavRoutes,
+    route: {
+      ...allNavRoutes.route,
+      routes: allNavRoutes.route?.routes?.filter(route =>
+        !hiddenRoutes.includes(route.key || route.path?.split('/').pop())
+      )
+    }
+  };
   const { user } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
   const location = useLocation();
@@ -310,471 +320,498 @@ const AdminDashboard: React.FC = () => {
     });
 
   return (
-    <ProLayout
-      logo={
-        tenant?.tenant_logo?.url ? (
-          <Image
-            src={tenant.tenant_logo.url}
-            height={60}
-            preview={true}
-            alt="tenant-logo"
-            style={{
-              padding: 5,
-              objectFit: "contain",
-              maxWidth: "120px"
-            }}
-          />
-        ) : (
-          <Image
-            src="/relia.png"
-            height={55}
-            width={120}
-            preview={true}
-            alt="relia-logo"
-            style={{ padding: 12 }}
-          />
-        )
-      }
-      title=""
-      contentWidth="Fluid"
-      navTheme="light"
-      layout="top"
-      splitMenus={false}
-      fixedHeader={true}
-      {...navRoutes}
-      avatarProps={{
-        src: user?.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg",
-        shape: "circle",
-        alt: "image",
-        size: "large",
-        render: (_props, dom) => {
-          return (
-            <Space size="middle">
-              <Popover
-                content={notificationsContent}
-                placement="bottomRight"
-                trigger={["hover", "click"]}
-                overlayStyle={{
-                  width: 350,
-                  padding: 0
-                }}
-                overlayClassName="notification-popover-overlay"
-                arrow={{ pointAtCenter: true }}
-                overlayInnerStyle={{
-                  borderRadius: 12,
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-                  border: '1px solid rgba(0, 0, 0, 0.06)',
-                  background: 'rgba(255, 255, 255, 0.98)',
-                  backdropFilter: 'blur(20px)',
-                  padding: 0
-                }}
-              >
-                <Badge
-                  count={unreadNotificationsCount}
-                  showZero={false}
-                  offset={[-8, 8]}
-                  overflowCount={99}
-                  size="small"
-                  style={{
-                    backgroundColor: unreadNotificationsCount > 1 ? '#ff4d4f' : '#52c41a',
-                    boxShadow: '0 2px 8px rgba(255, 77, 79, 0.3)',
-                    fontSize: '10px',
-                    lineHeight: '14px'
+    <>
+      {/* Add global styles for the ellipsis dropdown */}
+      <style>
+        {`
+          .ant-pro-layout-menu-dropdown .ant-dropdown-menu-item,
+          .ant-pro-layout-menu-dropdown .ant-dropdown-menu-item-content {
+            color: #262626 !important;
+          }
+          
+          .ant-pro-layout-menu-dropdown .ant-dropdown-menu-item:hover,
+          .ant-pro-layout-menu-dropdown .ant-dropdown-menu-item-active {
+            background-color: #f0f0f0 !important;
+            color: #262626 !important;
+          }
+          
+          .ant-pro-layout-menu-dropdown .ant-dropdown-menu-item .anticon {
+            color: #595959 !important;
+          }
+          
+          .ant-pro-layout-menu-dropdown .ant-dropdown-menu-item:hover .anticon {
+            color: ${primaryColor} !important;
+          }
+        `}
+      </style>
+
+      <ProLayout
+        logo={
+          tenant?.tenant_logo?.url ? (
+            <Image
+              src={tenant.tenant_logo.url}
+              height={60}
+              preview={true}
+              alt="tenant-logo"
+              style={{
+                padding: 5,
+                objectFit: "contain",
+                maxWidth: "120px"
+              }}
+            />
+          ) : (
+            <Image
+              src="/relia.png"
+              height={55}
+              width={120}
+              preview={true}
+              alt="relia-logo"
+              style={{ padding: 12 }}
+            />
+          )
+        }
+        title=""
+        contentWidth="Fluid"
+        navTheme="light"
+        layout="top"
+        splitMenus={false}
+        fixedHeader={true}
+        {...navRoutes}
+        avatarProps={{
+          src: user?.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg",
+          shape: "circle",
+          alt: "image",
+          size: "large",
+          render: (_props, dom) => {
+            return (
+              <Space size="middle">
+                <Popover
+                  content={notificationsContent}
+                  placement="bottomRight"
+                  trigger={["hover", "click"]}
+                  overlayStyle={{
+                    width: 350,
+                    padding: 0
+                  }}
+                  overlayClassName="notification-popover-overlay"
+                  arrow={{ pointAtCenter: true }}
+                  overlayInnerStyle={{
+                    borderRadius: 12,
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+                    border: '1px solid rgba(0, 0, 0, 0.06)',
+                    background: 'rgba(255, 255, 255, 0.98)',
+                    backdropFilter: 'blur(20px)',
+                    padding: 0
                   }}
                 >
-                  <Button
-                    icon={<BellOutlined />}
-                    shape="circle"
-                    size="middle"
-                    className="notification-button"
+                  <Badge
+                    count={unreadNotificationsCount}
+                    showZero={false}
+                    offset={[-8, 8]}
+                    overflowCount={99}
+                    size="small"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      color: 'rgba(255, 255, 255, 0.9)',
-                      width: '44px',
-                      height: '44px',
-                      fontSize: '16px',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  />
-                </Badge>
-              </Popover>
-              {user ? (
-                <>
-                  <Dropdown
-                    autoFocus
-                    menu={{
-                      disabled: user ? false : true,
-                      items: [
-                        {
-                          key: "profile",
-                          className: "profile-menu-item",
-                          icon: (
-                            <div style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '2px 0' }}>
-                              <Avatar
-                                src={user?.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"}
-                                alt={user?.email}
-                                style={{
-                                  border: `2px solid ${primaryColor}`,
-                                  width: 48,
-                                  height: 48,
-                                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                                }}
-                                size="large"
-                              />
-                              <Space direction="vertical" style={{ marginLeft: 12, gap: 2, flex: 1 }} size="small">
-                                <Typography.Text
-                                  strong
-                                  style={{
-                                    fontSize: 14,
-                                    color: '#262626',
-                                    lineHeight: 1.2
-                                  }}
-                                >
-                                  {user?.name || "User Name"}
-                                </Typography.Text>
-                                <Typography.Text
-                                  type="secondary"
-                                  style={{
-                                    fontSize: 12,
-                                    lineHeight: 1.2,
-                                    color: '#8c8c8c'
-                                  }}
-                                  ellipsis={{ tooltip: user?.email }}
-                                >
-                                  {user?.email || "user@example.com"}
-                                </Typography.Text>
-                                <Typography.Link
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/admin/profile/${user?.id}`);
-                                  }}
-                                  style={{
-                                    fontSize: 12,
-                                    fontWeight: 500,
-                                    color: primaryColor || '#1890ff'
-                                  }}
-                                >
-                                  View Your Profile
-                                </Typography.Link>
-                              </Space>
-                            </div>
-                          ),
-                          onClick: () => navigate(`/admin/profile/${user?.id}`),
-                          style: {
-                            padding: '8px 12px',
-                            height: 'auto',
-                            background: 'linear-gradient(135deg, rgba(24, 144, 255, 0.05), rgba(24, 144, 255, 0.02))',
-                            border: '1px solid rgba(24, 144, 255, 0.1)',
-                            borderRadius: '8px',
-                            margin: '4px',
-                            transition: 'all 0.2s ease'
-                          }
-                        },
-                        {
-                          type: "divider",
-                          style: {
-                            margin: '8px 12px',
-                            background: 'linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.06), transparent)'
-                          }
-                        },
-                        {
-                          key: "notifications",
-                          icon: <BellOutlined style={{ fontSize: 16, color: '#52c41a' }} />,
-                          label: (
-                            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                              <span style={{ fontWeight: 500 }}>Notifications</span>
-                              {unreadNotificationsCount >= 0 && (
-                                <Tag
-                                  color={unreadNotificationsCount > 0 ? 'green' : 'default'}
-                                  style={{
-                                    fontSize: 12,
-                                    lineHeight: 1.2,
-                                    transition: 'all 0.2s ease',
-                                  }}
-                                  className="notification-badge"
-                                >
-                                  {unreadNotificationsCount > 1 ? unreadNotificationsCount : 0}
-                                </Tag>
-                              )}
-                            </Space>
-                          ),
-                          onClick: () => navigate("/admin/notifications"),
-                          style: {
-                            padding: '12px 16px',
-                            margin: '2px 4px',
-                            borderRadius: '6px',
-                            transition: 'all 0.2s ease'
-                          }
-                        },
-                        {
-                          key: "help-center",
-                          icon: <CompassOutlined style={{ fontSize: 16, color: '#722ed1' }} />,
-                          label: <span style={{ fontWeight: 500 }}>Help Center</span>,
-                          onClick: () => navigate("/admin/help-center"),
-                          style: {
-                            padding: '12px 16px',
-                            margin: '2px 4px',
-                            borderRadius: '6px',
-                            transition: 'all 0.2s ease'
-                          }
-                        },
-                        {
-                          key: "discover",
-                          icon: <GlobalOutlined style={{ fontSize: 16, color: '#722ed1' }} />,
-                          label: <span style={{ fontWeight: 500 }}>Discover</span>,
-                          onClick: () => navigate("/admin/discover"),
-                          style: {
-                            padding: '12px 16px',
-                            margin: '2px 4px',
-                            borderRadius: '6px',
-                            transition: 'all 0.2s ease'
-                          }
-                        },
-                        {
-                          key: "settings",
-                          icon: <SettingOutlined style={{ fontSize: 16, color: '#13c2c2' }} />,
-                          label: <span style={{ fontWeight: 500 }}>Settings</span>,
-                          onClick: () => navigate("/admin/settings"),
-                          style: {
-                            padding: '12px 16px',
-                            margin: '2px 4px',
-                            borderRadius: '6px',
-                            transition: 'all 0.2s ease'
-                          }
-                        },
-                        {
-                          type: "divider",
-                          style: {
-                            margin: '8px 12px',
-                            background: 'linear-gradient(90deg, transparent, rgba(255, 77, 79, 0.2), transparent)'
-                          }
-                        },
-                        {
-                          key: "logout",
-                          icon: <PoweroffOutlined style={{ fontSize: 16 }} />,
-                          label: <span style={{ fontWeight: 500 }}>Logout</span>,
-                          onClick: handleLogout,
-                          danger: true,
-                          style: {
-                            padding: '8px 12px',
-                            margin: '2px 4px',
-                            borderRadius: '6px',
-                            transition: 'all 0.2s ease',
-                            border: '1px solid rgba(255, 77, 79, 0.1)'
-                          }
-                        },
-                      ],
-                    }}
-                    arrow={{ pointAtCenter: true }}
-                    trigger={["hover", "click"]}
-                    placement="bottomCenter"
-                    overlayClassName="enhanced-user-dropdown"
-                    overlayStyle={{
-                      minWidth: 280,
-                      borderRadius: 12,
-                      boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)',
-                      border: 'none',
-                      background: 'rgba(255, 255, 255, 0.98)',
-                      backdropFilter: 'blur(20px)',
+                      backgroundColor: unreadNotificationsCount > 1 ? '#ff4d4f' : '#52c41a',
+                      boxShadow: '0 2px 8px rgba(255, 77, 79, 0.3)',
+                      fontSize: '10px',
+                      lineHeight: '14px'
                     }}
                   >
                     <Button
-                      type="text"
-                      className="user-dropdown-trigger"
+                      icon={<BellOutlined />}
+                      shape="circle"
+                      size="middle"
+                      className="notification-button"
                       style={{
-                        padding: '4px 8px',
                         background: 'rgba(255, 255, 255, 0.1)',
                         backdropFilter: 'blur(10px)',
                         border: '1px solid rgba(255, 255, 255, 0.2)',
-                        borderRadius: 50,
-                        height: 'auto',
-                        minHeight: '36px',
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        width: '44px',
+                        height: '44px',
+                        fontSize: '16px',
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          background: 'rgba(255, 255, 255, 0.15)',
-                          transform: 'translateY(-1px)',
-                          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
-                        }
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    />
+                  </Badge>
+                </Popover>
+                {user ? (
+                  <>
+                    <Dropdown
+                      autoFocus
+                      menu={{
+                        disabled: user ? false : true,
+                        items: [
+                          {
+                            key: "profile",
+                            className: "profile-menu-item",
+                            icon: (
+                              <div style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '2px 0' }}>
+                                <Avatar
+                                  src={user?.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"}
+                                  alt={user?.email}
+                                  style={{
+                                    border: `2px solid ${primaryColor}`,
+                                    width: 48,
+                                    height: 48,
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                                  }}
+                                  size="large"
+                                />
+                                <Space direction="vertical" style={{ marginLeft: 12, gap: 2, flex: 1 }} size="small">
+                                  <Typography.Text
+                                    strong
+                                    style={{
+                                      fontSize: 14,
+                                      color: '#262626',
+                                      lineHeight: 1.2
+                                    }}
+                                  >
+                                    {user?.name || "User Name"}
+                                  </Typography.Text>
+                                  <Typography.Text
+                                    type="secondary"
+                                    style={{
+                                      fontSize: 12,
+                                      lineHeight: 1.2,
+                                      color: '#8c8c8c'
+                                    }}
+                                    ellipsis={{ tooltip: user?.email }}
+                                  >
+                                    {user?.email || "user@example.com"}
+                                  </Typography.Text>
+                                  <Typography.Link
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/admin/profile/${user?.id}`);
+                                    }}
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: 500,
+                                      color: primaryColor || '#1890ff'
+                                    }}
+                                  >
+                                    View Your Profile
+                                  </Typography.Link>
+                                </Space>
+                              </div>
+                            ),
+                            onClick: () => navigate(`/admin/profile/${user?.id}`),
+                            style: {
+                              padding: '8px 12px',
+                              height: 'auto',
+                              background: 'linear-gradient(135deg, rgba(24, 144, 255, 0.05), rgba(24, 144, 255, 0.02))',
+                              border: '1px solid rgba(24, 144, 255, 0.1)',
+                              borderRadius: '8px',
+                              margin: '4px',
+                              transition: 'all 0.2s ease'
+                            }
+                          },
+                          {
+                            type: "divider",
+                            style: {
+                              margin: '8px 12px',
+                              background: 'linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.06), transparent)'
+                            }
+                          },
+                          {
+                            key: "notifications",
+                            icon: <BellOutlined style={{ fontSize: 16, color: '#52c41a' }} />,
+                            label: (
+                              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                                <span style={{ fontWeight: 500 }}>Notifications</span>
+                                {unreadNotificationsCount >= 0 && (
+                                  <Tag
+                                    color={unreadNotificationsCount > 0 ? 'green' : 'default'}
+                                    style={{
+                                      fontSize: 12,
+                                      lineHeight: 1.2,
+                                      transition: 'all 0.2s ease',
+                                    }}
+                                    className="notification-badge"
+                                  >
+                                    {unreadNotificationsCount > 1 ? unreadNotificationsCount : 0}
+                                  </Tag>
+                                )}
+                              </Space>
+                            ),
+                            onClick: () => navigate("/admin/notifications"),
+                            style: {
+                              padding: '12px 16px',
+                              margin: '2px 4px',
+                              borderRadius: '6px',
+                              transition: 'all 0.2s ease'
+                            }
+                          },
+                          {
+                            key: "help-center",
+                            icon: <CompassOutlined style={{ fontSize: 16, color: '#722ed1' }} />,
+                            label: <span style={{ fontWeight: 500 }}>Help Center</span>,
+                            onClick: () => navigate("/admin/help-center"),
+                            style: {
+                              padding: '12px 16px',
+                              margin: '2px 4px',
+                              borderRadius: '6px',
+                              transition: 'all 0.2s ease'
+                            }
+                          },
+                          {
+                            key: "discover",
+                            icon: <GlobalOutlined style={{ fontSize: 16, color: '#722ed1' }} />,
+                            label: <span style={{ fontWeight: 500 }}>Discover</span>,
+                            onClick: () => navigate("/admin/discover"),
+                            style: {
+                              padding: '12px 16px',
+                              margin: '2px 4px',
+                              borderRadius: '6px',
+                              transition: 'all 0.2s ease'
+                            }
+                          },
+                          {
+                            key: "settings",
+                            icon: <SettingOutlined style={{ fontSize: 16, color: '#13c2c2' }} />,
+                            label: <span style={{ fontWeight: 500 }}>Settings</span>,
+                            onClick: () => navigate("/admin/settings"),
+                            style: {
+                              padding: '12px 16px',
+                              margin: '2px 4px',
+                              borderRadius: '6px',
+                              transition: 'all 0.2s ease'
+                            }
+                          },
+                          {
+                            type: "divider",
+                            style: {
+                              margin: '8px 12px',
+                              background: 'linear-gradient(90deg, transparent, rgba(255, 77, 79, 0.2), transparent)'
+                            }
+                          },
+                          {
+                            key: "logout",
+                            icon: <PoweroffOutlined style={{ fontSize: 16 }} />,
+                            label: <span style={{ fontWeight: 500 }}>Logout</span>,
+                            onClick: handleLogout,
+                            danger: true,
+                            style: {
+                              padding: '8px 12px',
+                              margin: '2px 4px',
+                              borderRadius: '6px',
+                              transition: 'all 0.2s ease',
+                              border: '1px solid rgba(255, 77, 79, 0.1)'
+                            }
+                          },
+                        ],
+                      }}
+                      arrow={{ pointAtCenter: true }}
+                      trigger={["hover", "click"]}
+                      placement="bottomCenter"
+                      overlayClassName="enhanced-user-dropdown"
+                      overlayStyle={{
+                        minWidth: 280,
+                        borderRadius: 12,
+                        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)',
+                        border: 'none',
+                        background: 'rgba(255, 255, 255, 0.98)',
+                        backdropFilter: 'blur(20px)',
                       }}
                     >
-                      <Space align="center" size={8} style={{ cursor: "pointer" }}>
-                        <Badge
-                          dot
-                          status="success"
-                          offset={[-6, 24]}
-                          style={{ backgroundColor: '#52c41a' }}
-                        >
-                          <Avatar
-                            src={
-                              user?.thumbnail ||
-                              "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"
-                            }
-                            alt={user?.email}
-                            size={32}
-                            icon={<UserOutlined />}
+                      <Button
+                        type="text"
+                        className="user-dropdown-trigger"
+                        style={{
+                          padding: '4px 8px',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          backdropFilter: 'blur(10px)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          borderRadius: 50,
+                          height: 'auto',
+                          minHeight: '36px',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+                          }
+                        }}
+                      >
+                        <Space align="center" size={8} style={{ cursor: "pointer" }}>
+                          <Badge
+                            dot
+                            status="success"
+                            offset={[-6, 24]}
+                            style={{ backgroundColor: '#52c41a' }}
+                          >
+                            <Avatar
+                              src={
+                                user?.thumbnail ||
+                                "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"
+                              }
+                              alt={user?.email}
+                              size={32}
+                              icon={<UserOutlined />}
+                              style={{
+                                border: "2px solid rgba(255, 255, 255, 0.3)",
+                                boxShadow: '0 1px 4px rgba(0, 0, 0, 0.15)'
+                              }}
+                            />
+                          </Badge>
+
+                          <div style={{
+                            textAlign: "left",
+                            lineHeight: 1.2,
+                            minWidth: 0,
+                            flex: 1
+                          }}>
+                            <Text
+                              strong
+                              style={{
+                                color: "white",
+                                fontSize: 13,
+                                fontWeight: 600,
+                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                                display: 'block',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                maxWidth: 100
+                              }}
+                            >
+                              {user?.name || "User Name"}
+                            </Text>
+
+                            <Text
+                              style={{
+                                color: "rgba(255, 255, 255, 0.8)",
+                                fontSize: 11,
+                                fontWeight: 400,
+                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                                display: 'block',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                maxWidth: 100
+                              }}
+                            >
+                              {user?.role || "User Role"}
+                            </Text>
+                          </div>
+
+                          <DownOutlined
                             style={{
-                              border: "2px solid rgba(255, 255, 255, 0.3)",
-                              boxShadow: '0 1px 4px rgba(0, 0, 0, 0.15)'
+                              color: "rgba(255, 255, 255, 0.9)",
+                              fontSize: 10,
+                              transition: 'transform 0.3s ease',
+                              filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))'
                             }}
+                            className="dropdown-arrow"
                           />
-                        </Badge>
-
-                        <div style={{
-                          textAlign: "left",
-                          lineHeight: 1.2,
-                          minWidth: 0,
-                          flex: 1
-                        }}>
-                          <Text
-                            strong
-                            style={{
-                              color: "white",
-                              fontSize: 13,
-                              fontWeight: 600,
-                              textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                              display: 'block',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              maxWidth: 100
-                            }}
-                          >
-                            {user?.name || "User Name"}
-                          </Text>
-
-                          <Text
-                            style={{
-                              color: "rgba(255, 255, 255, 0.8)",
-                              fontSize: 11,
-                              fontWeight: 400,
-                              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
-                              display: 'block',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              maxWidth: 100
-                            }}
-                          >
-                            {user?.role || "User Role"}
-                          </Text>
-                        </div>
-
-                        <DownOutlined
-                          style={{
-                            color: "rgba(255, 255, 255, 0.9)",
-                            fontSize: 10,
-                            transition: 'transform 0.3s ease',
-                            filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))'
-                          }}
-                          className="dropdown-arrow"
-                        />
-                      </Space>
-                    </Button>
-                  </Dropdown>
-                </>
-              ) : (
-                <Button icon={<PoweroffOutlined />} onClick={handleLogin}>
-                  Login
-                </Button>
-              )
-              }
-            </Space>
-          );
-        },
-      }}
-      token={{
-        bgLayout: "#f6ffed",
-        colorPrimary: primaryColor,
-        colorTextAppListIconHover: "black",
-        colorTextAppListIcon: "white",
-        colorBgAppListIconHover: "white",
-        hashId: "fss001",
-        header: {
-          colorBgMenuItemSelected: "#f6ffed",
-          colorBgHeader: primaryColor,
-          colorTextMenu: "#ffff",
-          colorTextMenuSecondary: "#f6ffed",
-          colorBgMenuItemHover: "#f6ffed",
-        },
-      }}
-      menuItemRender={(item, dom) => (
-        <NavLink to={item.path || "/admin"}>{dom}</NavLink>
-      )}
-    >
-      <PageContainer
-        breadcrumb={{
-          items: [
-            {
-              title: (
-                <NavLink to="/admin">
-                  <HomeFilled /> Home
-                </NavLink>
-              ),
-            },
-            ...breadcrumbItems,
-          ],
-        }}
-        header={{
-          extra: [
-            <Breadcrumb style={{ cursor: "pointer" }} key="breadcrumb">
-              <Breadcrumb.Item onClick={() => navigate("/admin")} key="admin-home">
-                <HomeFilled /> <span>Home</span>
-              </Breadcrumb.Item>
-              <Breadcrumb.Item key="admin-dashboard">
-                <DashboardOutlined /> <span>Dashboard</span>
-              </Breadcrumb.Item>
-            </Breadcrumb>,
-          ],
-        }}
-      >
-        <Outlet />
-      </PageContainer>
-
-      {/* Notification Details Modal */}
-      <Modal
-        title="Notification Details"
-        open={detailsModalVisible}
-        onCancel={handleCloseDetails}
-        footer={[
-          <Button key="close" onClick={handleCloseDetails}>
-            Close
-          </Button>
-        ]}
-        width={600}
-      >
-        {selectedNotification && (
-          <div>
-            <Title level={4}>{selectedNotification.title}</Title>
-            <div style={{ marginBottom: 16 }}>
-              <Space>
-                {renderTypeTag(selectedNotification.type)}
-                {renderPriorityTag(selectedNotification.priority)}
-                <Text type="secondary">
-                  {dayjs(selectedNotification.createdAt).format('MMMM D, YYYY h:mm A')}
-                </Text>
+                        </Space>
+                      </Button>
+                    </Dropdown>
+                  </>
+                ) : (
+                  <Button icon={<PoweroffOutlined />} onClick={handleLogin}>
+                    Login
+                  </Button>
+                )
+                }
               </Space>
-            </div>
-            <div style={{ marginBottom: 24 }}>
-              <Text>{selectedNotification.message}</Text>
-            </div>
-            {selectedNotification.additionalInfo && (
-              <div style={{ marginBottom: 16 }}>
-                <Title level={5}>Additional Information</Title>
-                <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 16, borderRadius: 4 }}>
-                  {JSON.stringify(selectedNotification.additionalInfo, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
+            );
+          },
+        }}
+        token={{
+          bgLayout: "#f6ffed",
+          colorPrimary: primaryColor,
+          colorTextAppListIconHover: "black",
+          colorTextAppListIcon: "white",
+          colorBgAppListIconHover: "white",
+          hashId: "fss001",
+          header: {
+            colorBgMenuItemSelected: "#f6ffed",
+            colorBgHeader: primaryColor,
+            colorTextMenu: "#ffff",
+            colorTextMenuSecondary: "#f6ffed",
+            colorBgMenuItemHover: "#f6ffed",
+
+          },
+        }}
+        menuItemRender={(item, dom) => (
+          <NavLink to={item.path || "/admin"}>{dom}</NavLink>
         )}
-      </Modal>
-    </ProLayout>
+      >
+        <PageContainer
+          breadcrumb={{
+            items: [
+              {
+                title: (
+                  <NavLink to="/admin">
+                    <HomeFilled /> Home
+                  </NavLink>
+                ),
+              },
+              ...breadcrumbItems,
+            ],
+          }}
+          header={{
+            extra: [
+              <Breadcrumb style={{ cursor: "pointer" }} key="breadcrumb">
+                <Breadcrumb.Item onClick={() => navigate("/admin")} key="admin-home">
+                  <HomeFilled /> <span>Home</span>
+                </Breadcrumb.Item>
+                <Breadcrumb.Item key="admin-dashboard">
+                  <DashboardOutlined /> <span>Dashboard</span>
+                </Breadcrumb.Item>
+              </Breadcrumb>,
+            ],
+          }}
+        >
+          <Outlet />
+        </PageContainer>
+
+        {/* Notification Details Modal */}
+        <Modal
+          title="Notification Details"
+          open={detailsModalVisible}
+          onCancel={handleCloseDetails}
+          footer={[
+            <Button key="close" onClick={handleCloseDetails}>
+              Close
+            </Button>
+          ]}
+          width={600}
+        >
+          {selectedNotification && (
+            <div>
+              <Title level={4}>{selectedNotification.title}</Title>
+              <div style={{ marginBottom: 16 }}>
+                <Space>
+                  {renderTypeTag(selectedNotification.type)}
+                  {renderPriorityTag(selectedNotification.priority)}
+                  <Text type="secondary">
+                    {dayjs(selectedNotification.createdAt).format('MMMM D, YYYY h:mm A')}
+                  </Text>
+                </Space>
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <Text>{selectedNotification.message}</Text>
+              </div>
+              {selectedNotification.additionalInfo && (
+                <div style={{ marginBottom: 16 }}>
+                  <Title level={5}>Additional Information</Title>
+                  <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 16, borderRadius: 4 }}>
+                    {JSON.stringify(selectedNotification.additionalInfo, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
+      </ProLayout>
+    </>
   );
 };
 

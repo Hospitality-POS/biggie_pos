@@ -2,17 +2,17 @@ import React, { useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
   UserOutlined,
-  PrinterOutlined,
+  //PrinterOutlined,
   SettingOutlined,
-  CrownOutlined,
-  UnlockOutlined,
+  // CrownOutlined,
+  // UnlockOutlined,
   DollarCircleOutlined
 
 } from "@ant-design/icons"; // Selected icons to ensure consistency in theme
 import { ConfigProvider, Space, Typography, Divider } from "antd";
 import Profile from "./Profile";
-import PrinterConfig from "./PrinterConfig";
-import ComingSoon from "@components/coming-soon/ComingSoon";
+// import PrinterConfig from "./PrinterConfig";
+// import ComingSoon from "@components/coming-soon/ComingSoon";
 import PaymentDetailsSettings from "../paymentMethodLevel/PaymentDetailsSettings";
 // import Billing from "@components/billing/Billing";
 
@@ -120,47 +120,8 @@ const SystemSetup: React.FC = () => {
         </div>
       </ProCard.TabPane> */}
 
-      <ProCard.TabPane
-        key="billing"
-        tab={
-          <Space>
-            <CrownOutlined style={{ color: "#faad14" }} />
-            {/* Yellow color for billing */}
-            <Typography.Text>Billing</Typography.Text>
-          </Space>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
-        >
-          <ComingSoon />
-        </div>
-      </ProCard.TabPane>
 
-      <ProCard.TabPane
-        key="offers"
-        tab={
-          <Space>
-            <UnlockOutlined style={{ color: "#2E9AFE" }} />
-            {/* Yellow color for billing */}
-            <Typography.Text>Offers</Typography.Text>
-          </Space>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
-        >
-          <ComingSoon />
-        </div>
-      </ProCard.TabPane>
+
     </ProCard>
     // </ConfigProvider>
   );

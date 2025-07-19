@@ -57,10 +57,24 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false); // Local loading state
 
+  // Helper function to lighten color
+  const lightenColor = (color: string, percent: number = 20) => {
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+
+    const lightenedR = Math.min(255, Math.round(r + (255 - r) * percent / 100));
+    const lightenedG = Math.min(255, Math.round(g + (255 - g) * percent / 100));
+    const lightenedB = Math.min(255, Math.round(b + (255 - b) * percent / 100));
+
+    return `#${lightenedR.toString(16).padStart(2, '0')}${lightenedG.toString(16).padStart(2, '0')}${lightenedB.toString(16).padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
+    if (tenant && tenant.color_scheme && tenant.color_scheme.primary) {
       setPrimaryColor(tenant.color_scheme.primary);
     }
   }, []);
@@ -169,6 +183,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
     }
   }, [loading, isProcessing, handleAddToCart]);
 
+  // Get hover color - lighter version of primary color
+  const hoverColor = lightenColor(primaryColor, 15);
+
   return (
     <Paper
       elevation={isHovered ? 6 : 3}
@@ -182,7 +199,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         height: "250px",
         overflow: "hidden",
         cursor: (loading || isProcessing) ? "wait" : "pointer",
-        backgroundColor: isHovered ? "#8a2e42" : primaryColor,
+        backgroundColor: isHovered ? hoverColor : primaryColor,
         transition: "all 0.3s ease",
         borderRadius: "8px",
         position: "relative",

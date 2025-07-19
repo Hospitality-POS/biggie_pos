@@ -4,344 +4,319 @@ import {
   Card,
   Typography,
   Layout,
-  Menu,
   List,
   Tag,
   Button,
-  Breadcrumb,
-  Modal,
-  Spin,
-  Rate,
   Drawer,
   Empty,
+  Space,
+  Rate,
 } from "antd";
 import {
   SearchOutlined,
   QuestionCircleOutlined,
-  BookOutlined,
-  TeamOutlined,
-  StarOutlined,
-  FireOutlined,
-  LikeOutlined,
+  CreditCardOutlined,
+  RocketOutlined,
+  ApiOutlined,
+  PlayCircleOutlined,
+  FileTextOutlined,
   ClockCircleOutlined,
+  EyeOutlined,
+  LikeOutlined,
 } from "@ant-design/icons";
-import { PageContainer, ProCard } from "@ant-design/pro-components";
 
 const { Title, Paragraph, Text } = Typography;
-const { Header, Sider, Content } = Layout;
+const { Content } = Layout;
 
-// Mock data for the help center
 const categories = [
   {
-    key: "getting-started",
-    icon: <BookOutlined />,
-    label: "Getting Started",
-    description: "Essential guides to get you up and running",
+    key: "onboarding",
+    icon: <RocketOutlined />,
+    title: "Getting Started",
+    description: "Basic setup and first steps",
   },
   {
-    key: "account",
-    icon: <TeamOutlined />,
-    label: "Account & Billing",
-    description: "Manage your account and subscription",
+    key: "billing",
+    icon: <CreditCardOutlined />,
+    title: "Account & Billing",
+    description: "Manage your subscription",
+  },
+  {
+    key: "integrations",
+    icon: <ApiOutlined />,
+    title: "Integrations",
+    description: "Connect third-party services",
   },
   {
     key: "faq",
     icon: <QuestionCircleOutlined />,
-    label: "FAQ",
-    description: "Common questions and answers",
+    title: "FAQ",
+    description: "Common questions",
   },
 ];
 
 const articles = {
-  "getting-started": [
+  onboarding: [
     {
       id: 1,
       title: "Quick Start Guide",
-      description: "Learn the basics of our platform in 5 minutes",
-      tags: ["beginner", "setup"],
-      content: "Detailed quick start guide content goes here...",
-      views: 1520,
-      helpful: 423,
-      lastUpdated: "2024-01-10",
+      description: "Get up and running in 5 minutes",
+      type: "video",
       readTime: "5 min",
-      relatedArticles: [2, 3],
+      views: 1200,
+      helpful: 89,
+      content: "Basic getting started content with video tutorial...",
     },
     {
       id: 2,
-      title: "Installation Guide",
-      description: "Step-by-step installation instructions",
-      tags: ["setup", "technical"],
-      content: "Detailed installation guide content goes here...",
-      views: 980,
-      helpful: 256,
-      lastUpdated: "2024-01-12",
-      readTime: "8 min",
-      relatedArticles: [1, 4],
+      title: "Account Setup",
+      description: "Configure your account settings",
+      type: "article",
+      readTime: "3 min",
+      views: 800,
+      helpful: 65,
+      content: "Step-by-step account configuration guide...",
     },
   ],
-  account: [
+  billing: [
     {
       id: 3,
-      title: "Managing Your Subscription",
-      description:
-        "Learn how to upgrade, downgrade, or cancel your subscription",
-      tags: ["billing", "subscription"],
-      content: "Detailed subscription management guide goes here...",
-      views: 750,
-      helpful: 180,
-      lastUpdated: "2024-01-08",
-      readTime: "6 min",
-      relatedArticles: [4],
+      title: "Subscription Plans",
+      description: "Compare plans and pricing",
+      type: "article",
+      readTime: "4 min",
+      views: 950,
+      helpful: 72,
+      content: "Detailed pricing information and plan comparison...",
     },
     {
       id: 4,
-      title: "Security Settings",
-      description: "Configure your account security and privacy settings",
-      tags: ["security", "settings"],
-      content: "Detailed security settings guide goes here...",
-      views: 890,
-      helpful: 312,
-      lastUpdated: "2024-01-14",
-      readTime: "7 min",
-      relatedArticles: [3],
+      title: "Payment Methods",
+      description: "Add and manage payment options",
+      type: "article",
+      readTime: "2 min",
+      views: 650,
+      helpful: 45,
+      content: "How to update your payment methods...",
+    },
+  ],
+  integrations: [
+    {
+      id: 5,
+      title: "Popular Integrations",
+      description: "Connect Gmail, Slack, and more",
+      type: "video",
+      readTime: "8 min",
+      views: 1500,
+      helpful: 120,
+      content: "Guide to setting up popular integrations...",
+    },
+    {
+      id: 6,
+      title: "API Documentation",
+      description: "Build custom integrations",
+      type: "article",
+      readTime: "12 min",
+      views: 700,
+      helpful: 85,
+      content: "Complete API reference and examples...",
     },
   ],
   faq: [
     {
-      id: 5,
+      id: 7,
       title: "Common Issues",
-      description: "Solutions to frequently reported problems",
-      tags: ["troubleshooting"],
-      content: "Detailed common issues solutions go here...",
+      description: "Troubleshoot frequent problems",
+      type: "article",
+      readTime: "6 min",
       views: 2100,
-      helpful: 567,
-      lastUpdated: "2024-01-13",
-      readTime: "10 min",
-      relatedArticles: [6],
+      helpful: 180,
+      content: "Solutions to the most common issues...",
     },
     {
-      id: 6,
-      title: "API Integration",
-      description: "Common questions about API usage and integration",
-      tags: ["api", "technical"],
-      content: "Detailed API integration guide goes here...",
-      views: 1230,
-      helpful: 445,
-      lastUpdated: "2024-01-11",
-      readTime: "12 min",
-      relatedArticles: [5],
+      id: 8,
+      title: "Contact Support",
+      description: "Get help from our team",
+      type: "article",
+      readTime: "1 min",
+      views: 500,
+      helpful: 30,
+      content: "How to reach our support team...",
     },
   ],
 };
 
-const ArticleDetail = ({ article, onClose, visible }) => {
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+const ArticleDrawer = ({ article, visible, onClose }) => {
   const [rating, setRating] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
 
   const handleFeedback = () => {
-    setFeedbackSubmitted(true);
-    // Here you would typically send the feedback to your backend
+    setSubmitted(true);
   };
 
-  const relatedArticlesData = article.relatedArticles
-    .map((id) =>
-      Object.values(articles)
-        .flat()
-        .find((a) => a.id === id)
-    )
-    .filter(Boolean);
+  if (!article) return null;
 
   return (
     <Drawer
-      title={
-        <Breadcrumb
-          key={article.id}
-          items={[{ title: "Help Center" }, { title: article.title }]}
-        />
-      }
-      width={720}
+      title={article.title}
+      width={600}
       open={visible}
       onClose={onClose}
       footer={
         <div style={{ textAlign: "center" }}>
-          {!feedbackSubmitted ? (
-            <>
-              <Text>Was this article helpful?</Text>
+          {!submitted ? (
+            <Space direction="vertical">
+              <Text>Was this helpful?</Text>
               <Rate value={rating} onChange={setRating} />
               <Button
                 type="primary"
-                onClick={handleFeedback}
                 disabled={!rating}
+                onClick={handleFeedback}
               >
-                Submit Feedback
+                Submit
               </Button>
-            </>
+            </Space>
           ) : (
-            <Text type="success">Thank you for your feedback!</Text>
+            <Text type="success">Thanks for your feedback!</Text>
           )}
         </div>
       }
     >
-      <ProCard>
-        <Title level={2}>{article.title}</Title>
-        <div style={{ marginBottom: 16 }}>
-          {article.tags.map((tag) => (
-            <Tag key={tag} color="blue" style={{ marginRight: 8 }}>
-              {tag}
+      <Space direction="vertical" size="large" style={{ width: "100%" }}>
+        <div>
+          <Space>
+            <Tag color={article.type === "video" ? "red" : "blue"}>
+              {article.type === "video" ? <PlayCircleOutlined /> : <FileTextOutlined />}
+              {article.type}
             </Tag>
-          ))}
+            <Text type="secondary">
+              <ClockCircleOutlined /> {article.readTime}
+            </Text>
+            <Text type="secondary">
+              <EyeOutlined /> {article.views}
+            </Text>
+            <Text type="secondary">
+              <LikeOutlined /> {article.helpful}
+            </Text>
+          </Space>
         </div>
-        <div style={{ marginBottom: 24 }}>
-          <Text type="secondary" style={{ marginRight: 16 }}>
-            <ClockCircleOutlined /> {article.readTime}
-          </Text>
-          <Text type="secondary" style={{ marginRight: 16 }}>
-            <FireOutlined /> {article.views} views
-          </Text>
-          <Text type="secondary">
-            <LikeOutlined /> {article.helpful} found helpful
-          </Text>
-        </div>
-        <Paragraph>{article.content}</Paragraph>
 
-        {relatedArticlesData.length > 0 && (
-          <>
-            <Title level={4}>Related Articles</Title>
-            <List
-              dataSource={relatedArticlesData}
-              renderItem={(item) => (
-                <List.Item>
-                  <List.Item.Meta
-                    title={item.title}
-                    description={item.description}
-                  />
-                </List.Item>
-              )}
-            />
-          </>
-        )}
-      </ProCard>
+        <Paragraph>{article.content}</Paragraph>
+      </Space>
     </Drawer>
   );
 };
 
 const HelpCenter = () => {
-  const [selectedCategory, setSelectedCategory] = useState("getting-started");
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedArticle, setSelectedArticle] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  const handleSearch = (value) => {
-    setLoading(true);
-    setSearchQuery(value);
-    // Simulate API call delay
-    setTimeout(() => setLoading(false), 500);
-  };
-
-  const filteredArticles = articles[selectedCategory].filter(
-    (article) =>
-      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-  );
-
-  const currentCategory = categories.find(
-    (cat) => cat.key === selectedCategory
-  );
+  const filteredArticles = selectedCategory
+    ? articles[selectedCategory]?.filter(
+      (article) =>
+        article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        article.description.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || []
+    : [];
 
   return (
-    <>
-      <Layout style={{ minHeight: "80vh", background: "#f6ffed" }}>
-        <Sider width={250} style={{ background: "#f6ffed" }}>
-          <Menu
-            mode="inline"
-            selectedKeys={[selectedCategory]}
-            items={categories}
-            onClick={({ key }) => setSelectedCategory(key)}
-            style={{ borderRight: 0 }}
-          />
-        </Sider>
-        <Layout style={{ padding: "0 24px 24px", background: "#fff" }}>
-          <Content>
-            <ProCard
-              title={currentCategory?.label}
-              subTitle={currentCategory?.description}
-            >
-              <Input.Search
-                size="large"
-                placeholder="Search for help..."
-                allowClear
-                enterButton
-                onChange={(e) => handleSearch(e.target.value)}
-                style={{ marginBottom: 24 }}
-              />
+    <Layout style={{ minHeight: "100vh", background: "#f5f5f5" }}>
+      <Content style={{ padding: "40px 24px" }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <Title level={1}>Help Center</Title>
+            <Paragraph style={{ fontSize: 16, marginBottom: 24 }}>
+              Find answers and get support
+            </Paragraph>
+            <Input.Search
+              placeholder="Search articles..."
+              size="large"
+              style={{ maxWidth: 400 }}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
 
-              <Spin spinning={loading}>
-                {filteredArticles.length > 0 ? (
-                  <List
-                    grid={{ gutter: 16, column: 1 }}
-                    dataSource={filteredArticles}
-                    renderItem={(article) => (
-                      <List.Item>
-                        <Card
-                          hoverable
-                          onClick={() => setSelectedArticle(article)}
-                          style={{ height: "100%" }}
-                        >
-                          <Title level={4}>{article.title}</Title>
-                          <Paragraph>{article.description}</Paragraph>
-                          <div style={{ marginBottom: 16 }}>
-                            {article.tags.map((tag) => (
-                              <Tag
-                                key={tag}
-                                color="blue"
-                                style={{ marginRight: 8 }}
-                              >
-                                {tag}
+          {/* Categories or Articles */}
+          {!selectedCategory ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
+              {categories.map((category) => (
+                <Card
+                  key={category.key}
+                  hoverable
+                  onClick={() => setSelectedCategory(category.key)}
+                  style={{ textAlign: "center" }}
+                >
+                  <div style={{ fontSize: 32, marginBottom: 16, color: "#1890ff" }}>
+                    {category.icon}
+                  </div>
+                  <Title level={4}>{category.title}</Title>
+                  <Text type="secondary">{category.description}</Text>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <div style={{ marginBottom: 24 }}>
+                <Button onClick={() => setSelectedCategory(null)}>
+                  ← Back to Categories
+                </Button>
+              </div>
+
+              {filteredArticles.length > 0 ? (
+                <List
+                  grid={{ gutter: 16, column: 1 }}
+                  dataSource={filteredArticles}
+                  renderItem={(article) => (
+                    <List.Item>
+                      <Card
+                        hoverable
+                        onClick={() => setSelectedArticle(article)}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ flex: 1 }}>
+                            <Title level={5} style={{ marginBottom: 8 }}>
+                              {article.title}
+                            </Title>
+                            <Paragraph style={{ marginBottom: 12, color: "#666" }}>
+                              {article.description}
+                            </Paragraph>
+                            <Space>
+                              <Tag color={article.type === "video" ? "red" : "blue"}>
+                                {article.type === "video" ? <PlayCircleOutlined /> : <FileTextOutlined />}
+                                {article.type}
                               </Tag>
-                            ))}
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                <ClockCircleOutlined /> {article.readTime}
+                              </Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                <EyeOutlined /> {article.views}
+                              </Text>
+                            </Space>
                           </div>
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                            }}
-                          >
-                            <Text type="secondary">
-                              <ClockCircleOutlined style={{ marginRight: 8 }} />
-                              {article.readTime}
-                            </Text>
-                            <Text type="secondary">
-                              Last updated: {article.lastUpdated}
-                            </Text>
-                          </div>
-                        </Card>
-                      </List.Item>
-                    )}
-                  />
-                ) : (
-                  <Empty
-                    description="No articles found"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  />
-                )}
-              </Spin>
-            </ProCard>
-          </Content>
-        </Layout>
-      </Layout>
+                        </div>
+                      </Card>
+                    </List.Item>
+                  )}
+                />
+              ) : (
+                <Empty
+                  description="No articles found"
+                  style={{ padding: 40 }}
+                />
+              )}
+            </div>
+          )}
+        </div>
 
-      {selectedArticle && (
-        <ArticleDetail
+        <ArticleDrawer
           article={selectedArticle}
           visible={!!selectedArticle}
           onClose={() => setSelectedArticle(null)}
         />
-      )}
-    </>
+      </Content>
+    </Layout>
   );
 };
 

@@ -37,7 +37,8 @@ import {
     DollarOutlined,
     UserOutlined,
     EditOutlined,
-    PoweroffOutlined
+    PoweroffOutlined,
+    RobotOutlined
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -116,23 +117,43 @@ const availableIntegrations = [
         requirements: []
     },
     {
-        id: 'wapi_pay',
-        name: 'WAPI Pay',
+        id: 'paystack',
+        name: 'Paystack',
         category: 'Payment Gateway',
-        description: 'Multi-channel payment solution for East Africa.',
-        longDescription: 'Coming soon - WAPI Pay integration offering comprehensive payment solutions across multiple African countries with support for various mobile money networks.',
-        logo: '/wapi-pay-logo.png',
-        features: ['Coming Soon'],
-        benefits: ['Coming Soon'],
-        pricing: 'Coming Soon',
-        setupTime: 'TBA',
-        rating: 0,
-        totalUsers: 'Coming Soon',
+        description: 'Modern payment infrastructure for African businesses.',
+        longDescription: 'Paystack is a leading payment gateway that enables businesses across Africa to accept payments online and in-store. With support for local payment methods, cards, and bank transfers, Paystack provides a seamless payment experience.',
+        logo: '/paystack-logo.png',
+        features: [
+            'Card Payment Processing',
+            'Bank Transfer Support',
+            'Mobile Money Integration',
+            'Recurring Payment Support',
+            'Multi-currency Transactions',
+            'Advanced Fraud Detection',
+            'Real-time Transaction Monitoring',
+            'Developer-friendly APIs'
+        ],
+        benefits: [
+            'Accept payments from customers across Africa',
+            'Reduce payment failures with smart routing',
+            'Comprehensive fraud protection',
+            'Detailed analytics and reporting',
+            'Easy integration and setup'
+        ],
+        pricing: 'Transaction fees from 1.5% + ₦100',
+        setupTime: '10 minutes',
+        rating: 4.7,
+        totalUsers: '100,000+',
         status: 'coming_soon',
         iconComponent: CreditCardOutlined,
-        color: '#ff6b35',
-        tags: ['Coming Soon', 'Multi-Country'],
-        requirements: []
+        color: '#0ea5e9',
+        tags: ['Popular', 'African', 'Modern'],
+        requirements: [
+            'Valid business registration',
+            'Active bank account',
+            'Government-issued ID',
+            'Business documentation'
+        ]
     },
     // Banking Solutions
     {
@@ -270,9 +291,47 @@ const availableIntegrations = [
         color: '#4169e1',
         tags: ['Coming Soon', 'HR Platform', 'African'],
         requirements: []
+    },
+    // AI Assistant
+    {
+        id: 'relia_ai',
+        name: 'Relia AI Assistant',
+        category: 'AI & Analytics',
+        description: 'Intelligent business assistant powered by AI for enhanced decision-making.',
+        longDescription: 'Relia AI Assistant is an intelligent business companion that provides real-time insights, predictive analytics, and automated recommendations to optimize your business operations. Get instant answers to business questions and actionable insights.',
+        logo: '/relia-ai-logo.png',
+        features: [
+            'Real-time Business Insights',
+            'Predictive Sales Analytics',
+            'Inventory Optimization Recommendations',
+            'Customer Behavior Analysis',
+            'Automated Report Generation',
+            'Natural Language Queries',
+            'Performance Trend Analysis',
+            'Smart Alerts and Notifications'
+        ],
+        benefits: [
+            'Make data-driven decisions faster',
+            'Identify sales opportunities and trends',
+            'Optimize inventory and reduce waste',
+            'Understand customer preferences better',
+            'Save time with automated insights'
+        ],
+        pricing: 'Starting from KES 2,000/month',
+        setupTime: '5 minutes',
+        rating: 4.9,
+        totalUsers: '10,000+',
+        status: 'coming_soon',
+        iconComponent: RobotOutlined,
+        color: '#ff4d4f',
+        tags: ['AI-Powered', 'Analytics', 'Relia Suite'],
+        requirements: [
+            'Active POS system',
+            'Minimum 3 months of transaction data',
+            'Internet connection'
+        ]
     }
 ];
-
 const DiscoverPage = () => {
     const [selectedIntegration, setSelectedIntegration] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
@@ -1014,25 +1073,7 @@ const DiscoverPage = () => {
                 </Form>
             </Modal>
 
-            {/* Footer with additional information */}
-            <div style={{ marginTop: '64px', textAlign: 'center', borderTop: '1px solid #f0f0f0', paddingTop: '24px' }}>
-                <Space direction="vertical" size="small">
-                    <Text type="secondary">
-                        Need help with integrations? Contact our support team for assistance.
-                    </Text>
-                    <Space>
-                        <Button type="link" size="small">
-                            <GlobalOutlined /> Documentation
-                        </Button>
-                        <Button type="link" size="small">
-                            <ApiOutlined /> API Reference
-                        </Button>
-                        <Button type="link" size="small">
-                            <SecurityScanOutlined /> Security & Compliance
-                        </Button>
-                    </Space>
-                </Space>
-            </div>
+
 
             {/* Custom CSS Styles */}
             <style jsx>{`
