@@ -487,7 +487,7 @@ function TenantSettings() {
                                                 <Input prefix={<PhoneOutlined />} placeholder="Enter phone number" />
                                             </Form.Item>
                                         </Col>
-                                        <Col xs={24} md={12}>
+                                        {/* <Col xs={24} md={12}>
                                             <Form.Item
                                                 label="Subscription Plan ID"
                                                 name="subscription_id"
@@ -500,7 +500,7 @@ function TenantSettings() {
                                                     value={typeof tenant.subscription_id === 'object' ? tenant.subscription_id._id : tenant.subscription_id}
                                                 />
                                             </Form.Item>
-                                        </Col>
+                                        </Col> */}
                                     </Row>
 
                                     <Form.Item>

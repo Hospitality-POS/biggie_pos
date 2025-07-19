@@ -2,6 +2,7 @@ import { message } from "antd";
 import axiosInstance from "./request";
 
 const tenantUrl = `https://api.admin.reliatech.co.ke/api/tenants`;
+//const tenantUrl = `http://localhost:3010/api/tenants`;
 
 interface Tenant {
     _id?: string;
