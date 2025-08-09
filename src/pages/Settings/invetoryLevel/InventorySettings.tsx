@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Button, message, Popconfirm, Space, Tag, Image, Tooltip } from "antd";
+import { Button, message, Popconfirm, Space, Tag, Image, Tooltip, Dropdown } from "antd";
 import { deleteInventory, fetchAllInventory } from "@services/inventory";
 import AddEditProInventoryModal from "@components/MODALS/pro/AddEditProInventoryModal";
 import {
@@ -11,9 +11,14 @@ import {
   WarningOutlined,
   CheckCircleOutlined,
   StopOutlined,
-  EyeOutlined
+  EyeOutlined,
+  DownloadOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined
 } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
+import jsPDF from "jspdf";
+import * as XLSX from 'xlsx';
 
 const InventorySettings = () => {
   const paymentRef = useRef<ActionType>();
@@ -129,7 +134,98 @@ const InventorySettings = () => {
       </Space>
     );
   };
+  const exportToExcel = async () => {
+    try {
+      const data = await fetchAllInventory({});
 
+      const exportData = data.map(item => ({
+        Code: item.code,
+        Name: item.name,
+        Price: item.price,
+        'Supplier Cost': item.supplier_price,
+        Subcategory: item.category_id?.name || '',
+        Quantity: item.quantity,
+        Status: item.min_viable_quantity >= item.quantity ? 'Out of Stock' : 'In Stock',
+        Unit: item.unit_id?.name || '',
+        'Min Viable Quantity': item.min_viable_quantity
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+
+      // Auto-size columns
+      const colWidths = Object.keys(exportData[0] || {}).map(key => ({
+        wch: Math.max(key.length, 15)
+      }));
+      ws['!cols'] = colWidths;
+
+      XLSX.writeFile(wb, `inventory_${new Date().toISOString().split('T')[0]}.xlsx`);
+      message.success("Excel file exported successfully");
+    } catch (error) {
+
+      message.error("Failed to export Excel file");
+    }
+  };
+
+  // Export to PDF function
+  const exportToPDF = async () => {
+    try {
+      const data = await fetchAllInventory({});
+
+      const doc = new jsPDF();
+
+      // Add title
+      doc.setFontSize(16);
+      doc.text('Inventory Report', 14, 15);
+
+      // Add date
+      doc.setFontSize(10);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 25);
+
+      // Prepare table data
+      const tableData = data.map(item => [
+        item.code,
+        item.name,
+        `Ksh. ${item.price?.toLocaleString()}`,
+        `Ksh. ${item.supplier_price?.toLocaleString()}`,
+        item.category_id?.name || '',
+        item.quantity,
+        item.min_viable_quantity >= item.quantity ? 'Out of Stock' : 'In Stock',
+        item.unit_id?.name || ''
+      ]);
+
+      // Add table
+      doc.autoTable({
+        head: [['Code', 'Name', 'Price', 'Supplier Cost', 'Category', 'Quantity', 'Status', 'Unit']],
+        body: tableData,
+        startY: 35,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [41, 128, 185] },
+        alternateRowStyles: { fillColor: [245, 245, 245] }
+      });
+
+      doc.save(`inventory_${new Date().toISOString().split('T')[0]}.pdf`);
+      message.success("PDF file exported successfully");
+    } catch (error) {
+      message.error("Failed to export PDF file");
+    }
+  };
+
+  const exportMenuItems = [
+    {
+      key: 'excel',
+      label: 'Export to Excel',
+      icon: <FileExcelOutlined />,
+      onClick: exportToExcel
+    },
+    {
+      key: 'pdf',
+      label: 'Export to PDF',
+      icon: <FilePdfOutlined />,
+      onClick: exportToPDF
+    }
+  ];
   const actionColumn = {
     title: "Actions",
     dataIndex: "actions",
@@ -324,37 +420,37 @@ const InventorySettings = () => {
             width: 150,
             render: (_, record) => renderPrice(record),
           },
-          {
-            title: "Supplier",
-            dataIndex: "supplier_id",
-            hideInSearch: true,
-            width: 120,
-            render: (_, record) => {
-              if (record?.supplier_id?.name) {
-                return (
-                  <Tooltip title={record.supplier_id.name}>
-                    <Tag color="purple">
-                      {record.supplier_id.name.length > 10
-                        ? `${record.supplier_id.name.substring(0, 10)}...`
-                        : record.supplier_id.name}
-                    </Tag>
-                  </Tooltip>
-                );
-              }
-              return <span style={{ color: '#8c8c8c' }}>No supplier</span>;
-            },
-          },
-          {
-            title: "Location",
-            dataIndex: "location",
-            hideInSearch: true,
-            width: 120,
-            render: (text) => text ? (
-              <Tag color="geekblue">{text}</Tag>
-            ) : (
-              <span style={{ color: '#8c8c8c' }}>Not set</span>
-            ),
-          },
+          // {
+          //   title: "Supplier",
+          //   dataIndex: "supplier_id",
+          //   hideInSearch: true,
+          //   width: 120,
+          //   render: (_, record) => {
+          //     if (record?.supplier_id?.name) {
+          //       return (
+          //         <Tooltip title={record.supplier_id.name}>
+          //           <Tag color="purple">
+          //             {record.supplier_id.name.length > 10
+          //               ? `${record.supplier_id.name.substring(0, 10)}...`
+          //               : record.supplier_id.name}
+          //           </Tag>
+          //         </Tooltip>
+          //       );
+          //     }
+          //     return <span style={{ color: '#8c8c8c' }}>No supplier</span>;
+          //   },
+          // },
+          // {
+          //   title: "Location",
+          //   dataIndex: "location",
+          //   hideInSearch: true,
+          //   width: 120,
+          //   render: (text) => text ? (
+          //     <Tag color="geekblue">{text}</Tag>
+          //   ) : (
+          //     <span style={{ color: '#8c8c8c' }}>Not set</span>
+          //   ),
+          // },
           {
             title: "Status",
             dataIndex: "status",
@@ -453,7 +549,16 @@ const InventorySettings = () => {
         dateFormatter="string"
         headerTitle="Product Inventory Management"
         toolBarRender={() => [
-          <AddEditProInventoryModal key="add" actionRef={paymentRef} />,
+          <AddEditProInventoryModal actionRef={paymentRef} key="add" />,
+          <Dropdown
+            key="export"
+            menu={{ items: exportMenuItems }}
+            placement="bottomRight"
+          >
+            <Button type="primary" icon={<DownloadOutlined />}>
+              Export Data
+            </Button>
+          </Dropdown>
         ]}
         options={{
           setting: {

@@ -6,10 +6,12 @@ import {
   DatabaseOutlined,
   ShopOutlined,
   TruckOutlined,
-} from "@ant-design/icons"; // Ensure you import the correct icons
+  FileTextOutlined,
+} from "@ant-design/icons";
 import InventorySettings from "./InventorySettings";
 import DeliverySettings from "./DeliverySettings";
 import UomSettings from "./UomSettings";
+import PurchaseOrderSettings from "./PurchaseOrderSettings";
 
 const { Text } = Typography;
 
@@ -77,10 +79,30 @@ function InventoryMainSettings() {
       </ProCard.TabPane>
 
       <ProCard.TabPane
+        key="purchase-orders"
+        tab={
+          <Space>
+            <FileTextOutlined style={{ color: "#722ed1" }} />
+            <Text>Purchase Orders</Text>
+          </Space>
+        }
+      >
+        <div
+          style={{
+            padding: "0",
+            backgroundColor: "#fafafa",
+            borderRadius: "8px",
+          }}
+        >
+          <PurchaseOrderSettings />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
         key="delivery"
         tab={
           <Space>
-            <TruckOutlined style={{ color: "#1890ff" }} />{" "}
+            <TruckOutlined style={{ color: "#1890ff" }} />
             <Text>Deliveries</Text>
           </Space>
         }
@@ -94,7 +116,7 @@ function InventoryMainSettings() {
         >
           <DeliverySettings />
         </div>
-      </ProCard.TabPane>    
+      </ProCard.TabPane>
     </ProCard>
   );
 }

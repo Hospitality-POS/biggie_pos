@@ -7,6 +7,7 @@ import {
   ProFormSwitch,
   StepsForm,
   ProFormSelect,
+  ProFormMoney,
 } from "@ant-design/pro-components";
 import { Button, Form, message, Space, Row, Col } from "antd";
 import {
@@ -44,7 +45,6 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
   const [open, setOpen] = useState(false);
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
 
-  // Get tenant primary color on component mount
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -68,7 +68,6 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
     }
   };
 
-  // Fetch Suppliers using React Query
   const { data: supplier } = useQuery({
     queryKey: ["supplier"],
     queryFn: fetchAllSuppliers,
@@ -84,7 +83,6 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
     return data;
   };
 
-  //  Fetch users using React Query
   const { data: users } = useQuery({
     queryKey: ["users"],
     queryFn: fetchAllUsersList,
@@ -93,7 +91,6 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
     networkMode: "always",
   });
 
-  // Convert users data to the required format for ProFormSelect
   const UserRequest = async () => {
     if (!users || users.length === 0) {
       return [];
@@ -108,7 +105,6 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
     return data;
   };
 
-  // fetch inventory using React Query
   const { data: inventory } = useQuery({
     queryKey: ["inventory"],
     queryFn: fetchAllInventory,
@@ -124,7 +120,6 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
     return data;
   };
 
-  // fetch units using React Query
   const { data: units } = useQuery({
     queryKey: ["units"],
     queryFn: fetchAllUnits,
@@ -187,14 +182,14 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
       modalProps={{
         destroyOnClose: true,
         centered: true,
-        width: "90%", // Full-width on small screens
+        width: "90%",
         style: {
-          maxWidth: "850px", // Cap the width for larger screens
+          maxWidth: "900px",
         },
         bodyStyle: {
-          overflowY: "auto", // Allow scrolling on smaller screens
-          overflowX: "hidden", // Hide horizontal scrollbar on smaller screens
-          maxHeight: "80vh", // Avoid the modal becoming too tall
+          overflowY: "auto",
+          overflowX: "hidden",
+          maxHeight: "80vh",
         },
       }}
       submitter={{
@@ -313,6 +308,7 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                     label: item?.unit_id?.name,
                   },
                   quantity: item?.quantity,
+                  supplier_price: item?.supplier_price,
                 })),
               }
               : {}
@@ -327,7 +323,7 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                     gutter={[16, 16]}
                     style={{ alignItems: "center" }}
                   >
-                    <Col xs={24} md={8}>
+                    <Col xs={24} md={7}>
                       <ProFormSelect
                         name={[field.name, "inventory_id"]}
                         width="sm"
@@ -338,7 +334,7 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                         request={InventoryRequest}
                       />
                     </Col>
-                    <Col xs={24} md={6}>
+                    <Col xs={24} md={5}>
                       <ProFormSelect
                         name={[field.name, "unit_id"]}
                         width="md"
@@ -359,14 +355,30 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
                         rules={[{ required: true }]}
                       />
                     </Col>
-                    <Col xs={24} md={6}>
+                    <Col xs={24} md={5}>
+                      <ProFormMoney
+                        width="sm"
+                        name={[field.name, "supplier_price"]}
+                        label="Supplier Price"
+                        placeholder="0.00"
+                        min={0}
+                        rules={[{ required: true }]}
+                        fieldProps={{
+                          precision: 2,
+                          formatter: (value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ','),
+                          parser: (value) => value!.replace(/\$\s?|(,*)/g, ''),
+                        }}
+                      />
+                    </Col>
+                    <Col xs={24} md={3}>
                       {fields.length > 1 && (
                         <Button
                           type="primary"
                           onClick={() => remove(field.name)}
                           icon={<MinusCircleOutlined />}
+                          danger
                         >
-                          remove
+                          Remove
                         </Button>
                       )}
                     </Col>
