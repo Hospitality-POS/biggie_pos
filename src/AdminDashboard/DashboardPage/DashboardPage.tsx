@@ -20,9 +20,7 @@ import {
   Divider,
   Tag,
   Progress,
-  Alert,
   Empty,
-  Tooltip,
 } from "antd";
 import {
   ShoppingCartOutlined,
@@ -30,11 +28,6 @@ import {
   TeamOutlined,
   WarningOutlined,
   ReloadOutlined,
-  MoneyCollectOutlined,
-  ClockCircleOutlined,
-  PieChartOutlined,
-  QuestionCircleOutlined,
-  UserOutlined,
   CalendarOutlined,
   LineChartOutlined,
   FireOutlined,
@@ -43,10 +36,13 @@ import {
   DollarOutlined,
   FallOutlined,
   CheckCircleOutlined,
+  FileTextOutlined,
+  SyncOutlined,
+  PieChartOutlined,
 } from "@ant-design/icons";
 import { Line } from '@ant-design/charts';
-import { getAdminDashboardAnalysis, getBestSellers, getBestSellersByCategory, getSalesChartData } from "@services/orders";
-import { CheckCard } from "@ant-design/pro-components";
+import { getAdminDashboardAnalysis, getBestSellers, getSalesChartData } from "@services/orders";
+import { fetchAllPurchaseOrders } from "@services/purchaseOrder";
 import WelcomeBanner from "./WelcomeBanner";
 import dayjs from 'dayjs';
 
@@ -58,7 +54,6 @@ const COLORS = {
   success: "#52c41a",
   warning: "#faad14",
   error: "#ff4d4f",
-  info: "#1890ff",
   purple: "#722ed1",
   orange: "#fa8c16",
   cyan: "#13c2c2",
@@ -393,6 +388,66 @@ const BESTSELLER_COLUMNS = [
   },
 ];
 
+const PO_COLUMNS = [
+  {
+    title: "PO Number",
+    dataIndex: "po_number",
+    key: "po_number",
+    width: 120,
+  },
+  {
+    title: "Supplier",
+    dataIndex: ["supplier_id", "name"],
+    key: "supplier_name",
+    ellipsis: true,
+  },
+  {
+    title: "Status",
+    dataIndex: "status",
+    key: "status",
+    width: 120,
+    render: (status) => {
+      const statusColors = {
+        pending: COLORS.warning,
+        approved: COLORS.primary,
+        partially_delivered: COLORS.cyan,
+        fully_delivered: COLORS.success,
+        cancelled: COLORS.error,
+      };
+      return (
+        <Badge
+          color={statusColors[status] || COLORS.gray}
+          text={status?.replace('_', ' ')?.toUpperCase()}
+        />
+      );
+    },
+  },
+  {
+    title: "Amount",
+    dataIndex: "total_amount",
+    key: "total_amount",
+    width: 120,
+    render: (amount) => (
+      <Text strong style={{ color: COLORS.primary }}>
+        Ksh {amount?.toLocaleString()}
+      </Text>
+    ),
+  },
+  {
+    title: "Progress",
+    dataIndex: "delivery_percentage",
+    key: "delivery_percentage",
+    width: 100,
+    render: (percentage) => (
+      <Progress
+        percent={percentage || 0}
+        size="small"
+        status={percentage === 100 ? 'success' : percentage > 0 ? 'active' : 'normal'}
+      />
+    ),
+  },
+];
+
 const StatisticCard = ({ title, value, prefix, loading, trend, onClick }) => (
   <Col xs={24} sm={12} lg={6}>
     <Card
@@ -418,7 +473,7 @@ const StatisticCard = ({ title, value, prefix, loading, trend, onClick }) => (
             }
             value={value || 0}
             prefix={prefix}
-            precision={title.includes("Revenue") ? 2 : 0}
+            precision={title.includes("Revenue") || title.includes("Amount") ? 2 : 0}
             valueStyle={{
               color: "#1f2937",
               fontSize: "1.6rem",
@@ -780,7 +835,7 @@ const DashboardAdminPage = () => {
 
   const { startDate, endDate } = getDateRange();
 
-  const { data, isLoading, refetch, isRefetching, error } = useQuery({
+  const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["admindashBoardAnalysis", startDate.format(), endDate.format()],
     queryFn: () => getAdminDashboardAnalysis(
       startDate.toISOString(),
@@ -790,7 +845,7 @@ const DashboardAdminPage = () => {
     refetchOnWindowFocus: false,
     staleTime: 30000,
     retry: 2,
-    onError: (error) => {
+    onError: () => {
       notification.error({
         message: "Failed to fetch dashboard data. Please try again.",
         duration: 3,
@@ -824,6 +879,52 @@ const DashboardAdminPage = () => {
     staleTime: 30000,
     retry: 2,
   });
+
+  const { data: purchaseOrdersData, isLoading: purchaseOrdersLoading } = useQuery({
+    queryKey: ["purchaseOrdersDashboard"],
+    queryFn: () => fetchAllPurchaseOrders({}),
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+    staleTime: 60000,
+    retry: 2,
+  });
+
+  const purchaseOrderStats = useMemo(() => {
+    if (!purchaseOrdersData || !Array.isArray(purchaseOrdersData)) {
+      return {
+        totalPOs: 0,
+        totalValue: 0,
+        pendingPOs: 0,
+        approvedPOs: 0,
+        deliveredPOs: 0,
+        avgOrderValue: 0,
+        recentPOs: []
+      };
+    }
+
+    const totalPOs = purchaseOrdersData.length;
+    const totalValue = purchaseOrdersData.reduce((sum, po) => sum + (po.total_amount || 0), 0);
+    const pendingPOs = purchaseOrdersData.filter(po => po.status === 'pending').length;
+    const approvedPOs = purchaseOrdersData.filter(po => po.status === 'approved').length;
+    const deliveredPOs = purchaseOrdersData.filter(po =>
+      po.status === 'fully_delivered' || po.status === 'partially_delivered'
+    ).length;
+    const avgOrderValue = totalPOs > 0 ? totalValue / totalPOs : 0;
+
+    const recentPOs = purchaseOrdersData
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 5);
+
+    return {
+      totalPOs,
+      totalValue,
+      pendingPOs,
+      approvedPOs,
+      deliveredPOs,
+      avgOrderValue,
+      recentPOs
+    };
+  }, [purchaseOrdersData]);
 
   const handleRefresh = useCallback(async () => {
     try {
@@ -872,7 +973,7 @@ const DashboardAdminPage = () => {
     {
       title: "Active Shifts",
       value: data?.activeShift,
-      prefix: <TeamOutlined style={{ color: COLORS.info }} />,
+      prefix: <TeamOutlined style={{ color: COLORS.primary }} />,
       onClick: () => navigate('/shifts'),
     },
   ], [chartData, data, navigate, periodFilter]);
@@ -970,6 +1071,99 @@ const DashboardAdminPage = () => {
             {...stat}
           />
         ))}
+      </Row>
+
+      <Row style={{ marginBottom: 24 }}>
+        <Col span={24}>
+          <Card
+            title={
+              <Space>
+                <FileTextOutlined style={{ color: COLORS.purple }} />
+                Purchase Orders Overview
+              </Space>
+            }
+            extra={
+              <Button type="link" onClick={() => navigate('/purchase-orders')}>
+                View All Purchase Orders
+              </Button>
+            }
+            style={{ borderRadius: 12 }}
+          >
+            {purchaseOrdersLoading ? (
+              <Skeleton active paragraph={{ rows: 3 }} />
+            ) : (
+              <Row gutter={[24, 16]}>
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.purple,
+                      marginBottom: 4
+                    }}>
+                      {purchaseOrderStats.totalPOs}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Total Purchase Orders</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      All time
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.success,
+                      marginBottom: 4
+                    }}>
+                      Ksh {purchaseOrderStats.totalValue.toLocaleString()}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Total PO Value</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Procurement spending
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.warning,
+                      marginBottom: 4
+                    }}>
+                      {purchaseOrderStats.pendingPOs}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Pending Approval</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Need attention
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xs={24} sm={12} md={6}>
+                  <div style={{ textAlign: 'center', padding: '16px' }}>
+                    <div style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: COLORS.cyan,
+                      marginBottom: 4
+                    }}>
+                      {purchaseOrderStats.deliveredPOs}
+                    </div>
+                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Delivered</div>
+                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
+                      Completed orders
+                    </div>
+                  </div>
+                </Col>
+              </Row>
+            )}
+          </Card>
+        </Col>
       </Row>
 
       <Row style={{ marginBottom: 24 }}>
@@ -1135,6 +1329,59 @@ const DashboardAdminPage = () => {
           <Card
             title={
               <Space>
+                <FileTextOutlined style={{ color: COLORS.purple }} />
+                Recent Purchase Orders
+              </Space>
+            }
+            extra={
+              <Space>
+                {purchaseOrderStats.totalPOs > 0 && (
+                  <Badge
+                    count={purchaseOrderStats.totalPOs}
+                    style={{ backgroundColor: COLORS.purple }}
+                  />
+                )}
+                <Button type="link" onClick={() => navigate('/purchase-orders')}>
+                  View All
+                </Button>
+              </Space>
+            }
+            style={{ borderRadius: 12 }}
+          >
+            {purchaseOrdersLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
+            ) : (
+              <Table
+                columns={PO_COLUMNS}
+                dataSource={purchaseOrderStats.recentPOs}
+                pagination={{
+                  pageSize: 5,
+                  hideOnSinglePage: true,
+                  showSizeChanger: false,
+                }}
+                size="middle"
+                rowKey="_id"
+                rowClassName={() => "hover:bg-gray-50 transition-colors"}
+                locale={{
+                  emptyText: (
+                    <Empty
+                      image={<FileTextOutlined style={{ fontSize: 32, color: COLORS.gray }} />}
+                      description="No recent purchase orders"
+                      style={{ padding: '20px' }}
+                    />
+                  )
+                }}
+              />
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <Space>
                 <WarningOutlined style={{ color: COLORS.error }} />
                 Low Stock Alerts (All Shops)
               </Space>
@@ -1183,6 +1430,76 @@ const DashboardAdminPage = () => {
                   )
                 }}
               />
+            )}
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <Space>
+                <SyncOutlined style={{ color: COLORS.cyan }} />
+                Purchase Order Insights
+              </Space>
+            }
+            style={{ borderRadius: 12 }}
+          >
+            {purchaseOrdersLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
+            ) : (
+              <div style={{ padding: '16px' }}>
+                {purchaseOrderStats.totalPOs > 0 ? (
+                  <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <Text>Delivery Rate</Text>
+                        <Text strong>{((purchaseOrderStats.deliveredPOs / purchaseOrderStats.totalPOs) * 100).toFixed(1)}%</Text>
+                      </div>
+                      <Progress
+                        percent={(purchaseOrderStats.deliveredPOs / purchaseOrderStats.totalPOs) * 100}
+                        strokeColor={COLORS.success}
+                      />
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <Text>Pending Orders</Text>
+                        <Text strong style={{ color: COLORS.warning }}>{purchaseOrderStats.pendingPOs} orders</Text>
+                      </div>
+                      <Progress
+                        percent={(purchaseOrderStats.pendingPOs / purchaseOrderStats.totalPOs) * 100}
+                        strokeColor={COLORS.warning}
+                      />
+                    </div>
+
+                    <Divider style={{ margin: '16px 0' }} />
+
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 600, color: COLORS.purple }}>
+                            Ksh {purchaseOrderStats.avgOrderValue.toLocaleString()}
+                          </div>
+                          <div style={{ fontSize: 12, color: COLORS.gray }}>Average PO Value</div>
+                        </div>
+                      </Col>
+                      <Col span={12}>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 600, color: COLORS.primary }}>
+                            {purchaseOrderStats.approvedPOs}
+                          </div>
+                          <div style={{ fontSize: 12, color: COLORS.gray }}>Approved Orders</div>
+                        </div>
+                      </Col>
+                    </Row>
+                  </Space>
+                ) : (
+                  <Empty
+                    image={<FileTextOutlined style={{ fontSize: 48, color: COLORS.gray }} />}
+                    description="No purchase orders found"
+                  />
+                )}
+              </div>
             )}
           </Card>
         </Col>
