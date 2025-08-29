@@ -423,7 +423,7 @@ const ProNavbar = ({ children }) => {
           )}
         </Space>
       ),
-      onClick: () => navigation("/admin/notifications"),
+      onClick: () => user?.role === "admin" ? navigation("/admin/notifications") : navigation("/notifications"),
       style: {
         padding: '8px 12px',
         margin: '2px 4px',
