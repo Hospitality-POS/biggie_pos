@@ -20,9 +20,7 @@ import {
   Divider,
   Tag,
   Progress,
-  Alert,
   Empty,
-  Tooltip,
 } from "antd";
 import {
   ShoppingCartOutlined,
@@ -30,11 +28,6 @@ import {
   TeamOutlined,
   WarningOutlined,
   ReloadOutlined,
-  MoneyCollectOutlined,
-  ClockCircleOutlined,
-  PieChartOutlined,
-  QuestionCircleOutlined,
-  UserOutlined,
   CalendarOutlined,
   LineChartOutlined,
   FireOutlined,
@@ -43,22 +36,24 @@ import {
   DollarOutlined,
   FallOutlined,
   CheckCircleOutlined,
+  FileTextOutlined,
+  SyncOutlined,
+  PieChartOutlined,
 } from "@ant-design/icons";
 import { Line } from '@ant-design/charts';
-import { getAdminDashboardAnalysis, getBestSellers, getBestSellersByCategory, getSalesChartData } from "@services/orders";
-import { CheckCard } from "@ant-design/pro-components";
+import { getAdminDashboardAnalysis, getBestSellers, getSalesChartData } from "@services/orders";
 import WelcomeBanner from "./WelcomeBanner";
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
+// Constants
 const COLORS = {
   primary: "#1890ff",
   success: "#52c41a",
   warning: "#faad14",
   error: "#ff4d4f",
-  info: "#1890ff",
   purple: "#722ed1",
   orange: "#fa8c16",
   cyan: "#13c2c2",
@@ -74,6 +69,7 @@ const PERIOD_LABELS = {
   custom: 'Custom Period'
 };
 
+// Business performance calculation
 const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
   const totalRevenue = chartData?.data?.summary?.total_sales || apiData?.todayRevenue || 0;
   const totalOrders = chartData?.data?.summary?.total_orders || apiData?.totalOrderCount || 0;
@@ -81,17 +77,9 @@ const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
   const growthRate = chartData?.data?.summary?.growth_rate || 0;
 
   if (!chartData?.data?.chart_data?.length || totalRevenue === 0) {
-    const noSalesPeriod = {
-      day: 'No sales today',
-      week: 'No sales this week',
-      month: 'No sales this month',
-      year: 'No sales this year',
-      custom: 'No sales in selected period'
-    };
-
     return {
       trend: 'no-sales',
-      trendText: noSalesPeriod[periodFilter] || 'No sales data',
+      trendText: `No sales ${PERIOD_LABELS[periodFilter]?.toLowerCase() || 'in selected period'}`,
       trendColor: COLORS.error,
       insights: [
         { type: 'negative', text: 'Zero revenue - immediate action needed' },
@@ -104,139 +92,64 @@ const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
     };
   }
 
-  let performance = 'active';
-  let performanceColor = COLORS.primary;
-  let performanceText = 'Business Active';
-
+  // Performance categorization
+  let performance, performanceColor, performanceText;
   if (totalOrders >= 50) {
-    performance = 'excellent';
-    performanceColor = COLORS.success;
-    performanceText = 'Excellent Business Performance';
+    [performance, performanceColor, performanceText] = ['excellent', COLORS.success, 'Excellent Business Performance'];
   } else if (totalOrders >= 25) {
-    performance = 'good';
-    performanceColor = COLORS.success;
-    performanceText = 'Strong Business Activity';
+    [performance, performanceColor, performanceText] = ['good', COLORS.success, 'Strong Business Activity'];
   } else if (totalOrders >= 10) {
-    performance = 'moderate';
-    performanceColor = COLORS.primary;
-    performanceText = 'Moderate Business Activity';
+    [performance, performanceColor, performanceText] = ['moderate', COLORS.primary, 'Moderate Business Activity'];
   } else if (totalOrders >= 3) {
-    performance = 'low';
-    performanceColor = COLORS.warning;
-    performanceText = 'Low Business Activity';
+    [performance, performanceColor, performanceText] = ['low', COLORS.warning, 'Low Business Activity'];
   } else {
-    performance = 'critical';
-    performanceColor = COLORS.error;
-    performanceText = 'Critical - Business Issues';
+    [performance, performanceColor, performanceText] = ['critical', COLORS.error, 'Critical - Business Issues'];
   }
 
-  let trend = 'neutral';
-  let trendColor = COLORS.gray;
-  let trendText = 'Stable';
-
+  // Trend analysis
+  let trend, trendColor, trendText;
   if (growthRate > 20) {
-    trend = 'up-strong';
-    trendColor = COLORS.success;
-    trendText = `Business Accelerating (+${growthRate.toFixed(1)}%)`;
+    [trend, trendColor, trendText] = ['up-strong', COLORS.success, `Business Accelerating (+${growthRate.toFixed(1)}%)`];
   } else if (growthRate > 5) {
-    trend = 'up';
-    trendColor = COLORS.success;
-    trendText = `Business Growing (+${growthRate.toFixed(1)}%)`;
+    [trend, trendColor, trendText] = ['up', COLORS.success, `Business Growing (+${growthRate.toFixed(1)}%)`];
   } else if (growthRate > -5) {
-    trend = 'neutral';
-    trendColor = COLORS.gray;
-    trendText = `Business Stable (${growthRate.toFixed(1)}%)`;
+    [trend, trendColor, trendText] = ['neutral', COLORS.gray, `Business Stable (${growthRate.toFixed(1)}%)`];
   } else if (growthRate > -15) {
-    trend = 'down';
-    trendColor = COLORS.warning;
-    trendText = `Business Slowing (${growthRate.toFixed(1)}%)`;
-  } else if (growthRate > -30) {
-    trend = 'down-strong';
-    trendColor = COLORS.error;
-    trendText = `Business Declining (${growthRate.toFixed(1)}%)`;
+    [trend, trendColor, trendText] = ['down', COLORS.warning, `Business Slowing (${growthRate.toFixed(1)}%)`];
   } else {
-    trend = 'down-critical';
-    trendColor = COLORS.error;
-    trendText = `Critical Business Decline (${growthRate.toFixed(1)}%)`;
+    [trend, trendColor, trendText] = ['down-critical', COLORS.error, `Critical Business Decline (${growthRate.toFixed(1)}%)`];
   }
 
+  // Generate insights
   const insights = [];
 
   if (totalOrders > 0) {
     if (avgOrderValue > 2500) {
-      insights.push({ type: 'positive', text: `Excellent order value across all shops: Ksh ${avgOrderValue.toFixed(0)}` });
-    } else if (avgOrderValue > 1500) {
-      insights.push({ type: 'positive', text: `Good order value across all shops: Ksh ${avgOrderValue.toFixed(0)}` });
+      insights.push({ type: 'positive', text: `Excellent order value: Ksh ${avgOrderValue.toFixed(0)}` });
     } else if (avgOrderValue < 500) {
-      insights.push({ type: 'warning', text: `Consider upselling across all shops - avg: Ksh ${avgOrderValue.toFixed(0)}` });
+      insights.push({ type: 'warning', text: `Consider upselling - avg: Ksh ${avgOrderValue.toFixed(0)}` });
     }
-  }
-
-  const businessThresholds = {
-    day: { low: 10, good: 30, excellent: 60 },
-    week: { low: 50, good: 150, excellent: 300 },
-    month: { low: 200, good: 600, excellent: 1200 },
-    year: { low: 2500, good: 7500, excellent: 15000 }
-  };
-
-  const threshold = businessThresholds[periodFilter];
-  if (threshold) {
-    if (totalOrders === 0) {
-      insights.push({ type: 'negative', text: `No orders ${PERIOD_LABELS[periodFilter].toLowerCase()} across all shops - check operations` });
-    } else if (totalOrders < threshold.low) {
-      insights.push({ type: 'warning', text: `Business ${PERIOD_LABELS[periodFilter].toLowerCase()} volume below expectations` });
-    } else if (totalOrders >= threshold.excellent) {
-      insights.push({ type: 'positive', text: `Outstanding business ${PERIOD_LABELS[periodFilter].toLowerCase()} performance!` });
-    }
-  }
-
-  if (trend === 'down-critical' || trend === 'down-strong') {
-    insights.push({ type: 'negative', text: 'Business sales declining - review strategy across all shops urgently' });
-  } else if (trend === 'down') {
-    insights.push({ type: 'warning', text: 'Business sales slowing - monitor all shops closely' });
-  } else if (trend === 'up-strong') {
-    insights.push({ type: 'positive', text: 'Strong business growth momentum across all shops!' });
   }
 
   if (chartData?.data?.summary?.peak_period) {
     const peak = chartData.data.summary.peak_period;
     insights.push({
       type: 'positive',
-      text: `Peak business period: ${peak.time} (Ksh ${peak.sales?.toLocaleString()})`
+      text: `Peak period: ${peak.time} (Ksh ${peak.sales?.toLocaleString()})`
     });
   }
 
   return {
-    trend,
-    trendText,
-    trendColor,
-    insights,
-    performance,
-    performanceColor,
-    performanceText,
-    avgOrderValue
+    trend, trendText, trendColor, insights, performance,
+    performanceColor, performanceText, avgOrderValue
   };
 };
 
-const ORDER_COLUMNS = [
-  {
-    title: "Order No",
-    dataIndex: "order_no",
-    key: "order_no",
-    width: 120,
-  },
-  {
-    title: "Table",
-    dataIndex: "table",
-    key: "table",
-    width: 80,
-  },
-  {
-    title: "Shop",
-    dataIndex: "shop_name",
-    key: "shop_name",
-    ellipsis: true,
-  },
+// Table column configurations
+const createOrderColumns = () => [
+  { title: "Order No", dataIndex: "order_no", key: "order_no", width: 120 },
+  { title: "Table", dataIndex: "table", key: "table", width: 80 },
+  { title: "Shop", dataIndex: "shop_name", key: "shop_name", ellipsis: true },
   {
     title: "Amount",
     dataIndex: "order_amount",
@@ -248,27 +161,12 @@ const ORDER_COLUMNS = [
       </Text>
     ),
   },
-  {
-    title: "Served By",
-    dataIndex: "servedBy",
-    key: "servedBy",
-    ellipsis: true,
-  },
+  { title: "Served By", dataIndex: "servedBy", key: "servedBy", ellipsis: true },
 ];
 
-const STOCK_COLUMNS = [
-  {
-    title: "Item Name",
-    dataIndex: "name",
-    key: "name",
-    ellipsis: true,
-  },
-  {
-    title: "Shop",
-    dataIndex: "shop_name",
-    key: "shop_name",
-    width: 120,
-  },
+const createStockColumns = () => [
+  { title: "Item Name", dataIndex: "name", key: "name", ellipsis: true },
+  { title: "Shop", dataIndex: "shop_name", key: "shop_name", width: 120 },
   {
     title: "Current",
     dataIndex: "quantity",
@@ -280,12 +178,7 @@ const STOCK_COLUMNS = [
       </Text>
     ),
   },
-  {
-    title: "Min Required",
-    dataIndex: "min_viable_quantity",
-    key: "min_viable_quantity",
-    width: 100,
-  },
+  { title: "Min Required", dataIndex: "min_viable_quantity", key: "min_viable_quantity", width: 100 },
   {
     title: "Status",
     key: "status",
@@ -293,22 +186,17 @@ const STOCK_COLUMNS = [
     render: (_, record) => {
       const isOutOfStock = record.quantity <= 0;
       const isLow = record.quantity <= record.min_viable_quantity;
-
       return (
         <Badge
           status={isOutOfStock ? "error" : "warning"}
-          text={
-            isOutOfStock ? "Out of stock" :
-              isLow ? `${record.quantity} left` :
-                "Low stock"
-          }
+          text={isOutOfStock ? "Out of stock" : isLow ? `${record.quantity} left` : "Low stock"}
         />
       );
     },
   },
 ];
 
-const BESTSELLER_COLUMNS = [
+const createBestSellerColumns = () => [
   {
     title: "Rank",
     dataIndex: "rank",
@@ -316,12 +204,13 @@ const BESTSELLER_COLUMNS = [
     width: 60,
     render: (rank) => (
       <div style={{ textAlign: 'center' }}>
-        {rank === 1 ? (
-          <TrophyOutlined style={{ color: '#ffd700', fontSize: 18 }} />
-        ) : rank === 2 ? (
-          <TrophyOutlined style={{ color: '#c0c0c0', fontSize: 16 }} />
-        ) : rank === 3 ? (
-          <TrophyOutlined style={{ color: '#cd7f32', fontSize: 16 }} />
+        {rank <= 3 ? (
+          <TrophyOutlined
+            style={{
+              color: rank === 1 ? '#ffd700' : rank === 2 ? '#c0c0c0' : '#cd7f32',
+              fontSize: rank === 1 ? 18 : 16
+            }}
+          />
         ) : (
           <span style={{ fontWeight: 600, color: COLORS.primary }}>#{rank}</span>
         )}
@@ -348,12 +237,8 @@ const BESTSELLER_COLUMNS = [
     sorter: (a, b) => a.sales_metrics.total_quantity_sold - b.sales_metrics.total_quantity_sold,
     render: (quantity, record) => (
       <div>
-        <div style={{ fontWeight: 600, color: COLORS.success }}>
-          {quantity} units
-        </div>
-        <div style={{ fontSize: 12, color: COLORS.gray }}>
-          {record.sales_metrics.order_count} orders
-        </div>
+        <div style={{ fontWeight: 600, color: COLORS.success }}>{quantity} units</div>
+        <div style={{ fontSize: 12, color: COLORS.gray }}>{record.sales_metrics.order_count} orders</div>
       </div>
     ),
   },
@@ -364,9 +249,7 @@ const BESTSELLER_COLUMNS = [
     sorter: (a, b) => a.sales_metrics.total_revenue - b.sales_metrics.total_revenue,
     render: (revenue, record) => (
       <div>
-        <div style={{ fontWeight: 600, color: COLORS.primary }}>
-          Ksh {revenue?.toLocaleString()}
-        </div>
+        <div style={{ fontWeight: 600, color: COLORS.primary }}>Ksh {revenue?.toLocaleString()}</div>
         {record.sales_metrics?.total_profit && (
           <div style={{ fontSize: 12, color: COLORS.success }}>
             Profit: Ksh {record.sales_metrics.total_profit.toLocaleString()}
@@ -393,6 +276,7 @@ const BESTSELLER_COLUMNS = [
   },
 ];
 
+// Components
 const StatisticCard = ({ title, value, prefix, loading, trend, onClick }) => (
   <Col xs={24} sm={12} lg={6}>
     <Card
@@ -411,19 +295,11 @@ const StatisticCard = ({ title, value, prefix, loading, trend, onClick }) => (
       ) : (
         <div>
           <Statistic
-            title={
-              <span style={{ color: COLORS.gray, fontWeight: 500, fontSize: 14 }}>
-                {title}
-              </span>
-            }
+            title={<span style={{ color: COLORS.gray, fontWeight: 500, fontSize: 14 }}>{title}</span>}
             value={value || 0}
             prefix={prefix}
-            precision={title.includes("Revenue") ? 2 : 0}
-            valueStyle={{
-              color: "#1f2937",
-              fontSize: "1.6rem",
-              fontWeight: 600,
-            }}
+            precision={title.includes("Revenue") || title.includes("Amount") ? 2 : 0}
+            valueStyle={{ color: "#1f2937", fontSize: "1.6rem", fontWeight: 600 }}
           />
           {trend && (
             <div style={{ marginTop: 8, fontSize: 12 }}>
@@ -435,9 +311,7 @@ const StatisticCard = ({ title, value, prefix, loading, trend, onClick }) => (
                 ) : (
                   <CheckCircleOutlined style={{ color: COLORS.gray }} />
                 )}
-                <Text style={{
-                  color: trend > 0 ? COLORS.success : trend < 0 ? COLORS.error : COLORS.gray
-                }}>
+                <Text style={{ color: trend > 0 ? COLORS.success : trend < 0 ? COLORS.error : COLORS.gray }}>
                   {trend > 0 ? '+' : ''}{trend?.toFixed(1)}%
                 </Text>
               </Space>
@@ -452,7 +326,6 @@ const StatisticCard = ({ title, value, prefix, loading, trend, onClick }) => (
 const SalesChart = ({ data, loading, title, businessIndicators }) => {
   const chartData = useMemo(() => {
     if (!data || !Array.isArray(data)) return [];
-
     return data.map(item => ({
       ...item,
       sales: Number(item.sales) || 0,
@@ -468,117 +341,54 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
     yField: 'sales',
     height: 350,
     smooth: true,
-    lineStyle: {
-      stroke: COLORS.primary,
-      lineWidth: 3,
-    },
-    point: {
-      size: 5,
-      style: {
-        fill: COLORS.primary,
-        stroke: '#fff',
-        lineWidth: 2,
-      },
-    },
+    lineStyle: { stroke: COLORS.primary, lineWidth: 3 },
+    point: { size: 5, style: { fill: COLORS.primary, stroke: '#fff', lineWidth: 2 } },
     tooltip: {
       formatter: (datum) => [
-        {
-          name: 'Total Sales',
-          value: `Ksh ${Number(datum.sales)?.toLocaleString()}`,
-        },
-        {
-          name: 'Total Orders',
-          value: `${datum.orders} orders`,
-        },
-        {
-          name: 'Avg Order Value',
-          value: `Ksh ${Number(datum.avgOrderValue)?.toLocaleString()}`,
-        },
-        {
-          name: 'Cumulative Sales',
-          value: `Ksh ${Number(datum.cumulativeSales)?.toLocaleString()}`,
-        }
+        { name: 'Total Sales', value: `Ksh ${Number(datum.sales)?.toLocaleString()}` },
+        { name: 'Total Orders', value: `${datum.orders} orders` },
+        { name: 'Avg Order Value', value: `Ksh ${Number(datum.avgOrderValue)?.toLocaleString()}` },
+        { name: 'Cumulative Sales', value: `Ksh ${Number(datum.cumulativeSales)?.toLocaleString()}` }
       ],
     },
     xAxis: {
-      label: {
-        style: {
-          fill: '#64748b',
-          fontSize: 12,
-        },
-        autoRotate: true,
-      },
-      line: {
-        style: {
-          stroke: '#e2e8f0',
-        },
-      },
+      label: { style: { fill: '#64748b', fontSize: 12 }, autoRotate: true },
+      line: { style: { stroke: '#e2e8f0' } }
     },
     yAxis: {
       label: {
-        style: {
-          fill: '#64748b',
-          fontSize: 12,
-        },
+        style: { fill: '#64748b', fontSize: 12 },
         formatter: (value) => {
           const numValue = Number(value);
-          if (numValue >= 1000000) {
-            return `${(numValue / 1000000).toFixed(1)}M`;
-          } else if (numValue >= 1000) {
-            return `${(numValue / 1000).toFixed(0)}K`;
-          }
+          if (numValue >= 1000000) return `${(numValue / 1000000).toFixed(1)}M`;
+          if (numValue >= 1000) return `${(numValue / 1000).toFixed(0)}K`;
           return `${numValue}`;
         },
       },
       min: 0,
-      grid: {
-        line: {
-          style: {
-            stroke: '#f0f0f0',
-            lineWidth: 1,
-            lineDash: [3, 3],
-          },
-        },
-      },
+      grid: { line: { style: { stroke: '#f0f0f0', lineWidth: 1, lineDash: [3, 3] } } }
     },
-    animation: {
-      appear: {
-        animation: 'path-in',
-        duration: 1000,
-      },
-    },
+    animation: { appear: { animation: 'path-in', duration: 1000 } },
   }), [chartData]);
 
   return (
     <Card
-      title={
-        <Space>
-          <LineChartOutlined style={{ color: COLORS.primary }} />
-          {title}
-        </Space>
-      }
-      extra={
-        businessIndicators && (
-          <Space size="large">
-            <Space>
-              <Badge
-                status={businessIndicators.performance === 'excellent' ? 'success' :
-                  businessIndicators.performance === 'good' ? 'processing' :
-                    businessIndicators.performance === 'moderate' ? 'default' :
-                      businessIndicators.performance === 'low' ? 'warning' : 'error'}
-              />
-              <Text style={{ color: businessIndicators.performanceColor, fontWeight: 600 }}>
-                {businessIndicators.performanceText}
-              </Text>
-            </Space>
-            <Space>
-              <Text style={{ color: businessIndicators.trendColor, fontWeight: 500 }}>
-                {businessIndicators.trendText}
-              </Text>
-            </Space>
+      title={<Space><LineChartOutlined style={{ color: COLORS.primary }} />{title}</Space>}
+      extra={businessIndicators && (
+        <Space size="large">
+          <Space>
+            <Badge status={
+              businessIndicators.performance === 'excellent' ? 'success' :
+                businessIndicators.performance === 'good' ? 'processing' :
+                  businessIndicators.performance === 'moderate' ? 'default' :
+                    businessIndicators.performance === 'low' ? 'warning' : 'error'
+            } />
+            <Text style={{ color: businessIndicators.performanceColor, fontWeight: 600 }}>
+              {businessIndicators.performanceText}
+            </Text>
           </Space>
-        )
-      }
+        </Space>
+      )}
       style={{ borderRadius: 12, marginBottom: 24 }}
     >
       {loading ? (
@@ -591,16 +401,13 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
                 {businessIndicators.insights.map((insight, index) => (
                   <Badge
                     key={index}
-                    status={insight.type === 'positive' ? 'success' :
-                      insight.type === 'warning' ? 'warning' : 'error'}
+                    status={insight.type === 'positive' ? 'success' : insight.type === 'warning' ? 'warning' : 'error'}
                     text={
-                      <Text
-                        style={{
-                          color: insight.type === 'positive' ? COLORS.success :
-                            insight.type === 'warning' ? COLORS.warning : COLORS.error,
-                          fontSize: 12
-                        }}
-                      >
+                      <Text style={{
+                        color: insight.type === 'positive' ? COLORS.success :
+                          insight.type === 'warning' ? COLORS.warning : COLORS.error,
+                        fontSize: 12
+                      }}>
                         {insight.text}
                       </Text>
                     }
@@ -610,15 +417,7 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
               <Divider style={{ margin: '12px 0' }} />
             </div>
           )}
-
-          {chartData.length > 0 ? (
-            <Line {...config} />
-          ) : (
-            <Empty
-              description="No chart data available"
-              style={{ padding: '60px 20px' }}
-            />
-          )}
+          {chartData.length > 0 ? <Line {...config} /> : <Empty description="No chart data available" />}
         </>
       )}
     </Card>
@@ -628,11 +427,7 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
 const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
   const bestSellers = useMemo(() => {
     if (!bestSellersData?.data?.best_sellers?.length) return [];
-
-    return bestSellersData.data.best_sellers.map((item, index) => ({
-      ...item,
-      rank: index + 1
-    }));
+    return bestSellersData.data.best_sellers.map((item, index) => ({ ...item, rank: index + 1 }));
   }, [bestSellersData]);
 
   const summary = bestSellersData?.data?.summary || {};
@@ -640,12 +435,7 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
   if (!bestSellers.length && !loading) {
     return (
       <Card
-        title={
-          <Space>
-            <FireOutlined style={{ color: COLORS.orange }} />
-            Top Selling Products Across All Shops ({dateRange})
-          </Space>
-        }
+        title={<Space><FireOutlined style={{ color: COLORS.orange }} />Top Selling Products ({dateRange})</Space>}
         style={{ borderRadius: 12 }}
       >
         <Empty
@@ -653,7 +443,7 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
           description={
             <div>
               <Title level={4} style={{ color: COLORS.gray }}>No Sales Data</Title>
-              <Text type="secondary">No products have been sold during this period across all shops.</Text>
+              <Text type="secondary">No products have been sold during this period.</Text>
             </div>
           }
         />
@@ -663,20 +453,13 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
 
   return (
     <Card
-      title={
+      title={<Space><FireOutlined style={{ color: COLORS.orange }} />Top Selling Products ({dateRange})</Space>}
+      extra={summary.total_products_analyzed > 0 && (
         <Space>
-          <FireOutlined style={{ color: COLORS.orange }} />
-          Top Selling Products Across All Shops ({dateRange})
+          <Badge count={summary.total_products_analyzed} style={{ backgroundColor: COLORS.primary }} />
+          <Text type="secondary">Products analyzed</Text>
         </Space>
-      }
-      extra={
-        summary.total_products_analyzed > 0 && (
-          <Space>
-            <Badge count={summary.total_products_analyzed} style={{ backgroundColor: COLORS.primary }} />
-            <Text type="secondary">Products analyzed</Text>
-          </Space>
-        )
-      }
+      )}
       style={{ borderRadius: 12 }}
     >
       {loading ? (
@@ -687,42 +470,24 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
             <div style={{ marginBottom: 16, padding: 16, background: COLORS.lightGray, borderRadius: 8 }}>
               <Row gutter={16}>
                 <Col span={8}>
-                  <Statistic
-                    title="Total Revenue"
-                    value={summary.total_revenue}
-                    prefix="Ksh"
-                    precision={2}
-                    valueStyle={{ fontSize: 16, fontWeight: 600 }}
-                  />
+                  <Statistic title="Total Revenue" value={summary.total_revenue} prefix="Ksh" precision={2}
+                    valueStyle={{ fontSize: 16, fontWeight: 600 }} />
                 </Col>
                 <Col span={8}>
-                  <Statistic
-                    title="Units Sold"
-                    value={summary.total_quantity_sold}
-                    valueStyle={{ fontSize: 16, fontWeight: 600 }}
-                  />
+                  <Statistic title="Units Sold" value={summary.total_quantity_sold}
+                    valueStyle={{ fontSize: 16, fontWeight: 600 }} />
                 </Col>
                 <Col span={8}>
-                  <Statistic
-                    title="Avg Order Value"
-                    value={summary.average_order_value}
-                    prefix="Ksh"
-                    precision={2}
-                    valueStyle={{ fontSize: 16, fontWeight: 600 }}
-                  />
+                  <Statistic title="Avg Order Value" value={summary.average_order_value} prefix="Ksh" precision={2}
+                    valueStyle={{ fontSize: 16, fontWeight: 600 }} />
                 </Col>
               </Row>
             </div>
           )}
-
           <Table
-            columns={BESTSELLER_COLUMNS}
+            columns={createBestSellerColumns()}
             dataSource={bestSellers}
-            pagination={{
-              pageSize: 15,
-              showSizeChanger: false,
-              showQuickJumper: true,
-            }}
+            pagination={{ pageSize: 15, showSizeChanger: false, showQuickJumper: true }}
             size="middle"
             rowKey="product_id"
             scroll={{ x: 800 }}
@@ -733,6 +498,7 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
   );
 };
 
+// Main Dashboard Component
 const DashboardAdminPage = () => {
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
@@ -780,17 +546,15 @@ const DashboardAdminPage = () => {
 
   const { startDate, endDate } = getDateRange();
 
-  const { data, isLoading, refetch, isRefetching, error } = useQuery({
+  // Data fetching
+  const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["admindashBoardAnalysis", startDate.format(), endDate.format()],
-    queryFn: () => getAdminDashboardAnalysis(
-      startDate.toISOString(),
-      endDate.toISOString()
-    ),
+    queryFn: () => getAdminDashboardAnalysis(startDate.toISOString(), endDate.toISOString()),
     networkMode: "always",
     refetchOnWindowFocus: false,
     staleTime: 30000,
     retry: 2,
-    onError: (error) => {
+    onError: () => {
       notification.error({
         message: "Failed to fetch dashboard data. Please try again.",
         duration: 3,
@@ -825,18 +589,29 @@ const DashboardAdminPage = () => {
     retry: 2,
   });
 
+  // Purchase order statistics from backend data
+  const purchaseOrderStats = useMemo(() => {
+    if (!data?.purchaseOrderStats) {
+      return {
+        totalPurchaseOrders: 0,
+        totalPOValue: 0,
+        pendingPOs: 0,
+        approvedPOs: 0,
+        deliveredPOs: 0,
+        avgPOValue: 0,
+        recentPurchaseOrders: []
+      };
+    }
+    return data.purchaseOrderStats;
+  }, [data]);
+
+  // Event handlers
   const handleRefresh = useCallback(async () => {
     try {
       await refetch();
-      messageApi.success({
-        content: "Admin dashboard data refreshed successfully!",
-        duration: 2,
-      });
+      messageApi.success({ content: "Dashboard refreshed successfully!", duration: 2 });
     } catch (error) {
-      messageApi.error({
-        content: "Failed to refresh dashboard. Please try again.",
-        duration: 3,
-      });
+      messageApi.error({ content: "Failed to refresh dashboard. Please try again.", duration: 3 });
     }
   }, [refetch, messageApi]);
 
@@ -850,6 +625,7 @@ const DashboardAdminPage = () => {
     setCustomDateRange(dates || []);
   }, []);
 
+  // Computed values
   const statisticsData = useMemo(() => [
     {
       title: periodFilter === "day" ? "Today's Orders" : "Total Orders",
@@ -871,7 +647,7 @@ const DashboardAdminPage = () => {
     {
       title: "Active Shifts",
       value: data?.activeShift,
-      prefix: <TeamOutlined style={{ color: COLORS.info }} />,
+      prefix: <TeamOutlined style={{ color: COLORS.primary }} />,
       onClick: () => navigate('/shifts'),
     },
   ], [chartData, data, navigate, periodFilter]);
@@ -882,21 +658,16 @@ const DashboardAdminPage = () => {
   const getFormattedDateRange = useCallback(() => {
     const dateFormat = 'MMM D, YYYY';
     switch (periodFilter) {
-      case "day":
-        return startDate.format('MMMM D, YYYY');
-      case "week":
-        return `${startDate.format(dateFormat)} - ${endDate.format(dateFormat)}`;
-      case "month":
-        return startDate.format('MMMM YYYY');
-      case "year":
-        return startDate.format('YYYY');
+      case "day": return startDate.format('MMMM D, YYYY');
+      case "week": return `${startDate.format(dateFormat)} - ${endDate.format(dateFormat)}`;
+      case "month": return startDate.format('MMMM YYYY');
+      case "year": return startDate.format('YYYY');
       case "custom":
         if (customDateRange?.length === 2) {
           return `${customDateRange[0].format(dateFormat)} - ${customDateRange[1].format(dateFormat)}`;
         }
         return "Custom Range";
-      default:
-        return startDate.format('MMMM D, YYYY');
+      default: return startDate.format('MMMM D, YYYY');
     }
   }, [periodFilter, startDate, endDate, customDateRange]);
 
@@ -906,6 +677,7 @@ const DashboardAdminPage = () => {
     <>
       {contextHolder}
 
+      {/* Header */}
       <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
         <div>
           <Title level={2} style={{ margin: 0, fontWeight: 600, color: "#1e293b" }}>
@@ -920,12 +692,7 @@ const DashboardAdminPage = () => {
           <Card size="small" style={{ borderRadius: 8 }}>
             <Flex align="center" gap={12}>
               <CalendarOutlined style={{ color: COLORS.primary }} />
-              <Radio.Group
-                value={periodFilter}
-                onChange={handlePeriodChange}
-                buttonStyle="solid"
-                size="small"
-              >
+              <Radio.Group value={periodFilter} onChange={handlePeriodChange} buttonStyle="solid" size="small">
                 <Radio.Button value="day">Day</Radio.Button>
                 <Radio.Button value="week">Week</Radio.Button>
                 <Radio.Button value="month">Month</Radio.Button>
@@ -945,32 +712,62 @@ const DashboardAdminPage = () => {
             />
           )}
 
-          <Space>
-            <Button
-              type="primary"
-              icon={<ReloadOutlined spin={isRefetching} />}
-              onClick={handleRefresh}
-              loading={isDataLoading}
-              style={{ fontWeight: 500 }}
-            >
-              {isRefetching ? "Refreshing..." : "Refresh"}
-            </Button>
-          </Space>
+          <Button
+            type="primary"
+            icon={<ReloadOutlined spin={isRefetching} />}
+            onClick={handleRefresh}
+            loading={isDataLoading}
+            style={{ fontWeight: 500 }}
+          >
+            {isRefetching ? "Refreshing..." : "Refresh"}
+          </Button>
         </Space>
       </Row>
 
       <WelcomeBanner />
 
+      {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginTop: 16, marginBottom: 24 }}>
         {statisticsData.map((stat, index) => (
-          <StatisticCard
-            key={index}
-            loading={isDataLoading}
-            {...stat}
-          />
+          <StatisticCard key={index} loading={isDataLoading} {...stat} />
         ))}
       </Row>
 
+      {/* Purchase Orders Overview */}
+      <Row style={{ marginBottom: 24 }}>
+        <Col span={24}>
+          <Card
+            title={<Space><FileTextOutlined style={{ color: COLORS.purple }} />Purchase Orders Overview</Space>}
+            extra={<Button type="link" onClick={() => navigate('/purchase-orders')}>View All</Button>}
+            style={{ borderRadius: 12 }}
+          >
+            {isDataLoading ? (
+              <Skeleton active paragraph={{ rows: 3 }} />
+            ) : (
+              <Row gutter={[24, 16]}>
+                {[
+                  { value: purchaseOrderStats.totalPurchaseOrders, label: "Total Purchase Orders", color: COLORS.purple, desc: "All time" },
+                  { value: `Ksh ${purchaseOrderStats.totalPOValue.toLocaleString()}`, label: "Total PO Value", color: COLORS.success, desc: "Procurement spending" },
+                  { value: purchaseOrderStats.pendingPOs, label: "Pending Approval", color: COLORS.warning, desc: "Need attention" },
+                  { value: purchaseOrderStats.deliveredPOs, label: "Delivered", color: COLORS.cyan, desc: "Completed orders" }
+                ].map((item, index) => (
+                  <Col xs={24} sm={12} md={6} key={index}>
+                    <div style={{ textAlign: 'center', padding: '16px' }}>
+                      <div style={{ fontSize: 28, fontWeight: 700, color: item.color, marginBottom: 4 }}>
+                        {item.value}
+                      </div>
+                      <div style={{ color: COLORS.gray, fontSize: 14 }}>{item.label}</div>
+                      <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>{item.desc}</div>
+                    </div>
+                  </Col>
+                ))}
+              </Row>
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Sales Chart */}
       <Row style={{ marginBottom: 24 }}>
         <Col span={24}>
           {chartData?.data?.chart_data?.length > 0 ? (
@@ -982,29 +779,15 @@ const DashboardAdminPage = () => {
             />
           ) : (
             <Card
-              title={
-                <Space>
-                  <LineChartOutlined style={{ color: COLORS.primary }} />
-                  {`Business Sales Trends - ${getFormattedDateRange()}`}
+              title={<Space><LineChartOutlined style={{ color: COLORS.primary }} />Business Sales Trends - {getFormattedDateRange()}</Space>}
+              extra={businessIndicators && (
+                <Space size="large">
+                  <Badge status="error" />
+                  <Text style={{ color: businessIndicators.performanceColor, fontWeight: 600 }}>
+                    {businessIndicators.performanceText}
+                  </Text>
                 </Space>
-              }
-              extra={
-                businessIndicators && (
-                  <Space size="large">
-                    <Space>
-                      <Badge status="error" />
-                      <Text style={{ color: businessIndicators.performanceColor, fontWeight: 600 }}>
-                        {businessIndicators.performanceText}
-                      </Text>
-                    </Space>
-                    <Space>
-                      <Text style={{ color: businessIndicators.trendColor, fontWeight: 500 }}>
-                        {businessIndicators.trendText}
-                      </Text>
-                    </Space>
-                  </Space>
-                )
-              }
+              )}
               style={{ borderRadius: 12 }}
             >
               {chartLoading ? (
@@ -1017,16 +800,13 @@ const DashboardAdminPage = () => {
                         {businessIndicators.insights.map((insight, index) => (
                           <Badge
                             key={index}
-                            status={insight.type === 'positive' ? 'success' :
-                              insight.type === 'warning' ? 'warning' : 'error'}
+                            status={insight.type === 'positive' ? 'success' : insight.type === 'warning' ? 'warning' : 'error'}
                             text={
-                              <Text
-                                style={{
-                                  color: insight.type === 'positive' ? COLORS.success :
-                                    insight.type === 'warning' ? COLORS.warning : COLORS.error,
-                                  fontSize: 12
-                                }}
-                              >
+                              <Text style={{
+                                color: insight.type === 'positive' ? COLORS.success :
+                                  insight.type === 'warning' ? COLORS.warning : COLORS.error,
+                                fontSize: 12
+                              }}>
                                 {insight.text}
                               </Text>
                             }
@@ -1036,28 +816,17 @@ const DashboardAdminPage = () => {
                       <Divider style={{ margin: '12px 0' }} />
                     </div>
                   )}
-
                   <Empty
                     image={<LineChartOutlined style={{ fontSize: 64, color: COLORS.error }} />}
                     description={
                       <div style={{ padding: '20px' }}>
                         <Title level={4} style={{ color: COLORS.error }}>
-                          {periodFilter === 'day' ? 'No Sales Today Across All Shops' :
-                            periodFilter === 'week' ? 'No Sales This Week Across All Shops' :
-                              periodFilter === 'month' ? 'No Sales This Month Across All Shops' :
-                                periodFilter === 'year' ? 'No Sales This Year Across All Shops' :
-                                  'No Sales in Selected Period Across All Shops'}
+                          No Sales {PERIOD_LABELS[periodFilter]} Across All Shops
                         </Title>
                         <Text type="secondary" style={{ fontSize: 16 }}>
-                          {periodFilter === 'day' ?
-                            'No sales recorded across all shops today. Check individual shop operations and business connectivity.' :
-                            periodFilter === 'week' ?
-                              'Weekly performance is concerning across all shops. Review shop strategies and operational issues.' :
-                              periodFilter === 'month' ?
-                                'Monthly business performance needs immediate attention. Consider emergency business strategy review.' :
-                                periodFilter === 'year' ?
-                                  'Annual business performance requires urgent strategic overhaul across all shops.' :
-                                  'Consider business-wide strategy adjustments for the selected period.'}
+                          {periodFilter === 'day' ? 'Check individual shop operations and connectivity.' :
+                            periodFilter === 'week' ? 'Review shop strategies and operational issues.' :
+                              'Consider business-wide strategy adjustments.'}
                         </Text>
                       </div>
                     }
@@ -1069,6 +838,7 @@ const DashboardAdminPage = () => {
         </Col>
       </Row>
 
+      {/* Best Sellers */}
       <Row style={{ marginBottom: 24 }}>
         <Col span={24}>
           <BestSellersCard
@@ -1079,24 +849,15 @@ const DashboardAdminPage = () => {
         </Col>
       </Row>
 
+      {/* Recent Orders and Purchase Orders */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={12}>
           <Card
-            title={
-              <Space>
-                <ShoppingCartOutlined style={{ color: COLORS.primary }} />
-                {`Recent Orders Across All Shops (${getFormattedDateRange()})`}
-              </Space>
-            }
+            title={<Space><ShoppingCartOutlined style={{ color: COLORS.primary }} />Recent Orders ({getFormattedDateRange()})</Space>}
             extra={
               <Space>
-                <Badge
-                  count={data?.totalOrderCount || 0}
-                  style={{ backgroundColor: COLORS.primary }}
-                />
-                <Button type="link" onClick={() => navigate('/orders')}>
-                  View All
-                </Button>
+                <Badge count={data?.totalOrderCount || 0} style={{ backgroundColor: COLORS.primary }} />
+                <Button type="link" onClick={() => navigate('/orders')}>View All</Button>
               </Space>
             }
             style={{ borderRadius: 12 }}
@@ -1105,22 +866,16 @@ const DashboardAdminPage = () => {
               <Skeleton active paragraph={{ rows: 4 }} />
             ) : (
               <Table
-                columns={ORDER_COLUMNS}
-                dataSource={
-                  Array.isArray(data?.currentOrders) ? data.currentOrders : []
-                }
-                pagination={{
-                  pageSize: 5,
-                  hideOnSinglePage: true,
-                  showSizeChanger: false,
-                }}
+                columns={createOrderColumns()}
+                dataSource={Array.isArray(data?.currentOrders) ? data.currentOrders : []}
+                pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
                 size="middle"
                 rowClassName={() => "hover:bg-gray-50 transition-colors"}
                 locale={{
                   emptyText: (
                     <Empty
                       image={<ShoppingCartOutlined style={{ fontSize: 32, color: COLORS.gray }} />}
-                      description="No recent orders across all shops"
+                      description="No recent orders"
                       style={{ padding: '20px' }}
                     />
                   )
@@ -1132,23 +887,13 @@ const DashboardAdminPage = () => {
 
         <Col xs={24} lg={12}>
           <Card
-            title={
-              <Space>
-                <WarningOutlined style={{ color: COLORS.error }} />
-                Low Stock Alerts (All Shops)
-              </Space>
-            }
+            title={<Space><FileTextOutlined style={{ color: COLORS.purple }} />Recent Purchase Orders</Space>}
             extra={
               <Space>
-                {data?.lowStockItems?.length > 0 && (
-                  <Badge
-                    count={data.lowStockItems.length}
-                    style={{ backgroundColor: COLORS.error }}
-                  />
+                {purchaseOrderStats.totalPurchaseOrders > 0 && (
+                  <Badge count={purchaseOrderStats.totalPurchaseOrders} style={{ backgroundColor: COLORS.purple }} />
                 )}
-                <Button type="link" onClick={() => navigate('/inventory')}>
-                  View All
-                </Button>
+                <Button type="link" onClick={() => navigate('/purchase-orders')}>View All</Button>
               </Space>
             }
             style={{ borderRadius: 12 }}
@@ -1157,26 +902,52 @@ const DashboardAdminPage = () => {
               <Skeleton active paragraph={{ rows: 4 }} />
             ) : (
               <Table
-                columns={STOCK_COLUMNS}
-                dataSource={
-                  Array.isArray(data?.lowStockItems) ? data.lowStockItems : []
-                }
-                pagination={{
-                  pageSize: 5,
-                  hideOnSinglePage: true,
-                  showSizeChanger: false,
-                }}
+                columns={[
+                  { title: "PO Number", dataIndex: "po_number", key: "po_number", width: 120 },
+                  { title: "Supplier", dataIndex: "supplier_name", key: "supplier_name", ellipsis: true },
+                  {
+                    title: "Status",
+                    dataIndex: "status",
+                    key: "status",
+                    width: 120,
+                    render: (status) => {
+                      const statusColors = {
+                        pending: COLORS.warning,
+                        approved: COLORS.primary,
+                        partially_delivered: COLORS.cyan,
+                        fully_delivered: COLORS.success,
+                        cancelled: COLORS.error,
+                      };
+                      return (
+                        <Badge
+                          color={statusColors[status] || COLORS.gray}
+                          text={status?.replace('_', ' ')?.toUpperCase()}
+                        />
+                      );
+                    },
+                  },
+                  {
+                    title: "Amount",
+                    dataIndex: "total_amount",
+                    key: "total_amount",
+                    width: 120,
+                    render: (amount) => (
+                      <Text strong style={{ color: COLORS.primary }}>
+                        Ksh {amount?.toLocaleString()}
+                      </Text>
+                    ),
+                  }
+                ]}
+                dataSource={purchaseOrderStats.recentPurchaseOrders || []}
+                pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
                 size="middle"
+                rowKey="_id"
                 rowClassName={() => "hover:bg-gray-50 transition-colors"}
                 locale={{
                   emptyText: (
                     <Empty
-                      image={<CheckCircleOutlined style={{ fontSize: 32, color: COLORS.success }} />}
-                      description={
-                        <div>
-                          <Text style={{ color: COLORS.success }}>All items are well stocked across all shops</Text>
-                        </div>
-                      }
+                      image={<FileTextOutlined style={{ fontSize: 32, color: COLORS.gray }} />}
+                      description="No recent purchase orders"
                       style={{ padding: '20px' }}
                     />
                   )
@@ -1187,173 +958,176 @@ const DashboardAdminPage = () => {
         </Col>
       </Row>
 
+      {/* Low Stock and PO Insights */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={12}>
+          <Card
+            title={<Space><WarningOutlined style={{ color: COLORS.error }} />Low Stock Alerts</Space>}
+            extra={
+              <Space>
+                {data?.lowStockItems?.length > 0 && (
+                  <Badge count={data.lowStockItems.length} style={{ backgroundColor: COLORS.error }} />
+                )}
+                <Button type="link" onClick={() => navigate('/inventory')}>View All</Button>
+              </Space>
+            }
+            style={{ borderRadius: 12 }}
+          >
+            {isDataLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
+            ) : (
+              <Table
+                columns={createStockColumns()}
+                dataSource={Array.isArray(data?.lowStockItems) ? data.lowStockItems : []}
+                pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
+                size="middle"
+                rowClassName={() => "hover:bg-gray-50 transition-colors"}
+                locale={{
+                  emptyText: (
+                    <Empty
+                      image={<CheckCircleOutlined style={{ fontSize: 32, color: COLORS.success }} />}
+                      description="All items are well stocked"
+                      style={{ padding: '20px' }}
+                    />
+                  )
+                }}
+              />
+            )}
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={12}>
+          <Card
+            title={<Space><SyncOutlined style={{ color: COLORS.cyan }} />Purchase Order Insights</Space>}
+            style={{ borderRadius: 12 }}
+          >
+            {isDataLoading ? (
+              <Skeleton active paragraph={{ rows: 4 }} />
+            ) : (
+              <div style={{ padding: '16px' }}>
+                {purchaseOrderStats.totalPurchaseOrders > 0 ? (
+                  <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <Text>Delivery Rate</Text>
+                        <Text strong>
+                          {((purchaseOrderStats.deliveredPOs / purchaseOrderStats.totalPurchaseOrders) * 100).toFixed(2)}%
+                        </Text>
+                      </div>
+                      <Progress
+                        percent={Number(((purchaseOrderStats.deliveredPOs / purchaseOrderStats.totalPurchaseOrders) * 100).toFixed(2))}
+                        strokeColor={COLORS.success}
+                      />
+                    </div>
+
+
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <Text>Pending Orders</Text>
+                        <Text strong style={{ color: COLORS.warning }}>
+                          {purchaseOrderStats.pendingPOs} orders
+                        </Text>
+                      </div>
+                      <Progress
+                        percent={(purchaseOrderStats.pendingPOs / purchaseOrderStats.totalPurchaseOrders) * 100}
+                        strokeColor={COLORS.warning}
+                      />
+                    </div>
+
+                    <Divider style={{ margin: '16px 0' }} />
+
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 600, color: COLORS.purple }}>
+                            Ksh {purchaseOrderStats.avgPOValue.toLocaleString()}
+                          </div>
+                          <div style={{ fontSize: 12, color: COLORS.gray }}>Average PO Value</div>
+                        </div>
+                      </Col>
+                      <Col span={12}>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 600, color: COLORS.primary }}>
+                            {purchaseOrderStats.approvedPOs}
+                          </div>
+                          <div style={{ fontSize: 12, color: COLORS.gray }}>Approved Orders</div>
+                        </div>
+                      </Col>
+                    </Row>
+                  </Space>
+                ) : (
+                  <Empty
+                    image={<FileTextOutlined style={{ fontSize: 48, color: COLORS.gray }} />}
+                    description="No purchase orders found"
+                  />
+                )}
+              </div>
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Performance Summary */}
       <Row gutter={[16, 16]}>
         <Col span={24}>
           <Card
-            title={
-              <Space>
-                <PieChartOutlined style={{ color: COLORS.purple }} />
-                Business Performance Summary ({getFormattedDateRange()})
-              </Space>
-            }
+            title={<Space><PieChartOutlined style={{ color: COLORS.purple }} />Business Performance Summary ({getFormattedDateRange()})</Space>}
             style={{ borderRadius: 12 }}
           >
             {isDataLoading ? (
               <Skeleton active paragraph={{ rows: 3 }} />
             ) : (
               <Row gutter={[24, 16]}>
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{
-                      fontSize: 28,
-                      fontWeight: 700,
-                      color: COLORS.primary,
-                      marginBottom: 4
-                    }}>
-                      {data?.totalOrderCount || 0}
+                {[
+                  { value: data?.totalOrderCount || 0, label: "Total Orders", color: COLORS.primary, desc: "Across all shops" },
+                  { value: `Ksh ${(data?.todayRevenue || 0).toLocaleString()}`, label: "Total Revenue", color: COLORS.success, desc: "Business wide" },
+                  { value: data?.activeOrders || 0, label: "Active Shops", color: COLORS.orange, desc: "Currently operating" },
+                  { value: data?.activeShift || 0, label: "Active Shifts", color: COLORS.cyan, desc: "Staff on duty" }
+                ].map((item, index) => (
+                  <Col xs={24} sm={12} md={6} key={index}>
+                    <div style={{ textAlign: 'center', padding: '16px' }}>
+                      <div style={{ fontSize: 28, fontWeight: 700, color: item.color, marginBottom: 4 }}>
+                        {item.value}
+                      </div>
+                      <div style={{ color: COLORS.gray, fontSize: 14 }}>{item.label}</div>
+                      <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>{item.desc}</div>
                     </div>
-                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Total Orders</div>
-                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Across all shops
-                    </div>
-                  </div>
-                </Col>
-
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{
-                      fontSize: 28,
-                      fontWeight: 700,
-                      color: COLORS.success,
-                      marginBottom: 4
-                    }}>
-                      Ksh {(data?.todayRevenue || 0).toLocaleString()}
-                    </div>
-                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Total Revenue</div>
-                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Business wide
-                    </div>
-                  </div>
-                </Col>
-
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{
-                      fontSize: 28,
-                      fontWeight: 700,
-                      color: COLORS.orange,
-                      marginBottom: 4
-                    }}>
-                      {data?.activeOrders || 0}
-                    </div>
-                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Active Shops</div>
-                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Currently operating
-                    </div>
-                  </div>
-                </Col>
-
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{
-                      fontSize: 28,
-                      fontWeight: 700,
-                      color: COLORS.cyan,
-                      marginBottom: 4
-                    }}>
-                      {data?.activeShift || 0}
-                    </div>
-                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Active Shifts</div>
-                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Staff on duty
-                    </div>
-                  </div>
-                </Col>
+                  </Col>
+                ))}
               </Row>
             )}
           </Card>
         </Col>
 
+        {/* Advanced Metrics */}
         {chartData?.data?.summary && (
           <Col span={24} style={{ marginTop: 16 }}>
             <Card
-              title={
-                <Space>
-                  <RiseOutlined style={{ color: COLORS.success }} />
-                  Advanced Business Metrics ({getFormattedDateRange()})
-                </Space>
-              }
+              title={<Space><RiseOutlined style={{ color: COLORS.success }} />Advanced Business Metrics ({getFormattedDateRange()})</Space>}
               style={{ borderRadius: 12 }}
             >
               <Row gutter={[24, 16]}>
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{
-                      fontSize: 24,
-                      fontWeight: 700,
-                      color: COLORS.primary,
-                      marginBottom: 4
-                    }}>
-                      {chartData.data.summary.data_points}
+                {[
+                  { value: chartData.data.summary.data_points, label: "Data Points", color: COLORS.primary, desc: "Reporting periods" },
+                  {
+                    value: `${chartData.data.summary.growth_rate > 0 ? '+' : ''}${chartData.data.summary.growth_rate.toFixed(1)}%`,
+                    label: "Growth Rate",
+                    color: chartData.data.summary.growth_rate >= 0 ? COLORS.success : COLORS.error,
+                    desc: "Business trend"
+                  },
+                  { value: `Ksh ${chartData.data.summary.average_order_value?.toLocaleString()}`, label: "Avg Order Value", color: COLORS.orange, desc: "Business average" },
+                  { value: chartData.data.summary.peak_period?.time || 'N/A', label: "Peak Period", color: COLORS.cyan, desc: "Highest sales time" }
+                ].map((item, index) => (
+                  <Col xs={24} sm={12} md={6} key={index}>
+                    <div style={{ textAlign: 'center', padding: '16px' }}>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: item.color, marginBottom: 4 }}>
+                        {item.value}
+                      </div>
+                      <div style={{ color: COLORS.gray, fontSize: 14 }}>{item.label}</div>
+                      <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>{item.desc}</div>
                     </div>
-                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Data Points</div>
-                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Reporting periods
-                    </div>
-                  </div>
-                </Col>
-
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{
-                      fontSize: 24,
-                      fontWeight: 700,
-                      color: chartData.data.summary.growth_rate >= 0 ? COLORS.success : COLORS.error,
-                      marginBottom: 4
-                    }}>
-                      {chartData.data.summary.growth_rate > 0 ? '+' : ''}
-                      {chartData.data.summary.growth_rate.toFixed(1)}%
-                    </div>
-                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Growth Rate</div>
-                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Business trend
-                    </div>
-                  </div>
-                </Col>
-
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{
-                      fontSize: 24,
-                      fontWeight: 700,
-                      color: COLORS.orange,
-                      marginBottom: 4
-                    }}>
-                      Ksh {chartData.data.summary.average_order_value?.toLocaleString()}
-                    </div>
-                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Avg Order Value</div>
-                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Business average
-                    </div>
-                  </div>
-                </Col>
-
-                <Col xs={24} sm={12} md={6}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <div style={{
-                      fontSize: 24,
-                      fontWeight: 700,
-                      color: COLORS.cyan,
-                      marginBottom: 4
-                    }}>
-                      {chartData.data.summary.peak_period?.time || 'N/A'}
-                    </div>
-                    <div style={{ color: COLORS.gray, fontSize: 14 }}>Peak Period</div>
-                    <div style={{ fontSize: 12, color: COLORS.gray, marginTop: 4 }}>
-                      Highest sales time
-                    </div>
-                  </div>
-                </Col>
+                  </Col>
+                ))}
               </Row>
             </Card>
           </Col>

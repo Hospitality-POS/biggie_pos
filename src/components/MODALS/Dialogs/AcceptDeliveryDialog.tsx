@@ -23,7 +23,7 @@ const AcceptDeliveryDialog: React.FC<AcceptDeliveryDialogProps> = ({
   const [receivedQuantity, setReceivedQuantity] = useState<number>(0);
   const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
 
-  // Get tenant primary color on component mount
+
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
