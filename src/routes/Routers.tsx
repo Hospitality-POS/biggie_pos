@@ -30,6 +30,7 @@ import AdminCustomersList from "src/AdminDashboard/Customers/CustomerList";
 import TenantSettings from "src/AdminDashboard/Settings/TenantSettings";
 import DiscoverPage from "src/AdminDashboard/DiscoverPage";
 import PaymentCallback from "@components/payment/PaymentCallback";
+import { getPrimaryColor } from "@utils/getPrimaryColor";
 
 const Layout = lazy(() => import("@components/layout/Layout"));
 
@@ -66,7 +67,7 @@ const Reports = lazy(() => import("@pages/Settings/reportsLevel/Reports"));
 const Profile = lazy(() => import("@pages/Profile/Profile"));
 const AdminProfile = lazy(() => import("src/AdminDashboard/Profile/AdminProfile"));
 const EmployeeShift = lazy(() => import("@pages/EmployeeShift/Employee"));
-const Notification = lazy(() => import("@pages/Notification/notification"));
+const Notification = lazy(() => import("@pages/Notification/NotificationPage"));
 // const ShopManagement = lazy(() => import("src/AdminDashboard/Shops/MainShopPage"));
 
 // const Invoices = lazy(() => import("@pages/Invoices/Invoices"));
@@ -85,7 +86,7 @@ const routes = createBrowserRouter(
                   size="large"
                   fullscreen
                   tip="Getting you tables please wait..."
-                  indicator={<NubaLoader />}
+                   style={{ color: `${getPrimaryColor()}` }}
                 />
               }
             >
@@ -105,7 +106,7 @@ const routes = createBrowserRouter(
                   size="large"
                   fullscreen
                   tip="Getting you tables please wait..."
-                  indicator={<NubaLoader />}
+                   style={{ color: `${getPrimaryColor()}` }}
                 />
               }
             >
@@ -121,7 +122,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <StaffLoginPage />
@@ -134,7 +135,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Notification />
@@ -147,7 +148,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -162,7 +163,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -214,7 +215,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -229,7 +230,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -244,7 +245,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -259,7 +260,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -274,7 +275,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -289,7 +290,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -304,7 +305,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -319,7 +320,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -334,7 +335,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -349,7 +350,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -364,7 +365,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -379,7 +380,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -393,7 +394,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -446,7 +447,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Notification />
@@ -481,7 +482,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <AdminRoute>
@@ -497,7 +498,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <AdminRoute>
@@ -512,7 +513,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <AdminRoute>
@@ -526,7 +527,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <AdminRoute>
@@ -540,7 +541,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
 
@@ -554,7 +555,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
 
@@ -568,7 +569,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <AdminRoute>
@@ -582,7 +583,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <AdminRoute>
@@ -596,7 +597,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen indicator={<NubaLoader />} />
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <AdminRoute>
@@ -622,7 +623,8 @@ function Routers() {
           size="large"
           fullscreen
           tip={`welcome to ${COOP_NAME}`}
-          indicator={<NubaLoader />}
+          style={{ color: `${getPrimaryColor()}` }}
+          //  style={{ color: `${getPrimaryColor()}` }}
         />
       }
     >
