@@ -20,6 +20,8 @@ import { useForm, Controller } from "react-hook-form";
 import axiosInstance from "../../services/request";
 import { useQuery } from "@tanstack/react-query";
 
+import {usePrimaryColor} from "@context/PrimaryColorContext"
+
 interface NewProduct {
   name: string;
   quantity: number;
@@ -42,16 +44,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
   onClose,
   onAddProduct,
 }) => {
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-
-  // Get tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  const primaryColor = usePrimaryColor();
 
   const { handleSubmit, control, formState, reset, setValue } =
     useForm<NewProduct>({

@@ -1,16 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Form, Space } from "antd";
-import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
+import { ModalForm, ProFormText } from "@ant-design/pro-form";
 import { EditOutlined, ShopOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import {
-  ProFormSelect,
-  ProFormMoney,
   ProFormTextArea,
 } from "@ant-design/pro-components";
 
-import { useQuery } from "@tanstack/react-query";
 import { createShop, updateShop } from "@services/shops";
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 interface ShopModalProps {
   actionRef: any;
@@ -26,16 +25,8 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({
   const [form] = Form.useForm();
   const formRef = useRef();
   const [open, setOpen] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-
-  // Get tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  
+  const primaryColor = usePrimaryColor();
 
   useEffect(() => {
     if (open && data) {

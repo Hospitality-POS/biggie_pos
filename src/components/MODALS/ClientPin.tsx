@@ -3,9 +3,10 @@ import ProForm, { ModalForm, ProFormText } from "@ant-design/pro-form";
 import { updateCart } from "@features/Cart/CartActions";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { Button, Form, Space, Typography } from "antd";
-import { useEffect, useState } from "react";
 import { CartDetailsInterface } from "src/interfaces/CartDetailsTypes";
 import { useAppDispatch } from "src/store";
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 interface ClientPinProps {
   cart: CartDetailsInterface;
@@ -14,16 +15,7 @@ interface ClientPinProps {
 function ClientPin({ cart }: ClientPinProps) {
   const dispatch = useAppDispatch();
   const [form] = Form.useForm();
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-
-  // Get tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  const primaryColor = usePrimaryColor();
 
   return (
     <ModalForm

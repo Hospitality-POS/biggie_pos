@@ -29,6 +29,8 @@ import {
 import { useDispatch } from "react-redux";
 import { fetchAllGiftCards } from "@services/customers";
 
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+
 const { TabPane } = Tabs;
 
 const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
@@ -48,18 +50,12 @@ const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
     const [loadingGiftCards, setLoadingGiftCards] = useState(false);
     const [loadingAllGiftCards, setLoadingAllGiftCards] = useState(false);
     const [clientName, setClientName] = useState("Relia Pos");
-    const [primaryColor, setPrimaryColor] = useState("#9a6e44");
+    
     const [activeTabKey, setActiveTabKey] = useState("customers");
 
-    const { message: messageApi } = App.useApp();
+    const primaryColor = usePrimaryColor();
 
-    useEffect(() => {
-        const storedTenant = localStorage.getItem("tenant");
-        const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-        if (tenant && tenant.color_scheme.primary) {
-            setPrimaryColor(tenant.color_scheme.primary);
-        }
-    }, []);
+    const { message: messageApi } = App.useApp();
 
     useEffect(() => {
         const storedTenant = localStorage.getItem("tenant");

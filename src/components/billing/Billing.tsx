@@ -18,19 +18,15 @@ import {
   SafetyCertificateOutlined
 } from "@ant-design/icons";
 
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+
 const { Title, Text, Paragraph } = Typography;
 
 const BillingDashboard: React.FC = () => {
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  const primaryColor = usePrimaryColor();
   const [notificationRequested, setNotificationRequested] = useState(false);
 
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  
 
   const handleNotificationRequest = () => {
     setNotificationRequested(true);
@@ -65,7 +61,7 @@ const BillingDashboard: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: "24px", background: "#f5f7fa", minHeight: "100vh" }}>
+    <>
       {/* Header */}
       <Card style={{ marginBottom: "24px", borderRadius: "8px", textAlign: 'center' }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -179,7 +175,7 @@ const BillingDashboard: React.FC = () => {
           </Button>
         </Space>
       </Card>
-    </div>
+    </>
   );
 };
 

@@ -16,6 +16,8 @@ import { Button, Typography, notification } from "antd";
 import { DeleteOutlined, LoadingOutlined } from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
 
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+
 interface cartItemCardProps {
   cartItem: any;
 }
@@ -34,17 +36,10 @@ function formatPrice(price: number | undefined | null): string {
 // eslint-disable-next-line react-refresh/only-export-components
 const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const dispatch = useAppDispatch();
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
   const { cartDetails } = useAppSelector((state) => state.cart);
 
-  // Get tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  const primaryColor = usePrimaryColor();
 
   const { user } = useAppSelector((state) => state.auth);
 

@@ -25,6 +25,8 @@ import { fetchAllUnits } from "@services/products";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewDelivery, editDelivery } from "@services/deliveries";
 
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+
 interface AcceptDeliveryModalProps {
   data?: any;
   edit?: boolean;
@@ -43,15 +45,8 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [open, setOpen] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  
+  const primaryColor = usePrimaryColor();
 
   useEffect(() => {
     if (open && data) {

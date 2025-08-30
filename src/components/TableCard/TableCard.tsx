@@ -1,12 +1,12 @@
 import { Card, CardMedia, Typography, Box } from "@mui/material";
 import classes from "./table.module.css";
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { clearcart } from "../../features/Cart/CartSlice";
 import useCheckIfUserIsLoggedIn from "../../hooks/useCheckIfUserIsLoggedIn";
 import { useNavigate } from "react-router-dom";
-import StaffModal from "@components/staffCard/LoginModal";
-import { Opacity } from "@mui/icons-material";
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 interface Table {
   cart_amount: number;
@@ -28,19 +28,10 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
   const { checkIfUserIsLoggedIn, isUserLoggedIn } = useCheckIfUserIsLoggedIn();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const [isStaffModalOpen, setStaffModalOpen] = useState(false);
 
   // Color state management
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  const primaryColor = usePrimaryColor();
 
-  // Get tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
 
   // Helper function to lighten color (reduced percentage to maintain color identity)
   const lightenColor = (color: string, percent: number = 15) => {

@@ -9,6 +9,8 @@ import {
   Button,
 } from "@mui/material";
 
+import { usePrimaryColor } from "../../../context/PrimaryColorContext";
+
 interface AcceptDeliveryDialogProps {
   open: boolean;
   onClose: () => void;
@@ -21,16 +23,9 @@ const AcceptDeliveryDialog: React.FC<AcceptDeliveryDialogProps> = ({
   onConfirm,
 }) => {
   const [receivedQuantity, setReceivedQuantity] = useState<number>(0);
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
 
+  const primaryColor = usePrimaryColor();
 
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
 
   const handleAcceptDeliveryConfirm = () => {
     onConfirm(receivedQuantity);

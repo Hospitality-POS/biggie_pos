@@ -1,12 +1,13 @@
 import { CheckOutlined, DeleteOutlined, FilterOutlined, MailOutlined } from '@ant-design/icons';
 import { ActionType, ProList } from '@ant-design/pro-components';
 import { fetchMyNotifications } from '@services/notifications';
-import { getPrimaryColor } from '@utils/getPrimaryColor';
 import { Badge, Button, Flex, message, Popconfirm, Space, Tag, Tooltip, Typography } from 'antd';
 import moment from 'moment';
 import React, { useRef, useState } from 'react';
 import NotificationDetailView from './NotificationDetailView';
 import { useNotificationMutations } from '../Hooks/NotificationsCustomHook';
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 interface AllNotificationsProps {
     notificationtype?: string;
@@ -19,7 +20,7 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
 
     const actionRef = useRef<ActionType>();
 
-    const primaryColor = getPrimaryColor();
+    const primaryColor = usePrimaryColor();
 
     const { deleteNotificationMutation, markAsReadMutation } =
         useNotificationMutations(actionRef);

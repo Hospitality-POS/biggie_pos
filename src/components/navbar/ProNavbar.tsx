@@ -26,6 +26,7 @@ import {
 } from "@services/notifications";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 dayjs.extend(relativeTime);
 
@@ -68,7 +69,8 @@ const ProNavbar = ({ children }) => {
     queryClient.removeQueries(['userNotifications']);
   };
 
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  const primaryColor = usePrimaryColor();
+
   const [tenant, setTenant] = useState<Tenant | null>(null);
 
   // Get tenant primary color on component mount
@@ -78,12 +80,6 @@ const ProNavbar = ({ children }) => {
 
     if (parsedTenant) {
       setTenant(parsedTenant);
-      // Use color_scheme.primary if available, otherwise fall back to primary_color
-      if (parsedTenant.color_scheme?.primary) {
-        setPrimaryColor(parsedTenant.color_scheme.primary);
-      } else if (parsedTenant.primary_color) {
-        setPrimaryColor(parsedTenant.primary_color);
-      }
     }
   }, []);
 
@@ -360,7 +356,7 @@ const ProNavbar = ({ children }) => {
               style={{
                 fontSize: 12,
                 fontWeight: 500,
-                color: primaryColor || '#1890ff'
+                color: primaryColor
               }}
             >
               View Your Profile

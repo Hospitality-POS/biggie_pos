@@ -1,10 +1,11 @@
 import { ArrowLeftOutlined, MailOutlined, DeleteOutlined } from '@ant-design/icons';
 import { ProCard } from '@ant-design/pro-components';
-import { getPrimaryColor } from '@utils/getPrimaryColor';
 import { Flex, Button, Space, Typography, Tag, Popconfirm } from 'antd';
 import moment from 'moment';
 import React from 'react'
 import { useNotificationMutations } from '../Hooks/NotificationsCustomHook';
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 interface INotificationDetailViewProps {
     record: any;
@@ -13,7 +14,9 @@ interface INotificationDetailViewProps {
 
 const NotificationDetailView: React.FC<INotificationDetailViewProps> = ({ record, setShowDetails }) => {
     const selectedNotification = record;
-    const primaryColor = getPrimaryColor();
+    
+    const primaryColor = usePrimaryColor();
+    
     const { deleteNotificationMutation, markAsReadMutation } = useNotificationMutations();
 
     const handleBackToList = () => {

@@ -1,24 +1,17 @@
 import { Badge, Box, Fab, keyframes } from "@mui/material";
-import { green } from "@mui/material/colors";
 import Draggable from "react-draggable";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { useSelector } from "react-redux";
-import { useRef, useState, useEffect } from "react";
+import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "../../services/request";
 
+import {usePrimaryColor} from "@context/PrimaryColorContext"
+
 function AddToCartIcon({ OpenCart }: any) {
   const { cartDetails } = useSelector((state: any) => state.cart);
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-
-  // Load tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  
+  const primaryColor = usePrimaryColor();
 
   const { data: cartItems } = useQuery(
     ["cartItems", cartDetails?._id],
