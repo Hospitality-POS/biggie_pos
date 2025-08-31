@@ -28,6 +28,7 @@ const AppWithColor = () => {
   const primaryColor = usePrimaryColor();
   return (
     <ConfigProvider
+      key={primaryColor}
       locale={enUS}
       theme={{
         token: {
