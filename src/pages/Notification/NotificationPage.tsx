@@ -25,90 +25,96 @@ const NotificationPage: React.FC = () => {
 
     return (
         <div style={{ height: '70vsh', display: 'flex', flexDirection: 'column' }}>
-        <ProCard
-            bordered
-            tabs={{
-                type: "card",
-                activeKey: activeTab,
-                onChange: handleTabChange,
-                size: "large",
-            }}
+            <ProCard
+                bordered
+                tabs={{
+                    type: "card",
+                    activeKey: activeTab,
+                    onChange: handleTabChange,
+                    size: "large",
+                }}
 
-            style={{
-                margin: "0 auto",
-                padding: "16px",
-                borderRadius: "8px",
-                minHeight: "80vh",
-                display: "flex",
-                overflow: 'hidden',
-                flexDirection: "column",
-            }}
-            
-        >
-            <ProCard.TabPane
-                key="All"
-                tab={
-                    <Space>
-                        <ContainerOutlined style={{ color: "#52c41a" }} />
-                        <Typography.Text>All</Typography.Text>
-                    </Space>
-                }
-            >
-                <div
-                    style={{
-                        padding: "0",
-                        backgroundColor: "#fafafa",
-                        borderRadius: "8px",
-                        flex: 1,
-                        overflow: "auto",
-                        height: "calc(90vh - 200px)",
-                    }}
-                >
-                    <AllNotifications/>
-                </div>
-            </ProCard.TabPane>
+                style={{
+                    margin: "0 auto",
+                    padding: "16px",
+                    borderRadius: "8px",
+                    minHeight: "80vh",
+                    display: "flex",
+                    overflow: 'hidden',
+                    flexDirection: "column",
+                }}
 
-            <ProCard.TabPane
-                key="Unread"
-                tab={
-                    <Space>
-                        <InboxOutlined style={{ color: "#faad14" }} />
-                        <Typography.Text>Unread</Typography.Text>
-                    </Space>
-                }
             >
-                <div
-                    style={{
-                        padding: "0",
-                        backgroundColor: "#fafafa",
-                        borderRadius: "8px",
-                    }}
+                <ProCard.TabPane
+                    key="All"
+                    tab={
+                        <Space>
+                            <ContainerOutlined style={{ color: "#52c41a" }} />
+                            <Typography.Text>All</Typography.Text>
+                        </Space>
+                    }
                 >
-                    <AllNotifications notificationtype="unread" />
-                </div>
-            </ProCard.TabPane>
+                    <div
+                        style={{
+                            padding: "0",
+                            backgroundColor: "#fafafa",
+                            borderRadius: "8px",
+                            flex: 1,
+                            overflow: "auto",
+                            height: "calc(90vh - 200px)",
+                        }}
+                    >
+                        <AllNotifications />
+                    </div>
+                </ProCard.TabPane>
 
-            <ProCard.TabPane
-                key="System"
-                tab={
-                    <Space>
-                        <DesktopOutlined style={{ color: "#1890ff" }} />
-                        <Typography.Text>System</Typography.Text>
-                    </Space>
-                }
-            >
-                <div
-                    style={{
-                        padding: "0",
-                        backgroundColor: "#fafafa",
-                        borderRadius: "8px",
-                    }}
+                <ProCard.TabPane
+                    key="Unread"
+                    tab={
+                        <Space>
+                            <InboxOutlined style={{ color: "#faad14" }} />
+                            <Typography.Text>Unread</Typography.Text>
+                        </Space>
+                    }
                 >
-                    <AllNotifications notificationtype="system" />
-                </div>
-            </ProCard.TabPane>
-        </ProCard>
-     </div>
+                    <div
+                        style={{
+                            padding: "0",
+                            backgroundColor: "#fafafa",
+                            borderRadius: "8px",
+                            flex: 1,
+                            overflow: "auto",
+                            height: "calc(90vh - 200px)",
+                        }}
+                    >
+                        <AllNotifications notificationtype="unread" />
+                    </div>
+                </ProCard.TabPane>
+
+                <ProCard.TabPane
+                    key="System"
+                    tab={
+                        <Space>
+                            <DesktopOutlined style={{ color: "#1890ff" }} />
+                            <Typography.Text>System</Typography.Text>
+                        </Space>
+                    }
+                >
+                    <div
+                        style={{
+                            padding: "0",
+                            backgroundColor: "#fafafa",
+                            borderRadius: "8px",
+                            flex: 1,
+                            overflow: "auto",
+                            height: "calc(90vh - 200px)",
+                        }}
+                    >
+                        <AllNotifications notificationtype="system" />
+                    </div>
+                </ProCard.TabPane>
+            </ProCard>
+        </div>
     )
 }
 
