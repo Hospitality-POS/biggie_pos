@@ -635,8 +635,9 @@ function TenantSettings() {
                                             <Button
                                                 type="primary"
                                                 onClick={handleUpdateColors}
-                                                loading={updateTenantMutation.isPending}
+                                                loading={updateTenantMutation.isLoading}
                                                 block
+                                                disabled={updateTenantMutation.isLoading}
                                                 size="large"
                                             >
                                                 Update Colors
