@@ -30,26 +30,19 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchUserById } from "@services/users";
 import AddEditProUserModal from "@components/MODALS/pro/AddEditProUserModal";
 
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+
 const { Title, Text } = Typography;
 
 function AdminProfile() {
   const [isPinVisible, setIsPinVisible] = useState(false);
   const [pin, setPin] = useState("*********");
   const params = useParams();
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+  const primaryColor = usePrimaryColor();
 
   const userRef = useRef<ActionType>();
 
   const { id } = params;
-
-  // Get tenant primary color from localStorage
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
 
   const { data: userDetails, isLoading } = useQuery({
     queryKey: ["user", id],

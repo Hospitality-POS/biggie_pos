@@ -13,23 +13,7 @@ import { ConfigProvider } from "antd";
 import enUS from "antd/locale/en_US";
 import DraggableTawkWidget from "./components/tawk/DraggableTawkWidget.tsx";
 import ErrorBoundary from "./components/tawk/ErrorBoundary.tsx";
-
-// Get tenant primary color from localStorage or use default
-const getThemeColor = () => {
-  // Default color
-  const defaultColor = "#6c1c2c";
-
-  try {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    return tenant && tenant.color_scheme.primary ? tenant.color_scheme.primary : defaultColor;
-  } catch (error) {
-    console.error("Error getting tenant color:", error);
-    return defaultColor;
-  }
-};
-
-const primaryColor = getThemeColor();
+import { PrimaryColorProvider, usePrimaryColor } from "./context/PrimaryColorContext";
 
 const theme = createTheme({
   typography: {
@@ -39,34 +23,45 @@ const theme = createTheme({
 
 const queryClient = new QueryClient();
 
+// Custom wrapper to use primary color from context
+const AppWithColor = () => {
+  const primaryColor = usePrimaryColor();
+  return (
+    <ConfigProvider
+      key={primaryColor}
+      locale={enUS}
+      theme={{
+        token: {
+          colorPrimary: primaryColor,
+          colorBgContainer: "#f6ffed",
+        },
+        components: {
+          Button: {
+            primaryShadow: "#f6ffed",
+          },
+          Card: {
+            actionsBg: primaryColor,
+          },
+        },
+      }}
+    >
+      <App />
+      <ErrorBoundary>
+        <DraggableTawkWidget />
+      </ErrorBoundary>
+    </ConfigProvider>
+  );
+};
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
-          <ConfigProvider
-            locale={enUS}
-            theme={{
-              token: {
-                colorPrimary: primaryColor,
-                colorBgContainer: "#f6ffed",
-              },
-              components: {
-                Button: {
-                  primaryShadow: "#f6ffed",
-                },
-                Card: {
-                  actionsBg: primaryColor,
-                },
-              },
-            }}
-          >
-            <App />
-            <ErrorBoundary>
-              <DraggableTawkWidget />
-            </ErrorBoundary>
-          </ConfigProvider>
+          <PrimaryColorProvider>
+            <AppWithColor />
+          </PrimaryColorProvider>
         </QueryClientProvider>
       </Provider>
     </ThemeProvider>

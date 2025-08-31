@@ -42,7 +42,7 @@ const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 const { confirm } = Modal;
 
-const NotificationsPage: React.FC = () => {
+const NotificationsPageOld: React.FC = () => {
     const [activeTab, setActiveTab] = useState("my");
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
     const [pagination, setPagination] = useState({
@@ -552,4 +552,4 @@ const NotificationsPage: React.FC = () => {
     );
 };
 
-export default NotificationsPage;
+export default NotificationsPageOld;

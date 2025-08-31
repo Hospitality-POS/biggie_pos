@@ -9,21 +9,13 @@ import {
   RocketOutlined,
   NotificationOutlined,
 } from "@ant-design/icons";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Title, Paragraph } = Typography;
 
 const ComingSoon: React.FC = () => {
   // State to hold the primary color
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-
-  // Get tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  const primaryColor = usePrimaryColor();
 
   const avatarStyle: React.CSSProperties = {
     backgroundColor: "#f5f5f5",

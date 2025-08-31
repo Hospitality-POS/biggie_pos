@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
     ModalForm,
     ProForm,
-    ProFormText,
     ProFormDigit,
     ProFormSelect,
     ProFormDatePicker,
@@ -22,12 +21,13 @@ import {
 } from '@ant-design/icons';
 import { addNewPurchaseOrder, editPurchaseOrder } from '@services/purchaseOrder';
 import { fetchAllSuppliers } from '@services/supplier';
-import { fetchAllUsersList } from '@services/users';
 import { fetchAllInventory } from '@services/inventory';
 import { fetchAllUnits } from '@services/products';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import ShowConfirm from '@utils/ConfirmUtil';
 import type { ActionType } from '@ant-design/pro-components';
+
+import { usePrimaryColor } from '@context/PrimaryColorContext';
 
 const { Title, Text } = Typography;
 
@@ -44,18 +44,11 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
 }) => {
     const [form] = Form.useForm();
     const [open, setOpen] = useState(false);
-    const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
     const [totalAmount, setTotalAmount] = useState(0);
     const formRef = useRef<any>();
     const [stepFormValues, setStepFormValues] = useState<any>({});
 
-    useEffect(() => {
-        const storedTenant = localStorage.getItem("tenant");
-        const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-        if (tenant && tenant.color_scheme.primary) {
-            setPrimaryColor(tenant.color_scheme.primary);
-        }
-    }, []);
+    const primaryColor = usePrimaryColor();
 
     useEffect(() => {
         if (open && data && edit) {

@@ -1,13 +1,14 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import Paper from "@mui/material/Paper";
-import { useDispatch } from "react-redux";
-import { addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
+import { addItemToCart } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
 import { addItem, subtractItem } from "../../features/Cart/CartSlice";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { Typography } from "antd";
 import useCartItemsData from "@hooks/cartItemsData";
 import { AccessTime, ShoppingCart, Build } from "@mui/icons-material";
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 interface menudetails {
   quantity?: number;
@@ -53,9 +54,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const { user } = useAppSelector((state) => state.auth);
   const { cartDetails, loading } = useAppSelector((state) => state.cart);
   const [quantity, setQuantity] = useState(0);
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [isHovered, setIsHovered] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false); // Local loading state
+  
+  const primaryColor = usePrimaryColor();
 
   // Helper function to lighten color
   const lightenColor = (color: string, percent: number = 20) => {
@@ -71,13 +73,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
     return `#${lightenedR.toString(16).padStart(2, '0')}${lightenedG.toString(16).padStart(2, '0')}${lightenedB.toString(16).padStart(2, '0')}`;
   };
 
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
 
   const dispatch = useAppDispatch();
   const { id } = useParams();

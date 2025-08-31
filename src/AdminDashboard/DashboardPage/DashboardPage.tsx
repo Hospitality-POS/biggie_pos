@@ -631,7 +631,6 @@ const DashboardAdminPage = () => {
       title: periodFilter === "day" ? "Today's Orders" : "Total Orders",
       value: chartData?.data?.summary?.total_orders || data?.totalOrderCount,
       prefix: <ShoppingCartOutlined style={{ color: COLORS.primary }} />,
-      trend: chartData?.data?.summary?.growth_rate,
       onClick: () => navigate('/orders'),
     },
     {

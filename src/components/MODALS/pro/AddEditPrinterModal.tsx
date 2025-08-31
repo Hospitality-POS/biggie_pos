@@ -7,6 +7,8 @@ import ShowConfirm from "@utils/ConfirmUtil";
 import { Space, Button, Form } from "antd";
 import { useEffect, useRef, useState } from "react";
 
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+
 interface AddEditPrinterModalProps {
   actionRef: any;
   edit?: boolean;
@@ -25,20 +27,13 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
   const [connectionType, setConnectionType] = useState<"NETWORK" | "USB">(
     data?.connectionType || "NETWORK"
   );
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
   const [form] = Form.useForm();
   const formRef = useRef();
 
   const [open, setOpen] = useState(false);
 
-  // Get tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  const primaryColor = usePrimaryColor();
 
   useEffect(() => {
     if (open && data) {

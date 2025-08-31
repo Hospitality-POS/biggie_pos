@@ -1,22 +1,16 @@
 // Fix 1: Import redux-thunk properly to handle async actions
-import React, { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   ProTable,
-  ActionType,
-  ProFormInstance,
 } from "@ant-design/pro-components";
 import { fetchAdminAllCustomers } from "@services/customers";
 import ExpandedRowContent from "./ExpandableCustomer";
-import parsePhoneNumberFromString, {
-  formatIncompletePhoneNumber,
-} from "libphonenumber-js";
 import {
   AlertOutlined,
   CheckCircleOutlined,
   GiftOutlined,
   MailOutlined,
   EyeOutlined,
-  EditOutlined,
   CopyOutlined,
   HistoryOutlined,
   FilePdfOutlined
@@ -29,26 +23,23 @@ import {
   Input,
   InputNumber,
   Space,
-  message,
   Card,
   Typography,
   Divider,
-  Tabs,
   Table,
   Tooltip,
-  Popconfirm,
   App // Fix 2: Import App component for message context
 } from "antd";
 import { useDispatch } from "react-redux";
 import { createGiftCard, sendGiftCard, fetchAllGiftCards } from "@services/customers";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Title, Paragraph, Text } = Typography;
-const { TabPane } = Tabs;
 
 
 
 
-const issueGiftCard = (customerId, amount, message, dispatch) => {
+const issueGiftCard = (customerId, amount, message) => {
   const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 12; i++) {
@@ -86,21 +77,16 @@ const AdminCustomersTable = () => {
   const [loadingGiftCards, setLoadingGiftCards] = useState(false);
   const [clientName, setClientName] = useState("Relia Pos");
   const [savingPDF, setSavingPDF] = useState(false);
-  // Default color value
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   // Fix 3: Add messageApi reference
   const { message: messageApi } = App.useApp();
+
+  const primaryColor = usePrimaryColor();
 
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
     const name = tenant ? tenant.name : "Relia Pos";
     setClientName(name);
-
-    // Set primary color based on tenant settings or use default
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
   }, []);
 
   const getLastVisit = (visits) => {

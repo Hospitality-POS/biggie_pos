@@ -12,12 +12,14 @@ import {
   Typography,
 } from "antd";
 import { Space } from "antd/lib";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import EmptyPage from "@routes/EmptyPage";
 import { getAllProducts } from "@services/products";
 import StoreProductCard from "@components/store/StoreProductCard";
 import ErrorDialog from "@components/MODALS/Dialogs/ErrorDialog";
 import StoreModal from "@components/MODALS/pro/StoreModal";
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Search } = Input;
 
@@ -25,14 +27,8 @@ export default function MainStore() {
   const [setErrorDialogOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  
+  const primaryColor = usePrimaryColor();
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["products"],

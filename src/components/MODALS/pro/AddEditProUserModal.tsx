@@ -21,6 +21,8 @@ import { fetchAllShops } from "@services/shops";
 import { RcFile } from "antd/lib/upload";
 import { UploadFile, UploadProps } from "antd/lib";
 
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
   actionRef: any;
@@ -40,7 +42,6 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [open, setOpen] = useState(false);
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
@@ -52,14 +53,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
-  // Get tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  const primaryColor = usePrimaryColor();
 
   useEffect(() => {
     if (open && data) {

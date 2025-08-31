@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, {  } from "react";
 import CircleIcon from "@mui/icons-material/Circle";
 import EditProductModal from "./EditProductModal";
 // import { deleteProduct } from "../../features/Product/ProductAction";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { Card, Typography } from "antd";
-import { DeleteFilled, SettingOutlined } from "@ant-design/icons";
+import { DeleteFilled } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { deleteProduct } from "@services/products";
 import StoreModal from "@components/MODALS/pro/StoreModal";
 import RecipeModal from "@components/MODALS/pro/RecipeModal";
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 interface StoreProductCardProps {
   img: string;
@@ -29,14 +31,8 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
 }) => {
 
   const [modalOpen, setModalOpen] = React.useState(false);
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+
+  const primaryColor = usePrimaryColor();
 
   const dispatch = useAppDispatch();
   const handleEditClick = () => {

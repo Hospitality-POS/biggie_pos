@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { Button, Input, Card, Space, Row, Col, Typography } from "antd";
+import { useEffect, useState } from "react";
+import { Button, Input, Space, Row, Col, Typography } from "antd";
 import {
-    StockOutlined,
     KeyOutlined,
     DeleteOutlined,
-    ShoppingCartOutlined,
-    UserOutlined,
     UsergroupAddOutlined,
     SwapOutlined,
     EyeInvisibleOutlined, EyeOutlined,
@@ -15,6 +12,7 @@ import { verifyCompanyCode } from "@services/users";
 import { useLogin } from "@components/staffCard/hook/useLogin";
 import { useNavigate } from "react-router-dom";
 import { ProCard } from "@ant-design/pro-components";
+import { useRefreshPrimaryColor } from "@context/PrimaryColorContext";
 
 const { Text } = Typography;
 
@@ -23,6 +21,7 @@ const StaffLoginPage = () => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { user } = useAppSelector((state) => state.auth);
+    const refreshPrimaryColor = useRefreshPrimaryColor()
 
     const [companyCode, setCompanyCode] = useState<string | null>(null);
     const [companyName, setCompanyName] = useState<string>("");
@@ -43,11 +42,14 @@ const StaffLoginPage = () => {
                 setCompanyName(parsedTenant?.name || "");
                 setTenant(parsedTenant);
                 setStep("pin");
+
+                // Update primary color from tenant
+                refreshPrimaryColor();
             } catch (error) {
                 console.error("Error parsing tenant:", error);
             }
         }
-    }, []);
+    }, [refreshPrimaryColor]);
 
     const [visible, setVisible] = useState(false);
 
@@ -61,6 +63,10 @@ const StaffLoginPage = () => {
 
             localStorage.setItem("tenant", JSON.stringify(result.data));
             localStorage.setItem("companyCode", code);
+
+            window.dispatchEvent(new CustomEvent('tenantUpdated'));
+            // refreshPrimaryColor();
+
 
             setCompanyName(result.data.name || "");
             setTenant(result.data);
@@ -87,6 +93,9 @@ const StaffLoginPage = () => {
     const handleSwitchCompany = () => {
         localStorage.removeItem("companyCode");
         localStorage.removeItem("tenant");
+
+        // window.dispatchEvent(new CustomEvent('tenantUpdated'));
+        refreshPrimaryColor();
 
         setCompanyCode(null);
         setCompanyName("");

@@ -26,9 +26,10 @@ import {
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
 
+import { usePrimaryColor } from "@context/PrimaryColorContext";
+
 const CartDrawer: React.FC = () => {
   const [loadingData, setLoadingData] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
@@ -47,14 +48,7 @@ const CartDrawer: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // Load tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  const primaryColor = usePrimaryColor();
 
   const CartItemCardMemo = React.memo(CartItemCard);
 

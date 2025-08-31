@@ -30,10 +30,10 @@ import { getCart } from "../../features/Cart/CartActions";
 import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 import VerticalTabs from "./Sidetabs";
 import { useAppDispatch, useAppSelector } from "../../store";
-import { fetchTableById } from "../../features/Table/TableActions";
-import CartLoader from "../../components/spinner/cartLoader";
 import { fetchMainCategories } from "@services/categories";
 import { ShoppingCart, Build } from "@mui/icons-material";
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 function a11yProps(index) {
   return {
@@ -130,19 +130,13 @@ const RestaurantPage: React.FC = () => {
   const [value, setValue] = useState(0);
   const [Subcategories, setSubcategories] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [filteredServices, setFilteredServices] = useState([]);
   const [activeItemType, setActiveItemType] = useState<'products' | 'services'>('services');
 
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  const primaryColor = usePrimaryColor();
+
 
   useEffect(() => {
     if (!searchTerm.trim()) {

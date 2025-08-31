@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Badge, Breadcrumb, Button, Dropdown, Empty, Image, List, Popover, Space, Typography, Modal, Tag, Avatar } from "antd";
 import { PageContainer, ProLayout } from "@ant-design/pro-components";
 import {
@@ -9,10 +9,7 @@ import {
   PoweroffOutlined,
   SettingOutlined,
   UserOutlined,
-  CheckCircleOutlined,
   DownOutlined,
-  RightOutlined,
-  ArrowRightOutlined,
   GlobalOutlined,
 } from "@ant-design/icons";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -22,6 +19,8 @@ import { fetchMyNotifications, markNotificationAsRead, markAllNotificationsAsRea
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 dayjs.extend(relativeTime);
 
@@ -50,10 +49,7 @@ const AdminDashboard: React.FC = () => {
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
 
-  // Default color value
-  const defaultColor = "#6c1c2c";
-  // Use tenant color scheme primary or primary_color if available, otherwise use default
-  const primaryColor = tenant?.color_scheme?.primary || tenant?.primary_color || defaultColor;
+  const primaryColor = usePrimaryColor();
 
   const handleLogin = () => {
     navigate("/login");

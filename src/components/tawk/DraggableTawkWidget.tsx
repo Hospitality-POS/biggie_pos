@@ -1,24 +1,13 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const EnhancedTawkWidget: React.FC = () => {
     const [isVisible, setIsVisible] = useState(true);
     const [tawkLoaded, setTawkLoaded] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
-    const [position, setPosition] = useState({ x: 20, y: 20 });
     const [hasNewMessage, setHasNewMessage] = useState(false);
     const [isOpening, setIsOpening] = useState(false);
-    const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-    const dragRef = useRef<HTMLDivElement>(null);
-    const dragOffset = useRef({ x: 0, y: 0 });
 
-    // Get tenant primary color on component mount
-    useEffect(() => {
-        const storedTenant = localStorage.getItem("tenant");
-        const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-        if (tenant && tenant.color_scheme && tenant.color_scheme.primary) {
-            setPrimaryColor(tenant.color_scheme.primary);
-        }
-    }, []);
+    const primaryColor = usePrimaryColor();
 
     // Helper function to darken color for gradient effect
     const darkenColor = (color: string, percent: number = 20) => {
@@ -46,20 +35,20 @@ const EnhancedTawkWidget: React.FC = () => {
         const hideStyle = document.createElement('style');
         hideStyle.id = 'hide-tawk-default';
         hideStyle.textContent = `
-            #tawk-bubble-container,
-            .tawk-chatbox,
-            .tawk-min-chat-box,
-            div[id*="tawk_"],
-            iframe[id*="tawk"],
-            [class*="tawk"]:not(.custom-tawk) {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-                pointer-events: none !important;
-                position: absolute !important;
-                left: -9999px !important;
-            }
-        `;
+      #tawk-bubble-container,
+      .tawk-chatbox,
+      .tawk-min-chat-box,
+      div[id*="tawk_"],
+      iframe[id*="tawk"],
+      [class*="tawk"]:not(.custom-tawk) {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        position: absolute !important;
+        left: -9999px !important;
+      }
+    `;
         document.head.appendChild(hideStyle);
 
         if (!window.Tawk_API) {
@@ -105,60 +94,14 @@ const EnhancedTawkWidget: React.FC = () => {
             if (hideStyle) hideStyle.remove();
         };
     }, []);
+    
 
-    const handleMouseDown = (e: React.MouseEvent) => {
-        setIsDragging(true);
-        const rect = dragRef.current?.getBoundingClientRect();
-        if (rect) {
-            dragOffset.current = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
-        }
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-        if (isDragging && dragRef.current) {
-            const newX = e.clientX - dragOffset.current.x;
-            const newY = e.clientY - dragOffset.current.y;
-
-            // Keep widget within viewport bounds
-            const maxX = window.innerWidth - 60;
-            const maxY = window.innerHeight - 60;
-
-            setPosition({
-                x: Math.max(0, Math.min(newX, maxX)),
-                y: Math.max(0, Math.min(newY, maxY))
-            });
-        }
-    };
-
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
-
-    useEffect(() => {
-        if (isDragging) {
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-            return () => {
-                document.removeEventListener('mousemove', handleMouseMove);
-                document.removeEventListener('mouseup', handleMouseUp);
-            };
-        }
-    }, [isDragging]);
-
-    const handleChatClick = (e: React.MouseEvent) => {
-        if (isDragging) return;
-
+    const handleChatClick = () => {
         // Show opening animation
         setIsOpening(true);
         setHasNewMessage(false);
 
-        // Animate the widget opening
         setTimeout(() => {
-            console.log('Opening chat...');
-
             if (tawkLoaded && window.Tawk_API) {
                 try {
                     const hideStyle = document.getElementById('hide-tawk-default');
@@ -189,12 +132,11 @@ const EnhancedTawkWidget: React.FC = () => {
         <>
             {/* Main chat widget */}
             <div
-                ref={dragRef}
                 className="custom-tawk"
                 style={{
                     position: 'fixed',
-                    bottom: `${position.y}px`,
-                    right: `${position.x}px`,
+                    bottom: '20px',
+                    right: '20px',
                     width: '60px',
                     height: '60px',
                     borderRadius: '50%',
@@ -202,7 +144,7 @@ const EnhancedTawkWidget: React.FC = () => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: 'white',
-                    cursor: isDragging ? 'grabbing' : 'grab',
+                    cursor: 'pointer',
                     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
                     zIndex: 10000,
                     border: '1px solid rgba(0, 0, 0, 0.08)',
@@ -221,77 +163,56 @@ const EnhancedTawkWidget: React.FC = () => {
                         boxShadow: `0 16px 48px ${hexToRgba(primaryColor, 0.3)}, 0 8px 24px rgba(0, 0, 0, 0.15)`
                     })
                 }}
-                onMouseDown={handleMouseDown}
                 onClick={handleChatClick}
                 onMouseEnter={(e) => {
-                    if (!isDragging) {
-                        e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.12)';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                    }
+                    e.currentTarget.style.boxShadow =
+                        '0 12px 40px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.12)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={(e) => {
-                    if (!isDragging) {
-                        e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                    }
+                    e.currentTarget.style.boxShadow =
+                        '0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)';
+                    e.currentTarget.style.transform = 'translateY(0)';
                 }}
                 title="Click to start chat"
             >
-                <div style={{
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '100%',
-                    height: '100%'
-                }}>
-                    <div style={{
-                        fontSize: '24px',
-                        color: 'white',
-                        lineHeight: '1',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}>
-                        💬
+                <div style={{ fontSize: '24px', color: 'white' }}>💬</div>
+                {hasNewMessage && (
+                    <div
+                        style={{
+                            position: 'absolute',
+                            top: '-8px',
+                            right: '-8px',
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: '#ef4444',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            animation: 'bounce 1s infinite'
+                        }}
+                    >
+                        !
                     </div>
-                    {hasNewMessage && (
-                        <div
-                            style={{
-                                position: 'absolute',
-                                top: '-8px',
-                                right: '-8px',
-                                width: '16px',
-                                height: '16px',
-                                backgroundColor: '#ef4444',
-                                borderRadius: '50%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '10px',
-                                color: 'white',
-                                fontWeight: 'bold',
-                                animation: 'bounce 1s infinite'
-                            }}
-                        >
-                            !
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
 
             {/* CSS Animations */}
             <style>{`
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.5; }
-                }
-                
-                @keyframes bounce {
-                    0%, 100% { transform: translateY(0); }
-                    50% { transform: translateY(-4px); }
-                }
-            `}</style>
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+      `}</style>
         </>
     );
 };

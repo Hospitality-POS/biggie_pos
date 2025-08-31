@@ -8,11 +8,13 @@ import { useQuery } from "@tanstack/react-query";
 import { ConfigProvider, Skeleton, Typography, Result, Button } from "antd";
 import { Space } from "antd/lib";
 import Lottie from "lottie-react";
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/tables.json";
 import EmptyPage from "@routes/EmptyPage";
 import { useNavigate } from "react-router-dom";
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const TableSkeleton = () => <Skeleton.Image active style={{ width: "50%", height: "100px" }} />;
 
@@ -48,7 +50,7 @@ const LoadingTabs = () => (
 export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
+
   const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
 
   const { user } = useAppSelector((state) => state.auth);
@@ -73,13 +75,7 @@ export default function TablePro() {
     return validTabId;
   };
 
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  const primaryColor = usePrimaryColor();
 
   useEffect(() => {
     const isFirstVisit = localStorage.getItem(VISIT_KEY) !== "true";

@@ -1,6 +1,7 @@
 import { CheckCard } from "@ant-design/pro-components";
 import { Image, Space, Typography } from "antd";
-import { useEffect, useState } from "react";
+
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 function CategoryCard({
   icon,
@@ -8,17 +9,8 @@ function CategoryCard({
   id,
   handleSelectedCard,
 }: any) {
-  // Color state management
-  const [primaryColor, setPrimaryColor] = useState("#6c1c2c");
-
-  // Get tenant primary color on component mount
-  useEffect(() => {
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    if (tenant && tenant.color_scheme && tenant.color_scheme.primary) {
-      setPrimaryColor(tenant.color_scheme.primary);
-    }
-  }, []);
+  
+  const primaryColor = usePrimaryColor();
 
   return (
     <CheckCard
