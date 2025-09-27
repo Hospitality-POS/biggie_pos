@@ -1,6 +1,5 @@
-import React from "react";
 import { ProCard } from "@ant-design/pro-components";
-import { Space, Typography, Divider } from "antd";
+import { Typography } from "antd";
 import {
   CalendarOutlined,
   DatabaseOutlined,
@@ -12,112 +11,89 @@ import InventorySettings from "./InventorySettings";
 import DeliverySettings from "./DeliverySettings";
 import UomSettings from "./UomSettings";
 import PurchaseOrderSettings from "./purchaseOrders/PurchaseOrderSettings";
+import { useSearchParams } from "react-router-dom";
+import { useMemo } from "react";
 
-const { Text } = Typography;
+const { Title } = Typography;
 
 function InventoryMainSettings() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "uom"; // Default to 'uom' if no tab param
+
+  // Handle tab change
+  const handleTabChange = (key: string) => {
+    // Update URL search params without page reload
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set("tab", key);
+    setSearchParams(newSearchParams);
+  };
+
+  const tabItems = useMemo(
+    () => [
+      {
+        key: "uom",
+        label: (
+          <span>
+            <DatabaseOutlined />
+            <span>Units of Measure</span>
+          </span>
+        ),
+        children: <UomSettings />,
+      },
+      {
+        key: "inventory",
+        label: (
+          <span>
+            <ShopOutlined  style={{ color: "#52c41a" }} />
+            <span>Inventory</span>
+          </span>
+        ),
+        children: <InventorySettings />,
+      },
+      {
+        key: "purchase-orders",
+        label: (
+          <span>
+            <FileTextOutlined  style={{ color: "#722ed1" }}/>
+            <span>Purchase Orders</span>
+          </span>
+        ),
+        children: <PurchaseOrderSettings />,
+      },
+      {
+        key: "delivery",
+        label: (
+          <span>
+            <TruckOutlined  style={{ color: "#1890ff" }}/>
+            <span>Delivery</span>
+          </span>
+        ),
+        children: <DeliverySettings />,
+      },
+    ],
+    []
+  );
+
   return (
     <ProCard
       bordered
       title={
-        <Typography.Title
+        <Title
           level={4}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            margin: 0,
-          }}
+          style={{ display: "flex", alignItems: "center", margin: 0 }}
         >
           <CalendarOutlined style={{ marginRight: 8 }} />
           Inventory Main Settings
-        </Typography.Title>
+        </Title>
       }
       tabs={{
         type: "card",
-        defaultActiveKey: "uom",
+        activeKey: activeTab,
+        onChange: handleTabChange,
         size: "large",
+        items: tabItems,
       }}
-    >
-      <ProCard.TabPane
-        key="uom"
-        tab={
-          <Space>
-            <DatabaseOutlined />
-            <Text>Unit of Measure</Text>
-          </Space>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
-        >
-          <UomSettings />
-        </div>
-      </ProCard.TabPane>
-
-      <ProCard.TabPane
-        key="inventory"
-        tab={
-          <Space>
-            <ShopOutlined style={{ color: "#52c41a" }} />
-            <Text>Inventory</Text>
-          </Space>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
-        >
-          <InventorySettings />
-        </div>
-      </ProCard.TabPane>
-
-      <ProCard.TabPane
-        key="purchase-orders"
-        tab={
-          <Space>
-            <FileTextOutlined style={{ color: "#722ed1" }} />
-            <Text>Purchase Orders</Text>
-          </Space>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
-        >
-          <PurchaseOrderSettings />
-        </div>
-      </ProCard.TabPane>
-
-      <ProCard.TabPane
-        key="delivery"
-        tab={
-          <Space>
-            <TruckOutlined style={{ color: "#1890ff" }} />
-            <Text>Deliveries</Text>
-          </Space>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
-        >
-          <DeliverySettings />
-        </div>
-      </ProCard.TabPane>
-    </ProCard>
+    />
   );
 }
 
