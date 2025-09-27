@@ -1,7 +1,7 @@
 import { parsePhoneNumber } from "libphonenumber-js";
 import { parsePhoneNumberWithError } from 'libphonenumber-js';
 
-export function reversePhoneNumber(phoneNumber) {
+export function reversePhoneNumber(phoneNumber: string) {
   const parsedPhoneNumber = parsePhoneNumber("+" + phoneNumber);
   return {
     short: parsedPhoneNumber.country,
