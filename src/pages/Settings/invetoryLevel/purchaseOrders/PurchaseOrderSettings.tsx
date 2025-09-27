@@ -1,6 +1,7 @@
+import PrintPreviewModal from './components/PreviewPrintModal';
 import { PurchaseOrderTable } from './components/PurchaseOrderTable';
 import { usePurchaseOrders } from './hooks/usePurchaseOrders';
-import PrintPreviewModal from '../PrintPreviewModal';
+
 
 export const PurchaseOrderSettings = () => {
   const {

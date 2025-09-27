@@ -301,8 +301,8 @@ export const PurchaseOrderTable: React.FC<PurchaseOrderTableProps> = ({
       title: "Status",
       dataIndex: "status",
       align: "center",
-      fixed: "center",
       search: false,
+      width: 150,
       render: renderStatus,
       filters: [
         { text: "Pending", value: "pending" },
@@ -317,7 +317,7 @@ export const PurchaseOrderTable: React.FC<PurchaseOrderTableProps> = ({
     {
       title: "Amount",
       dataIndex: "total_amount",
-      width: 120,
+      width: 150,
       search: false,
       sorter: (a: PurchaseOrder, b: PurchaseOrder) =>
         a.total_amount - b.total_amount,
@@ -357,8 +357,8 @@ export const PurchaseOrderTable: React.FC<PurchaseOrderTableProps> = ({
       title: "Expected",
       dataIndex: "expected_delivery_date",
       align: "center",
+      width: 150,
       search: false,
-      fixed: "center",
       render: (dateString: string) => {
         if (!dateString) return <Tag>Not set</Tag>;
         const date = new Date(dateString);
@@ -379,6 +379,7 @@ export const PurchaseOrderTable: React.FC<PurchaseOrderTableProps> = ({
       title: "Actions",
       key: "actions",
       search: false,
+      width: 120,
       fixed: "right",
       render: (_: any, record: PurchaseOrder) => (
         <Dropdown
