@@ -347,6 +347,8 @@ const InventorySettings = () => {
             fieldProps: {
               placeholder: "Enter Product Name",
             },
+            align: 'left',
+            fixed: 'left',
             sorter: true,
             ellipsis: true,
             render: (text, record) => (
@@ -397,7 +399,7 @@ const InventorySettings = () => {
             title: "Stock Level",
             dataIndex: "quantity",
             hideInSearch: true,
-            width: 120,
+            width: 150,
             sorter: true,
             render: (_, record) => (
               <Space direction="vertical" size={2}>
@@ -417,7 +419,7 @@ const InventorySettings = () => {
             title: "Pricing",
             dataIndex: "price",
             hideInSearch: true,
-            width: 150,
+            width: 120,
             render: (_, record) => renderPrice(record),
           },
           // {
