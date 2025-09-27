@@ -11,7 +11,7 @@ import {
 import InventorySettings from "./InventorySettings";
 import DeliverySettings from "./DeliverySettings";
 import UomSettings from "./UomSettings";
-import PurchaseOrderSettings from "./PurchaseOrderSettings";
+import PurchaseOrderSettings from "./purchaseOrders/PurchaseOrderSettings";
 
 const { Text } = Typography;
 
