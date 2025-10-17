@@ -96,7 +96,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       }}
     >
       <CardContent>
-        <Grid container spacing={3} alignItems="center">
+        <Grid container spacing={2} alignItems="center">
           <Grid item xs={3}>
             <Typography.Text
               ellipsis={{ rows: 2, expandable: true }}
