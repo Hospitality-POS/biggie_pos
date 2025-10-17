@@ -34,6 +34,7 @@ import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewInventory, editInventory } from "@services/inventory";
 import { RcFile } from "antd/lib/upload";
 import { UploadFile, UploadProps } from "antd/lib";
+import { ProCard } from "@ant-design/pro-components";
 
 interface inventory {
   name: string;
@@ -722,7 +723,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     switch (currentStep) {
       case 0:
         return (
-          <Card title="Basic Information" size="small">
+          <ProCard title="Basic Information" size="small">
             <ProForm.Group>
               <ProFormText
                 width="xl"
@@ -804,12 +805,12 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                 fieldProps={{ rows: 3 }}
               />
             </ProForm.Group>
-          </Card>
+          </ProCard>
         );
 
       case 1:
         return (
-          <Card title="Inventory & Pricing" size="small">
+          <ProCard title="Inventory & Pricing" size="small">
             <ProForm.Group>
               <ProFormDigit
                 width="md"
@@ -871,12 +872,12 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                 style={{ marginTop: 16 }}
               />
             )}
-          </Card>
+          </ProCard>
         );
 
       case 2:
         return (
-          <Card title="Supplier Information" size="small">
+          <ProCard title="Supplier Information" size="small">
             <ProForm.Group>
               <ProFormSelect
                 width="xl"
@@ -908,12 +909,12 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                 placeholder="e.g., Warehouse A, Shelf 3"
               />
             </ProForm.Group>
-          </Card>
+          </ProCard>
         );
 
       case 3:
         return (
-          <Card title="Advanced Settings" size="small">
+          <ProCard title="Advanced Settings" size="small">
             <ProForm.Group>
               <ProFormSelect
                 width="md"
@@ -980,12 +981,12 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                 ]}
               />
             </ProForm.Group>
-          </Card>
+          </ProCard>
         );
 
       case 4:
         return (
-          <Card title="Product Image" size="small">
+          <ProCard title="Product Image" size="small">
             <Upload.Dragger
               fileList={fileList}
               beforeUpload={beforeUpload}
@@ -1014,7 +1015,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                 />
               </div>
             )}
-          </Card>
+          </ProCard>
         );
 
       default:
@@ -1100,7 +1101,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
           ],
         }}
       >
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 24, padding: 18 }}>
           <Steps current={currentStep} size="small">
             {steps.map((step, index) => (
               <Step
