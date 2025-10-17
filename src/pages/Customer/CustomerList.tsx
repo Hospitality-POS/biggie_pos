@@ -42,7 +42,7 @@ function Customers() {
                 tab={
                     <Space>
                         <FileDoneOutlined style={{ color: "#52c41a", fontSize: "18px" }} />
-                        <Typography.Text>Customer Schedule</Typography.Text>
+                        <Typography.Text> Booking Schedule</Typography.Text>
                     </Space>
                 }
             >
