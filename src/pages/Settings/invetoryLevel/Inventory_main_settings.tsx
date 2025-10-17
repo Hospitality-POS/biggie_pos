@@ -83,7 +83,7 @@ function InventoryMainSettings() {
           style={{ display: "flex", alignItems: "center", margin: 0 }}
         >
           <CalendarOutlined style={{ marginRight: 8 }} />
-          Inventory Main Settings
+          Inventory Management
         </Title>
       }
       tabs={{
