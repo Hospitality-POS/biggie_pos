@@ -13,7 +13,7 @@ import NotFound from "@routes/NotFound";
 
 import { Spin } from "antd/lib";
 import { COOP_NAME } from "@utils/config";
-import MainOrders from "@pages/Orders/MainOrders";
+import MainOrders from "@pages/OrderManagement/MainOrders";
 import NubaLoader from "@components/spinner/NubaLoader";
 import StaffLoginPage from "@pages/Login/login";
 import Dashboard from "@pages/Dashboard/Dashboard";
@@ -22,7 +22,7 @@ import StaffClockTracker from "@pages/staff/ClockInTracker";
 import HelpCenter from "src/AdminDashboard/HelpCenter/HelpCenterPage";
 import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
 import ShopManagement from "src/AdminDashboard/Shops/MainShopPage";
-import Invoices from "@pages/Invoices/Invoices";
+// import Invoices from "@pages/OrderManagement/Invoices/Invoices";
 import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
 import Customer from "src/pages/Customer/CustomerList";
 import PaymentSubscriptionPage from "src/components/billing/Billing";
@@ -172,7 +172,7 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        <Route
+        {/* <Route
           path="/invoices"
           errorElement={<NotFound />}
           element={
@@ -183,7 +183,7 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         // errorElement={<NotFound/>}
-        />
+        /> */}
         <Route
           path="/payment-callback"
           errorElement={<NotFound />}

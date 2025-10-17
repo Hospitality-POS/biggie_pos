@@ -6,9 +6,6 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 const categ_url = `${BASE_URL}/customers`;
 
 
-//  categories
-
-
 
 export const fetchAllCustomers = async (data: ParamsType) => {
     try {
@@ -162,7 +159,7 @@ export const fetchAllSchedules = async (date?: string) => {
         const response = await axiosInstance.get(url, {
             params
         });
-        return response.data;
+        return response;
     } catch (error) {
         throw new Error(error?.message);
     }
