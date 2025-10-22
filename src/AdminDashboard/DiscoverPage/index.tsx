@@ -6,7 +6,8 @@ import {
 import {
     CreditCardOutlined, CheckCircleOutlined, PlusOutlined, GlobalOutlined,
     ApiOutlined, SettingOutlined, StarOutlined, ThunderboltOutlined,
-    EditOutlined, PoweroffOutlined, FileProtectOutlined, CalculatorOutlined
+    EditOutlined, PoweroffOutlined, FileProtectOutlined, CalculatorOutlined,
+    TeamOutlined
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchTenantDetails, enableAccounting, disableAccounting, getCurrentTenantId } from "@services/tenants";
@@ -15,50 +16,60 @@ import pesapalApi from "@services/pesapalApi";
 const { Title, Text, Paragraph } = Typography;
 
 const availableIntegrations = [
-    // {
-    //     id: 'pesapal',
-    //     name: 'Pesapal',
-    //     category: 'Payment Gateway',
-    //     description: 'Accept mobile money, card payments, and bank transfers seamlessly.',
-    //     longDescription: 'Kenya\'s leading payment gateway enabling payments through M-Pesa, Airtel Money, Visa, Mastercard, and bank transfers.',
-    //     features: ['Mobile Money Integration', 'Card Processing', 'Bank Transfers', 'Real-time Notifications', 'Multi-currency Support'],
-    //     benefits: ['Multiple payment options', 'Reduced cash handling', 'Faster checkout', 'Auto reconciliation'],
-    //     pricing: 'Transaction fees from 3.5%',
-    //     setupTime: '15 minutes',
-    //     rating: 4.8,
-    //     totalUsers: '50,000+',
-    //     status: 'available',
-    //     iconComponent: CreditCardOutlined,
-    //     color: '#1890ff',
-    //     tags: ['Popular', 'Secure', 'Local'],
-    //     requirements: ['Business registration', 'Bank account', 'KRA PIN', 'Business permit']
-    // },
-    // {
-    //     id: 'etims',
-    //     name: 'eTIMS',
-    //     category: 'Tax Compliance',
-    //     description: 'Electronic Tax Invoice Management System - KRA compliance made easy.',
-    //     longDescription: 'KRA\'s mandatory system for real-time tax reporting. Generate tax-compliant invoices and stay compliant.',
-    //     features: ['Real-time Invoice Generation', 'Automatic VAT', 'KRA Reporting', 'Digital Receipts', 'Tax Returns'],
-    //     benefits: ['100% KRA compliance', 'Avoid penalties', 'Automated tax calculations', 'Simplified filing'],
-    //     pricing: 'Included with POS',
-    //     setupTime: '30 minutes',
-    //     rating: 4.6,
-    //     totalUsers: '25,000+',
-    //     status: 'coming_soon',
-    //     iconComponent: FileProtectOutlined,
-    //     color: '#d4af37',
-    //     tags: ['KRA Compliance', 'Mandatory'],
-    //     requirements: ['KRA PIN', 'eTIMS registration', 'Business registration', 'Tax compliance certificate']
-    // },
+    {
+        id: 'relia_pos',
+        name: 'Base Store',
+        category: 'Point of Sale',
+        description: 'Smart POS system for seamless sales, inventory, and customer management.',
+        longDescription:
+            'Relia POS enables businesses to manage sales, handle shift operations, send notifications, and sync data in real-time with Relia Accounting and other Relia Suite products.',
+        features: [
+            'Sales',
+            'Shift Management',
+            'Notifications',
+            'Inventory Management',
+            'Customer Profiles',
+            'Multi-branch Support',
+            'Reports Dashboard',
+        ],
+        benefits: [
+            'Faster checkouts',
+            'Accurate stock levels',
+            'Better customer experience',
+            'Centralized reporting',
+        ],
+        pricing: 'KES 3,000/month',
+        setupTime: '2 minutes',
+        rating: 4.8,
+        totalUsers: '100+',
+        status: 'available',
+        iconComponent: CreditCardOutlined,
+        color: '#1890ff',
+        tags: ['Relia Suite', 'Popular', 'POS'],
+        requirements: ['Business registration', 'Internet connection', 'Active subscription'],
+    },
     {
         id: 'relia_accounting',
-        name: 'Relia Accounting',
+        name: 'Base Pesa',
         category: 'Accounting & Finance',
         description: 'Complete accounting solution integrated with your POS.',
-        longDescription: 'Comprehensive accounting for Relia POS. Auto-sync sales, track expenses, generate financial reports.',
-        features: ['Auto POS Sync', 'Chart of Accounts', 'Double-Entry Bookkeeping', 'Financial Reports', 'Bank Reconciliation', 'Multi-user Access'],
-        benefits: ['Eliminate manual entry', 'Real-time visibility', 'Professional statements', 'Better cash flow', 'Tax-ready reports'],
+        longDescription:
+            'Comprehensive accounting for Relia POS. Auto-sync sales, track expenses, and generate professional financial reports.',
+        features: [
+            'Auto POS Sync',
+            'Chart of Accounts',
+            'Double-Entry Bookkeeping',
+            'Financial Reports',
+            'Bank Reconciliation',
+            'Multi-user Access',
+        ],
+        benefits: [
+            'Eliminate manual entry',
+            'Real-time visibility',
+            'Professional statements',
+            'Better cash flow',
+            'Tax-ready reports',
+        ],
         pricing: 'KES 2,000/month',
         setupTime: '2 minutes',
         rating: 4.9,
@@ -67,9 +78,72 @@ const availableIntegrations = [
         iconComponent: CalculatorOutlined,
         color: '#52c41a',
         tags: ['Relia Suite', 'Auto-sync'],
-        requirements: ['Active POS subscription', 'Business registration', 'Internet connection']
-    }
+        requirements: ['Active POS subscription', 'Business registration', 'Internet connection'],
+    },
+    {
+        id: 'relia_payroll',
+        name: 'Base Team',
+        category: 'Human Resource & Payroll',
+        description: 'Automate salary calculations, payslips, and statutory deductions.',
+        longDescription:
+            'Relia Payroll helps you manage employee payments, statutory compliance (NHIF, NSSF, PAYE), and generate detailed reports seamlessly integrated with Relia Accounting and POS.',
+        features: [
+            'Payslip Generation',
+            'NHIF/NSSF/PAYE Automation',
+            'Leave Management',
+            'Employee Database',
+            'Integration with Accounting',
+        ],
+        benefits: [
+            'Accurate payments',
+            'Full compliance',
+            'Reduced manual work',
+            'Easy reporting',
+            'HR efficiency',
+        ],
+        pricing: 'Coming Soon',
+        setupTime: 'N/A',
+        rating: 4.7,
+        totalUsers: '—',
+        status: 'coming_soon',
+        iconComponent: FileProtectOutlined,
+        color: '#faad14',
+        tags: ['Relia Suite', 'Coming Soon'],
+        requirements: ['Employee data', 'Company registration', 'HR approval'],
+    },
+    {
+        id: 'relia_clients',
+        name: 'Base Clients',
+        category: 'Customer Relationship Management',
+        description: 'Manage clients, loyalty programs, and personalized engagement.',
+        longDescription:
+            'Base Clients helps you manage customer data, track purchases, and reward loyalty with points and special offers. Designed to improve retention and build lasting customer relationships across your stores.',
+        features: [
+            'Client Database',
+            'Loyalty Programs',
+            'Reward Points Tracking',
+            'Purchase History',
+            //   'Targeted Campaigns',
+            'Integration with POS',
+        ],
+        benefits: [
+            'Improved customer retention',
+            'Boost repeat sales',
+            'Personalized promotions',
+            'Better customer insights',
+        ],
+        pricing: 'KES 1,500/month',
+        setupTime: 'N/A',
+        rating: 4.6,
+        totalUsers: '—',
+        status: 'coming_soon',
+        iconComponent: TeamOutlined,
+        color: '#722ed1',
+        tags: ['Relia Suite', 'CRM', 'Coming Soon'],
+        requirements: ['Customer data', 'Active POS account', 'Marketing consent'],
+    },
 ];
+
 
 const DiscoverPage = () => {
     const [selectedIntegration, setSelectedIntegration] = useState(null);
@@ -328,13 +402,13 @@ const DiscoverPage = () => {
             <Row gutter={[16, 16]} style={{ marginBottom: '32px' }}>
                 <Col xs={24} sm={8}>
                     <Card size="small" style={{ textAlign: 'center' }}>
-                        <Text strong style={{ fontSize: '24px', color: '#1890ff' }}>1</Text>
+                        <Text strong style={{ fontSize: '24px', color: '#1890ff' }}>2</Text>
                         <br /><Text type="secondary">Available Now</Text>
                     </Card>
                 </Col>
                 <Col xs={24} sm={8}>
                     <Card size="small" style={{ textAlign: 'center' }}>
-                        <Text strong style={{ fontSize: '24px', color: '#52c41a' }}>0</Text>
+                        <Text strong style={{ fontSize: '24px', color: '#52c41a' }}>2</Text>
                         <br /><Text type="secondary">Coming Soon</Text>
                     </Card>
                 </Col>
