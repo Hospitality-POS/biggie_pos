@@ -8,9 +8,7 @@ import {
 import { Suspense, lazy } from "react";
 import Private, { AdminRoute } from "@components/layout/private/Private";
 import MainCategory from "@pages/main_category/Main_category";
-
 import NotFound from "@routes/NotFound";
-
 import { Spin } from "antd/lib";
 import { COOP_NAME } from "@utils/config";
 import MainOrders from "@pages/OrderManagement/MainOrders";
@@ -32,8 +30,28 @@ import DiscoverPage from "src/AdminDashboard/DiscoverPage";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import { getPrimaryColor } from "@utils/getPrimaryColor";
 
-const Layout = lazy(() => import("@components/layout/Layout"));
+// Accounting Module Imports
+const AccountingDashboard = lazy(() => import("src/AdminDashboard/Accounting/Dashboard/AccountingDashboard"));
+const ChartOfAccounts = lazy(() => import("src/AdminDashboard/Accounting/Accounts/ChartOfAccounts"));
+const AccountingInvoices = lazy(() => import("src/AdminDashboard/Accounting/Invoices/InvoicesList"));
+const AccountingBills = lazy(() => import("src/AdminDashboard/Accounting/Bills/BillsList"));
+const Expenses = lazy(() => import("src/AdminDashboard/Accounting/Expenses/ExpensesList"));
+const Payments = lazy(() => import("src/AdminDashboard/Accounting/Payments/PaymentsList"));
+const Receipts = lazy(() => import("src/AdminDashboard/Accounting/Receipts/ReceiptsList"));
+const AccountingCustomers = lazy(() => import("src/AdminDashboard/Accounting/Customers/CustomersList"));
+const Vendors = lazy(() => import("src/AdminDashboard/Accounting/Vendors/VendorsList"));
+const JournalEntries = lazy(() => import("src/AdminDashboard/Accounting/Journals/JournalsList"));
+const BankReconciliation = lazy(() => import("src/AdminDashboard/Accounting/Reconciliation/Reconciliation"));
+const ReconciliationDetailView = lazy(() => import("src/AdminDashboard/Accounting/Reconciliation/ReconciliationDetailView"));
+const ProfitLoss = lazy(() => import("src/AdminDashboard/Accounting/Reports/ProfitLoss"));
+const BalanceSheet = lazy(() => import("src/AdminDashboard/Accounting/Reports/BalanceSheet"));
+const CashFlow = lazy(() => import("src/AdminDashboard/Accounting/Reports/CashFlow"));
+const TrialBalance = lazy(() => import("src/AdminDashboard/Accounting/Reports/TrialBalance"));
+const ARAgingReport = lazy(() => import("src/AdminDashboard/Accounting/Reports/ARAgingReport"));
+const APAgingReport = lazy(() => import("src/AdminDashboard/Accounting/Reports/APAgingReport"));
+const TaxSummary = lazy(() => import("src/AdminDashboard/Accounting/Reports/TaxSummary"));
 
+const Layout = lazy(() => import("@components/layout/Layout"));
 const RestaurantPage = lazy(() => import("@pages/Restaurant/Restuarant"));
 const MainStore = lazy(() => import("@pages/store/MainStore"));
 const Table = lazy(() => import("@pages/Tables/TablePro"));
@@ -41,36 +59,18 @@ const Faqs = lazy(() => import("@pages/Faqs/Faqs"));
 const Website = lazy(() => import("@pages/Website/website"));
 
 // App list - settings
-const PaymentMainSettings = lazy(
-  () => import("@pages/Settings/paymentMethodLevel/payment_main_settings")
-);
-const UsersMainSettings = lazy(
-  () => import("@pages/Settings/usersLevel/User_main_settings")
-);
-const InventoryMainSettings = lazy(
-  () => import("@pages/Settings/invetoryLevel/Inventory_main_settings")
-);
-const SupplierMainSettings = lazy(
-  () => import("@pages/Settings/supplierLevel/supplier_main_settings")
-);
-const TableMainSettings = lazy(
-  () => import("@pages/Settings/TableLevel/Table_main_settings")
-);
-const SystemSetup = lazy(
-  () => import("@pages/Settings/systemSetup/SystemSetup")
-);
-const CategoryMainSettings = lazy(
-  () => import("@pages/Settings/categoryLevel/Category_main_settings")
-);
+const PaymentMainSettings = lazy(() => import("@pages/Settings/paymentMethodLevel/payment_main_settings"));
+const UsersMainSettings = lazy(() => import("@pages/Settings/usersLevel/User_main_settings"));
+const InventoryMainSettings = lazy(() => import("@pages/Settings/invetoryLevel/Inventory_main_settings"));
+const SupplierMainSettings = lazy(() => import("@pages/Settings/supplierLevel/supplier_main_settings"));
+const TableMainSettings = lazy(() => import("@pages/Settings/TableLevel/Table_main_settings"));
+const SystemSetup = lazy(() => import("@pages/Settings/systemSetup/SystemSetup"));
+const CategoryMainSettings = lazy(() => import("@pages/Settings/categoryLevel/Category_main_settings"));
 const Reports = lazy(() => import("@pages/Settings/reportsLevel/Reports"));
-
 const Profile = lazy(() => import("@pages/Profile/Profile"));
 const AdminProfile = lazy(() => import("src/AdminDashboard/Profile/AdminProfile"));
 const EmployeeShift = lazy(() => import("@pages/EmployeeShift/Employee"));
 const Notification = lazy(() => import("@pages/Notification/NotificationPage"));
-// const ShopManagement = lazy(() => import("src/AdminDashboard/Shops/MainShopPage"));
-
-// const Invoices = lazy(() => import("@pages/Invoices/Invoices"));
 
 const routes = createBrowserRouter(
   createRoutesFromElements(
@@ -80,19 +80,8 @@ const routes = createBrowserRouter(
           index
           errorElement={<NotFound />}
           element={
-            <Suspense
-              fallback={
-                <Spin
-                  size="large"
-                  fullscreen
-                  tip="Getting you tables please wait..."
-                   style={{ color: `${getPrimaryColor()}` }}
-                />
-              }
-            >
-              <Private>
-                <Table />
-              </Private>
+            <Suspense fallback={<Spin size="large" fullscreen tip="Getting you tables please wait..." style={{ color: `${getPrimaryColor()}` }} />}>
+              <Private><Table /></Private>
             </Suspense>
           }
         />
@@ -428,186 +417,48 @@ const routes = createBrowserRouter(
         />
         <Route path="*" element={<NotFound />} />
       </Route>
+
+      {/* ADMIN ROUTES */}
       <Route path="/admin" element={<Layout />}>
-        <Route
-          index
-          path="/admin/dashboard"
-          errorElement={<NotFound />}
-          element={
-            <Suspense fallback={<NubaLoader />}>
-              <AdminRoute>
-                <DashboardAdminPage />
-              </AdminRoute>
-            </Suspense>
-          }
-        />
-        <Route
-          path="/admin/notifications"
-          errorElement={<NotFound />}
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
-              <Notification />
-            </Suspense>
-          }
-        />
-        <Route
-          path="shop-management"
-          errorElement={<NotFound />}
-          element={
-            <Suspense fallback={<NubaLoader />}>
-              <AdminRoute>
-                <ShopManagement />
-              </AdminRoute>
-            </Suspense>
-          }
-        />
-        <Route
-          path="billing"
-          errorElement={<NotFound />}
-          element={
-            <Suspense fallback={<NubaLoader />}>
-              <AdminRoute>
-                <PaymentSubscriptionPage />
-              </AdminRoute>
-            </Suspense>
-          }
-        />
-        <Route
-          path="profile/:id"
-          errorElement={<NotFound />}
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
-              <AdminRoute>
-                <AdminProfile />
-              </AdminRoute>
-            </Suspense>
-          }
-        />
+        <Route index path="/admin/dashboard" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><DashboardAdminPage /></AdminRoute></Suspense>} />
+        <Route path="/admin/notifications" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Notification /></Suspense>} />
 
-        <Route
-          path="staff-management"
-          errorElement={<NotFound />}
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
-              <AdminRoute>
-                <UsersMainSettings />
-              </AdminRoute>
-            </Suspense>
-          }
-        />
-        <Route
-          path="customer-list"
-          errorElement={<NotFound />}
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
-              <AdminRoute>
-                <AdminCustomersList />
-              </AdminRoute>
-            </Suspense>
-          }
-        />
-        <Route
-          path="reports"
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
-              <AdminRoute>
-                <AdminReports />
-              </AdminRoute>
-            </Suspense>
-          }
-        />
-        <Route
-          path="customers"
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
+        {/* ACCOUNTING MODULE ROUTES */}
+        <Route path="accounting/dashboard" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><AccountingDashboard /></AdminRoute></Suspense>} />
+        <Route path="accounting/accounts" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ChartOfAccounts /></AdminRoute></Suspense>} />
+        <Route path="accounting/invoices" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><AccountingInvoices /></AdminRoute></Suspense>} />
+        <Route path="accounting/bills" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><AccountingBills /></AdminRoute></Suspense>} />
+        <Route path="accounting/expenses" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><Expenses /></AdminRoute></Suspense>} />
+        <Route path="accounting/payments" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><Payments /></AdminRoute></Suspense>} />
+        <Route path="accounting/receipts" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><Receipts /></AdminRoute></Suspense>} />
+        <Route path="accounting/customers" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><AccountingCustomers /></AdminRoute></Suspense>} />
+        <Route path="accounting/vendors" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><Vendors /></AdminRoute></Suspense>} />
+        <Route path="accounting/journals" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><JournalEntries /></AdminRoute></Suspense>} />
+        <Route path="accounting/reconciliation" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><BankReconciliation /></AdminRoute></Suspense>} />
+        <Route path="accounting/reconciliation/:id" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ReconciliationDetailView /></AdminRoute></Suspense>} />
 
-              <CustomerRegistration />
+        {/* ACCOUNTING REPORTS */}
+        <Route path="accounting/reports/profit-loss" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ProfitLoss /></AdminRoute></Suspense>} />
+        <Route path="accounting/reports/balance-sheet" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><BalanceSheet /></AdminRoute></Suspense>} />
+        <Route path="accounting/reports/cash-flow" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><CashFlow /></AdminRoute></Suspense>} />
+        <Route path="accounting/reports/trial-balance" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><TrialBalance /></AdminRoute></Suspense>} />
+        <Route path="accounting/reports/ar-aging" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ARAgingReport /></AdminRoute></Suspense>} />
+        <Route path="accounting/reports/ap-aging" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><APAgingReport /></AdminRoute></Suspense>} />
+        <Route path="accounting/reports/tax-summary" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><TaxSummary /></AdminRoute></Suspense>} />
 
-            </Suspense>
-          }
-        />
-        <Route
-          path="staff-clock-in"
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
+        {/* OTHER ADMIN ROUTES */}
+        <Route path="shop-management" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ShopManagement /></AdminRoute></Suspense>} />
+        <Route path="billing" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><PaymentSubscriptionPage /></AdminRoute></Suspense>} />
+        <Route path="profile/:id" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><AdminProfile /></AdminRoute></Suspense>} />
+        <Route path="staff-management" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><UsersMainSettings /></AdminRoute></Suspense>} />
+        <Route path="customer-list" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><AdminCustomersList /></AdminRoute></Suspense>} />
+        <Route path="reports" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><AdminReports /></AdminRoute></Suspense>} />
+        <Route path="customers" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><CustomerRegistration /></Suspense>} />
+        <Route path="staff-clock-in" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><StaffClockTracker /></Suspense>} />
+        <Route path="help-center" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><HelpCenter /></AdminRoute></Suspense>} />
+        <Route path="discover" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><DiscoverPage /></AdminRoute></Suspense>} />
+        <Route path="settings" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><TenantSettings /></AdminRoute></Suspense>} />
 
-              <StaffClockTracker />
-
-            </Suspense>
-          }
-        />
-        <Route
-          path="help-center"
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
-              <AdminRoute>
-                <HelpCenter />
-              </AdminRoute>
-            </Suspense>
-          }
-        />
-        <Route
-          path="discover"
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
-              <AdminRoute>
-                <DiscoverPage />
-              </AdminRoute>
-            </Suspense>
-          }
-        />
-        <Route
-          path="settings"
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
-              <AdminRoute>
-                <TenantSettings />
-              </AdminRoute>
-            </Suspense>
-          }
-        />
-
-        {/* add redirection for all /admin */}
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="*" element={<NotFound />} />
       </Route>
@@ -617,20 +468,8 @@ const routes = createBrowserRouter(
 
 function Routers() {
   return (
-    <Suspense
-      fallback={
-        <Spin
-          size="large"
-          fullscreen
-          tip={`welcome to ${COOP_NAME}`}
-          style={{ color: `${getPrimaryColor()}` }}
-          //  style={{ color: `${getPrimaryColor()}` }}
-        />
-      }
-    >
-      {setTimeout(() => {
-        return true;
-      }, 5000) && <RouterProvider router={routes} />}
+    <Suspense fallback={<Spin size="large" fullscreen tip={`welcome to ${COOP_NAME}`} style={{ color: `${getPrimaryColor()}` }} />}>
+      {setTimeout(() => { return true; }, 5000) && <RouterProvider router={routes} />}
     </Suspense>
   );
 }
