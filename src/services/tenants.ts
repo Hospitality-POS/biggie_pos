@@ -1,8 +1,9 @@
 import { message } from "antd";
 import axiosInstance from "./request";
+import { ACCOUNTING_BASE_URL, TENANT_BASE_URL, POS_API_KEY } from "@utils/config";
 
-const tenantUrl = `https://api.admin.reliatech.co.ke/api/tenants`;
-//const tenantUrl = `http://localhost:3010/api/tenants`;
+const tenantUrl = `${TENANT_BASE_URL}/api/tenants`;
+const accountingUrl = `${ACCOUNTING_BASE_URL}/api/v1/tenants`;
 
 interface Tenant {
     _id?: string;
@@ -45,6 +46,26 @@ interface Tenant {
         size?: number;
     };
     primary_color?: string;
+    modules?: {
+        pos?: boolean;
+        accounting?: boolean;
+        inventory?: boolean;
+        reports?: boolean;
+    };
+    accounting_database?: {
+        enabled?: boolean;
+        db_name?: string;
+        db_host?: string;
+        db_user?: string;
+        db_password?: string;
+        connection_params?: string;
+        accounting_code?: string;
+    };
+    terms_acceptance?: {
+        accounting_enabled_at?: string;
+        accepted_terms?: boolean;
+        accepted_charges?: boolean;
+    };
     __v?: number;
     createdAt?: string;
     updatedAt?: string;
@@ -63,7 +84,91 @@ interface UpdateTenantData {
         text?: string;
     };
     primary_color?: string;
+    modules?: {
+        pos?: boolean;
+        accounting?: boolean;
+        inventory?: boolean;
+        reports?: boolean;
+    };
+    accounting_database?: {
+        enabled?: boolean;
+        db_name?: string;
+        db_host?: string;
+        db_user?: string;
+        db_password?: string;
+        connection_params?: string;
+        accounting_code?: string;
+    };
+    terms_acceptance?: {
+        accounting_enabled_at?: Date;
+        accepted_terms?: boolean;
+        accepted_charges?: boolean;
+    };
 }
+
+interface EnableAccountingData {
+    terms_acceptance: {
+        accept_terms: boolean;
+        accept_charges: boolean;
+    };
+}
+
+interface ChartOfAccountsResult {
+    success: boolean;
+    message: string;
+    accounts_count: number;
+    skipped?: boolean;
+    accounts?: Array<{
+        code: string;
+        name: string;
+        type: string;
+    }>;
+}
+
+interface ReseedResponse {
+    success: boolean;
+    message: string;
+    data: {
+        tenant: {
+            id: string;
+            name: string;
+            tenant_code: string;
+        };
+        accounting_database: {
+            db_name: string;
+        };
+        chart_of_accounts: ChartOfAccountsResult;
+    };
+}
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+const getUser = (): any => {
+    try {
+        const userStr = localStorage.getItem("user");
+        return userStr ? JSON.parse(userStr) : null;
+    } catch (error) {
+        console.error("Error parsing user from localStorage:", error);
+        return null;
+    }
+};
+
+/**
+ * Helper to add POS headers with user info
+ */
+const getPOSHeaders = () => {
+    const user = getUser();
+
+    return {
+        'x-pos-request': 'true',
+        'x-pos-api-key': POS_API_KEY,
+        'x-user-id': user?._id || user?.id || 'pos-system',
+        'x-user-name': user?.name || user?.username || 'POS User',
+        'x-user-email': user?.email || 'pos@system.local'
+    };
+};
 
 export const getCurrentTenantId = (): string | null => {
     try {
@@ -90,6 +195,10 @@ export const useTenantUpdates = (callback: (tenant: Tenant) => void) => {
         window.removeEventListener('tenantUpdated', handleTenantUpdate as EventListener);
     };
 };
+
+// ============================================
+// TENANT CRUD OPERATIONS
+// ============================================
 
 export const fetchTenantDetails = async (id?: string) => {
     try {
@@ -166,6 +275,167 @@ export const updateTenant = async (id: string, tenantData: UpdateTenantData | Fo
         if (error?.response?.status !== 403) {
             message.error("Failed to update tenant");
         }
+        throw error;
+    }
+};
+
+// ============================================
+// ACCOUNTING MODULE FUNCTIONS
+// ============================================
+
+/**
+ * Enable Accounting Module
+ * This will configure accounting database and seed chart of accounts
+ */
+export const enableAccounting = async (id: string, data: EnableAccountingData) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/enable-accounting`,
+            data,
+            {
+                headers: getPOSHeaders()
+            }
+        );
+
+        // Fetch fresh tenant data
+        try {
+            const freshTenantData = await fetchTenantDetails(id);
+            if (freshTenantData?.data) {
+                localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
+
+                window.dispatchEvent(new CustomEvent('tenantUpdated', {
+                    detail: freshTenantData.data
+                }));
+            }
+        } catch (fetchError) {
+            console.warn("Failed to fetch fresh tenant data after enabling accounting:", fetchError);
+        }
+
+        message.success("Accounting module enabled successfully! Chart of accounts has been created.");
+
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to enable accounting module";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+/**
+ * Disable Accounting Module
+ */
+export const disableAccounting = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/disable-accounting`,
+            {},
+            {
+                headers: getPOSHeaders()
+            }
+        );
+
+        // Fetch fresh tenant data
+        try {
+            const freshTenantData = await fetchTenantDetails(id);
+            if (freshTenantData?.data) {
+                localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
+
+                window.dispatchEvent(new CustomEvent('tenantUpdated', {
+                    detail: freshTenantData.data
+                }));
+            }
+        } catch (fetchError) {
+            console.warn("Failed to fetch fresh tenant data after disabling accounting:", fetchError);
+        }
+
+        message.success("Accounting module disabled successfully!");
+
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to disable accounting module";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+/**
+ * Reseed Chart of Accounts
+ * Use this to recreate chart of accounts if they're missing
+ */
+export const reseedChartOfAccounts = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${accountingUrl}/${id}/reseed-chart-of-accounts`,
+            {},
+            {
+                headers: getPOSHeaders()
+            }
+        );
+
+        message.success(
+            response.data.data?.chart_of_accounts?.skipped
+                ? "Chart of accounts already exists (26 accounts)"
+                : `Chart of accounts created successfully! (${response.data.data?.chart_of_accounts?.accounts_count || 26} accounts)`
+        );
+
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to reseed chart of accounts";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+/**
+ * Get Accounting Status
+ */
+export const getAccountingStatus = async (id: string) => {
+    try {
+        const response = await axiosInstance.get(
+            `${tenantUrl}/${id}/accounting-status`,
+            {
+                headers: getPOSHeaders()
+            }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error("Failed to get accounting status:", error);
+        throw error;
+    }
+};
+
+/**
+ * Check Module Access
+ */
+export const checkModuleAccess = async (id: string, module: 'pos' | 'accounting' | 'inventory' | 'hrm') => {
+    try {
+        const response = await axiosInstance.get(
+            `${tenantUrl}/${id}/module-access/${module}`,
+            {
+                headers: getPOSHeaders()
+            }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error("Failed to check module access:", error);
+        throw error;
+    }
+};
+
+/**
+ * Get Tenants with Accounting Enabled
+ */
+export const getTenantsWithAccounting = async () => {
+    try {
+        const response = await axiosInstance.get(
+            `${tenantUrl}/accounting/enabled`,
+            {
+                headers: getPOSHeaders()
+            }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error("Failed to get tenants with accounting:", error);
         throw error;
     }
 };
