@@ -96,10 +96,20 @@ const BillForm: React.FC<BillFormProps> = ({ visible, onCancel, editingBill }) =
                 bill_date: dayjs(),
                 due_date: dayjs().add(30, 'days'),
             });
-            setLineItems([]);
+            // ✅ Initialize with one default line item
+            setLineItems([
+                {
+                    key: Date.now(),
+                    description: '',
+                    quantity: 1,
+                    unit_price: 0,
+                    amount: 0,
+                },
+            ]);
             setAutoPost(false);
         }
     }, [visible, editingBill, form]);
+
 
     const handleAddLineItem = () => {
         const newItem = {
@@ -414,7 +424,7 @@ const BillForm: React.FC<BillFormProps> = ({ visible, onCancel, editingBill }) =
                     <Select>
                         <Option value="draft">Draft</Option>
                         <Option value="pending">Pending</Option>
-                        <Option value="paid">Paid</Option>
+                        {/* <Option value="paid">Paid</Option> */}
                         <Option value="cancelled">Cancelled</Option>
                     </Select>
                 </Form.Item>

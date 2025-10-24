@@ -7,9 +7,15 @@ import { fetchAllCustomers } from '@services/accounting/customers';
 import { fetchAllAccounts } from '@services/accounting/accounts';
 import dayjs from 'dayjs';
 
+
+
+
 const { Option } = Select;
 const { TextArea } = Input;
 const { Panel } = Collapse;
+
+
+
 
 interface InvoiceFormProps {
     visible: boolean;
@@ -17,7 +23,10 @@ interface InvoiceFormProps {
     editingInvoice: any;
 }
 
-const InvoiceForm: React.FC<InvoiceFormProps> = ({ visible, onCancel, editingInvoice }) => {
+
+
+
+const InvoiceForm: React.FC = ({ visible, onCancel, editingInvoice }) => {
     const [form] = Form.useForm();
     const queryClient = useQueryClient();
     const [lineItems, setLineItems] = useState<any[]>([]);
@@ -95,7 +104,16 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ visible, onCancel, editingInv
                 invoice_date: dayjs(),
                 due_date: dayjs().add(30, 'days'),
             });
-            setLineItems([]);
+            // Initialize with one default line item
+            setLineItems([
+                {
+                    key: Date.now(),
+                    description: '',
+                    quantity: 1,
+                    unit_price: 0,
+                    amount: 0,
+                },
+            ]);
             setAutoPost(false);
         }
     }, [visible, editingInvoice, form]);
@@ -197,7 +215,11 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ visible, onCancel, editingInv
         },
     ];
 
+    const isLoading = addMutation.isPending || editMutation.isPending;
+
     const handleSubmit = () => {
+        if (isLoading) return;
+
         form.validateFields().then((values) => {
             const payload = {
                 ...values,
@@ -206,12 +228,9 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ visible, onCancel, editingInv
                 line_items: lineItems,
                 total_amount: calculateTotal(),
                 auto_post: autoPost,
-                // Include account codes if auto-post is enabled
-                ...(autoPost && {
-                    ar_account_code: values.ar_account_code,
-                    revenue_account_code: values.revenue_account_code,
-                    tax_payable_account_code: values.tax_payable_account_code,
-                })
+                ar_account_code: values.ar_account_code || null,
+                revenue_account_code: values.revenue_account_code || null,
+                tax_payable_account_code: values.tax_payable_account_code || null,
             };
 
             if (editingInvoice) {
@@ -228,15 +247,18 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ visible, onCancel, editingInv
             open={visible}
             onOk={handleSubmit}
             onCancel={onCancel}
-            confirmLoading={addMutation.isPending || editMutation.isPending}
+            confirmLoading={isLoading}
             width={1000}
             okText={editingInvoice ? 'Update' : 'Create'}
+            okButtonProps={{
+                disabled: isLoading,
+                loading: isLoading,
+            }}
+            cancelButtonProps={{
+                disabled: isLoading,
+            }}
         >
-            <Form
-                form={form}
-                layout="vertical"
-                style={{ marginTop: 24 }}
-            >
+            <Form form={form} layout="vertical" style={{ marginTop: 24 }}>
                 <Form.Item
                     name="customer_id"
                     label="Customer"
@@ -267,10 +289,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ visible, onCancel, editingInv
                     <DatePicker style={{ width: '100%' }} />
                 </Form.Item>
 
-                <Form.Item
-                    name="payment_terms"
-                    label="Payment Terms"
-                >
+                <Form.Item name="payment_terms" label="Payment Terms">
                     <Select placeholder="Select payment terms">
                         <Option value="net_15">Net 15</Option>
                         <Option value="net_30">Net 30</Option>
@@ -306,7 +325,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ visible, onCancel, editingInv
 
                 <Divider />
 
-                {/* Auto-Post Settings */}
                 {!editingInvoice && (
                     <>
                         <Form.Item>
@@ -319,10 +337,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ visible, onCancel, editingInv
                         </Form.Item>
 
                         {autoPost && (
-                            <Collapse
-                                defaultActiveKey={['1']}
-                                style={{ marginBottom: 16 }}
-                            >
+                            <Collapse defaultActiveKey={['1']} style={{ marginBottom: 16 }}>
                                 <Panel header="Accounting Configuration (Optional)" key="1">
                                     <p style={{ marginBottom: 16, color: '#666' }}>
                                         Select account codes for posting. Leave empty to use default accounts from your chart of accounts.
@@ -390,10 +405,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ visible, onCancel, editingInv
                     </>
                 )}
 
-                <Form.Item
-                    name="notes"
-                    label="Notes"
-                >
+                <Form.Item name="notes" label="Notes">
                     <TextArea rows={3} placeholder="Additional notes" />
                 </Form.Item>
 
@@ -406,13 +418,20 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ visible, onCancel, editingInv
                     <Select>
                         <Option value="draft">Draft</Option>
                         <Option value="sent">Sent</Option>
-                        <Option value="paid">Paid</Option>
+                        {/* <Option value="paid">Paid</Option> */}
                         <Option value="cancelled">Cancelled</Option>
                     </Select>
                 </Form.Item>
             </Form>
         </Modal>
     );
+
+
+
+
 };
+
+
+
 
 export default InvoiceForm;

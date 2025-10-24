@@ -36,6 +36,7 @@ const InvoicesList: React.FC = () => {
     const [postModalVisible, setPostModalVisible] = useState(false);
     const [invoiceToPost, setInvoiceToPost] = useState<any>(null);
     const [postForm] = Form.useForm();
+    const [loadingInvoiceId, setLoadingInvoiceId] = useState<string | null>(null);
     const [filters, setFilters] = useState({
         search: '',
         dateRange: null,
@@ -116,13 +117,17 @@ const InvoicesList: React.FC = () => {
 
     const handleView = async (record: any) => {
         try {
+            setLoadingInvoiceId(record._id);
             const response = await getInvoiceById(record._id);
             setSelectedInvoice(response.data);
             setViewDrawerVisible(true);
         } catch (error) {
             message.error('Failed to load invoice details');
+        } finally {
+            setLoadingInvoiceId(null);
         }
     };
+
 
     const handleEdit = (record: any) => {
         setEditingInvoice(record);
@@ -208,7 +213,22 @@ const InvoicesList: React.FC = () => {
             title: 'Invoice #',
             dataIndex: 'invoice_number',
             key: 'invoice_number',
-            width: 140,
+            render: (text: string, record: any) => (
+                <Button
+                    type="link"
+                    onClick={() => handleView(record)}
+                    loading={loadingInvoiceId === record._id}
+                    style={{
+                        padding: 0,
+                        height: 'auto',
+                        fontWeight: 500,
+                        color: '#1890ff'
+                    }}
+                >
+                    <FileTextOutlined style={{ marginRight: 4 }} />
+                    {text}
+                </Button>
+            ),
         },
         {
             title: 'Customer',

@@ -7,10 +7,17 @@ import {
     CreditCardOutlined, CheckCircleOutlined, PlusOutlined, GlobalOutlined,
     ApiOutlined, SettingOutlined, StarOutlined, ThunderboltOutlined,
     EditOutlined, PoweroffOutlined, FileProtectOutlined, CalculatorOutlined,
-    TeamOutlined
+    TeamOutlined, InfoCircleOutlined
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchTenantDetails, enableAccounting, disableAccounting, getCurrentTenantId } from "@services/tenants";
+import {
+    fetchTenantDetails,
+    enableAccounting,
+    disableAccounting,
+    enablePosIntegration,
+    disablePosIntegration,
+    getCurrentTenantId
+} from "@services/tenants";
 import pesapalApi from "@services/pesapalApi";
 
 const { Title, Text, Paragraph } = Typography;
@@ -123,7 +130,6 @@ const availableIntegrations = [
             'Loyalty Programs',
             'Reward Points Tracking',
             'Purchase History',
-            //   'Targeted Campaigns',
             'Integration with POS',
         ],
         benefits: [
@@ -150,9 +156,11 @@ const DiscoverPage = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [configModalVisible, setConfigModalVisible] = useState(false);
     const [accountingModalVisible, setAccountingModalVisible] = useState(false);
+    const [posModalVisible, setPosModalVisible] = useState(false);
     const [isUpdatingConfig, setIsUpdatingConfig] = useState(false);
     const [form] = Form.useForm();
     const [accountingForm] = Form.useForm();
+    const [posForm] = Form.useForm();
     const queryClient = useQueryClient();
     const tenantId = getCurrentTenantId();
 
@@ -170,292 +178,345 @@ const DiscoverPage = () => {
         refetchOnWindowFocus: false,
     });
 
+    const getIntegrationStatus = (integrationId) => {
+        if (!tenantDetails?.data) return 'not_enabled';
+
+        const tenant = tenantDetails.data;
+
+        switch (integrationId) {
+            case 'relia_pos':
+                return tenant.pos_integration?.enabled === true ? 'enabled' : 'not_enabled';
+
+            case 'relia_accounting':
+                return tenant.modules?.accounting === true &&
+                    tenant.accounting_database?.enabled === true
+                    ? 'enabled'
+                    : 'not_enabled';
+
+            case 'pesapal':
+                return tenant.use_pesapal === true || pesapalConfig?.data?.enabled === true
+                    ? 'enabled'
+                    : 'not_enabled';
+
+            default:
+                return 'not_enabled';
+        }
+    };
+
+    const enabledCount = availableIntegrations.filter(
+        (int) => getIntegrationStatus(int.id) === 'enabled'
+    ).length;
+
     const configurePesapalMutation = useMutation({
-        mutationFn: (configData) => isUpdatingConfig
-            ? pesapalApi.updateConfigForCurrentTenant(configData)
-            : pesapalApi.configureForCurrentTenant(configData),
+        mutationFn: (values) => pesapalApi.configure(tenantId, values),
         onSuccess: () => {
-            message.success(isUpdatingConfig ? 'Pesapal updated!' : 'Pesapal configured!');
-            queryClient.invalidateQueries(["pesapalConfig", tenantId]);
+            message.success('Pesapal configured successfully');
             setConfigModalVisible(false);
             setIsUpdatingConfig(false);
             form.resetFields();
+            queryClient.invalidateQueries(["pesapalConfig", tenantId]);
+            queryClient.invalidateQueries(["tenant", tenantId]);
         },
         onError: (error) => {
-            message.error(`Failed: ${error.response?.data?.message || error.message}`);
+            message.error(error.message || 'Failed to configure Pesapal');
         }
     });
 
-    const togglePesapalStatusMutation = useMutation({
-        mutationFn: (isActive) => pesapalApi.toggleStatusForCurrentTenant(isActive),
-        onSuccess: (data, isActive) => {
-            message.success(`Pesapal ${isActive ? 'enabled' : 'disabled'}!`);
-            queryClient.invalidateQueries(["pesapalConfig", tenantId]);
-        },
-        onError: (error) => message.error('Toggle failed: ' + error.message)
-    });
-
-    const testConnectionMutation = useMutation({
-        mutationFn: () => pesapalApi.testConnectionForCurrentTenant(),
-        onSuccess: () => message.success('Connection test successful!'),
-        onError: (error) => message.error('Test failed: ' + error.message)
-    });
-
     const enableAccountingMutation = useMutation({
-        mutationFn: async (values) => {
-            const data = {
-                terms_acceptance: {
-                    accept_terms: values.accept_terms,
-                    accept_charges: values.accept_charges
-                }
-            };
-            return enableAccounting(tenantId, data);
-        },
-        onSuccess: (data) => {
-            // message.success('Accounting enabled successfully!');
-            refetchTenant();
+        mutationFn: (values) => enableAccounting(tenantId, { terms_acceptance: values }),
+        onSuccess: () => {
+            message.success('Accounting enabled successfully');
             setAccountingModalVisible(false);
             accountingForm.resetFields();
-
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            queryClient.invalidateQueries(["tenant", tenantId]);
+            refetchTenant();
         },
         onError: (error) => {
-            const errorMsg = error?.response?.data?.error || error.message;
-            message.error(`Failed: ${errorMsg}`);
+            message.error(error.message || 'Failed to enable accounting');
         }
     });
 
     const disableAccountingMutation = useMutation({
-        mutationFn: async () => {
-            return disableAccounting(tenantId);
-        },
-        onSuccess: (data) => {
-            message.success('Accounting disabled!');
+        mutationFn: () => disableAccounting(tenantId),
+        onSuccess: () => {
+            message.success('Accounting disabled successfully');
+            queryClient.invalidateQueries(["tenant", tenantId]);
             refetchTenant();
-
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
         },
         onError: (error) => {
-            const errorMsg = error?.response?.data?.error || error.message;
-            message.error(`Failed: ${errorMsg}`);
+            message.error(error.message || 'Failed to disable accounting');
         }
     });
 
-    useEffect(() => {
-        if (configModalVisible && isUpdatingConfig && pesapalConfig?.data?.config) {
-            setTimeout(() => {
-                form.setFieldsValue({
-                    consumer_key: pesapalConfig.data.config.consumer_key || '',
-                    consumer_secret: pesapalConfig.data.config.consumer_secret || '',
-                    is_sandbox: pesapalConfig.data.config.is_sandbox || false
-                });
-            }, 100);
-        } else if (configModalVisible && !isUpdatingConfig) {
-            setTimeout(() => {
-                form.resetFields();
-                form.setFieldsValue({ is_sandbox: true });
-            }, 100);
+    const enablePosMutation = useMutation({
+        mutationFn: (config) => enablePosIntegration(tenantId, config),
+        onSuccess: () => {
+            message.success('POS integration enabled successfully');
+            setPosModalVisible(false);
+            posForm.resetFields();
+            queryClient.invalidateQueries(["tenant", tenantId]);
+            refetchTenant();
+        },
+        onError: (error) => {
+            message.error(error.message || 'Failed to enable POS integration');
         }
-    }, [configModalVisible, isUpdatingConfig, pesapalConfig?.data?.config, form]);
+    });
+
+    const disablePosMutation = useMutation({
+        mutationFn: () => disablePosIntegration(tenantId),
+        onSuccess: () => {
+            message.success('POS integration disabled successfully');
+            queryClient.invalidateQueries(["tenant", tenantId]);
+            refetchTenant();
+        },
+        onError: (error) => {
+            message.error(error.message || 'Failed to disable POS integration');
+        }
+    });
 
     const handleEnableIntegration = (integration) => {
-        if (integration.status === 'coming_soon') {
-            message.info('Coming soon!');
+        const status = getIntegrationStatus(integration.id);
+
+        if (status === 'enabled') {
+            message.info(`${integration.name} is already enabled`);
             return;
         }
-        if (integration.id === 'pesapal') {
-            setIsUpdatingConfig(false);
-            setConfigModalVisible(true);
-        } else if (integration.id === 'relia_accounting') {
+
+        if (integration.id === 'relia_pos') {
+            setPosModalVisible(true);
+            return;
+        }
+
+        if (integration.id === 'relia_accounting') {
             setAccountingModalVisible(true);
+            return;
+        }
+
+        if (integration.id === 'pesapal') {
+            setConfigModalVisible(true);
+            setIsUpdatingConfig(false);
+            return;
+        }
+
+        message.info('This integration will be available soon');
+    };
+
+    const handleDisableIntegration = (integrationId) => {
+        if (integrationId === 'relia_accounting') {
+            Modal.confirm({
+                title: 'Disable Accounting?',
+                content: 'This will stop auto-sync and hide accounting features. Your data will be preserved.',
+                okText: 'Disable',
+                okType: 'danger',
+                onOk: () => disableAccountingMutation.mutate(),
+            });
+        } else if (integrationId === 'relia_pos') {
+            Modal.confirm({
+                title: 'Disable POS Integration?',
+                content: 'This will stop the POS system integration. Are you sure?',
+                okText: 'Disable',
+                okType: 'danger',
+                onOk: () => disablePosMutation.mutate(),
+            });
+        } else if (integrationId === 'pesapal') {
+            Modal.confirm({
+                title: 'Disable Pesapal?',
+                content: 'This will stop payment processing through Pesapal. Are you sure?',
+                okText: 'Disable',
+                okType: 'danger',
+                onOk: async () => {
+                    try {
+                        await pesapalApi.disable(tenantId);
+                        message.success('Pesapal disabled successfully');
+                        queryClient.invalidateQueries(["pesapalConfig", tenantId]);
+                        queryClient.invalidateQueries(["tenant", tenantId]);
+                    } catch (error) {
+                        message.error('Failed to disable Pesapal');
+                    }
+                },
+            });
         }
     };
 
-    const handleToggleStatus = (integration, currentStatus) => {
-        const newStatus = !currentStatus;
-        Modal.confirm({
-            title: `${newStatus ? 'Enable' : 'Disable'} ${integration.name}`,
-            content: `Confirm ${newStatus ? 'enable' : 'disable'}?`,
-            okText: `Yes, ${newStatus ? 'Enable' : 'Disable'}`,
-            okType: newStatus ? 'primary' : 'danger',
-            onOk: () => {
-                if (integration.id === 'pesapal') {
-                    togglePesapalStatusMutation.mutate(newStatus);
-                } else if (integration.id === 'relia_accounting' && !newStatus) {
-                    disableAccountingMutation.mutate();
-                }
-            }
-        });
+    const openLearnMoreModal = (integration) => {
+        setSelectedIntegration(integration);
+        setModalVisible(true);
     };
-
-    const renderIntegrationCard = (integration) => {
-        const pesapalConfigExists = integration.id === 'pesapal' && pesapalConfig?.success && pesapalConfig?.data?.config;
-        const isPesapalActive = pesapalConfigExists && pesapalConfig?.data?.config?.is_active;
-        const accountingEnabled = integration.id === 'relia_accounting' &&
-            tenantDetails?.data?.modules?.accounting &&
-            tenantDetails?.data?.accounting_database?.enabled;
-
-        const isConfigured = pesapalConfigExists || accountingEnabled;
-        const isActive = isPesapalActive || accountingEnabled;
-        const isComingSoon = integration.status === 'coming_soon';
-        const IconComponent = integration.iconComponent;
-
-        return (
-            <Col xs={24} sm={12} lg={8} key={integration.id}>
-                <Card
-                    hoverable={!isComingSoon}
-                    style={{
-                        borderRadius: '12px',
-                        border: isActive ? `2px solid ${integration.color}` : '1px solid #f0f0f0',
-                        opacity: isComingSoon ? 0.7 : 1
-                    }}
-                    cover={
-                        <div style={{
-                            padding: '24px',
-                            background: `linear-gradient(135deg, ${integration.color}20, ${integration.color}10)`,
-                            textAlign: 'center',
-                            minHeight: '120px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center'
-                        }}>
-                            <Avatar size={64} icon={<IconComponent />} style={{ backgroundColor: integration.color, margin: '0 auto 12px' }} />
-                            <Title level={4} style={{ margin: 0, color: integration.color }}>{integration.name}</Title>
-                        </div>
-                    }
-                    actions={[
-                        <Button type="link" onClick={() => { setSelectedIntegration(integration); setModalVisible(true); }} style={{ color: integration.color }} key="more">
-                            Learn More
-                        </Button>,
-                        isComingSoon ? (
-                            <Button disabled key="soon">Coming Soon</Button>
-                        ) : !isConfigured ? (
-                            <Button type="primary" icon={<PlusOutlined />} onClick={() => handleEnableIntegration(integration)}
-                                style={{ backgroundColor: integration.color, borderColor: integration.color }} key="enable">
-                                Enable Now
-                            </Button>
-                        ) : (
-                            <Space key="actions" size="small" wrap>
-                                {integration.id === 'pesapal' && (
-                                    <Button icon={<EditOutlined />} onClick={() => { setIsUpdatingConfig(true); setConfigModalVisible(true); }} size="small">
-                                        Update
-                                    </Button>
-                                )}
-                                <Button icon={<PoweroffOutlined />} onClick={() => handleToggleStatus(integration, isActive)}
-                                    loading={integration.id === 'pesapal' ? togglePesapalStatusMutation.isPending : disableAccountingMutation.isPending}
-                                    size="small" type={isActive ? 'default' : 'primary'}>
-                                    {isActive ? 'Disable' : 'Enable'}
-                                </Button>
-                                {isActive && integration.id === 'pesapal' && (
-                                    <Button icon={<ApiOutlined />} onClick={() => testConnectionMutation.mutate()}
-                                        loading={testConnectionMutation.isPending} size="small">
-                                        Test
-                                    </Button>
-                                )}
-                            </Space>
-                        )
-                    ]}
-                >
-                    <div style={{ minHeight: '140px' }}>
-                        <Space wrap style={{ marginBottom: '12px' }}>
-                            <Tag color={integration.color}>{integration.category}</Tag>
-                            {integration.tags.map(tag => <Tag key={tag} color={tag === 'Popular' ? 'gold' : 'default'}>{tag}</Tag>)}
-                            {isConfigured && <Tag color="blue" icon={<SettingOutlined />}>Configured</Tag>}
-                            {isActive && <Tag color="success" icon={<CheckCircleOutlined />}>Active</Tag>}
-                        </Space>
-                        <Paragraph ellipsis={{ rows: 3 }} style={{ marginBottom: '16px' }}>
-                            {integration.description}
-                        </Paragraph>
-                        {!isComingSoon && (
-                            <Space size="small" wrap>
-                                <Text type="secondary"><StarOutlined style={{ color: '#faad14' }} /> {integration.rating}/5</Text>
-                                <Text type="secondary">{integration.totalUsers} users</Text>
-                                <Text type="secondary"><ThunderboltOutlined /> {integration.setupTime}</Text>
-                            </Space>
-                        )}
-                    </div>
-                </Card>
-            </Col>
-        );
-    };
-
-    const pesapalEnabled = pesapalConfig?.success && pesapalConfig?.data?.config?.is_active ? 1 : 0;
-    const accountingEnabled = tenantDetails?.data?.modules?.accounting && tenantDetails?.data?.accounting_database?.enabled ? 1 : 0;
-    const enabledCount = pesapalEnabled + accountingEnabled;
 
     return (
-        <div style={{ padding: '24px' }}>
-            <div style={{ marginBottom: '32px', textAlign: 'center' }}>
-                <Title level={2} style={{ marginBottom: '8px' }}>
-                    <GlobalOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+        <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+            <div style={{ marginBottom: '32px' }}>
+                <Title level={2}>
+                    <ApiOutlined style={{ marginRight: '12px', color: '#1890ff' }} />
                     Discover Integrations
                 </Title>
-                <Paragraph style={{ fontSize: '16px', color: '#666', maxWidth: '600px', margin: '0 auto' }}>
-                    Enhance your POS with powerful integrations.
+                <Paragraph style={{ fontSize: '16px', color: '#595959' }}>
+                    Enhance your business with powerful integrations from the Relia Suite.
+                    Connect seamlessly and unlock new features to streamline your operations.
                 </Paragraph>
+                <Alert
+                    message={`${enabledCount} integration${enabledCount !== 1 ? 's' : ''} enabled`}
+                    type="info"
+                    showIcon
+                    style={{ marginTop: '16px' }}
+                />
             </div>
 
-            <Row gutter={[16, 16]} style={{ marginBottom: '32px' }}>
-                <Col xs={24} sm={8}>
-                    <Card size="small" style={{ textAlign: 'center' }}>
-                        <Text strong style={{ fontSize: '24px', color: '#1890ff' }}>2</Text>
-                        <br /><Text type="secondary">Available Now</Text>
-                    </Card>
-                </Col>
-                <Col xs={24} sm={8}>
-                    <Card size="small" style={{ textAlign: 'center' }}>
-                        <Text strong style={{ fontSize: '24px', color: '#52c41a' }}>2</Text>
-                        <br /><Text type="secondary">Coming Soon</Text>
-                    </Card>
-                </Col>
-                <Col xs={24} sm={8}>
-                    <Card size="small" style={{ textAlign: 'center' }}>
-                        <Text strong style={{ fontSize: '24px', color: '#f5222d' }}>{enabledCount}</Text>
-                        <br /><Text type="secondary">Active</Text>
-                    </Card>
-                </Col>
-            </Row>
-
             <Row gutter={[24, 24]}>
-                {availableIntegrations.map(renderIntegrationCard)}
+                {availableIntegrations.map((integration) => {
+                    const IconComponent = integration.iconComponent;
+                    const integrationStatus = getIntegrationStatus(integration.id);
+                    const isEnabled = integrationStatus === 'enabled';
+
+                    return (
+                        <Col xs={24} sm={24} md={12} lg={8} key={integration.id}>
+                            <Card
+                                hoverable
+                                style={{
+                                    height: '100%',
+                                    borderRadius: '12px',
+                                    border: isEnabled ? `2px solid ${integration.color}` : undefined,
+                                    boxShadow: isEnabled ? `0 4px 12px ${integration.color}30` : undefined,
+                                }}
+                            >
+                                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <Avatar
+                                            size={56}
+                                            icon={<IconComponent />}
+                                            style={{ backgroundColor: integration.color }}
+                                        />
+                                        {isEnabled && (
+                                            <Tag icon={<CheckCircleOutlined />} color="success">Enabled</Tag>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <Title level={4} style={{ marginBottom: '4px' }}>{integration.name}</Title>
+                                        <Text type="secondary" style={{ fontSize: '13px' }}>{integration.category}</Text>
+                                    </div>
+
+                                    <Paragraph
+                                        ellipsis={{ rows: 3 }}
+                                        style={{ marginBottom: '12px', minHeight: '60px' }}
+                                    >
+                                        {integration.description}
+                                    </Paragraph>
+
+                                    <Space wrap>
+                                        {integration.tags.map((tag, index) => (
+                                            <Tag key={index} color={index === 0 ? 'blue' : 'default'}>
+                                                {tag}
+                                            </Tag>
+                                        ))}
+                                    </Space>
+
+                                    <Divider style={{ margin: '12px 0' }} />
+
+                                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <Text strong>Pricing:</Text>
+                                            <Text>{integration.pricing}</Text>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <Text strong>Setup:</Text>
+                                            <Text>{integration.setupTime}</Text>
+                                        </div>
+                                    </Space>
+
+                                    <Space style={{ width: '100%', marginTop: '12px' }} direction="vertical">
+                                        {isEnabled ? (
+                                            <Button
+                                                danger
+                                                block
+                                                icon={<PoweroffOutlined />}
+                                                onClick={() => handleDisableIntegration(integration.id)}
+                                            >
+                                                Disable
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                type="primary"
+                                                block
+                                                icon={<PlusOutlined />}
+                                                onClick={() => handleEnableIntegration(integration)}
+                                                disabled={integration.status === 'coming_soon'}
+                                                style={{ backgroundColor: integration.color, borderColor: integration.color }}
+                                            >
+                                                {integration.status === 'coming_soon' ? 'Coming Soon' : 'Enable'}
+                                            </Button>
+                                        )}
+                                        <Button
+                                            block
+                                            icon={<InfoCircleOutlined />}
+                                            onClick={() => openLearnMoreModal(integration)}
+                                        >
+                                            Learn More
+                                        </Button>
+                                    </Space>
+                                </Space>
+                            </Card>
+                        </Col>
+                    );
+                })}
             </Row>
 
+            {/* Learn More Modal */}
             <Modal
-                title={<Space><Avatar icon={selectedIntegration?.iconComponent ? <selectedIntegration.iconComponent /> : <SettingOutlined />}
-                    style={{ backgroundColor: selectedIntegration?.color }} />{selectedIntegration?.name}</Space>}
+                title={null}
                 open={modalVisible}
-                onCancel={() => setModalVisible(false)}
-                width={800}
-                footer={[
-                    <Button key="close" onClick={() => setModalVisible(false)}>Close</Button>,
-                    selectedIntegration?.status !== 'coming_soon' && (
-                        <Button key="add" type="primary" icon={<PlusOutlined />}
-                            onClick={() => { setModalVisible(false); handleEnableIntegration(selectedIntegration); }}
-                            style={{ backgroundColor: selectedIntegration?.color, borderColor: selectedIntegration?.color }}>
-                            Enable
-                        </Button>
-                    )
-                ]}
+                onCancel={() => {
+                    setModalVisible(false);
+                    setSelectedIntegration(null);
+                }}
+                footer={null}
+                width={700}
             >
                 {selectedIntegration && (
                     <div>
-                        <Paragraph>{selectedIntegration.longDescription}</Paragraph>
-                        {selectedIntegration.status !== 'coming_soon' && (
+                        <Space align="center" size="large" style={{ marginBottom: '24px' }}>
+                            <Avatar
+                                size={64}
+                                icon={React.createElement(selectedIntegration.iconComponent)}
+                                style={{ backgroundColor: selectedIntegration.color }}
+                            />
+                            <div>
+                                <Title level={3} style={{ margin: 0 }}>{selectedIntegration.name}</Title>
+                                <Text type="secondary">{selectedIntegration.category}</Text>
+                            </div>
+                        </Space>
+
+                        {selectedIntegration.status === 'coming_soon' ? (
+                            <Alert
+                                message="Coming Soon!"
+                                description="This integration is under development. Stay tuned for updates!"
+                                type="warning"
+                                showIcon
+                                style={{ marginBottom: '24px' }}
+                            />
+                        ) : (
                             <>
-                                <Title level={5}>Features</Title>
+                                <Paragraph style={{ fontSize: '15px', lineHeight: '1.8' }}>
+                                    {selectedIntegration.longDescription}
+                                </Paragraph>
+
+                                <Title level={5}>Features:</Title>
                                 <ul>{selectedIntegration.features.map((f, i) => <li key={i}>{f}</li>)}</ul>
-                                <Title level={5}>Benefits</Title>
+
+                                <Title level={5}>Benefits:</Title>
                                 <ul>{selectedIntegration.benefits.map((b, i) => <li key={i}>{b}</li>)}</ul>
                                 <Row gutter={16}>
                                     <Col span={12}>
-                                        <Card size="small"><Text strong>Pricing:</Text><br /><Text>{selectedIntegration.pricing}</Text></Card>
+                                        <Card size="small">
+                                            <Text strong>Pricing:</Text><br />
+                                            <Text>{selectedIntegration.pricing}</Text>
+                                        </Card>
                                     </Col>
                                     <Col span={12}>
-                                        <Card size="small"><Text strong>Setup:</Text><br /><Text>{selectedIntegration.setupTime}</Text></Card>
+                                        <Card size="small">
+                                            <Text strong>Setup:</Text><br />
+                                            <Text>{selectedIntegration.setupTime}</Text>
+                                        </Card>
                                     </Col>
                                 </Row>
                             </>
@@ -464,31 +525,70 @@ const DiscoverPage = () => {
                 )}
             </Modal>
 
+            {/* Pesapal Configuration Modal */}
             <Modal
-                title={<Space><Avatar icon={<CreditCardOutlined />} style={{ backgroundColor: '#1890ff' }} />
-                    {isUpdatingConfig ? 'Update Pesapal' : 'Configure Pesapal'}</Space>}
+                title={
+                    <Space>
+                        <Avatar icon={<CreditCardOutlined />} style={{ backgroundColor: '#1890ff' }} />
+                        {isUpdatingConfig ? 'Update Pesapal' : 'Configure Pesapal'}
+                    </Space>
+                }
                 open={configModalVisible}
-                onCancel={() => { setConfigModalVisible(false); setIsUpdatingConfig(false); form.resetFields(); }}
+                onCancel={() => {
+                    setConfigModalVisible(false);
+                    setIsUpdatingConfig(false);
+                    form.resetFields();
+                }}
                 footer={null}
                 width={600}
             >
-                <Form form={form} layout="vertical" onFinish={(values) => configurePesapalMutation.mutate(values)}>
-                    <Alert message="Pesapal Setup" description="Enter your merchant credentials from pesapal.com"
-                        type="info" style={{ marginBottom: '24px' }} showIcon />
-                    <Form.Item name="consumer_key" label="Consumer Key" rules={[{ required: true, message: 'Required' }]}>
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={(values) => configurePesapalMutation.mutate(values)}
+                >
+                    <Alert
+                        message="Pesapal Setup"
+                        description="Enter your merchant credentials from pesapal.com"
+                        type="info"
+                        style={{ marginBottom: '24px' }}
+                        showIcon
+                    />
+                    <Form.Item
+                        name="consumer_key"
+                        label="Consumer Key"
+                        rules={[{ required: true, message: 'Required' }]}
+                    >
                         <Input.Password placeholder="Consumer key" />
                     </Form.Item>
-                    <Form.Item name="consumer_secret" label="Consumer Secret" rules={[{ required: true, message: 'Required' }]}>
+                    <Form.Item
+                        name="consumer_secret"
+                        label="Consumer Secret"
+                        rules={[{ required: true, message: 'Required' }]}
+                    >
                         <Input.Password placeholder="Consumer secret" />
                     </Form.Item>
-                    <Form.Item name="is_sandbox" label="Environment" valuePropName="checked">
+                    <Form.Item
+                        name="is_sandbox"
+                        label="Environment"
+                        valuePropName="checked"
+                    >
                         <Switch checkedChildren="Sandbox" unCheckedChildren="Production" />
                     </Form.Item>
                     <Divider />
                     <div style={{ textAlign: 'right' }}>
                         <Space>
-                            <Button onClick={() => { setConfigModalVisible(false); form.resetFields(); }}>Cancel</Button>
-                            <Button type="primary" htmlType="submit" loading={configurePesapalMutation.isPending}>
+                            <Button onClick={() => {
+                                setConfigModalVisible(false);
+                                form.resetFields();
+                            }}>
+                                Cancel
+                            </Button>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={configurePesapalMutation.isPending}
+                            >
                                 {isUpdatingConfig ? 'Update' : 'Configure'}
                             </Button>
                         </Space>
@@ -496,18 +596,121 @@ const DiscoverPage = () => {
                 </Form>
             </Modal>
 
+            {/* POS Enable Modal */}
             <Modal
-                title={<Space><Avatar icon={<CalculatorOutlined />} style={{ backgroundColor: '#52c41a' }} />Enable Accounting</Space>}
-                open={accountingModalVisible}
-                onCancel={() => { setAccountingModalVisible(false); accountingForm.resetFields(); }}
+                title={
+                    <Space>
+                        <Avatar icon={<CreditCardOutlined />} style={{ backgroundColor: '#1890ff' }} />
+                        Enable POS Integration
+                    </Space>
+                }
+                open={posModalVisible}
+                onCancel={() => {
+                    setPosModalVisible(false);
+                    posForm.resetFields();
+                }}
                 footer={null}
                 width={600}
             >
-                <Form form={accountingForm} layout="vertical" onFinish={(values) => enableAccountingMutation.mutate(values)}
-                    initialValues={{ accept_terms: false, accept_charges: false }}>
-                    <Alert message="Enable Professional Accounting"
+                <Form
+                    form={posForm}
+                    layout="vertical"
+                    onFinish={(values) => enablePosMutation.mutate(values)}
+                    initialValues={{
+                        auto_sync: true,
+                        sync_interval: 3600000
+                    }}
+                >
+                    <Alert
+                        message="Enable POS Integration"
+                        description="Connect your POS system with the accounting module for seamless data sync."
+                        type="info"
+                        style={{ marginBottom: '16px' }}
+                        showIcon
+                    />
+
+                    <Card size="small" style={{ marginBottom: '16px', background: '#e6f7ff' }}>
+                        <Title level={5} style={{ marginTop: 0 }}>What's Included:</Title>
+                        <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                            <li>Real-time sales sync</li>
+                            <li>Inventory management</li>
+                            <li>Customer data integration</li>
+                            <li>Payment reconciliation</li>
+                            <li>Multi-branch support</li>
+                        </ul>
+                    </Card>
+
+                    <Form.Item
+                        name="auto_sync"
+                        label="Auto Sync"
+                        valuePropName="checked"
+                    >
+                        <Switch checkedChildren="On" unCheckedChildren="Off" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="sync_interval"
+                        label="Sync Interval (milliseconds)"
+                        rules={[{ required: true, message: 'Required' }]}
+                    >
+                        <Input type="number" placeholder="3600000 (1 hour)" />
+                    </Form.Item>
+
+                    <Divider />
+                    <div style={{ textAlign: 'right' }}>
+                        <Space>
+                            <Button
+                                onClick={() => {
+                                    setPosModalVisible(false);
+                                    posForm.resetFields();
+                                }}
+                                disabled={enablePosMutation.isPending}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                icon={<CheckCircleOutlined />}
+                                loading={enablePosMutation.isPending}
+                                style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
+                            >
+                                Enable POS
+                            </Button>
+                        </Space>
+                    </div>
+                </Form>
+            </Modal>
+
+            {/* Accounting Enable Modal */}
+            <Modal
+                title={
+                    <Space>
+                        <Avatar icon={<CalculatorOutlined />} style={{ backgroundColor: '#52c41a' }} />
+                        Enable Accounting
+                    </Space>
+                }
+                open={accountingModalVisible}
+                onCancel={() => {
+                    setAccountingModalVisible(false);
+                    accountingForm.resetFields();
+                }}
+                footer={null}
+                width={600}
+            >
+                <Form
+                    form={accountingForm}
+                    layout="vertical"
+                    onFinish={(values) => enableAccountingMutation.mutate(values)}
+                    initialValues={{ accept_terms: false, accept_charges: false }}
+                >
+                    <Alert
+                        message="Enable Professional Accounting"
                         description="Auto-sync POS data and get complete financial visibility."
-                        type="success" style={{ marginBottom: '16px' }} showIcon />
+                        type="success"
+                        style={{ marginBottom: '16px' }}
+                        showIcon
+                    />
 
                     <Card size="small" style={{ marginBottom: '16px', background: '#f6ffed' }}>
                         <Title level={5} style={{ marginTop: 0 }}>What's Included:</Title>
@@ -522,27 +725,57 @@ const DiscoverPage = () => {
                         </ul>
                     </Card>
 
-                    <Alert message="Pricing: KES 3,000/month" description="Additional charges may apply based on usage."
-                        type="warning" style={{ marginBottom: '16px' }} showIcon />
+                    <Alert
+                        message="Pricing: KES 3,000/month"
+                        description="Additional charges may apply based on usage."
+                        type="warning"
+                        style={{ marginBottom: '16px' }}
+                        showIcon
+                    />
 
-                    <Form.Item name="accept_terms" valuePropName="checked"
-                        rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject('Required') }]}>
-                        <Checkbox>I accept the <a href="/terms" target="_blank">terms and conditions</a></Checkbox>
+                    <Form.Item
+                        name="accept_terms"
+                        valuePropName="checked"
+                        rules={[{
+                            validator: (_, value) =>
+                                value ? Promise.resolve() : Promise.reject('Required')
+                        }]}
+                    >
+                        <Checkbox>
+                            I accept the <a href="/terms" target="_blank">terms and conditions</a>
+                        </Checkbox>
                     </Form.Item>
 
-                    <Form.Item name="accept_charges" valuePropName="checked"
-                        rules={[{ validator: (_, value) => value ? Promise.resolve() : Promise.reject('Required') }]}>
+                    <Form.Item
+                        name="accept_charges"
+                        valuePropName="checked"
+                        rules={[{
+                            validator: (_, value) =>
+                                value ? Promise.resolve() : Promise.reject('Required')
+                        }]}
+                    >
                         <Checkbox>I acknowledge that additional charges may apply</Checkbox>
                     </Form.Item>
 
                     <Divider />
                     <div style={{ textAlign: 'right' }}>
                         <Space>
-                            <Button onClick={() => { setAccountingModalVisible(false); accountingForm.resetFields(); }}
-                                disabled={enableAccountingMutation.isPending}>Cancel</Button>
-                            <Button type="primary" htmlType="submit" icon={<CheckCircleOutlined />}
+                            <Button
+                                onClick={() => {
+                                    setAccountingModalVisible(false);
+                                    accountingForm.resetFields();
+                                }}
+                                disabled={enableAccountingMutation.isPending}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                icon={<CheckCircleOutlined />}
                                 loading={enableAccountingMutation.isPending}
-                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}>
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                            >
                                 Enable Accounting
                             </Button>
                         </Space>
