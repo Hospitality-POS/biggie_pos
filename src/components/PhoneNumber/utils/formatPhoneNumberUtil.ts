@@ -1,11 +1,9 @@
-import { parsePhoneNumber } from 'libphonenumber-js';
+import { parsePhoneNumber } from "libphonenumber-js";
 
-export function getPhoneNumber(intPhoneNumber) {
-    console.log("sfjbvsvbd", intPhoneNumber);
-    
+export function getPhoneNumber(intPhoneNumber: any) {
   const phoneNumberObject = parsePhoneNumber(
     `${intPhoneNumber.code}${intPhoneNumber.phone}`,
-    intPhoneNumber.short,
+    intPhoneNumber.short
   );
-  return `${phoneNumberObject.number}`.replace('+', '');
+  return `${phoneNumberObject.number}`.replace("+", "");
 }

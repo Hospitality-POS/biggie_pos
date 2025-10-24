@@ -39,11 +39,11 @@ const useProLayoutNav = () => {
           name: "Orders",
           icon: <CalculatorFilled />,
         },
-        {
-          path: "/invoices",
-          name: "Invoices",
-          icon: <PrinterFilled />,
-        },
+        // {
+        //   path: "/invoices",
+        //   name: "Invoices",
+        //   icon: <PrinterFilled />,
+        // },
         {
           path: "/store",
           name: storeName,
@@ -51,7 +51,7 @@ const useProLayoutNav = () => {
         },
         {
           path: "/inventory",
-          name: 'Products',
+          name: 'Inventory',
           icon: <FolderFilled />,
         },
         {

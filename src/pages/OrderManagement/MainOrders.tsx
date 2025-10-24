@@ -1,8 +1,13 @@
 import React from "react";
 import { ProCard } from "@ant-design/pro-components";
-import { OrderedListOutlined, ShoppingCartOutlined } from "@ant-design/icons";
+import {
+  FileDoneOutlined,
+  OrderedListOutlined,
+  ShoppingCartOutlined,
+} from "@ant-design/icons";
 import { Space, Typography } from "antd";
-import OrdersTable from "./OrdersTable";
+import OrdersTable from "./Orders/OrdersTable";
+import InvoiceTable from "./Invoices/InvoiceTable";
 
 const { Title } = Typography;
 
@@ -14,7 +19,7 @@ function MainOrders() {
         <Space>
           <OrderedListOutlined style={{ fontSize: "18px", color: "#6c1c2c" }} />
           <Title level={4} style={{ margin: 0 }}>
-            List of All Orders
+            Orders Management
           </Title>
         </Space>
       }
@@ -36,6 +41,17 @@ function MainOrders() {
         }
       >
         <OrdersTable />
+      </ProCard.TabPane>
+      <ProCard.TabPane
+        key="invoices"
+        tab={
+          <Space>
+            <FileDoneOutlined style={{ color: "#52c41a", fontSize: "18px" }} />
+            <Typography.Text>Invoices</Typography.Text>
+          </Space>
+        }
+      >
+        <InvoiceTable />
       </ProCard.TabPane>
     </ProCard>
   );

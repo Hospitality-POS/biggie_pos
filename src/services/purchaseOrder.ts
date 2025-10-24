@@ -15,7 +15,6 @@ export const fetchAllPurchaseOrders = async (data: ParamsType) => {
                 supplier_id: data.supplier_id
             },
         });
-        console.log("Fetched purchase orders:", response.data);
         return response.data;
     } catch (error) {
         throw new Error(error);

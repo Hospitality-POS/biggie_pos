@@ -22,6 +22,7 @@ import {
   Card,
   Divider,
   Tag,
+  Flex,
 } from "antd";
 import {
   CloseCircleOutlined,
@@ -57,8 +58,8 @@ const PaymentDrawer: React.FC = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
 
   const dispatch = useAppDispatch();
-  const navigate = (path: string) => window.location.href = path;
-  const id = window.location.pathname.split('/').pop();
+  const navigate = (path: string) => (window.location.href = path);
+  const id = window.location.pathname.split("/").pop();
   const { cartDetails, totalAmount } = useAppSelector((state) => state.cart);
   const { loading, error } = useAppSelector((state) => state.order);
   const { user } = useAppSelector((state) => state.auth);
@@ -73,9 +74,9 @@ const PaymentDrawer: React.FC = () => {
   // STK Push states
   const [pesapalEnabled, setPesapalEnabled] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
-    phone: '',
-    name: '',
-    email: ''
+    phone: "",
+    name: "",
+    email: "",
   });
   const [pesapalModalVisible, setPesapalModalVisible] = useState(false);
   const [customers, setCustomers] = useState([]);
@@ -84,37 +85,40 @@ const PaymentDrawer: React.FC = () => {
   const [searchingCustomers, setSearchingCustomers] = useState(false);
 
   // STK Push specific states
-  const [stkPaymentStatus, setStkPaymentStatus] = useState<'idle' | 'sending' | 'waiting' | 'success' | 'failed'>('idle');
-  const [stkTrackingId, setStkTrackingId] = useState<string>('');
+  const [stkPaymentStatus, setStkPaymentStatus] = useState<
+    "idle" | "sending" | "waiting" | "success" | "failed"
+  >("idle");
+  const [stkTrackingId, setStkTrackingId] = useState<string>("");
   const [countdown, setCountdown] = useState(0);
 
-  const totalCartAmount = cartDetails?.items.reduce((acc, item) => {
-    return acc + item.price;
-  }, 0) || 0;
+  const totalCartAmount =
+    cartDetails?.items.reduce((acc, item) => {
+      return acc + item.price;
+    }, 0) || 0;
 
   // Phone number validation for Kenyan numbers
   const isValidKenyanPhone = (phone: string): boolean => {
-    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
     const patterns = [
-      /^\+254[17]\d{8}$/,     // +254712345678 or +254112345678
-      /^254[17]\d{8}$/,       // 254712345678 or 254112345678
-      /^0[17]\d{8}$/,         // 0712345678 or 0112345678
-      /^[17]\d{8}$/           // 712345678 or 112345678
+      /^\+254[17]\d{8}$/, // +254712345678 or +254112345678
+      /^254[17]\d{8}$/, // 254712345678 or 254112345678
+      /^0[17]\d{8}$/, // 0712345678 or 0112345678
+      /^[17]\d{8}$/, // 712345678 or 112345678
     ];
-    return patterns.some(pattern => pattern.test(cleanPhone));
+    return patterns.some((pattern) => pattern.test(cleanPhone));
   };
 
   // Format phone number for display
   const formatPhoneNumber = (phone: string): string => {
-    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
-    if (cleanPhone.startsWith('+254')) {
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
+    if (cleanPhone.startsWith("+254")) {
       return cleanPhone;
-    } else if (cleanPhone.startsWith('254')) {
-      return '+' + cleanPhone;
-    } else if (cleanPhone.startsWith('0')) {
-      return '+254' + cleanPhone.substring(1);
+    } else if (cleanPhone.startsWith("254")) {
+      return "+" + cleanPhone;
+    } else if (cleanPhone.startsWith("0")) {
+      return "+254" + cleanPhone.substring(1);
     } else if (cleanPhone.match(/^[17]\d{8}$/)) {
-      return '+254' + cleanPhone;
+      return "+254" + cleanPhone;
     }
     return phone;
   };
@@ -130,7 +134,7 @@ const PaymentDrawer: React.FC = () => {
       const result = await fetchAllCustomers({ phone });
       setCustomers(result?.data || []);
     } catch (error) {
-      console.error('Error searching customers:', error);
+      console.error("Error searching customers:", error);
       setCustomers([]);
     } finally {
       setSearchingCustomers(false);
@@ -138,13 +142,13 @@ const PaymentDrawer: React.FC = () => {
   };
 
   const handleCustomerSelect = (value: string, option: any) => {
-    const customer = customers.find(c => c._id === value);
+    const customer = customers.find((c) => c._id === value);
     if (customer) {
       setSelectedCustomer(customer);
       setCustomerInfo({
-        phone: customer.phone || '',
-        name: customer.customer_name || '',
-        email: customer.email || ''
+        phone: customer.phone || "",
+        name: customer.customer_name || "",
+        email: customer.email || "",
       });
       setIsNewCustomer(false);
     }
@@ -166,13 +170,13 @@ const PaymentDrawer: React.FC = () => {
   };
 
   const resetPesapalModal = () => {
-    setCustomerInfo({ phone: '', name: '', email: '' });
+    setCustomerInfo({ phone: "", name: "", email: "" });
     setSelectedCustomer(null);
     setIsNewCustomer(false);
     setCustomers([]);
     setPesapalModalVisible(false);
-    setStkPaymentStatus('idle');
-    setStkTrackingId('');
+    setStkPaymentStatus("idle");
+    setStkTrackingId("");
     setCountdown(0);
   };
 
@@ -189,28 +193,30 @@ const PaymentDrawer: React.FC = () => {
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
-    if (stkPaymentStatus === 'waiting' && stkTrackingId) {
+    if (stkPaymentStatus === "waiting" && stkTrackingId) {
       intervalId = setInterval(async () => {
         try {
           // Poll payment status API
-          const response = await fetch(`/api/orders/payment-status?tracking_id=${stkTrackingId}`);
+          const response = await fetch(
+            `/api/orders/payment-status?tracking_id=${stkTrackingId}`
+          );
           const data = await response.json();
 
-          if (data.success && data.payment_status === 'COMPLETED') {
-            setStkPaymentStatus('success');
-            message.success('Payment completed successfully!');
+          if (data.success && data.payment_status === "COMPLETED") {
+            setStkPaymentStatus("success");
+            message.success("Payment completed successfully!");
             setTimeout(() => {
               resetPesapalModal();
               setDrawerVisible(false);
               dispatch(createCart(id));
               navigate("/tables");
             }, 2000);
-          } else if (data.payment_status === 'FAILED') {
-            setStkPaymentStatus('failed');
-            message.error('Payment failed. Please try again.');
+          } else if (data.payment_status === "FAILED") {
+            setStkPaymentStatus("failed");
+            message.error("Payment failed. Please try again.");
           }
         } catch (error) {
-          console.error('Error checking payment status:', error);
+          console.error("Error checking payment status:", error);
         }
       }, 3000); // Check every 3 seconds
     }
@@ -247,7 +253,7 @@ const PaymentDrawer: React.FC = () => {
   const {
     isLoading,
     error: Derror,
-    data: paymentMethods
+    data: paymentMethods,
   } = useQuery({
     queryKey: ["paymentMethods"],
     queryFn: fetchAllPaymentMethods,
@@ -255,14 +261,18 @@ const PaymentDrawer: React.FC = () => {
   });
 
   const isPesapalMethod = (methodId: string) => {
-    const method = paymentMethods?.find(m => m._id === methodId);
-    return method?.name.toLowerCase().includes('pal') ||
-      method?.name.toLowerCase().includes('gateway');
+    const method = paymentMethods?.find((m) => m._id === methodId);
+    return (
+      method?.name.toLowerCase().includes("pal") ||
+      method?.name.toLowerCase().includes("gateway")
+    );
   };
 
   const handleSelectMethod = (method: string) => {
     if (isPesapalMethod(method) && !pesapalEnabled) {
-      message.info("STK Push payment is not available. Please contact administrator to enable Pesapal configuration.");
+      message.info(
+        "STK Push payment is not available. Please contact administrator to enable Pesapal configuration."
+      );
       return;
     }
 
@@ -310,7 +320,7 @@ const PaymentDrawer: React.FC = () => {
       const result = await dispatch(createOrder(orderDetails));
 
       // Only proceed after successful order creation
-      if (result.type.endsWith('/fulfilled')) {
+      if (result.type.endsWith("/fulfilled")) {
         setDrawerVisible(false);
         dispatch(createCart(id));
         navigate("/tables");
@@ -318,7 +328,7 @@ const PaymentDrawer: React.FC = () => {
       }
     } catch (error) {
       // Error handling is managed by Redux, but drawer stays open
-      console.error('Split payment failed:', error);
+      console.error("Split payment failed:", error);
     }
   };
 
@@ -350,7 +360,7 @@ const PaymentDrawer: React.FC = () => {
         const result = await dispatch(createOrder(orderDetails));
 
         // Only close drawer and navigate after successful order creation
-        if (result.type.endsWith('/fulfilled')) {
+        if (result.type.endsWith("/fulfilled")) {
           setDrawerVisible(false);
           dispatch(createCart(id));
           navigate("/tables");
@@ -358,7 +368,7 @@ const PaymentDrawer: React.FC = () => {
         }
       } catch (error) {
         // Error handling is managed by Redux, but drawer stays open
-        console.error('Payment failed:', error);
+        console.error("Payment failed:", error);
       }
     }
   };
@@ -370,7 +380,9 @@ const PaymentDrawer: React.FC = () => {
     }
 
     if (!isValidKenyanPhone(customerInfo.phone)) {
-      message.error("Please enter a valid Kenyan phone number for STK Push (e.g., 0712345678)");
+      message.error(
+        "Please enter a valid Kenyan phone number for STK Push (e.g., 0712345678)"
+      );
       return;
     }
 
@@ -379,15 +391,18 @@ const PaymentDrawer: React.FC = () => {
         try {
           const newCustomerData = {
             phone: customerInfo.phone,
-            customer_name: customerInfo.name || 'Customer',
-            email: customerInfo.email || '',
-            shop_id: localStorage.getItem("shopId")
+            customer_name: customerInfo.name || "Customer",
+            email: customerInfo.email || "",
+            shop_id: localStorage.getItem("shopId"),
           };
 
           await addNewCustomer(newCustomerData);
           message.success("New customer created successfully");
         } catch (customerError) {
-          console.warn('Could not create customer, but proceeding with payment:', customerError);
+          console.warn(
+            "Could not create customer, but proceeding with payment:",
+            customerError
+          );
         }
       }
 
@@ -405,32 +420,34 @@ const PaymentDrawer: React.FC = () => {
         order_no: cartDetails?.order_no,
         cart_items: cartDetails.items,
         method_id: selectedMethod,
-        payment_type: 'stk_push',
+        payment_type: "stk_push",
         customer_phone: customerInfo.phone,
-        customer_name: customerInfo.name || 'Customer',
-        customer_email: customerInfo.email || `${customerInfo.phone}@customer.local`,
+        customer_name: customerInfo.name || "Customer",
+        customer_email:
+          customerInfo.email || `${customerInfo.phone}@customer.local`,
         enable_stk_push: true,
-        stk_phone_number: customerInfo.phone
+        stk_phone_number: customerInfo.phone,
       };
 
-      setStkPaymentStatus('sending');
+      setStkPaymentStatus("sending");
       setCountdown(300); // 5 minutes countdown
 
       const result = await dispatch(createOrder(orderDetails));
 
       if (result?.payload?.payment?.stk_push) {
-        setStkPaymentStatus('waiting');
+        setStkPaymentStatus("waiting");
         setStkTrackingId(result.payload.payment.stk_push.tracking_id);
-        message.success(`STK Push sent to ${formatPhoneNumber(customerInfo.phone)}`);
+        message.success(
+          `STK Push sent to ${formatPhoneNumber(customerInfo.phone)}`
+        );
       } else {
-        setStkPaymentStatus('failed');
-        message.error('Failed to send STK Push');
+        setStkPaymentStatus("failed");
+        message.error("Failed to send STK Push");
       }
-
     } catch (error) {
-      console.error('STK Push payment error:', error);
-      setStkPaymentStatus('failed');
-      message.error('Failed to initiate STK Push payment');
+      console.error("STK Push payment error:", error);
+      setStkPaymentStatus("failed");
+      message.error("Failed to initiate STK Push payment");
     }
   };
 
@@ -447,7 +464,7 @@ const PaymentDrawer: React.FC = () => {
         setDrawerVisible(false);
         message.success("Bill voided successfully.");
         navigate("/tables");
-      }
+      },
     });
   };
 
@@ -471,45 +488,72 @@ const PaymentDrawer: React.FC = () => {
 
   const renderSTKPushStatus = () => {
     switch (stkPaymentStatus) {
-      case 'sending':
+      case "sending":
         return (
-          <Card style={{ textAlign: 'center', margin: '16px 0' }}>
-            <LoadingOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-            <Title level={4} style={{ margin: '16px 0 8px 0' }}>Sending STK Push...</Title>
-            <Text type="secondary">Please wait while we send the payment request</Text>
+          <Card style={{ textAlign: "center", margin: "16px 0" }}>
+            <LoadingOutlined style={{ fontSize: "24px", color: "#1890ff" }} />
+            <Title level={4} style={{ margin: "16px 0 8px 0" }}>
+              Sending STK Push...
+            </Title>
+            <Text type="secondary">
+              Please wait while we send the payment request
+            </Text>
           </Card>
         );
 
-      case 'waiting':
+      case "waiting":
         return (
-          <Card style={{ textAlign: 'center', margin: '16px 0' }}>
-            <MobileOutlined style={{ fontSize: '24px', color: '#52c41a' }} />
-            <Title level={4} style={{ margin: '16px 0 8px 0' }}>Payment Request Sent!</Title>
-            <Text strong>Check your phone: {formatPhoneNumber(customerInfo.phone)}</Text>
+          <Card style={{ textAlign: "center", margin: "16px 0" }}>
+            <MobileOutlined style={{ fontSize: "24px", color: "#52c41a" }} />
+            <Title level={4} style={{ margin: "16px 0 8px 0" }}>
+              Payment Request Sent!
+            </Title>
+            <Text strong>
+              Check your phone: {formatPhoneNumber(customerInfo.phone)}
+            </Text>
             <br />
-            <Text type="secondary">Enter your M-Pesa PIN to complete payment</Text>
+            <Text type="secondary">
+              Enter your M-Pesa PIN to complete payment
+            </Text>
             <br />
             <Tag color="blue" style={{ marginTop: 8 }}>
-              Time remaining: {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
+              Time remaining: {Math.floor(countdown / 60)}:
+              {String(countdown % 60).padStart(2, "0")}
             </Tag>
           </Card>
         );
 
-      case 'success':
+      case "success":
         return (
-          <Card style={{ textAlign: 'center', margin: '16px 0' }}>
-            <CheckCircleOutlined style={{ fontSize: '24px', color: '#52c41a' }} />
-            <Title level={4} style={{ margin: '16px 0 8px 0', color: '#52c41a' }}>Payment Successful!</Title>
+          <Card style={{ textAlign: "center", margin: "16px 0" }}>
+            <CheckCircleOutlined
+              style={{ fontSize: "24px", color: "#52c41a" }}
+            />
+            <Title
+              level={4}
+              style={{ margin: "16px 0 8px 0", color: "#52c41a" }}
+            >
+              Payment Successful!
+            </Title>
             <Text>Redirecting to tables...</Text>
           </Card>
         );
 
-      case 'failed':
+      case "failed":
         return (
-          <Card style={{ textAlign: 'center', margin: '16px 0' }}>
-            <CloseCircleOutlined style={{ fontSize: '24px', color: '#ff4d4f' }} />
-            <Title level={4} style={{ margin: '16px 0 8px 0', color: '#ff4d4f' }}>Payment Failed</Title>
-            <Text type="secondary">Please try again or use a different payment method</Text>
+          <Card style={{ textAlign: "center", margin: "16px 0" }}>
+            <CloseCircleOutlined
+              style={{ fontSize: "24px", color: "#ff4d4f" }}
+            />
+            <Title
+              level={4}
+              style={{ margin: "16px 0 8px 0", color: "#ff4d4f" }}
+            >
+              Payment Failed
+            </Title>
+            <Text type="secondary">
+              Please try again or use a different payment method
+            </Text>
           </Card>
         );
 
@@ -568,26 +612,38 @@ const PaymentDrawer: React.FC = () => {
         open={drawerVisible}
         onOpenChange={setDrawerVisible}
         submitter={{
-          render: () => [
-            <Button
-              key="cancel"
-              onClick={() => setDrawerVisible(false)}
-              style={{ marginRight: 8 }}
-            >
-              Cancel
-            </Button>,
-            <Button
-              key="submit"
-              type="primary"
-              onClick={handlePayment}
-              loading={loading}
-              disabled={!selectedMethod}
-              icon={<FileOutlined />}
-              block
-            >
-              Confirm Order Payment
-            </Button>,
-          ],
+          submitButtonProps: {
+            block: true,
+          },
+          render: () => {
+            return (
+              <Flex
+                style={{ justifyContent: "space-between", width: "100%" }}
+                gap={16}
+              >
+                <Button
+                  key="submit"
+                  type="primary"
+                  size={"large"}
+                  onClick={handlePayment}
+                  loading={loading}
+                  disabled={!selectedMethod}
+                  icon={<FileOutlined />}
+                  block
+                >
+                  Confirm Order Payment
+                </Button>
+                <Button
+                  block
+                  key="cancel"
+                  size={"large"}
+                  onClick={() => setDrawerVisible(false)}
+                >
+                  Cancel
+                </Button>
+              </Flex>
+            );
+          },
         }}
         form={form}
         drawerProps={{
@@ -599,7 +655,9 @@ const PaymentDrawer: React.FC = () => {
             block
             onClick={() => {
               if (!cartDetails?.items || cartDetails.items.length === 0) {
-                message.error("Cart is empty. Please add items before proceeding to payment.");
+                message.error(
+                  "Cart is empty. Please add items before proceeding to payment."
+                );
                 return;
               }
               setDrawerVisible(true);
@@ -666,7 +724,9 @@ const PaymentDrawer: React.FC = () => {
                     bordered
                     onClick={() => handleSelectMethod(method._id)}
                     style={{
-                      backgroundColor: `${selectedMethod === method._id ? "#6c1c2c" : grey[400]}`,
+                      backgroundColor: `${
+                        selectedMethod === method._id ? "#6c1c2c" : grey[400]
+                      }`,
                       cursor: isDisabled ? "not-allowed" : "pointer",
                       transition: "background-color 0.3s ease",
                       opacity: isDisabled ? 0.5 : 1,
@@ -674,19 +734,27 @@ const PaymentDrawer: React.FC = () => {
                   >
                     <Space
                       style={{
-                        color: `${selectedMethod === method._id ? "white" : "inherit"}`,
+                        color: `${
+                          selectedMethod === method._id ? "white" : "inherit"
+                        }`,
                       }}
                     >
                       {getPaymentMethodIcon(method)}
                       <Typography.Text
                         strong
                         style={{
-                          color: `${selectedMethod === method._id ? "white" : "inherit"}`,
+                          color: `${
+                            selectedMethod === method._id ? "white" : "inherit"
+                          }`,
                         }}
                       >
-                        {method.name === "M-Pesa" ? "Mpesa" :
-                          method.name.includes("pesapal") || method.name.includes("gateway") ? "STK Push" :
-                            method.name.charAt(0).toUpperCase() + method.name.slice(1)}
+                        {method.name === "M-Pesa"
+                          ? "Mpesa"
+                          : method.name.includes("pesapal") ||
+                            method.name.includes("gateway")
+                          ? "STK Push"
+                          : method.name.charAt(0).toUpperCase() +
+                            method.name.slice(1)}
                         {isDisabled && " (Unavailable)"}
                       </Typography.Text>
                     </Space>
@@ -752,7 +820,7 @@ const PaymentDrawer: React.FC = () => {
       <Modal
         title={
           <Space align="center">
-            <MobileOutlined style={{ color: '#52c41a' }} />
+            <MobileOutlined style={{ color: "#52c41a" }} />
             <span>STK Push Payment</span>
           </Space>
         }
@@ -763,12 +831,11 @@ const PaymentDrawer: React.FC = () => {
         maskClosable={false}
       >
         <Space direction="vertical" style={{ width: "100%" }} size="large">
-
           {/* STK Push Status Display */}
           {renderSTKPushStatus()}
 
           {/* Customer Information Form */}
-          {stkPaymentStatus === 'idle' && (
+          {stkPaymentStatus === "idle" && (
             <Card size="small">
               <Title level={5}>Customer Information</Title>
 
@@ -785,13 +852,29 @@ const PaymentDrawer: React.FC = () => {
                     maxLength={15}
                     prefix={<PhoneOutlined />}
                   />
-                  {customerInfo.phone && !isValidKenyanPhone(customerInfo.phone) && (
-                    <Text type="danger" style={{ fontSize: '12px', display: 'block', marginTop: 4 }}>
-                      Please enter a valid Kenyan phone number (e.g., 0712345678)
-                    </Text>
-                  )}
+                  {customerInfo.phone &&
+                    !isValidKenyanPhone(customerInfo.phone) && (
+                      <Text
+                        type="danger"
+                        style={{
+                          fontSize: "12px",
+                          display: "block",
+                          marginTop: 4,
+                        }}
+                      >
+                        Please enter a valid Kenyan phone number (e.g.,
+                        0712345678)
+                      </Text>
+                    )}
                   {searchingCustomers && (
-                    <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: 4 }}>
+                    <Text
+                      type="secondary"
+                      style={{
+                        fontSize: "12px",
+                        display: "block",
+                        marginTop: 4,
+                      }}
+                    >
                       <LoadingOutlined /> Searching customers...
                     </Text>
                   )}
@@ -801,12 +884,12 @@ const PaymentDrawer: React.FC = () => {
                   <div>
                     <Text strong>Select Existing Customer</Text>
                     <Select
-                      style={{ width: '100%', marginTop: 4 }}
+                      style={{ width: "100%", marginTop: 4 }}
                       placeholder="Choose an existing customer"
                       onSelect={handleCustomerSelect}
-                      options={customers.map(customer => ({
+                      options={customers.map((customer) => ({
                         value: customer._id,
-                        label: `${customer.customer_name} (${customer.phone})`
+                        label: `${customer.customer_name} (${customer.phone})`,
                       }))}
                     />
                   </div>
@@ -818,7 +901,12 @@ const PaymentDrawer: React.FC = () => {
                       <Text strong>Customer Name</Text>
                       <Input
                         value={customerInfo.name}
-                        onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
+                        onChange={(e) =>
+                          setCustomerInfo({
+                            ...customerInfo,
+                            name: e.target.value,
+                          })
+                        }
                         placeholder="Customer Name"
                         style={{ marginTop: 4 }}
                       />
@@ -829,7 +917,12 @@ const PaymentDrawer: React.FC = () => {
                       <Input
                         type="email"
                         value={customerInfo.email}
-                        onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
+                        onChange={(e) =>
+                          setCustomerInfo({
+                            ...customerInfo,
+                            email: e.target.value,
+                          })
+                        }
                         placeholder="customer@example.com"
                         style={{ marginTop: 4 }}
                       />
@@ -871,16 +964,16 @@ const PaymentDrawer: React.FC = () => {
           </Card>
 
           {/* Action Buttons */}
-          {stkPaymentStatus === 'idle' && (
-            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={resetPesapalModal}>
-                Cancel
-              </Button>
+          {stkPaymentStatus === "idle" && (
+            <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+              <Button onClick={resetPesapalModal}>Cancel</Button>
               <Button
                 type="primary"
                 onClick={handleSTKPushPayment}
-                loading={loading || stkPaymentStatus === 'sending'}
-                disabled={!customerInfo.phone || !isValidKenyanPhone(customerInfo.phone)}
+                loading={loading || stkPaymentStatus === "sending"}
+                disabled={
+                  !customerInfo.phone || !isValidKenyanPhone(customerInfo.phone)
+                }
                 icon={<SendOutlined />}
               >
                 Send STK Push
@@ -889,33 +982,30 @@ const PaymentDrawer: React.FC = () => {
           )}
 
           {/* STK Push Action Buttons */}
-          {stkPaymentStatus === 'waiting' && (
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          {stkPaymentStatus === "waiting" && (
+            <Space style={{ width: "100%", justifyContent: "space-between" }}>
               <Button
                 onClick={() => {
-                  setStkPaymentStatus('idle');
-                  setStkTrackingId('');
+                  setStkPaymentStatus("idle");
+                  setStkTrackingId("");
                   setCountdown(0);
                 }}
               >
                 Try Again
               </Button>
-              <Button
-                type="default"
-                onClick={resetPesapalModal}
-              >
+              <Button type="default" onClick={resetPesapalModal}>
                 Cancel Payment
               </Button>
             </Space>
           )}
 
-          {stkPaymentStatus === 'failed' && (
-            <Space style={{ width: '100%', justifyContent: 'center' }}>
+          {stkPaymentStatus === "failed" && (
+            <Space style={{ width: "100%", justifyContent: "center" }}>
               <Button
                 type="primary"
                 onClick={() => {
-                  setStkPaymentStatus('idle');
-                  setStkTrackingId('');
+                  setStkPaymentStatus("idle");
+                  setStkTrackingId("");
                   setCountdown(0);
                 }}
                 icon={<SendOutlined />}
@@ -926,14 +1016,18 @@ const PaymentDrawer: React.FC = () => {
           )}
 
           {/* Instructions for STK Push */}
-          {stkPaymentStatus === 'idle' && (
+          {stkPaymentStatus === "idle" && (
             <Alert
               message="STK Push Instructions"
               description={
                 <div>
                   <p>• Customer will receive an M-Pesa prompt on their phone</p>
-                  <p>• They need to enter their M-Pesa PIN to complete payment</p>
-                  <p>• Payment will be processed automatically once confirmed</p>
+                  <p>
+                    • They need to enter their M-Pesa PIN to complete payment
+                  </p>
+                  <p>
+                    • Payment will be processed automatically once confirmed
+                  </p>
                   <p>• Ensure the phone number is correct and active</p>
                 </div>
               }
@@ -948,22 +1042,28 @@ const PaymentDrawer: React.FC = () => {
       {/* Payment Status Monitoring Modal for STK Push */}
       <Modal
         title="Payment Status Monitor"
-        open={stkPaymentStatus === 'waiting'}
+        open={stkPaymentStatus === "waiting"}
         footer={null}
         closable={false}
         width={400}
         centered
       >
-        <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }} size="large">
-          <div style={{ fontSize: '48px' }}>
-            <MobileOutlined style={{ color: '#52c41a', animation: 'pulse 2s infinite' }} />
+        <Space
+          direction="vertical"
+          style={{ width: "100%", textAlign: "center" }}
+          size="large"
+        >
+          <div style={{ fontSize: "48px" }}>
+            <MobileOutlined
+              style={{ color: "#52c41a", animation: "pulse 2s infinite" }}
+            />
           </div>
 
           <div>
             <Title level={4}>Waiting for Payment</Title>
             <Text>STK Push sent to:</Text>
             <br />
-            <Text strong style={{ fontSize: '16px' }}>
+            <Text strong style={{ fontSize: "16px" }}>
               {formatPhoneNumber(customerInfo.phone)}
             </Text>
           </div>
@@ -975,8 +1075,9 @@ const PaymentDrawer: React.FC = () => {
           </div>
 
           <div>
-            <Tag color="blue" style={{ fontSize: '14px', padding: '4px 12px' }}>
-              ⏱️ {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')} remaining
+            <Tag color="blue" style={{ fontSize: "14px", padding: "4px 12px" }}>
+              ⏱️ {Math.floor(countdown / 60)}:
+              {String(countdown % 60).padStart(2, "0")} remaining
             </Tag>
           </div>
 
@@ -985,17 +1086,14 @@ const PaymentDrawer: React.FC = () => {
           <Space>
             <Button
               onClick={() => {
-                setStkPaymentStatus('idle');
-                setStkTrackingId('');
+                setStkPaymentStatus("idle");
+                setStkTrackingId("");
                 setCountdown(0);
               }}
             >
               Cancel & Retry
             </Button>
-            <Button
-              type="default"
-              onClick={resetPesapalModal}
-            >
+            <Button type="default" onClick={resetPesapalModal}>
               Cancel Payment
             </Button>
           </Space>
@@ -1005,23 +1103,23 @@ const PaymentDrawer: React.FC = () => {
       {/* Success Modal */}
       <Modal
         title={null}
-        open={stkPaymentStatus === 'success'}
+        open={stkPaymentStatus === "success"}
         footer={null}
         closable={false}
         width={300}
         centered
       >
-        <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }} size="large">
-          <CheckCircleOutlined style={{ fontSize: '64px', color: '#52c41a' }} />
-          <Title level={3} style={{ color: '#52c41a', margin: 0 }}>
+        <Space
+          direction="vertical"
+          style={{ width: "100%", textAlign: "center" }}
+          size="large"
+        >
+          <CheckCircleOutlined style={{ fontSize: "64px", color: "#52c41a" }} />
+          <Title level={3} style={{ color: "#52c41a", margin: 0 }}>
             Payment Successful!
           </Title>
-          <Text>
-            KSh. {totalAmount?.toLocaleString()} paid successfully
-          </Text>
-          <Text type="secondary">
-            Redirecting to tables...
-          </Text>
+          <Text>KSh. {totalAmount?.toLocaleString()} paid successfully</Text>
+          <Text type="secondary">Redirecting to tables...</Text>
         </Space>
       </Modal>
 
@@ -1155,11 +1253,11 @@ const PaymentDrawer: React.FC = () => {
           .ant-modal {
             margin: 10px;
           }
-          
+
           .payment-method-cards {
             flex-direction: column;
           }
-          
+
           .payment-method-card {
             width: 100% !important;
             margin-bottom: 8px;
@@ -1232,13 +1330,21 @@ const PaymentDrawer: React.FC = () => {
         }
 
         @keyframes shake {
-          0%, 100% {
+          0%,
+          100% {
             transform: translateX(0);
           }
-          10%, 30%, 50%, 70%, 90% {
+          10%,
+          30%,
+          50%,
+          70%,
+          90% {
             transform: translateX(-5px);
           }
-          20%, 40%, 60%, 80% {
+          20%,
+          40%,
+          60%,
+          80% {
             transform: translateX(5px);
           }
         }
