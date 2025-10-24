@@ -84,10 +84,29 @@ const JournalForm: React.FC<JournalFormProps> = ({ visible, onCancel, editingJou
                 journal_date: dayjs(),
                 type: 'general',
             });
-            setJournalEntries([]);
+            // ✅ Initialize with two default journal lines for double entry
+            setJournalEntries([
+                {
+                    key: Date.now(),
+                    account_id: null,
+                    description: '',
+                    debit: 0,
+                    credit: 0,
+                },
+                {
+                    key: Date.now() + 1,
+                    account_id: null,
+                    description: '',
+                    debit: 0,
+                    credit: 0,
+                },
+            ]);
         }
-    }, [visible, editingJournal, form]);
 
+
+
+
+    }, [visible, editingJournal, form]);
     const handleAddEntry = () => {
         const newEntry = {
             key: Date.now(),
