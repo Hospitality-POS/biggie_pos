@@ -35,6 +35,7 @@ import { fetchAllUsersList } from "@services/users";
 import dayjs from "dayjs";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import isoWeek from "dayjs/plugin/isoWeek";
+import { ProCard } from "@ant-design/pro-components";
 
 // Extend dayjs with plugins
 dayjs.extend(weekOfYear);
@@ -416,7 +417,7 @@ const RestaurantShiftSchedule = () => {
 
   return (
     <div className="schedule-container-main">
-      <Card bordered={false} className="calendar-card">
+      <ProCard bordered={false} className="calendar-card">
         {/* Header section */}
         <div className="calendar-header">
           <div className="header-top-row">
@@ -486,7 +487,7 @@ const RestaurantShiftSchedule = () => {
             {renderWeeklyView()}
           </div>
         </Spin>
-      </Card>
+      </ProCard>
 
       {/* Hidden EmployeeShiftModal components */}
       <div style={{ display: 'none' }}>

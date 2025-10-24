@@ -29,7 +29,7 @@ function Layout() {
     location.pathname === "/admin" || location.pathname.startsWith("/admin");
 
   const shopId = localStorage.getItem("shopId") || undefined;
-  console.log("shopId", shopId);
+
   const { data: currentShop } = useQuery(
     ["currentShop", shopId],
     () => {

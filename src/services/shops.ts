@@ -54,7 +54,6 @@ export const deleteShop = async (id: string) => {
 };
 
 export const fetchShop = async (id: string) => {
-  console.log("Fetching shop with ID:", id);
   try {
     const response = await axiosInstance.get(`${url}/${id}`);
     return response.data;

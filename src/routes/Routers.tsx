@@ -11,7 +11,7 @@ import MainCategory from "@pages/main_category/Main_category";
 import NotFound from "@routes/NotFound";
 import { Spin } from "antd/lib";
 import { COOP_NAME } from "@utils/config";
-import MainOrders from "@pages/Orders/MainOrders";
+import MainOrders from "@pages/OrderManagement/MainOrders";
 import NubaLoader from "@components/spinner/NubaLoader";
 import StaffLoginPage from "@pages/Login/login";
 import Dashboard from "@pages/Dashboard/Dashboard";
@@ -20,7 +20,7 @@ import StaffClockTracker from "@pages/staff/ClockInTracker";
 import HelpCenter from "src/AdminDashboard/HelpCenter/HelpCenterPage";
 import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
 import ShopManagement from "src/AdminDashboard/Shops/MainShopPage";
-import Invoices from "@pages/Invoices/Invoices";
+// import Invoices from "@pages/OrderManagement/Invoices/Invoices";
 import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
 import Customer from "src/pages/Customer/CustomerList";
 import PaymentSubscriptionPage from "src/components/billing/Billing";
@@ -85,28 +85,336 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        <Route path="/tables" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen tip="Getting you tables please wait..." style={{ color: `${getPrimaryColor()}` }} />}><Private><Table /></Private></Suspense>} />
-        <Route path="/login" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><StaffLoginPage /></Suspense>} />
-        <Route path="/notifications" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Notification /></Suspense>} />
-        <Route path="/main-category" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><MainCategory /></Private></Suspense>} />
-        <Route path="/dashboard/:id" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><RestaurantPage /></Private></Suspense>} />
-        <Route path="/invoices" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><Private><Invoices /></Private></Suspense>} />
-        <Route path="/payment-callback" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><Private><PaymentCallback /></Private></Suspense>} />
-        <Route path="/customers" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><Private><Customer /></Private></Suspense>} />
-        <Route path="/store" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><MainStore /></Private></Suspense>} />
-        <Route path="/reports" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><Reports /></Private></Suspense>} />
-        <Route path="/suppliers" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><SupplierMainSettings /></Private></Suspense>} />
-        <Route path="/table-settings" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><TableMainSettings /></Private></Suspense>} />
-        <Route path="/category-settings" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><CategoryMainSettings /></Private></Suspense>} />
-        <Route path="/payment-methods" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><PaymentMainSettings /></Private></Suspense>} />
-        <Route path="/system-setup" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><SystemSetup /></Private></Suspense>} />
-        <Route path="/inventory" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><InventoryMainSettings /></Private></Suspense>} />
-        <Route path="/profile/:id" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><Profile /></Private></Suspense>} />
-        <Route path="/orders" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><MainOrders /></Private></Suspense>} />
-        <Route path="/fss-faqs" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><Faqs /></Private></Suspense>} />
-        <Route path="/website-builder" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Private><Website /></Private></Suspense>} />
-        <Route path="/employee-shift" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><Private><EmployeeShift /></Private></Suspense>} />
-        <Route path="/home-dashboard" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><Private><Dashboard /></Private></Suspense>} />
+        <Route
+          path="/tables"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin
+                  size="large"
+                  fullscreen
+                  tip="Getting you tables please wait..."
+                   style={{ color: `${getPrimaryColor()}` }}
+                />
+              }
+            >
+              <Private>
+                <Table />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/login"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <StaffLoginPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/notifications"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Notification />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/main-category"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <MainCategory />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/dashboard/:id"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <RestaurantPage />
+              </Private>
+            </Suspense>
+          }
+        />
+        {/* <Route
+          path="/invoices"
+          errorElement={<NotFound />}
+          element={
+            <Suspense fallback={<NubaLoader />}>
+              <Private>
+                <Invoices />
+              </Private>
+            </Suspense>
+          }
+        // errorElement={<NotFound/>}
+        /> */}
+        <Route
+          path="/payment-callback"
+          errorElement={<NotFound />}
+          element={
+            <Suspense fallback={<NubaLoader />}>
+              <Private>
+                <PaymentCallback />
+              </Private>
+            </Suspense>
+          }
+        // errorElement={<NotFound/>}
+        />
+
+        <Route
+          path="/customers"
+          errorElement={<NotFound />}
+          element={
+            <Suspense fallback={<NubaLoader />}>
+              <Private>
+                <Customer />
+              </Private>
+            </Suspense>
+          }
+        // errorElement={<NotFound/>}
+        />
+        <Route
+          path="/store"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <MainStore />
+              </Private>
+            </Suspense>
+          }
+        />
+        {/* <Route
+          path="/users"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <UsersMainSettings />
+              </Private>
+            </Suspense>
+          }
+        /> */}
+        <Route
+          path="/reports"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <Reports />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/suppliers"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <SupplierMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/table-settings"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <TableMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/category-settings"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <CategoryMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/payment-methods"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <PaymentMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/system-setup"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <SystemSetup />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/inventory"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <InventoryMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/profile/:id"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <Profile />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/orders"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <MainOrders />
+              </Private>
+            </Suspense>
+          }
+        // errorElement={<NotFound/>}
+        />
+        <Route
+          path="/fss-faqs"
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <Faqs />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/website-builder"
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <Website />
+              </Private>
+            </Suspense>
+          }
+        />
+
+        <Route
+          path="/employee-shift"
+          errorElement={<NotFound />}
+          element={
+            <Suspense fallback={<NubaLoader />}>
+              <Private>
+                <EmployeeShift />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/home-dashboard"
+          errorElement={<NotFound />}
+          element={
+            <Suspense fallback={<NubaLoader />}>
+              <Private>
+                <Dashboard />
+              </Private>
+            </Suspense>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Route>
 

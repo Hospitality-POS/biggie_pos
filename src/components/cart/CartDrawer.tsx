@@ -1,7 +1,5 @@
 import React, { Key, useEffect, useMemo, useState } from "react";
-import { Divider, CardMedia } from "@mui/material";
 import CartItemCard from "./CartItemCard";
-import classes from "./Cart.module.css";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import PrintBillSpaModal from "../MODALS/printBillSpaModal";
 import {
@@ -14,7 +12,7 @@ import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
-import { Button, Card, Space, Typography, Tag } from "antd";
+import { Button, Space, Typography, Tag, Empty, Divider, Flex } from "antd";
 import {
   CloseCircleOutlined,
   OrderedListOutlined,
@@ -27,6 +25,7 @@ import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
 
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { ProCard } from "@ant-design/pro-components";
 
 const CartDrawer: React.FC = () => {
   const [loadingData, setLoadingData] = useState(false);
@@ -110,12 +109,13 @@ const CartDrawer: React.FC = () => {
   }, [dispatch, id, td._id]);
 
   return (
-    <Card
+    <ProCard
       bordered
       type="inner"
       style={{
         overflow: "hidden",
         overflowY: "auto",
+        // maxHeight: "calc(92vh - 120px)",
       }}
       bodyStyle={{ backgroundColor: "white" }}
     >
@@ -153,7 +153,7 @@ const CartDrawer: React.FC = () => {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            width: "54%",
+            width: "84%",
           }}
         >
           <Typography.Title level={5}>Item</Typography.Title>
@@ -161,19 +161,11 @@ const CartDrawer: React.FC = () => {
           <Typography.Title level={5}>Qty</Typography.Title>
 
           <Typography.Title level={5}>Price</Typography.Title>
+
+          <Typography.Title level={5}>Delete</Typography.Title>
         </Space>
 
-        {cartDetails?.discount && (
-          <div style={{ marginTop: -15, marginBottom: 10 }}>
-            <Tag color="green">
-              {cartDetails?.discount_type === "percentage"
-                ? `${cartDetails?.discount}% Discount Applied`
-                : `KSH ${cartDetails?.discount?.toLocaleString()} Discount Applied`}
-            </Tag>
-          </div>
-        )}
-
-        <Divider />
+        <Divider style={{ margin: "4px 0" }} />
 
         <div
           style={{
@@ -184,28 +176,16 @@ const CartDrawer: React.FC = () => {
         >
           {loading
             ? Array.from({ length: data?.length }, (_, index) => (
-              <SkeletonCartItemCard key={index} />
-            ))
+                <SkeletonCartItemCard key={index} />
+              ))
             : data?.map((item: { _id: Key | null | undefined | string }) => (
-              <CartItemCardMemo key={item._id} cartItem={item} />
-            ))}
+                <CartItemCardMemo key={item._id} cartItem={item} />
+              ))}
           {loadingData && loading ? <CartLoader /> : ""}
         </div>
         {memoizedData?.length ? (
           <Space direction="vertical" style={{ width: "100%" }}>
-            <Divider />
-            <div
-              style={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "10px",
-                alignItems: "baseline",
-              }}
-            >
-              <Typography.Text strong>
-                Served By: <SmileFilled /> {cartDetails?.created_by?.username}
-              </Typography.Text>
+            <Flex gap={16} wrap justify="space-between">
               {cartDetails?.tip_amount && (
                 <Typography.Text strong>
                   <RestOutlined /> Tip Value:
@@ -214,37 +194,40 @@ const CartDrawer: React.FC = () => {
                     : ` ${cartDetails?.tip_amount}%`}
                 </Typography.Text>
               )}
-            </div>
-            <div
-              style={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "10px",
-                alignItems: "baseline",
-              }}
-            >
-              <Space direction="vertical">
-                {cartDetails?.discount && (
-                  <>
-                    <Typography.Text delete style={{ opacity: 0.7 }}>
-                      Original Amount: KSH. {totalCartAmount.toLocaleString()}
-                    </Typography.Text>
-                    <Typography.Text strong>
-                      Discount: KSH. {discountAmount.toLocaleString()} {cartDetails?.discount_type === "percentage" ? `(${cartDetails?.discount}%)` : ''}
-                    </Typography.Text>
-                  </>
+            </Flex>
+
+            <Flex gap={16} wrap justify="space-between">
+              {cartDetails?.discount && (
+                <>
+                  <Typography.Text strong>
+                    Discount: KSH. {discountAmount.toLocaleString()}{" "}
+                    {
+                      <Tag color="green">
+                        {cartDetails?.discount_type === "percentage"
+                          ? `${cartDetails?.discount}% Discount Applied`
+                          : `KSH ${cartDetails?.discount?.toLocaleString()} Discount Applied`}
+                      </Tag>
+                    }
+                  </Typography.Text>
+                  <Typography.Text delete style={{ opacity: 0.7 }}>
+                    Original Amount: KSH. {totalCartAmount.toLocaleString()}
+                  </Typography.Text>
+                </>
+              )}
+            </Flex>
+            <Flex align="center" justify="space-between" gap={16} wrap>
+              <Typography.Text strong style={{ fontSize: "16px" }}>
+                Amount Due: KSH.{" "}
+                {totalAmount ? (
+                  calculateFinalAmount()
+                ) : (
+                  <Typography>Calculating...</Typography>
                 )}
-                <Typography.Text strong style={{ fontSize: '16px' }}>
-                  Amount Due: KSH.{" "}
-                  {totalAmount ? (
-                    calculateFinalAmount()
-                  ) : (
-                    <Typography>Calculating...</Typography>
-                  )}
-                </Typography.Text>
-              </Space>
-            </div>
+              </Typography.Text>
+              <Typography.Text strong>
+                Served By: <SmileFilled /> {cartDetails?.created_by?.username}
+              </Typography.Text>
+            </Flex>
 
             <Space
               style={{
@@ -270,9 +253,17 @@ const CartDrawer: React.FC = () => {
               </Button>
               <ClientPin cart={cartDetails} />
               {tenant?.business_type?.name === "massage_parlour" ? (
-                <PrintBillSpaModal cartDetails={cartDetails} data={data} totalAmount={totalAmount} />
+                <PrintBillSpaModal
+                  cartDetails={cartDetails}
+                  data={data}
+                  totalAmount={totalAmount}
+                />
               ) : (
-                <PrintBillModal cartDetails={cartDetails} data={data} totalAmount={totalAmount} />
+                <PrintBillModal
+                  cartDetails={cartDetails}
+                  data={data}
+                  totalAmount={totalAmount}
+                />
               )}
             </Space>
             {user?.role === "admin" && (
@@ -287,25 +278,20 @@ const CartDrawer: React.FC = () => {
             )}
           </Space>
         ) : (
-          <Card className={classes.cardm}>
-            <div>
-              <CardMedia
-                component="img"
-                alt="Basket"
-                className={classes.media}
-                image="/basket.png"
-                sx={{ width: 100 }}
-              />
-              <Typography.Title level={4}>No items added</Typography.Title>
-            </div>
-          </Card>
+          <Empty
+            title="No items added"
+            image="/basket.png"
+            imageStyle={{ opacity: 0.6 }}
+            description="Add items to your cart to view them here"
+          />
         )}
       </Space>
 
       <div style={{ display: "flex", marginTop: 20 }}>
-        {(user?.role === "admin" || user?.role === "cashier") && data?.length > 0 && <PaymentDrawer />}
+        {(user?.role === "admin" || user?.role === "cashier") &&
+          data?.length > 0 && <PaymentDrawer />}
       </div>
-    </Card>
+    </ProCard>
   );
 };
 
