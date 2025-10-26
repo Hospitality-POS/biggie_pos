@@ -19,8 +19,10 @@ import {
   CreditCardOutlined,
   FundOutlined,
   TransactionOutlined,
-  FileProtectOutlined
+  FileProtectOutlined,
+  WalletOutlined
 } from "@ant-design/icons";
+import { PaymentOutlined } from "@mui/icons-material";
 import { useLocation } from "react-router-dom";
 
 const useProLayoutNav = () => {
@@ -195,6 +197,12 @@ const useProLayoutNav = () => {
       });
 
       routes.push({
+        path: "/admin/wages",
+        name: "Wage Management",
+        icon: <WalletOutlined />,
+      });
+
+      routes.push({
         path: "/admin/customer-list",
         name: "Customers",
         icon: <ContactsOutlined />,
@@ -226,6 +234,11 @@ const useProLayoutNav = () => {
             path: "/admin/staff-management",
             name: "Staff Management",
             icon: <TeamOutlined />,
+          },
+          {
+            path: "/admin/wages",
+            name: "Wage Management",
+            icon: <WalletOutlined />,
           },
         ]
       });

@@ -26,6 +26,7 @@ import dayjs from 'dayjs';
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
+const { TextArea } = Input;
 const { confirm } = Modal;
 
 const InvoicesList: React.FC = () => {
@@ -34,8 +35,11 @@ const InvoicesList: React.FC = () => {
     const [viewDrawerVisible, setViewDrawerVisible] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
     const [postModalVisible, setPostModalVisible] = useState(false);
+    const [sendModalVisible, setSendModalVisible] = useState(false);
     const [invoiceToPost, setInvoiceToPost] = useState<any>(null);
+    const [invoiceToSend, setInvoiceToSend] = useState<any>(null);
     const [postForm] = Form.useForm();
+    const [sendForm] = Form.useForm();
     const [loadingInvoiceId, setLoadingInvoiceId] = useState<string | null>(null);
     const [filters, setFilters] = useState({
         search: '',
@@ -95,9 +99,13 @@ const InvoicesList: React.FC = () => {
 
     // Send invoice mutation
     const sendMutation = useMutation({
-        mutationFn: (id: string) => sendInvoice(id),
+        mutationFn: ({ id, params }: { id: string; params?: any }) => sendInvoice(id, params),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] });
+            message.success('Invoice sent successfully');
+            setSendModalVisible(false);
+            setInvoiceToSend(null);
+            sendForm.resetFields();
         },
         onError: () => {
             message.error('Failed to send invoice');
@@ -171,41 +179,47 @@ const InvoicesList: React.FC = () => {
     };
 
     const handleSend = (record: any) => {
-        confirm({
-            title: 'Send Invoice',
-            content: `Send invoice ${record.invoice_number} to ${record.customer_email || record.customer_name}?`,
-            okText: 'Yes, Send',
-            okType: 'primary',
-            cancelText: 'Cancel',
-            onOk: () => {
-                sendMutation.mutate(record._id);
+        setInvoiceToSend(record);
+        setSendModalVisible(true);
+        sendForm.resetFields();
+    };
+
+    const handleSendSubmit = () => {
+        sendForm.validateFields().then((values) => {
+            const params: any = {};
+
+            if (values.message) {
+                params.message = values.message;
             }
+
+            if (values.cc && values.cc.length > 0) {
+                params.cc = values.cc;
+            }
+
+            sendMutation.mutate({
+                id: invoiceToSend._id,
+                params: Object.keys(params).length > 0 ? params : undefined
+            });
         });
     };
 
-    const handleMarkAsPaid = (record: any) => {
+    const handleMarkPaid = (record: any) => {
         confirm({
             title: 'Mark as Paid',
-            content: `Mark invoice ${record.invoice_number} as fully paid?`,
-            okText: 'Yes, Mark Paid',
+            content: `Mark invoice ${record.invoice_number} as paid?`,
+            okText: 'Yes, Mark as Paid',
             okType: 'primary',
             cancelText: 'Cancel',
             onOk: () => {
                 markPaidMutation.mutate({
                     id: record._id,
                     data: {
-                        payment_date: new Date().toISOString(),
-                        payment_method: 'manual',
-                        reference: 'Manual payment recording'
+                        amount: record.balance_due,
+                        payment_date: new Date().toISOString()
                     }
                 });
             }
         });
-    };
-
-    const handlePrint = (record: any) => {
-        // Open invoice in new window for printing
-        window.open(`/invoices/${record._id}/print`, '_blank');
     };
 
     const columns = [
@@ -213,28 +227,14 @@ const InvoicesList: React.FC = () => {
             title: 'Invoice #',
             dataIndex: 'invoice_number',
             key: 'invoice_number',
-            render: (text: string, record: any) => (
-                <Button
-                    type="link"
-                    onClick={() => handleView(record)}
-                    loading={loadingInvoiceId === record._id}
-                    style={{
-                        padding: 0,
-                        height: 'auto',
-                        fontWeight: 500,
-                        color: '#1890ff'
-                    }}
-                >
-                    <FileTextOutlined style={{ marginRight: 4 }} />
-                    {text}
-                </Button>
-            ),
+            fixed: 'left' as const,
+            width: 120,
         },
         {
             title: 'Customer',
             dataIndex: 'customer_name',
             key: 'customer_name',
-            ellipsis: true,
+            width: 200,
         },
         {
             title: 'Date',
@@ -242,7 +242,6 @@ const InvoicesList: React.FC = () => {
             key: 'invoice_date',
             width: 120,
             render: (date: string) => dayjs(date).format('MMM DD, YYYY'),
-            sorter: (a: any, b: any) => dayjs(a.invoice_date).unix() - dayjs(b.invoice_date).unix(),
         },
         {
             title: 'Due Date',
@@ -252,90 +251,104 @@ const InvoicesList: React.FC = () => {
             render: (date: string) => dayjs(date).format('MMM DD, YYYY'),
         },
         {
-            title: 'Amount',
+            title: 'Total',
             dataIndex: 'total',
             key: 'total',
-            align: 'right' as const,
-            width: 130,
-            render: (amount: number) => <Text strong>KES {amount?.toLocaleString() || '0.00'}</Text>,
-            sorter: (a: any, b: any) => (a.total || 0) - (b.total || 0),
+            width: 120,
+            render: (amount: number) => `KES ${amount?.toLocaleString()}`,
+        },
+        {
+            title: 'Paid',
+            dataIndex: 'amount_paid',
+            key: 'amount_paid',
+            width: 120,
+            render: (amount: number) => (
+                <Text style={{ color: '#52c41a' }}>KES {amount?.toLocaleString()}</Text>
+            ),
+        },
+        {
+            title: 'Balance',
+            dataIndex: 'balance_due',
+            key: 'balance_due',
+            width: 120,
+            render: (amount: number) => (
+                <Text style={{ color: '#fa8c16', fontWeight: 500 }}>
+                    KES {amount?.toLocaleString()}
+                </Text>
+            ),
         },
         {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
-            width: 100,
+            width: 120,
             render: (status: string) => {
-                const colors: Record<string, string> = {
+                const colors: any = {
                     draft: 'default',
                     sent: 'blue',
                     open: 'cyan',
                     partial: 'orange',
                     paid: 'green',
-                    overdue: 'red',
-                    cancelled: 'red',
-                    voided: 'volcano'
+                    overdue: 'red'
                 };
-                return <Tag color={colors[status] || 'default'}>{status?.toUpperCase()}</Tag>;
+                return <Tag color={colors[status]}>{status?.toUpperCase()}</Tag>;
             },
         },
         {
             title: 'Actions',
             key: 'actions',
-            width: 220,
             fixed: 'right' as const,
-            render: (record: any) => (
-                <Space size="small">
+            width: 300,
+            render: (_: any, record: any) => (
+                <Space size="small" wrap>
                     <Button
                         type="link"
+                        size="small"
                         icon={<EyeOutlined />}
-                        size="small"
                         onClick={() => handleView(record)}
-                        title="View"
-                    />
+                        loading={loadingInvoiceId === record._id}
+                    >
+                        View
+                    </Button>
                     <Button
                         type="link"
+                        size="small"
                         icon={<EditOutlined />}
-                        size="small"
                         onClick={() => handleEdit(record)}
-                        disabled={record.status === 'paid' || record.status === 'voided'}
-                        title="Edit"
-                    />
-                    {record.status === 'draft' && (
-                        <Button
-                            type="link"
-                            icon={<FileAddOutlined />}
-                            size="small"
-                            onClick={() => handlePost(record)}
-                            title="Post to Accounts"
-                        />
-                    )}
-                    {(record.status === 'draft' || record.status === 'open') && (
-                        <Button
-                            type="link"
-                            icon={<SendOutlined />}
-                            size="small"
-                            onClick={() => handleSend(record)}
-                            title="Send to Customer"
-                        />
-                    )}
-                    {(record.status === 'open' || record.status === 'partial' || record.status === 'overdue') && (
-                        <Button
-                            type="link"
-                            icon={<CheckCircleOutlined />}
-                            size="small"
-                            onClick={() => handleMarkAsPaid(record)}
-                            style={{ color: '#52c41a' }}
-                            title="Mark as Paid"
-                        />
-                    )}
+                        disabled={record.status === 'paid' || record.is_posted}
+                    >
+                        Edit
+                    </Button>
                     <Button
                         type="link"
-                        icon={<PrinterOutlined />}
                         size="small"
-                        onClick={() => handlePrint(record)}
-                        title="Print"
-                    />
+                        icon={<SendOutlined />}
+                        onClick={() => handleSend(record)}
+                        disabled={record.status === 'paid'}
+                    >
+                        Send
+                    </Button>
+                    {!record.is_posted && (
+                        <Button
+                            type="link"
+                            size="small"
+                            icon={<FileAddOutlined />}
+                            onClick={() => handlePost(record)}
+                            disabled={record.status === 'draft'}
+                        >
+                            Post
+                        </Button>
+                    )}
+                    {/* {record.balance_due > 0 && (
+                        <Button
+                            type="link"
+                            size="small"
+                            icon={<CheckCircleOutlined />}
+                            onClick={() => handleMarkPaid(record)}
+                        >
+                            Mark Paid
+                        </Button>
+                    )} */}
                 </Space>
             ),
         },
@@ -541,6 +554,94 @@ const InvoicesList: React.FC = () => {
                             <strong>Invoice Details:</strong><br />
                             Customer: {invoiceToPost?.customer_name}<br />
                             Amount: KES {invoiceToPost?.total?.toLocaleString()}
+                        </Text>
+                    </div>
+                </Modal>
+
+                {/* Send Invoice Modal */}
+                <Modal
+                    title={`Send Invoice ${invoiceToSend?.invoice_number || ''}`}
+                    open={sendModalVisible}
+                    onOk={handleSendSubmit}
+                    onCancel={() => {
+                        setSendModalVisible(false);
+                        setInvoiceToSend(null);
+                        sendForm.resetFields();
+                    }}
+                    confirmLoading={sendMutation.isPending}
+                    okText="Send Invoice"
+                    width={600}
+                >
+                    <div style={{
+                        marginBottom: 24,
+                        padding: 12,
+                        background: '#f0f5ff',
+                        borderRadius: 4,
+                        border: '1px solid #adc6ff'
+                    }}>
+                        <Text style={{ fontSize: 12 }}>
+                            <strong>Invoice Details:</strong><br />
+                            Customer: {invoiceToSend?.customer_name}<br />
+                            Email: {invoiceToSend?.customer_email}<br />
+                            Amount: KES {invoiceToSend?.total?.toLocaleString()}
+                        </Text>
+                    </div>
+
+                    <Form
+                        form={sendForm}
+                        layout="vertical"
+                    >
+                        <Form.Item
+                            name="message"
+                            label="Custom Message"
+                            tooltip="Add a custom message to include in the email (optional)"
+                        >
+                            <TextArea
+                                placeholder="Enter a custom message to include with the invoice..."
+                                rows={4}
+                                maxLength={500}
+                                showCount
+                            />
+                        </Form.Item>
+
+                        <Form.Item
+                            name="cc"
+                            label="CC Email Addresses"
+                            tooltip="Add additional email addresses to CC (comma-separated or one per line)"
+                            rules={[
+                                {
+                                    validator: async (_, value) => {
+                                        if (!value || value.length === 0) return;
+
+                                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                        const invalidEmails = value.filter((email: string) => !emailRegex.test(email.trim()));
+
+                                        if (invalidEmails.length > 0) {
+                                            throw new Error(`Invalid email(s): ${invalidEmails.join(', ')}`);
+                                        }
+                                    }
+                                }
+                            ]}
+                        >
+                            <Select
+                                mode="tags"
+                                placeholder="Enter email addresses to CC..."
+                                tokenSeparators={[',', '\n', ' ']}
+                                style={{ width: '100%' }}
+                            />
+                        </Form.Item>
+                    </Form>
+
+                    <div style={{
+                        marginTop: 16,
+                        padding: 12,
+                        background: '#fffbe6',
+                        borderRadius: 4,
+                        border: '1px solid #ffe58f'
+                    }}>
+                        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
+                            <strong>Note:</strong> The invoice will be sent to the customer's email address ({invoiceToSend?.customer_email})
+                            {sendForm.getFieldValue('cc')?.length > 0 && ' and the CC addresses you specify'}.
                         </Text>
                     </div>
                 </Modal>

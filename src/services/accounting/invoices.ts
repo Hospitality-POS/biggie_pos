@@ -94,9 +94,12 @@ export const getInvoiceById = async (id: string) => {
     }
 };
 
-export const sendInvoice = async (id: string) => {
+export const sendInvoice = async (id: string, params?: {
+    message?: string;
+    cc?: string[];
+}) => {
     try {
-        const response = await axiosInstance.post(`${invoicesUrl}/${id}/send`, {}, {
+        const response = await axiosInstance.post(`${invoicesUrl}/${id}/send`, params || {}, {
             headers: getPOSHeaders(),
         });
         message.success("Invoice sent successfully");
