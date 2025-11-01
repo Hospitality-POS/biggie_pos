@@ -1,84 +1,30 @@
-import React, { useState, useMemo } from "react";
 import {
-  Table,
-  Card,
   Space,
   Button,
   Tag,
   Popconfirm,
   message,
-  Input,
-  Select,
-  DatePicker,
   Row,
   Col,
   Tooltip,
   Avatar,
-  Modal,
-  Form,
-  Badge,
-  Typography,
-  Flex,
 } from "antd";
 import {
   EditOutlined,
   DeleteOutlined,
-  SearchOutlined,
   PhoneOutlined,
   CalendarOutlined,
   ClockCircleOutlined,
   UserOutlined,
-  ShopOutlined,
-  EyeOutlined,
 } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import moment from "moment";
-import {
-  fetchAllSchedules,
-  updateSchedule,
-  removeSchedule,
-} from "@services/customers";
+import { fetchAllSchedules, removeSchedule } from "@services/customers";
 import { ProCard, ProTable } from "@ant-design/pro-components";
-
-const { Search } = Input;
-const { Option } = Select;
-const { RangePicker } = DatePicker;
-const { Text } = Typography;
+import { useMutation } from "@tanstack/react-query";
 
 const BookingsList = () => {
   const dispatch = useDispatch();
-
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [viewModalVisible, setViewModalVisible] = useState(false);
-
-  // Process and format the schedule data for the table
-  //   const formattedBookings = useMemo(() => {
-  //     if (!scheduleData || !Array.isArray(scheduleData)) return [];
-
-  //     return scheduleData.map((booking, index) => ({
-  //       key: booking._id || index,
-  //       id: booking._id,
-  //       appointmentDate: booking.appointment_date,
-  //       startTime: booking.start_time,
-  //       endTime: booking.end_time,
-  //       clientName:
-  //         booking.customer_id?.customer_name ||
-  //         booking.custom_client_name ||
-  //         "Unknown Client",
-  //       clientId: booking.customer_id?._id,
-  //       customClientName: booking.custom_client_name,
-  //       staffName: booking.staff_id?.fullname || "Unknown Staff",
-  //       staffId: booking.staff_id?._id,
-  //       serviceName: booking.service_id?.name || "Unknown Service",
-  //       serviceId: booking.service_id?._id,
-  //       duration: booking.duration,
-  //       phone: booking.phone,
-  //       specialRequests: booking.special_requests,
-  //       status: getBookingStatus(booking.appointment_date, booking.start_time),
-  //       originalData: booking,
-  //     }));
-  //   }, [scheduleData]);
 
   // Helper function to determine booking status
   function getBookingStatus(appointmentDate, startTime) {
@@ -100,26 +46,20 @@ const BookingsList = () => {
   }
 
   // Handle booking deletion
-  const handleDeleteBooking = async (bookingId) => {
-    try {
-      await dispatch(removeSchedule(bookingId)).unwrap();
+  const handleDeleteBooking = useMutation({
+    mutationFn: removeSchedule,
+    onSuccess: () => {
       message.success("Booking deleted successfully");
-      refetch();
-    } catch (error) {
+    },
+    onError: (error: any) => {
       message.error(
         `Failed to delete booking: ${error.message || "Unknown error"}`
       );
-    }
-  };
-
-  // Handle viewing booking details
-  const handleViewBooking = (booking) => {
-    setSelectedBooking(booking);
-    setViewModalVisible(true);
-  };
+    },
+  });
 
   // Get status tag color
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
         return "green";
@@ -139,7 +79,7 @@ const BookingsList = () => {
   };
 
   // Get status text
-  const getStatusText = (status) => {
+  const getStatusText = (status: string) => {
     switch (status) {
       case "completed":
         return "Completed";
@@ -264,13 +204,6 @@ const BookingsList = () => {
       width: 120,
       render: (_, record: any) => (
         <Space size="small">
-          <Tooltip title="View Details">
-            <Button
-              type="text"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewBooking(record)}
-            />
-          </Tooltip>
           <Tooltip title="Edit Booking">
             <Button
               type="text"
@@ -284,7 +217,7 @@ const BookingsList = () => {
           <Popconfirm
             title="Delete this booking?"
             description="This action cannot be undone."
-            onConfirm={() => handleDeleteBooking(record.id)}
+            onConfirm={() => handleDeleteBooking.mutate(record.id)}
             okText="Yes"
             cancelText="No"
             okButtonProps={{ danger: true }}
@@ -305,6 +238,7 @@ const BookingsList = () => {
         <Col span={12}>
           <ProCard size="small" title="Client Information">
             <p>
+              <UserOutlined style={{ marginRight: "4px" }} />
               <strong>Name:</strong>{" "}
               {record.custom_client_name ||
                 record.customer_id?.customer_name ||
@@ -326,15 +260,12 @@ const BookingsList = () => {
               <strong>Date:</strong>{" "}
               {moment(record.appointment_date).format("MMMM DD, YYYY")}
             </p>
-            <Flex justify="space-between">
-              <p>
-                <ClockCircleOutlined style={{ marginRight: "4px" }} />
-                <strong>Time:</strong> {record.start_time} - {record.end_time}{" "}
-              </p>
-              <p>
-                <strong>Duration:</strong> {record.duration || "N/A"}
-              </p>
-            </Flex>
+
+            <p>
+              <ClockCircleOutlined style={{ marginRight: "4px" }} />
+              <strong>Time:</strong> {record.start_time} - {record.end_time}{" "}
+              <strong>Duration:</strong> {record.duration || "N/A"}
+            </p>
           </ProCard>
         </Col>
         <Col span={12}>
@@ -377,7 +308,6 @@ const BookingsList = () => {
       rowKey="_id"
       request={async (params) => {
         const result = await fetchAllSchedules();
-        console.log("===========>", result.data);
         return {
           data: result.data,
           success: true,
