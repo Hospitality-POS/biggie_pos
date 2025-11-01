@@ -176,7 +176,7 @@ const OrdersTable = () => {
       search={{
         labelWidth: "auto",
         defaultCollapsed: false,
-        searchText: "Filter",
+        searchText: "Search",
         resetText: "Reset",
         optionRender: (_, __, dom) => [...dom],
       }}
