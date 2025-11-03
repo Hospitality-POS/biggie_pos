@@ -12,7 +12,6 @@ import { useMutation } from "@tanstack/react-query";
 
 const UsersTable = () => {
   const { user } = useAppSelector((state) => state.auth);
-  console.log("ddddddddddddddddddddddddd", user);
   const actionRef = useRef<ActionType>();
 
   const deleteUserMutation = useMutation(deleteUserById, {

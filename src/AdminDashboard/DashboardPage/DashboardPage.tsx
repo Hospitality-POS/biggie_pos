@@ -48,6 +48,7 @@ import {
 } from "@services/orders";
 import WelcomeBanner from "./WelcomeBanner";
 import dayjs from "dayjs";
+import { ProCard } from "@ant-design/pro-components";
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -509,7 +510,9 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
   );
 
   return (
-    <Card
+    <ProCard
+      bordered
+      headerBordered
       title={
         <Space>
           <LineChartOutlined style={{ color: COLORS.primary }} />
@@ -592,7 +595,7 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
           )}
         </>
       )}
-    </Card>
+    </ProCard>
   );
 };
 
@@ -609,7 +612,9 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
 
   if (!bestSellers.length && !loading) {
     return (
-      <Card
+      <ProCard
+        bordered
+        headerBordered
         title={
           <Space>
             <FireOutlined style={{ color: COLORS.orange }} />
@@ -633,12 +638,14 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
             </div>
           }
         />
-      </Card>
+      </ProCard>
     );
   }
 
   return (
-    <Card
+    <ProCard
+      bordered
+      headerBordered
       title={
         <Space>
           <FireOutlined style={{ color: COLORS.orange }} />
@@ -714,7 +721,7 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
           />
         </>
       )}
-    </Card>
+    </ProCard>
   );
 };
 
@@ -993,7 +1000,9 @@ const DashboardAdminPage = () => {
       {/* Purchase Orders Overview */}
       <Row style={{ marginBottom: 24 }}>
         <Col span={24}>
-          <Card
+          <ProCard
+            bordered
+            headerBordered
             title={
               <Space>
                 <FileTextOutlined style={{ color: COLORS.purple }} />
@@ -1005,7 +1014,6 @@ const DashboardAdminPage = () => {
                 View All
               </Button>
             }
-            style={{ borderRadius: 12 }}
           >
             {isDataLoading ? (
               <Skeleton active paragraph={{ rows: 3 }} />
@@ -1066,7 +1074,7 @@ const DashboardAdminPage = () => {
                 ))}
               </Row>
             )}
-          </Card>
+          </ProCard>
         </Col>
       </Row>
 
@@ -1081,7 +1089,9 @@ const DashboardAdminPage = () => {
               businessIndicators={businessIndicators}
             />
           ) : (
-            <Card
+            <ProCard
+              bordered
+              headerBordered
               title={
                 <Space>
                   <LineChartOutlined style={{ color: COLORS.primary }} />
@@ -1103,7 +1113,6 @@ const DashboardAdminPage = () => {
                   </Space>
                 )
               }
-              style={{ borderRadius: 12 }}
             >
               {chartLoading ? (
                 <Skeleton active paragraph={{ rows: 8 }} />
@@ -1167,7 +1176,7 @@ const DashboardAdminPage = () => {
                   />
                 </>
               )}
-            </Card>
+            </ProCard>
           )}
         </Col>
       </Row>
@@ -1186,7 +1195,9 @@ const DashboardAdminPage = () => {
       {/* Recent Orders and Purchase Orders */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={12}>
-          <Card
+          <ProCard
+            bordered
+            headerBordered
             title={
               <Space>
                 <ShoppingCartOutlined style={{ color: COLORS.primary }} />
@@ -1236,11 +1247,13 @@ const DashboardAdminPage = () => {
                 }}
               />
             )}
-          </Card>
+          </ProCard>
         </Col>
 
         <Col xs={24} lg={12}>
-          <Card
+          <ProCard
+            bordered
+            headerBordered
             title={
               <Space>
                 <FileTextOutlined style={{ color: COLORS.purple }} />
@@ -1339,14 +1352,16 @@ const DashboardAdminPage = () => {
                 }}
               />
             )}
-          </Card>
+          </ProCard>
         </Col>
       </Row>
 
       {/* Low Stock and PO Insights */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={12}>
-          <Card
+          <ProCard
+            bordered
+            headerBordered
             title={
               <Space>
                 <WarningOutlined style={{ color: COLORS.error }} />
@@ -1398,11 +1413,13 @@ const DashboardAdminPage = () => {
                 }}
               />
             )}
-          </Card>
+          </ProCard>
         </Col>
 
         <Col xs={24} lg={12}>
-          <Card
+          <ProCard
+            bordered
+            headerBordered
             title={
               <Space>
                 <SyncOutlined style={{ color: COLORS.cyan }} />
@@ -1523,14 +1540,16 @@ const DashboardAdminPage = () => {
                 )}
               </div>
             )}
-          </Card>
+          </ProCard>
         </Col>
       </Row>
 
       {/* Performance Summary */}
       <Row gutter={[16, 16]}>
         <Col span={24}>
-          <Card
+          <ProCard
+            bordered
+            headerBordered
             title={
               <Space>
                 <PieChartOutlined style={{ color: COLORS.purple }} />
@@ -1598,13 +1617,15 @@ const DashboardAdminPage = () => {
                 ))}
               </Row>
             )}
-          </Card>
+          </ProCard>
         </Col>
 
         {/* Advanced Metrics */}
         {chartData?.data?.summary && (
           <Col span={24} style={{ marginTop: 16 }}>
-            <Card
+            <ProCard
+              bordered
+              headerBordered
               title={
                 <Space>
                   <RiseOutlined style={{ color: COLORS.success }} />
@@ -1673,7 +1694,7 @@ const DashboardAdminPage = () => {
                   </Col>
                 ))}
               </Row>
-            </Card>
+            </ProCard>
           </Col>
         )}
       </Row>
