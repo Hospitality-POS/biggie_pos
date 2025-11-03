@@ -318,7 +318,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ visible, onCancel, editingExp
                         <Option value="draft">Draft</Option>
                         <Option value="pending">Pending</Option>
                         <Option value="approved">Approved</Option>
-                        <Option value="paid">Paid</Option>
+                        {/* <Option value="paid">Paid</Option> */}
                         <Option value="rejected">Rejected</Option>
                     </Select>
                 </Form.Item>

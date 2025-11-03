@@ -51,6 +51,9 @@ const ARAgingReport = lazy(() => import("src/AdminDashboard/Accounting/Reports/A
 const APAgingReport = lazy(() => import("src/AdminDashboard/Accounting/Reports/APAgingReport"));
 const TaxSummary = lazy(() => import("src/AdminDashboard/Accounting/Reports/TaxSummary"));
 
+// Wages Module Import
+const WagesList = lazy(() => import("src/AdminDashboard/Accounting/Wages/WageList"));
+
 const Layout = lazy(() => import("@components/layout/Layout"));
 const RestaurantPage = lazy(() => import("@pages/Restaurant/Restuarant"));
 const MainStore = lazy(() => import("@pages/store/MainStore"));
@@ -62,6 +65,7 @@ const Website = lazy(() => import("@pages/Website/website"));
 const PaymentMainSettings = lazy(() => import("@pages/Settings/paymentMethodLevel/payment_main_settings"));
 const UsersMainSettings = lazy(() => import("@pages/Settings/usersLevel/User_main_settings"));
 const InventoryMainSettings = lazy(() => import("@pages/Settings/invetoryLevel/Inventory_main_settings"));
+const MaterialTransferSettings = lazy(() => import("@pages/Settings/invetoryLevel/materialTransferSettings"));
 const SupplierMainSettings = lazy(() => import("@pages/Settings/supplierLevel/supplier_main_settings"));
 const TableMainSettings = lazy(() => import("@pages/Settings/TableLevel/Table_main_settings"));
 const SystemSetup = lazy(() => import("@pages/Settings/systemSetup/SystemSetup"));
@@ -95,7 +99,7 @@ const routes = createBrowserRouter(
                   size="large"
                   fullscreen
                   tip="Getting you tables please wait..."
-                   style={{ color: `${getPrimaryColor()}` }}
+                  style={{ color: `${getPrimaryColor()}` }}
                 />
               }
             >
@@ -111,7 +115,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <StaffLoginPage />
@@ -124,7 +128,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Notification />
@@ -137,7 +141,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -146,13 +150,14 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
+        {/* EXISTING ROUTE: /dashboard/:id - handles URLs like /dashboard/6788b6f04de47867975db879 */}
         <Route
           path="/dashboard/:id"
           errorElement={<NotFound />}
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -161,50 +166,14 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        {/* <Route
-          path="/invoices"
-          errorElement={<NotFound />}
-          element={
-            <Suspense fallback={<NubaLoader />}>
-              <Private>
-                <Invoices />
-              </Private>
-            </Suspense>
-          }
-        // errorElement={<NotFound/>}
-        /> */}
-        <Route
-          path="/payment-callback"
-          errorElement={<NotFound />}
-          element={
-            <Suspense fallback={<NubaLoader />}>
-              <Private>
-                <PaymentCallback />
-              </Private>
-            </Suspense>
-          }
-        // errorElement={<NotFound/>}
-        />
-
-        <Route
-          path="/customers"
-          errorElement={<NotFound />}
-          element={
-            <Suspense fallback={<NubaLoader />}>
-              <Private>
-                <Customer />
-              </Private>
-            </Suspense>
-          }
-        // errorElement={<NotFound/>}
-        />
+        {/* NEW ROUTE ADDED: /store - to fix 404 error for /store without ID */}
         <Route
           path="/store"
           errorElement={<NotFound />}
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -213,88 +182,58 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        {/* <Route
-          path="/users"
-          errorElement={<NotFound />}
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
-              <Private>
-                <UsersMainSettings />
-              </Private>
-            </Suspense>
-          }
-        /> */}
+        {/* EXISTING ROUTE: /store/:id - for store with dynamic ID */}
         <Route
-          path="/reports"
+          path="/store/:id"
           errorElement={<NotFound />}
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
-                <Reports />
+                <MainStore />
               </Private>
             </Suspense>
           }
         />
         <Route
-          path="/suppliers"
+          path="/payment/callback"
           errorElement={<NotFound />}
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
-              <Private>
-                <SupplierMainSettings />
-              </Private>
+              <PaymentCallback />
             </Suspense>
           }
         />
         <Route
-          path="/table-settings"
+          path="/payment-settings"
           errorElement={<NotFound />}
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
-                <TableMainSettings />
+                <PaymentMainSettings />
               </Private>
             </Suspense>
           }
         />
-        <Route
-          path="/category-settings"
-          errorElement={<NotFound />}
-          element={
-            <Suspense
-              fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
-              }
-            >
-              <Private>
-                <CategoryMainSettings />
-              </Private>
-            </Suspense>
-          }
-        />
+        {/* NEW ROUTE ADDED: /payment-methods - to fix 404 error */}
         <Route
           path="/payment-methods"
           errorElement={<NotFound />}
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -309,7 +248,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -319,12 +258,120 @@ const routes = createBrowserRouter(
           }
         />
         <Route
+          path="/users-settings"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <UsersMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/supplier-settings"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <SupplierMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        {/* NEW ROUTE ADDED: /suppliers - to fix 404 error */}
+        <Route
+          path="/suppliers"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <SupplierMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/table-settings"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <TableMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/category-settings"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <CategoryMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        {/* EXISTING ROUTE: /reports */}
+        <Route
+          path="/reports"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <Reports />
+              </Private>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/inventory-settings"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <InventoryMainSettings />
+              </Private>
+            </Suspense>
+          }
+        />
+        {/* NEW ROUTE ADDED: /inventory - to fix 404 error */}
+        <Route
           path="/inventory"
           errorElement={<NotFound />}
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -339,7 +386,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -354,7 +401,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -364,12 +411,28 @@ const routes = createBrowserRouter(
           }
         // errorElement={<NotFound/>}
         />
+        {/* NEW ROUTE ADDED: /customers - to fix 404 error */}
+        <Route
+          path="/customers"
+          errorElement={<NotFound />}
+          element={
+            <Suspense
+              fallback={
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
+              }
+            >
+              <Private>
+                <Customer />
+              </Private>
+            </Suspense>
+          }
+        />
         <Route
           path="/fss-faqs"
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -383,7 +446,7 @@ const routes = createBrowserRouter(
           element={
             <Suspense
               fallback={
-                <Spin size="large" fullscreen  style={{ color: `${getPrimaryColor()}` }} />
+                <Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />
               }
             >
               <Private>
@@ -445,6 +508,9 @@ const routes = createBrowserRouter(
         <Route path="accounting/reports/ar-aging" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ARAgingReport /></AdminRoute></Suspense>} />
         <Route path="accounting/reports/ap-aging" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><APAgingReport /></AdminRoute></Suspense>} />
         <Route path="accounting/reports/tax-summary" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><TaxSummary /></AdminRoute></Suspense>} />
+
+        {/* WAGES MODULE ROUTE */}
+        <Route path="wages" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><WagesList /></AdminRoute></Suspense>} />
 
         {/* OTHER ADMIN ROUTES */}
         <Route path="shop-management" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ShopManagement /></AdminRoute></Suspense>} />

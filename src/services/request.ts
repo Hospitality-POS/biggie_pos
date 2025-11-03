@@ -37,6 +37,8 @@ axiosInstance.interceptors.request.use(
                 config.headers['currentUser'] = userObject._id || userObject.id;
             }
 
+            console.log("Shop ID from localStorage:", shopId, config.url);
+
             if ((shopId && shopId !== 'undefined') && !(config.url?.includes('/users') || config.url?.includes('/shops'))) {
                 if (config.method === 'get') {
                     config.params = {

@@ -311,7 +311,7 @@ export const enableAccounting = async (id: string, data: EnableAccountingData) =
             console.warn("Failed to fetch fresh tenant data after enabling accounting:", fetchError);
         }
 
-        message.success("Accounting module enabled successfully! Chart of accounts has been created.");
+        // message.success("Accounting module enabled successfully! Chart of accounts has been created.");
 
         return response.data;
     } catch (error: any) {
@@ -348,7 +348,7 @@ export const disableAccounting = async (id: string) => {
             console.warn("Failed to fetch fresh tenant data after disabling accounting:", fetchError);
         }
 
-        message.success("Accounting module disabled successfully!");
+        // message.success("Accounting module disabled successfully!");
 
         return response.data;
     } catch (error: any) {
@@ -436,6 +436,136 @@ export const getTenantsWithAccounting = async () => {
         return response.data;
     } catch (error: any) {
         console.error("Failed to get tenants with accounting:", error);
+        throw error;
+    }
+};
+
+// ============================================
+// POS INTEGRATION MODULE FUNCTIONS
+// ============================================
+
+/**
+ * Enable POS Integration
+ */
+export const enablePosIntegration = async (id: string, config?: any) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/enable-pos-integration`,
+            config || {},
+            {
+                headers: getPOSHeaders()
+            }
+        );
+
+        try {
+            const freshTenantData = await fetchTenantDetails(id);
+            if (freshTenantData?.data) {
+                localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
+                window.dispatchEvent(new CustomEvent('tenantUpdated', {
+                    detail: freshTenantData.data
+                }));
+            }
+        } catch (fetchError) {
+            console.warn("Failed to fetch fresh tenant data after enabling POS integration:", fetchError);
+        }
+
+        //  message.success("POS integration enabled successfully!");
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to enable POS integration";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+/**
+ * Disable POS Integration
+ */
+export const disablePosIntegration = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/disable-pos-integration`,
+            {},
+            {
+                headers: getPOSHeaders()
+            }
+        );
+
+        try {
+            const freshTenantData = await fetchTenantDetails(id);
+            if (freshTenantData?.data) {
+                localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
+                window.dispatchEvent(new CustomEvent('tenantUpdated', {
+                    detail: freshTenantData.data
+                }));
+            }
+        } catch (fetchError) {
+            console.warn("Failed to fetch fresh tenant data after disabling POS integration:", fetchError);
+        }
+
+        // message.success("POS integration disabled successfully!");
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to disable POS integration";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+/**
+ * Update POS Integration Configuration
+ */
+export const updatePosIntegrationConfig = async (id: string, config: any) => {
+    try {
+        const response = await axiosInstance.patch(
+            `${tenantUrl}/${id}/pos-integration-config`,
+            config,
+            {
+                headers: getPOSHeaders()
+            }
+        );
+
+        message.success("POS integration configuration updated successfully!");
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to update POS integration configuration";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+/**
+ * Get POS Integration Status
+ */
+export const getPosIntegrationStatus = async (id: string) => {
+    try {
+        const response = await axiosInstance.get(
+            `${tenantUrl}/${id}/pos-integration-status`,
+            {
+                headers: getPOSHeaders()
+            }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error("Failed to get POS integration status:", error);
+        throw error;
+    }
+};
+
+/**
+ * Get Tenants with POS Integration Enabled
+ */
+export const getTenantsWithPosIntegration = async () => {
+    try {
+        const response = await axiosInstance.get(
+            `${tenantUrl}/pos-integration/enabled`,
+            {
+                headers: getPOSHeaders()
+            }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error("Failed to get tenants with POS integration:", error);
         throw error;
     }
 };
