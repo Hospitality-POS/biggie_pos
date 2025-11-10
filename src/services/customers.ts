@@ -52,13 +52,12 @@ export const addNewCustomer = async (params: ParamsType) => {
     throw new Error("Failed to add a new customer", error);
   }
 };
+
 export const staffClockInOut = async (params: ParamsType) => {
   try {
-    // console.log('params', params);
     const response = await axiosInstance.post(categ_url + "/clock-in", {
       ...params,
     });
-    // message.success("Customer visit logged  successfully");
     return response;
   } catch (error) {
     console.log("error", error);
@@ -72,12 +71,107 @@ export const logCustomerVisit = async (params: ParamsType) => {
     const response = await axiosInstance.post(categ_url + "/log-visit", {
       ...params,
     });
-    // message.success("Customer visit logged  successfully");
     return response;
   } catch (error) {
     console.log("error", error);
   }
 };
+
+// Feedback operations
+export const fetchAllFeedback = async (params?: {
+  shop_id?: string;
+  feedback_type?: 'authenticated' | 'anonymous';
+  start_date?: string;
+  end_date?: string;
+}) => {
+  try {
+    const shopId = params?.shop_id || localStorage.getItem("shopId");
+
+    const response = await axiosInstance.get(`${categ_url}/feedback`, {
+      params: {
+        shop_id: shopId,
+        feedback_type: params?.feedback_type,
+        start_date: params?.start_date,
+        end_date: params?.end_date,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.message || "Failed to fetch feedback");
+  }
+};
+
+export const fetchAnonymousFeedback = async (params?: {
+  shop_id?: string;
+  start_date?: string;
+  end_date?: string;
+}) => {
+  try {
+    const shopId = params?.shop_id || localStorage.getItem("shopId");
+
+    const response = await axiosInstance.get(`${categ_url}/feedback`, {
+      params: {
+        shop_id: shopId,
+        feedback_type: 'anonymous',
+        start_date: params?.start_date,
+        end_date: params?.end_date,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.message || "Failed to fetch anonymous feedback");
+  }
+};
+
+export const fetchAuthenticatedFeedback = async (params?: {
+  shop_id?: string;
+  start_date?: string;
+  end_date?: string;
+}) => {
+  try {
+    const shopId = params?.shop_id || localStorage.getItem("shopId");
+
+    const response = await axiosInstance.get(`${categ_url}/feedback`, {
+      params: {
+        shop_id: shopId,
+        feedback_type: 'authenticated',
+        start_date: params?.start_date,
+        end_date: params?.end_date,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.message || "Failed to fetch authenticated feedback");
+  }
+};
+
+export const createAnonymousFeedback = createAsyncThunk(
+  "feedback/createAnonymous",
+  async (feedbackData: {
+    company_code: string;
+    shop_id?: string;
+    rating: number;
+    review?: string;
+    anonymous_customer?: {
+      name?: string;
+      email?: string;
+      phone?: string;
+    };
+  }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(
+        `${categ_url}/feedback/anonymous`,
+        feedbackData
+      );
+      message.success("Thank you for your feedback!");
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to submit feedback";
+      message.error(errorMessage);
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
 
 export const fetchGiftCard = async (data: any) => {
   try {
