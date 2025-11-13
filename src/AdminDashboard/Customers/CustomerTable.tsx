@@ -1,8 +1,6 @@
 // Fix 1: Import redux-thunk properly to handle async actions
 import { useRef, useState, useEffect } from "react";
-import {
-  ProTable,
-} from "@ant-design/pro-components";
+import { ProTable } from "@ant-design/pro-components";
 import { fetchAdminAllCustomers } from "@services/customers";
 import ExpandedRowContent from "./ExpandableCustomer";
 import {
@@ -13,7 +11,7 @@ import {
   EyeOutlined,
   CopyOutlined,
   HistoryOutlined,
-  FilePdfOutlined
+  FilePdfOutlined,
 } from "@ant-design/icons";
 import {
   Tag,
@@ -28,22 +26,23 @@ import {
   Divider,
   Table,
   Tooltip,
-  App // Fix 2: Import App component for message context
+  App, // Fix 2: Import App component for message context
 } from "antd";
 import { useDispatch } from "react-redux";
-import { createGiftCard, sendGiftCard, fetchAllGiftCards } from "@services/customers";
+import {
+  createGiftCard,
+  sendGiftCard,
+  fetchAllGiftCards,
+} from "@services/customers";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Title, Paragraph, Text } = Typography;
 
-
-
-
 const issueGiftCard = (customerId, amount, message) => {
-  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
+  const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
   for (let i = 0; i < 12; i++) {
-    if (i > 0 && i % 4 === 0) code += '-';
+    if (i > 0 && i % 4 === 0) code += "-";
     code += characters.charAt(Math.floor(Math.random() * characters.length));
   }
 
@@ -68,7 +67,8 @@ const AdminCustomersTable = () => {
   const [isGiftCardModalVisible, setIsGiftCardModalVisible] = useState(false);
   const [isPreviewModalVisible, setIsPreviewModalVisible] = useState(false);
   const [isSendEmailModalVisible, setIsSendEmailModalVisible] = useState(false);
-  const [isViewGiftCardsModalVisible, setIsViewGiftCardsModalVisible] = useState(false);
+  const [isViewGiftCardsModalVisible, setIsViewGiftCardsModalVisible] =
+    useState(false);
   const [currentCustomer, setCurrentCustomer] = useState(null);
   const [giftCardForm] = Form.useForm();
   const [emailForm] = Form.useForm();
@@ -97,20 +97,17 @@ const AdminCustomersTable = () => {
     return latestVisit.createdAt;
   };
 
-
-
   const showGiftCardModal = (record) => {
     setCurrentCustomer(record);
     const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
     giftCardForm.resetFields();
     giftCardForm.setFieldsValue({
-      message: defaultMessage
+      message: defaultMessage,
     });
     setIsGiftCardModalVisible(true);
   };
 
   const showGiftCardsHistory = async (record) => {
-
     setCurrentCustomer(record);
     setIsViewGiftCardsModalVisible(true);
     setLoadingGiftCards(true);
@@ -134,9 +131,10 @@ const AdminCustomersTable = () => {
       const values = await giftCardForm.validateFields();
 
       const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
-      const cardMessage = (values.message === undefined || values.message === null)
-        ? defaultMessage
-        : values.message;
+      const cardMessage =
+        values.message === undefined || values.message === null
+          ? defaultMessage
+          : values.message;
 
       const giftCard = issueGiftCard(
         currentCustomer._id,
@@ -175,7 +173,7 @@ const AdminCustomersTable = () => {
         email: values.email,
         giftCard: currentGiftCard,
         customerName: currentCustomer.customer_name,
-        tenant: tenant
+        tenant: tenant,
       };
 
       try {
@@ -186,7 +184,7 @@ const AdminCustomersTable = () => {
         setIsSendEmailModalVisible(false);
         setIsPreviewModalVisible(false);
 
-        setCustomerGiftCards(prev => [...prev, currentGiftCard]);
+        setCustomerGiftCards((prev) => [...prev, currentGiftCard]);
 
         // Reset form fields if needed
         emailForm.resetFields();
@@ -197,10 +195,11 @@ const AdminCustomersTable = () => {
     } catch (error) {
       console.error("Email form validation failed:", error);
     }
-  }
+  };
 
   const copyGiftCardCode = (code) => {
-    navigator.clipboard.writeText(code)
+    navigator.clipboard
+      .writeText(code)
       .then(() => {
         messageApi.success("Gift card code copied to clipboard");
       })
@@ -237,11 +236,13 @@ const AdminCustomersTable = () => {
         document.body.innerHTML = originalContent;
         document.body.style.cssText = originalBodyStyle;
         setSavingPDF(false);
-        messageApi.success('Print dialog opened. Save as PDF in your browser print options.');
+        messageApi.success(
+          "Print dialog opened. Save as PDF in your browser print options."
+        );
       }, 500);
     } catch (error) {
-      console.error('Error printing gift card:', error);
-      messageApi.error('Failed to print gift card');
+      console.error("Error printing gift card:", error);
+      messageApi.error("Failed to print gift card");
       setSavingPDF(false);
     }
   };
@@ -287,22 +288,18 @@ const AdminCustomersTable = () => {
       dataIndex: "status",
       key: "status",
       render: (status) => {
-        let color = 'red';
-        let displayText = 'Inactive';
+        let color = "red";
+        let displayText = "Inactive";
 
         if (status === true) {
-          color = 'green';
-          displayText = 'Active';
+          color = "green";
+          displayText = "Active";
         } else if (status === false) {
-          color = 'red';
-          displayText = 'Inactive';
+          color = "red";
+          displayText = "Inactive";
         }
 
-        return (
-          <Tag color={color}>
-            {displayText}
-          </Tag>
-        );
+        return <Tag color={color}>{displayText}</Tag>;
       },
     },
     {
@@ -455,15 +452,11 @@ const AdminCustomersTable = () => {
           labelWidth: "auto",
         }}
         headerTitle="List of All Customers"
-        tableAlertRender={({ selectedRowKeys }) => (
-          <p>You have selected {selectedRowKeys.length} items</p>
-        )}
         expandable={{
           expandedRowRender: (record) => <ExpandedRowContent record={record} />,
         }}
         options={{ fullScreen: true }}
         scroll={{ x: "100%" }}
-        rowSelection={{ alwaysShowAlert: false }}
       />
 
       <Modal
@@ -476,7 +469,9 @@ const AdminCustomersTable = () => {
           <Form.Item
             name="amount"
             label="Gift Card Amount"
-            rules={[{ required: true, message: "Please enter the gift card amount" }]}
+            rules={[
+              { required: true, message: "Please enter the gift card amount" },
+            ]}
           >
             <InputNumber
               min={1}
@@ -537,23 +532,43 @@ const AdminCustomersTable = () => {
             style={{
               background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor} 100%)`,
               color: "white",
-              borderRadius: "8px"
+              borderRadius: "8px",
             }}
           >
             <div style={{ padding: "16px", textAlign: "center" }}>
-              <GiftOutlined style={{ fontSize: "32px", marginBottom: "16px" }} />
+              <GiftOutlined
+                style={{ fontSize: "32px", marginBottom: "16px" }}
+              />
               <Title level={3} style={{ color: "white", margin: "8px 0" }}>
                 {clientName} Gift Card
               </Title>
-              <Divider style={{ background: "rgba(255,255,255,0.2)", margin: "12px 0" }} />
+              <Divider
+                style={{
+                  background: "rgba(255,255,255,0.2)",
+                  margin: "12px 0",
+                }}
+              />
               <Title level={4} style={{ color: "white" }}>
                 ksh {currentGiftCard.amount}
               </Title>
               <Paragraph style={{ color: "rgba(255,255,255,0.8)" }}>
-                {currentGiftCard.message || `Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
+                {currentGiftCard.message ||
+                  `Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
               </Paragraph>
-              <Divider style={{ background: "rgba(255,255,255,0.2)", margin: "12px 0" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", flexDirection: "column", gap: "8px" }}>
+              <Divider
+                style={{
+                  background: "rgba(255,255,255,0.2)",
+                  margin: "12px 0",
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  flexDirection: "column",
+                  gap: "8px",
+                }}
+              >
                 <Text style={{ color: "rgba(255,255,255,0.8)" }}>
                   Code: {currentGiftCard.code}
                 </Text>
@@ -561,7 +576,10 @@ const AdminCustomersTable = () => {
                   Card #: {currentGiftCard.id || currentGiftCard.card_no}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.8)" }}>
-                  Expires: {new Date(currentGiftCard.expiryDate || currentGiftCard.expiry_date).toLocaleDateString()}
+                  Expires:{" "}
+                  {new Date(
+                    currentGiftCard.expiryDate || currentGiftCard.expiry_date
+                  ).toLocaleDateString()}
                 </Text>
               </div>
             </div>
@@ -581,7 +599,7 @@ const AdminCustomersTable = () => {
             label="Recipient Email"
             rules={[
               { required: true, message: "Please enter the recipient's email" },
-              { type: "email", message: "Please enter a valid email" }
+              { type: "email", message: "Please enter a valid email" },
             ]}
           >
             <Input placeholder="Enter email address" />
@@ -594,9 +612,9 @@ const AdminCustomersTable = () => {
                   min={1}
                   value={currentGiftCard.amount}
                   onChange={(value) => {
-                    setCurrentGiftCard(prev => ({
+                    setCurrentGiftCard((prev) => ({
                       ...prev,
-                      amount: value
+                      amount: value,
                     }));
                   }}
                   prefix="ksh"
@@ -612,7 +630,7 @@ const AdminCustomersTable = () => {
                     <Tooltip title="Copy Code">
                       <CopyOutlined
                         onClick={() => copyGiftCardCode(currentGiftCard.code)}
-                        style={{ cursor: 'pointer' }}
+                        style={{ cursor: "pointer" }}
                       />
                     </Tooltip>
                   }
@@ -622,11 +640,16 @@ const AdminCustomersTable = () => {
               <Form.Item label="Message">
                 <Input.TextArea
                   rows={3}
-                  value={currentGiftCard.message || `Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
+                  value={
+                    currentGiftCard.message ||
+                    `Welcome to ${clientName}! We're delighted to have you as our valued customer.`
+                  }
                   onChange={(e) => {
-                    setCurrentGiftCard(prev => ({
+                    setCurrentGiftCard((prev) => ({
                       ...prev,
-                      message: e.target.value || `Welcome to ${clientName}! We're delighted to have you as our valued customer.`
+                      message:
+                        e.target.value ||
+                        `Welcome to ${clientName}! We're delighted to have you as our valued customer.`,
                     }));
                   }}
                 />
@@ -635,7 +658,8 @@ const AdminCustomersTable = () => {
           )}
 
           <Paragraph type="secondary">
-            The gift card will be sent to this email address along with instructions on how to redeem it.
+            The gift card will be sent to this email address along with
+            instructions on how to redeem it.
           </Paragraph>
         </Form>
       </Modal>
@@ -645,7 +669,10 @@ const AdminCustomersTable = () => {
         open={isViewGiftCardsModalVisible} // Fix 10: Change visible to open
         onCancel={() => setIsViewGiftCardsModalVisible(false)}
         footer={[
-          <Button key="close" onClick={() => setIsViewGiftCardsModalVisible(false)}>
+          <Button
+            key="close"
+            onClick={() => setIsViewGiftCardsModalVisible(false)}
+          >
             Close
           </Button>,
           <Button
