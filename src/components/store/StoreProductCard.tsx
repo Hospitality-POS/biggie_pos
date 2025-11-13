@@ -1,7 +1,6 @@
 import React, {  } from "react";
 import CircleIcon from "@mui/icons-material/Circle";
 import EditProductModal from "./EditProductModal";
-// import { deleteProduct } from "../../features/Product/ProductAction";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { Card, Typography } from "antd";
 import { DeleteFilled } from "@ant-design/icons";
