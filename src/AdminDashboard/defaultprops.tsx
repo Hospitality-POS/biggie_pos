@@ -3,7 +3,6 @@ import {
   CompassOutlined,
   ContactsOutlined,
   GlobalOutlined,
-  MoneyCollectOutlined,
   ReconciliationOutlined,
   SettingOutlined,
   ShopOutlined,
@@ -163,11 +162,6 @@ const useProLayoutNav = () => {
           path: "/admin/reports",
           name: "Business Reports",
           icon: <ReconciliationOutlined />,
-        },
-        {
-          path: "/admin/billing",
-          name: "Billing",
-          icon: <MoneyCollectOutlined />,
         },
         {
           path: "/admin/help-center",
