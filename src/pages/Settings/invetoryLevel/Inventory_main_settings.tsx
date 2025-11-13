@@ -6,11 +6,13 @@ import {
   ShopOutlined,
   TruckOutlined,
   FileTextOutlined,
+  SwapOutlined,
 } from "@ant-design/icons";
 import InventorySettings from "./InventorySettings";
 import DeliverySettings from "./DeliverySettings";
 import UomSettings from "./UomSettings";
 import PurchaseOrderSettings from "./purchaseOrders/PurchaseOrderSettings";
+import MaterialTransferSettings from "./materialTransferSettings";
 import { useSearchParams } from "react-router-dom";
 import { useMemo } from "react";
 
@@ -44,7 +46,7 @@ function InventoryMainSettings() {
         key: "inventory",
         label: (
           <span>
-            <ShopOutlined  style={{ color: "#52c41a" }} />
+            <ShopOutlined style={{ color: "#52c41a" }} />
             <span>Inventory</span>
           </span>
         ),
@@ -54,17 +56,27 @@ function InventoryMainSettings() {
         key: "purchase-orders",
         label: (
           <span>
-            <FileTextOutlined  style={{ color: "#722ed1" }}/>
+            <FileTextOutlined style={{ color: "#722ed1" }} />
             <span>Purchase Orders</span>
           </span>
         ),
         children: <PurchaseOrderSettings />,
       },
       {
+        key: "material-transfers",
+        label: (
+          <span>
+            <SwapOutlined style={{ color: "#fa8c16" }} />
+            <span>Material Transfers</span>
+          </span>
+        ),
+        children: <MaterialTransferSettings />,
+      },
+      {
         key: "delivery",
         label: (
           <span>
-            <TruckOutlined  style={{ color: "#1890ff" }}/>
+            <TruckOutlined style={{ color: "#1890ff" }} />
             <span>Delivery</span>
           </span>
         ),

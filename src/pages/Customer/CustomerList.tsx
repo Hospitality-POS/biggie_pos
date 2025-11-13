@@ -1,10 +1,18 @@
 import React from "react";
 import { ProCard } from "@ant-design/pro-components";
-import { FileDoneOutlined, PrinterFilled, GiftOutlined } from "@ant-design/icons";
+import {
+    FileDoneOutlined,
+    PrinterFilled,
+    GiftOutlined,
+    MessageOutlined,
+    CalendarOutlined
+} from "@ant-design/icons";
 import { Space, Typography } from "antd";
 import CustomerTable from "./CustomerTable";
 import Schedule from "../staff/schedule";
 import AdminCustomersTable from "./CustomerTable";
+import FeedbackTable from "./FeedbackTable";
+import ConsultationTable from "./ConsultationTable";
 
 const { Title } = Typography;
 
@@ -42,11 +50,33 @@ function Customers() {
                 tab={
                     <Space>
                         <FileDoneOutlined style={{ color: "#52c41a", fontSize: "18px" }} />
-                        <Typography.Text> Booking Schedule</Typography.Text>
+                        <Typography.Text>Booking Schedule</Typography.Text>
                     </Space>
                 }
             >
                 <Schedule />
+            </ProCard.TabPane>
+            <ProCard.TabPane
+                key="consultations"
+                tab={
+                    <Space>
+                        <CalendarOutlined style={{ color: "#722ed1", fontSize: "18px" }} />
+                        <Typography.Text>Consultations</Typography.Text>
+                    </Space>
+                }
+            >
+                <ConsultationTable />
+            </ProCard.TabPane>
+            <ProCard.TabPane
+                key="feedback"
+                tab={
+                    <Space>
+                        <MessageOutlined style={{ color: "#1890ff", fontSize: "18px" }} />
+                        <Typography.Text>Customer Feedback</Typography.Text>
+                    </Space>
+                }
+            >
+                <FeedbackTable />
             </ProCard.TabPane>
             <ProCard.TabPane
                 key="giftCards"
