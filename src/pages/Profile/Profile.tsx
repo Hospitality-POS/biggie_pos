@@ -1,18 +1,16 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   UserOutlined,
   MailOutlined,
   PhoneOutlined,
   IdcardOutlined,
   CalendarOutlined,
-  EditOutlined,
   LockOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
 } from "@ant-design/icons";
-import { ActionType, PageContainer } from "@ant-design/pro-components";
+import { ActionType, PageContainer, ProCard } from "@ant-design/pro-components";
 import {
-  Card,
   Avatar,
   Tag,
   Descriptions,
@@ -72,11 +70,11 @@ function Profile() {
   if (!userDetails) {
     return (
       <PageContainer
-        title="Profile Details"
+        title={<><UserOutlined /> Profile Details</>}
         content="Review and manage your personal information"
         style={{ padding: "24px" }}
       >
-        <Card>
+        <ProCard>
           <Row gutter={[16, 16]} align="middle">
             <Col span={24}>
               {isLoading ? (
@@ -90,18 +88,18 @@ function Profile() {
               )}
             </Col>
           </Row>
-        </Card>
+        </ProCard>
       </PageContainer>
     );
   }
 
   return (
     <PageContainer
-      title="Profile Details"
+      title={<><UserOutlined /> Profile Details</>}
       content="Review and manage your personal information"
       style={{ padding: "24px" }}
     >
-      <Card>
+      <ProCard>
         <Row gutter={[16, 16]} align="middle">
           <Col
             xs={24}
@@ -222,7 +220,7 @@ function Profile() {
             {new Date(userDetails.updatedAt).toLocaleString()}
           </Descriptions.Item>
         </Descriptions>
-      </Card>
+      </ProCard>
     </PageContainer>
   );
 }
