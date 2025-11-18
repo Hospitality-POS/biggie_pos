@@ -12,9 +12,9 @@ import InventorySettings from "./InventorySettings";
 import DeliverySettings from "./DeliverySettings";
 import UomSettings from "./UomSettings";
 import PurchaseOrderSettings from "./purchaseOrders/PurchaseOrderSettings";
-import MaterialTransferSettings from "./materialTransferSettings";
 import { useSearchParams } from "react-router-dom";
 import { useMemo } from "react";
+import MaterialTransferSettings from "./MaterialTransferSettings";
 
 const { Title } = Typography;
 
