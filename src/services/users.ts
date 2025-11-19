@@ -79,8 +79,6 @@ export const verifyCompanyCode = async (data: ParamsType) => {
 
     const response = await axiosInstance.post(url, requestBody);
 
-    console.log('oooh ', response);
-
     return response.data.data;
   } catch (error: any) {
     throw new Error(error?.message || "Failed to verify company code.");

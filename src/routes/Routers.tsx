@@ -65,7 +65,6 @@ const Website = lazy(() => import("@pages/Website/website"));
 const PaymentMainSettings = lazy(() => import("@pages/Settings/paymentMethodLevel/payment_main_settings"));
 const UsersMainSettings = lazy(() => import("@pages/Settings/usersLevel/User_main_settings"));
 const InventoryMainSettings = lazy(() => import("@pages/Settings/invetoryLevel/Inventory_main_settings"));
-const MaterialTransferSettings = lazy(() => import("@pages/Settings/invetoryLevel/materialTransferSettings"));
 const SupplierMainSettings = lazy(() => import("@pages/Settings/supplierLevel/supplier_main_settings"));
 const TableMainSettings = lazy(() => import("@pages/Settings/TableLevel/Table_main_settings"));
 const SystemSetup = lazy(() => import("@pages/Settings/systemSetup/SystemSetup"));

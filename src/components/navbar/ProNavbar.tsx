@@ -14,7 +14,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { logoutUser } from "@features/Auth/AuthActions";
 import { reset } from "@features/Auth/AuthSlice";
-import { Avatar, Flex, Image, Space } from "antd";
+import { Avatar, Image, Space } from "antd";
 import useProLayoutNav from "./defaultprops";
 import StaffModal from "@components/staffCard/LoginModal";
 import { useEffect, useState } from "react";

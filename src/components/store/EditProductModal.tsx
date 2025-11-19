@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Box,
   Button,
   Dialog,
   DialogActions,
@@ -14,15 +13,12 @@ import {
   InputLabel,
   FormControl,
   Grid,
-  Typography,
   Alert,
   InputAdornment,
 } from "@mui/material";
 import { CloseRounded } from "@mui/icons-material";
 import { useForm, Controller } from "react-hook-form";
-import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
-import { useDispatch } from "react-redux";
 import { updateProduct } from "../../features/Product/ProductAction";
 import DnsIcon from "@mui/icons-material/Dns";
 import CategoryIcon from "@mui/icons-material/Category";

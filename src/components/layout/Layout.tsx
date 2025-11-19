@@ -13,8 +13,11 @@ import { useAppSelector } from "src/store";
 import AdminDashboard from "src/AdminDashboard/AdminDashboardLayout";
 import { useQuery } from "@tanstack/react-query";
 import { fetchShop } from "@services/shops";
+import SubscriptionGuard from "./SubscriptionGuard";
 
 const { Text } = Typography;
+
+
 
 function Layout() {
   const { user } = useAppSelector((state) => state.auth);
@@ -119,7 +122,11 @@ function Layout() {
     }
   };
 
-  return renderLayoutForRole(user?.role || "guest");
+  return (
+    <SubscriptionGuard>
+      {renderLayoutForRole(user?.role || "guest")}
+    </SubscriptionGuard>
+  );
 }
 
 export default Layout;

@@ -49,6 +49,19 @@ export const Private: React.FC<{ children: React.ReactNode }> = ({
 export const AdminRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  // Check subscription status before admin access
+  try {
+    const tenantData = localStorage.getItem("tenant");
+    if (tenantData) {
+      const tenant = JSON.parse(tenantData);
+      if (tenant.subscription_status === "suspended") {
+        return <Navigate to="/billing" replace />;
+      }
+    }
+  } catch (error) {
+    console.error("Error checking subscription status:", error);
+  }
+
   return <ProtectedRoute requireAdmin>{children}</ProtectedRoute>;
 };
 

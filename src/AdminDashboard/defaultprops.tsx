@@ -3,7 +3,6 @@ import {
   CompassOutlined,
   ContactsOutlined,
   GlobalOutlined,
-  MoneyCollectOutlined,
   ReconciliationOutlined,
   SettingOutlined,
   ShopOutlined,
@@ -20,9 +19,9 @@ import {
   FundOutlined,
   TransactionOutlined,
   FileProtectOutlined,
-  WalletOutlined
+  WalletOutlined,
+  MoneyCollectOutlined
 } from "@ant-design/icons";
-import { PaymentOutlined } from "@mui/icons-material";
 import { useLocation } from "react-router-dom";
 
 const useProLayoutNav = () => {
@@ -371,13 +370,13 @@ const useProLayoutNav = () => {
     // ========== COMMON FEATURES (Always visible) ==========
 
     // Billing - Show if user has any module access
-    if (hasAccountingAccess || hasPosAccess) {
-      routes.push({
-        path: "/admin/billing",
-        name: "Billing",
-        icon: <MoneyCollectOutlined />,
-      });
-    }
+    // if (hasAccountingAccess || hasPosAccess) {
+    //   routes.push({
+    //     path: "/admin/billing",
+    //     name: "Billing",
+    //     icon: <MoneyCollectOutlined />,
+    //   });
+    // }
 
     // Help Center
     routes.push({
@@ -387,18 +386,18 @@ const useProLayoutNav = () => {
     });
 
     // Discover (for enabling/managing modules)
-    routes.push({
-      path: "/admin/discover",
-      name: "Discover",
-      icon: <GlobalOutlined />,
-    });
+    // routes.push({
+    //   path: "/admin/discover",
+    //   name: "Discover",
+    //   icon: <GlobalOutlined />,
+    // });
 
     // Settings
-    routes.push({
-      path: "/admin/settings",
-      name: "Settings",
-      icon: <SettingOutlined />,
-    });
+    // routes.push({
+    //   path: "/admin/settings",
+    //   name: "Settings",
+    //   icon: <SettingOutlined />,
+    // });
 
     return routes;
   };

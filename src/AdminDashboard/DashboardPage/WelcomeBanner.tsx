@@ -1,7 +1,9 @@
 import React from "react";
 import { Button } from "antd";
+import { useNavigate } from "react-router-dom";
 
 const WelcomeBanner = () => {
+  const navigate = useNavigate();
   const bannerStyle = {
     width: "100%",
     borderRadius: "16px",
@@ -76,6 +78,7 @@ const WelcomeBanner = () => {
         </p>
         <Button
           type="primary"
+          onClick={()=> navigate("/admin/shop-management")}
           style={{
             width: "fit-content",
             border: "none",

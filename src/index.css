@@ -1,23 +1,36 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+
 /* Primary color variable - will be overridden by JavaScript */
 :root {
   --primary-color: #6c1c2c;
+  --font-poppins: "Poppins", sans-serif !important;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* Apply Poppins to all text elements */
+body,
+body *,
+body *::before,
+body *::after {
+  font-family: var(--font-poppins) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-family: var(--font-poppins) !important;
 }
 
 .staff-section {
-  font-family: 'Lato', sans-serif;
   min-height: 100vh;
   margin-top: -10px;
-  background-color: #F0F1F7;
+  background-color: #f0f1f7;
 }
 
 .cards {
@@ -34,7 +47,7 @@ body {
   }
 }
 
-.ant-table-thead>tr>th {
+.ant-table-thead > tr > th {
   color: white !important;
   background-color: var(--primary-color) !important;
 }
