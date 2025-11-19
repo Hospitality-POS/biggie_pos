@@ -306,7 +306,7 @@ const AdminDashboard: React.FC = () => {
             <Image
               src={tenant.tenant_logo.url}
               height={60}
-              preview={true}
+              preview={false}
               alt="tenant-logo"
               style={{
                 padding: 5,
@@ -319,7 +319,7 @@ const AdminDashboard: React.FC = () => {
               src="/relia.png"
               height={55}
               width={120}
-              preview={true}
+              preview={false}
               alt="relia-logo"
               style={{ padding: 12 }}
             />
@@ -330,9 +330,9 @@ const AdminDashboard: React.FC = () => {
         navTheme="light"
         colorPrimary={primaryColor}
         contentStyle={{ padding: 0, margin: "0 auto" }}
-        layout="top"
-        splitMenus={false}
-        fixedHeader={true}
+        layout="mix"
+        splitMenus={true}
+        fixedHeader={false}
         {...navRoutes}
         avatarProps={{
           src:
@@ -591,18 +591,49 @@ const AdminDashboard: React.FC = () => {
                           src={user?.avatar || user?.thumbnail}
                           alt={user?.email}
                           size={32}
+                          style={{
+                            border: "2px solid rgba(255, 255, 255, 0.3)",
+                            boxShadow: "0 1px 4px rgba(0, 0, 0, 0.15)",
+                          }}
                           icon={<UserOutlined />}
                         />
                       </Badge>
-                      <div style={{ textAlign: "left", lineHeight: 1.2 }}>
-                        <Text strong style={{ color: "white", fontSize: 14 }}>
+                      <div
+                        style={{
+                          textAlign: "left",
+                          lineHeight: 1.2,
+                          minWidth: 0,
+                          flex: 1,
+                        }}
+                      >
+                        <Text
+                          strong
+                          style={{
+                            color: "white",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
+                            display: "block",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: 100,
+                          }}
+                        >
                           {user?.name || "User"}
                         </Text>
-                        <br />
+
                         <Text
                           style={{
                             color: "rgba(255, 255, 255, 0.8)",
                             fontSize: 11,
+                            fontWeight: 400,
+                            textShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
+                            display: "block",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: 100,
                           }}
                         >
                           {user?.role || "Role"}
@@ -635,8 +666,8 @@ const AdminDashboard: React.FC = () => {
           header: {
             colorBgMenuItemSelected: "#f6ffed",
             colorBgHeader: primaryColor,
-            colorTextMenu: "#ffff",
-            colorTextMenuSecondary: "#f6ffed",
+            colorTextMenu: "#c5bfbfff",
+            colorTextMenuSecondary: "#595959",
             colorBgMenuItemHover: "#f6ffed",
           },
         }}
@@ -644,14 +675,14 @@ const AdminDashboard: React.FC = () => {
           <div
             id="customize_menu_header"
             style={{
-              height: "32px",
+              height: "0px",
               display: "flex",
               alignItems: "center",
               rowGap: 8,
             }}
           >
             {logo}
-            {title}
+            {/* {title} */}
           </div>
         )}
         menuItemRender={(item, dom) => {
