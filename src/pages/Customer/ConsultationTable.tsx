@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from "react";
-import { ProTable } from "@ant-design/pro-components";
-import { Tag, Space, Typography, DatePicker, Select, Tooltip, Button, Modal, Form, Input } from "antd";
 import {
-    UserOutlined,
-    ClockCircleOutlined,
     CheckCircleOutlined,
+    ClockCircleOutlined,
     CloseCircleOutlined,
-    ExclamationCircleOutlined
+    ExclamationCircleOutlined,
+    UserOutlined
 } from "@ant-design/icons";
+import { ProTable } from "@ant-design/pro-components";
 import {
     fetchAllConsultations,
     updateConsultationStatus
 } from "@services/consultation";
+import { Button, DatePicker, Form, Input, Modal, Select, Space, Tag, Tooltip, Typography } from "antd";
 import dayjs from "dayjs";
+import React, { useEffect, useState } from "react";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
