@@ -9,6 +9,7 @@ import {
   CloseCircleOutlined,
   LoadingOutlined,
   UploadOutlined,
+  TagOutlined,
 } from "@ant-design/icons";
 import { PageContainer, ProCard } from "@ant-design/pro-components";
 import {
@@ -180,6 +181,7 @@ function TenantSettings() {
           typeof tenant.subscription_id === "object"
             ? tenant.subscription_id._id
             : tenant.subscription_id,
+        vat_standard_rate: tenant.vat_standard_rate,  
       });
 
       if (tenant.color_scheme) {
@@ -581,6 +583,30 @@ function TenantSettings() {
                         />
                       </Form.Item>
                     </Col>
+
+                        {/* VAT standard rate config */}
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          name="vat_standard_rate"
+                          label="VAT Standard Rate"
+                          rules={[
+                            { required: true, message: 'Please enter VAT rate' },
+                          ]}
+                          >
+                            <Input
+                              prefix={<TagOutlined />}
+                              placeholder="Enter VAT rate (e.g., 0.16 for 16%)"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="1"
+                            />
+                          </Form.Item>
+
+                      </Col>
+                        
+
+
                     {/* <Col xs={24} md={12}>
                                             <Form.Item
                                                 label="Subscription Plan ID"
