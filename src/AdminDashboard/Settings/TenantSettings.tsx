@@ -12,7 +12,25 @@ import {
   TagOutlined,
 } from "@ant-design/icons";
 import { PageContainer, ProCard } from "@ant-design/pro-components";
+import { PageContainer, ProCard } from "@ant-design/pro-components";
 import {
+  Row,
+  Col,
+  Form,
+  Input,
+  Button,
+  Upload,
+  ColorPicker,
+  Space,
+  Typography,
+  Avatar,
+  Tag,
+  Divider,
+  Skeleton,
+  Result,
+  message,
+  Select,
+  Tabs,
   Row,
   Col,
   Form,
@@ -37,6 +55,9 @@ import {
   fetchTenantDetails,
   updateTenant,
   getCurrentTenantId,
+  fetchTenantDetails,
+  updateTenant,
+  getCurrentTenantId,
 } from "@services/tenants";
 
 const { Title, Text } = Typography;
@@ -44,6 +65,51 @@ const { Option } = Select;
 const { TabPane } = Tabs;
 
 interface TenantData {
+  _id: string;
+  id?: string;
+  name: string;
+  email: string;
+  phone: string;
+  tenant_code: string;
+  subscription_status:
+    | "pending_approval"
+    | "active"
+    | "suspended"
+    | "terminated";
+  subscription_id: {
+    _id: string;
+    name: string;
+    price: number;
+  };
+  business_type: {
+    _id: string;
+    name: string;
+  };
+  business_type_name?: string;
+  subscription_cycle: "Monthly" | "Quarterly" | "Yearly";
+  next_billing_date?: string;
+  db_host?: string;
+  db_password?: string;
+  db_user?: string;
+  db_name?: string;
+  additional_info?: string;
+  business_size?: string;
+  color_scheme?: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    text: string;
+  };
+  primary_color?: string;
+  tenant_logo?: {
+    url: string;
+    filename: string;
+    size: number;
+  };
+  __v?: number;
+  createdAt: string;
+  updatedAt: string;
   _id: string;
   id?: string;
   name: string;
@@ -200,7 +266,41 @@ function TenantSettings() {
       }
     }
   }, [tenantDetails, form, colorForm]);
+      if (tenant.color_scheme) {
+        setColors(tenant.color_scheme);
+        colorForm.setFieldsValue(tenant.color_scheme);
+      } else if (tenant.color_scheme.primary) {
+        const colorScheme = {
+          primary: tenant.color_scheme.primary,
+          secondary: "#dc004e",
+          accent: "#9c27b0",
+          background: "#ffffff",
+          text: "#000000",
+        };
+        setColors(colorScheme);
+        colorForm.setFieldsValue(colorScheme);
+      }
+    }
+  }, [tenantDetails, form, colorForm]);
 
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    if (storedTenant) {
+      try {
+        const tenant = JSON.parse(storedTenant);
+        if (tenant.color_scheme) {
+          setColors(tenant.color_scheme);
+        } else if (tenant.color_scheme.primary) {
+          setColors((prev) => ({
+            ...prev,
+            primary: tenant.color_scheme.primary,
+          }));
+        }
+      } catch (e) {
+        console.warn("Failed to parse stored tenant for colors:", e);
+      }
+    }
+  }, []);
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     if (storedTenant) {
