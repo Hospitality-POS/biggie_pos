@@ -53,9 +53,9 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
       setPreviewImage(data.thumbnail);
       setFileList([
         {
-          uid: '-1',
-          name: 'thumbnail.png',
-          status: 'done',
+          uid: "-1",
+          name: "thumbnail.png",
+          status: "done",
           url: data.thumbnail,
         },
       ]);
@@ -123,15 +123,15 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
 
   // File upload properties
   const beforeUpload = (file: RcFile) => {
-    const isImage = file.type.startsWith('image/');
+    const isImage = file.type.startsWith("image/");
     if (!isImage) {
-      message.error('You can only upload image files!');
+      message.error("You can only upload image files!");
       return false;
     }
 
     const isLt5M = file.size / 1024 / 1024 < 5;
     if (!isLt5M) {
-      message.error('Image must be smaller than 5MB!');
+      message.error("Image must be smaller than 5MB!");
       return false;
     }
 
@@ -140,7 +140,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
     return false; // Prevent auto upload
   };
 
-  const handleChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
+  const handleChange: UploadProps["onChange"] = ({ fileList: newFileList }) => {
     if (newFileList.length > 0 && newFileList[0].originFileObj) {
       // Store the file and update preview
       const file = newFileList[0].originFileObj;
@@ -166,7 +166,9 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
   const HandleOnFinish = async (values) => {
     try {
       const confirmed = await ShowConfirm({
-        title: `Are you sure you want to ${edit ? "update this" : "add new"} Product?`,
+        title: `Are you sure you want to ${
+          edit ? "update this" : "add new"
+        } Product?`,
         position: true,
       });
 
@@ -181,7 +183,10 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           thumbnailFile = fileList[0].originFileObj;
         }
 
-        console.log("Thumbnail file to send:", thumbnailFile ? thumbnailFile.name : "No new file");
+        console.log(
+          "Thumbnail file to send:",
+          thumbnailFile ? thumbnailFile.name : "No new file"
+        );
 
         // Prepare product data
         const productData = {
@@ -314,6 +319,22 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           rules={[{ required: true, message: "Product Price is required" }]}
           placeholder="Enter Product Price"
         />
+
+        {/* vat type */}
+        <ProFormSelect
+          name="vat_type"
+          showSearch
+          width="md"
+          tooltip="VAT Type can be Standard(16%), Zero Rated(0%) or Exempt(0%)"
+          label="VAT Type"
+          rules={[{ required: true, message: "VAT type is required" }]}
+          placeholder="Select VAT type"
+          options={[
+            { label: "Standard", value: "STANDARD" },
+            { label: "Zero Rated", value: "ZERO" },
+            { label: "Exempt", value: "EXEMPT" },
+          ]}
+        />
         <ProFormSwitch
           width="md"
           id="activateInventory"
@@ -323,7 +344,9 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
             {
               validator: (_, value) => {
                 if (value === undefined) {
-                  return Promise.reject("Please select if the product should auto deduct Inventory");
+                  return Promise.reject(
+                    "Please select if the product should auto deduct Inventory"
+                  );
                 }
                 return Promise.resolve();
               },
@@ -384,8 +407,10 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
       </ProForm.Group>
 
       {/* Product Thumbnail Upload Section - Full Width */}
-      <div style={{ padding: '0 24px', marginBottom: '24px' }}>
-        <div style={{ fontWeight: 'bold', marginBottom: '16px' }}>Product Thumbnail</div>
+      <div style={{ padding: "0 24px", marginBottom: "24px" }}>
+        <div style={{ fontWeight: "bold", marginBottom: "16px" }}>
+          Product Thumbnail
+        </div>
         <Upload.Dragger
           fileList={fileList}
           beforeUpload={beforeUpload}
@@ -393,11 +418,11 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           maxCount={1}
           showUploadList={{ showRemoveIcon: true }}
           accept="image/*"
-          style={{ width: '100%' }}
+          style={{ width: "100%" }}
           customRequest={customRequest}
         >
           <p className="ant-upload-drag-icon">
-            <InboxOutlined style={{ fontSize: 48, color: '#40a9ff' }} />
+            <InboxOutlined style={{ fontSize: 48, color: "#40a9ff" }} />
           </p>
           <p className="ant-upload-text">Click or drag file to upload</p>
           <p className="ant-upload-hint">
@@ -406,11 +431,11 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
         </Upload.Dragger>
 
         {previewImage && (
-          <div style={{ marginTop: 16, textAlign: 'center' }}>
+          <div style={{ marginTop: 16, textAlign: "center" }}>
             <img
               src={previewImage}
               alt="Product preview"
-              style={{ maxHeight: 200, maxWidth: '100%', objectFit: 'contain' }}
+              style={{ maxHeight: 200, maxWidth: "100%", objectFit: "contain" }}
             />
           </div>
         )}

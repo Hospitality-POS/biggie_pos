@@ -34,7 +34,9 @@ const CartDrawer: React.FC = () => {
 
   const {
     cartDetails,
-    totalAmount,
+    subtotal,
+    totalVatAmount,
+    grandTotal,
     cartItems: data,
     loading,
   } = useAppSelector((state) => state.cart);
@@ -53,37 +55,17 @@ const CartDrawer: React.FC = () => {
 
   const memoizedData = useMemo(() => data, [data]);
 
-  const totalCartAmount =
-    cartDetails?.items?.length > 0
-      ? cartDetails.items.reduce((acc, item) => acc + item.price, 0)
-      : 0;
-
-  // Function to calculate the final amount after discount
-  const calculateFinalAmount = () => {
-    if (!cartDetails?.discount) {
-      return totalCartAmount.toLocaleString();
-    }
-    if (cartDetails?.discount_type === "percentage") {
-      const totalAmountCheck1 =
-        totalCartAmount - totalCartAmount * (cartDetails?.discount / 100);
-      return totalAmountCheck1.toLocaleString();
-    } else {
-      const totalAmountCheck = totalCartAmount - cartDetails?.discount;
-      return totalAmountCheck.toLocaleString();
-    }
-  };
-
   // Calculate the total discount amount
   const discountAmount = useMemo(() => {
     if (!cartDetails?.discount) {
       return 0;
     }
     if (cartDetails?.discount_type === "percentage") {
-      return totalCartAmount * (cartDetails?.discount / 100);
+      return subtotal * (cartDetails?.discount / 100);
     } else {
       return cartDetails?.discount;
     }
-  }, [totalCartAmount, cartDetails?.discount, cartDetails?.discount_type]);
+  }, [subtotal, cartDetails?.discount, cartDetails?.discount_type]);
 
   const orderNumber = useMemo(
     () => cartDetails?.order_no,
@@ -197,37 +179,57 @@ const CartDrawer: React.FC = () => {
             </Flex>
 
             <Flex gap={16} wrap justify="space-between">
-              {cartDetails?.discount && (
+              {cartDetails?.discount > 0 && discountAmount != null && (
                 <>
                   <Typography.Text strong>
                     Discount: KSH. {discountAmount.toLocaleString()}{" "}
-                    {
-                      <Tag color="green">
-                        {cartDetails?.discount_type === "percentage"
-                          ? `${cartDetails?.discount}% Discount Applied`
-                          : `KSH ${cartDetails?.discount?.toLocaleString()} Discount Applied`}
-                      </Tag>
-                    }
+                    <Tag color="green">
+                      {cartDetails.discount_type === "percentage"
+                        ? `${cartDetails.discount}% Discount Applied`
+                        : `KSH ${cartDetails.discount.toLocaleString()} Discount Applied`}
+                    </Tag>
                   </Typography.Text>
-                  <Typography.Text delete style={{ opacity: 0.7 }}>
-                    Original Amount: KSH. {totalCartAmount.toLocaleString()}
-                  </Typography.Text>
+
+                  {grandTotal != null && (
+                    <Typography.Text delete style={{ opacity: 0.7 }}>
+                      Original Amount: KSH. {grandTotal.toLocaleString()}
+                    </Typography.Text>
+                  )}
                 </>
               )}
             </Flex>
-            <Flex align="center" justify="space-between" gap={16} wrap>
-              <Typography.Text strong style={{ fontSize: "16px" }}>
-                Amount Due: KSH.{" "}
-                {totalAmount ? (
-                  calculateFinalAmount()
-                ) : (
-                  <Typography>Calculating...</Typography>
-                )}
-              </Typography.Text>
-              <Typography.Text strong>
-                Served By: <SmileFilled /> {cartDetails?.created_by?.username}
-              </Typography.Text>
-            </Flex>
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <Flex align="center" justify="space-between">
+                <Typography.Text>Subtotal</Typography.Text>
+                <Typography.Text>
+                  KSH. {subtotal.toLocaleString()}
+                </Typography.Text>
+              </Flex>
+              <Flex align="center" justify="space-between">
+                <Typography.Text>Discount</Typography.Text>
+                <Typography.Text>
+                  - KSH. {discountAmount.toLocaleString()}
+                </Typography.Text>
+              </Flex>
+              <Flex align="center" justify="space-between">
+                <Typography.Text>VAT</Typography.Text>
+                <Typography.Text>KSH. {totalVatAmount}</Typography.Text>
+              </Flex>
+              <Divider style={{ margin: "4px 0" }} />
+              <Flex align="center" justify="space-between">
+                <Typography.Text strong style={{ fontSize: "16px" }}>
+                  Amount Due
+                </Typography.Text>
+                <Typography.Text strong style={{ fontSize: "16px" }}>
+                  KSH. {grandTotal.toLocaleString()}
+                </Typography.Text>
+              </Flex>
+              <Flex align="center" justify="end">
+                <Typography.Text>
+                  Served By: <SmileFilled /> {cartDetails?.created_by?.username}
+                </Typography.Text>
+              </Flex>
+            </Space>
 
             <Space
               style={{
@@ -256,13 +258,11 @@ const CartDrawer: React.FC = () => {
                 <PrintBillSpaModal
                   cartDetails={cartDetails}
                   data={data}
-                  totalAmount={totalAmount}
                 />
               ) : (
                 <PrintBillModal
                   cartDetails={cartDetails}
                   data={data}
-                  totalAmount={totalAmount}
                 />
               )}
             </Space>

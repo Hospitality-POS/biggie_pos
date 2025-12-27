@@ -62,6 +62,7 @@ interface inventory {
     value: number;
     unit: string;
   };
+  vat_type: 'STANDARD' | 'ZERO' | 'EXEMPT';
 }
 
 interface AddInventoryDialogProps {
@@ -269,6 +270,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
               subcategory_id: currentValues.subcategory_id,
               unit_id: currentValues.unit_id,
               desc: currentValues.desc,
+              vat_type: currentValues.vat_type,
             };
             break;
           case 1:
@@ -726,7 +728,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
           <ProCard title="Basic Information" size="small">
             <ProForm.Group>
               <ProFormText
-                width="xl"
+                width="lg"
                 name="name"
                 label="Product Name"
                 rules={[{ required: true, message: "Product name is required" }]}
@@ -737,7 +739,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
               />
 
               <ProFormSelect
-                width="md"
+                width="lg"
                 name="usage_type"
                 label="Usage Type"
                 rules={[{ required: true, message: "Usage type is required" }]}
@@ -754,7 +756,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
               />
 
               <ProFormSelect
-                width="md"
+                width="lg"
                 name="category"
                 label="Category"
                 rules={[{ required: true, message: "Category is required" }]}
@@ -770,7 +772,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
               />
 
               <ProFormSelect
-                width="md"
+                width="lg"
                 name="subcategory_id"
                 label="Sub Category"
                 key={selectedCategory} // ADDED: Force re-render when category changes
@@ -791,14 +793,30 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                 placeholder="Select unit"
                 rules={[{ required: true, message: "Unit is required" }]}
                 request={UnitsRequest}
-                width="md"
+                width="lg"
                 fieldProps={{
                   onChange: handleFieldChange,
                 }}
               />
 
+              {/* vat type */}
+              <ProFormSelect
+                name="vat_type"
+                showSearch
+                width="lg"
+                tooltip="VAT Type can be Standard(16%), Zero Rated(0%) or Exempt(0%)"
+                label="VAT Type"
+                rules={[{ required: true, message: "VAT type is required" }]}
+                placeholder="Select VAT type"
+                options={[
+                  { label: "Standard", value: "STANDARD" },
+                  { label: "Zero Rated", value: "ZERO" },
+                  { label: "Exempt", value: "EXEMPT" },
+                ]}             
+              />
+
               <ProFormTextArea
-                width="xl"
+                width="lg"
                 name="desc"
                 label="Description"
                 placeholder="Enter product description"
