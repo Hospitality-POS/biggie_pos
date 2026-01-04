@@ -68,6 +68,7 @@ export const CalendarHeader = ({
                   type="primary"
                   icon={<PlusOutlined />}
                   onClick={() => handleNewShiftClick(newShiftButtonRef)}
+                  data-testid="addNewShiftBtn"
                 >
                   New Shift
                 </Button>

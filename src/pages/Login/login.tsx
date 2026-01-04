@@ -1,18 +1,18 @@
-import { useEffect, useState } from "react";
-import { Button, Input, Space, Row, Col, Typography } from "antd";
 import {
-    KeyOutlined,
     DeleteOutlined,
-    UsergroupAddOutlined,
-    SwapOutlined,
     EyeInvisibleOutlined, EyeOutlined,
+    KeyOutlined,
+    SwapOutlined,
+    UsergroupAddOutlined
 } from "@ant-design/icons";
-import { useAppDispatch, useAppSelector } from "src/store";
-import { verifyCompanyCode } from "@services/users";
-import { useLogin } from "@components/staffCard/hook/useLogin";
-import { useNavigate } from "react-router-dom";
 import { ProCard } from "@ant-design/pro-components";
+import { useLogin } from "@components/staffCard/hook/useLogin";
 import { useRefreshPrimaryColor } from "@context/PrimaryColorContext";
+import { verifyCompanyCode } from "@services/users";
+import { Button, Col, Input, Row, Space, Typography } from "antd";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "src/store";
 
 const { Text } = Typography;
 
@@ -395,7 +395,8 @@ const StaffLoginPage = () => {
                                         prefix={<KeyOutlined />}
                                         value={pin}
                                         size="large"
-                                        readOnly
+                                        type="password"
+                                        // readOnly
                                         placeholder="••••"
                                         style={{ textAlign: "center", letterSpacing: "0.5em" }}
                                     />

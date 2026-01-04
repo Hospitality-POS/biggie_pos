@@ -1,20 +1,20 @@
 import {
+  ClockCircleOutlined,
   EditOutlined,
   SnippetsOutlined,
   SwitcherOutlined,
-  ClockCircleOutlined,
 } from "@ant-design/icons";
 import {
   ModalForm,
-  ProFormSelect,
   ProFormDependency,
+  ProFormSelect,
 } from "@ant-design/pro-components";
 import { createShift, fetchAllShifts, updateShift } from "@services/shifts";
 import { fetchAllUsersList } from "@services/users";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { Button, Form, Space, message } from "antd";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface EmployeeShiftModalProps {
   actionRef: any;
@@ -224,6 +224,9 @@ const EmployeeShiftModal: React.FC<EmployeeShiftModalProps> = ({
           { label: "Saturday", value: "Saturday" },
           { label: "Sunday", value: "Sunday" },
         ]}
+        fieldProps={{
+          showSearch: true
+        }}
       />
 
       <Space

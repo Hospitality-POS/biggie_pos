@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 .tool-versions
 /.tool-versions
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+/tests/credentials.ts
+.auth*
