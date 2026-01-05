@@ -65,14 +65,26 @@ const RestaurantShiftSchedule = () => {
     networkMode: "always",
   });
 
+
+  const shopId = localStorage.getItem("shopId");
+
   const { data: users } = useQuery({
-    queryKey: ["users"],
-    queryFn: fetchAllUsersList,
+    queryKey: ["users", shopId],
+    enabled: !!shopId,
+    queryFn: () =>
+      fetchAllUsersList({
+        fullname: "",
+        email: "",
+        shop_id: shopId!,
+      }),
     retry: 1,
-    select: (data) => data?.filter((user) => user?.role?.role_type !== "admin") || [],
     refetchInterval: 5000,
     networkMode: "always",
-    staleTime: 0
+    select: (data: any[]) =>
+      data?.filter((user: any) => {
+        const roleType = user.role?.role_type?.toLowerCase();
+        return roleType !== "admin" && roleType !== "cleaner";
+      }) ?? [],
   });
 
   // Delete mutation

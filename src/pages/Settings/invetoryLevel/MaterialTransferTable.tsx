@@ -77,7 +77,13 @@ interface Transfer {
 
 interface TransferItem {
     _id: string;
-    product_id: {
+    from_product_id: {
+        _id: string;
+        name: string;
+        code: string;
+        thumbnail?: string;
+    };
+    to_product_id: {
         _id: string;
         name: string;
         code: string;
@@ -373,30 +379,88 @@ export const MaterialTransferTable: React.FC<MaterialTransferTableProps> = ({
             </Descriptions>
 
             <Divider orientation="left" style={{ margin: "16px 0" }}>
-                Transfer Items ({record.total_items})
+                <Space>
+                    <SwapOutlined />
+                    <span>Transfer Items Mapping ({record.total_items})</span>
+                </Space>
             </Divider>
             <Table
                 dataSource={record.items || []}
                 rowKey="_id"
                 pagination={false}
                 size="small"
+                scroll={{ x: 900 }}
                 columns={[
                     {
-                        title: "Product",
-                        key: "product",
+                        title: "From Product (Source)",
+                        key: "from_product",
+                        width: 280,
                         render: (_: any, item: TransferItem) => (
                             <Space>
-                                {item.product_id?.thumbnail && (
+                                {item.from_product_id?.thumbnail && (
                                     <img
-                                        src={item.product_id.thumbnail}
-                                        alt={item.product_id.name}
-                                        style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4 }}
+                                        src={item.from_product_id.thumbnail}
+                                        alt={item.from_product_id.name}
+                                        style={{
+                                            width: 40,
+                                            height: 40,
+                                            objectFit: "cover",
+                                            borderRadius: 4,
+                                            border: "2px solid #1890ff"
+                                        }}
                                     />
                                 )}
                                 <div>
-                                    <div style={{ fontWeight: 500 }}>{item.product_id?.name || "N/A"}</div>
+                                    <div style={{ fontWeight: 500, color: "#1890ff" }}>
+                                        {item.from_product_id?.name || "N/A"}
+                                    </div>
                                     <Text type="secondary" style={{ fontSize: 12 }}>
-                                        Code: {item.product_id?.code || "N/A"}
+                                        Code: {item.from_product_id?.code || "N/A"}
+                                    </Text>
+                                </div>
+                            </Space>
+                        ),
+                    },
+                    {
+                        title: "",
+                        key: "arrow",
+                        width: 60,
+                        align: "center",
+                        render: () => (
+                            <ArrowRightOutlined
+                                style={{
+                                    fontSize: 16,
+                                    color: "#52c41a",
+                                    fontWeight: "bold"
+                                }}
+                            />
+                        ),
+                    },
+                    {
+                        title: "To Product (Destination)",
+                        key: "to_product",
+                        width: 280,
+                        render: (_: any, item: TransferItem) => (
+                            <Space>
+                                {item.to_product_id?.thumbnail && (
+                                    <img
+                                        src={item.to_product_id.thumbnail}
+                                        alt={item.to_product_id.name}
+                                        style={{
+                                            width: 40,
+                                            height: 40,
+                                            objectFit: "cover",
+                                            borderRadius: 4,
+                                            border: "2px solid #52c41a"
+                                        }}
+                                    />
+                                )}
+                                <div>
+                                    <div style={{ fontWeight: 500, color: "#52c41a" }}>
+                                        {item.to_product_id?.name || "N/A"}
+                                    </div>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                        Code: {item.to_product_id?.code || "N/A"}
                                     </Text>
                                 </div>
                             </Space>
@@ -405,16 +469,19 @@ export const MaterialTransferTable: React.FC<MaterialTransferTableProps> = ({
                     {
                         title: "Quantity",
                         key: "quantity",
+                        width: 120,
+                        align: "center",
                         render: (_: any, item: TransferItem) => (
-                            <span style={{ fontWeight: 500 }}>
+                            <Tag color="purple" style={{ fontSize: 14, fontWeight: "bold" }}>
                                 {item.quantity} {item.unit_id?.name || ""}
-                            </span>
+                            </Tag>
                         ),
                     },
                     {
                         title: "Notes",
                         dataIndex: "notes",
                         key: "notes",
+                        width: 200,
                         render: (notes: string) => notes || "-",
                     },
                 ]}

@@ -5,7 +5,6 @@ import axiosInstance from "./request";
 const inventoryUrl = `${BASE_URL}/product-inventory`;
 const transferUrl = `${BASE_URL}/transfers`;
 
-// Define ParamsType interface
 interface ParamsType {
   _id?: string;
   name: string;
@@ -20,9 +19,9 @@ interface ParamsType {
   [key: string]: any;
 }
 
-// Transfer related interfaces
 interface TransferItem {
-  product_id: string;
+  from_product_id: string;
+  to_product_id: string;
   quantity: number;
   unit_id: string;
   notes?: string;
@@ -57,7 +56,6 @@ interface RejectTransferParams {
   rejection_reason: string;
 }
 
-// Get tenant from localStorage
 const getTenant = () => {
   try {
     const tenantStr = localStorage.getItem('tenant');
@@ -70,11 +68,6 @@ const getTenant = () => {
     return null;
   }
 };
-
-// ==================== INVENTORY METHODS ====================
-
-// Note: axiosInstance automatically adds companyCode header via request interceptor
-// No need for getCommonHeaders() function anymore!
 
 export const fetchAllInventory = async (data: any = {}) => {
   try {
@@ -110,11 +103,9 @@ export const addNewInventory = async (params) => {
     const hasFile = imageFile instanceof File;
 
     if (hasFile) {
-      // Create FormData for file upload
       const formData = new FormData();
       formData.append("thumbnail", imageFile);
 
-      // Add tenant information
       if (tenant) {
         formData.append('tenant', JSON.stringify(tenant));
         if (tenant.tenant_code) {
@@ -122,32 +113,27 @@ export const addNewInventory = async (params) => {
         }
       }
 
-      // Add company code if available
       if (companyCode) {
         formData.append('companyCode', companyCode);
         formData.append('tenant_code', companyCode);
       }
 
-      // Add shop ID if available
       if (shopId && shopId !== "undefined") {
         formData.append("shop_id", shopId);
       }
 
-      // Handle subcategory_id
       if (typeof params.subcategory_id === 'object' && params.subcategory_id?.value) {
         formData.append('subcategory_id', params.subcategory_id.value);
       } else if (params.subcategory_id) {
         formData.append('subcategory_id', params.subcategory_id.toString());
       }
 
-      // Handle unit_id
       if (typeof params.unit_id === 'object' && params.unit_id?.value) {
         formData.append('unit_id', params.unit_id.value);
       } else if (params.unit_id) {
         formData.append('unit_id', params.unit_id.toString());
       }
 
-      // Add all other fields
       const { imageFile: _, subcategory_id: __, unit_id: ___, ...otherParams } = params;
 
       Object.keys(otherParams).forEach(key => {
@@ -160,17 +146,14 @@ export const addNewInventory = async (params) => {
         }
       });
 
-      // Get authentication token
       const token = localStorage.getItem("user")
         ? JSON.parse(localStorage.getItem("user")).Token
         : '';
 
-      // Set request headers (companyCode will be added by axios interceptor)
       const headers = {
         'Authorization': `Bearer ${token}`
       };
 
-      // Make API request using fetch (for FormData)
       const response = await fetch(inventoryUrl, {
         method: 'POST',
         headers: headers,
@@ -187,7 +170,6 @@ export const addNewInventory = async (params) => {
       message.success("Inventory added successfully");
       return data;
     } else {
-      // No file to upload, use axios with JSON
       const subcategory_id = params.subcategory_id?.value || params.subcategory_id;
       const unit_id = params.unit_id?.value || params.unit_id;
 
@@ -203,7 +185,6 @@ export const addNewInventory = async (params) => {
         shop_id: shopId
       };
 
-      // axiosInstance will automatically add companyCode header
       const response = await axiosInstance.post(inventoryUrl, requestBody);
 
       message.success("Inventory added successfully");
@@ -368,16 +349,11 @@ export const fetchInventoryUsageByDateRange = async (startDate: string, endDate:
   }
 };
 
-// ==================== MATERIAL TRANSFER METHODS ====================
-
-/**
- * Create a new material transfer between shops
- */
 export const createTransfer = async (params: CreateTransferParams) => {
   try {
     const response = await axiosInstance.post(`${transferUrl}`, params);
 
-    message.success("Transfer created successfully");
+    //message.success("Transfer created successfully");
     return response.data;
   } catch (error) {
     console.error("Error creating transfer:", error);
@@ -387,9 +363,6 @@ export const createTransfer = async (params: CreateTransferParams) => {
   }
 };
 
-/**
- * Get all transfers with optional filters
- */
 export const fetchAllTransfers = async (filters?: TransferFilters) => {
   try {
     console.log("Fetching transfers with filters:", filters);
@@ -404,9 +377,6 @@ export const fetchAllTransfers = async (filters?: TransferFilters) => {
   }
 };
 
-/**
- * Get a specific transfer by ID
- */
 export const fetchTransferById = async (transferId: string) => {
   try {
     const response = await axiosInstance.get(`${transferUrl}/${transferId}`);
@@ -417,9 +387,6 @@ export const fetchTransferById = async (transferId: string) => {
   }
 };
 
-/**
- * Get pending transfers for a shop (incoming)
- */
 export const fetchPendingTransfers = async (shopId: string) => {
   try {
     const response = await axiosInstance.get(`${transferUrl}/pending/list`, {
@@ -432,9 +399,6 @@ export const fetchPendingTransfers = async (shopId: string) => {
   }
 };
 
-/**
- * Get transfer statistics for a shop
- */
 export const fetchTransferStats = async (shopId: string) => {
   try {
     const response = await axiosInstance.get(`${transferUrl}/stats/summary`, {
@@ -447,9 +411,6 @@ export const fetchTransferStats = async (shopId: string) => {
   }
 };
 
-/**
- * Approve a pending transfer
- */
 export const approveTransfer = async (transferId: string, params?: ApproveTransferParams) => {
   try {
     const response = await axiosInstance.post(
@@ -457,7 +418,7 @@ export const approveTransfer = async (transferId: string, params?: ApproveTransf
       params || {}
     );
 
-    message.success("Transfer approved successfully");
+    // message.success("Transfer approved successfully");
     return response.data;
   } catch (error) {
     console.error("Error approving transfer:", error);
@@ -467,9 +428,6 @@ export const approveTransfer = async (transferId: string, params?: ApproveTransf
   }
 };
 
-/**
- * Complete an in-transit transfer
- */
 export const completeTransfer = async (transferId: string, params?: CompleteTransferParams) => {
   try {
     const response = await axiosInstance.post(
@@ -477,7 +435,7 @@ export const completeTransfer = async (transferId: string, params?: CompleteTran
       params || {}
     );
 
-    message.success("Transfer completed successfully");
+    //message.success("Transfer completed successfully");
     return response.data;
   } catch (error) {
     console.error("Error completing transfer:", error);
@@ -487,9 +445,6 @@ export const completeTransfer = async (transferId: string, params?: CompleteTran
   }
 };
 
-/**
- * Reject a transfer
- */
 export const rejectTransfer = async (transferId: string, params: RejectTransferParams) => {
   try {
     const response = await axiosInstance.post(
@@ -507,9 +462,6 @@ export const rejectTransfer = async (transferId: string, params: RejectTransferP
   }
 };
 
-/**
- * Cancel a pending transfer
- */
 export const cancelTransfer = async (transferId: string) => {
   try {
     const response = await axiosInstance.post(
@@ -527,9 +479,6 @@ export const cancelTransfer = async (transferId: string) => {
   }
 };
 
-/**
- * Get transfers by direction (incoming/outgoing)
- */
 export const fetchTransfersByDirection = async (
   shopId: string,
   direction: 'incoming' | 'outgoing' | 'both',
@@ -552,9 +501,6 @@ export const fetchTransfersByDirection = async (
   }
 };
 
-/**
- * Get transfers by status
- */
 export const fetchTransfersByStatus = async (
   shopId: string,
   status: 'pending' | 'in_transit' | 'completed' | 'cancelled' | 'rejected'
@@ -572,9 +518,6 @@ export const fetchTransfersByStatus = async (
   }
 };
 
-/**
- * Get transfers within a date range
- */
 export const fetchTransfersByDateRange = async (
   shopId: string,
   startDate: string,
