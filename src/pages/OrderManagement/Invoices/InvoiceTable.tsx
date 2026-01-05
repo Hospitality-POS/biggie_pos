@@ -78,7 +78,6 @@ const InvoicesTable = () => {
       render: (_, record) => (
         <Space size="middle">
           <InvoiceReprintModal
-            invoiceData={record}
             invoiceId={record?._id}
             orderNo={record?.order_no}
           />
