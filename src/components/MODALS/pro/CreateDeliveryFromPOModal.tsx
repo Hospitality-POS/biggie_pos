@@ -28,24 +28,47 @@ const { Title, Text } = Typography;
 interface CreateDeliveryFromPOModalProps {
     actionRef: React.MutableRefObject<ActionType | undefined>;
     purchaseOrder: any;
+    open?: boolean; // Add external control
+    onCancel?: () => void; // Add external cancel handler
 }
 
 const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
     actionRef,
-    purchaseOrder
+    purchaseOrder,
+    open: externalOpen,
+    onCancel: externalOnCancel
 }) => {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [form] = Form.useForm();
     const [pendingItems, setPendingItems] = useState<any[]>([]);
     const [deliveryItems, setDeliveryItems] = useState<any[]>([]);
 
+    // Sync external open prop with internal state
+    useEffect(() => {
+        if (externalOpen !== undefined) {
+            setIsModalVisible(externalOpen);
+        }
+    }, [externalOpen]);
+
+    const shopId = localStorage.getItem("shopId");
 
     const { data: users } = useQuery({
-        queryKey: ["users"],
-        queryFn: fetchAllUsersList,
+        queryKey: ["users", shopId],
+        enabled: !!shopId,
+        queryFn: () =>
+            fetchAllUsersList({
+                fullname: "",
+                email: "",
+                shop_id: shopId!,
+            }),
         retry: 1,
         refetchInterval: 5000,
         networkMode: "always",
+        select: (data: any[]) =>
+            data?.filter((user: any) => {
+                const roleType = user.role?.role_type?.toLowerCase();
+                return roleType !== "admin" && roleType !== "cleaner";
+            }) ?? [],
     });
 
 
@@ -57,9 +80,7 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
     const createDeliveryMutation = useMutation(createDeliveryFromPO, {
         onSuccess: () => {
             message.success('Delivery created from purchase order successfully');
-            setIsModalVisible(false);
-            form.resetFields();
-            setDeliveryItems([]);
+            handleCancel();
             actionRef.current?.reload();
         },
         onError: () => {
@@ -69,7 +90,6 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
 
     useEffect(() => {
         if (isModalVisible && purchaseOrder) {
-
             const items = purchaseOrder.po_items?.filter((item: any) =>
                 item.quantity_received < item.quantity_ordered
             ).map((item: any, index: number) => ({
@@ -96,12 +116,16 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
         setIsModalVisible(false);
         form.resetFields();
         setDeliveryItems([]);
+
+        // Call external cancel handler if provided
+        if (externalOnCancel) {
+            externalOnCancel();
+        }
     };
 
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
-
 
             const itemsToDeliver = deliveryItems.filter(item => item.quantity_to_deliver > 0);
 
@@ -109,7 +133,6 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
                 message.warning('Please specify quantities to deliver');
                 return;
             }
-
 
             const itemsWithoutPrice = itemsToDeliver.filter(item => !item.supplier_price || item.supplier_price <= 0);
             if (itemsWithoutPrice.length > 0) {
@@ -221,7 +244,7 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
                     onChange={(value) => updateSupplierPrice(record.key, value || 0)}
                     style={{ width: '100%' }}
                     placeholder="0.00"
-                    formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    formatter={(value) => ` ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                     parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
                 />
             ),
@@ -236,8 +259,12 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
         },
     ];
 
-    return (
-        <>
+    // Only show button if not externally controlled
+    const renderTrigger = () => {
+        if (externalOpen !== undefined) {
+            return null; // No button needed when externally controlled
+        }
+        return (
             <Button
                 type="primary"
                 icon={<TruckOutlined />}
@@ -247,6 +274,12 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
             >
                 Create Delivery
             </Button>
+        );
+    };
+
+    return (
+        <>
+            {renderTrigger()}
 
             <Modal
                 title={
@@ -332,7 +365,7 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
                                     </Text>
                                 </Space>
                                 <Text>
-                                    Total delivery value: ${deliveryItems.reduce((sum, item) => sum + (item.quantity_to_deliver * item.supplier_price), 0).toFixed(2)}
+                                    Total delivery value: {deliveryItems.reduce((sum, item) => sum + (item.quantity_to_deliver * item.supplier_price), 0).toFixed(2)}
                                 </Text>
                             </Space>
                         </Card>
