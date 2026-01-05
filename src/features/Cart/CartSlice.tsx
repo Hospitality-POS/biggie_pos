@@ -44,16 +44,12 @@ interface CartItem {
   productId: string;
   product_id: string;
   quantity: number;
-  price: number;
-  vat_type: "STANDARD" | "ZERO" | "EXEMPT";
 }
 
 interface CartState {
   cartDetails: CartDetails;
   cartItems: CartItem[];
-  subtotal: number;
-  totalVatAmount: number;
-  grandTotal: number;
+  totalAmount: number;
   loading: boolean;
   error: string | null;
   transferState: boolean;
@@ -84,49 +80,10 @@ const initialState: CartState = {
     __v: 0,
   },
   cartItems: [],
-  subtotal: 0,
-  totalVatAmount: 0,
-  grandTotal: 0,
+  totalAmount: 0,
   loading: false,
   error: null,
   transferState: false,
-};
-
-const calculateTotals = (state: CartState) => {
-  const storedTenant = localStorage.getItem("tenant");
-  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-
-  const VAT_RATE = tenant?.vat_standard_rate || 0.16;
-  let subtotal = 0;
-  let totalVatAmount = 0;
-
-  state.cartItems.forEach((item) => {
-    const itemPrice =
-      typeof item.price === "string" ? parseFloat(item.price) : item.price;
-    const lineNet = itemPrice * item.quantity;
-    let lineVat = 0;
-    console.log("item ==============>", item);  
-    if (item?.vat_type === "STANDARD") {
-      lineVat = parseFloat((lineNet * VAT_RATE).toFixed(2));
-    }
-
-    subtotal += lineNet;
-    totalVatAmount += lineVat;
-  });
-
-  let discountAmount = 0;
-  if (state.cartDetails.discount) {
-    discountAmount =
-      state.cartDetails.discount_type === "percentage"
-        ? (subtotal * state.cartDetails.discount) / 100
-        : state.cartDetails.discount;
-  }
-
-  state.subtotal = parseFloat(subtotal.toFixed(2));
-  state.totalVatAmount = parseFloat(totalVatAmount.toFixed(2));
-  state.grandTotal = parseFloat(
-    (subtotal + totalVatAmount - discountAmount).toFixed(2)
-  );
 };
 
 const cartSlice = createSlice({
@@ -148,7 +105,10 @@ const cartSlice = createSlice({
       }
 
       // Recalculate the total amount
-      calculateTotals(state);
+      state.totalAmount = state.cartItems.reduce(
+        (total, item: any) => total + parseFloat(item.price) * item.quantity,
+        0
+      );
     },
     subtractItem(state, action: PayloadAction<CartItem>) {
       // Find the item in the cart
@@ -167,8 +127,11 @@ const cartSlice = createSlice({
           );
         }
 
-        // Recalculate the total amount 
-        calculateTotals(state);
+        // Recalculate the total amount
+        state.totalAmount = state.cartItems.reduce(
+          (total, item: any) => total + parseFloat(item.price) * item.quantity,
+          0
+        );
       }
     },
     removeCartItem(state, action: PayloadAction<string>) {
@@ -176,7 +139,10 @@ const cartSlice = createSlice({
         (item) => item.productId !== action.payload
       );
 
-      calculateTotals(state);
+      state.totalAmount = state.cartItems.reduce(
+        (total, item: any) => total + parseFloat(item.price) * item.quantity,
+        0
+      );
     },
     clearcart(state) {
       state.cartDetails = initialState.cartDetails;
@@ -224,13 +190,18 @@ const cartSlice = createSlice({
         state.cartDetails.clientPin = action.payload.client_pin;
         state.cartDetails.clientName = action.payload.client_name;
 
-        state.cartItems = action.payload.items.map((item: any) => ({
-          ...item,
-          vat_type: item.product_id?.vat_type || "STANDARD",
-        }));
-        state.cartDetails.clientPin = action.payload.client_pin;
-        state.cartDetails.clientName = action.payload.client_name;
-        calculateTotals(state);
+        // Calculate the total amount of all cart items using reduce
+        state.totalAmount = action.payload?.items?.reduce(
+          (total: any, item: any) => total + parseFloat(item?.price),
+          0
+        );
+        if (state.cartDetails.discount_type === "amount") {
+          state.totalAmount -= state.cartDetails.discount;
+        } else if (state.cartDetails.discount_type === "percentage") {
+          const discountAmount =
+            (state.totalAmount * state.cartDetails.discount) / 100;
+          state.totalAmount -= discountAmount;
+        }
       })
       .addCase(getCart.rejected, (state, action) => {
         state.loading = false;
@@ -243,8 +214,11 @@ const cartSlice = createSlice({
       .addCase(fetchCartItems.fulfilled, (state, action) => {
         state.loading = false;
         state.cartItems = action.payload as any;
-
-        calculateTotals(state);
+        // Calculate the total amount of all cart items using reduce
+        state.totalAmount = action.payload.reduce(
+          (total: any, item: any) => total + parseFloat(item.price || 0),
+          0
+        );
       })
       .addCase(fetchCartItems.rejected, (state, action) => {
         state.loading = false;
@@ -275,7 +249,11 @@ const cartSlice = createSlice({
         if (index !== -1) {
           state.cartItems[index] = updatedData;
         }
-        calculateTotals(state);
+        // todo: make this a reducer
+        state.totalAmount = state.cartItems.reduce(
+          (total, item: any) => total + parseFloat(item.price),
+          0
+        );
       })
       .addCase(updateCartItems.rejected, (state, action) => {
         state.loading = false;
@@ -287,8 +265,18 @@ const cartSlice = createSlice({
       })
       .addCase(updateCart.fulfilled, (state, action) => {
         state.loading = false;
-        state.cartDetails = action.payload;
-        calculateTotals(state);
+        state.cartDetails.discount_type = action.payload.discount_type;
+        state.cartDetails.discount = action.payload.discount;
+        state.cartDetails.clientPin = action.payload.client_pin;
+        state.cartDetails.clientName = action.payload.client_name;
+
+        if (state.cartDetails.discount_type === "amount") {
+          state.totalAmount -= state.cartDetails.discount;
+        } else if (state.cartDetails.discount_type === "percentage") {
+          const discountAmount =
+            (state.totalAmount * state.cartDetails.discount) / 100;
+          state.totalAmount -= discountAmount;
+        }
       })
       .addCase(updateCart.rejected, (state, action) => {
         state.loading = false;
@@ -305,7 +293,10 @@ const cartSlice = createSlice({
           state.cartItems.splice(deletedItemIndex, 1);
         }
 
-        calculateTotals(state);
+        state.totalAmount = state.cartItems.reduce(
+          (total, item: any) => total + parseFloat(item.price),
+          0
+        );
       })
       .addCase(deleteCartItem.rejected, (state, action) => {
         state.error = action.error as string;
@@ -317,7 +308,7 @@ const cartSlice = createSlice({
       .addCase(deleteAllCartItems.fulfilled, (state) => {
         state.loading = false;
         state.cartItems = [];
-        calculateTotals(state);
+        state.totalAmount = 0;
       })
       .addCase(deleteAllCartItems.rejected, (state, action) => {
         state.loading = false;
@@ -365,7 +356,6 @@ const cartSlice = createSlice({
           console.log("Some cart items may not exist. Cart not emptied.");
         }
 
-        calculateTotals(state);
         console.log("from cartslice transferCartitemsAction", action.payload);
       })
       .addCase(transferCartitemsAction.pending, (state) => {
