@@ -96,36 +96,69 @@ const calculateTotals = (state: CartState) => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
-  const VAT_RATE = tenant?.vat_standard_rate || 0.16;
-  let subtotal = 0;
-  let totalVatAmount = 0;
+  const VAT_ENABLED = tenant?.is_vat_enabled ?? true;
+  const VAT_MODE = tenant?.vat_pricing_mode || "EXCLUSIVE"; // "INCLUSIVE" | "EXCLUSIVE"
+  const VAT_RATE = VAT_ENABLED ? tenant?.vat_standard_rate || 0.16 : 0;
+
+  let subtotal = 0; // NET
+  let totalVatAmount = 0; // VAT
+  let grandTotal = 0; // GROSS
 
   state.cartItems.forEach((item) => {
-    const itemPrice =
+    const price =
       typeof item.price === "string" ? parseFloat(item.price) : item.price;
-    const lineNet = itemPrice * item.quantity;
+
+    const lineAmount = price;
+
+    let lineNet = lineAmount;
     let lineVat = 0;
-    console.log("item ==============>", item);  
-    if (item?.vat_type === "STANDARD") {
-      lineVat = parseFloat((lineNet * VAT_RATE).toFixed(2));
+    let lineGross = lineAmount;
+
+    const isVatApplicable = VAT_ENABLED && item.vat_type === "STANDARD";
+
+    if (isVatApplicable) {
+      if (VAT_MODE === "EXCLUSIVE") {
+        // price is NET
+        lineNet = lineAmount;
+        lineVat = lineNet * VAT_RATE;
+        lineGross = lineNet + lineVat;
+      } else {
+        // INCLUSIVE: price already includes VAT
+        lineGross = lineAmount;
+        lineVat = (lineGross * VAT_RATE) / (1 + VAT_RATE);
+        lineNet = lineGross - lineVat;
+      }
     }
 
     subtotal += lineNet;
     totalVatAmount += lineVat;
+    grandTotal += lineGross;
   });
 
+  // --- DISCOUNT ---
   let discountAmount = 0;
   if (state.cartDetails.discount) {
     discountAmount =
       state.cartDetails.discount_type === "percentage"
-        ? (subtotal * state.cartDetails.discount) / 100
+        ? (grandTotal * state.cartDetails.discount) / 100
         : state.cartDetails.discount;
   }
 
+  // --- TIP ---
+  let tipAmount = 0;
+  if (state.cartDetails.tip_amount) {
+    const baseForTip = grandTotal - discountAmount;
+    tipAmount =
+      state.cartDetails.tip_type === "percentage"
+        ? (baseForTip * state.cartDetails.tip_amount) / 100
+        : state.cartDetails.tip_amount;
+  }
+
+  // Final calculations
   state.subtotal = parseFloat(subtotal.toFixed(2));
   state.totalVatAmount = parseFloat(totalVatAmount.toFixed(2));
   state.grandTotal = parseFloat(
-    (subtotal + totalVatAmount - discountAmount).toFixed(2)
+    (grandTotal - discountAmount + tipAmount).toFixed(2)
   );
 };
 
@@ -167,7 +200,7 @@ const cartSlice = createSlice({
           );
         }
 
-        // Recalculate the total amount 
+        // Recalculate the total amount
         calculateTotals(state);
       }
     },
@@ -181,6 +214,9 @@ const cartSlice = createSlice({
     clearcart(state) {
       state.cartDetails = initialState.cartDetails;
       state.cartItems = initialState.cartItems;
+      state.subtotal = 0;
+      state.totalVatAmount = 0;
+      state.grandTotal = 0;
     },
     // addDiscount(
     //   state,
