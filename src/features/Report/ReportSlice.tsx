@@ -1,11 +1,20 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { generateDeliveryReport, generatePurchaseReport, generateSalesReport, generateVoidedReport, generateInventoryUsageReport } from "./reportActions";
+import {
+  generateDeliveryReport,
+  generatePurchaseReport,
+  generateSalesReport,
+  generateVoidedReport,
+  generateInventoryUsageReport,
+  generateVATReport,
+} from "./reportActions";
 
 interface ReportState {
   salesReport: any;
   voidedReport: any;
   purchaseReport: any;
   deliveryReport: any;
+  inventoryUsageReport: any;
+  vatReport: any;
   loading: boolean;
   error: string | null;
 }
@@ -15,6 +24,8 @@ const initialState: ReportState = {
   voidedReport: null,
   purchaseReport: null,
   deliveryReport: null,
+  inventoryUsageReport: null,
+  vatReport: null,
   loading: false,
   error: null,
 };
@@ -22,7 +33,18 @@ const initialState: ReportState = {
 const reportSlice = createSlice({
   name: "report",
   initialState,
-  reducers: {},
+  reducers: {
+    clearReports(state) {
+      state.loading = false;
+      state.error = null;
+      state.salesReport = null;
+      state.voidedReport = null;
+      state.purchaseReport = null;
+      state.deliveryReport = null;
+      state.inventoryUsageReport = null;
+      state.vatReport = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(generateSalesReport.pending, (state) => {
@@ -79,13 +101,27 @@ const reportSlice = createSlice({
       })
       .addCase(generateInventoryUsageReport.fulfilled, (state, action) => {
         state.loading = false;
-        state.deliveryReport = action.payload;
+        state.inventoryUsageReport = action.payload;
       })
       .addCase(generateInventoryUsageReport.rejected, (state, action: any) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(generateVATReport.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(generateVATReport.fulfilled, (state, action) => {
+        state.loading = false;
+        state.vatReport = action.payload;
+      })
+      .addCase(generateVATReport.rejected, (state, action: any) => {
         state.loading = false;
         state.error = action.payload;
       });
   },
 });
+
+export const { clearReports } = reportSlice.actions;
 
 export default reportSlice.reducer;
