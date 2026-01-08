@@ -45,7 +45,7 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [open, setOpen] = useState(false);
-  
+
   const primaryColor = usePrimaryColor();
 
   useEffect(() => {
@@ -166,11 +166,14 @@ const AcceptDeliveryModal: React.FC<AcceptDeliveryModalProps> = ({
           >
             Edit
           </Button>
-        ) : (
-          <Button type="primary" key="button" icon={<SwitcherOutlined />}>
-            New Delivery
-          </Button>
         )
+          : null
+
+        // (
+        //   <Button type="primary" key="button" icon={<SwitcherOutlined />}>
+        //     New Delivery
+        //   </Button>
+        // )
       }
       open={open}
       onOpenChange={handleOpenChange}

@@ -115,21 +115,27 @@ const CalendarView = () => {
     networkMode: "always",
   });
 
+  const shopId = localStorage.getItem("shopId");
+
   const { data: staffMembersData, isLoading } = useQuery({
-    queryKey: ["users"],
-    queryFn: fetchAllUsersList,
+    queryKey: ["users", shopId],
+    enabled: !!shopId,
+    queryFn: () =>
+      fetchAllUsersList({
+        fullname: "",
+        email: "",
+        shop_id: shopId!,
+      }),
     retry: 1,
     refetchInterval: 5000,
     networkMode: "always",
-    select: (data: any) => {
-      return data
-        ? data.filter((user: any) => {
-            const roleType = user.role?.role_type?.toLowerCase();
-            return roleType !== "admin" && roleType !== "cleaner";
-          })
-        : [];
-    },
+    select: (data: any[]) =>
+      data?.filter((user: any) => {
+        const roleType = user.role?.role_type?.toLowerCase();
+        return roleType !== "admin" && roleType !== "cleaner";
+      }) ?? [],
   });
+
 
   // Processed Data
   const formattedProducts = useMemo(() => {
@@ -594,8 +600,7 @@ const CalendarView = () => {
       } catch (error) {
         const actionType = isEditMode ? "update" : "create";
         message.error(
-          `Failed to ${actionType} appointment: ${
-            error.message || "Unknown error"
+          `Failed to ${actionType} appointment: ${error.message || "Unknown error"
           }`
         );
       }
@@ -879,15 +884,13 @@ const CalendarView = () => {
 
                         {[0, 1, 2, 3].map((quarterIdx) => {
                           const minutes = quarterIdx * 15;
-                          const quarterHour = `${hour}:${
-                            minutes < 10 ? "0" + minutes : minutes
-                          }`;
+                          const quarterHour = `${hour}:${minutes < 10 ? "0" + minutes : minutes
+                            }`;
                           const period = hour >= 12 ? "PM" : "AM";
                           const displayHour =
                             hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-                          const timeSlot = `${displayHour}:${
-                            minutes < 10 ? "0" + minutes : minutes
-                          } ${period}`;
+                          const timeSlot = `${displayHour}:${minutes < 10 ? "0" + minutes : minutes
+                            } ${period}`;
 
                           const isBooked = isTimeSlotBooked(
                             staff.name,
@@ -911,7 +914,7 @@ const CalendarView = () => {
                                 isBooked
                                   ? undefined
                                   : () =>
-                                      handleTimeSlotClick(timeSlot, staff.name)
+                                    handleTimeSlotClick(timeSlot, staff.name)
                               }
                             ></div>
                           );
@@ -1085,8 +1088,8 @@ const CalendarView = () => {
                   background: isSelected
                     ? "#e6f7ff"
                     : isToday
-                    ? "#fffbe6"
-                    : "#f7f9fc",
+                      ? "#fffbe6"
+                      : "#f7f9fc",
                   cursor: "pointer",
                 }}
                 onClick={() => setSelectedDate(new Date(date))}
@@ -1174,8 +1177,8 @@ const CalendarView = () => {
                     background: isSelected
                       ? "#f0f7ff"
                       : isToday
-                      ? "#fffbe6"
-                      : "transparent",
+                        ? "#fffbe6"
+                        : "transparent",
                   }}
                 >
                   {/* Hour grid */}
@@ -1283,29 +1286,29 @@ const CalendarView = () => {
           initialValues={
             isEditMode && editingAppointment
               ? {
-                  staff: editingAppointment.staffId,
-                  clientName: editingAppointment.clientId,
-                  customClientName: editingAppointment.customClientName || "",
-                  service: editingAppointment.serviceId,
-                  appointmentDate: editingAppointment.originalData
-                    ?.appointment_date
-                    ? moment.utc(
-                        editingAppointment.originalData.appointment_date
-                      )
-                    : moment.utc(selectedDate),
-                  timeRange: [
-                    moment.utc(editingAppointment.start_time, "h:mm A"),
-                    moment.utc(editingAppointment.end_time, "h:mm A"),
-                  ],
-                  specialRequests: editingAppointment.specialRequests || "",
-                  phoneNumber: editingAppointment.phone
-                    ? reversePhoneNumberBookings(editingAppointment.phone)
-                    : "",
-                }
+                staff: editingAppointment.staffId,
+                clientName: editingAppointment.clientId,
+                customClientName: editingAppointment.customClientName || "",
+                service: editingAppointment.serviceId,
+                appointmentDate: editingAppointment.originalData
+                  ?.appointment_date
+                  ? moment.utc(
+                    editingAppointment.originalData.appointment_date
+                  )
+                  : moment.utc(selectedDate),
+                timeRange: [
+                  moment.utc(editingAppointment.start_time, "h:mm A"),
+                  moment.utc(editingAppointment.end_time, "h:mm A"),
+                ],
+                specialRequests: editingAppointment.specialRequests || "",
+                phoneNumber: editingAppointment.phone
+                  ? reversePhoneNumberBookings(editingAppointment.phone)
+                  : "",
+              }
               : {
-                  staff: selectedStaff,
-                  appointmentDate: moment.utc(selectedDate),
-                }
+                staff: selectedStaff,
+                appointmentDate: moment.utc(selectedDate),
+              }
           }
         >
           <Row gutter={16}>
@@ -1435,10 +1438,10 @@ const CalendarView = () => {
                 >
                   {customers && Array.isArray(customers)
                     ? customers.map((customer) => (
-                        <Select.Option key={customer._id} value={customer._id}>
-                          {customer.customer_name}
-                        </Select.Option>
-                      ))
+                      <Select.Option key={customer._id} value={customer._id}>
+                        {customer.customer_name}
+                      </Select.Option>
+                    ))
                     : null}
                 </Select>
               </Form.Item>

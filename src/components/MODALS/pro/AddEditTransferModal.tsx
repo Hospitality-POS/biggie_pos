@@ -25,6 +25,7 @@ import {
     SaveOutlined,
     CloseOutlined,
     ShoppingCartOutlined,
+    ArrowRightOutlined,
 } from "@ant-design/icons";
 import { ProFormSelect, ProFormTextArea } from "@ant-design/pro-components";
 import type { ActionType } from "@ant-design/pro-components";
@@ -37,9 +38,12 @@ const { Title, Text } = Typography;
 
 interface TransferItem {
     key: string;
-    product_id: string;
-    product_name?: string;
-    product_code?: string;
+    from_product_id: string;
+    from_product_name?: string;
+    from_product_code?: string;
+    to_product_id: string;
+    to_product_name?: string;
+    to_product_code?: string;
     quantity: number;
     unit_id: string;
     unit_name?: string;
@@ -64,8 +68,8 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
     const [transferItems, setTransferItems] = useState<TransferItem[]>([]);
     const [fromShopId, setFromShopId] = useState<string>("");
     const [toShopId, setToShopId] = useState<string>("");
-    const [availableProducts, setAvailableProducts] = useState<any[]>([]);
-    const [shops, setShops] = useState<any[]>([]);
+    const [availableFromProducts, setAvailableFromProducts] = useState<any[]>([]);
+    const [availableToProducts, setAvailableToProducts] = useState<any[]>([]);
 
     useEffect(() => {
         if (visible && edit && data) {
@@ -83,9 +87,12 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
 
             const items = data.items?.map((item: any, index: number) => ({
                 key: `item-${index}`,
-                product_id: item.product_id?._id,
-                product_name: item.product_id?.name,
-                product_code: item.product_id?.code,
+                from_product_id: item.from_product_id?._id,
+                from_product_name: item.from_product_id?.name,
+                from_product_code: item.from_product_id?.code,
+                to_product_id: item.to_product_id?._id,
+                to_product_name: item.to_product_id?.name,
+                to_product_code: item.to_product_id?.code,
                 quantity: item.quantity,
                 unit_id: item.unit_id?._id,
                 unit_name: item.unit_id?.name,
@@ -98,18 +105,29 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
 
     useEffect(() => {
         if (fromShopId) {
-            loadAvailableProducts(fromShopId);
+            loadAvailableProducts(fromShopId, "from");
         }
     }, [fromShopId]);
 
-    const loadAvailableProducts = async (shopId: string) => {
+    useEffect(() => {
+        if (toShopId) {
+            loadAvailableProducts(toShopId, "to");
+        }
+    }, [toShopId]);
+
+    const loadAvailableProducts = async (shopId: string, type: "from" | "to") => {
         try {
-            console.log("Loading products for shop ID:", shopId);
+            console.log(`Loading ${type} products for shop ID:`, shopId);
             const products = await fetchAllInventory({ origin_shop: shopId });
-            setAvailableProducts(products || []);
+
+            if (type === "from") {
+                setAvailableFromProducts(products || []);
+            } else {
+                setAvailableToProducts(products || []);
+            }
         } catch (error) {
-            console.error("Error loading products:", error);
-            message.error("Failed to load products");
+            console.error(`Error loading ${type} products:`, error);
+            message.error(`Failed to load ${type} shop products`);
         }
     };
 
@@ -129,6 +147,8 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
         setTransferItems([]);
         setFromShopId("");
         setToShopId("");
+        setAvailableFromProducts([]);
+        setAvailableToProducts([]);
     };
 
     const handleFromShopChange = (value: string) => {
@@ -138,12 +158,20 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
 
     const handleToShopChange = (value: string) => {
         setToShopId(value);
+        // Clear to_product selections when destination shop changes
+        setTransferItems(items => items.map(item => ({
+            ...item,
+            to_product_id: "",
+            to_product_name: "",
+            to_product_code: ""
+        })));
     };
 
     const addTransferItem = () => {
         const newItem: TransferItem = {
             key: `item-${Date.now()}`,
-            product_id: "",
+            from_product_id: "",
+            to_product_id: "",
             quantity: 1,
             unit_id: "",
             notes: "",
@@ -159,16 +187,24 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
         setTransferItems(
             transferItems.map((item) => {
                 if (item.key === key) {
-                    if (field === "product_id") {
-                        const product = availableProducts.find((p) => p._id === value);
+                    if (field === "from_product_id") {
+                        const product = availableFromProducts.find((p) => p._id === value);
                         return {
                             ...item,
-                            product_id: value,
-                            product_name: product?.name,
-                            product_code: product?.code,
+                            from_product_id: value,
+                            from_product_name: product?.name,
+                            from_product_code: product?.code,
                             unit_id: product?.unit_id?._id || "",
                             unit_name: product?.unit_id?.name || "",
                             available_quantity: product?.quantity || 0,
+                        };
+                    } else if (field === "to_product_id") {
+                        const product = availableToProducts.find((p) => p._id === value);
+                        return {
+                            ...item,
+                            to_product_id: value,
+                            to_product_name: product?.name,
+                            to_product_code: product?.code,
                         };
                     }
                     return { ...item, [field]: value };
@@ -188,11 +224,15 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
             }
 
             const invalidItems = transferItems.filter(
-                (item) => !item.product_id || !item.quantity || item.quantity <= 0
+                (item) =>
+                    !item.from_product_id ||
+                    !item.to_product_id ||
+                    !item.quantity ||
+                    item.quantity <= 0
             );
 
             if (invalidItems.length > 0) {
-                message.error("Please fill in all required fields for each item");
+                message.error("Please fill in all required fields (from product, to product, and quantity) for each item");
                 return;
             }
 
@@ -201,7 +241,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
             );
 
             if (insufficientItems.length > 0) {
-                const itemNames = insufficientItems.map((i) => i.product_name).join(", ");
+                const itemNames = insufficientItems.map((i) => i.from_product_name).join(", ");
                 message.error(
                     `Insufficient stock for: ${itemNames}. Please adjust quantities.`
                 );
@@ -219,7 +259,8 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                     : null,
                 notes: formValues.notes,
                 items: transferItems.map((item) => ({
-                    product_id: item.product_id,
+                    from_product_id: item.from_product_id,
+                    to_product_id: item.to_product_id,
                     quantity: item.quantity,
                     unit_id: item.unit_id,
                     notes: item.notes,
@@ -256,7 +297,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
             0
         );
         const totalValue = transferItems.reduce((sum, item) => {
-            const product = availableProducts.find((p) => p._id === item.product_id);
+            const product = availableFromProducts.find((p) => p._id === item.from_product_id);
             const productPrice = product?.price || 0;
             return sum + productPrice * (item.quantity || 0);
         }, 0);
@@ -266,21 +307,51 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
 
     const itemColumns = [
         {
-            title: "Product",
-            dataIndex: "product_id",
-            key: "product_id",
+            title: "From Product (Source)",
+            dataIndex: "from_product_id",
+            key: "from_product_id",
             width: 250,
             render: (_: any, record: TransferItem) => (
                 <Select
                     showSearch
-                    placeholder="Select product"
+                    placeholder="Select source product"
                     style={{ width: "100%" }}
-                    value={record.product_id || undefined}
-                    onChange={(value) => updateTransferItem(record.key, "product_id", value)}
+                    value={record.from_product_id || undefined}
+                    onChange={(value) => updateTransferItem(record.key, "from_product_id", value)}
                     filterOption={(input, option) =>
                         (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                     }
-                    options={availableProducts.map((product) => ({
+                    options={availableFromProducts.map((product) => ({
+                        label: `${product.name} ${product.code ? `(${product.code})` : ""} - Stock: ${product.quantity || 0}`,
+                        value: product._id,
+                    }))}
+                />
+            ),
+        },
+        {
+            title: "",
+            key: "arrow",
+            width: 40,
+            align: "center",
+            render: () => <ArrowRightOutlined style={{ color: "#1890ff" }} />,
+        },
+        {
+            title: "To Product (Destination)",
+            dataIndex: "to_product_id",
+            key: "to_product_id",
+            width: 250,
+            render: (_: any, record: TransferItem) => (
+                <Select
+                    showSearch
+                    placeholder="Select destination product"
+                    style={{ width: "100%" }}
+                    value={record.to_product_id || undefined}
+                    onChange={(value) => updateTransferItem(record.key, "to_product_id", value)}
+                    filterOption={(input, option) =>
+                        (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                    }
+                    disabled={!toShopId}
+                    options={availableToProducts.map((product) => ({
                         label: `${product.name} ${product.code ? `(${product.code})` : ""}`,
                         value: product._id,
                     }))}
@@ -333,7 +404,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
             title: "Notes",
             dataIndex: "notes",
             key: "notes",
-            width: 200,
+            width: 180,
             render: (_: any, record: TransferItem) => (
                 <Input
                     placeholder="Optional notes"
@@ -348,6 +419,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
             title: "Action",
             key: "action",
             width: 80,
+            fixed: "right",
             render: (_: any, record: TransferItem) => (
                 <Button
                     type="text"
@@ -384,7 +456,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                 }
                 open={visible}
                 onCancel={handleCancel}
-                width={1200}
+                width={1400}
                 footer={[
                     <Button key="cancel" icon={<CloseOutlined />} onClick={handleCancel}>
                         Cancel
@@ -402,7 +474,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                 ]}
             >
                 <Form form={form} layout="vertical">
-                    <Card size="small" style={{ marginBottom: 16 }}>
+                    <Card size="small" style={{ marginBottom: 16, background: "#f0f5ff" }}>
                         <Row gutter={16}>
                             <Col span={12}>
                                 <ProFormSelect
@@ -501,15 +573,15 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                     <Divider orientation="left">
                         <Space>
                             <ShoppingCartOutlined />
-                            <span>Transfer Items</span>
+                            <span>Transfer Items Mapping</span>
                             <Badge count={transferItems.length} showZero color="blue" />
                         </Space>
                     </Divider>
 
-                    {!fromShopId ? (
+                    {!fromShopId || !toShopId ? (
                         <Card>
                             <Text type="secondary">
-                                Please select a source shop to add items
+                                Please select both source and destination shops to add items
                             </Text>
                         </Card>
                     ) : (
@@ -519,17 +591,20 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                                 columns={itemColumns as any}
                                 pagination={false}
                                 size="small"
-                                scroll={{ x: 900 }}
+                                scroll={{ x: 1200 }}
                                 locale={{
                                     emptyText: (
                                         <Space direction="vertical" style={{ padding: "20px 0" }}>
                                             <Text type="secondary">No items added yet</Text>
+                                            <Text type="secondary" style={{ fontSize: "12px" }}>
+                                                Map products from source shop to destination shop
+                                            </Text>
                                             <Button
                                                 type="dashed"
                                                 icon={<PlusOutlined />}
                                                 onClick={addTransferItem}
                                             >
-                                                Add Item
+                                                Add Item Mapping
                                             </Button>
                                         </Space>
                                     ),
@@ -543,15 +618,16 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
                                     onClick={addTransferItem}
                                     style={{ width: "100%", marginTop: 16 }}
                                 >
-                                    Add Another Item
+                                    Add Another Item Mapping
                                 </Button>
                             )}
                         </>
                     )}
 
                     {transferItems.length > 0 && (
-                        <Card size="small" style={{ marginTop: 16, background: "#f5f5f5" }}>
+                        <Card size="small" style={{ marginTop: 16, background: "#f6ffed" }}>
                             <Space direction="vertical" style={{ width: "100%" }}>
+                                <Text strong style={{ fontSize: "16px" }}>Transfer Summary</Text>
                                 <Space>
                                     <Text strong>Total Items:</Text>
                                     <Badge count={summary.totalItems} showZero color="blue" />

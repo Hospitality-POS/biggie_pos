@@ -25,16 +25,21 @@ const getTenant = () => {
   }
 };
 
-export const fetchAllUsersList = async (data: ParamsType) => {
+export const fetchAllUsersList = async (data: ParamsType & { shop_id?: string }) => {
   try {
+    console.log('fetchAllUsersList called with data:', data);
     const url = `${BASE_URL}/users/all`;
 
     const response = await axiosInstance.get(url, {
-      params: { fullname: data.fullname, email: data.email },
+      params: {
+        fullname: data.fullname,
+        email: data.email,
+        shop_id: data.shop_id,
+      },
     });
 
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     throw new Error(error?.message);
   }
 };

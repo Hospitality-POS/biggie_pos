@@ -23,12 +23,14 @@ import {
   PrinterOutlined,
   FilePdfOutlined,
   FileExcelOutlined,
+  CarOutlined,
 } from "@ant-design/icons";
 import { ProTable } from "@ant-design/pro-components";
 import type { ActionType, ParamsType } from "@ant-design/pro-components";
 import { PurchaseOrder, PurchaseOrderItem } from "../../types";
 import { usePurchaseOrders } from "../../hooks/usePurchaseOrders";
 import AddEditPurchaseOrderModal from "../AddEditPurchaseOrderModal";
+import CreateDeliveryFromPOModal from "../../../../../../components/MODALS/pro/CreateDeliveryFromPOModal";
 import { useRef } from "react";
 
 const { Title } = Typography;
@@ -52,6 +54,97 @@ interface PurchaseOrderTableProps {
     total: number;
   }>;
 }
+
+// Action Cell Component to handle modal state properly
+const ActionCell: React.FC<{
+  record: PurchaseOrder;
+  actionRef: React.RefObject<ActionType>;
+  onPrintPO: (record: PurchaseOrder) => void;
+  onDeletePO: (id: string) => void;
+  handleStatusUpdate: (params: ParamsType) => void;
+}> = ({ record, actionRef, onPrintPO, onDeletePO, handleStatusUpdate }) => {
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+
+  return (
+    <>
+      <Dropdown
+        disabled={record.status === "cancelled"}
+        menu={{
+          items: [
+            {
+              key: "print",
+              icon: <PrinterOutlined />,
+              label: "Print PO",
+              onClick: () => onPrintPO(record),
+            },
+            {
+              key: "edit",
+              label: "Edit",
+              onClick: () => {
+                // This would trigger the edit modal
+              },
+            },
+            // Create Delivery option - shows for approved or partially delivered POs
+            (record.status === "approved" ||
+              record.status === "partially_delivered") && {
+              key: "create-delivery",
+              icon: <CarOutlined />,
+              label: "Create Delivery",
+              onClick: () => setShowDeliveryModal(true),
+            },
+            record.status === "pending" && {
+              key: "approve",
+              icon: <CheckCircleOutlined />,
+              label: "Approve",
+              onClick: () =>
+                handleStatusUpdate({ id: record._id, status: "approved" }),
+            },
+            record.status === "pending" && {
+              key: "cancel",
+              icon: <StopOutlined />,
+              label: "Cancel",
+              danger: true,
+              onClick: () =>
+                handleStatusUpdate({ id: record._id, status: "cancelled" }),
+            },
+            {
+              key: "delete",
+              icon: <DeleteOutlined />,
+              label: "Delete",
+              danger: true,
+              onClick: () => onDeletePO(record._id),
+            },
+          ].filter(Boolean) as any[],
+        }}
+        trigger={["hover"]}
+      >
+        <Button
+          type="text"
+          icon={<MoreOutlined />}
+          aria-label="Purchase Order Actions"
+        />
+      </Dropdown>
+
+      {/* Edit Modal */}
+      <AddEditPurchaseOrderModal
+        actionRef={actionRef}
+        data={record}
+        edit
+        key={`edit-PO-${record._id}`}
+      />
+
+      {/* Delivery Modal - Render when showDeliveryModal is true */}
+      {showDeliveryModal && (
+        <CreateDeliveryFromPOModal
+          actionRef={actionRef}
+          purchaseOrder={record}
+          open={showDeliveryModal}
+          onCancel={() => setShowDeliveryModal(false)}
+        />
+      )}
+    </>
+  );
+};
 
 export const PurchaseOrderTable: React.FC<PurchaseOrderTableProps> = ({
   onDeletePO,
@@ -382,59 +475,13 @@ export const PurchaseOrderTable: React.FC<PurchaseOrderTableProps> = ({
       width: 120,
       fixed: "right",
       render: (_: any, record: PurchaseOrder) => (
-        <Dropdown
-          disabled={record.status === "cancelled"}
-          menu={{
-            items: [
-              {
-                key: "print",
-                icon: <PrinterOutlined />,
-                label: "Print PO",
-                onClick: () => onPrintPO(record),
-              },
-              {
-                key: "edit",
-                icon: (
-                  <AddEditPurchaseOrderModal
-                    actionRef={actionRef}
-                    data={record}
-                    edit
-                    key={`edit-PO-${JSON.stringify(record)}`}
-                  />
-                ),
-              },
-              record.status === "pending" && {
-                key: "approve",
-                icon: <CheckCircleOutlined />,
-                label: "Approve",
-                onClick: () =>
-                  handleStatusUpdate({ id: record._id, status: "approved" }),
-              },
-              record.status === "pending" && {
-                key: "cancel",
-                icon: <StopOutlined />,
-                label: "Cancel",
-                danger: true,
-                onClick: () =>
-                  handleStatusUpdate({ id: record._id, status: "cancelled" }),
-              },
-              {
-                key: "delete",
-                icon: <DeleteOutlined />,
-                label: "Delete",
-                danger: true,
-                onClick: () => onDeletePO(record._id),
-              },
-            ].filter(Boolean) as any[],
-          }}
-          trigger={["hover"]}
-        >
-          <Button
-            type="text"
-            icon={<MoreOutlined />}
-            aria-label="Purchase Order Actions"
-          />
-        </Dropdown>
+        <ActionCell
+          record={record}
+          actionRef={actionRef}
+          onPrintPO={onPrintPO}
+          onDeletePO={onDeletePO}
+          handleStatusUpdate={handleStatusUpdate}
+        />
       ),
     },
   ];
