@@ -29,3 +29,19 @@ export const fetchPurchaseReport = async (data: ParamsType) => {
     console.log(error);
   }
 };
+
+
+// VAT Summary
+export const fetchVATSummary = async (data: ParamsType) => {
+  try {
+    const response = await axiosInstance.get(
+      `${BASE_URL}/orders/vat-summary`,
+      {
+        params: data,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.log(error);
+  }
+};
