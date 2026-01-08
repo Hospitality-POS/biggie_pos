@@ -1,9 +1,7 @@
 import React from 'react';
-import { Modal, Table, Card, Row, Col, Statistic, Typography, Tag, Space, Button, Divider, Spin } from 'antd';
-import { DollarOutlined, PercentageOutlined, FileTextOutlined, PrinterOutlined } from '@ant-design/icons';
+import { Modal, Space, Button, Divider, Spin } from 'antd';
+import { DollarOutlined, PrinterOutlined } from '@ant-design/icons';
 import { useAppSelector } from "../../store";
-
-const { Title, Text } = Typography;
 
 interface VATReportProps {
   openM: boolean;
@@ -20,7 +18,7 @@ const VATReportModal: React.FC<VATReportProps> = ({
 }) => {
   const { vatReport: data, loading: vatReportLoading } = useAppSelector((state: any) => state.Report);
 
-  const { summary, vat_by_type, pricing_modes, daily_trends, vat_configuration, period_info } = data || {};
+  const { summary, vat_by_type, pricing_modes, vat_configuration, period_info } = data || {};
 
   const handlePrint = () => {
     const printContent = document.getElementById('vat-receipt');
