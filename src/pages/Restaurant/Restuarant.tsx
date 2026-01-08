@@ -19,6 +19,7 @@ import {
   Chip,
 } from "@mui/material";
 import ProductCard from "../../components/product/productCard";
+import PackageCard from "../../components/cart/PackageCard";
 import { useQuery } from "@tanstack/react-query";
 import SkeletonProductCard from "../../components/product/skeletonProductCard";
 import CategoryCard from "../../components/category/categoryCard";
@@ -31,8 +32,9 @@ import { fetchProductsByCategory } from "../../features/Product/ProductAction";
 import VerticalTabs from "./Sidetabs";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { fetchMainCategories } from "@services/categories";
-import { ShoppingCart, Build } from "@mui/icons-material";
-
+import { fetchActivePackages, Package } from "@services/subscription";
+import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
+import { ShoppingCart, Build, CardGiftcard } from "@mui/icons-material";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 function a11yProps(index) {
@@ -43,9 +45,6 @@ function a11yProps(index) {
 }
 
 const SkeletonTabs = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
   return (
     <Box sx={{
       display: 'flex',
@@ -133,10 +132,26 @@ const RestaurantPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [filteredServices, setFilteredServices] = useState([]);
-  const [activeItemType, setActiveItemType] = useState<'products' | 'services'>('services');
+  const [activeItemType, setActiveItemType] = useState<'products' | 'services' | 'packages'>('services');
+  const [purchaseModalVisible, setPurchaseModalVisible] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
 
   const primaryColor = usePrimaryColor();
 
+  const { data: packagesData, isLoading: packagesLoading, refetch: refetchPackages } = useQuery({
+    queryKey: ['active-packages'],
+    queryFn: () => fetchActivePackages(),
+    enabled: true,
+  });
+
+  const availablePackages = packagesData?.packages || [];
+
+  const { data: Maincategories, isLoading: mainCategoriesLoading } = useQuery({
+    queryKey: ["Maincategories"],
+    queryFn: fetchMainCategories,
+    retry: 3,
+    networkMode: "always",
+  });
 
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -165,22 +180,6 @@ const RestaurantPage: React.FC = () => {
       }
     }
   }, [services, products]);
-
-  const { data: Maincategories, isLoading: mainCategoriesLoading } = useQuery({
-    queryKey: ["Maincategories"],
-    queryFn: fetchMainCategories,
-    retry: 3,
-    networkMode: "always",
-    onSuccess: (data) => {
-      if (data?.length > 0) {
-        const firstCategoryId = data[0]._id;
-        handleChangeMainCategory(firstCategoryId);
-      }
-    },
-    onError: (error) => {
-      console.error("Error fetching main categories:", error);
-    }
-  });
 
   useEffect(() => {
     if (Maincategories?.length > 0) {
@@ -242,12 +241,23 @@ const RestaurantPage: React.FC = () => {
     setActiveItemType('services');
   };
 
+  const handlePurchasePackage = (pkg: Package) => {
+    setSelectedPackage(pkg);
+    setPurchaseModalVisible(true);
+  };
+
+  const handlePurchaseSuccess = () => {
+    refetchPackages();
+  };
+
   const getDisplayItems = () => {
     switch (activeItemType) {
       case 'products':
         return filteredProducts;
       case 'services':
         return filteredServices;
+      case 'packages':
+        return availablePackages;
       default:
         return filteredServices;
     }
@@ -255,17 +265,18 @@ const RestaurantPage: React.FC = () => {
 
   const displayItems = getDisplayItems();
   const areItemsAvailable = displayItems && displayItems.length > 0;
-  const sortedItems = displayItems
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const sortedItems = activeItemType === 'packages'
+    ? displayItems
+    : displayItems.slice().sort((a, b) => a.name.localeCompare(b.name));
 
-  const isLoading = mainCategoriesLoading || productsLoading;
+  const isLoading = mainCategoriesLoading || productsLoading || packagesLoading;
 
   const renderItemTypeFilters = () => {
     const hasProducts = filteredProducts.length > 0;
     const hasServices = filteredServices.length > 0;
+    const hasPackages = availablePackages.length > 0;
 
-    if (!hasProducts && !hasServices) return null;
+    if (!hasProducts && !hasServices && !hasPackages) return null;
 
     return (
       <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
@@ -301,362 +312,408 @@ const RestaurantPage: React.FC = () => {
             }}
           />
         )}
+        {hasPackages && (
+          <Chip
+            icon={<CardGiftcard />}
+            label={`Packages (${availablePackages.length})`}
+            variant={activeItemType === 'packages' ? 'filled' : 'outlined'}
+            onClick={() => setActiveItemType('packages')}
+            sx={{
+              backgroundColor: activeItemType === 'packages' ? primaryColor : 'transparent',
+              color: activeItemType === 'packages' ? 'white' : primaryColor,
+              borderColor: primaryColor,
+              '&:hover': {
+                backgroundColor: activeItemType === 'packages' ? primaryColor : 'rgba(108, 28, 44, 0.1)',
+              }
+            }}
+          />
+        )}
       </Box>
     );
   };
 
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={12} md={8}>
-        <Paper
-          elevation={3}
-          style={{
-            padding: "16px",
-            height: "80vh",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <AppBar position="static" sx={{ mb: 2, bgcolor: primaryColor }}>
-            {mainCategoriesLoading ? (
-              <Box sx={{ p: 1 }}>
-                <SkeletonTabs />
-              </Box>
-            ) : (
-              <Tabs
-                value={value}
-                onChange={handleChange}
-                indicatorColor="secondary"
-                textColor="inherit"
-                variant="scrollable"
-                scrollButtons="auto"
-                allowScrollButtonsMobile
-                aria-label="main category tabs"
-                sx={{
-                  '& .MuiTabs-scrollButtons': {
-                    color: 'white',
-                    '&.Mui-disabled': {
-                      opacity: 0.3,
+    <>
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={8}>
+          <Paper
+            elevation={3}
+            style={{
+              padding: "16px",
+              height: "80vh",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <AppBar position="static" sx={{ mb: 2, bgcolor: primaryColor }}>
+              {mainCategoriesLoading ? (
+                <Box sx={{ p: 1 }}>
+                  <SkeletonTabs />
+                </Box>
+              ) : (
+                <Tabs
+                  value={value}
+                  onChange={handleChange}
+                  indicatorColor="secondary"
+                  textColor="inherit"
+                  variant="scrollable"
+                  scrollButtons="auto"
+                  allowScrollButtonsMobile
+                  aria-label="main category tabs"
+                  sx={{
+                    '& .MuiTabs-scrollButtons': {
+                      color: 'white',
+                      '&.Mui-disabled': {
+                        opacity: 0.3,
+                      },
                     },
-                  },
-                  '& .MuiTabs-scroller': {
-                    '&::-webkit-scrollbar': {
-                      height: '4px',
+                    '& .MuiTabs-scroller': {
+                      '&::-webkit-scrollbar': {
+                        height: '4px',
+                      },
+                      '&::-webkit-scrollbar-track': {
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        backgroundColor: 'rgba(255,255,255,0.3)',
+                        borderRadius: '2px',
+                      },
                     },
-                    '&::-webkit-scrollbar-track': {
-                      backgroundColor: 'rgba(255,255,255,0.1)',
+                    '& .MuiTab-root': {
+                      minWidth: 'auto',
+                      maxWidth: 'none',
+                      whiteSpace: 'nowrap',
+                      fontSize: isMobile ? '0.875rem' : '1rem',
+                      fontWeight: 500,
+                      textTransform: 'none',
+                      padding: '12px 16px',
+                      overflow: 'visible',
+                      textOverflow: 'clip',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        transition: 'background-color 0.3s ease',
+                      },
                     },
-                    '&::-webkit-scrollbar-thumb': {
-                      backgroundColor: 'rgba(255,255,255,0.3)',
-                      borderRadius: '2px',
+                    '& .MuiTabs-indicator': {
+                      backgroundColor: 'white',
+                      height: '3px',
                     },
-                  },
-                  '& .MuiTab-root': {
-                    minWidth: 'auto',
-                    maxWidth: 'none',
-                    whiteSpace: 'nowrap',
-                    fontSize: isMobile ? '0.875rem' : '1rem',
-                    fontWeight: 500,
-                    textTransform: 'none',
-                    padding: '12px 16px',
-                    overflow: 'visible',
-                    textOverflow: 'clip',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255,255,255,0.1)',
-                      transition: 'background-color 0.3s ease',
-                    },
-                  },
-                  '& .MuiTabs-indicator': {
-                    backgroundColor: 'white',
-                    height: '3px',
-                  },
-                }}
-              >
-                {Maincategories?.length
-                  ? Maincategories.map((categ, index) => (
-                    <Tab
-                      key={categ._id}
-                      onClick={() => handleChangeMainCategory(categ._id)}
-                      label={categ.name}
-                      {...a11yProps(index)}
-                    />
-                  ))
-                  : null}
-              </Tabs>
-            )}
-          </AppBar>
-          <Divider sx={{ mt: 2, mb: 2 }} />
+                  }}
+                >
+                  {Maincategories?.length
+                    ? Maincategories.map((categ, index) => (
+                      <Tab
+                        key={categ._id}
+                        onClick={() => handleChangeMainCategory(categ._id)}
+                        label={categ.name}
+                        {...a11yProps(index)}
+                      />
+                    ))
+                    : null}
+                </Tabs>
+              )}
+            </AppBar>
+            <Divider sx={{ mt: 2, mb: 2 }} />
 
-          {mainCategoriesLoading ? (
-            <Box sx={{
-              display: 'flex',
-              flexDirection: isMobile ? 'column' : 'row',
-              height: 'calc(100% - 100px)'
-            }}>
-              {!isMobile && <SkeletonVerticalTabs />}
-              <SkeletonCategoryCards />
-            </Box>
-          ) : Subcategories.length ? (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: isMobile ? "column" : "row",
-                height: isMobile ? "auto" : "64vh",
-              }}
-            >
+            {mainCategoriesLoading ? (
+              <Box sx={{
+                display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                height: 'calc(100% - 100px)'
+              }}>
+                {!isMobile && <SkeletonVerticalTabs />}
+                <SkeletonCategoryCards />
+              </Box>
+            ) : Subcategories.length ? (
               <div
                 style={{
-                  height: isMobile ? "auto" : "inherit",
-                  width: isMobile ? "100%" : "auto",
+                  display: "flex",
+                  flexDirection: isMobile ? "column" : "row",
+                  height: isMobile ? "auto" : "64vh",
                 }}
               >
-                <VerticalTabs
-                  subcategories={Subcategories}
-                  handleSubCategoryChange={handleChangeSubCategory}
-                />
-              </div>
-              <div
-                style={{
-                  flex: 1,
-                  overflowY: "auto",
-                }}
-              >
-                {showCategories ? (
-                  <section
-                    className="cards"
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      alignItems: "flex-start",
-                      justifyContent: "flex-start",
-                      gap: "10px",
-                      paddingLeft: "4px",
-                      marginLeft: "10px",
-                      marginTop: 38,
-                    }}
-                  >
-                    {isLoading ? (
-                      <SkeletonCategoryCards />
-                    ) : categories.length ? (
-                      categories.map((category) => (
-                        <CategoryCard
-                          style={{
-                            flex: isMobile
-                              ? "0 0 100%"
-                              : isTablet
-                                ? "0 0 45%"
-                                : `0 0 ${100 / Math.min(categories?.length, 3)}%`,
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            border: "1px solid black",
-                            marginBottom: isMobile ? "10px" : "0",
-                          }}
-                          key={category._id}
-                          handleSelectedCard={handleSelectCard}
-                          selectedCard={selectedCard}
-                          icon={"/categoryIcon.svg"}
-                          name={category.name}
-                          itemCount={1}
-                          id={category._id}
-                        />
-                      ))
-                    ) : (
-                      <Alert
-                        variant="filled"
-                        severity="info"
-                        sx={{ width: "100%", bgcolor: "#DEAC80" }}
-                      >
-                        <AlertTitle>Sorry</AlertTitle>
-                        Empty categories!
-                      </Alert>
-                    )}
-                  </section>
-                ) : (
-                  <div style={{ width: "inherit" }}>
-                    <div
+                <div
+                  style={{
+                    height: isMobile ? "auto" : "inherit",
+                    width: isMobile ? "100%" : "auto",
+                  }}
+                >
+                  <VerticalTabs
+                    subcategories={Subcategories}
+                    handleSubCategoryChange={handleChangeSubCategory}
+                  />
+                </div>
+                <div
+                  style={{
+                    flex: 1,
+                    overflowY: "auto",
+                  }}
+                >
+                  {showCategories ? (
+                    <section
+                      className="cards"
                       style={{
                         display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: "16px",
+                        flexWrap: "wrap",
+                        alignItems: "flex-start",
+                        justifyContent: "flex-start",
+                        gap: "10px",
+                        paddingLeft: "4px",
+                        marginLeft: "10px",
+                        marginTop: 38,
                       }}
                     >
-                      <TextField
-                        placeholder="Search Items..."
-                        variant="outlined"
-                        size="small"
-                        fullWidth
-                        value={searchTerm}
-                        onChange={handleSearchChange}
-                        sx={{
-                          maxWidth: isMobile ? "80%" : "100%",
-                          padding: "0 8px",
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "20px",
-                            borderColor: primaryColor,
-                            "&:hover .MuiOutlinedInput-notchedOutline": {
-                              borderColor: primaryColor,
-                            },
-                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                              borderColor: primaryColor,
-                            },
-                          },
-                        }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <SearchIcon style={{ color: primaryColor }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-
-                      <IconButton
-                        onClick={handleBack}
-                        sx={{
-                          color: primaryColor,
-                          "&:hover": {
-                            color: "#bc8c7c",
-                          },
-                        }}
-                      >
-                        <BackspaceIcon fontSize="large" />
-                      </IconButton>
-                    </div>
-
-                    {renderItemTypeFilters()}
-
-                    {productsLoading ? (
-                      <section
-                        className="cards"
+                      {isLoading ? (
+                        <SkeletonCategoryCards />
+                      ) : categories.length ? (
+                        categories.map((category) => (
+                          <CategoryCard
+                            style={{
+                              flex: isMobile
+                                ? "0 0 100%"
+                                : isTablet
+                                  ? "0 0 45%"
+                                  : `0 0 ${100 / Math.min(categories?.length, 3)}%`,
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              border: "1px solid black",
+                              marginBottom: isMobile ? "10px" : "0",
+                            }}
+                            key={category._id}
+                            handleSelectedCard={handleSelectCard}
+                            selectedCard={selectedCard}
+                            icon={"/categoryIcon.svg"}
+                            name={category.name}
+                            itemCount={1}
+                            id={category._id}
+                          />
+                        ))
+                      ) : (
+                        <Alert
+                          variant="filled"
+                          severity="info"
+                          sx={{ width: "100%", bgcolor: "#DEAC80" }}
+                        >
+                          <AlertTitle>Sorry</AlertTitle>
+                          Empty categories!
+                        </Alert>
+                      )}
+                    </section>
+                  ) : (
+                    <div style={{ width: "inherit" }}>
+                      <div
                         style={{
                           display: "flex",
-                          flexWrap: "wrap",
-                          alignItems: "flex-start",
-                          justifyContent: "flex-start",
-                          gap: "10px",
-                          marginLeft: 4,
-                          paddingLeft: "4px",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginBottom: "16px",
                         }}
                       >
-                        {[...Array(6)].map((_, index) => (
-                          <SkeletonProductCard key={index} />
-                        ))}
-                      </section>
-                    ) : (
-                      <section
-                        className="cards"
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          alignItems: "flex-start",
-                          justifyContent: "flex-start",
-                          gap: "10px",
-                          marginLeft: 4,
-                          width: "inherit",
-                          maxHeight: isMobile ? "none" : "70vh",
-                          overflowY: isMobile ? "visible" : "auto",
-                        }}
-                      >
-                        {areItemsAvailable ? (
-                          sortedItems.map((item) => (
-                            <ProductCard
-                              key={item._id}
-                              menu={item}
-                              handleCart={handleCartOpen}
+                        <TextField
+                          placeholder={activeItemType === 'packages' ? "Search Packages..." : "Search Items..."}
+                          variant="outlined"
+                          size="small"
+                          fullWidth
+                          value={searchTerm}
+                          onChange={handleSearchChange}
+                          sx={{
+                            maxWidth: isMobile ? "80%" : "100%",
+                            padding: "0 8px",
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "20px",
+                              borderColor: primaryColor,
+                              "&:hover .MuiOutlinedInput-notchedOutline": {
+                                borderColor: primaryColor,
+                              },
+                              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                                borderColor: primaryColor,
+                              },
+                            },
+                          }}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon style={{ color: primaryColor }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+
+                        <IconButton
+                          onClick={handleBack}
+                          sx={{
+                            color: primaryColor,
+                            "&:hover": {
+                              color: "#bc8c7c",
+                            },
+                          }}
+                        >
+                          <BackspaceIcon fontSize="large" />
+                        </IconButton>
+                      </div>
+
+                      {renderItemTypeFilters()}
+
+                      {productsLoading || packagesLoading ? (
+                        <section
+                          className="cards"
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            alignItems: "flex-start",
+                            justifyContent: "flex-start",
+                            gap: "10px",
+                            marginLeft: 4,
+                            paddingLeft: "4px",
+                          }}
+                        >
+                          {[...Array(6)].map((_, index) => (
+                            <SkeletonProductCard key={index} />
+                          ))}
+                        </section>
+                      ) : (
+                        <section
+                          className="cards"
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            alignItems: "flex-start",
+                            justifyContent: "flex-start",
+                            gap: "10px",
+                            marginLeft: 4,
+                            width: "inherit",
+                            maxHeight: isMobile ? "none" : "70vh",
+                            overflowY: isMobile ? "visible" : "auto",
+                          }}
+                        >
+                          {areItemsAvailable ? (
+                            activeItemType === 'packages' ? (
+                              sortedItems.map((pkg: Package) => (
+                                <PackageCard
+                                  key={pkg._id}
+                                  package={pkg}
+                                  onPurchase={handlePurchasePackage}
+                                  style={{
+                                    flex: isMobile
+                                      ? "0 0 100%"
+                                      : isTablet
+                                        ? "0 0 45%"
+                                        : "0 0 30%",
+                                    marginBottom: "10px",
+                                  }}
+                                />
+                              ))
+                            ) : (
+                              sortedItems.map((item) => (
+                                <ProductCard
+                                  key={item._id}
+                                  menu={item}
+                                  handleCart={handleCartOpen}
+                                  style={{
+                                    flex: isMobile
+                                      ? "0 0 100%"
+                                      : isTablet
+                                        ? "0 0 45%"
+                                        : "0 0 30%",
+                                    marginBottom: "10px",
+                                  }}
+                                />
+                              ))
+                            )
+                          ) : searchTerm ? (
+                            <div
                               style={{
-                                flex: isMobile
-                                  ? "0 0 100%"
-                                  : isTablet
-                                    ? "0 0 45%"
-                                    : "0 0 30%",
-                                marginBottom: "10px",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: "100%",
+                                padding: "16px",
                               }}
-                            />
-                          ))
-                        ) : searchTerm ? (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              width: "100%",
-                              padding: "16px",
-                            }}
-                          >
-                            <Alert
-                              variant="filled"
-                              severity="info"
-                              sx={{ width: "100%", bgcolor: "#DEAC80" }}
                             >
-                              <AlertTitle>No Results</AlertTitle>
-                              No items match your search "{searchTerm}"
-                            </Alert>
-                          </div>
-                        ) : categoryChosen ? (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              height: "100%",
-                              width: "inherit",
-                            }}
-                          >
-                            <Alert
-                              variant="filled"
-                              severity="info"
-                              sx={{ width: "100%", bgcolor: "#DEAC80" }}
+                              <Alert
+                                variant="filled"
+                                severity="info"
+                                sx={{ width: "100%", bgcolor: "#DEAC80" }}
+                              >
+                                <AlertTitle>No Results</AlertTitle>
+                                No items match your search "{searchTerm}"
+                              </Alert>
+                            </div>
+                          ) : categoryChosen ? (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                height: "100%",
+                                width: "inherit",
+                              }}
                             >
-                              <AlertTitle>Sorry</AlertTitle>
-                              This category has no items!
-                            </Alert>
-                          </div>
-                        ) : (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              height: "100%",
-                            }}
-                          >
-                            <Typography
-                              variant="body1"
-                              gutterBottom
-                              mt={2}
-                              pl={4}
+                              <Alert
+                                variant="filled"
+                                severity="info"
+                                sx={{ width: "100%", bgcolor: "#DEAC80" }}
+                              >
+                                <AlertTitle>Sorry</AlertTitle>
+                                This category has no items!
+                              </Alert>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                height: "100%",
+                              }}
                             >
-                              Choose a category
-                            </Typography>
-                          </div>
-                        )}
-                      </section>
-                    )}
-                  </div>
-                )}
+                              <Typography
+                                variant="body1"
+                                gutterBottom
+                                mt={2}
+                                pl={4}
+                              >
+                                Choose a category
+                              </Typography>
+                            </div>
+                          )}
+                        </section>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ) : (
-            <Alert
-              variant="filled"
-              severity="info"
-              sx={{ width: "100%", bgcolor: "#DEAC80" }}
-            >
-              <AlertTitle>Sorry</AlertTitle>
-              This category has no items!
-            </Alert>
-          )}
-        </Paper>
+            ) : (
+              <Alert
+                variant="filled"
+                severity="info"
+                sx={{ width: "100%", bgcolor: "#DEAC80" }}
+              >
+                <AlertTitle>Sorry</AlertTitle>
+                This category has no items!
+              </Alert>
+            )}
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <CartDrawer />
+        </Grid>
       </Grid>
-      <Grid item xs={12} md={4}>
-        <CartDrawer />
-      </Grid>
-    </Grid>
+
+      <PurchasePackageModal
+        visible={purchaseModalVisible}
+        package={selectedPackage}
+        onClose={() => {
+          setPurchaseModalVisible(false);
+          setSelectedPackage(null);
+        }}
+        onSuccess={handlePurchaseSuccess}
+      />
+    </>
   );
 };
 
