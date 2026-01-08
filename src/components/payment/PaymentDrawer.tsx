@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { grey } from "@mui/material/colors";
 import { createOrder } from "@features/Order/OrderActions";
-import { cartVoid, createCart } from "@features/Cart/CartActions";
+import { cartVoid, createCart, updateCart } from "@features/Cart/CartActions";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
 import {
@@ -60,7 +60,9 @@ const PaymentDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = (path: string) => (window.location.href = path);
   const id = window.location.pathname.split("/").pop();
-  const { cartDetails, totalAmount } = useAppSelector((state) => state.cart);
+  const { cartDetails, subtotal, totalVatAmount, grandTotal } = useAppSelector(
+    (state) => state.cart
+  );
   const { loading, error } = useAppSelector((state) => state.order);
   const { user } = useAppSelector((state) => state.auth);
 
@@ -91,10 +93,6 @@ const PaymentDrawer: React.FC = () => {
   const [stkTrackingId, setStkTrackingId] = useState<string>("");
   const [countdown, setCountdown] = useState(0);
 
-  const totalCartAmount =
-    cartDetails?.items.reduce((acc, item) => {
-      return acc + item.price;
-    }, 0) || 0;
 
   // Phone number validation for Kenyan numbers
   const isValidKenyanPhone = (phone: string): boolean => {
@@ -239,15 +237,16 @@ const PaymentDrawer: React.FC = () => {
     checkPesapalStatus();
   }, []);
 
-  const calculateFinalAmount = () => {
-    if (!cartDetails?.discount) {
-      return totalCartAmount.toLocaleString();
-    }
-    if (cartDetails?.discount_type === "percentage") {
-      return totalCartAmount - totalCartAmount * (cartDetails?.discount / 100);
-    } else {
-      return totalCartAmount - cartDetails?.discount;
-    }
+  const handleRemoveDiscount = () => {
+    const cartUpdateData = {
+      cart: cartDetails,
+      data: {
+        discount: 0,
+        discount_type: "",
+      },
+    };
+    dispatch(updateCart(cartUpdateData as any));
+    message.success("Discount removed successfully.");
   };
 
   const {
@@ -298,7 +297,7 @@ const PaymentDrawer: React.FC = () => {
       amount1 < 1 ||
       !amount2 ||
       amount2 < 1 ||
-      totalAmountCheck !== totalAmount
+      totalAmountCheck !== grandTotal
     ) {
       message.error("The split amounts must equal the total amount.");
       return;
@@ -348,7 +347,7 @@ const PaymentDrawer: React.FC = () => {
     } else {
       const orderDetails = {
         cart_id: cartDetails?._id,
-        order_amount: totalAmount,
+        order_amount: grandTotal,
         table_id: id,
         updated_by: user?.id,
         order_no: cartDetails?.order_no,
@@ -414,7 +413,7 @@ const PaymentDrawer: React.FC = () => {
 
       const orderDetails = {
         cart_id: cartDetails?._id,
-        order_amount: totalAmount,
+        order_amount: grandTotal,
         table_id: id,
         updated_by: user?.id,
         order_no: cartDetails?.order_no,
@@ -671,37 +670,50 @@ const PaymentDrawer: React.FC = () => {
           <Typography.Text strong style={{ fontSize: "20px" }}>
             Order Summary
           </Typography.Text>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Statistic
-                title="Subtotal"
-                value={totalCartAmount}
-                prefix={"KSh."}
-                precision={2}
-              />
-            </Col>
-            <Col span={12}>
-              <Statistic
-                title="Discount"
-                value={cartDetails?.discount || 0}
-                prefix={
-                  cartDetails?.discount_type === "percentage" ? (
-                    <PercentageOutlined />
-                  ) : (
-                    "Ksh."
-                  )
-                }
-                precision={2}
-              />
-            </Col>
-          </Row>
-          <Statistic
-            title="Total After Discount"
-            value={calculateFinalAmount()}
-            prefix={"KSh."}
-            precision={2}
-            style={{ marginTop: 16 }}
-          />
+
+          <ProCard>
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <Flex justify="space-between">
+                <Text>Subtotal</Text>
+                <Text>KSH. {subtotal.toLocaleString()}</Text>
+              </Flex>
+              <Flex justify="space-between" align="center">
+                <Text>Discount</Text>
+                <Space>
+                  <Text>
+                    - KSH.{" "}
+                    {(
+                      (subtotal * (cartDetails.discount || 0)) /
+                      100
+                    ).toLocaleString()}
+                  </Text>
+                  {cartDetails.discount > 0 && (
+                    <Button
+                      type="link"
+                      danger
+                      size="small"
+                      onClick={handleRemoveDiscount}
+                      icon={<CloseCircleOutlined />}
+                      style={{ padding: 0 }}
+                    />
+                  )}
+                </Space>
+              </Flex>
+              <Flex justify="space-between">
+                <Text>VAT</Text>
+                <Text>KSH. {totalVatAmount.toLocaleString()}</Text>
+              </Flex>
+              <Divider style={{ margin: "8px 0" }} />
+              <Flex justify="space-between">
+                <Text strong style={{ fontSize: "16px" }}>
+                  Amount Due
+                </Text>
+                <Text strong style={{ fontSize: "16px" }}>
+                  KSH. {grandTotal.toLocaleString()}
+                </Text>
+              </Flex>
+            </Space>
+          </ProCard>
 
           <Space direction="vertical" style={{ width: "100%", marginTop: 24 }}>
             <Typography.Title level={4}>Payment Method</Typography.Title>
@@ -803,7 +815,7 @@ const PaymentDrawer: React.FC = () => {
                 data={paymentMethods}
                 selectedMethod={selectedMethod}
                 secondMethod={secondMethod}
-                totalAmount={totalAmount}
+                totalAmount={grandTotal}
                 amount1={amount1}
                 amount2={amount2}
                 setSelectedMethod={setSelectedMethod}
@@ -948,7 +960,7 @@ const PaymentDrawer: React.FC = () => {
               <Col span={12}>
                 <Statistic
                   title="Payment Amount"
-                  value={totalAmount}
+                  value={grandTotal}
                   prefix="KSh."
                   precision={2}
                 />
@@ -1118,7 +1130,7 @@ const PaymentDrawer: React.FC = () => {
           <Title level={3} style={{ color: "#52c41a", margin: 0 }}>
             Payment Successful!
           </Title>
-          <Text>KSh. {totalAmount?.toLocaleString()} paid successfully</Text>
+          <Text>KSh. {grandTotal?.toLocaleString()} paid successfully</Text>
           <Text type="secondary">Redirecting to tables...</Text>
         </Space>
       </Modal>

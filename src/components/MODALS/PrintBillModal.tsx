@@ -14,28 +14,41 @@ import "./bill.css";
 import { useReactToPrint } from "react-to-print";
 import { ENTITY_NAME } from "@utils/config";
 import useSystemDetails from "@hooks/useSystemDetails";
-import { PrinterFilled, PrinterOutlined, RestOutlined, SafetyCertificateFilled } from "@ant-design/icons";
+import {
+  PrinterFilled,
+  PrinterOutlined,
+  RestOutlined,
+  SafetyCertificateFilled,
+} from "@ant-design/icons";
 import { Button } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
+import { useAppSelector } from "src/store";
+
 
 interface PrintBillProps {
   cartDetails: any;
-  totalAmount: number;
   data: any;
 }
 
-const PrintBillModal: React.FC<PrintBillProps> = ({
-  cartDetails,
-  data,
-  totalAmount,
-}) => {
+const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
+  const { subtotal, totalVatAmount, grandTotal } = useAppSelector(
+    (state) => state.cart
+  );
   const componentRef = useRef<HTMLDivElement>(null);
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
 
-  const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs, Paybill_ac, TILL_NO } =
-    useSystemDetails();
+  const {
+    BRAND_NAME1,
+    EMAIL_URL,
+    PIN,
+    PHONE_NO,
+    QR_Code,
+    Paybill_bs,
+    Paybill_ac,
+    TILL_NO,
+  } = useSystemDetails();
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
@@ -49,7 +62,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
           font-weight: bold !important;
         }
       }
-    `
+    `,
   });
 
   const baseTextStyle = {
@@ -192,9 +205,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
                 <TableCell sx={{ ...tableHeaderStyle, width: "10%" }}>
                   #
                 </TableCell>
-                <TableCell sx={tableHeaderStyle}>
-                  ITEM
-                </TableCell>
+                <TableCell sx={tableHeaderStyle}>ITEM</TableCell>
                 <TableCell sx={{ ...tableHeaderStyle, textAlign: "right" }}>
                   PRICE(.Ksh)
                 </TableCell>
@@ -244,44 +255,66 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             </TableBody>
           </Table>
         </TableContainer>
-        {cartDetails?.discount && (
-          <Typography
-            variant="body1"
-            style={{
-              ...subheaderStyle,
-              textAlign: "center",
-            }}
-          >
-            <RestOutlined /> Discount:
-            {cartDetails?.discount_type === "amount"
-              ? ` KSH. ${cartDetails?.discount?.toLocaleString()}`
-              : ` ${cartDetails?.discount}%`}
-          </Typography>
-        )}
-        <Typography
-          variant="body1"
-          style={{
-            ...headerStyle,
-            textAlign: "center",
-            textDecoration: "underline",
-            marginBottom: isElectronicsStore ? 0 : 0,
-          }}
-        >
-          Amount Due: Ksh.{totalAmount?.toFixed(2)}
-        </Typography>
-
+        <div style={{ marginTop: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <Typography variant="body1" style={subheaderStyle}>
+              Subtotal:
+            </Typography>
+            <Typography variant="body1" style={subheaderStyle}>
+              Ksh. {subtotal.toLocaleString()}
+            </Typography>
+          </div>
+          {cartDetails?.discount > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body1" style={normalTextStyle}>
+                Discount:
+              </Typography>
+              <Typography variant="body1" style={normalTextStyle}>
+                - Ksh.{" "}
+                {(cartDetails.discount_type === "percentage"
+                  ? subtotal * (cartDetails.discount / 100)
+                  : cartDetails.discount
+                ).toLocaleString()}
+              </Typography>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <Typography variant="body1" style={normalTextStyle}>
+              VAT:
+            </Typography>
+            <Typography variant="body1" style={normalTextStyle}>
+              Ksh. {totalVatAmount.toLocaleString()}
+            </Typography>
+          </div>
+          <div style={{ borderTop: "2px dashed #000", margin: "5px 0" }}></div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <Typography variant="body1" style={headerStyle}>
+              Amount Due:
+            </Typography>
+            <Typography variant="body1" style={headerStyle}>
+              Ksh. {grandTotal.toLocaleString()}
+            </Typography>
+          </div>
+        </div>
         {isElectronicsStore && (
           <>
             <div style={{ margin: "15px 0" }}>
               <Typography variant="body1" style={warrantyStyle}>
-                <SafetyCertificateFilled /> WARRANTY: 6 MONTHS <SafetyCertificateFilled />
+                <SafetyCertificateFilled /> WARRANTY: 6 MONTHS{" "}
+                <SafetyCertificateFilled />
               </Typography>
             </div>
             <div style={{ margin: "10px 0" }}>
-              <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
+              <Typography
+                variant="body1"
+                style={{ ...normalTextStyle, textAlign: "center" }}
+              >
                 * This receipt serves as your warranty certificate *
               </Typography>
-              <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
+              <Typography
+                variant="body1"
+                style={{ ...normalTextStyle, textAlign: "center" }}
+              >
                 * Please retain for warranty claims *
               </Typography>
             </div>
@@ -296,13 +329,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({
             marginTop: isElectronicsStore ? 0 : 5,
           }}
         >
-          ============================
+          ===========================
         </Typography>
-        <div className="qrcoded" style={{
-          marginTop: 4,
-          display: "flex",
-          justifyContent: "center"
-        }}>
+        <div
+          className="qrcoded"
+          style={{
+            marginTop: 4,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
           <QRCodeCanvas value={QR_Code} size={100} className="qrcode" />
         </div>
         <Typography

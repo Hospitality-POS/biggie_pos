@@ -1,4 +1,4 @@
-                           import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   SettingOutlined,
   PictureOutlined,
@@ -9,6 +9,8 @@ import {
   CloseCircleOutlined,
   LoadingOutlined,
   UploadOutlined,
+  TagOutlined,
+  QuestionCircleFilled,
 } from "@ant-design/icons";
 import { PageContainer, ProCard } from "@ant-design/pro-components";
 import {
@@ -27,8 +29,9 @@ import {
   Skeleton,
   Result,
   message,
-  Select,
   Tabs,
+  Switch,
+  Radio,
 } from "antd";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
@@ -39,56 +42,7 @@ import {
 } from "@services/tenants";
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 const { TabPane } = Tabs;
-
-interface TenantData {
-  _id: string;
-  id?: string;
-  name: string;
-  email: string;
-  phone: string;
-  tenant_code: string;
-  subscription_status:
-    | "pending_approval"
-    | "active"
-    | "suspended"
-    | "terminated";
-  subscription_id: {
-    _id: string;
-    name: string;
-    price: number;
-  };
-  business_type: {
-    _id: string;
-    name: string;
-  };
-  business_type_name?: string;
-  subscription_cycle: "Monthly" | "Quarterly" | "Yearly";
-  next_billing_date?: string;
-  db_host?: string;
-  db_password?: string;
-  db_user?: string;
-  db_name?: string;
-  additional_info?: string;
-  business_size?: string;
-  color_scheme?: {
-    primary: string;
-    secondary: string;
-    accent: string;
-    background: string;
-    text: string;
-  };
-  primary_color?: string;
-  tenant_logo?: {
-    url: string;
-    filename: string;
-    size: number;
-  };
-  __v?: number;
-  createdAt: string;
-  updatedAt: string;
-}
 
 function TenantSettings() {
   const [form] = Form.useForm();
@@ -180,6 +134,9 @@ function TenantSettings() {
           typeof tenant.subscription_id === "object"
             ? tenant.subscription_id._id
             : tenant.subscription_id,
+        vat_standard_rate: tenant.vat_standard_rate,
+        vat_pricing_mode: tenant.vat_pricing_mode,
+        is_vat_enabled: tenant.is_vat_enabled,
       });
 
       if (tenant.color_scheme) {
@@ -199,6 +156,24 @@ function TenantSettings() {
     }
   }, [tenantDetails, form, colorForm]);
 
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    if (storedTenant) {
+      try {
+        const tenant = JSON.parse(storedTenant);
+        if (tenant.color_scheme) {
+          setColors(tenant.color_scheme);
+        } else if (tenant.color_scheme.primary) {
+          setColors((prev) => ({
+            ...prev,
+            primary: tenant.color_scheme.primary,
+          }));
+        }
+      } catch (e) {
+        console.warn("Failed to parse stored tenant for colors:", e);
+      }
+    }
+  }, []);
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     if (storedTenant) {
@@ -487,9 +462,7 @@ function TenantSettings() {
                         ? tenant.business_type.name
                         : "Not specified")}
                   </Text>
-                  <Text>
-                    Size: {tenant.business_size || "Not specified"}
-                  </Text>
+                  <Text>Size: {tenant.business_size || "Not specified"}</Text>
                   <Text>
                     Created: {new Date(tenant.createdAt).toLocaleDateString()}
                   </Text>
@@ -516,72 +489,82 @@ function TenantSettings() {
                 }
                 key="1"
               >
-                <Form
-                  form={form}
-                  layout="vertical"
-                  onFinish={handleUpdateTenant}
-                  disabled={updateTenantMutation.isPending}
+                <ProCard
+                  title={
+                    <Space>
+                      <QuestionCircleFilled />
+                      Here you can configure basic information for your
+                      Business.
+                    </Space>
+                  }
                 >
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        label="Tenant Name"
-                        name="name"
-                        rules={[
-                          {
-                            required: true,
-                            message: "Please enter tenant name",
-                          },
-                        ]}
-                      >
-                        <Input
-                          prefix={<UserOutlined />}
-                          placeholder="Enter tenant name"
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        label="Email Address"
-                        name="email"
-                        rules={[
-                          {
-                            required: true,
-                            message: "Please enter email address",
-                          },
-                          {
-                            type: "email",
-                            message: "Please enter a valid email",
-                          },
-                        ]}
-                      >
-                        <Input
-                          prefix={<MailOutlined />}
-                          placeholder="Enter email address"
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
+                  <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleUpdateTenant}
+                    disabled={updateTenantMutation.isLoading}
+                  >
+                    <Row gutter={16}>
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          label="Tenant Name"
+                          name="name"
+                          rules={[
+                            {
+                              required: true,
+                              message: "Please enter tenant name",
+                            },
+                          ]}
+                        >
+                          <Input
+                            prefix={<UserOutlined />}
+                            placeholder="Enter tenant name"
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          label="Email Address"
+                          name="email"
+                          rules={[
+                            {
+                              required: true,
+                              message: "Please enter email address",
+                            },
+                            {
+                              type: "email",
+                              message: "Please enter a valid email",
+                            },
+                          ]}
+                        >
+                          <Input
+                            prefix={<MailOutlined />}
+                            placeholder="Enter email address"
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
 
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        label="Phone Number"
-                        name="phone"
-                        rules={[
-                          {
-                            required: true,
-                            message: "Please enter phone number",
-                          },
-                        ]}
-                      >
-                        <Input
-                          prefix={<PhoneOutlined />}
-                          placeholder="Enter phone number"
-                        />
-                      </Form.Item>
-                    </Col>
-                    {/* <Col xs={24} md={12}>
+                    <Row gutter={16}>
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          label="Phone Number"
+                          name="phone"
+                          rules={[
+                            {
+                              required: true,
+                              message: "Please enter phone number",
+                            },
+                          ]}
+                        >
+                          <Input
+                            prefix={<PhoneOutlined />}
+                            placeholder="Enter phone number"
+                          />
+                        </Form.Item>
+                      </Col>
+
+                      {/* <Col xs={24} md={12}>
                                             <Form.Item
                                                 label="Subscription Plan ID"
                                                 name="subscription_id"
@@ -595,19 +578,101 @@ function TenantSettings() {
                                                 />
                                             </Form.Item>
                                         </Col> */}
-                  </Row>
+                    </Row>
 
-                  <Form.Item>
-                    <Button
-                      type="primary"
-                      htmlType="submit"
-                      loading={updateTenantMutation.isPending}
-                      size="large"
+                    <Form.Item>
+                      <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={updateTenantMutation.isLoading}
+                        size="large"
+                      >
+                        Edit Bio Info
+                      </Button>
+                    </Form.Item>
+                  </Form>
+                </ProCard>
+              </TabPane>
+
+              {/* Vat setting tab pane */}
+              <TabPane
+                tab={
+                  <Space>
+                    <PictureOutlined /> VAT Configuration
+                  </Space>
+                }
+                key="2"
+              >
+                <ProCard
+                  title={
+                    <Space>
+                      <QuestionCircleFilled />
+                      Here you can configure Tax compliance settings for your
+                      Business.
+                    </Space>
+                  }
+                >
+                  <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={handleUpdateTenant}
+                    disabled={updateTenantMutation.isLoading}
+                  >
+                    <Form.Item
+                      name="is_vat_enabled"
+                      label="Enable VAT"
+                      valuePropName="checked"
                     >
-                      Update Information
-                    </Button>
-                  </Form.Item>
-                </Form>
+                      <Switch
+                        checkedChildren="Enabled"
+                        unCheckedChildren="Disabled"
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="vat_pricing_mode"
+                      label="Selling price of items"
+                      rules={[{ required: true }]}
+                    >
+                      <Radio.Group>
+                        <Radio value="INCLUSIVE">Tax Inclusive</Radio>
+                        <Radio value="EXCLUSIVE">Tax Exclusive</Radio>
+                      </Radio.Group>
+                    </Form.Item>
+
+                    <div style={{ width: "400px" }}>
+                      <Form.Item
+                        name="vat_standard_rate"
+                        label="VAT Standard Rate"
+                        rules={[
+                          {
+                            required: true,
+                            message: "Please enter VAT rate",
+                          },
+                        ]}
+                      >
+                        <Input
+                          prefix={<TagOutlined />}
+                          placeholder="Enter VAT rate (e.g., 0.16 for 16%)"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="1"
+                        />
+                      </Form.Item>
+                    </div>
+                    <Form.Item>
+                      <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={updateTenantMutation.isLoading}
+                        size="large"
+                      >
+                        Edit Tax Info
+                      </Button>
+                    </Form.Item>
+                  </Form>
+                </ProCard>
               </TabPane>
 
               <TabPane
@@ -616,230 +681,242 @@ function TenantSettings() {
                     <PictureOutlined /> Logo & Branding
                   </Space>
                 }
-                key="2"
+                key="3"
               >
-                <Row gutter={[24, 24]}>
-                  <Col xs={24} md={12}>
-                    <Space
-                      direction="vertical"
-                      style={{ width: "100%" }}
-                      size="large"
-                    >
-                      <div style={{ textAlign: "center" }}>
-                        <div
-                          style={{
-                            border: `3px dashed ${colors.primary}`,
-                            borderRadius: "12px",
-                            padding: "20px",
-                            background: `${colors.primary}08`,
-                            marginBottom: "16px",
-                          }}
-                        >
-                          <Avatar
-                            size={120}
-                            icon={<PictureOutlined />}
-                            src={tenant.tenant_logo?.url}
-                            style={{
-                              border: `3px solid ${colors.primary}`,
-                              backgroundColor: tenant.tenant_logo?.url
-                                ? "transparent"
-                                : "#f5f5f5",
-                            }}
-                          />
-                          {tenant.tenant_logo?.url && (
-                            <div style={{ marginTop: 12 }}>
-                              <Text
-                                type="secondary"
-                                style={{ fontSize: "14px", fontWeight: 500 }}
-                              >
-                                {tenant.tenant_logo.filename}
-                              </Text>
-                              <br />
-                              <Text
-                                type="secondary"
-                                style={{ fontSize: "12px" }}
-                              >
-                                {tenant.tenant_logo.size
-                                  ? `${(tenant.tenant_logo.size / 1024).toFixed(
-                                      1
-                                    )} KB`
-                                  : ""}
-                              </Text>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <Upload
-                        accept="image/*"
-                        fileList={fileList}
-                        onChange={handleLogoUpload}
-                        beforeUpload={handleBeforeUpload}
-                        disabled={updateTenantMutation.isPending}
-                        maxCount={1}
-                        listType="picture-card"
-                        showUploadList={false}
-                        style={{ width: "100%" }}
-                        className="logo-upload"
-                      >
-                        <Button
-                          icon={<UploadOutlined />}
-                          loading={updateTenantMutation.isPending}
-                          block
-                          size="large"
-                          style={{ height: "auto", minHeight: "60px" }}
-                        >
-                          {updateTenantMutation.isPending
-                            ? "Uploading..."
-                            : "Upload New Logo"}
-                          <br />
-                          <Text type="secondary" style={{ fontSize: "12px" }}>
-                            Click or drag image here
-                          </Text>
-                        </Button>
-                      </Upload>
-
-                      <Text
-                        type="secondary"
-                        style={{
-                          fontSize: "12px",
-                          textAlign: "center",
-                          display: "block",
-                        }}
-                      >
-                        Recommended: PNG, JPG, SVG. Max size: 5MB
-                        <br />
-                        Support drag and drop or click to browse
-                      </Text>
+                <ProCard
+                  title={
+                    <Space>
+                      <QuestionCircleFilled />
+                      Here you can configure Logo & Branding for your Business.
                     </Space>
-                  </Col>
-
-                  <Col xs={24} md={12}>
-                    <Title level={5}>Color Scheme</Title>
-                    <Form form={colorForm} layout="vertical">
-                      <Row gutter={[16, 16]}>
-                        <Col span={12}>
-                          <Form.Item label="Primary Color">
-                            <ColorPicker
-                              value={colors.primary}
-                              onChange={(color) =>
-                                handleColorChange(
-                                  color.toHexString(),
-                                  "primary"
-                                )
-                              }
-                              showText
-                              style={{ width: "100%" }}
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="Secondary Color">
-                            <ColorPicker
-                              value={colors.secondary}
-                              onChange={(color) =>
-                                handleColorChange(
-                                  color.toHexString(),
-                                  "secondary"
-                                )
-                              }
-                              showText
-                              style={{ width: "100%" }}
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="Accent Color">
-                            <ColorPicker
-                              value={colors.accent}
-                              onChange={(color) =>
-                                handleColorChange(color.toHexString(), "accent")
-                              }
-                              showText
-                              style={{ width: "100%" }}
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                          <Form.Item label="Background">
-                            <ColorPicker
-                              value={colors.background}
-                              onChange={(color) =>
-                                handleColorChange(
-                                  color.toHexString(),
-                                  "background"
-                                )
-                              }
-                              showText
-                              style={{ width: "100%" }}
-                            />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-
-                      <Button
-                        type="primary"
-                        onClick={handleUpdateColors}
-                        loading={updateTenantMutation.isLoading}
-                        block
-                        disabled={updateTenantMutation.isLoading}
+                  }
+                >
+                  <Row gutter={[24, 24]}>
+                    <Col xs={24} md={12}>
+                      <Space
+                        direction="vertical"
+                        style={{ width: "100%" }}
                         size="large"
                       >
-                        Update Colors
-                      </Button>
-                    </Form>
-                  </Col>
-                </Row>
+                        <div style={{ textAlign: "center" }}>
+                          <div
+                            style={{
+                              border: `3px dashed ${colors.primary}`,
+                              borderRadius: "12px",
+                              padding: "20px",
+                              background: `${colors.primary}08`,
+                              marginBottom: "16px",
+                            }}
+                          >
+                            <Avatar
+                              size={120}
+                              icon={<PictureOutlined />}
+                              src={tenant.tenant_logo?.url}
+                              style={{
+                                border: `3px solid ${colors.primary}`,
+                                backgroundColor: tenant.tenant_logo?.url
+                                  ? "transparent"
+                                  : "#f5f5f5",
+                              }}
+                            />
+                            {tenant.tenant_logo?.url && (
+                              <div style={{ marginTop: 12 }}>
+                                <Text
+                                  type="secondary"
+                                  style={{ fontSize: "14px", fontWeight: 500 }}
+                                >
+                                  {tenant.tenant_logo.filename}
+                                </Text>
+                                <br />
+                                <Text
+                                  type="secondary"
+                                  style={{ fontSize: "12px" }}
+                                >
+                                  {tenant.tenant_logo.size
+                                    ? `${(
+                                        tenant.tenant_logo.size / 1024
+                                      ).toFixed(1)} KB`
+                                    : ""}
+                                </Text>
+                              </div>
+                            )}
+                          </div>
+                        </div>
 
-                <Divider>Preview</Divider>
-                <div style={{ textAlign: "center" }}>
-                  <div
-                    style={{
-                      background: colors.background,
-                      color: colors.text,
-                      padding: "20px",
-                      borderRadius: "8px",
-                      border: `2px solid ${colors.primary}`,
-                      maxWidth: "400px",
-                      margin: "0 auto",
-                    }}
-                  >
+                        <Upload
+                          accept="image/*"
+                          fileList={fileList}
+                          onChange={handleLogoUpload}
+                          beforeUpload={handleBeforeUpload}
+                          disabled={updateTenantMutation.isLoading}
+                          maxCount={1}
+                          listType="picture-card"
+                          showUploadList={false}
+                          style={{ width: "100%" }}
+                          className="logo-upload"
+                        >
+                          <Button
+                            icon={<UploadOutlined />}
+                            loading={updateTenantMutation.isLoading}
+                            block
+                            size="large"
+                            style={{ height: "auto", minHeight: "60px" }}
+                          >
+                            {updateTenantMutation.isLoading
+                              ? "Uploading..."
+                              : "Upload New Logo"}
+                            <br />
+                            <Text type="secondary" style={{ fontSize: "12px" }}>
+                              Click or drag image here
+                            </Text>
+                          </Button>
+                        </Upload>
+
+                        <Text
+                          type="secondary"
+                          style={{
+                            fontSize: "12px",
+                            textAlign: "center",
+                            display: "block",
+                          }}
+                        >
+                          Recommended: PNG, JPG, SVG. Max size: 5MB
+                          <br />
+                          Support drag and drop or click to browse
+                        </Text>
+                      </Space>
+                    </Col>
+
+                    <Col xs={24} md={12}>
+                      <Title level={5}>Color Scheme</Title>
+                      <Form form={colorForm} layout="vertical">
+                        <Row gutter={[16, 16]}>
+                          <Col span={12}>
+                            <Form.Item label="Primary Color">
+                              <ColorPicker
+                                value={colors.primary}
+                                onChange={(color) =>
+                                  handleColorChange(
+                                    color.toHexString(),
+                                    "primary"
+                                  )
+                                }
+                                showText
+                                style={{ width: "100%" }}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col span={12}>
+                            <Form.Item label="Secondary Color">
+                              <ColorPicker
+                                value={colors.secondary}
+                                onChange={(color) =>
+                                  handleColorChange(
+                                    color.toHexString(),
+                                    "secondary"
+                                  )
+                                }
+                                showText
+                                style={{ width: "100%" }}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col span={12}>
+                            <Form.Item label="Accent Color">
+                              <ColorPicker
+                                value={colors.accent}
+                                onChange={(color) =>
+                                  handleColorChange(
+                                    color.toHexString(),
+                                    "accent"
+                                  )
+                                }
+                                showText
+                                style={{ width: "100%" }}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col span={12}>
+                            <Form.Item label="Background">
+                              <ColorPicker
+                                value={colors.background}
+                                onChange={(color) =>
+                                  handleColorChange(
+                                    color.toHexString(),
+                                    "background"
+                                  )
+                                }
+                                showText
+                                style={{ width: "100%" }}
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <Button
+                          type="primary"
+                          onClick={handleUpdateColors}
+                          loading={updateTenantMutation.isLoading}
+                          block
+                          disabled={updateTenantMutation.isLoading}
+                          size="large"
+                        >
+                          Update Colors
+                        </Button>
+                      </Form>
+                    </Col>
+                  </Row>
+
+                  <Divider>Preview</Divider>
+                  <div style={{ textAlign: "center" }}>
                     <div
                       style={{
-                        backgroundColor: colors.primary,
-                        color: "white",
-                        padding: "12px 24px",
-                        borderRadius: "6px",
-                        marginBottom: "12px",
-                        fontWeight: "bold",
+                        background: colors.background,
+                        color: colors.text,
+                        padding: "20px",
+                        borderRadius: "8px",
+                        border: `2px solid ${colors.primary}`,
+                        maxWidth: "400px",
+                        margin: "0 auto",
                       }}
                     >
-                      Primary Button
-                    </div>
-                    <div
-                      style={{
-                        backgroundColor: colors.secondary,
-                        color: "white",
-                        padding: "8px 16px",
-                        borderRadius: "4px",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Secondary Button
-                    </div>
-                    <div
-                      style={{
-                        backgroundColor: colors.accent,
-                        color: "white",
-                        padding: "6px 12px",
-                        borderRadius: "4px",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Accent Element
+                      <div
+                        style={{
+                          backgroundColor: colors.primary,
+                          color: "white",
+                          padding: "12px 24px",
+                          borderRadius: "6px",
+                          marginBottom: "12px",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        Primary Button
+                      </div>
+                      <div
+                        style={{
+                          backgroundColor: colors.secondary,
+                          color: "white",
+                          padding: "8px 16px",
+                          borderRadius: "4px",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        Secondary Button
+                      </div>
+                      <div
+                        style={{
+                          backgroundColor: colors.accent,
+                          color: "white",
+                          padding: "6px 12px",
+                          borderRadius: "4px",
+                          fontSize: "12px",
+                        }}
+                      >
+                        Accent Element
+                      </div>
                     </div>
                   </div>
-                </div>
+                </ProCard>
               </TabPane>
             </Tabs>
           </ProCard>

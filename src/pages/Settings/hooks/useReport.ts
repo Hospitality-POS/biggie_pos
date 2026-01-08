@@ -5,12 +5,15 @@ import {
   generateInventoryUsageReport,
   generatePurchaseReport,
   generateSalesReport,
+  generateVATReport,
   generateVoidedReport,
 } from "@features/Report/reportActions";
 import { useAppDispatch } from "../../../store";
 import { TimeRangePickerProps } from "antd/lib";
+import { clearReports } from "@features/Report/ReportSlice";
 
 export const useReport = (reportType: string) => {
+  const dispatch = useAppDispatch();
   const [openSalesModal, setOpenSalesModal] = useState(false);
   const [openVoidedModal, setOpenVoidedModal] = useState(false);
   const [openPurchaseModal, setOpenPurchaseModal] = useState(false);
@@ -30,9 +33,18 @@ export const useReport = (reportType: string) => {
     [string, string]
   >(["", ""]);
 
-  const [inventoryUsageDateTimeRange, setInventoryUsageDateTimeRange] = useState<
-    [string, string]
-  >(["", ""]);
+  const [inventoryUsageDateTimeRange, setInventoryUsageDateTimeRange] =
+    useState<[string, string]>(["", ""]);
+
+  // vat report summary
+  const [vatDateTimeRange, setVATDateTimeRange] = useState<[string, string]>([
+    "",
+    "",
+  ]);
+  const [openVATModal, setOpenVATModal] = useState(false);
+  const onCloseVATModal = () => {
+    setOpenVATModal(false), dispatch(clearReports);
+  };
 
   const [params, setParams] = useState<{
     createdBy?: string;
@@ -47,7 +59,6 @@ export const useReport = (reportType: string) => {
     locationId: "",
     shop_id: "",
   });
-  const dispatch = useAppDispatch();
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
@@ -56,6 +67,7 @@ export const useReport = (reportType: string) => {
     setOpenVoidedModal(false);
     setOpenDeliveryModal(false);
     setOpenInventoryUsageModal(false);
+    setOpenVATModal(false);
   };
 
   const generateReportHandler = () => {
@@ -70,6 +82,7 @@ export const useReport = (reportType: string) => {
     } = {
       startDate: "",
       endDate: "",
+      ...params,
     };
 
     if (
@@ -80,7 +93,6 @@ export const useReport = (reportType: string) => {
       formattedPayload = {
         startDate: salesDateTimeRange[0],
         endDate: salesDateTimeRange[1],
-        ...params,
       };
       dispatch(generateSalesReport(formattedPayload));
       setOpenSalesModal(true);
@@ -118,7 +130,6 @@ export const useReport = (reportType: string) => {
       dispatch(generateDeliveryReport(formattedPayload));
       setOpenDeliveryModal(true);
     } else if (
-
       reportType === "inventory_usage" &&
       inventoryUsageDateTimeRange[0] &&
       inventoryUsageDateTimeRange[1]
@@ -129,6 +140,18 @@ export const useReport = (reportType: string) => {
       };
       dispatch(generateInventoryUsageReport(formattedPayload));
       setOpenInventoryUsageModal(true);
+    } else if (
+      reportType === "vat" &&
+      vatDateTimeRange[0] &&
+      vatDateTimeRange[1]
+    ) {
+      formattedPayload = {
+        startDate: vatDateTimeRange[0],
+        endDate: vatDateTimeRange[1],
+        ...params,
+      };
+      dispatch(generateVATReport(formattedPayload));
+      setOpenVATModal(true);
     }
   };
 
@@ -141,31 +164,37 @@ export const useReport = (reportType: string) => {
       (!voidedDateTimeRange[0] || !voidedDateTimeRange[1])) ||
     (reportType === "delivery" &&
       (!deliveryDateTimeRange[0] || !deliveryDateTimeRange[1]));
-  (reportType === "inventory_usage" &&
-    (!inventoryUsageDateTimeRange[0] || !inventoryUsageDateTimeRange[1]));
+  reportType === "inventory_usage" &&
+    (!inventoryUsageDateTimeRange[0] || !inventoryUsageDateTimeRange[1]);
+  reportType === "vat" && (!vatDateTimeRange[0] || !vatDateTimeRange[1]);
 
   const onCloseSalesModal = () => {
     setOpenSalesModal(false);
+    dispatch(clearReports);
   };
 
   const onClosePurchaseModal = () => {
     setOpenPurchaseModal(false);
+    dispatch(clearReports);
   };
 
   const onCloseVoidedModal = () => {
     setOpenVoidedModal(false);
+    dispatch(clearReports);
   };
 
   const onCloseDeliveryModal = () => {
     setOpenDeliveryModal(false);
+    dispatch(clearReports);
   };
 
   const onCloseInventoryUsageModal = () => {
     setOpenInventoryUsageModal(false);
+    dispatch(clearReports);
   };
 
   const rangePresets: TimeRangePickerProps["presets"] = [
-    { label: "Today", value: [dayjs().startOf('day'), dayjs().endOf('day')] },
+    { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
     { label: "Yesterday", value: [dayjs().add(-1, "d"), dayjs()] },
     { label: "Last 7 Days", value: [dayjs().add(-7, "d"), dayjs()] },
     { label: "Last 14 Days", value: [dayjs().add(-14, "d"), dayjs()] },
@@ -204,14 +233,18 @@ export const useReport = (reportType: string) => {
     onCloseInventoryUsageModal,
     inventoryUsageDateTimeRange,
 
-
-
     generateReportHandler,
     isGenerateButtonDisabled,
     rangePresets,
     handleTabChange,
     activeTab,
     setActiveTab,
+
+    openVATModal,
+    onCloseVATModal,
+    setVATDateTimeRange,
+    vatDateTimeRange,
+    setOpenVATModal,
 
     setParams,
   };

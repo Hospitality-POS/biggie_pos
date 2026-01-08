@@ -1,10 +1,13 @@
 import React, { useRef, useState } from "react";
 import { ModalForm } from "@ant-design/pro-form";
 import { Button, Spin } from "antd";
-import { PrinterOutlined, PrinterFilled, SafetyCertificateFilled } from "@ant-design/icons";
+import {
+  PrinterOutlined,
+  PrinterFilled,
+  SafetyCertificateFilled,
+} from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
 import {
-  Box,
   Typography,
   TableContainer,
   Table,
@@ -20,11 +23,6 @@ import useSystemDetails from "@hooks/useSystemDetails";
 import { COOP_NAME } from "@utils/config";
 import { useMutation } from "@tanstack/react-query";
 import { rePrintInvoice } from "@services/cart";
-
-interface InvoiceReprintModalProps {
-  invoiceId: string;
-  orderNo: string;
-}
 
 interface InvoiceItem {
   _id: string;
@@ -43,252 +41,350 @@ interface InvoiceItem {
   };
 }
 
-const PrintableContent = React.forwardRef<HTMLDivElement, {
-  data: InvoiceItem[];
-  BRAND_NAME1: string;
-  orderNo: string;
-  EMAIL_URL?: string;
-  PHONE_NO?: string;
-  QR_Code?: string;
-  PIN?: string;
-  TILL_NO?: string;
-  Paybill_bs?: string;
-  Paybill_ac?: string;
-}>(({ data, BRAND_NAME1, orderNo, EMAIL_URL, PHONE_NO, QR_Code, PIN, TILL_NO, Paybill_bs, Paybill_ac }, ref) => {
-  // Return empty div if no data
-  if (!data || data?.length === 0) {
-    return <div ref={ref} />;
+const PrintableContent = React.forwardRef<
+  HTMLDivElement,
+  {
+    data: InvoiceItem[];
+    invoiceData: InvoiceDetailsInterface;
+    BRAND_NAME1: string;
+    orderNo: string;
+    EMAIL_URL?: string;
+    PHONE_NO?: string;
+    QR_Code?: string;
+    PIN?: string;
+    TILL_NO?: string;
+    Paybill_bs?: string;
+    Paybill_ac?: string;
   }
+>(
+  (
+    {
+      data,
+      invoiceData,
+      BRAND_NAME1,
+      orderNo,
+      EMAIL_URL,
+      PHONE_NO,
+      QR_Code,
+      PIN,
+      TILL_NO,
+      Paybill_bs,
+      Paybill_ac,
+    },
+    ref
+  ) => {
+    // Return empty div if no data
+    if (!data || data?.length === 0) {
+      return <div ref={ref} />;
+    }
 
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
-  const storedTenant = localStorage.getItem("tenant");
-  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+    const isElectronicsStore = tenant?.business_type?.name === "Electronics";
 
-  const isElectronicsStore = tenant?.business_type?.name === "Electronics";
+    const smallTextStyle = { fontSize: "0.9em", fontWeight: 800 }; // Ensures better fit for thermal printer
 
+    const baseTextStyle = {
+      fontFamily: "monospace",
+      fontWeight: 700,
+      color: "#000000",
+    };
 
-  const smallTextStyle = { fontSize: "0.9em", fontWeight: 800, }; // Ensures better fit for thermal printer
+    const headerStyle = {
+      ...baseTextStyle,
+      fontSize: "1.4em",
+      fontWeight: 900,
+    };
 
+    const subheaderStyle = {
+      ...baseTextStyle,
+      fontSize: "0.9em",
+      fontWeight: 800,
+    };
 
-  const baseTextStyle = {
-    fontFamily: "monospace",
-    fontWeight: 700,
-    color: "#000000",
-  };
+    const warrantyStyle = {
+      ...subheaderStyle,
+      textAlign: "center",
+      border: "2px solid #000",
+      padding: "8px",
+      margin: "10px 0",
+      backgroundColor: "#f9f9f9",
+      fontWeight: 900,
+    };
 
-  const headerStyle = {
-    ...baseTextStyle,
-    fontSize: "1.4em",
-    fontWeight: 900,
-  };
+    const normalTextStyle = {
+      ...baseTextStyle,
+      fontSize: "0.9em",
+    };
 
-  const subheaderStyle = {
-    ...baseTextStyle,
-    fontSize: "0.9em",
-    fontWeight: 800,
-  };
+    const tableHeaderStyle = {
+      padding: 1,
+      fontWeight: 800,
+      fontSize: "1.1em",
+      color: "#000000",
+    };
 
+    const tableDataStyle = {
+      padding: 1,
+      fontWeight: 700,
+      fontSize: "1.1em",
+      color: "#000000",
+    };
 
-  const warrantyStyle = {
-    ...subheaderStyle,
-    textAlign: "center",
-    border: "2px solid #000",
-    padding: "8px",
-    margin: "10px 0",
-    backgroundColor: "#f9f9f9",
-    fontWeight: 900,
-  };
+    const calculatedGrandTotal =
+      invoiceData?.grand_total ||
+      (invoiceData?.subtotal || 0) + (invoiceData?.total_vat_amount || 0);
 
-  const normalTextStyle = {
-    ...baseTextStyle,
-    fontSize: "0.9em",
-  };
-
-  const tableHeaderStyle = {
-    padding: 1,
-    fontWeight: 800,
-    fontSize: "1.1em",
-    color: "#000000",
-  };
-
-  const tableDataStyle = {
-    padding: 1,
-    fontWeight: 700,
-    fontSize: "1.1em",
-    color: "#000000",
-  };
-
-  const total = calculateTotal(data);
-
-  return (
-    <div className="receipt" id="receipt" ref={ref} style={{ color: "#000000" }}>
+    return (
       <div
-        className="logo-print"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          marginBottom: 15,
-        }}
+        className="receipt"
+        id="receipt"
+        ref={ref}
+        style={{ color: "#000000" }}
       >
-        <Typography variant="body1" style={headerStyle}>
-          {BRAND_NAME1 || ""}
-        </Typography>
-        <Grid container spacing={1}>
-          {/* First Row: Phone & Till/Business No */}
-          <Grid item xs={6}>
-            <Typography variant="body2" style={subheaderStyle}>
-              Phone: {PHONE_NO || "N/A"}
-            </Typography>
+        <div
+          className="logo-print"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            marginBottom: 15,
+          }}
+        >
+          <Typography variant="body1" style={headerStyle}>
+            {BRAND_NAME1 || ""}
+          </Typography>
+          <Grid container spacing={1}>
+            {/* First Row: Phone & Till/Business No */}
+            <Grid item xs={6}>
+              <Typography variant="body2" style={subheaderStyle}>
+                Phone: {PHONE_NO || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" style={subheaderStyle}>
+                {TILL_NO
+                  ? `Till No: ${TILL_NO}`
+                  : Paybill_bs
+                  ? `Business No: ${Paybill_bs}`
+                  : "N/A"}
+              </Typography>
+            </Grid>
+
+            {/* Second Row: Account No & PIN */}
+            <Grid item xs={6}>
+              <Typography variant="body2" style={subheaderStyle}>
+                {Paybill_ac ? `Account No: ${Paybill_ac}` : "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" style={normalTextStyle}>
+                {PIN ? `PIN: ${PIN}` : "N/A"}
+              </Typography>
+            </Grid>
+
+            {/* Invoice Details (Always 2 by 2) */}
+            <Grid item xs={6}>
+              <Typography variant="body2" style={smallTextStyle}>
+                Invoice Reprint
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" style={smallTextStyle}>
+                Order No: {orderNo.toUpperCase() || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" style={smallTextStyle}>
+                Table: {invoiceData?.table_id?.name || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" style={smallTextStyle}>
+                Date:{" "}
+                {invoiceData?.createdAt
+                  ? moment(invoiceData.createdAt).format("MMM-DD-YYYY H:mm A")
+                  : "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="body2" style={smallTextStyle}>
+                Served By: {invoiceData.served_by?.username || "N/A"}
+              </Typography>
+            </Grid>
           </Grid>
-          <Grid item xs={6}>
-            <Typography variant="body2" style={subheaderStyle}>
-              {TILL_NO ? `Till No: ${TILL_NO}` : Paybill_bs ? `Business No: ${Paybill_bs}` : "N/A"}
-            </Typography>
-          </Grid>
+        </div>
 
-          {/* Second Row: Account No & PIN */}
-          <Grid item xs={6}>
-            <Typography variant="body2" style={subheaderStyle}>
-              {Paybill_ac ? `Account No: ${Paybill_ac}` : "N/A"}
-            </Typography>
-          </Grid>
-          <Grid item xs={6}>
-            <Typography variant="body2" style={normalTextStyle}>
-              {PIN ? `PIN: ${PIN}` : "N/A"}
-            </Typography>
-          </Grid>
-
-          {/* Invoice Details (Always 2 by 2) */}
-          <Grid item xs={6}>
-            <Typography variant="body2" style={smallTextStyle}>
-              Invoice Reprint
-            </Typography>
-          </Grid>
-          <Grid item xs={6}>
-            <Typography variant="body2" style={smallTextStyle}>
-              Order No: {orderNo.toUpperCase() || "N/A"}
-            </Typography>
-          </Grid>
-          <Grid item xs={6}>
-            <Typography variant="body2" style={smallTextStyle}>
-              Table: {data[0]?.table_id?.name || "N/A"}
-            </Typography>
-          </Grid>
-          <Grid item xs={6}>
-            <Typography variant="body2" style={smallTextStyle}>
-              Date: {data[0]?.createdAt ? moment(data[0].createdAt).format("MMM-DD-YYYY H:mm A") : "N/A"}
-            </Typography>
-          </Grid>
-          <Grid item xs={6}>
-            <Typography variant="body2" style={smallTextStyle}>
-              Served By: {data[0]?.created_by?.fullname || "N/A"}
-            </Typography>
-          </Grid>
-        </Grid>;
-
-      </div>
-
-
-
-
-
-
-
-      <TableContainer sx={{ mt: 3, width: "inherit" }}>
-        <Table style={{ tableLayout: "fixed" }}>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ ...tableHeaderStyle, width: "19%" }}>
-                QTY
-              </TableCell>
-              <TableCell sx={tableHeaderStyle}>
-                ITEM
-              </TableCell>
-              <TableCell sx={{ ...tableHeaderStyle, textAlign: "right" }}>
-                PRICE
-              </TableCell>
-              <TableCell sx={{ ...tableHeaderStyle, textAlign: "right" }}>
-                TOTAL
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {data.map((item) => (
-              <TableRow key={item._id}>
-                <TableCell sx={{ ...tableDataStyle, width: "5%", textAlign: "left" }}>
-                  {item.quantity || 0}
+        <TableContainer sx={{ mt: 3, width: "inherit" }}>
+          <Table style={{ tableLayout: "fixed" }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ ...tableHeaderStyle, width: "19%" }}>
+                  QTY
                 </TableCell>
-                <TableCell component="th" scope="row" sx={{ ...tableDataStyle, wordWrap: "break-word" }}>
-                  {item.product_id?.name || "N/A"}
+                <TableCell sx={tableHeaderStyle}>ITEM</TableCell>
+                <TableCell sx={{ ...tableHeaderStyle, textAlign: "right" }}>
+                  PRICE
                 </TableCell>
-                <TableCell sx={{ ...tableDataStyle, textAlign: "right" }}>
-                  {(item.price || 0).toFixed(2)}
-                </TableCell>
-                <TableCell sx={{ ...tableDataStyle, textAlign: "right" }}>
-                  {((item.price || 0) * (item.quantity || 0)).toFixed(2)}
+                <TableCell sx={{ ...tableHeaderStyle, textAlign: "right" }}>
+                  TOTAL
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {invoiceData.items.map((item) => (
+                <TableRow key={item._id}>
+                  <TableCell
+                    sx={{ ...tableDataStyle, width: "5%", textAlign: "left" }}
+                  >
+                    {item.quantity || 0}
+                  </TableCell>
+                  <TableCell
+                    component="th"
+                    scope="row"
+                    sx={{ ...tableDataStyle, wordWrap: "break-word" }}
+                  >
+                    {item.product_id?.name || "N/A"}
+                  </TableCell>
+                  <TableCell sx={{ ...tableDataStyle, textAlign: "right" }}>
+                    {(item.price || 0).toFixed(2)}
+                  </TableCell>
+                  <TableCell sx={{ ...tableDataStyle, textAlign: "right" }}>
+                    {((item.price || 0) * (item.quantity || 0)).toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-      <Typography variant="body1" style={{ ...headerStyle, textAlign: "center", textDecoration: "underline", marginTop: 10 }}>
-        Total Amount: Ksh. {(total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-      </Typography>
-
-      {isElectronicsStore && (
-        <>
-          <div style={{ margin: "15px 0" }}>
-            <Typography variant="body1" style={warrantyStyle}>
-              <SafetyCertificateFilled /> WARRANTY: 6 MONTHS <SafetyCertificateFilled />
-            </Typography>
-          </div>
-          <div style={{ margin: "10px 0" }}>
-            <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
-              * This receipt serves as your warranty certificate *
-            </Typography>
-            <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
-              * Please retain for warranty claims *
-            </Typography>
-          </div>
-        </>
-      )}
-
-      <Typography variant="body1" sx={{ textAlign: "center", fontWeight: 900, margin: "15px 0" }}>
-        ============================
-      </Typography>
-
-      {QR_Code && (
-        <div className="qrcoded" style={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
-          <QRCodeCanvas value={QR_Code} size={100} className="qrcode" />
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="body1" style={subheaderStyle}>
+            Subtotal:
+          </Typography>
+          <Typography variant="body1" style={subheaderStyle}>
+            Ksh. {(invoiceData?.subtotal || 0).toLocaleString()}
+          </Typography>
         </div>
-      )}
+        {invoiceData?.discount_amount > 0 && (
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <Typography variant="body1" style={normalTextStyle}>
+              Discount:
+            </Typography>
+            <Typography variant="body1" style={normalTextStyle}>
+              - Ksh. {(invoiceData?.discount_amount || 0).toLocaleString()}
+            </Typography>
+          </div>
+        )}
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="body1" style={normalTextStyle}>
+            VAT:
+          </Typography>
+          <Typography variant="body1" style={normalTextStyle}>
+            Ksh. {(invoiceData?.total_vat_amount || 0).toLocaleString()}
+          </Typography>
+        </div>
+        {/* Grand Total */}
+        <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="body1" style={headerStyle}>
+            Amount Due:
+          </Typography>
+          <Typography variant="body1" style={headerStyle}>
+            Ksh. {calculatedGrandTotal.toLocaleString()}
+          </Typography>
+        </div>
 
-      <Typography variant="body1" style={{ ...subheaderStyle, textAlign: "center", marginTop: 10 }}>
-        Thank you for your business!
-      </Typography>
+        {isElectronicsStore && (
+          <>
+            <div style={{ margin: "15px 0" }}>
+              <Typography variant="body1" style={warrantyStyle}>
+                <SafetyCertificateFilled /> WARRANTY: 6 MONTHS{" "}
+                <SafetyCertificateFilled />
+              </Typography>
+            </div>
+            <div style={{ margin: "10px 0" }}>
+              <Typography
+                variant="body1"
+                style={{ ...normalTextStyle, textAlign: "center" }}
+              >
+                * This receipt serves as your warranty certificate *
+              </Typography>
+              <Typography
+                variant="body1"
+                style={{ ...normalTextStyle, textAlign: "center" }}
+              >
+                * Please retain for warranty claims *
+              </Typography>
+            </div>
+          </>
+        )}
 
-      {EMAIL_URL && (
-        <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
-          Info email: {EMAIL_URL}
+        <Typography
+          variant="body1"
+          sx={{ textAlign: "center", fontWeight: 900, margin: "15px 0" }}
+        >
+          ===========================
         </Typography>
-      )}
 
-      <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
-        Generated on {new Date().toLocaleDateString()}
-      </Typography>
+        {QR_Code && (
+          <div
+            className="qrcoded"
+            style={{ marginTop: 4, display: "flex", justifyContent: "center" }}
+          >
+            <QRCodeCanvas value={QR_Code} size={100} className="qrcode" />
+          </div>
+        )}
 
-      <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
-        Powered By: {COOP_NAME || ""}
-      </Typography>
-    </div>
-  );
-});
+        <Typography
+          variant="body1"
+          style={{ ...subheaderStyle, textAlign: "center", marginTop: 10 }}
+        >
+          Thank you for your business!
+        </Typography>
 
-function InvoiceReprintModal({ invoiceId, orderNo }: InvoiceReprintModalProps) {
+        {EMAIL_URL && (
+          <Typography
+            variant="body1"
+            style={{ ...normalTextStyle, textAlign: "center" }}
+          >
+            Info email: {EMAIL_URL}
+          </Typography>
+        )}
+
+        <Typography
+          variant="body1"
+          style={{ ...normalTextStyle, textAlign: "center" }}
+        >
+          Generated on {new Date().toLocaleDateString()}
+        </Typography>
+
+        <Typography
+          variant="body1"
+          style={{ ...normalTextStyle, textAlign: "center" }}
+        >
+          Powered By: {COOP_NAME || ""}
+        </Typography>
+      </div>
+    );
+  }
+);
+
+function InvoiceReprintModal({
+  invoiceId,
+  orderNo,
+  invoiceData,
+}: InvoiceReprintModalProps) {
   const componentRef = useRef<HTMLDivElement>(null);
-  const { BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code, Paybill_bs, Paybill_ac, TILL_NO } = useSystemDetails();
+  const {
+    BRAND_NAME1,
+    EMAIL_URL,
+    PIN,
+    PHONE_NO,
+    QR_Code,
+    Paybill_bs,
+    Paybill_ac,
+    TILL_NO,
+  } = useSystemDetails();
   const [data, setData] = useState<InvoiceItem[] | null>(null);
 
   const reprintMutation = useMutation(rePrintInvoice, {
@@ -315,6 +411,7 @@ function InvoiceReprintModal({ invoiceId, orderNo }: InvoiceReprintModalProps) {
     `,
   });
 
+  console.log("============>", invoiceData);
   // Only show print button if we have data
   const canPrint = data && data?.length > 0;
 
@@ -358,6 +455,7 @@ function InvoiceReprintModal({ invoiceId, orderNo }: InvoiceReprintModalProps) {
           <PrintableContent
             ref={componentRef}
             data={data}
+            invoiceData={invoiceData}
             BRAND_NAME1={BRAND_NAME1}
             orderNo={orderNo}
             EMAIL_URL={EMAIL_URL}
@@ -373,13 +471,5 @@ function InvoiceReprintModal({ invoiceId, orderNo }: InvoiceReprintModalProps) {
     </ModalForm>
   );
 }
-
-const calculateTotal = (data: InvoiceItem[]) => {
-  if (!data || data?.length === 0) return 0;
-  return data.reduce(
-    (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
-    0
-  );
-};
 
 export default InvoiceReprintModal;

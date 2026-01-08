@@ -3,6 +3,7 @@ import { Button, DatePicker, Form, InputNumber } from "antd";
 import {
   BarChartOutlined,
   CarOutlined,
+  DollarOutlined,
   FileExclamationOutlined,
   FileTextOutlined,
   HddOutlined,
@@ -17,6 +18,8 @@ import {
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import { Space } from "antd";
 import VoidReportModal from "@components/Reports/VoidReport";
+import VATReportModal from "@components/Reports/VATReport";
+import { fetchVATSummary } from "@services/reports";
 import { fetchItemSalesReport } from "@services/reports";
 import { fetchAllUsersByShopId, fetchAllUsersList } from "@services/users";
 import ItemSalesModal from "./ItemSalesModal";
@@ -59,12 +62,18 @@ const AdminReports: React.FC = () => {
     deliveryDateTimeRange,
     openDeliveryModal,
 
-
     openInventoryUsageModal,
     setInventoryUsageDateTimeRange,
     onCloseInventoryUsageModal,
     inventoryUsageDateTimeRange,
 
+    openVATModal,
+    setVATDateTimeRange,
+    setOpenVATModal,
+    onCloseVATModal,
+    vatDateTimeRange,
+
+    setParams,
   } = useReport(activeTab);
 
   const handleTabChange = (key: string) => {
@@ -72,16 +81,18 @@ const AdminReports: React.FC = () => {
     setOpenSalesModal(false);
     setOpenPurchaseModal(false);
     setOpenVoidedModal(false);
+    setOpenVATModal(false);
     form.resetFields();
   };
   const onFinish = async (values) => {
-
     const { dateRange, servedBy, commission, locationId, shop_id } = values;
     const [startDate, endDate] = dateRange || [];
     setSalesDateTimeRange([
       dateRange?.[0]?.format("YYYY-MM-DD HH:mm") || "",
       dateRange?.[1]?.format("YYYY-MM-DD HH:mm") || "",
     ]);
+
+    setParams({ shop_id });
     // setSalesDateTimeRange([startDate, endDate]);
 
     // setParams({ servedBy, commission });
@@ -93,7 +104,6 @@ const AdminReports: React.FC = () => {
     // <ItemSalesModal data={data} loading={isLoading}/>
 
     if (startDate) {
-
       setQueryKey({
         startDate: startDate?.format("YYYY-MM-DD HH:mm") || "",
         endDate: endDate?.format("YYYY-MM-DD HH:mm") || "",
@@ -499,6 +509,94 @@ const AdminReports: React.FC = () => {
             onCloseM={onCloseInventoryUsageModal}
             startDate={inventoryUsageDateTimeRange[0]}
             endDate={inventoryUsageDateTimeRange[1]}
+          />
+        </Form>
+      ),
+    },
+    {
+      key: "vat",
+      tab: "VAT",
+      label: (
+        <Space>
+          <DollarOutlined style={{ color: "#52c41a" }} />
+          VAT Summary Report
+        </Space>
+      ),
+      children: (
+        <Form form={form} onFinish={onFinish} layout="inline">
+          <Form.Item
+            name="dateRange"
+            label="Date & Time"
+            style={{ marginBottom: 16 }}
+            rules={[
+              {
+                required: true,
+                message: "kindly select date & time range",
+              },
+            ]}
+          >
+            <RangePicker
+              showTime={{ format: "HH:mm" }}
+              format="YYYY-MM-DD HH:mm"
+              presets={rangePresets}
+              onChange={(dates) =>
+                setVATDateTimeRange([
+                  dates?.[0]?.format("YYYY-MM-DD HH:mm") || "",
+                  dates?.[1]?.format("YYYY-MM-DD HH:mm") || "",
+                ])
+              }
+            />
+          </Form.Item>
+
+          <Form.Item name="shop_id" style={{ marginBottom: 16 }}>
+            <ProFormSelect
+              width={"md"}
+              name="shop_id"
+              label="Shop Name"
+              showSearch
+              placeholder="Select shop"
+              request={async () => {
+                const data = await fetchAllShops({});
+                return data?.map((e: { name: any; _id: any }) => {
+                  return { label: e.name, value: e._id };
+                });
+              }}
+            />
+          </Form.Item>
+
+          {/* <Form.Item name="createdBy" style={{ marginBottom: 16 }}>
+            <ProFormSelect
+              width={"md"}
+              name="createdBy"
+              label="Created By"
+              showSearch
+              placeholder="Select created by"
+              request={async () => {
+                const data = await fetchAllUsersList({});
+                return data?.map((e: { username: any; _id: any }) => {
+                  return { label: e.username, value: e._id };
+                });
+              }}
+            />
+          </Form.Item> */}
+
+          <Form.Item style={{ marginBottom: 16 }}>
+            <Button
+              type="primary"
+              icon={<DollarOutlined />}
+              htmlType="submit"
+              disabled={isGenerateButtonDisabled}
+              onClick={generateReportHandler}
+            >
+              Generate VAT Report
+            </Button>
+          </Form.Item>
+
+          <VATReportModal
+            openM={openVATModal}
+            onCloseM={onCloseVATModal}
+            startDate={vatDateTimeRange[0]}
+            endDate={vatDateTimeRange[1]}
           />
         </Form>
       ),
