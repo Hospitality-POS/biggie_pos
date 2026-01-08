@@ -19,6 +19,7 @@ interface InvoiceDetailsInterface {
   total_vat_amount?: number;
   discount_amount?: number;
   grand_total?: number;
+  vat_pricing_mode?: string;
   vat_breakdown?: {
     [key: string]: {
       rate?: number;

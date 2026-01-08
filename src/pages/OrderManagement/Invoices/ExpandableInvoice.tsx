@@ -10,6 +10,7 @@ const ExpandableInvoice = ({ record }: { record: InvoiceDetailsInterface }) => {
     total_vat_amount,
     vat_breakdown,
     discount_amount,
+    vat_pricing_mode,
     grand_total,
     order_no,
     createdAt,
@@ -59,7 +60,7 @@ const ExpandableInvoice = ({ record }: { record: InvoiceDetailsInterface }) => {
                     {item.quantity}x {item.product_id?.name}
                   </span>
                   <div>
-                    <span>Ksh. {(item.price * item.quantity).toFixed(2)}</span>
+                    <span>Ksh. {item.price.toFixed(2)}</span>
                     {item.vat_amount > 0 && (
                       <Tag color="blue" style={{ marginLeft: 8 }}>
                         VAT: Ksh. {item.vat_amount.toFixed(2)}
@@ -70,6 +71,10 @@ const ExpandableInvoice = ({ record }: { record: InvoiceDetailsInterface }) => {
               </List.Item>
             )}
           />
+        </ProDescriptions.Item>
+        {/* vat pricing mode */}
+        <ProDescriptions.Item label="Pricing Mode" span={2}>
+          {vat_pricing_mode}
         </ProDescriptions.Item>
 
         {/* Subtotal */}
