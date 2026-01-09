@@ -1,512 +1,31 @@
-// Remove createAsyncThunk import or keep it only for other functions
-import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
-import { message } from "antd";
 import axiosInstance from "./request";
-import { createAsyncThunk } from "@reduxjs/toolkit";
-
-const package_url = `${BASE_URL}/packages`;
-const subscription_url = `${BASE_URL}/subscriptions`;
-
-// Helper to validate shop_id
-const getValidShopId = (): string | null => {
-    const shopId = localStorage.getItem("shopId");
-
-    if (!shopId || shopId === "undefined" || shopId === "null" || shopId.trim() === "") {
-        return null;
-    }
-
-    return shopId;
-};
-
-// ==================== PACKAGE OPERATIONS ====================
-
-export const fetchAllPackages = async (params?: {
-    shop_id?: string;
-    is_active?: boolean;
-    category?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
-}) => {
-    try {
-        const shopId = params?.shop_id || getValidShopId();
-
-        if (!shopId) {
-            message.warning("Please select a shop first");
-            return {
-                packages: [],
-                totalPackages: 0,
-                totalPages: 0,
-                currentPage: 1,
-            };
-        }
-
-        console.log("📦 Fetching packages for shop:", shopId);
-
-        const response = await axiosInstance.get(package_url, {
-            params: {
-                shop_id: shopId,
-                is_active: params?.is_active,
-                category: params?.category,
-                search: params?.search,
-                page: params?.page || 1,
-                limit: params?.limit || 10,
-            },
-        });
-
-        return response.data;
-    } catch (error: any) {
-        console.error("❌ Error fetching packages:", error);
-        const errorMessage = error?.response?.data?.message || error?.message || "Failed to fetch packages";
-        message.error(errorMessage);
-
-        return {
-            packages: [],
-            totalPackages: 0,
-            totalPages: 0,
-            currentPage: 1,
-        };
-    }
-};
-
-export const fetchActivePackages = async (shop_id?: string) => {
-    try {
-        const shopId = shop_id || getValidShopId();
-
-        if (!shopId) {
-            message.warning("Please select a shop first");
-            return { packages: [], count: 0 };
-        }
-
-        console.log("📦 Fetching active packages for shop:", shopId);
-
-        const response = await axiosInstance.get(`${package_url}/active`, {
-            params: { shop_id: shopId },
-        });
-
-        return response.data;
-    } catch (error: any) {
-        console.error("❌ Error fetching active packages:", error);
-        const errorMessage = error?.response?.data?.message || error?.message || "Failed to fetch active packages";
-        message.error(errorMessage);
-        return { packages: [], count: 0 };
-    }
-};
-
-export const fetchPackageById = async (packageId: string) => {
-    try {
-        const response = await axiosInstance.get(`${package_url}/${packageId}`);
-        return response.data;
-    } catch (error: any) {
-        throw new Error(error?.message || "Failed to fetch package details");
-    }
-};
-
-export const fetchPackageStatistics = async (packageId: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${package_url}/${packageId}/statistics`
-        );
-        return response.data;
-    } catch (error: any) {
-        throw new Error(error?.message || "Failed to fetch package statistics");
-    }
-};
-
-// ✅ FIXED: Changed from createAsyncThunk to regular async function
-export const createPackage = async (packageData: {
-    name: string;
-    code?: string;
-    category?: string;
-    thumbnail?: string;
-    price: number;
-    total_visits: number;
-    validity_days?: number;
-    desc?: string;
-    is_active?: boolean;
-}) => {
-    try {
-        const shopId = getValidShopId();
-
-        if (!shopId) {
-            message.error("Shop ID is required");
-            throw new Error("Shop ID is required");
-        }
-
-        console.log("📦 Creating package with data:", packageData);
-
-        const response = await axiosInstance.post(package_url, {
-            ...packageData,
-            shop_id: shopId,
-        });
-
-        message.success("Package created successfully");
-        return response.data;
-    } catch (error: any) {
-        const errorMessage =
-            error?.response?.data?.message ||
-            error?.message ||
-            "Failed to create package";
-        message.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-};
-
-export const updatePackage = async (packageId: string, data: any) => {
-    try {
-        const response = await axiosInstance.put(
-            `${package_url}/${packageId}`,
-            data
-        );
-        message.success("Package updated successfully");
-        return response.data;
-    } catch (error: any) {
-        const errorMessage =
-            error?.response?.data?.message ||
-            error?.message ||
-            "Failed to update package";
-        message.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-};
-
-export const deletePackage = async (packageId: string) => {
-    try {
-        const response = await axiosInstance.delete(`${package_url}/${packageId}`);
-        message.success("Package deactivated successfully");
-        return response.data;
-    } catch (error: any) {
-        const errorMessage =
-            error?.response?.data?.message ||
-            error?.message ||
-            "Failed to delete package";
-        message.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-};
-
-export const hardDeletePackage = async (packageId: string) => {
-    try {
-        const response = await axiosInstance.delete(
-            `${package_url}/${packageId}/hard`
-        );
-        message.success("Package permanently deleted");
-        return response.data;
-    } catch (error: any) {
-        const errorMessage =
-            error?.response?.data?.message ||
-            error?.message ||
-            "Failed to permanently delete package";
-        message.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-};
-
-// ==================== SUBSCRIPTION OPERATIONS ====================
-
-export const fetchAllSubscriptions = async (params?: {
-    shop_id?: string;
-    status?: "Active" | "Expired" | "Exhausted" | "Cancelled";
-    customer_id?: string;
-    package_id?: string;
-    payment_status?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
-}) => {
-    try {
-        const shopId = params?.shop_id || getValidShopId();
-
-        if (!shopId) {
-            message.warning("Please select a shop first");
-            return {
-                subscriptions: [],
-                totalSubscriptions: 0,
-                totalPages: 0,
-                currentPage: 1,
-            };
-        }
-
-        const response = await axiosInstance.get(subscription_url, {
-            params: {
-                shop_id: shopId,
-                status: params?.status,
-                customer_id: params?.customer_id,
-                package_id: params?.package_id,
-                payment_status: params?.payment_status,
-                search: params?.search,
-                page: params?.page || 1,
-                limit: params?.limit || 20,
-            },
-        });
-
-        return response.data;
-    } catch (error: any) {
-        console.error("Error fetching subscriptions:", error);
-        return {
-            subscriptions: [],
-            totalSubscriptions: 0,
-            totalPages: 0,
-            currentPage: 1,
-        };
-    }
-};
-
-export const fetchCustomerSubscriptions = async (customerId: string, status?: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${subscription_url}/customer/${customerId}`,
-            {
-                params: { status },
-            }
-        );
-        return response.data;
-    } catch (error: any) {
-        throw new Error(
-            error?.message || "Failed to fetch customer subscriptions"
-        );
-    }
-};
-
-export const fetchCustomerActiveSubscriptions = async (customerId: string) => {
-    try {
-        const shopId = getValidShopId();
-        const response = await axiosInstance.get(
-            `${subscription_url}/customer/${customerId}/active`,
-            {
-                params: { shop_id: shopId },
-            }
-        );
-        return response.data;
-    } catch (error: any) {
-        throw new Error(
-            error?.message || "Failed to fetch active subscriptions"
-        );
-    }
-};
-
-export const fetchSubscriptionById = async (subscriptionId: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${subscription_url}/${subscriptionId}`
-        );
-        return response.data;
-    } catch (error: any) {
-        throw new Error(error?.message || "Failed to fetch subscription details");
-    }
-};
-
-export const fetchExpiringSubscriptions = async (days: number = 7) => {
-    try {
-        const shopId = getValidShopId();
-        const response = await axiosInstance.get(
-            `${subscription_url}/expiring`,
-            {
-                params: { shop_id: shopId, days },
-            }
-        );
-        return response.data;
-    } catch (error: any) {
-        throw new Error(
-            error?.message || "Failed to fetch expiring subscriptions"
-        );
-    }
-};
-
-export const fetchShopSubscriptionStatistics = async (shop_id?: string) => {
-    try {
-        const shopId = shop_id || getValidShopId();
-        const response = await axiosInstance.get(
-            `${subscription_url}/statistics`,
-            {
-                params: { shop_id: shopId },
-            }
-        );
-        return response.data;
-    } catch (error: any) {
-        throw new Error(
-            error?.message || "Failed to fetch subscription statistics"
-        );
-    }
-};
-
-// ✅ FIXED: Changed from createAsyncThunk to regular async function
-export const createSubscription = async (subscriptionData: {
-    customer_id: string;
-    package_id: string;
-    payment_method_id?: string;
-    payment_amount: number;
-}) => {
-    try {
-        const response = await axiosInstance.post(
-            subscription_url,
-            subscriptionData
-        );
-        message.success("Subscription created successfully");
-        return response.data;
-    } catch (error: any) {
-        const errorMessage =
-            error?.response?.data?.message ||
-            error?.message ||
-            "Failed to create subscription";
-        message.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-};
-
-export const adjustSubscriptionVisits = async (
-    subscriptionId: string,
-    adjustment: number,
-    reason?: string
-) => {
-    try {
-        const response = await axiosInstance.patch(
-            `${subscription_url}/${subscriptionId}/adjust`,
-            { adjustment, reason }
-        );
-        message.success("Subscription visits adjusted");
-        return response.data;
-    } catch (error: any) {
-        const errorMessage =
-            error?.response?.data?.message ||
-            error?.message ||
-            "Failed to adjust visits";
-        message.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-};
-
-export const extendSubscription = async (
-    subscriptionId: string,
-    additional_days: number,
-    reason?: string
-) => {
-    try {
-        const response = await axiosInstance.patch(
-            `${subscription_url}/${subscriptionId}/extend`,
-            { additional_days, reason }
-        );
-        message.success("Subscription extended successfully");
-        return response.data;
-    } catch (error: any) {
-        const errorMessage =
-            error?.response?.data?.message ||
-            error?.message ||
-            "Failed to extend subscription";
-        message.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-};
-
-export const cancelSubscription = async (
-    subscriptionId: string,
-    reason?: string,
-    refund_amount?: number
-) => {
-    try {
-        const response = await axiosInstance.patch(
-            `${subscription_url}/${subscriptionId}/cancel`,
-            { reason, refund_amount }
-        );
-        message.success("Subscription cancelled successfully");
-        return response.data;
-    } catch (error: any) {
-        const errorMessage =
-            error?.response?.data?.message ||
-            error?.message ||
-            "Failed to cancel subscription";
-        message.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-};
-
-// ==================== CART/POS INTEGRATION ====================
-
-export const checkCustomerHasActiveSubscription = async (customerId: string) => {
-    try {
-        const shopId = getValidShopId();
-        const response = await axiosInstance.get(
-            `${subscription_url}/customer/${customerId}/active`,
-            {
-                params: { shop_id: shopId },
-            }
-        );
-        return {
-            hasActiveSubscription: response.data.count > 0,
-            subscriptions: response.data.subscriptions,
-            count: response.data.count,
-        };
-    } catch (error: any) {
-        console.error("Error checking customer subscription:", error);
-        return {
-            hasActiveSubscription: false,
-            subscriptions: [],
-            count: 0,
-        };
-    }
-};
-
-export const fetchPackageAllowedServices = async (packageId: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${package_url}/${packageId}/allowed-services`
-        );
-        return response.data;
-    } catch (error: any) {
-        throw new Error(
-            error?.message || "Failed to fetch allowed services"
-        );
-    }
-};
-
-// ✅ FIXED: Changed from createAsyncThunk to regular async function
-export const purchaseSubscription = async (purchaseData: {
-    customer_id: string;
-    package_id: string;
-    payment_method_id: string;
-    payment_amount: number;
-}) => {
-    try {
-        const response = await axiosInstance.post(
-            subscription_url,
-            purchaseData
-        );
-        message.success(`Subscription purchased! ${response.data.subscription.total_visits_allowed} visits available`);
-        return response.data;
-    } catch (error: any) {
-        const errorMessage =
-            error?.response?.data?.message ||
-            error?.message ||
-            "Failed to purchase subscription";
-        message.error(errorMessage);
-        throw new Error(errorMessage);
-    }
-};
-
-// ==================== TYPES ====================
 
 export interface Package {
     _id: string;
     name: string;
     code: string;
-    category?: string;
-    shop_id: string;
-    thumbnail?: string;
+    desc?: string;
     price: number;
     total_visits: number;
-    validity_days?: number;
-    desc?: string;
+    validity_days: number;
     is_active: boolean;
+    shop_id: string;
     createdAt: string;
     updatedAt: string;
 }
 
 export interface CustomerSubscription {
     _id: string;
+    customer_id: string | {
+        _id: string;
+        customer_name: string;
+        code: string;
+        phone?: string;
+        email?: string;
+    };
+    package_id: string | Package;
     subscription_code: string;
-    customer_id: any;
-    package_id: any;
     shop_id: string;
     total_visits_allowed: number;
     visits_used: number;
@@ -514,27 +33,443 @@ export interface CustomerSubscription {
     start_date: string;
     end_date: string;
     purchase_amount: number;
-    payment_status: "Paid" | "Pending";
     payment_method_id?: string;
-    payment_date?: string;
-    status: "Active" | "Expired" | "Exhausted" | "Cancelled";
+    payment_status: 'Paid' | 'Pending' | 'Refunded';
+    payment_date: string;
+    status: 'Active' | 'Expired' | 'Exhausted' | 'Cancelled';
     cancellation_reason?: string;
     cancellation_date?: string;
     refund_amount?: number;
-    created_by: string;
+    created_by?: string;
     createdAt: string;
     updatedAt: string;
 }
 
-export interface SubscriptionStatistics {
-    total_subscriptions: number;
-    active_subscriptions: number;
-    expired_subscriptions: number;
-    exhausted_subscriptions: number;
-    cancelled_subscriptions: number;
-    total_revenue: number;
-    total_visits_allocated: number;
-    total_visits_used: number;
-    total_visits_remaining: number;
-    utilization_rate: number;
+export interface Visit {
+    _id: string;
+    customer_id: string;
+    shop_id: string;
+    visit_type: 'subscription' | 'feedback' | 'both';
+    subscription_id?: string;
+    order_id?: string;
+    visit_number?: number;
+    visit_date: string;
+    services_provided?: Array<{
+        service_name: string;
+        notes?: string;
+    }>;
+    notes?: string;
+    feedback_type?: 'authenticated' | 'anonymous';
+    rating?: number;
+    review?: string;
+    is_verified?: boolean;
+    deducted_from_package?: boolean;
+    created_by?: string;
+    createdAt: string;
+    updatedAt: string;
 }
+
+const baseUrl = `${BASE_URL}/subscriptions`;
+
+// ============== PACKAGE MANAGEMENT ==============
+
+export const fetchAllPackages = async (params?: {
+    page?: number;
+    limit?: number;
+    is_active?: boolean;
+}) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(`${BASE_URL}/packages`, {
+        params: {
+            shop_id: shopId,
+            ...params,
+        },
+    });
+    return response.data;
+};
+
+export const fetchActivePackages = async () => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(`${BASE_URL}/packages/active`, {
+        params: { shop_id: shopId },
+    });
+    return response.data;
+};
+
+export const fetchPackageById = async (packageId: string) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(`${BASE_URL}/packages/${packageId}`, {
+        params: { shop_id: shopId },
+    });
+    return response.data;
+};
+
+export const createPackage = async (packageData: {
+    name: string;
+    desc?: string;
+    price: number;
+    total_visits: number;
+    validity_days: number;
+    is_active?: boolean;
+}) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.post(`${BASE_URL}/packages`, {
+        ...packageData,
+        shop_id: shopId,
+    });
+    return response.data;
+};
+
+export const updatePackage = async (
+    packageId: string,
+    packageData: Partial<Package>
+) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.put(
+        `${BASE_URL}/packages/${packageId}`,
+        {
+            ...packageData,
+            shop_id: shopId,
+        }
+    );
+    return response.data;
+};
+
+export const deletePackage = async (packageId: string) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.delete(`${BASE_URL}/packages/${packageId}`, {
+        params: { shop_id: shopId },
+    });
+    return response.data;
+};
+
+export const togglePackageStatus = async (packageId: string) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.patch(
+        `${BASE_URL}/packages/${packageId}/toggle-status`,
+        { shop_id: shopId }
+    );
+    return response.data;
+};
+
+// ============== PACKAGE STATISTICS ==============
+
+export const fetchPackageStatistics = async (packageId: string) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(`${BASE_URL}/packages/${packageId}/statistics`, {
+        params: { shop_id: shopId },
+    });
+    return response.data;
+};
+
+export const fetchAllPackageStatistics = async () => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(`${BASE_URL}/packages/statistics`, {
+        params: { shop_id: shopId },
+    });
+    return response.data;
+};
+
+// ============== SUBSCRIPTION MANAGEMENT ==============
+
+export const purchaseSubscription = async (subscriptionData: {
+    customer_id: string;
+    package_id: string;
+    payment_method_id: string;
+    payment_amount: number;
+}) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.post(`${baseUrl}`, {
+        ...subscriptionData,
+        shop_id: shopId,
+    });
+    return response.data;
+};
+
+export const fetchAllSubscriptions = async (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    customer_id?: string;
+    package_id?: string;
+    payment_status?: string;
+    search?: string;
+}) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(baseUrl, {
+        params: {
+            shop_id: shopId,
+            ...params,
+        },
+    });
+    return response.data;
+};
+
+export const fetchSubscriptionById = async (subscriptionId: string) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(`${baseUrl}/${subscriptionId}`, {
+        params: { shop_id: shopId },
+    });
+    return response.data;
+};
+
+export const fetchCustomerSubscriptions = async (
+    customerId: string,
+    params?: {
+        status?: string;
+    }
+) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(
+        `${baseUrl}/customer/${customerId}`,
+        {
+            params: {
+                shop_id: shopId,
+                ...params,
+            },
+        }
+    );
+    return response.data;
+};
+
+export const fetchCustomerActiveSubscriptions = async (customerId: string) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(
+        `${baseUrl}/customer/${customerId}/active`,
+        {
+            params: { shop_id: shopId },
+        }
+    );
+    return response.data;
+};
+
+export const fetchCustomerSubscriptionHistory = async (
+    customerId: string,
+    params?: {
+        include_visits?: string;
+        status?: string;
+    }
+) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(
+        `${baseUrl}/customer/${customerId}/history`,
+        {
+            params: {
+                shop_id: shopId,
+                include_visits: 'true',
+                ...params,
+            },
+        }
+    );
+    return response.data;
+};
+
+export const fetchSubscriptionDetails = async (subscriptionId: string) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(
+        `${baseUrl}/${subscriptionId}/details`,
+        {
+            params: { shop_id: shopId },
+        }
+    );
+    return response.data;
+};
+
+export const adjustSubscriptionVisits = async (
+    subscriptionId: string,
+    adjustmentData: {
+        adjustment: number;
+        reason?: string;
+    }
+) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.put(
+        `${baseUrl}/${subscriptionId}/adjust-visits`,
+        {
+            ...adjustmentData,
+            shop_id: shopId,
+        }
+    );
+    return response.data;
+};
+
+export const extendSubscription = async (
+    subscriptionId: string,
+    extensionData: {
+        additional_days: number;
+        reason?: string;
+    }
+) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.put(
+        `${baseUrl}/${subscriptionId}/extend`,
+        {
+            ...extensionData,
+            shop_id: shopId,
+        }
+    );
+    return response.data;
+};
+
+export const cancelSubscription = async (
+    subscriptionId: string,
+    cancellationData: {
+        reason: string;
+        refund_amount?: number;
+    }
+) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.put(
+        `${baseUrl}/${subscriptionId}/cancel`,
+        {
+            ...cancellationData,
+            shop_id: shopId,
+        }
+    );
+    return response.data;
+};
+
+// ============== VISIT MANAGEMENT ==============
+
+export const useSubscriptionVisit = async (visitData: {
+    subscription_id: string;
+    services_provided?: Array<{
+        service_name: string;
+        notes?: string;
+    }>;
+    notes?: string;
+    order_id?: string;
+    include_feedback?: boolean;
+    rating?: number;
+    review?: string;
+}) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.post(`${baseUrl}/use-visit`, {
+        ...visitData,
+        shop_id: shopId,
+    });
+    return response.data;
+};
+
+// ============== STATISTICS & ANALYTICS ==============
+
+export const fetchShopSubscriptionStatistics = async () => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(`${baseUrl}/statistics`, {
+        params: { shop_id: shopId },
+    });
+    return response.data;
+};
+
+export const fetchExpiringSubscriptions = async (days: number = 7) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.get(`${baseUrl}/expiring`, {
+        params: {
+            shop_id: shopId,
+            days,
+        },
+    });
+    return response.data;
+};
+
+// ============== HELPER FUNCTIONS ==============
+
+export const isSubscriptionValid = (subscription: CustomerSubscription): boolean => {
+    const now = new Date();
+    const endDate = new Date(subscription.end_date);
+
+    return (
+        subscription.status === 'Active' &&
+        subscription.visits_remaining > 0 &&
+        endDate >= now
+    );
+};
+
+export const calculateSubscriptionProgress = (
+    subscription: CustomerSubscription
+): {
+    visitPercentage: number;
+    timePercentage: number;
+    daysRemaining: number;
+} => {
+    const visitPercentage =
+        (subscription.visits_used / subscription.total_visits_allowed) * 100;
+
+    const now = new Date();
+    const startDate = new Date(subscription.start_date);
+    const endDate = new Date(subscription.end_date);
+
+    const totalDays = Math.ceil(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const daysElapsed = Math.ceil(
+        (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const daysRemaining = Math.max(
+        0,
+        Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    );
+
+    const timePercentage = (daysElapsed / totalDays) * 100;
+
+    return {
+        visitPercentage: Math.min(100, Math.max(0, visitPercentage)),
+        timePercentage: Math.min(100, Math.max(0, timePercentage)),
+        daysRemaining,
+    };
+};
+
+export const formatSubscriptionStatus = (
+    status: CustomerSubscription['status']
+): {
+    text: string;
+    color: string;
+} => {
+    const statusMap = {
+        Active: { text: 'Active', color: 'green' },
+        Expired: { text: 'Expired', color: 'orange' },
+        Exhausted: { text: 'Exhausted', color: 'red' },
+        Cancelled: { text: 'Cancelled', color: 'default' },
+    };
+
+    return statusMap[status] || { text: status, color: 'default' };
+};
+
+// ============== DEFAULT EXPORT ==============
+
+export default {
+    // Packages
+    fetchAllPackages,
+    fetchActivePackages,
+    fetchPackageById,
+    createPackage,
+    updatePackage,
+    deletePackage,
+    togglePackageStatus,
+    fetchPackageStatistics,
+    fetchAllPackageStatistics,
+
+    // Subscriptions
+    purchaseSubscription,
+    fetchAllSubscriptions,
+    fetchSubscriptionById,
+    fetchCustomerSubscriptions,
+    fetchCustomerActiveSubscriptions,
+    fetchCustomerSubscriptionHistory,
+    fetchSubscriptionDetails,
+    adjustSubscriptionVisits,
+    extendSubscription,
+    cancelSubscription,
+
+    // Visits
+    useSubscriptionVisit,
+
+    // Statistics
+    fetchShopSubscriptionStatistics,
+    fetchExpiringSubscriptions,
+
+    // Helpers
+    isSubscriptionValid,
+    calculateSubscriptionProgress,
+    formatSubscriptionStatus,
+};

@@ -12,6 +12,7 @@ import {
     Divider,
     Tag,
     Avatar,
+    Spin,
 } from 'antd';
 import {
     UserOutlined,
@@ -23,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import { Package, purchaseSubscription } from '@services/subscription';
 import { fetchAllCustomers } from '@services/customers';
+import { fetchAllPaymentMethods } from '@services/paymentMethod';
 import { useQuery } from '@tanstack/react-query';
 
 const { Text, Title } = Typography;
@@ -51,7 +53,20 @@ const PurchasePackageModal: React.FC<PurchasePackageModalProps> = ({
         enabled: visible,
     });
 
+    const { data: paymentMethodsData, isLoading: paymentMethodsLoading } = useQuery({
+        queryKey: ['payment-methods'],
+        queryFn: () => fetchAllPaymentMethods({}),
+        enabled: visible,
+    });
+
     const customers = customersData || [];
+
+    const paymentMethods = Array.isArray(paymentMethodsData)
+        ? paymentMethodsData
+        : paymentMethodsData?.paymentMethods || [];
+
+    console.log('Payment Methods Data:', paymentMethodsData);
+    console.log('Payment Methods Array:', paymentMethods);
 
     const filteredCustomers = customers.filter(customer =>
         customer.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -90,6 +105,14 @@ const PurchasePackageModal: React.FC<PurchasePackageModalProps> = ({
             setSearchTerm('');
             onClose();
         }
+    };
+
+    const getPaymentMethodIcon = (methodName: string) => {
+        const name = methodName?.toLowerCase() || '';
+        if (name.includes('cash')) return <DollarOutlined />;
+        if (name.includes('mpesa') || name.includes('m-pesa')) return <PhoneOutlined />;
+        if (name.includes('card')) return <CreditCardOutlined />;
+        return <CreditCardOutlined />;
     };
 
     if (!pkg) return null;
@@ -172,12 +195,18 @@ const PurchasePackageModal: React.FC<PurchasePackageModalProps> = ({
                             filterOption={false}
                             onSearch={setSearchTerm}
                             notFoundContent={
-                                <div style={{ textAlign: 'center', padding: '20px' }}>
-                                    <UserOutlined style={{ fontSize: '32px', color: '#d9d9d9', marginBottom: '8px' }} />
-                                    <div style={{ color: '#999' }}>
-                                        {searchTerm ? 'No customers found' : 'Start typing to search customers'}
+                                customersLoading ? (
+                                    <div style={{ textAlign: 'center', padding: '20px' }}>
+                                        <Spin size="small" />
                                     </div>
-                                </div>
+                                ) : (
+                                    <div style={{ textAlign: 'center', padding: '20px' }}>
+                                        <UserOutlined style={{ fontSize: '32px', color: '#d9d9d9', marginBottom: '8px' }} />
+                                        <div style={{ color: '#999' }}>
+                                            {searchTerm ? 'No customers found' : 'Start typing to search customers'}
+                                        </div>
+                                    </div>
+                                )
                             }
                             size="large"
                             style={{ width: '100%' }}
@@ -253,31 +282,29 @@ const PurchasePackageModal: React.FC<PurchasePackageModalProps> = ({
                             placeholder="Select payment method"
                             size="large"
                             style={{ width: '100%' }}
+                            loading={paymentMethodsLoading}
+                            notFoundContent={
+                                paymentMethodsLoading ? (
+                                    <div style={{ textAlign: 'center', padding: '20px' }}>
+                                        <Spin size="small" />
+                                    </div>
+                                ) : (
+                                    <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                                        No payment methods available
+                                    </div>
+                                )
+                            }
                         >
-                            <Option value="cash">
-                                <Space>
-                                    <DollarOutlined />
-                                    <span>Cash</span>
-                                </Space>
-                            </Option>
-                            <Option value="mpesa">
-                                <Space>
-                                    <PhoneOutlined />
-                                    <span>M-Pesa</span>
-                                </Space>
-                            </Option>
-                            <Option value="card">
-                                <Space>
-                                    <CreditCardOutlined />
-                                    <span>Card</span>
-                                </Space>
-                            </Option>
-                            <Option value="bank_transfer">
-                                <Space>
-                                    <CreditCardOutlined />
-                                    <span>Bank Transfer</span>
-                                </Space>
-                            </Option>
+                            {paymentMethods.length > 0 ? (
+                                paymentMethods.map((method: any) => (
+                                    <Option key={method._id} value={method._id}>
+                                        <Space>
+                                            {getPaymentMethodIcon(method.name)}
+                                            <span>{method.name}</span>
+                                        </Space>
+                                    </Option>
+                                ))
+                            ) : null}
                         </Select>
                     </Form.Item>
 
