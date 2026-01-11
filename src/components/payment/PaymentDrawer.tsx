@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { grey } from "@mui/material/colors";
 import { createOrder } from "@features/Order/OrderActions";
-import { cartVoid, createCart } from "@features/Cart/CartActions";
+import { cartVoid, createCart, updateCart } from "@features/Cart/CartActions";
 import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
 import {
@@ -23,6 +23,7 @@ import {
   Divider,
   Tag,
   Flex,
+  Badge,
 } from "antd";
 import {
   CloseCircleOutlined,
@@ -40,19 +41,25 @@ import {
   LoadingOutlined,
   UserOutlined,
   SearchOutlined,
+  GiftOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import { DrawerForm, ProCard } from "@ant-design/pro-components";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import DiscountModal from "@components/MODALS/pro/DiscountModal";
 import pesapalApi from "@services/pesapalApi";
 import { fetchAllCustomers, addNewCustomer } from "@services/customers";
+import { fetchAllPackages } from "@services/subscription";
 import SubscriptionPaymentOption from "./SubscriptionPaymentOption";
 
 const { Text, Title } = Typography;
+
 interface PaymentMethod {
   _id: string;
   name: string;
 }
+
+type STKPaymentStatus = "idle" | "sending" | "waiting" | "success" | "failed";
 
 const PaymentDrawer: React.FC = () => {
   const [form] = Form.useForm();
@@ -61,7 +68,9 @@ const PaymentDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = (path: string) => (window.location.href = path);
   const id = window.location.pathname.split("/").pop();
-  const { cartDetails, totalAmount } = useAppSelector((state) => state.cart);
+  const { cartDetails, subtotal, totalVatAmount, grandTotal } = useAppSelector(
+    (state) => state.cart
+  );
   const { loading, error } = useAppSelector((state) => state.order);
   const { user } = useAppSelector((state) => state.auth);
 
@@ -72,12 +81,10 @@ const PaymentDrawer: React.FC = () => {
   const [amount1, setAmount1] = useState(0);
   const [amount2, setAmount2] = useState(0);
 
-  // Customer states
-  const [customers, setCustomers] = useState([]);
+  // Customer & Subscription states
+  const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [searchingCustomers, setSearchingCustomers] = useState(false);
-
-  // Subscription states
   const [selectedSubscription, setSelectedSubscription] = useState<string | null>(null);
   const [useSubscription, setUseSubscription] = useState(false);
 
@@ -89,27 +96,32 @@ const PaymentDrawer: React.FC = () => {
     email: "",
   });
   const [pesapalModalVisible, setPesapalModalVisible] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
 
-  // STK Push specific states
-  const [stkPaymentStatus, setStkPaymentStatus] = useState<"idle" | "sending" | "waiting" | "success" | "failed">("idle");
+  // STK Push specific states - FIXED: Proper type annotation
+  const [stkPaymentStatus, setStkPaymentStatus] = useState<STKPaymentStatus>("idle");
   const [stkTrackingId, setStkTrackingId] = useState<string>("");
   const [countdown, setCountdown] = useState(0);
 
-  const totalCartAmount =
-    cartDetails?.items.reduce((acc, item) => {
-      return acc + item.price;
-    }, 0) || 0;
+  // Check if shop has active packages
+  const { data: packagesData, isLoading: packagesLoading } = useQuery({
+    queryKey: ["packages", localStorage.getItem("shopId")],
+    queryFn: () => fetchAllPackages({ is_active: true }),
+    networkMode: "always",
+  });
+
+  const activePackages = packagesData?.packages || [];
+  const hasActivePackages = activePackages.length > 0;
 
   // Phone number validation for Kenyan numbers
   const isValidKenyanPhone = (phone: string): boolean => {
     const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
     const patterns = [
-      /^\+254[17]\d{8}$/, // +254712345678 or +254112345678
-      /^254[17]\d{8}$/, // 254712345678 or 254112345678
-      /^0[17]\d{8}$/, // 0712345678 or 0112345678
-      /^[17]\d{8}$/, // 712345678 or 112345678
+      /^\+254[17]\d{8}$/,
+      /^254[17]\d{8}$/,
+      /^0[17]\d{8}$/,
+      /^[17]\d{8}$/,
     ];
     return patterns.some((pattern) => pattern.test(cleanPhone));
   };
@@ -137,12 +149,7 @@ const PaymentDrawer: React.FC = () => {
 
     try {
       setSearchingCustomers(true);
-
-      // Use the unified search parameter to handle both phone and other fields
-      const result = await fetchAllCustomers({
-        search: searchTerm
-      });
-      console.log("Customer search result:", result);
+      const result = await fetchAllCustomers({ search: searchTerm });
       setCustomers(result || []);
     } catch (error) {
       console.error("Error searching customers:", error);
@@ -220,7 +227,6 @@ const PaymentDrawer: React.FC = () => {
     if (stkPaymentStatus === "waiting" && stkTrackingId) {
       intervalId = setInterval(async () => {
         try {
-          // Poll payment status API
           const response = await fetch(
             `/api/orders/payment-status?tracking_id=${stkTrackingId}`
           );
@@ -242,7 +248,7 @@ const PaymentDrawer: React.FC = () => {
         } catch (error) {
           console.error("Error checking payment status:", error);
         }
-      }, 3000); // Check every 3 seconds
+      }, 3000);
     }
 
     return () => {
@@ -263,15 +269,16 @@ const PaymentDrawer: React.FC = () => {
     checkPesapalStatus();
   }, []);
 
-  const calculateFinalAmount = () => {
-    if (!cartDetails?.discount) {
-      return totalCartAmount.toLocaleString();
-    }
-    if (cartDetails?.discount_type === "percentage") {
-      return totalCartAmount - totalCartAmount * (cartDetails?.discount / 100);
-    } else {
-      return totalCartAmount - cartDetails?.discount;
-    }
+  const handleRemoveDiscount = () => {
+    const cartUpdateData = {
+      cart: cartDetails,
+      data: {
+        discount: 0,
+        discount_type: "",
+      },
+    };
+    dispatch(updateCart(cartUpdateData as any));
+    message.success("Discount removed successfully.");
   };
 
   const {
@@ -328,7 +335,7 @@ const PaymentDrawer: React.FC = () => {
       amount1 < 1 ||
       !amount2 ||
       amount2 < 1 ||
-      totalAmountCheck !== totalAmount
+      totalAmountCheck !== grandTotal
     ) {
       message.error("The split amounts must equal the total amount.");
       return;
@@ -370,12 +377,12 @@ const PaymentDrawer: React.FC = () => {
 
       const orderDetails = {
         cart_id: cartDetails?._id,
-        order_amount: 0, // Subscription orders are KSh. 0
+        order_amount: 0,
         table_id: id,
         updated_by: user?.id,
         order_no: cartDetails?.order_no,
         cart_items: cartDetails.items,
-        method_id: null, // No payment method needed
+        method_id: null,
         use_subscription: true,
         subscription_id: selectedSubscription,
         customer_id: selectedCustomerId,
@@ -415,7 +422,7 @@ const PaymentDrawer: React.FC = () => {
     } else {
       const orderDetails = {
         cart_id: cartDetails?._id,
-        order_amount: totalAmount,
+        order_amount: grandTotal,
         table_id: id,
         updated_by: user?.id,
         order_no: cartDetails?.order_no,
@@ -482,7 +489,7 @@ const PaymentDrawer: React.FC = () => {
 
       const orderDetails = {
         cart_id: cartDetails?._id,
-        order_amount: totalAmount,
+        order_amount: grandTotal,
         table_id: id,
         updated_by: user?.id,
         order_no: cartDetails?.order_no,
@@ -499,7 +506,7 @@ const PaymentDrawer: React.FC = () => {
       };
 
       setStkPaymentStatus("sending");
-      setCountdown(300); // 5 minutes countdown
+      setCountdown(300);
 
       const result = await dispatch(createOrder(orderDetails));
 
@@ -634,7 +641,7 @@ const PaymentDrawer: React.FC = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || packagesLoading) {
     return (
       <Space
         style={{
@@ -700,12 +707,12 @@ const PaymentDrawer: React.FC = () => {
                   onClick={handlePayment}
                   loading={loading}
                   disabled={useSubscription ? !selectedSubscription : !selectedMethod}
-                  icon={<FileOutlined />}
+                  icon={useSubscription ? <GiftOutlined /> : <FileOutlined />}
                   block
                 >
                   {useSubscription
                     ? "Confirm Subscription Visit"
-                    : "Confirm Order Payment"}
+                    : "Confirm Payment"}
                 </Button>
                 <Button
                   block
@@ -753,175 +760,257 @@ const PaymentDrawer: React.FC = () => {
           </Button>
         }
       >
-        <Space direction="vertical" style={{ width: "100%" }}>
-          <Typography.Text strong style={{ fontSize: "20px" }}>
-            Order Summary
-          </Typography.Text>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Statistic
-                title="Subtotal"
-                value={totalCartAmount}
-                prefix={"KSh."}
-                precision={2}
-              />
-            </Col>
-            <Col span={12}>
-              <Statistic
-                title="Discount"
-                value={cartDetails?.discount || 0}
-                prefix={
-                  cartDetails?.discount_type === "percentage" ? (
-                    <PercentageOutlined />
-                  ) : (
-                    "Ksh."
-                  )
-                }
-                precision={2}
-              />
-            </Col>
-          </Row>
-          <Statistic
-            title="Total After Discount"
-            value={useSubscription ? 0 : calculateFinalAmount()}
-            prefix={"KSh."}
-            precision={2}
-            style={{ marginTop: 16 }}
-          />
+        <Space direction="vertical" style={{ width: "100%" }} size="large">
+          {/* ORDER SUMMARY */}
+          <Card
+            title={<Text strong>Order Summary</Text>}
+            size="small"
+            bordered={false}
+            style={{ backgroundColor: "#fafafa" }}
+          >
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <Flex justify="space-between">
+                <Text>Subtotal</Text>
+                <Text strong>KSH. {subtotal.toLocaleString()}</Text>
+              </Flex>
+              <Flex justify="space-between" align="center">
+                <Text>Discount</Text>
+                <Space>
+                  <Text type="danger">
+                    - KSH.{" "}
+                    {(
+                      (subtotal * (cartDetails.discount || 0)) /
+                      100
+                    ).toLocaleString()}
+                  </Text>
+                  {cartDetails.discount > 0 && (
+                    <Button
+                      type="link"
+                      danger
+                      size="small"
+                      onClick={handleRemoveDiscount}
+                      icon={<CloseCircleOutlined />}
+                      style={{ padding: 0 }}
+                    />
+                  )}
+                </Space>
+              </Flex>
+              <Flex justify="space-between">
+                <Text>VAT</Text>
+                <Text>KSH. {totalVatAmount.toLocaleString()}</Text>
+              </Flex>
+              <Divider style={{ margin: "8px 0" }} />
+              <Flex justify="space-between">
+                <Title level={5} style={{ margin: 0 }}>
+                  Amount Due
+                </Title>
+                <Title level={5} style={{ margin: 0, color: "#6c1c2c" }}>
+                  KSH. {useSubscription ? "0.00" : grandTotal.toLocaleString()}
+                </Title>
+              </Flex>
+            </Space>
+          </Card>
 
           {useSubscription && (
             <Alert
               message={
                 <Space>
-                  <CheckCircleOutlined />
+                  <GiftOutlined />
                   <Text strong>Using Subscription Visit - Order Total: KSh. 0</Text>
                 </Space>
               }
+              description="One visit will be deducted from the selected package"
               type="success"
               showIcon
-              style={{ marginTop: 8 }}
+              style={{ borderRadius: 8 }}
             />
           )}
 
-          {/* Customer Selection */}
-          <Card
-            size="small"
-            style={{ marginTop: 16 }}
-            title={
-              <Space>
-                <UserOutlined />
-                <span>Customer (Optional)</span>
-              </Space>
-            }
-          >
-            <Space direction="vertical" style={{ width: "100%" }}>
-              <Text type="secondary" style={{ fontSize: "12px" }}>
-                Select a customer to use subscription or track customer orders
-              </Text>
-              <Select
-                style={{ width: "100%" }}
-                placeholder="Search by phone, name, or email"
-                showSearch
-                allowClear
-                value={selectedCustomerId}
-                onChange={(value) => {
-                  setSelectedCustomerId(value);
-                  if (!value) {
-                    setSelectedSubscription(null);
-                    setUseSubscription(false);
-                  }
+          {/* CUSTOMER & SUBSCRIPTION SECTION - Enhanced UI */}
+          {hasActivePackages && (
+            <>
+              <Card
+                title={
+                  <Space>
+                    <UserOutlined style={{ color: "#6c1c2c" }} />
+                    <Text strong>Customer Selection</Text>
+                    {selectedCustomerId && (
+                      <Badge status="success" text="Selected" />
+                    )}
+                  </Space>
+                }
+                size="small"
+                style={{
+                  borderRadius: 8,
+                  border: selectedCustomerId ? "2px solid #52c41a" : "1px solid #d9d9d9"
                 }}
-                onSearch={(value) => {
-                  if (value.length >= 3) {
-                    searchCustomers(value);
-                  }
-                }}
-                filterOption={false}
-                notFoundContent={searchingCustomers ? <Spin size="small" /> : "No customers found"}
-                suffixIcon={<SearchOutlined />}
               >
-                {customers.map((customer: any) => (
-                  <Select.Option key={customer._id} value={customer._id}>
-                    <Space direction="vertical" size="small">
-                      <Text strong>{customer.customer_name}</Text>
-                      <Text type="secondary" style={{ fontSize: "12px" }}>
-                        {customer.phone} {customer.email && `• ${customer.email}`}
-                      </Text>
-                    </Space>
-                  </Select.Option>
-                ))}
-              </Select>
-
-              {selectedCustomerId && customers.length > 0 && (
-                <Alert
-                  message={
+                <Select
+                  style={{ width: "100%" }}
+                  size="large"
+                  placeholder={
                     <Space>
-                      <CheckCircleOutlined />
-                      <Text>
-                        Customer: {customers.find(c => c._id === selectedCustomerId)?.customer_name}
-                      </Text>
+                      <SearchOutlined />
+                      <span>Search by phone or name (min 3 characters)</span>
                     </Space>
                   }
-                  type="success"
-                  showIcon
-                  style={{ marginTop: 8 }}
+                  showSearch
+                  allowClear
+                  value={selectedCustomerId}
+                  onChange={(value) => {
+                    setSelectedCustomerId(value);
+                    if (!value) {
+                      setSelectedSubscription(null);
+                      setUseSubscription(false);
+                    }
+                  }}
+                  onSearch={(value) => {
+                    if (value.length >= 3) {
+                      searchCustomers(value);
+                    } else {
+                      setCustomers([]);
+                    }
+                  }}
+                  filterOption={false}
+                  notFoundContent={
+                    searchingCustomers ? (
+                      <div style={{ textAlign: "center", padding: "20px" }}>
+                        <Spin size="small" />
+                        <div style={{ marginTop: 8 }}>
+                          <Text type="secondary">Searching customers...</Text>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: "center", padding: "20px" }}>
+                        <InfoCircleOutlined style={{ fontSize: 24, color: "#8c8c8c" }} />
+                        <div style={{ marginTop: 8 }}>
+                          <Text type="secondary">Type at least 3 characters to search</Text>
+                        </div>
+                      </div>
+                    )
+                  }
+                  suffixIcon={<SearchOutlined />}
+                >
+                  {customers.map((customer: any) => (
+                    <Select.Option key={customer._id} value={customer._id}>
+                      <Space direction="vertical" size={0} style={{ width: "100%" }}>
+                        <Flex justify="space-between" align="center">
+                          <Text strong>{customer.customer_name}</Text>
+                          {customer.phone && (
+                            <Tag color="blue" icon={<PhoneOutlined />}>
+                              {customer.phone}
+                            </Tag>
+                          )}
+                        </Flex>
+                        {customer.email && (
+                          <Text type="secondary" style={{ fontSize: "12px" }}>
+                            {customer.email}
+                          </Text>
+                        )}
+                      </Space>
+                    </Select.Option>
+                  ))}
+                </Select>
+
+                {selectedCustomerId && (
+                  <Alert
+                    style={{ marginTop: 12, borderRadius: 6 }}
+                    message={
+                      <Space>
+                        <CheckCircleOutlined style={{ color: "#52c41a" }} />
+                        <Text strong>Customer Selected</Text>
+                      </Space>
+                    }
+                    description={
+                      customers.find((c) => c._id === selectedCustomerId) && (
+                        <Space direction="vertical" size={4}>
+                          <Text>
+                            {customers.find((c) => c._id === selectedCustomerId)?.customer_name}
+                          </Text>
+                          <Text type="secondary">
+                            {customers.find((c) => c._id === selectedCustomerId)?.phone}
+                          </Text>
+                        </Space>
+                      )
+                    }
+                    type="success"
+                    showIcon={false}
+                  />
+                )}
+              </Card>
+
+              {/* SUBSCRIPTION PAYMENT OPTION - Always show if customer is selected */}
+              {selectedCustomerId && (
+                <SubscriptionPaymentOption
+                  customerId={selectedCustomerId}
+                  onSubscriptionSelect={handleSubscriptionSelect}
+                  selectedSubscription={selectedSubscription}
+                  orderAmount={grandTotal}
                 />
               )}
-            </Space>
-          </Card>
 
-          {/* Subscription Payment Option */}
-          <SubscriptionPaymentOption
-            customerId={selectedCustomerId}
-            onSubscriptionSelect={handleSubscriptionSelect}
-            selectedSubscription={selectedSubscription}
-            orderAmount={totalAmount}
-          />
+              {!useSubscription && <Divider style={{ margin: "8px 0" }} />}
+            </>
+          )}
 
-          {!useSubscription && <Divider />}
-
-          {/* Payment Method Selection (only show if not using subscription) */}
+          {/* PAYMENT METHOD SECTION - Only show when NOT using subscription */}
           {!useSubscription && (
-            <Space direction="vertical" style={{ width: "100%", marginTop: 24 }}>
-              <Typography.Title level={4}>Payment Method</Typography.Title>
+            <Card
+              title={
+                <Space>
+                  <WalletOutlined style={{ color: "#6c1c2c" }} />
+                  <Text strong>Payment Method</Text>
+                </Space>
+              }
+              size="small"
+              style={{ borderRadius: 8 }}
+            >
               <Space
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   flexWrap: "wrap",
-                  marginBottom: 10,
                 }}
+                size={[12, 12]}
               >
                 {paymentMethods?.map((method: PaymentMethod) => {
                   const isPesapal = isPesapalMethod(method._id);
                   const isDisabled = isPesapal && !pesapalEnabled;
+                  const isSelected = selectedMethod === method._id;
 
                   return (
                     <ProCard
                       key={method._id}
-                      bodyStyle={{ paddingInline: "20px", paddingBlock: "26px" }}
+                      bodyStyle={{
+                        paddingInline: "20px",
+                        paddingBlock: "20px",
+                        minWidth: "120px"
+                      }}
                       bordered
+                      hoverable={!isDisabled}
                       onClick={() => handleSelectMethod(method._id)}
                       style={{
-                        backgroundColor: `${selectedMethod === method._id ? "#6c1c2c" : grey[400]
-                          }`,
+                        backgroundColor: isSelected ? "#6c1c2c" : "white",
                         cursor: isDisabled ? "not-allowed" : "pointer",
-                        transition: "background-color 0.3s ease",
+                        transition: "all 0.3s ease",
                         opacity: isDisabled ? 0.5 : 1,
+                        border: isSelected ? "2px solid #6c1c2c" : "1px solid #d9d9d9",
+                        borderRadius: 8,
                       }}
                     >
                       <Space
+                        direction="vertical"
+                        align="center"
                         style={{
-                          color: `${selectedMethod === method._id ? "white" : "inherit"
-                            }`,
+                          color: isSelected ? "white" : "inherit",
                         }}
                       >
                         {getPaymentMethodIcon(method)}
                         <Typography.Text
                           strong
                           style={{
-                            color: `${selectedMethod === method._id ? "white" : "inherit"
-                              }`,
+                            color: isSelected ? "white" : "inherit",
+                            fontSize: "14px",
                           }}
                         >
                           {method.name === "M-Pesa"
@@ -931,13 +1020,18 @@ const PaymentDrawer: React.FC = () => {
                               ? "STK Push"
                               : method.name.charAt(0).toUpperCase() +
                               method.name.slice(1)}
-                          {isDisabled && " (Unavailable)"}
                         </Typography.Text>
+                        {isDisabled && (
+                          <Tag color="red" style={{ fontSize: "10px" }}>
+                            Unavailable
+                          </Tag>
+                        )}
                       </Space>
                     </ProCard>
                   );
                 })}
               </Space>
+
               <Space
                 style={{
                   display: "flex",
@@ -946,7 +1040,7 @@ const PaymentDrawer: React.FC = () => {
                   marginTop: 16,
                 }}
               >
-                {(user?.role === "admin" || user?.role === "cashier") && (
+                {(user?.role === "admin" || user?.role === "cashier") && selectedMethod && (
                   <Button
                     danger
                     onClick={() => {
@@ -954,7 +1048,7 @@ const PaymentDrawer: React.FC = () => {
                     }}
                     icon={<CloseCircleOutlined />}
                   >
-                    Clear
+                    Clear Selection
                   </Button>
                 )}
                 {(user?.role === "admin" || user?.role === "Cashier") && (
@@ -971,27 +1065,27 @@ const PaymentDrawer: React.FC = () => {
                   </Button>
                 )}
               </Space>
-
-              {selectedMethod !== secondMethod && (
-                <SplitBillDialog
-                  open={openModal}
-                  handleModalClose={handleModalClose}
-                  data={paymentMethods}
-                  selectedMethod={selectedMethod}
-                  secondMethod={secondMethod}
-                  totalAmount={totalAmount}
-                  amount1={amount1}
-                  amount2={amount2}
-                  setSelectedMethod={setSelectedMethod}
-                  setSecondMethod={setSecondMethod}
-                  setAmount1={setAmount1}
-                  setAmount2={setAmount2}
-                  handleSplitConfirm={handleSplitConfirm}
-                />
-              )}
-            </Space>
+            </Card>
           )}
         </Space>
+
+        {selectedMethod !== secondMethod && (
+          <SplitBillDialog
+            open={openModal}
+            handleModalClose={handleModalClose}
+            data={paymentMethods}
+            selectedMethod={selectedMethod}
+            secondMethod={secondMethod}
+            totalAmount={grandTotal}
+            amount1={amount1}
+            amount2={amount2}
+            setSelectedMethod={setSelectedMethod}
+            setSecondMethod={setSecondMethod}
+            setAmount1={setAmount1}
+            setAmount2={setAmount2}
+            handleSplitConfirm={handleSplitConfirm}
+          />
+        )}
       </DrawerForm>
 
       {/* STK Push Modal */}
@@ -1009,10 +1103,8 @@ const PaymentDrawer: React.FC = () => {
         maskClosable={false}
       >
         <Space direction="vertical" style={{ width: "100%" }} size="large">
-          {/* STK Push Status Display */}
           {renderSTKPushStatus()}
 
-          {/* Customer Information Form */}
           {stkPaymentStatus === "idle" && (
             <Card size="small">
               <Title level={5}>Customer Information</Title>
@@ -1120,13 +1212,12 @@ const PaymentDrawer: React.FC = () => {
             </Card>
           )}
 
-          {/* Payment Summary */}
           <Card size="small">
             <Row gutter={16}>
               <Col span={12}>
                 <Statistic
                   title="Payment Amount"
-                  value={totalAmount}
+                  value={grandTotal}
                   prefix="KSh."
                   precision={2}
                 />
@@ -1141,7 +1232,6 @@ const PaymentDrawer: React.FC = () => {
             </Row>
           </Card>
 
-          {/* Action Buttons */}
           {stkPaymentStatus === "idle" && (
             <Space style={{ width: "100%", justifyContent: "flex-end" }}>
               <Button onClick={resetPesapalModal}>Cancel</Button>
@@ -1159,7 +1249,6 @@ const PaymentDrawer: React.FC = () => {
             </Space>
           )}
 
-          {/* STK Push Action Buttons */}
           {stkPaymentStatus === "waiting" && (
             <Space style={{ width: "100%", justifyContent: "space-between" }}>
               <Button
@@ -1193,7 +1282,6 @@ const PaymentDrawer: React.FC = () => {
             </Space>
           )}
 
-          {/* Instructions for STK Push */}
           {stkPaymentStatus === "idle" && (
             <Alert
               message="STK Push Instructions"
@@ -1217,7 +1305,7 @@ const PaymentDrawer: React.FC = () => {
         </Space>
       </Modal>
 
-      {/* Payment Status Monitoring Modal for STK Push */}
+      {/* Payment Waiting Modal */}
       <Modal
         title="Payment Status Monitor"
         open={stkPaymentStatus === "waiting"}
@@ -1296,12 +1384,11 @@ const PaymentDrawer: React.FC = () => {
           <Title level={3} style={{ color: "#52c41a", margin: 0 }}>
             Payment Successful!
           </Title>
-          <Text>KSh. {totalAmount?.toLocaleString()} paid successfully</Text>
+          <Text>KSh. {grandTotal?.toLocaleString()} paid successfully</Text>
           <Text type="secondary">Redirecting to tables...</Text>
         </Space>
       </Modal>
 
-      {/* Custom CSS for animations */}
       <style>{`
         @keyframes pulse {
           0% {

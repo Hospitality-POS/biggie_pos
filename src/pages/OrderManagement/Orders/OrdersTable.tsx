@@ -41,7 +41,7 @@ const OrdersTable = () => {
 
     const csvData = orders.map((order: any) => ({
       "Order No": order?.order_no || "",
-      Table: order?.table_id?.name || "Deleted",
+      Table: order?.table_id?.name || order.subscription_id ? "Subscription_Purchase" : "Deleted",
       "Closed By": order?.updated_by?.username || "N/A",
       "Payment Method": order?.order_payments?.[0]?.name || "N/A",
       Amount: `Ksh. ${order?.order_amount?.toFixed(2) || "0.00"}`,
@@ -82,7 +82,7 @@ const OrdersTable = () => {
       render: (name) => (
         <Badge
           status={name !== "-" ? "success" : "error"}
-          text={name !== "-" ? name : "Deleted"}
+          text={name !== "-" ? name : "Subscription_Purchase"}
         />
       ),
     },
@@ -101,7 +101,7 @@ const OrdersTable = () => {
               <UserOutlined /> {text}
             </>
           ) : (
-            "Deleted"
+            "Subscription_Purchase"
           )}
         </Tag>
       ),
