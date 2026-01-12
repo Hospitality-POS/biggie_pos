@@ -955,7 +955,7 @@ const PaymentDrawer: React.FC = () => {
 
           {/* PAYMENT METHOD SECTION - Only show when NOT using subscription */}
           {!useSubscription && (
-            <Card
+            <ProCard
               title={
                 <Space>
                   <WalletOutlined style={{ color: "#6c1c2c" }} />
@@ -982,9 +982,7 @@ const PaymentDrawer: React.FC = () => {
                     <ProCard
                       key={method._id}
                       bodyStyle={{
-                        paddingInline: "20px",
-                        paddingBlock: "20px",
-                        minWidth: "120px"
+                        minWidth: "100px",
                       }}
                       bordered
                       hoverable={!isDisabled}
@@ -999,7 +997,7 @@ const PaymentDrawer: React.FC = () => {
                       }}
                     >
                       <Space
-                        direction="vertical"
+                        // direction="vertical"
                         align="center"
                         style={{
                           color: isSelected ? "white" : "inherit",
@@ -1065,7 +1063,7 @@ const PaymentDrawer: React.FC = () => {
                   </Button>
                 )}
               </Space>
-            </Card>
+            </ProCard>
           )}
         </Space>
 
