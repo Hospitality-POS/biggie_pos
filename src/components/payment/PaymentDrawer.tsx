@@ -762,7 +762,7 @@ const PaymentDrawer: React.FC = () => {
       >
         <Space direction="vertical" style={{ width: "100%" }} size="large">
           {/* ORDER SUMMARY */}
-          <Card
+          <ProCard
             title={<Text strong>Order Summary</Text>}
             size="small"
             bordered={false}
@@ -809,7 +809,7 @@ const PaymentDrawer: React.FC = () => {
                 </Title>
               </Flex>
             </Space>
-          </Card>
+          </ProCard>
 
           {useSubscription && (
             <Alert
@@ -829,7 +829,7 @@ const PaymentDrawer: React.FC = () => {
           {/* CUSTOMER & SUBSCRIPTION SECTION - Enhanced UI */}
           {hasActivePackages && (
             <>
-              <Card
+              <ProCard
                 title={
                   <Space>
                     <UserOutlined style={{ color: "#6c1c2c" }} />
@@ -850,7 +850,6 @@ const PaymentDrawer: React.FC = () => {
                   size="large"
                   placeholder={
                     <Space>
-                      <SearchOutlined />
                       <span>Search by phone or name (min 3 characters)</span>
                     </Space>
                   }
@@ -937,7 +936,7 @@ const PaymentDrawer: React.FC = () => {
                     showIcon={false}
                   />
                 )}
-              </Card>
+              </ProCard>
 
               {/* SUBSCRIPTION PAYMENT OPTION - Always show if customer is selected */}
               {selectedCustomerId && (
