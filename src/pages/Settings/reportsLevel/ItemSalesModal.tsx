@@ -129,10 +129,11 @@ const PrintableContent = forwardRef(
       overallSupplierTotal,
       totalCommissionAmount,
       COOP_NAME,
-    },
+      customerName,
+    }: any,
     ref
   ) => (
-    <div className="receipt" id="receipt" ref={ref}>
+    <div className="receipt" id="receipt" ref={ref as any}>
       <div className="logo-print" style={{ display: "flex", flexDirection: "column" }}>
         <Typography.Title
           level={3}
@@ -150,7 +151,7 @@ const PrintableContent = forwardRef(
           level={4}
           style={{
             textAlign: "center",
-            marginBottom: 16,
+            marginBottom: customerName ? 4 : 16,
             color: colors.darkText,
             fontWeight: "bold",
             fontFamily: "monospace"
@@ -158,6 +159,26 @@ const PrintableContent = forwardRef(
         >
           ITEM SALES REPORT
         </Typography.Title>
+
+        {/* Customer filter indicator */}
+        {customerName && (
+          <Typography.Text
+            style={{
+              textAlign: "center",
+              display: "block",
+              marginBottom: 16,
+              fontFamily: "monospace",
+              fontSize: 13,
+              color: colors.darkText,
+              fontWeight: "bold",
+              borderTop: "1px dashed #000",
+              borderBottom: "1px dashed #000",
+              padding: "4px 0",
+            }}
+          >
+            Customer: {customerName}
+          </Typography.Text>
+        )}
       </div>
 
       <p style={{ textAlign: "center", fontFamily: "monospace" }}>
@@ -199,23 +220,10 @@ const PrintableContent = forwardRef(
             {data?.map((item) => (
               <React.Fragment key={item.id}>
                 <TableRow>
-                  <TableCell
-                    sx={{
-                      fontWeight: "bold",
-                      padding: 1,
-                      borderColor: colors.tableBorder
-                    }}
-                  >
+                  <TableCell sx={{ fontWeight: "bold", padding: 1, borderColor: colors.tableBorder }}>
                     {item.name}
                   </TableCell>
-                  <TableCell
-                    sx={{
-                      textAlign: "right",
-                      fontWeight: "bold",
-                      padding: 1,
-                      borderColor: colors.tableBorder
-                    }}
-                  >
+                  <TableCell sx={{ textAlign: "right", fontWeight: "bold", padding: 1, borderColor: colors.tableBorder }}>
                     {formatCurrency(getTotalAmount(item.orderItems))}
                   </TableCell>
                 </TableRow>
@@ -226,90 +234,25 @@ const PrintableContent = forwardRef(
                         <Table className="nested-table">
                           <TableHead>
                             <TableRow>
-                              <TableCell
-                                sx={{
-                                  padding: 1,
-                                  width: "15%",
-                                  backgroundColor: colors.tableHeader,
-                                  borderColor: colors.tableBorder
-                                }}
-                              >
-                                QTY
-                              </TableCell>
-                              <TableCell
-                                sx={{
-                                  padding: 1,
-                                  width: "45%",
-                                  backgroundColor: colors.tableHeader,
-                                  borderColor: colors.tableBorder
-                                }}
-                              >
-                                ITEM
-                              </TableCell>
-                              <TableCell
-                                sx={{
-                                  padding: 1,
-                                  width: "20%",
-                                  backgroundColor: colors.tableHeader,
-                                  borderColor: colors.tableBorder
-                                }}
-                              >
-                                STOCK COST
-                              </TableCell>
-                              <TableCell
-                                sx={{
-                                  padding: 1,
-                                  width: "20%",
-                                  backgroundColor: colors.tableHeader,
-                                  borderColor: colors.tableBorder
-                                }}
-                              >
-                                PRICE
-                              </TableCell>
+                              <TableCell sx={{ padding: 1, width: "15%", backgroundColor: colors.tableHeader, borderColor: colors.tableBorder }}>QTY</TableCell>
+                              <TableCell sx={{ padding: 1, width: "45%", backgroundColor: colors.tableHeader, borderColor: colors.tableBorder }}>ITEM</TableCell>
+                              <TableCell sx={{ padding: 1, width: "20%", backgroundColor: colors.tableHeader, borderColor: colors.tableBorder }}>STOCK COST</TableCell>
+                              <TableCell sx={{ padding: 1, width: "20%", backgroundColor: colors.tableHeader, borderColor: colors.tableBorder }}>PRICE</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
                             {item.orderItems.map((orderItem) => (
                               <TableRow key={orderItem.id}>
-                                <TableCell
-                                  sx={{
-                                    borderBottom: "none",
-                                    padding: 1,
-                                    borderColor: colors.tableBorder
-                                  }}
-                                >
+                                <TableCell sx={{ borderBottom: "none", padding: 1, borderColor: colors.tableBorder }}>
                                   {Number(orderItem.quantity || 0).toFixed(1)}
                                 </TableCell>
-                                <TableCell
-                                  sx={{
-                                    borderBottom: "none",
-                                    padding: 1,
-                                    fontWeight: "bold",
-                                    borderColor: colors.tableBorder
-                                  }}
-                                >
+                                <TableCell sx={{ borderBottom: "none", padding: 1, fontWeight: "bold", borderColor: colors.tableBorder }}>
                                   {orderItem.name}
                                 </TableCell>
-                                <TableCell
-                                  sx={{
-                                    borderBottom: "none",
-                                    padding: 1,
-                                    textAlign: "right",
-                                    borderColor: colors.tableBorder
-                                  }}
-                                >
-                                  {formatCurrency(
-                                    (orderItem.supplier_price || 0) * (orderItem.quantity || 0)
-                                  )}
+                                <TableCell sx={{ borderBottom: "none", padding: 1, textAlign: "right", borderColor: colors.tableBorder }}>
+                                  {formatCurrency((orderItem.supplier_price || 0) * (orderItem.quantity || 0))}
                                 </TableCell>
-                                <TableCell
-                                  sx={{
-                                    borderBottom: "none",
-                                    padding: 1,
-                                    textAlign: "right",
-                                    borderColor: colors.tableBorder
-                                  }}
-                                >
+                                <TableCell sx={{ borderBottom: "none", padding: 1, textAlign: "right", borderColor: colors.tableBorder }}>
                                   {formatCurrency(orderItem.amount || 0)}
                                 </TableCell>
                               </TableRow>
@@ -366,11 +309,10 @@ const PrintableContent = forwardRef(
   )
 );
 
-function ItemSalesModal({ data, startDate, endDate, loading }) {
+function ItemSalesModal({ data, startDate, endDate, loading, customerName = null }) {
   const componentRef = useRef(null);
   const { BRAND_NAME1 } = useSystemDetails();
 
-  // Inject CSS for thermal printing when component mounts
   useEffect(() => {
     injectThermalPrintCSS();
   }, []);
@@ -384,10 +326,7 @@ function ItemSalesModal({ data, startDate, endDate, loading }) {
       commission += Number(item.commissionAmt || 0);
     });
 
-    return {
-      overallTotal: total,
-      totalCommissionAmount: commission
-    };
+    return { overallTotal: total, totalCommissionAmount: commission };
   }, [data]);
 
   const overallSupplierTotal = useMemo(() =>
@@ -413,28 +352,19 @@ function ItemSalesModal({ data, startDate, endDate, loading }) {
         okButtonProps: {
           icon: <PrinterFilled />,
           disabled: loading,
-          style: {
-            backgroundColor: colors.primary,
-            borderColor: colors.primary
-          }
+          style: { backgroundColor: colors.primary, borderColor: colors.primary }
         },
         width: 1000,
-        bodyStyle: {
-          maxHeight: 'calc(100vh - 150px)',
-          overflowY: 'auto'
-        }
+        bodyStyle: { maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }
       }}
       trigger={
         <Button
           type="primary"
           icon={<PrinterOutlined />}
           htmlType="submit"
-          style={{
-            backgroundColor: colors.primary,
-            borderColor: colors.primary
-          }}
+          style={{ backgroundColor: colors.primary, borderColor: colors.primary }}
         >
-          Print Item Sales Report
+          {customerName ? `Print Report — ${customerName}` : "Print Item Sales Report"}
         </Button>
       }
       onFinish={async () => {
@@ -447,7 +377,7 @@ function ItemSalesModal({ data, startDate, endDate, loading }) {
         tip="Kindly fill in the form to load the report..."
       >
         <PrintableContent
-          key={JSON.stringify(data)}
+          key={JSON.stringify(data) + customerName}
           ref={componentRef}
           data={data}
           startDate={startDate}
@@ -457,6 +387,7 @@ function ItemSalesModal({ data, startDate, endDate, loading }) {
           overallSupplierTotal={overallSupplierTotal}
           totalCommissionAmount={totalCommissionAmount}
           COOP_NAME={COOP_NAME}
+          customerName={customerName}
         />
       </Spin>
     </ModalForm>

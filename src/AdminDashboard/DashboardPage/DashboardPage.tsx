@@ -86,9 +86,8 @@ const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
   if (!chartData?.data?.chart_data?.length || totalRevenue === 0) {
     return {
       trend: "no-sales",
-      trendText: `No sales ${
-        PERIOD_LABELS[periodFilter]?.toLowerCase() || "in selected period"
-      }`,
+      trendText: `No sales ${PERIOD_LABELS[periodFilter]?.toLowerCase() || "in selected period"
+        }`,
       trendColor: COLORS.error,
       insights: [
         { type: "negative", text: "Zero revenue - immediate action needed" },
@@ -264,8 +263,8 @@ const createStockColumns = () => [
             isOutOfStock
               ? "Out of stock"
               : isLow
-              ? `${record.quantity} left`
-              : "Low stock"
+                ? `${record.quantity} left`
+                : "Low stock"
           }
         />
       );
@@ -426,8 +425,8 @@ const StatisticCard = ({ title, value, prefix, loading, trend, onClick }) => (
                     trend > 0
                       ? COLORS.success
                       : trend < 0
-                      ? COLORS.error
-                      : COLORS.gray,
+                        ? COLORS.error
+                        : COLORS.gray,
                 }}
               >
                 {trend > 0 ? "+" : ""}
@@ -528,12 +527,12 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
                   businessIndicators.performance === "excellent"
                     ? "success"
                     : businessIndicators.performance === "good"
-                    ? "processing"
-                    : businessIndicators.performance === "moderate"
-                    ? "default"
-                    : businessIndicators.performance === "low"
-                    ? "warning"
-                    : "error"
+                      ? "processing"
+                      : businessIndicators.performance === "moderate"
+                        ? "default"
+                        : businessIndicators.performance === "low"
+                          ? "warning"
+                          : "error"
                 }
               />
               <Text
@@ -564,8 +563,8 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
                       insight.type === "positive"
                         ? "success"
                         : insight.type === "warning"
-                        ? "warning"
-                        : "error"
+                          ? "warning"
+                          : "error"
                     }
                     text={
                       <Text
@@ -574,8 +573,8 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
                             insight.type === "positive"
                               ? COLORS.success
                               : insight.type === "warning"
-                              ? COLORS.warning
-                              : COLORS.error,
+                                ? COLORS.warning
+                                : COLORS.error,
                           fontSize: 12,
                         }}
                       >
@@ -1128,8 +1127,8 @@ const DashboardAdminPage = () => {
                               insight.type === "positive"
                                 ? "success"
                                 : insight.type === "warning"
-                                ? "warning"
-                                : "error"
+                                  ? "warning"
+                                  : "error"
                             }
                             text={
                               <Text
@@ -1138,8 +1137,8 @@ const DashboardAdminPage = () => {
                                     insight.type === "positive"
                                       ? COLORS.success
                                       : insight.type === "warning"
-                                      ? COLORS.warning
-                                      : COLORS.error,
+                                        ? COLORS.warning
+                                        : COLORS.error,
                                   fontSize: 12,
                                 }}
                               >
@@ -1168,8 +1167,8 @@ const DashboardAdminPage = () => {
                           {periodFilter === "day"
                             ? "Check individual shop operations and connectivity."
                             : periodFilter === "week"
-                            ? "Review shop strategies and operational issues."
-                            : "Consider business-wide strategy adjustments."}
+                              ? "Review shop strategies and operational issues."
+                              : "Consider business-wide strategy adjustments."}
                         </Text>
                       </div>
                     }
@@ -1643,9 +1642,8 @@ const DashboardAdminPage = () => {
                     desc: "Reporting periods",
                   },
                   {
-                    value: `${
-                      chartData.data.summary.growth_rate > 0 ? "+" : ""
-                    }${chartData.data.summary.growth_rate.toFixed(1)}%`,
+                    value: `${chartData.data.summary.growth_rate > 0 ? "+" : ""
+                      }${chartData.data.summary.growth_rate.toFixed(1)}%`,
                     label: "Growth Rate",
                     color:
                       chartData.data.summary.growth_rate >= 0

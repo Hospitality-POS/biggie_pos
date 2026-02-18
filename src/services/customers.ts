@@ -6,30 +6,15 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 
 const categ_url = `${BASE_URL}/customers`;
 
-// Helper to validate shop_id
-const getValidShopId = (): string | null => {
-  const shopId = localStorage.getItem("shopId");
+/* ============================
+   CUSTOMER OPERATIONS
+============================ */
 
-  if (!shopId || shopId === "undefined" || shopId === "null" || shopId.trim() === "") {
-    return null;
-  }
-
-  return shopId;
-};
-
-// Customer operations
+// Fetch customers (shop_id auto-attached by interceptor)
 export const fetchAllCustomers = async (data: ParamsType = {}) => {
   try {
-    const shopId = getValidShopId();
-
-    if (!shopId) {
-      message.warning("Please select a shop first");
-      return [];
-    }
-
     const response = await axiosInstance.get(categ_url, {
       params: {
-        shop_id: shopId,
         customer_name: data.customer_name,
         email: data.email,
         phone: data.phone,
@@ -44,6 +29,7 @@ export const fetchAllCustomers = async (data: ParamsType = {}) => {
   }
 };
 
+// Admin fetch (no shop filter required)
 export const fetchAdminAllCustomers = async (data: ParamsType = {}) => {
   try {
     const response = await axiosInstance.get(categ_url, {
@@ -62,24 +48,14 @@ export const fetchAdminAllCustomers = async (data: ParamsType = {}) => {
   }
 };
 
+// Add customer
 export const addNewCustomer = async (params: ParamsType) => {
   try {
-    const shopId = getValidShopId();
-
-    if (!shopId) {
-      message.error("Shop ID is required. Please log in again.");
-      throw new Error("Invalid shop_id");
-    }
-
-    const response = await axiosInstance.post(categ_url, {
-      ...params,
-      shop_id: shopId,
-    });
-
-    // message.success("Customer added successfully");
+    const response = await axiosInstance.post(categ_url, params);
     return response;
   } catch (error: any) {
-    const errorMessage = error?.response?.data?.message || error?.message || "Failed to add customer";
+    const errorMessage =
+      error?.response?.data?.message || error?.message || "Failed to add customer";
 
     if (error?.response?.status !== 403) {
       message.error(errorMessage);
@@ -89,55 +65,81 @@ export const addNewCustomer = async (params: ParamsType) => {
   }
 };
 
-export const staffClockInOut = async (params: ParamsType) => {
+// Update customer
+export const updateCustomer = async (customerId: string, params: ParamsType) => {
   try {
-    const response = await axiosInstance.post(categ_url + "/clock-in", {
-      ...params,
-    });
+    const response = await axiosInstance.put(
+      `${categ_url}/${customerId}`,
+      params
+    );
     return response;
   } catch (error: any) {
-    console.error("Clock in/out error:", error);
-    const errorMessage = error?.response?.data?.message || "Failed to clock in/out";
+    const errorMessage =
+      error?.response?.data?.message || error?.message || "Failed to update customer";
     message.error(errorMessage);
     throw new Error(errorMessage);
   }
 };
 
+// Get customer by ID
+export const getCustomerById = async (customerId: string) => {
+  try {
+    const response = await axiosInstance.get(`${categ_url}/${customerId}`);
+    return response.data;
+  } catch (error: any) {
+    const errorMessage =
+      error?.response?.data?.message || error?.message || "Failed to fetch customer";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Staff clock in/out
+export const staffClockInOut = async (params: ParamsType) => {
+  try {
+    const response = await axiosInstance.post(
+      `${categ_url}/clock-in`,
+      params
+    );
+    return response;
+  } catch (error: any) {
+    console.error("Clock in/out error:", error);
+    const errorMessage =
+      error?.response?.data?.message || "Failed to clock in/out";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Log customer visit
 export const logCustomerVisit = async (params: ParamsType) => {
   try {
-    console.log("Logging customer visit:", params);
-    const response = await axiosInstance.post(categ_url + "/log-visit", {
-      ...params,
-    });
+    const response = await axiosInstance.post(
+      `${categ_url}/log-visit`,
+      params
+    );
     return response;
   } catch (error: any) {
     console.error("Visit log error:", error);
-    message.error(error?.response?.data?.message || "Failed to log visit");
+    message.error(
+      error?.response?.data?.message || "Failed to log visit"
+    );
     throw error;
   }
 };
 
-// Feedback operations
+/* ============================
+   FEEDBACK OPERATIONS
+============================ */
+
 export const fetchAllFeedback = async (params?: {
-  shop_id?: string;
-  feedback_type?: 'authenticated' | 'anonymous';
+  feedback_type?: "authenticated" | "anonymous";
   start_date?: string;
   end_date?: string;
 }) => {
   try {
-    const shopId = params?.shop_id || getValidShopId();
-
-    if (!shopId) {
-      return [];
-    }
-
     const response = await axiosInstance.get(`${categ_url}/feedback`, {
-      params: {
-        shop_id: shopId,
-        feedback_type: params?.feedback_type,
-        start_date: params?.start_date,
-        end_date: params?.end_date,
-      },
+      params,
     });
     return response.data;
   } catch (error: any) {
@@ -147,72 +149,40 @@ export const fetchAllFeedback = async (params?: {
 };
 
 export const fetchAnonymousFeedback = async (params?: {
-  shop_id?: string;
   start_date?: string;
   end_date?: string;
 }) => {
-  try {
-    const shopId = params?.shop_id || getValidShopId();
-
-    if (!shopId) {
-      return [];
-    }
-
-    const response = await axiosInstance.get(`${categ_url}/feedback`, {
-      params: {
-        shop_id: shopId,
-        feedback_type: 'anonymous',
-        start_date: params?.start_date,
-        end_date: params?.end_date,
-      },
-    });
-    return response.data;
-  } catch (error: any) {
-    console.error("Error fetching anonymous feedback:", error);
-    throw new Error(error?.message || "Failed to fetch anonymous feedback");
-  }
+  return fetchAllFeedback({
+    ...params,
+    feedback_type: "anonymous",
+  });
 };
 
 export const fetchAuthenticatedFeedback = async (params?: {
-  shop_id?: string;
   start_date?: string;
   end_date?: string;
 }) => {
-  try {
-    const shopId = params?.shop_id || getValidShopId();
-
-    if (!shopId) {
-      return [];
-    }
-
-    const response = await axiosInstance.get(`${categ_url}/feedback`, {
-      params: {
-        shop_id: shopId,
-        feedback_type: 'authenticated',
-        start_date: params?.start_date,
-        end_date: params?.end_date,
-      },
-    });
-    return response.data;
-  } catch (error: any) {
-    console.error("Error fetching authenticated feedback:", error);
-    throw new Error(error?.message || "Failed to fetch authenticated feedback");
-  }
+  return fetchAllFeedback({
+    ...params,
+    feedback_type: "authenticated",
+  });
 };
 
 export const createAnonymousFeedback = createAsyncThunk(
   "feedback/createAnonymous",
-  async (feedbackData: {
-    company_code: string;
-    shop_id?: string;
-    rating: number;
-    review?: string;
-    anonymous_customer?: {
-      name?: string;
-      email?: string;
-      phone?: string;
-    };
-  }, { rejectWithValue }) => {
+  async (
+    feedbackData: {
+      company_code: string;
+      rating: number;
+      review?: string;
+      anonymous_customer?: {
+        name?: string;
+        email?: string;
+        phone?: string;
+      };
+    },
+    { rejectWithValue }
+  ) => {
     try {
       const response = await axiosInstance.post(
         `${categ_url}/feedback/anonymous`,
@@ -221,21 +191,26 @@ export const createAnonymousFeedback = createAsyncThunk(
       message.success("Thank you for your feedback!");
       return response.data;
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || error?.message || "Failed to submit feedback";
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to submit feedback";
       message.error(errorMessage);
       return rejectWithValue(errorMessage);
     }
   }
 );
 
-// Gift card operations
-export const fetchGiftCard = async (data: any) => {
-  try {
-    const url = `${categ_url}/get-gift-card`;
+/* ============================
+   GIFT CARD OPERATIONS
+============================ */
 
-    const response = await axiosInstance.get(url, {
-      params: { code: data },
-    });
+export const fetchGiftCard = async (code: string) => {
+  try {
+    const response = await axiosInstance.get(
+      `${categ_url}/get-gift-card`,
+      { params: { code } }
+    );
     return response.data;
   } catch (error: any) {
     console.error("Error fetching gift card:", error);
@@ -246,7 +221,6 @@ export const fetchGiftCard = async (data: any) => {
 export const updateGiftCard = createAsyncThunk(
   "giftCard/update",
   async ({ id, data }: { id: string; data: any }, { rejectWithValue }) => {
-    console.log("Updating gift card:", data);
     try {
       const response = await axiosInstance.put(
         `${categ_url}/update-gift-card/${id}`,
@@ -262,13 +236,14 @@ export const updateGiftCard = createAsyncThunk(
   }
 );
 
-export const fetchAllGiftCards = async (data?: any) => {
+export const fetchAllGiftCards = async (customerId?: string) => {
   try {
-    const url = `${categ_url}/all-cards`;
-
-    const response = await axiosInstance.get(url, {
-      params: data ? { customer_id: data } : {},
-    });
+    const response = await axiosInstance.get(
+      `${categ_url}/all-cards`,
+      {
+        params: customerId ? { customer_id: customerId } : {},
+      }
+    );
     return response.data;
   } catch (error: any) {
     console.error("Error fetching gift cards:", error);
@@ -281,7 +256,7 @@ export const createGiftCard = createAsyncThunk(
   async (giftCardData: any, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(
-        categ_url + "/new-card",
+        `${categ_url}/new-card`,
         giftCardData
       );
       message.success("Gift card created successfully");
@@ -299,7 +274,7 @@ export const sendGiftCard = createAsyncThunk(
   async (data: any, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(
-        categ_url + "/new-card-email",
+        `${categ_url}/new-card-email`,
         data
       );
       message.success("Gift card email sent successfully");
@@ -312,19 +287,22 @@ export const sendGiftCard = createAsyncThunk(
   }
 );
 
-// Schedule operations
+/* ============================
+   SCHEDULE OPERATIONS
+============================ */
+
 export const createSchedule = createAsyncThunk(
   "schedule/create",
   async (scheduleData: any, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(
-        categ_url + "/new-schedule",
+        `${categ_url}/new-schedule`,
         scheduleData
       );
       message.success("Schedule created successfully");
       return response.data;
     } catch (error: any) {
-      const errorMessage = error?.message || "Failed to create schedule";
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to create schedule";
       message.error(errorMessage);
       return rejectWithValue(errorMessage);
     }
@@ -333,12 +311,10 @@ export const createSchedule = createAsyncThunk(
 
 export const fetchAllSchedules = async (date?: string) => {
   try {
-    const url = `${categ_url}/all-schedules`;
-    const params = date ? { date } : {};
-
-    const response = await axiosInstance.get(url, {
-      params,
-    });
+    const response = await axiosInstance.get(
+      `${categ_url}/all-schedules`,
+      { params: date ? { date } : {} }
+    );
     return response;
   } catch (error: any) {
     console.error("Error fetching schedules:", error);
@@ -346,20 +322,26 @@ export const fetchAllSchedules = async (date?: string) => {
   }
 };
 
-export const updateSchedule = async (id: string, data: any) => {
-  try {
-    const response = await axiosInstance.put(
-      `${categ_url}/update-schedule/${id}`,
-      data
-    );
-    message.success("Schedule updated successfully");
-    return response.data;
-  } catch (error: any) {
-    const errorMessage = error?.message || "Failed to update schedule";
-    message.error(errorMessage);
-    return errorMessage;
+// ✅ FIXED: Convert to async thunk for proper Redux integration
+export const updateSchedule = createAsyncThunk(
+  "schedule/update",
+  async ({ id, data }: { id: string; data: any }, { rejectWithValue }) => {
+    try {
+      console.log("🔄 Updating schedule:", id, data);
+      const response = await axiosInstance.put(
+        `${categ_url}/update-schedule/${id}`,
+        data
+      );
+      //  message.success("Schedule updated successfully");
+      return response.data;
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to update schedule";
+      console.error("❌ Update schedule error:", errorMessage, error?.response?.data);
+      message.error(errorMessage);
+      return rejectWithValue(errorMessage);
+    }
   }
-};
+);
 
 export const removeSchedule = async (scheduleId: string) => {
   try {
@@ -371,16 +353,19 @@ export const removeSchedule = async (scheduleId: string) => {
   } catch (error: any) {
     const errorMessage = error?.message || "Failed to delete schedule";
     message.error(errorMessage);
-    return errorMessage;
+    throw new Error(errorMessage);
   }
 };
 
-// Types
+/* ============================
+   TYPES
+============================ */
+
 export interface Customer {
   _id: string;
   code: string;
   customer_name: string;
-  email: string;
+  email?: string;
   phone: string;
   shop_id: string;
   visits?: Array<{

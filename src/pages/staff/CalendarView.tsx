@@ -14,6 +14,7 @@ import {
   DatePicker,
   Radio,
   Input,
+  InputNumber,
   Row,
   Col,
   Flex,
@@ -50,7 +51,6 @@ const { TextArea } = Input;
 const CalendarView = () => {
   const dispatch = useDispatch();
 
-  // UI State
   const [showReservationForm, setShowReservationForm] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState(null);
@@ -60,19 +60,20 @@ const CalendarView = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [customClientName, setCustomClientName] = useState("");
   const [clientInputMode, setClientInputMode] = useState("existing");
-  const [visibleHours, setVisibleHours] = useState([8, 22]); // Default: 8am to 10pm
-  const [calendarView, setCalendarView] = useState("day"); // "day" or "week"
-  const [form] = Form.useForm(); // Using form instance to set values programmatically
+  const [visibleHours, setVisibleHours] = useState([7, 22]);
+  const [calendarView, setCalendarView] = useState("day");
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
+  const [bookingType, setBookingType] = useState<'individual' | 'group'>('individual');
+  const [maxCapacity, setMaxCapacity] = useState<number>(1);
+  const [form] = Form.useForm();
 
-  // Time configuration
-  const hourRange = Array.from({ length: 15 }, (_, i) => i + 8); // 8AM to 10PM
+  // ✅ Changed from 8 to 7 — calendar now starts at 7 AM
+  const hourRange = Array.from({ length: 16 }, (_, i) => i + 7);
 
-  // Quarter-hour slots
   const generateTimeSlots = () => {
     const slots = [];
     hourRange.forEach((hour) => {
       [0, 15, 30, 45].forEach((minutes) => {
-        // Don't add 10:15, 10:30, 10:45 PM slots
         if (hour === 22 && minutes > 0) return;
 
         const period = hour >= 12 ? "PM" : "AM";
@@ -86,7 +87,6 @@ const CalendarView = () => {
 
   const allTimeSlots = generateTimeSlots();
 
-  // API Queries
   const { data: customers, isLoading: isLoadingCustomers } = useQuery({
     queryKey: ["customers"],
     queryFn: fetchAllCustomers,
@@ -136,8 +136,6 @@ const CalendarView = () => {
       }) ?? [],
   });
 
-
-  // Processed Data
   const formattedProducts = useMemo(() => {
     if (!products || !Array.isArray(products)) return [];
 
@@ -214,7 +212,6 @@ const CalendarView = () => {
     }));
   }, [scheduleData, selectedDate]);
 
-  // Utility functions
   const isTimeSlotBooked = (staffName, timeSlot) => {
     const selectedDateStr = selectedDate.toISOString().split("T")[0];
 
@@ -247,7 +244,7 @@ const CalendarView = () => {
     });
   };
 
-  const isTimeRangeAvailable = (staffName, startTime, endTime) => {
+  const isTimeRangeAvailable = (staffName, startTime, endTime, excludeAppointmentId = null) => {
     const startIndex = allTimeSlots.indexOf(startTime);
     const endIndex = allTimeSlots.indexOf(endTime);
 
@@ -255,8 +252,34 @@ const CalendarView = () => {
       return false;
     }
 
+    const selectedDateStr = selectedDate.toISOString().split("T")[0];
+
     for (let i = startIndex; i < endIndex; i++) {
-      if (isTimeSlotBooked(staffName, allTimeSlots[i])) {
+      const conflictingAppointment = formattedScheduleData.find((appointment) => {
+        if (appointment.appointmentDate) {
+          const appointmentDateStr = new Date(appointment.appointmentDate)
+            .toISOString()
+            .split("T")[0];
+          if (appointmentDateStr !== selectedDateStr) {
+            return false;
+          }
+        }
+
+        if (excludeAppointmentId && appointment.id === excludeAppointmentId) {
+          return false;
+        }
+
+        if (appointment.staff !== staffName) {
+          return false;
+        }
+
+        const apptStartIndex = allTimeSlots.indexOf(appointment.start_time);
+        const apptEndIndex = allTimeSlots.indexOf(appointment.end_time);
+
+        return i >= apptStartIndex && i < apptEndIndex;
+      });
+
+      if (conflictingAppointment) {
         return false;
       }
     }
@@ -306,7 +329,6 @@ const CalendarView = () => {
     return timeSlot;
   };
 
-  // Event handlers
   const handleTimeSlotClick = useCallback(
     (time, staffName) => {
       const staffMember = staffMembers.find(
@@ -327,6 +349,12 @@ const CalendarView = () => {
       setSelectedTimeSlot(time);
       setSelectedStaff(staffMember?.id);
       setShowReservationForm(true);
+      setIsEditMode(false);
+      setEditingAppointment(null);
+      setClientInputMode("existing");
+      setBookingType('individual');
+      setMaxCapacity(1);
+      setSelectedCustomers([]);
 
       form.setFieldsValue({
         staff: staffMember?.id,
@@ -335,6 +363,8 @@ const CalendarView = () => {
           moment.utc(time, "h:mm A"),
           moment.utc(getNextTimeSlot(time), "h:mm A"),
         ],
+        bookingType: 'individual',
+        maxCapacity: 1,
       });
     },
     [
@@ -351,13 +381,15 @@ const CalendarView = () => {
     if (date) {
       setSelectedDate(date.toDate());
     }
-  }, [selectedDate]);
+  }, []);
 
   const navigateDay = useCallback((direction) => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + direction);
-    setSelectedDate(newDate);
-  }, [selectedDate]);
+    setSelectedDate((prevDate) => {
+      const newDate = new Date(prevDate);
+      newDate.setDate(newDate.getDate() + direction);
+      return newDate;
+    });
+  }, []);
 
   const handleNewReservationClick = () => {
     setSelectedTimeSlot(null);
@@ -365,12 +397,17 @@ const CalendarView = () => {
     setIsEditMode(false);
     setCustomClientName("");
     setClientInputMode("existing");
+    setSelectedCustomers([]);
+    setBookingType('individual');
+    setMaxCapacity(1);
 
     form.resetFields();
 
     form.setFieldsValue({
       appointmentDate: moment.utc(selectedDate),
       staff: selectedStaff || undefined,
+      bookingType: 'individual',
+      maxCapacity: 1,
     });
 
     setShowReservationForm(true);
@@ -381,39 +418,41 @@ const CalendarView = () => {
   };
 
   const handleEditAppointment = (appointment: any) => {
+    console.log("📝 Editing appointment:", appointment);
+
     setEditingAppointment(appointment);
     setIsEditMode(true);
     setSelectedTimeSlot(appointment.start_time);
     setSelectedStaff(appointment.staffId);
     setCustomClientName(appointment.customClientName || "");
     setClientInputMode(appointment.customClientName ? "custom" : "existing");
+
+    if (appointment.originalData?.customer_ids && appointment.originalData.customer_ids.length > 0) {
+      const customerIds = appointment.originalData.customer_ids.map(c => c._id || c);
+      setSelectedCustomers(customerIds);
+      setBookingType(appointment.originalData.booking_type || 'group');
+      setMaxCapacity(appointment.originalData.max_capacity || customerIds.length);
+    } else if (appointment.clientId) {
+      setSelectedCustomers([appointment.clientId]);
+      setBookingType('individual');
+      setMaxCapacity(1);
+    } else {
+      setSelectedCustomers([]);
+      setBookingType('individual');
+      setMaxCapacity(1);
+    }
+
     setShowReservationForm(true);
 
     form.resetFields();
 
-    let phoneInputValue = undefined;
-    if (appointment.phone) {
-      try {
-        if (appointment.phone.startsWith("+")) {
-          phoneInputValue = appointment.phone;
-        } else {
-          const cleanNumber = appointment.phone.replace(/\D/g, "");
-          if (cleanNumber.startsWith("0")) {
-            phoneInputValue = `+254${cleanNumber.substring(1)}`;
-          } else if (cleanNumber.startsWith("254")) {
-            phoneInputValue = `+${cleanNumber}`;
-          } else {
-            phoneInputValue = `+254${cleanNumber}`;
-          }
-        }
-      } catch (error) {
-        phoneInputValue = undefined;
-      }
-    }
-
-    form.setFieldsValue({
+    const customerIds = appointment.originalData?.customer_ids?.map(c => c._id || c) || [];
+    const formValues = {
       staff: appointment.staffId,
       clientName: appointment.clientId,
+      clientNames: customerIds,
+      bookingType: appointment.originalData?.booking_type || 'individual',
+      maxCapacity: appointment.originalData?.max_capacity || 1,
       customClientName: appointment.customClientName || "",
       service: appointment.serviceId,
       appointmentDate: appointment.originalData?.appointment_date
@@ -424,8 +463,11 @@ const CalendarView = () => {
         moment.utc(appointment.end_time, "h:mm A"),
       ],
       specialRequests: appointment.specialRequests || "",
-      phoneNumber: phoneInputValue,
-    });
+      notes: appointment.originalData?.notes || "",
+    };
+
+    console.log("📋 Setting form values:", formValues);
+    form.setFieldsValue(formValues);
   };
 
   const handleDeleteAppointment = useMutation({
@@ -433,6 +475,7 @@ const CalendarView = () => {
     onSuccess: () => {
       message.success("Appointment deleted successfully");
       refetchScheduleData();
+      setShowReservationForm(false);
     },
     onError: (error: any) => {
       message.error(
@@ -442,7 +485,23 @@ const CalendarView = () => {
   });
 
   const handleFormSubmit = async (values) => {
-    const clientId = clientInputMode === "existing" ? values.clientName : null;
+    console.log("📤 Form submitted with values:", values);
+    console.log("🔧 Current state - isEditMode:", isEditMode, "editingAppointment:", editingAppointment);
+
+    let customerIds = [];
+    let clientId = null;
+
+    if (clientInputMode === "existing") {
+      if (bookingType === 'group') {
+        customerIds = values.clientNames || [];
+      } else {
+        if (values.clientName) {
+          customerIds = [values.clientName];
+          clientId = values.clientName;
+        }
+      }
+    }
+
     const service = values.service;
     const staffMember = values.staff || selectedStaff;
     const appointmentDate = values.appointmentDate
@@ -450,25 +509,6 @@ const CalendarView = () => {
       : selectedDate.toISOString().split("T")[0];
     const customName =
       clientInputMode === "custom" ? values.customClientName : null;
-
-    let phoneNumber = null;
-    if (values.phoneNumber) {
-      try {
-        phoneNumber = getPhoneNumber(values.phoneNumber);
-      } catch (error) {
-        let rawPhone = values.phoneNumber.toString().replace(/\D/g, "");
-
-        if (rawPhone.startsWith("0")) {
-          phoneNumber = `+254${rawPhone.substring(1)}`;
-        } else if (rawPhone.startsWith("254")) {
-          phoneNumber = `+${rawPhone}`;
-        } else if (rawPhone.length >= 9) {
-          phoneNumber = `+254${rawPhone}`;
-        } else {
-          phoneNumber = values.phoneNumber;
-        }
-      }
-    }
 
     const staffName =
       staffMembers.find((staff) => staff.id === staffMember)?.name ||
@@ -550,15 +590,9 @@ const CalendarView = () => {
         return;
       }
 
-      let skipConflictCheck = false;
-      if (isEditMode && editingAppointment) {
-        skipConflictCheck = true;
-      }
+      const excludeAppointmentId = isEditMode && editingAppointment ? editingAppointment.id : null;
 
-      if (
-        !skipConflictCheck &&
-        !isTimeRangeAvailable(staffName, matchingStartTime, matchingEndTime)
-      ) {
+      if (!isTimeRangeAvailable(staffName, matchingStartTime, matchingEndTime, excludeAppointmentId)) {
         message.error(
           `The selected time range conflicts with existing appointments for ${staffName}.`
         );
@@ -566,11 +600,13 @@ const CalendarView = () => {
       }
 
       const timeRangeDescription = `${matchingStartTime} - ${matchingEndTime}`;
+
       const appointmentData = {
         staff_id: staffMember,
         start_time: matchingStartTime,
         end_time: matchingEndTime,
         client_id: clientId,
+        customer_ids: customerIds,
         custom_client_name: customName,
         service_id: service,
         duration: `${Math.round((endIndex - startIndex) * 15)} mins`,
@@ -578,12 +614,17 @@ const CalendarView = () => {
         timeRangeDescription,
         appointment_date: appointmentDate,
         special_requests: values.specialRequests,
-        phone: phoneNumber,
         source: "admin_portal",
+        booking_type: bookingType,
+        max_capacity: maxCapacity,
+        notes: values.notes,
       };
+
+      console.log("🎯 Appointment data to send:", appointmentData);
 
       try {
         if (isEditMode && editingAppointment) {
+          console.log("✏️ Updating existing appointment:", editingAppointment.id);
           await dispatch(
             updateSchedule({
               id: editingAppointment.id,
@@ -592,16 +633,27 @@ const CalendarView = () => {
           ).unwrap();
           message.success(`Appointment updated successfully.`);
         } else {
+          console.log("➕ Creating new appointment");
           await dispatch(createSchedule(appointmentData)).unwrap();
           message.success(`Appointment booked successfully.`);
         }
+
         setShowReservationForm(false);
         refetchScheduleData();
-      } catch (error) {
+
+        setSelectedCustomers([]);
+        setBookingType('individual');
+        setMaxCapacity(1);
+        setIsEditMode(false);
+        setEditingAppointment(null);
+        setClientInputMode("existing");
+        setCustomClientName("");
+
+      } catch (error: any) {
         const actionType = isEditMode ? "update" : "create";
+        console.error(`❌ Failed to ${actionType} appointment:`, error);
         message.error(
-          `Failed to ${actionType} appointment: ${error.message || "Unknown error"
-          }`
+          `Failed to ${actionType} appointment: ${error.message || "Unknown error"}`
         );
       }
     } else {
@@ -609,7 +661,6 @@ const CalendarView = () => {
     }
   };
 
-  // Rendering functions
   const renderCalendarHeader = () => {
     return (
       <Flex justify="space-between" align="center" gap={16}>
@@ -680,7 +731,6 @@ const CalendarView = () => {
           position: "relative",
         }}
       >
-        {/* Staff headers row */}
         <div
           className="staff-headers-row"
           style={{
@@ -730,17 +780,23 @@ const CalendarView = () => {
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedStaff(staff.id);
+                  setIsEditMode(false);
+                  setEditingAppointment(null);
+                  setCustomClientName("");
+                  setClientInputMode("existing");
+                  setBookingType('individual');
+                  setMaxCapacity(1);
+                  setSelectedCustomers([]);
+
                   form.resetFields();
                   setTimeout(() => {
                     form.setFieldsValue({
                       staff: staff.id,
                       appointmentDate: moment.utc(selectedDate),
+                      bookingType: 'individual',
+                      maxCapacity: 1,
                     });
                     setShowReservationForm(true);
-                    setIsEditMode(false);
-                    setEditingAppointment(null);
-                    setCustomClientName("");
-                    setClientInputMode("existing");
                   }, 0);
                 }}
               />
@@ -748,7 +804,6 @@ const CalendarView = () => {
           ))}
         </div>
 
-        {/* Time grid with appointments */}
         <div
           style={{
             display: "flex",
@@ -756,7 +811,6 @@ const CalendarView = () => {
             flexGrow: 1,
           }}
         >
-          {/* Time axis on the left */}
           <div
             className="time-axis"
             style={{
@@ -820,7 +874,6 @@ const CalendarView = () => {
             })}
           </div>
 
-          {/* Staff columns with appointments */}
           <div
             className="staff-columns"
             style={{ display: "flex", flexGrow: 1 }}
@@ -839,7 +892,6 @@ const CalendarView = () => {
                     position: "relative",
                   }}
                 >
-                  {/* Hour grid */}
                   <div className="hour-grid">
                     {hourRange.map((hour) => (
                       <div
@@ -884,13 +936,11 @@ const CalendarView = () => {
 
                         {[0, 1, 2, 3].map((quarterIdx) => {
                           const minutes = quarterIdx * 15;
-                          const quarterHour = `${hour}:${minutes < 10 ? "0" + minutes : minutes
-                            }`;
+                          const quarterHour = `${hour}:${minutes < 10 ? "0" + minutes : minutes}`;
                           const period = hour >= 12 ? "PM" : "AM";
                           const displayHour =
                             hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-                          const timeSlot = `${displayHour}:${minutes < 10 ? "0" + minutes : minutes
-                            } ${period}`;
+                          const timeSlot = `${displayHour}:${minutes < 10 ? "0" + minutes : minutes} ${period}`;
 
                           const isBooked = isTimeSlotBooked(
                             staff.name,
@@ -923,12 +973,15 @@ const CalendarView = () => {
                     ))}
                   </div>
 
-                  {/* Appointments */}
                   {staffAppointments.map((appointment) => {
                     const { top, height } = getAppointmentPosition(
                       appointment.start_time,
                       appointment.end_time
                     );
+
+                    const customerDisplay = appointment.originalData?.customer_ids && appointment.originalData.customer_ids.length > 1
+                      ? `${appointment.originalData.customer_ids.length} customers`
+                      : appointment.customClientName || appointment.client;
 
                     return (
                       <Tooltip
@@ -936,9 +989,15 @@ const CalendarView = () => {
                         title={
                           <>
                             <div>
-                              <strong>Client:</strong>{" "}
-                              {appointment.customClientName ||
-                                appointment.client}
+                              <strong>Client(s):</strong>{" "}
+                              {appointment.originalData?.customer_ids && appointment.originalData.customer_ids.length > 1
+                                ? `${appointment.originalData.customer_ids.length} customers (${appointment.originalData.customer_ids
+                                  .slice(0, 3)
+                                  .map(c => c.customer_name)
+                                  .join(', ')
+                                }${appointment.originalData.customer_ids.length > 3 ? '...' : ''})`
+                                : appointment.customClientName || appointment.client
+                              }
                             </div>
                             <div>
                               <strong>Service:</strong> {appointment.service}
@@ -947,6 +1006,11 @@ const CalendarView = () => {
                               <strong>Time:</strong>{" "}
                               {appointment.timeRangeDescription}
                             </div>
+                            {appointment.originalData?.booking_type === 'group' && (
+                              <div>
+                                <strong>Type:</strong> Group Booking ({appointment.originalData.current_capacity}/{appointment.originalData.max_capacity})
+                              </div>
+                            )}
                             {appointment.phone && (
                               <div>
                                 <strong>Phone:</strong> {appointment.phone}
@@ -992,7 +1056,7 @@ const CalendarView = () => {
                               textOverflow: "ellipsis",
                             }}
                           >
-                            {appointment.customClientName || appointment.client}
+                            {customerDisplay}
                           </div>
                           {height > 30 && (
                             <div
@@ -1029,11 +1093,9 @@ const CalendarView = () => {
   };
 
   const renderWeekView = () => {
-    // Get the start of the week (Sunday) for the selected date
     const startOfWeek = new Date(selectedDate);
     startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
 
-    // Create array of dates for the week
     const weekDates = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
@@ -1050,7 +1112,6 @@ const CalendarView = () => {
           maxHeight: "calc(100vh - 250px)",
         }}
       >
-        {/* Day headers row */}
         <div
           className="day-headers-row"
           style={{
@@ -1060,7 +1121,6 @@ const CalendarView = () => {
             zIndex: 10,
           }}
         >
-          {/* Empty cell in top-left corner */}
           <div
             style={{
               width: "60px",
@@ -1069,7 +1129,6 @@ const CalendarView = () => {
             }}
           ></div>
 
-          {/* Day header cells */}
           {weekDates.map((date, index) => {
             const isToday = new Date().toDateString() === date.toDateString();
             const isSelected =
@@ -1114,7 +1173,6 @@ const CalendarView = () => {
           })}
         </div>
 
-        {/* Time grid with hour slots */}
         <div
           style={{
             display: "flex",
@@ -1122,7 +1180,6 @@ const CalendarView = () => {
             flexGrow: 1,
           }}
         >
-          {/* Time axis on the left */}
           <div
             className="time-axis"
             style={{
@@ -1158,7 +1215,6 @@ const CalendarView = () => {
             })}
           </div>
 
-          {/* Day columns */}
           <div className="day-columns" style={{ display: "flex", flexGrow: 1 }}>
             {weekDates.map((date, index) => {
               const isToday = new Date().toDateString() === date.toDateString();
@@ -1181,7 +1237,6 @@ const CalendarView = () => {
                         : "transparent",
                   }}
                 >
-                  {/* Hour grid */}
                   <div className="hour-grid">
                     {hourRange.map((hour) => (
                       <div
@@ -1193,7 +1248,6 @@ const CalendarView = () => {
                           position: "relative",
                         }}
                       >
-                        {/* Quarter-hour markers */}
                         <div
                           style={{
                             position: "absolute",
@@ -1235,7 +1289,6 @@ const CalendarView = () => {
 
   return (
     <div style={{ height: "100vh", background: "#f7f9fc" }}>
-      {/* Calendar View Card */}
       <ProCard
         bordered={false}
         bodyStyle={{ padding: "16px" }}
@@ -1256,13 +1309,11 @@ const CalendarView = () => {
           </Space>
         }
       >
-        {/* Calendar main area */}
         <div className="calendar-view">
           {calendarView === "day" ? renderCalendarGrid() : renderWeekView()}
         </div>
       </ProCard>
 
-      {/* Appointment Form Modal */}
       <Modal
         title={
           <div style={{ fontSize: "18px", color: "#2a2f3d" }}>
@@ -1273,7 +1324,16 @@ const CalendarView = () => {
           </div>
         }
         open={showReservationForm}
-        onCancel={() => setShowReservationForm(false)}
+        onCancel={() => {
+          setShowReservationForm(false);
+          setIsEditMode(false);
+          setEditingAppointment(null);
+          setSelectedCustomers([]);
+          setBookingType('individual');
+          setMaxCapacity(1);
+          setClientInputMode("existing");
+          setCustomClientName("");
+        }}
         footer={null}
         destroyOnClose
         centered
@@ -1283,33 +1343,12 @@ const CalendarView = () => {
           form={form}
           layout="vertical"
           onFinish={handleFormSubmit}
-          initialValues={
-            isEditMode && editingAppointment
-              ? {
-                staff: editingAppointment.staffId,
-                clientName: editingAppointment.clientId,
-                customClientName: editingAppointment.customClientName || "",
-                service: editingAppointment.serviceId,
-                appointmentDate: editingAppointment.originalData
-                  ?.appointment_date
-                  ? moment.utc(
-                    editingAppointment.originalData.appointment_date
-                  )
-                  : moment.utc(selectedDate),
-                timeRange: [
-                  moment.utc(editingAppointment.start_time, "h:mm A"),
-                  moment.utc(editingAppointment.end_time, "h:mm A"),
-                ],
-                specialRequests: editingAppointment.specialRequests || "",
-                phoneNumber: editingAppointment.phone
-                  ? reversePhoneNumberBookings(editingAppointment.phone)
-                  : "",
-              }
-              : {
-                staff: selectedStaff,
-                appointmentDate: moment.utc(selectedDate),
-              }
-          }
+          initialValues={{
+            staff: selectedStaff,
+            appointmentDate: moment.utc(selectedDate),
+            bookingType: 'individual',
+            maxCapacity: 1,
+          }}
         >
           <Row gutter={16}>
             <Col span={12}>
@@ -1361,7 +1400,7 @@ const CalendarView = () => {
             name="timeRange"
             label="Time Range"
             rules={[{ required: true, message: "Please select a time range" }]}
-            extra="Select start and end times for the appointment (8:00 AM - 10:00 PM)"
+            extra="Select start and end times for the appointment (7:00 AM - 10:00 PM)"
           >
             <RangePicker
               format="h:mm A"
@@ -1374,7 +1413,8 @@ const CalendarView = () => {
                 use12Hours: true,
               }}
               disabledTime={() => ({
-                disabledHours: () => [0, 1, 2, 3, 4, 5, 6, 7, 22, 23],
+                // ✅ Updated: 7 is now allowed, removed from disabled list
+                disabledHours: () => [0, 1, 2, 3, 4, 5, 6, 22, 23],
                 disabledMinutes: (hour) => {
                   return Array.from({ length: 60 })
                     .map((_, i) => i)
@@ -1387,21 +1427,29 @@ const CalendarView = () => {
           <Form.Item label="Client Information" required>
             <div style={{ marginBottom: "10px" }}>
               <Radio.Group
-                defaultValue={
-                  editingAppointment && editingAppointment.customClientName
-                    ? "custom"
-                    : "existing"
-                }
                 buttonStyle="solid"
                 style={{ marginBottom: "15px", width: "100%" }}
-                onChange={(e) => setClientInputMode(e.target.value)}
+                onChange={(e) => {
+                  setClientInputMode(e.target.value);
+                  if (e.target.value === 'custom') {
+                    setBookingType('individual');
+                    setMaxCapacity(1);
+                    setSelectedCustomers([]);
+                    form.setFieldsValue({
+                      clientName: undefined,
+                      clientNames: [],
+                      bookingType: 'individual',
+                      maxCapacity: 1
+                    });
+                  }
+                }}
                 value={clientInputMode}
               >
                 <Radio.Button
                   value="existing"
                   style={{ width: "50%", textAlign: "center" }}
                 >
-                  Select Existing Client
+                  Select Existing Client(s)
                 </Radio.Button>
                 <Radio.Button
                   value="custom"
@@ -1413,38 +1461,124 @@ const CalendarView = () => {
             </div>
 
             {clientInputMode === "existing" ? (
-              <Form.Item
-                name="clientName"
-                noStyle
-                rules={[
-                  {
-                    required: clientInputMode === "existing",
-                    message: "Please select a client",
-                  },
-                ]}
-              >
-                <Select
-                  placeholder="Select client"
-                  showSearch
-                  allowClear
-                  loading={isLoadingCustomers}
-                  style={{ width: "100%" }}
-                  optionFilterProp="children"
-                  filterOption={(input, option) =>
-                    option.children
-                      .toLowerCase()
-                      .indexOf(input.toLowerCase()) >= 0
-                  }
+              <>
+                <Form.Item
+                  name="bookingType"
+                  label="Booking Type"
+                  style={{ marginBottom: '12px' }}
                 >
-                  {customers && Array.isArray(customers)
-                    ? customers.map((customer) => (
-                      <Select.Option key={customer._id} value={customer._id}>
-                        {customer.customer_name}
-                      </Select.Option>
-                    ))
-                    : null}
-                </Select>
-              </Form.Item>
+                  <Radio.Group
+                    onChange={(e) => {
+                      setBookingType(e.target.value);
+                      if (e.target.value === 'individual') {
+                        setMaxCapacity(1);
+                        setSelectedCustomers([]);
+                        form.setFieldsValue({ clientNames: [], maxCapacity: 1 });
+                      } else {
+                        setMaxCapacity(5);
+                        form.setFieldsValue({ clientName: undefined, maxCapacity: 5 });
+                      }
+                    }}
+                    value={bookingType}
+                  >
+                    <Radio value="individual">Individual (1 customer)</Radio>
+                    <Radio value="group">Group (multiple customers)</Radio>
+                  </Radio.Group>
+                </Form.Item>
+
+                {bookingType === 'individual' ? (
+                  <Form.Item
+                    name="clientName"
+                    noStyle
+                    rules={[
+                      {
+                        required: clientInputMode === "existing" && bookingType === 'individual',
+                        message: "Please select a client",
+                      },
+                    ]}
+                  >
+                    <Select
+                      placeholder="Select client"
+                      showSearch
+                      allowClear
+                      loading={isLoadingCustomers}
+                      style={{ width: "100%" }}
+                      optionFilterProp="children"
+                      filterOption={(input, option) =>
+                        option.children
+                          .toLowerCase()
+                          .indexOf(input.toLowerCase()) >= 0
+                      }
+                    >
+                      {customers && Array.isArray(customers)
+                        ? customers.map((customer) => (
+                          <Select.Option key={customer._id} value={customer._id}>
+                            {customer.customer_name}
+                          </Select.Option>
+                        ))
+                        : null}
+                    </Select>
+                  </Form.Item>
+                ) : (
+                  <>
+                    <Form.Item
+                      name="clientNames"
+                      label="Select Customers"
+                      rules={[
+                        {
+                          required: clientInputMode === "existing" && bookingType === 'group',
+                          message: "Please select at least one customer",
+                        },
+                      ]}
+                    >
+                      <Select
+                        mode="multiple"
+                        placeholder="Select customers"
+                        showSearch
+                        allowClear
+                        loading={isLoadingCustomers}
+                        style={{ width: "100%" }}
+                        optionFilterProp="children"
+                        maxTagCount="responsive"
+                        filterOption={(input, option) =>
+                          option.children
+                            .toLowerCase()
+                            .indexOf(input.toLowerCase()) >= 0
+                        }
+                        onChange={(values) => {
+                          setSelectedCustomers(values);
+                          if (values.length > maxCapacity) {
+                            setMaxCapacity(values.length);
+                            form.setFieldsValue({ maxCapacity: values.length });
+                          }
+                        }}
+                      >
+                        {customers && Array.isArray(customers)
+                          ? customers.map((customer) => (
+                            <Select.Option key={customer._id} value={customer._id}>
+                              {customer.customer_name}
+                            </Select.Option>
+                          ))
+                          : null}
+                      </Select>
+                    </Form.Item>
+
+                    <Form.Item
+                      name="maxCapacity"
+                      label="Maximum Capacity"
+                      extra={`Currently selected: ${selectedCustomers.length} customer(s)`}
+                    >
+                      <InputNumber
+                        min={selectedCustomers.length || 1}
+                        max={20}
+                        value={maxCapacity}
+                        onChange={(value) => setMaxCapacity(value || 1)}
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                  </>
+                )}
+              </>
             ) : (
               <Form.Item
                 name="customClientName"
@@ -1465,21 +1599,7 @@ const CalendarView = () => {
             )}
           </Form.Item>
 
-          <Form.Item
-            label="Phone"
-            name="phoneNumber"
-            rules={[
-              { required: true, message: "Please enter your phone number" },
-            ]}
-          >
-            <Input
-              type="text"
-              placeholder="Enter phone number (e.g., +254712345678 or 0712345678)"
-              onChange={(e) => {
-                form.setFieldsValue({ phoneNumber: e.target.value });
-              }}
-            />
-          </Form.Item>
+          {/* Phone input removed */}
 
           <Form.Item
             name="service"
@@ -1518,6 +1638,15 @@ const CalendarView = () => {
             />
           </Form.Item>
 
+          {bookingType === 'group' && (
+            <Form.Item name="notes" label="Additional Notes">
+              <TextArea
+                placeholder="Enter any additional notes for the group booking"
+                rows={2}
+              />
+            </Form.Item>
+          )}
+
           <div
             style={{
               display: "flex",
@@ -1532,7 +1661,6 @@ const CalendarView = () => {
                   description="This action cannot be undone."
                   onConfirm={() => {
                     handleDeleteAppointment.mutate(editingAppointment.id);
-                    setShowReservationForm(false);
                   }}
                   okText="Yes"
                   cancelText="No"
@@ -1543,7 +1671,11 @@ const CalendarView = () => {
                   </Button>
                 </Popconfirm>
               )}
-              <Button onClick={() => setShowReservationForm(false)}>
+              <Button onClick={() => {
+                setShowReservationForm(false);
+                setIsEditMode(false);
+                setEditingAppointment(null);
+              }}>
                 Cancel
               </Button>
               <Button

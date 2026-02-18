@@ -20,7 +20,6 @@ import StaffClockTracker from "@pages/staff/ClockInTracker";
 import HelpCenter from "src/AdminDashboard/HelpCenter/HelpCenterPage";
 import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
 import ShopManagement from "src/AdminDashboard/Shops/MainShopPage";
-// import Invoices from "@pages/OrderManagement/Invoices/Invoices";
 import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
 import Customer from "src/pages/Customer/CustomerList";
 import PaymentSubscriptionPage from "src/components/billing/Billing";
@@ -74,6 +73,95 @@ const Profile = lazy(() => import("@pages/Profile/Profile"));
 const AdminProfile = lazy(() => import("src/AdminDashboard/Profile/AdminProfile"));
 const EmployeeShift = lazy(() => import("@pages/EmployeeShift/Employee"));
 const Notification = lazy(() => import("@pages/Notification/NotificationPage"));
+
+// ============================================================================
+// SMART DASHBOARD ROUTER - Automatically selects correct dashboard
+// ============================================================================
+const SmartDashboardRouter = () => {
+  const storedUser = localStorage.getItem('user');
+  const storedTenant = localStorage.getItem('tenant');
+
+  const user = storedUser ? JSON.parse(storedUser) : null;
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+
+  const userRole = user?.role?.toLowerCase();
+
+  const hasAccountingModule =
+    tenant?.modules?.accounting === true &&
+    tenant?.accounting_database?.enabled === true;
+
+  const hasPosModule = tenant?.pos_integration?.enabled === true;
+
+  // If no user, redirect to login
+  if (!user || !userRole) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // ACCOUNTING ROLE - Always shows AccountingDashboard
+  if (userRole === 'accounting') {
+    return (
+      <Suspense fallback={<NubaLoader />}>
+        <AdminRoute>
+          <AccountingDashboard />
+        </AdminRoute>
+      </Suspense>
+    );
+  }
+
+  // ADMIN ROLE
+  if (userRole === 'admin') {
+    // If only accounting module is enabled
+    if (hasAccountingModule && !hasPosModule) {
+      return (
+        <Suspense fallback={<NubaLoader />}>
+          <AdminRoute>
+            <AccountingDashboard />
+          </AdminRoute>
+        </Suspense>
+      );
+    }
+
+    // If only POS module is enabled
+    if (hasPosModule && !hasAccountingModule) {
+      return (
+        <Suspense fallback={<NubaLoader />}>
+          <AdminRoute>
+            <DashboardAdminPage />
+          </AdminRoute>
+        </Suspense>
+      );
+    }
+
+    // If both modules are enabled - Show POS Dashboard (can be changed)
+    if (hasAccountingModule && hasPosModule) {
+      return (
+        <Suspense fallback={<NubaLoader />}>
+          <AdminRoute>
+            <DashboardAdminPage />
+          </AdminRoute>
+        </Suspense>
+      );
+    }
+
+    // Default: Show admin dashboard
+    return (
+      <Suspense fallback={<NubaLoader />}>
+        <AdminRoute>
+          <DashboardAdminPage />
+        </AdminRoute>
+      </Suspense>
+    );
+  }
+
+  // OTHER ROLES - Default to admin dashboard
+  return (
+    <Suspense fallback={<NubaLoader />}>
+      <AdminRoute>
+        <DashboardAdminPage />
+      </AdminRoute>
+    </Suspense>
+  );
+};
 
 const routes = createBrowserRouter(
   createRoutesFromElements(
@@ -149,7 +237,6 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        {/* EXISTING ROUTE: /dashboard/:id - handles URLs like /dashboard/6788b6f04de47867975db879 */}
         <Route
           path="/dashboard/:id"
           errorElement={<NotFound />}
@@ -165,7 +252,6 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        {/* NEW ROUTE ADDED: /store - to fix 404 error for /store without ID */}
         <Route
           path="/store"
           errorElement={<NotFound />}
@@ -181,7 +267,6 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        {/* EXISTING ROUTE: /store/:id - for store with dynamic ID */}
         <Route
           path="/store/:id"
           errorElement={<NotFound />}
@@ -225,7 +310,6 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        {/* NEW ROUTE ADDED: /payment-methods - to fix 404 error */}
         <Route
           path="/payment-methods"
           errorElement={<NotFound />}
@@ -286,7 +370,6 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        {/* NEW ROUTE ADDED: /suppliers - to fix 404 error */}
         <Route
           path="/suppliers"
           errorElement={<NotFound />}
@@ -332,7 +415,6 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        {/* EXISTING ROUTE: /reports */}
         <Route
           path="/reports"
           errorElement={<NotFound />}
@@ -363,7 +445,6 @@ const routes = createBrowserRouter(
             </Suspense>
           }
         />
-        {/* NEW ROUTE ADDED: /inventory - to fix 404 error */}
         <Route
           path="/inventory"
           errorElement={<NotFound />}
@@ -408,9 +489,7 @@ const routes = createBrowserRouter(
               </Private>
             </Suspense>
           }
-        // errorElement={<NotFound/>}
         />
-        {/* NEW ROUTE ADDED: /customers - to fix 404 error */}
         <Route
           path="/customers"
           errorElement={<NotFound />}
@@ -480,13 +559,50 @@ const routes = createBrowserRouter(
         <Route path="*" element={<NotFound />} />
       </Route>
 
-      {/* ADMIN ROUTES */}
+      {/* ============================================================================ */}
+      {/* ADMIN ROUTES - Role-Based Dashboard Selection */}
+      {/* ============================================================================ */}
       <Route path="/admin" element={<Layout />}>
-        <Route index path="/admin/dashboard" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><DashboardAdminPage /></AdminRoute></Suspense>} />
-        <Route path="/admin/notifications" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><Notification /></Suspense>} />
+        {/* Main Dashboard - Uses SmartDashboardRouter to show correct dashboard */}
+        <Route
+          index
+          element={<SmartDashboardRouter />}
+        />
+        <Route
+          path="dashboard"
+          errorElement={<NotFound />}
+          element={<SmartDashboardRouter />}
+        />
 
+        {/* Notifications */}
+        <Route
+          path="notifications"
+          errorElement={<NotFound />}
+          element={
+            <Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}>
+              <Notification />
+            </Suspense>
+          }
+        />
+
+        {/* ============================================================================ */}
         {/* ACCOUNTING MODULE ROUTES */}
-        <Route path="accounting/dashboard" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><AccountingDashboard /></AdminRoute></Suspense>} />
+        {/* ============================================================================ */}
+
+        {/* Accounting Dashboard - Separate route for direct access */}
+        <Route
+          path="accounting/dashboard"
+          errorElement={<NotFound />}
+          element={
+            <Suspense fallback={<NubaLoader />}>
+              <AdminRoute>
+                <AccountingDashboard />
+              </AdminRoute>
+            </Suspense>
+          }
+        />
+
+        {/* Core Accounting Features */}
         <Route path="accounting/accounts" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ChartOfAccounts /></AdminRoute></Suspense>} />
         <Route path="accounting/invoices" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><AccountingInvoices /></AdminRoute></Suspense>} />
         <Route path="accounting/bills" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><AccountingBills /></AdminRoute></Suspense>} />
@@ -499,7 +615,7 @@ const routes = createBrowserRouter(
         <Route path="accounting/reconciliation" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><BankReconciliation /></AdminRoute></Suspense>} />
         <Route path="accounting/reconciliation/:id" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ReconciliationDetailView /></AdminRoute></Suspense>} />
 
-        {/* ACCOUNTING REPORTS */}
+        {/* Accounting Reports */}
         <Route path="accounting/reports/profit-loss" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ProfitLoss /></AdminRoute></Suspense>} />
         <Route path="accounting/reports/balance-sheet" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><BalanceSheet /></AdminRoute></Suspense>} />
         <Route path="accounting/reports/cash-flow" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><CashFlow /></AdminRoute></Suspense>} />
@@ -508,23 +624,36 @@ const routes = createBrowserRouter(
         <Route path="accounting/reports/ap-aging" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><APAgingReport /></AdminRoute></Suspense>} />
         <Route path="accounting/reports/tax-summary" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><TaxSummary /></AdminRoute></Suspense>} />
 
-        {/* WAGES MODULE ROUTE */}
+        {/* ============================================================================ */}
+        {/* POS/OPERATIONS ROUTES */}
+        {/* ============================================================================ */}
+
+        {/* Wages Module */}
         <Route path="wages" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><WagesList /></AdminRoute></Suspense>} />
 
-        {/* OTHER ADMIN ROUTES */}
+        {/* Shop & Staff Management */}
         <Route path="shop-management" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><ShopManagement /></AdminRoute></Suspense>} />
+        <Route path="staff-management" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><UsersMainSettings /></AdminRoute></Suspense>} />
+
+        {/* Customer Management */}
+        <Route path="customer-list" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><AdminCustomersList /></AdminRoute></Suspense>} />
+        <Route path="customers" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><CustomerRegistration /></Suspense>} />
+
+        {/* Reports */}
+        <Route path="reports" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><AdminReports /></AdminRoute></Suspense>} />
+
+        {/* ============================================================================ */}
+        {/* SYSTEM & SETTINGS ROUTES */}
+        {/* ============================================================================ */}
+
         <Route path="billing" errorElement={<NotFound />} element={<Suspense fallback={<NubaLoader />}><AdminRoute><PaymentSubscriptionPage /></AdminRoute></Suspense>} />
         <Route path="profile/:id" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><AdminProfile /></AdminRoute></Suspense>} />
-        <Route path="staff-management" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><UsersMainSettings /></AdminRoute></Suspense>} />
-        <Route path="customer-list" errorElement={<NotFound />} element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><AdminCustomersList /></AdminRoute></Suspense>} />
-        <Route path="reports" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><AdminReports /></AdminRoute></Suspense>} />
-        <Route path="customers" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><CustomerRegistration /></Suspense>} />
         <Route path="staff-clock-in" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><StaffClockTracker /></Suspense>} />
         <Route path="help-center" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><HelpCenter /></AdminRoute></Suspense>} />
         <Route path="discover" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><DiscoverPage /></AdminRoute></Suspense>} />
         <Route path="settings" element={<Suspense fallback={<Spin size="large" fullscreen style={{ color: `${getPrimaryColor()}` }} />}><AdminRoute><TenantSettings /></AdminRoute></Suspense>} />
 
-        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        {/* 404 Fallback */}
         <Route path="*" element={<NotFound />} />
       </Route>
     </>

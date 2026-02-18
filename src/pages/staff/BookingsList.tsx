@@ -8,6 +8,7 @@ import {
   Col,
   Tooltip,
   Avatar,
+  Badge,
 } from "antd";
 import {
   EditOutlined,
@@ -16,6 +17,7 @@ import {
   CalendarOutlined,
   ClockCircleOutlined,
   UserOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import { useDispatch } from "react-redux";
 import moment from "moment";
@@ -23,7 +25,11 @@ import { fetchAllSchedules, removeSchedule } from "@services/customers";
 import { ProCard, ProTable } from "@ant-design/pro-components";
 import { useMutation } from "@tanstack/react-query";
 
-const BookingsList = () => {
+interface BookingsListProps {
+  onEditBooking?: (booking: any) => void; // Callback to handle edit action
+}
+
+const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
   const dispatch = useDispatch();
 
   // Helper function to determine booking status
@@ -57,6 +63,41 @@ const BookingsList = () => {
       );
     },
   });
+
+  // ✅ NEW: Handle edit booking
+  const handleEditClick = (record: any) => {
+    if (onEditBooking) {
+      // Format the booking data for the calendar view
+      const formattedBooking = {
+        id: record._id,
+        staff: record.staff_id?.fullname || "Unknown Staff",
+        staffId: record.staff_id?._id,
+        start_time: record.start_time,
+        end_time: record.end_time,
+        client:
+          record.customer_id?.customer_name ||
+          record.custom_client_name ||
+          "Unknown Client",
+        clientId: record.customer_id?._id,
+        customClientName: record.custom_client_name,
+        service: record.service_id?.name || "Unknown Service",
+        serviceId: record.service_id?._id,
+        duration: record.duration || "Unknown Duration",
+        isTimeRange: record.start_time !== record.end_time,
+        timeRangeDescription:
+          record.timeRangeDescription ||
+          `${record.start_time} - ${record.end_time}`,
+        originalData: record,
+        appointmentDate: record.appointment_date,
+        specialRequests: record.special_requests,
+        phone: record.phone,
+      };
+
+      onEditBooking(formattedBooking);
+    } else {
+      message.info("Please switch to Calendar view to edit this booking");
+    }
+  };
 
   // Get status tag color
   const getStatusColor = (status: string) => {
@@ -98,6 +139,54 @@ const BookingsList = () => {
     }
   };
 
+  // ✅ NEW: Helper to format customer names for display
+  const formatCustomerNames = (record: any) => {
+    // Check if this is a group booking with multiple customers
+    if (record.customer_ids && Array.isArray(record.customer_ids) && record.customer_ids.length > 0) {
+      const customerCount = record.customer_ids.length;
+
+      if (customerCount === 1) {
+        return record.customer_ids[0]?.customer_name || record.custom_client_name || "Unknown";
+      }
+
+      // For multiple customers, show first 2 names + count
+      const firstTwo = record.customer_ids
+        .slice(0, 2)
+        .map(c => c?.customer_name || "Unknown")
+        .join(", ");
+
+      if (customerCount > 2) {
+        return `${firstTwo} +${customerCount - 2} more`;
+      }
+
+      return firstTwo;
+    }
+
+    // Fallback to old format
+    return record.custom_client_name || record.customer_id?.customer_name || "Unknown";
+  };
+
+  // ✅ NEW: Get all customer phone numbers
+  const getCustomerPhones = (record: any) => {
+    const phones: string[] = [];
+
+    if (record.customer_ids && Array.isArray(record.customer_ids)) {
+      record.customer_ids.forEach(customer => {
+        if (customer?.phone) {
+          phones.push(customer.phone);
+        }
+      });
+    }
+
+    // Fallback to old format
+    if (phones.length === 0) {
+      if (record.phone) phones.push(record.phone);
+      if (record.customer_id?.phone) phones.push(record.customer_id.phone);
+    }
+
+    return phones;
+  };
+
   // Table columns configuration
   const columns = [
     {
@@ -125,22 +214,50 @@ const BookingsList = () => {
       title: "Client",
       key: "client",
       dataIndex: "custom_client_name",
-      width: 180,
-      render: (text: any, record: any) => (
-        <div>
-          <div style={{ fontWeight: "bold" }}>
-            <UserOutlined style={{ marginRight: "6px", color: "#1890ff" }} />
-            {text}
-          </div>
-          {record.phone ||
-            (record.customer_id?.phone && (
-              <div style={{ fontSize: "12px", color: "#8c8c8c" }}>
+      width: 220,
+      render: (text: any, record: any) => {
+        const isGroupBooking = record.customer_ids && record.customer_ids.length > 1;
+        const customerCount = record.customer_ids?.length || 0;
+        const phones = getCustomerPhones(record);
+
+        return (
+          <div>
+            <div style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
+              {isGroupBooking ? (
+                <>
+                  <TeamOutlined style={{ color: "#1890ff" }} />
+                  <Badge count={customerCount} style={{ backgroundColor: "#52c41a" }}>
+                    <span>{formatCustomerNames(record)}</span>
+                  </Badge>
+                </>
+              ) : (
+                <>
+                  <UserOutlined style={{ color: "#1890ff" }} />
+                  {formatCustomerNames(record)}
+                </>
+              )}
+            </div>
+
+            {/* ✅ NEW: Show phone numbers */}
+            {phones.length > 0 && (
+              <div style={{ fontSize: "12px", color: "#8c8c8c", marginTop: "4px" }}>
                 <PhoneOutlined style={{ marginRight: "4px" }} />
-                {record.phone || record.customer_id?.phone}
+                {phones.length === 1 ? phones[0] : `${phones.length} contacts`}
               </div>
-            ))}
-        </div>
-      ),
+            )}
+
+            {/* ✅ NEW: Show booking type badge */}
+            {isGroupBooking && (
+              <Tag
+                color="blue"
+                style={{ fontSize: "10px", marginTop: "4px" }}
+              >
+                Group Booking
+              </Tag>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: "Staff",
@@ -208,16 +325,13 @@ const BookingsList = () => {
             <Button
               type="text"
               icon={<EditOutlined />}
-              onClick={() => {
-                // You can emit an event or use a callback to switch to calendar view and edit
-                message.info("Switch to Calendar view to edit this booking");
-              }}
+              onClick={() => handleEditClick(record)}
             />
           </Tooltip>
           <Popconfirm
             title="Delete this booking?"
             description="This action cannot be undone."
-            onConfirm={() => handleDeleteBooking.mutate(record.id)}
+            onConfirm={() => handleDeleteBooking.mutate(record._id)}
             okText="Yes"
             cancelText="No"
             okButtonProps={{ danger: true }}
@@ -231,28 +345,107 @@ const BookingsList = () => {
     },
   ];
 
-  // Render expanded row content
+  // ✅ UPDATED: Render expanded row content with multiple customers
   const expandedRowRender = (record: any) => {
+    const isGroupBooking = record.customer_ids && record.customer_ids.length > 1;
+    const customers = record.customer_ids || [];
+    const phones = getCustomerPhones(record);
+
     return (
       <Row gutter={[16, 16]}>
+        {/* ✅ UPDATED: Client Information - Handle Multiple Customers */}
         <Col span={12}>
-          <ProCard size="small" title="Client Information">
-            <p>
-              <UserOutlined style={{ marginRight: "4px" }} />
-              <strong>Name:</strong>{" "}
-              {record.custom_client_name ||
-                record.customer_id?.customer_name ||
-                "N/A"}
-            </p>
-            {(record.phone || record.customer_id?.phone) && (
-              <p>
-                <PhoneOutlined style={{ marginRight: "4px" }} />
-                <strong>Phone:</strong>{" "}
-                {record.phone || record.customer_id?.phone}
-              </p>
+          <ProCard
+            size="small"
+            title={
+              <Space>
+                {isGroupBooking ? <TeamOutlined /> : <UserOutlined />}
+                {isGroupBooking ? "Group Booking - Customers" : "Client Information"}
+                {isGroupBooking && (
+                  <Badge
+                    count={customers.length}
+                    style={{ backgroundColor: "#52c41a" }}
+                  />
+                )}
+              </Space>
+            }
+          >
+            {isGroupBooking ? (
+              <>
+                {/* ✅ NEW: Display all customers in group booking */}
+                {customers.map((customer, index) => (
+                  <div
+                    key={customer?._id || index}
+                    style={{
+                      marginBottom: "12px",
+                      paddingBottom: "12px",
+                      borderBottom: index < customers.length - 1 ? "1px solid #f0f0f0" : "none"
+                    }}
+                  >
+                    <p style={{ marginBottom: "4px" }}>
+                      <UserOutlined style={{ marginRight: "4px", color: "#1890ff" }} />
+                      <strong>Customer {index + 1}:</strong> {customer?.customer_name || "Unknown"}
+                    </p>
+                    {customer?.phone && (
+                      <p style={{ marginBottom: "4px", fontSize: "12px", color: "#8c8c8c" }}>
+                        <PhoneOutlined style={{ marginRight: "4px" }} />
+                        {customer.phone}
+                      </p>
+                    )}
+                    {customer?.email && (
+                      <p style={{ marginBottom: "0", fontSize: "12px", color: "#8c8c8c" }}>
+                        📧 {customer.email}
+                      </p>
+                    )}
+                  </div>
+                ))}
+
+                {/* ✅ NEW: Show capacity info */}
+                {record.max_capacity && (
+                  <div style={{ marginTop: "12px", padding: "8px", backgroundColor: "#f0f7ff", borderRadius: "4px" }}>
+                    <p style={{ margin: 0, fontSize: "12px" }}>
+                      <strong>Capacity:</strong> {record.current_capacity || customers.length} / {record.max_capacity}
+                      {record.current_capacity < record.max_capacity && (
+                        <Tag color="green" style={{ marginLeft: "8px", fontSize: "10px" }}>
+                          {record.max_capacity - (record.current_capacity || customers.length)} spots available
+                        </Tag>
+                      )}
+                      {record.current_capacity >= record.max_capacity && (
+                        <Tag color="red" style={{ marginLeft: "8px", fontSize: "10px" }}>
+                          Full
+                        </Tag>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Single customer display */}
+                <p>
+                  <UserOutlined style={{ marginRight: "4px" }} />
+                  <strong>Name:</strong>{" "}
+                  {record.custom_client_name ||
+                    record.customer_id?.customer_name ||
+                    "N/A"}
+                </p>
+                {phones.length > 0 && (
+                  <p>
+                    <PhoneOutlined style={{ marginRight: "4px" }} />
+                    <strong>Phone:</strong> {phones[0]}
+                  </p>
+                )}
+                {(record.customer_id?.email || record.email) && (
+                  <p>
+                    📧 <strong>Email:</strong> {record.customer_id?.email || record.email}
+                  </p>
+                )}
+              </>
             )}
           </ProCard>
         </Col>
+
+        {/* Appointment Details */}
         <Col span={12}>
           <ProCard size="small" title="Appointment Details">
             <p>
@@ -263,11 +456,24 @@ const BookingsList = () => {
 
             <p>
               <ClockCircleOutlined style={{ marginRight: "4px" }} />
-              <strong>Time:</strong> {record.start_time} - {record.end_time}{" "}
+              <strong>Time:</strong> {record.start_time} - {record.end_time}
+            </p>
+
+            <p>
               <strong>Duration:</strong> {record.duration || "N/A"}
+            </p>
+
+            {/* ✅ NEW: Show booking type */}
+            <p>
+              <strong>Type:</strong>{" "}
+              <Tag color={isGroupBooking ? "blue" : "default"}>
+                {record.booking_type === "group" ? "Group Booking" : "Individual"}
+              </Tag>
             </p>
           </ProCard>
         </Col>
+
+        {/* Service Information */}
         <Col span={12}>
           <ProCard size="small" title="Service Information">
             <p>
@@ -277,8 +483,15 @@ const BookingsList = () => {
               <UserOutlined style={{ marginRight: "4px" }} />
               <strong>Staff:</strong> {record.staff_id?.fullname || "N/A"}
             </p>
+            {record.service_id?.price && (
+              <p>
+                <strong>Price:</strong> Ksh {record.service_id.price}
+              </p>
+            )}
           </ProCard>
         </Col>
+
+        {/* Additional Information */}
         <Col span={12}>
           <ProCard size="small" title="Additional Information">
             {record.special_requests ? (
@@ -290,12 +503,25 @@ const BookingsList = () => {
                 No special requests
               </p>
             )}
+
+            {record.notes && (
+              <p>
+                <strong>Notes:</strong> {record.notes}
+              </p>
+            )}
+
             <p>
               <strong>Status:</strong>{" "}
               <Tag color={getStatusColor(record.status)}>
                 {getStatusText(record.status)}
               </Tag>
             </p>
+
+            {record.source && (
+              <p style={{ fontSize: "12px", color: "#8c8c8c" }}>
+                <strong>Source:</strong> {record.source}
+              </p>
+            )}
           </ProCard>
         </Col>
       </Row>
@@ -331,6 +557,23 @@ const BookingsList = () => {
       expandable={{
         expandedRowRender,
       }}
+      headerTitle={
+        <Space>
+          <CalendarOutlined />
+          <span>Bookings List</span>
+        </Space>
+      }
+      toolBarRender={() => [
+        <Button
+          key="refresh"
+          onClick={() => {
+            // Trigger refetch
+            message.success("Bookings refreshed");
+          }}
+        >
+          Refresh
+        </Button>,
+      ]}
     />
   );
 };

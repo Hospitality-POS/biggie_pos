@@ -20,19 +20,24 @@ import {
   TransactionOutlined,
   FileProtectOutlined,
   WalletOutlined,
-  MoneyCollectOutlined
 } from "@ant-design/icons";
 import { useLocation } from "react-router-dom";
 
 const useProLayoutNav = () => {
   const location = useLocation();
 
-  // Get tenant from localStorage to determine module access
+  // Get tenant and user from localStorage
   const storedTenant = localStorage.getItem("tenant");
+  const storedUser = localStorage.getItem("user");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const user = storedUser ? JSON.parse(storedUser) : null;
 
-  // Check which modules are enabled (borrowing from Discover page logic)
-  const hasAccountingAccess = tenant?.modules?.accounting === true &&
+  // Get user role (normalize to lowercase)
+  const userRole = user?.role?.toLowerCase();
+
+  // Check which modules are enabled
+  const hasAccountingAccess =
+    tenant?.modules?.accounting === true &&
     tenant?.accounting_database?.enabled === true;
   const hasPosAccess = tenant?.pos_integration?.enabled === true;
 
@@ -41,24 +46,18 @@ const useProLayoutNav = () => {
   const isPosOnly = hasPosAccess && !hasAccountingAccess;
   const hasBothModules = hasAccountingAccess && hasPosAccess;
 
-  // Build dynamic menu structure
+  // Build dynamic menu structure based on user role and enabled modules
   const buildMenuStructure = () => {
     const routes = [];
 
-    // ========== DASHBOARD ==========
-    // Show dashboard if user has any module access
-    if (hasAccountingAccess || hasPosAccess) {
+    // ========== ROLE: ACCOUNTING ==========
+    if (userRole === "accounting") {
+      // Accounting users only see accounting features
       routes.push({
         path: "/admin/dashboard",
         name: "Dashboard",
         icon: <DashboardOutlined />,
       });
-    }
-
-    // ========== ACCOUNTING-ONLY LAYOUT ==========
-    if (isAccountingOnly) {
-      // For accounting-only users, promote accounting features to top level
-      // This gives them a cleaner, dedicated accounting experience
 
       // Sales & Revenue
       routes.push({
@@ -92,9 +91,9 @@ const useProLayoutNav = () => {
         icon: <DollarOutlined />,
       });
 
-      // Contacts
+      // Contacts - Fixed: Parent path now points to first child
       routes.push({
-        path: "/admin/contacts",
+        path: "/admin/accounting/customers", // ✅ Points to first child
         name: "Contacts",
         icon: <ContactsOutlined />,
         routes: [
@@ -108,12 +107,12 @@ const useProLayoutNav = () => {
             name: "Vendors",
             icon: <ShoppingCartOutlined />,
           },
-        ]
+        ],
       });
 
-      // Accounting
+      // Accounting Core - Fixed: Parent path now points to first child
       routes.push({
-        path: "/admin/accounting-core",
+        path: "/admin/accounting/accounts", // ✅ Points to first child
         name: "Accounting",
         icon: <CalculatorOutlined />,
         routes: [
@@ -132,13 +131,13 @@ const useProLayoutNav = () => {
             name: "Bank Reconciliation",
             icon: <ReconciliationOutlined />,
           },
-        ]
+        ],
       });
 
-      // Reports
+      // Reports - Fixed: Parent path now points to first child
       routes.push({
         name: "Reports",
-        path: "/admin/accounting/reports",
+        path: "/admin/accounting/reports/profit-loss", // ✅ Points to first child
         icon: <BarChartOutlined />,
         routes: [
           {
@@ -176,13 +175,27 @@ const useProLayoutNav = () => {
             name: "Tax Summary",
             icon: <FileTextOutlined />,
           },
-        ]
+        ],
       });
+
+      // Help Center (always visible)
+      routes.push({
+        path: "/admin/help-center",
+        name: "Help Center",
+        icon: <CompassOutlined />,
+      });
+
+      return routes;
     }
 
-    // ========== POS-ONLY LAYOUT ==========
-    else if (isPosOnly) {
-      // For POS-only users, show POS features prominently
+    // ========== ROLE: ADMIN (POS-ONLY) ==========
+    if (userRole === "admin" && isPosOnly) {
+      routes.push({
+        path: "/admin/dashboard",
+        name: "Dashboard",
+        icon: <DashboardOutlined />,
+      });
+
       routes.push({
         path: "/admin/shop-management",
         name: "Shop Management",
@@ -212,15 +225,163 @@ const useProLayoutNav = () => {
         name: "Reports",
         icon: <ReconciliationOutlined />,
       });
+
+      routes.push({
+        path: "/admin/help-center",
+        name: "Help Center",
+        icon: <CompassOutlined />,
+      });
+
+      return routes;
     }
 
-    // ========== COMBINED MODULES LAYOUT ==========
-    else if (hasBothModules) {
-      // For users with both modules, organize features logically
-
-      // POS Operations
+    // ========== ROLE: ADMIN (ACCOUNTING-ONLY) ==========
+    if (userRole === "admin" && isAccountingOnly) {
+      // Admin with accounting-only sees accounting features
       routes.push({
-        path: "/admin/operations",
+        path: "/admin/dashboard",
+        name: "Dashboard",
+        icon: <DashboardOutlined />,
+      });
+
+      // Same structure as accounting user
+      routes.push({
+        path: "/admin/accounting/invoices",
+        name: "Invoices",
+        icon: <FileTextOutlined />,
+      });
+
+      routes.push({
+        path: "/admin/accounting/receipts",
+        name: "Receipts",
+        icon: <CreditCardOutlined />,
+      });
+
+      routes.push({
+        path: "/admin/accounting/bills",
+        name: "Bills",
+        icon: <FileProtectOutlined />,
+      });
+
+      routes.push({
+        path: "/admin/accounting/expenses",
+        name: "Expenses",
+        icon: <DollarCircleOutlined />,
+      });
+
+      routes.push({
+        path: "/admin/accounting/payments",
+        name: "Payments",
+        icon: <DollarOutlined />,
+      });
+
+      // Contacts - Fixed
+      routes.push({
+        path: "/admin/accounting/customers", // ✅ Points to first child
+        name: "Contacts",
+        icon: <ContactsOutlined />,
+        routes: [
+          {
+            path: "/admin/accounting/customers",
+            name: "Customers",
+            icon: <TeamOutlined />,
+          },
+          {
+            path: "/admin/accounting/vendors",
+            name: "Vendors",
+            icon: <ShoppingCartOutlined />,
+          },
+        ],
+      });
+
+      // Accounting Core - Fixed
+      routes.push({
+        path: "/admin/accounting/accounts", // ✅ Points to first child
+        name: "Accounting",
+        icon: <CalculatorOutlined />,
+        routes: [
+          {
+            path: "/admin/accounting/accounts",
+            name: "Chart of Accounts",
+            icon: <BankOutlined />,
+          },
+          {
+            path: "/admin/accounting/journals",
+            name: "Journal Entries",
+            icon: <AccountBookOutlined />,
+          },
+          {
+            path: "/admin/accounting/reconciliation",
+            name: "Bank Reconciliation",
+            icon: <ReconciliationOutlined />,
+          },
+        ],
+      });
+
+      // Reports - Fixed
+      routes.push({
+        name: "Reports",
+        path: "/admin/accounting/reports/profit-loss", // ✅ Points to first child
+        icon: <BarChartOutlined />,
+        routes: [
+          {
+            path: "/admin/accounting/reports/profit-loss",
+            name: "Profit & Loss",
+            icon: <FundOutlined />,
+          },
+          {
+            path: "/admin/accounting/reports/balance-sheet",
+            name: "Balance Sheet",
+            icon: <AccountBookOutlined />,
+          },
+          {
+            path: "/admin/accounting/reports/cash-flow",
+            name: "Cash Flow",
+            icon: <TransactionOutlined />,
+          },
+          {
+            path: "/admin/accounting/reports/trial-balance",
+            name: "Trial Balance",
+            icon: <ReconciliationOutlined />,
+          },
+          {
+            path: "/admin/accounting/reports/ar-aging",
+            name: "AR Aging",
+            icon: <TeamOutlined />,
+          },
+          {
+            path: "/admin/accounting/reports/ap-aging",
+            name: "AP Aging",
+            icon: <ShoppingCartOutlined />,
+          },
+          {
+            path: "/admin/accounting/reports/tax-summary",
+            name: "Tax Summary",
+            icon: <FileTextOutlined />,
+          },
+        ],
+      });
+
+      routes.push({
+        path: "/admin/help-center",
+        name: "Help Center",
+        icon: <CompassOutlined />,
+      });
+
+      return routes;
+    }
+
+    // ========== ROLE: ADMIN (BOTH MODULES) ==========
+    if (userRole === "admin" && hasBothModules) {
+      routes.push({
+        path: "/admin/dashboard",
+        name: "Dashboard",
+        icon: <DashboardOutlined />,
+      });
+
+      // POS Operations - Fixed
+      routes.push({
+        path: "/admin/shop-management", // ✅ Points to first child
         name: "Operations",
         icon: <ShopOutlined />,
         routes: [
@@ -239,20 +400,15 @@ const useProLayoutNav = () => {
             name: "Wage Management",
             icon: <WalletOutlined />,
           },
-        ]
+        ],
       });
 
-      // Accounting Module (nested)
+      // Accounting Module - Fixed
       routes.push({
-        path: "/admin/accounting",
+        path: "/admin/accounting/invoices", // ✅ Points to first child
         name: "Accounting",
         icon: <CalculatorOutlined />,
         routes: [
-          {
-            path: "/admin/accounting/dashboard",
-            name: "Dashboard",
-            icon: <DashboardOutlined />,
-          },
           {
             path: "/admin/accounting/invoices",
             name: "Invoices",
@@ -293,12 +449,12 @@ const useProLayoutNav = () => {
             name: "Bank Reconciliation",
             icon: <ReconciliationOutlined />,
           },
-        ]
+        ],
       });
 
-      // Shared Customers
+      // Shared Contacts - Fixed
       routes.push({
-        path: "/admin/contacts",
+        path: "/admin/customer-list", // ✅ Points to first child
         name: "Contacts",
         icon: <ContactsOutlined />,
         routes: [
@@ -312,22 +468,20 @@ const useProLayoutNav = () => {
             name: "Vendors",
             icon: <ShoppingCartOutlined />,
           },
-        ]
+        ],
       });
 
-      // Combined Reports
+      // Combined Reports - Fixed
       routes.push({
         name: "Reports",
-        path: "/admin/reports",
+        path: "/admin/reports", // ✅ Points to first child
         icon: <BarChartOutlined />,
         routes: [
-          // Business Reports
           {
             path: "/admin/reports",
             name: "Business Overview",
             icon: <DashboardOutlined />,
           },
-          // Accounting Reports
           {
             path: "/admin/accounting/reports/profit-loss",
             name: "Profit & Loss",
@@ -343,61 +497,31 @@ const useProLayoutNav = () => {
             name: "Cash Flow",
             icon: <TransactionOutlined />,
           },
-          {
-            path: "/admin/accounting/reports/trial-balance",
-            name: "Trial Balance",
-            icon: <ReconciliationOutlined />,
-          },
-          {
-            path: "/admin/accounting/reports/ar-aging",
-            name: "AR Aging",
-            icon: <TeamOutlined />,
-          },
-          {
-            path: "/admin/accounting/reports/ap-aging",
-            name: "AP Aging",
-            icon: <ShoppingCartOutlined />,
-          },
-          {
-            path: "/admin/accounting/reports/tax-summary",
-            name: "Tax Summary",
-            icon: <FileTextOutlined />,
-          },
-        ]
+        ],
       });
+
+      routes.push({
+        path: "/admin/help-center",
+        name: "Help Center",
+        icon: <CompassOutlined />,
+      });
+
+      return routes;
     }
 
-    // ========== COMMON FEATURES (Always visible) ==========
+    // ========== DEFAULT/FALLBACK ==========
+    // If no role matches or no modules enabled, show minimal menu
+    routes.push({
+      path: "/admin/dashboard",
+      name: "Dashboard",
+      icon: <DashboardOutlined />,
+    });
 
-    // Billing - Show if user has any module access
-    // if (hasAccountingAccess || hasPosAccess) {
-    //   routes.push({
-    //     path: "/admin/billing",
-    //     name: "Billing",
-    //     icon: <MoneyCollectOutlined />,
-    //   });
-    // }
-
-    // Help Center
     routes.push({
       path: "/admin/help-center",
       name: "Help Center",
       icon: <CompassOutlined />,
     });
-
-    // Discover (for enabling/managing modules)
-    // routes.push({
-    //   path: "/admin/discover",
-    //   name: "Discover",
-    //   icon: <GlobalOutlined />,
-    // });
-
-    // Settings
-    // routes.push({
-    //   path: "/admin/settings",
-    //   name: "Settings",
-    //   icon: <SettingOutlined />,
-    // });
 
     return routes;
   };

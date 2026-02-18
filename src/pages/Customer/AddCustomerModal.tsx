@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Modal,
     Form,
@@ -12,54 +12,121 @@ import {
 import {
     UserOutlined,
     MailOutlined,
-    PhoneOutlined,
     SaveOutlined,
-    UserAddOutlined, // ✅ ADD THIS IMPORT
+    UserAddOutlined,
+    EditOutlined,
+    EnvironmentOutlined,
+    IdcardOutlined,
 } from "@ant-design/icons";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
-import { addNewCustomer } from "@services/customers";
+import { addNewCustomer, updateCustomer } from "@services/customers";
 
 interface AddCustomerModalProps {
     visible: boolean;
     onClose: () => void;
     onSuccess?: () => void;
+    customer?: any; // ✅ For edit mode
+    mode?: 'add' | 'edit'; // ✅ Modal mode
 }
 
 const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     visible,
     onClose,
     onSuccess,
+    customer,
+    mode = 'add',
 }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
 
+    // ✅ Pre-fill form when editing
+    useEffect(() => {
+        if (visible && mode === 'edit' && customer) {
+            // ✅ Format phone number as object for PhoneInput component
+            // The PhoneInput expects an object with { code, phone, short } structure
+            let phoneValue;
+
+            if (customer.phone) {
+                const phoneStr = String(customer.phone);
+                // Check if phone starts with country code
+                if (phoneStr.startsWith('254')) {
+                    // Kenyan number with country code
+                    phoneValue = {
+                        code: 254,
+                        phone: phoneStr.substring(3), // Remove country code
+                        short: 'KE'
+                    };
+                } else if (phoneStr.startsWith('+254')) {
+                    phoneValue = {
+                        code: 254,
+                        phone: phoneStr.substring(4),
+                        short: 'KE'
+                    };
+                } else {
+                    // Local number without country code
+                    phoneValue = {
+                        code: 254,
+                        phone: phoneStr,
+                        short: 'KE'
+                    };
+                }
+            } else {
+                phoneValue = undefined;
+            }
+
+            form.setFieldsValue({
+                customer_name: customer.customer_name,
+                email: customer.email || '',
+                phoneNumber: phoneValue,
+                location: customer.location || '',
+                kra_pin: customer.kra_pin || '',
+            });
+        } else if (visible && mode === 'add') {
+            form.resetFields();
+        }
+    }, [visible, mode, customer, form]);
+
     const handleSubmit = async (values: any) => {
         setLoading(true);
         try {
-            const { customer_name, email, phoneNumber } = values;
+            const { customer_name, email, phoneNumber, location, kra_pin } = values;
             const phone = getPhoneNumber(phoneNumber);
 
             const payload = {
                 customer_name,
-                email,
+                ...(email && { email }),
                 phone,
+                ...(location && { location }),
+                ...(kra_pin && { kra_pin }),
             };
 
-            const response = await addNewCustomer(payload);
+            let response;
 
-            if (response?.status === 201) {
-                message.success("Customer added successfully!");
+            if (mode === 'edit' && customer?._id) {
+                // ✅ Update existing customer
+                response = await updateCustomer(customer._id, payload);
+            } else {
+                // ✅ Add new customer
+                response = await addNewCustomer(payload);
+            }
+
+            if (response?.status === 200 || response?.status === 201) {
+                message.success(
+                    mode === 'edit'
+                        ? "Customer updated successfully!"
+                        : "Customer added successfully!"
+                );
                 form.resetFields();
                 onClose();
                 onSuccess?.();
             }
         } catch (error: any) {
-            console.error("Error adding customer:", error);
+            console.error(`Error ${mode === 'edit' ? 'updating' : 'adding'} customer:`, error);
             const errorMessage =
                 error?.response?.data?.message ||
                 error?.message ||
-                "Failed to add customer";
+                `Failed to ${mode === 'edit' ? 'update' : 'add'} customer`;
             message.error(errorMessage);
         } finally {
             setLoading(false);
@@ -77,8 +144,17 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         <Modal
             title={
                 <Space>
-                    <UserAddOutlined style={{ color: "#1890ff" }} />
-                    <span>Add New Customer</span>
+                    {mode === 'edit' ? (
+                        <>
+                            <EditOutlined style={{ color: "#1890ff" }} />
+                            <span>Edit Customer</span>
+                        </>
+                    ) : (
+                        <>
+                            <UserAddOutlined style={{ color: "#1890ff" }} />
+                            <span>Add New Customer </span>
+                        </>
+                    )}
                 </Space>
             }
             open={visible}
@@ -119,16 +195,45 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
 
                 <Form.Item
                     name="email"
-                    label="Email Address"
+                    label="Email Address (Optional)"
                     rules={[
-                        { required: true, message: "Please enter email address" },
                         { type: "email", message: "Please enter a valid email" },
                     ]}
                 >
                     <Input
                         prefix={<MailOutlined />}
-                        placeholder="customer@example.com"
+                        placeholder="customer@example.com (optional)"
                         type="email"
+                    />
+                </Form.Item>
+
+                <Form.Item
+                    name="location"
+                    label="Location (Optional)"
+                >
+                    <Input
+                        prefix={<EnvironmentOutlined />}
+                        placeholder="e.g. Nairobi, Westlands (optional)"
+                    />
+                </Form.Item>
+
+                <Form.Item
+                    name="kra_pin"
+                    label="KRA PIN (Optional)"
+                    rules={[
+                        {
+                            pattern: /^[A-Z]\d{9}[A-Z]$/,
+                            message: "Invalid KRA PIN format. Expected format: A123456789Z",
+                        },
+                    ]}
+                >
+                    <Input
+                        prefix={<IdcardOutlined />}
+                        placeholder="e.g. A123456789Z (optional)"
+                        style={{ textTransform: "uppercase" }}
+                        onChange={(e) => {
+                            form.setFieldsValue({ kra_pin: e.target.value.toUpperCase() });
+                        }}
                     />
                 </Form.Item>
 
@@ -153,7 +258,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                                 icon={<SaveOutlined />}
                                 loading={loading}
                             >
-                                Add Customer
+                                {mode === 'edit' ? 'Update Customer' : 'Add Customer'}
                             </Button>
                         </Col>
                     </Row>

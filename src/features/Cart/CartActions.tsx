@@ -22,11 +22,6 @@ interface CartItemInfo {
   duration?: number;
 }
 
-interface CartInfo {
-  table_id: string;
-  created_by: string;
-}
-
 interface UpdatedCartItems {
   cart_id: string;
   _id: string;
@@ -54,10 +49,7 @@ export const getCart = createAsyncThunk(
   "cart/getCart",
   async (tableId: string, { rejectWithValue }) => {
     try {
-      console.log("waaat", tableId);
       const response = await axiosInstance.get(`${baseUrl}/cart/${tableId}`);
-      console.log("res get me", response.data);
-
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -110,6 +102,96 @@ export const updateCartItems = createAsyncThunk(
         updatedCartItems
       );
       dispatch(fetchCartItems(updatedCartItems.cart_id));
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+// KEY INSIGHT: price in cart items = unit_price * quantity (line total).
+// So unit_price = cartItem.price / cartItem.quantity.
+// When changing qty, we must send the new line total: unit_price * newQty.
+// This matches exactly what ProductCard does: it sends price=menu.price (unit)
+// and the backend does cartItem.price += unitPrice to build the line total.
+// But updateCartItem just sets price directly, so we must compute the new total.
+
+export const addQtyCart = createAsyncThunk(
+  "cart/addQtyCart",
+  async (cartItem: any, { rejectWithValue, dispatch, getState }) => {
+    try {
+      const state: any = getState();
+      const tableId = state.cart.cartDetails?.table_id?._id || state.cart.cartDetails?.table_id;
+
+      const currentQty = cartItem.quantity || 1;
+      const currentLineTotal = cartItem.price || 0;
+      // Derive unit price from current line total
+      const unitPrice = currentLineTotal / currentQty;
+      const newQty = currentQty + 1;
+      const newLineTotal = unitPrice * newQty;
+
+      const response = await axiosInstance.put(
+        `${baseUrl}/cart-item/${cartItem._id}`,
+        { ...cartItem, quantity: newQty, price: newLineTotal }
+      );
+
+      if (tableId) dispatch(getCart(tableId));
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+export const removeQtyCart = createAsyncThunk(
+  "cart/removeQtyCart",
+  async (cartItem: any, { rejectWithValue, dispatch, getState }) => {
+    try {
+      const state: any = getState();
+      const tableId = state.cart.cartDetails?.table_id?._id || state.cart.cartDetails?.table_id;
+
+      const currentQty = cartItem.quantity || 1;
+      if (currentQty <= 1) return cartItem; // Safety guard
+
+      const currentLineTotal = cartItem.price || 0;
+      const unitPrice = currentLineTotal / currentQty;
+      const newQty = currentQty - 1;
+      const newLineTotal = unitPrice * newQty;
+
+      const response = await axiosInstance.put(
+        `${baseUrl}/cart-item/${cartItem._id}`,
+        { ...cartItem, quantity: newQty, price: newLineTotal }
+      );
+
+      if (tableId) dispatch(getCart(tableId));
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || error.toString());
+    }
+  }
+);
+
+export const updateCartItemQty = createAsyncThunk(
+  "cart/updateCartItemQty",
+  async (
+    { cartItem, quantity }: { cartItem: any; quantity: number },
+    { rejectWithValue, dispatch, getState }
+  ) => {
+    try {
+      const state: any = getState();
+      const tableId = state.cart.cartDetails?.table_id?._id || state.cart.cartDetails?.table_id;
+
+      const currentQty = cartItem.quantity || 1;
+      const currentLineTotal = cartItem.price || 0;
+      const unitPrice = currentLineTotal / currentQty;
+      const newLineTotal = unitPrice * quantity;
+
+      const response = await axiosInstance.put(
+        `${baseUrl}/cart-item/${cartItem._id}`,
+        { ...cartItem, quantity, price: newLineTotal }
+      );
+
+      if (tableId) dispatch(getCart(tableId));
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -178,7 +260,6 @@ export const transferCartitemsAction = createAsyncThunk(
         products: data?.products,
         table: data.table?.value,
       });
-
       dispatch(getCart(data?.id));
       notification.success({
         message: `Success`,
@@ -187,8 +268,6 @@ export const transferCartitemsAction = createAsyncThunk(
       });
       return response.data;
     } catch (error: any) {
-      console.log("failed to tranfer product", error);
-
       return rejectWithValue(error.message || error.toString());
     }
   }
@@ -205,9 +284,7 @@ export const updateCart = createAsyncThunk(
         `${baseUrl}/update-cart/${cart?._id}`,
         data
       );
-      console.log('data new', cart);
       dispatch(getCart(cart?.table_id._id));
-
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

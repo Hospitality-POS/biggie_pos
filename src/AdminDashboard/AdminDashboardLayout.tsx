@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Badge,
   Button,
@@ -44,12 +44,14 @@ const { Text, Title } = Typography;
 
 const AdminDashboard: React.FC = () => {
   const storedTenant = localStorage.getItem("tenant");
+  const storedUser = localStorage.getItem("user");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const user = storedUser ? JSON.parse(storedUser) : null;
 
   const allNavRoutes = useProLayoutNav();
   const hiddenRoutes = ["help-center"];
 
-  // Simply filter hidden routes - accounting routes are already handled in defaultprops.tsx
+  // Filter hidden routes
   const navRoutes = useMemo(() => {
     const filteredRoutes =
       allNavRoutes.route?.routes?.filter(
@@ -66,7 +68,7 @@ const AdminDashboard: React.FC = () => {
     };
   }, [allNavRoutes]);
 
-  const { user } = useAppSelector((state) => state.auth);
+  const { user: authUser } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -76,11 +78,23 @@ const AdminDashboard: React.FC = () => {
 
   const primaryColor = usePrimaryColor();
 
+  // Auto-redirect to first available route if on /admin root
+  useEffect(() => {
+    if (location.pathname === "/admin" || location.pathname === "/admin/") {
+      const firstRoute = navRoutes.route?.routes?.[0]?.path;
+      if (firstRoute && firstRoute !== "/admin") {
+        navigate(firstRoute, { replace: true });
+      }
+    }
+  }, [location.pathname, navRoutes, navigate]);
+
   const handleLogin = () => {
     navigate("/login");
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     navigate("/login");
     queryClient.removeQueries(["userNotifications"]);
   };
@@ -90,7 +104,7 @@ const AdminDashboard: React.FC = () => {
     queryFn: () => fetchMyNotifications({ pageSize: 10, current: 1 }),
     networkMode: "always",
     refetchOnWindowFocus: true,
-    enabled: !!user?.id,
+    enabled: !!authUser?.id,
     cacheTime: 0,
     staleTime: 0,
     retry: 2,
@@ -283,8 +297,8 @@ const AdminDashboard: React.FC = () => {
       const label = isDynamicSegment
         ? "Details"
         : path
-            .replace(/-/g, " ")
-            .replace(/(^\w|\s\w)/g, (match) => match.toUpperCase());
+          .replace(/-/g, " ")
+          .replace(/(^\w|\s\w)/g, (match) => match.toUpperCase());
 
       return {
         title: isLast ? (
@@ -336,7 +350,7 @@ const AdminDashboard: React.FC = () => {
         {...navRoutes}
         avatarProps={{
           src:
-            user?.thumbnail ||
+            authUser?.thumbnail ||
             "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg",
           shape: "circle",
           alt: "image",
@@ -397,12 +411,12 @@ const AdminDashboard: React.FC = () => {
                 </Badge>
               </Popover>
 
-              {user ? (
+              {authUser ? (
                 <Dropdown
                   autoFocus
                   arrow
                   menu={{
-                    disabled: !user,
+                    disabled: !authUser,
                     items: [
                       {
                         key: "profile",
@@ -416,8 +430,8 @@ const AdminDashboard: React.FC = () => {
                             }}
                           >
                             <Avatar
-                              src={user?.thumbnail}
-                              alt={user?.email}
+                              src={authUser?.thumbnail}
+                              alt={authUser?.email}
                               style={{
                                 border: `2px solid ${primaryColor}`,
                                 width: 48,
@@ -439,7 +453,7 @@ const AdminDashboard: React.FC = () => {
                                   lineHeight: 1.2,
                                 }}
                               >
-                                {user?.name || "User Name"}
+                                {authUser?.name || "User Name"}
                               </Typography.Text>
                               <Typography.Text
                                 type="secondary"
@@ -448,14 +462,14 @@ const AdminDashboard: React.FC = () => {
                                   lineHeight: 1.2,
                                   color: "#8c8c8c",
                                 }}
-                                ellipsis={{ tooltip: user?.email }}
+                                ellipsis={{ tooltip: authUser?.email }}
                               >
-                                {user?.email}
+                                {authUser?.email}
                               </Typography.Text>
                               <Typography.Link
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  navigate(`/admin/profile/${user?.id}`);
+                                  navigate(`/admin/profile/${authUser?.id}`);
                                 }}
                                 style={{
                                   fontSize: 12,
@@ -468,7 +482,7 @@ const AdminDashboard: React.FC = () => {
                             </Space>
                           </div>
                         ),
-                        onClick: () => navigate(`/admin/profile/${user?.id}`),
+                        onClick: () => navigate(`/admin/profile/${authUser?.id}`),
                         style: {
                           padding: "8px 12px",
                           height: "auto",
@@ -574,11 +588,6 @@ const AdminDashboard: React.FC = () => {
                       height: "auto",
                       minHeight: "36px",
                       transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                      "&:hover": {
-                        background: "rgba(255, 255, 255, 0.15)",
-                        transform: "translateY(-1px)",
-                        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-                      },
                     }}
                   >
                     <Space
@@ -588,8 +597,8 @@ const AdminDashboard: React.FC = () => {
                     >
                       <Badge dot status="success" offset={[-6, 24]}>
                         <Avatar
-                          src={user?.avatar || user?.thumbnail}
-                          alt={user?.email}
+                          src={authUser?.avatar || authUser?.thumbnail}
+                          alt={authUser?.email}
                           size={32}
                           style={{
                             border: "2px solid rgba(255, 255, 255, 0.3)",
@@ -620,7 +629,7 @@ const AdminDashboard: React.FC = () => {
                             maxWidth: 100,
                           }}
                         >
-                          {user?.name || "User"}
+                          {authUser?.name || "User"}
                         </Text>
 
                         <Text
@@ -636,7 +645,7 @@ const AdminDashboard: React.FC = () => {
                             maxWidth: 100,
                           }}
                         >
-                          {user?.role || "Role"}
+                          {authUser?.role || "Role"}
                         </Text>
                       </div>
                       <DownOutlined
@@ -682,7 +691,6 @@ const AdminDashboard: React.FC = () => {
             }}
           >
             {logo}
-            {/* {title} */}
           </div>
         )}
         menuItemRender={(item, dom) => {

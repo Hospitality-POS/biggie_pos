@@ -33,17 +33,20 @@ const EmployeeShiftModal: React.FC<EmployeeShiftModalProps> = ({
   // Generate time options in 30-minute intervals
   const generateTimeOptions = () => {
     const options = [];
+
     for (let hour = 0; hour < 24; hour++) {
-      for (let minute of [0, 30]) {
+      for (let minute = 0; minute < 60; minute++) {
         const timeString = `${hour.toString().padStart(2, "0")}:${minute
           .toString()
           .padStart(2, "0")}`;
+
         options.push({
           label: timeString,
           value: timeString,
         });
       }
     }
+
     return options;
   };
 
@@ -87,9 +90,9 @@ const EmployeeShiftModal: React.FC<EmployeeShiftModalProps> = ({
   const createShiftMutation = useMutation({
     mutationFn: createShift,
     onSuccess: () => {
-        // close the modal
-        setOpen(false);
-        actionRef.current.reset();
+      // close the modal
+      setOpen(false);
+      actionRef.current.reset();
       // Refetch shift data after creation
       fetchAllShifts();
     },
@@ -102,9 +105,9 @@ const EmployeeShiftModal: React.FC<EmployeeShiftModalProps> = ({
   const updateShiftMutation = useMutation({
     mutationFn: updateShift,
     onSuccess: () => {
-        // close the modal
-        setOpen(false);
-        actionRef.current.reset();
+      // close the modal
+      setOpen(false);
+      actionRef.current.reset();
       // Refetch shift data after update
       fetchAllShifts();
     },
@@ -122,9 +125,8 @@ const EmployeeShiftModal: React.FC<EmployeeShiftModalProps> = ({
         return false;
       }
       const confirmed = await ShowConfirm({
-        title: `Are you sure you want to ${
-          edit ? "update this" : "add new"
-        } shift?`,
+        title: `Are you sure you want to ${edit ? "update this" : "add new"
+          } shift?`,
         position: true,
       });
       if (confirmed) {
@@ -162,11 +164,11 @@ const EmployeeShiftModal: React.FC<EmployeeShiftModalProps> = ({
       initialValues={
         edit
           ? {
-              employee_id: data.employee_id?._id,
-              dayOfWeek: data.dayOfWeek,
-              startTime: data.startTime,
-              endTime: data.endTime,
-            }
+            employee_id: data.employee_id?._id,
+            dayOfWeek: data.dayOfWeek,
+            startTime: data.startTime,
+            endTime: data.endTime,
+          }
           : {}
       }
       submitTimeout={2000}

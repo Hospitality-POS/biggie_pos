@@ -24,14 +24,33 @@ const { Title } = Typography;
 
 function Customers() {
     const [addCustomerModalVisible, setAddCustomerModalVisible] = useState(false);
+    const [editingCustomer, setEditingCustomer] = useState<any>(null);
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
     const [activeTab, setActiveTab] = useState("customers");
     const customerTableRef = useRef(null);
 
     const handleCustomerAdded = () => {
-        // Refresh customer table after adding
         if (customerTableRef.current) {
             customerTableRef.current.reload();
         }
+    };
+
+    const handleAddCustomer = () => {
+        setModalMode('add');
+        setEditingCustomer(null);
+        setAddCustomerModalVisible(true);
+    };
+
+    const handleEditCustomer = (customer: any) => {
+        setModalMode('edit');
+        setEditingCustomer(customer);
+        setAddCustomerModalVisible(true);
+    };
+
+    const handleCloseModal = () => {
+        setAddCustomerModalVisible(false);
+        setEditingCustomer(null);
+        setModalMode('add');
     };
 
     return (
@@ -48,7 +67,7 @@ function Customers() {
                             <Button
                                 type="primary"
                                 icon={<UserAddOutlined />}
-                                onClick={() => setAddCustomerModalVisible(true)}
+                                onClick={handleAddCustomer}
                             >
                                 Add Customer
                             </Button>
@@ -75,7 +94,10 @@ function Customers() {
                         </Space>
                     }
                 >
-                    <CustomerTable ref={customerTableRef} />
+                    <CustomerTable
+                        ref={customerTableRef}
+                        onEditCustomer={handleEditCustomer}
+                    />
                 </ProCard.TabPane>
 
                 <ProCard.TabPane
@@ -153,8 +175,10 @@ function Customers() {
 
             <AddCustomerModal
                 visible={addCustomerModalVisible}
-                onClose={() => setAddCustomerModalVisible(false)}
+                onClose={handleCloseModal}
                 onSuccess={handleCustomerAdded}
+                customer={editingCustomer}
+                mode={modalMode}
             />
         </>
     );

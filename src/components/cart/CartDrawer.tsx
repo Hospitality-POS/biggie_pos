@@ -12,7 +12,7 @@ import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
-import { Button, Space, Typography, Tag, Empty, Divider, Flex } from "antd";
+import { Button, Space, Typography, Tag, Empty, Divider, Flex, Avatar, Tooltip } from "antd";
 import {
   CloseCircleOutlined,
   OrderedListOutlined,
@@ -20,6 +20,7 @@ import {
   SendOutlined,
   SmileFilled,
   SwitcherOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
@@ -55,7 +56,6 @@ const CartDrawer: React.FC = () => {
 
   const memoizedData = useMemo(() => data, [data]);
 
-  // Calculate the total discount amount
   const discountAmount = useMemo(() => {
     if (!cartDetails?.discount) {
       return 0;
@@ -72,6 +72,32 @@ const CartDrawer: React.FC = () => {
     [cartDetails?.order_no]
   );
 
+  // Resolve customer details from cart
+  const customerDetails = useMemo(() => {
+    if (cartDetails?.customer_id) {
+      return {
+        customer_id: cartDetails.customer_id,
+        customer_name: cartDetails.client_name || null,
+        customer_phone: cartDetails.client_pin || null,
+        customer_email: cartDetails.client_email || null,
+      };
+    }
+    if (cartDetails?.client_name || cartDetails?.client_pin) {
+      return {
+        customer_id: null,
+        customer_name: cartDetails.client_name || null,
+        customer_phone: cartDetails.client_pin || null,
+        customer_email: cartDetails.client_email || null,
+      };
+    }
+    return null;
+  }, [
+    cartDetails?.customer_id,
+    cartDetails?.client_name,
+    cartDetails?.client_pin,
+    cartDetails?.client_email,
+  ]);
+
   useEffect(() => {
     const dispatchFetchCart = async () => {
       setLoadingData(true);
@@ -81,7 +107,7 @@ const CartDrawer: React.FC = () => {
           navigate("/tables");
         }
       } catch (error) {
-        console.log("cart eror", error);
+        console.log("cart error", error);
       } finally {
         setLoadingData(false);
       }
@@ -97,7 +123,6 @@ const CartDrawer: React.FC = () => {
       style={{
         overflow: "hidden",
         overflowY: "auto",
-        // maxHeight: "calc(92vh - 120px)",
       }}
       bodyStyle={{ backgroundColor: "white" }}
     >
@@ -114,10 +139,6 @@ const CartDrawer: React.FC = () => {
               pl: 2,
               color: primaryColor,
               borderColor: primaryColor,
-              "&:hover": {
-                borderColor: "#bc8c7c",
-                color: "#bc8c7c",
-              },
             }}
             icon={<OrderedListOutlined />}
           >
@@ -131,6 +152,46 @@ const CartDrawer: React.FC = () => {
           </Button>
         </Space>
 
+        {/* Customer info banner */}
+        {customerDetails && (
+          <Flex
+            align="center"
+            gap={8}
+            style={{
+              backgroundColor: "#f6ffed",
+              border: "1px solid #b7eb8f",
+              borderRadius: 6,
+              padding: "6px 10px",
+            }}
+          >
+            <Avatar
+              size="small"
+              icon={<UserOutlined />}
+              style={{ backgroundColor: primaryColor }}
+            />
+            <Space direction="vertical" size={0}>
+              <Typography.Text strong style={{ fontSize: 13 }}>
+                {customerDetails.customer_name || "Customer"}
+              </Typography.Text>
+              {customerDetails.customer_phone && (
+                <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                  {customerDetails.customer_phone}
+                  {customerDetails.customer_email
+                    ? ` · ${customerDetails.customer_email}`
+                    : ""}
+                </Typography.Text>
+              )}
+            </Space>
+            {customerDetails.customer_id && (
+              <Tooltip title="Linked to customer account">
+                <Tag color="green" style={{ marginLeft: "auto", fontSize: 11 }}>
+                  Linked
+                </Tag>
+              </Tooltip>
+            )}
+          </Flex>
+        )}
+
         <Space
           style={{
             display: "flex",
@@ -139,11 +200,8 @@ const CartDrawer: React.FC = () => {
           }}
         >
           <Typography.Title level={5}>Item</Typography.Title>
-
           <Typography.Title level={5}>Qty</Typography.Title>
-
           <Typography.Title level={5}>Price</Typography.Title>
-
           <Typography.Title level={5}>Delete</Typography.Title>
         </Space>
 
@@ -158,13 +216,14 @@ const CartDrawer: React.FC = () => {
         >
           {loading
             ? Array.from({ length: data?.length }, (_, index) => (
-                <SkeletonCartItemCard key={index} />
-              ))
+              <SkeletonCartItemCard key={index} />
+            ))
             : data?.map((item: { _id: Key | null | undefined | string }) => (
-                <CartItemCardMemo key={item._id} cartItem={item} />
-              ))}
+              <CartItemCardMemo key={item._id} cartItem={item} />
+            ))}
           {loadingData && loading ? <CartLoader /> : ""}
         </div>
+
         {memoizedData?.length ? (
           <Space direction="vertical" style={{ width: "100%" }}>
             <Flex gap={16} wrap justify="space-between">
@@ -198,18 +257,15 @@ const CartDrawer: React.FC = () => {
                 </>
               )}
             </Flex>
+
             <Space direction="vertical" style={{ width: "100%" }}>
               <Flex align="center" justify="space-between">
                 <Typography.Text>Subtotal</Typography.Text>
-                <Typography.Text>
-                  KSH. {subtotal.toLocaleString()}
-                </Typography.Text>
+                <Typography.Text>KSH. {subtotal.toLocaleString()}</Typography.Text>
               </Flex>
               <Flex align="center" justify="space-between">
                 <Typography.Text>Discount</Typography.Text>
-                <Typography.Text>
-                  - KSH. {discountAmount.toLocaleString()}
-                </Typography.Text>
+                <Typography.Text>- KSH. {discountAmount.toLocaleString()}</Typography.Text>
               </Flex>
               <Flex align="center" justify="space-between">
                 <Typography.Text>VAT</Typography.Text>
@@ -245,27 +301,18 @@ const CartDrawer: React.FC = () => {
                 style={{
                   color: primaryColor,
                   borderColor: primaryColor,
-                  "&:hover": {
-                    borderColor: "#bc8c7c",
-                    color: "#bc8c7c",
-                  },
                 }}
               >
                 Send Bill
               </Button>
               <ClientPin cart={cartDetails} />
               {tenant?.business_type?.name === "massage_parlour" ? (
-                <PrintBillSpaModal
-                  cartDetails={cartDetails}
-                  data={data}
-                />
+                <PrintBillSpaModal cartDetails={cartDetails} data={data} />
               ) : (
-                <PrintBillModal
-                  cartDetails={cartDetails}
-                  data={data}
-                />
+                <PrintBillModal cartDetails={cartDetails} data={data} />
               )}
             </Space>
+
             {user?.role === "admin" && (
               <Button
                 danger
@@ -289,7 +336,9 @@ const CartDrawer: React.FC = () => {
 
       <div style={{ display: "flex", marginTop: 20 }}>
         {(user?.role === "admin" || user?.role === "cashier") &&
-          data?.length > 0 && <PaymentDrawer />}
+          data?.length > 0 && (
+            <PaymentDrawer customerDetails={customerDetails} />
+          )}
       </div>
     </ProCard>
   );
