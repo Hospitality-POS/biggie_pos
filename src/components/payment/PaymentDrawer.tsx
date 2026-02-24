@@ -23,6 +23,7 @@ import {
   Divider,
   Tag,
   Flex,
+  Badge,
 } from "antd";
 import {
   CloseCircleOutlined,
@@ -34,17 +35,22 @@ import {
   PercentageOutlined,
   StopOutlined,
   WalletOutlined,
-  GlobalOutlined,
   PhoneOutlined,
   SendOutlined,
   CheckCircleOutlined,
   LoadingOutlined,
+  UserOutlined,
+  SearchOutlined,
+  GiftOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import { DrawerForm, ProCard } from "@ant-design/pro-components";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import DiscountModal from "@components/MODALS/pro/DiscountModal";
 import pesapalApi from "@services/pesapalApi";
 import { fetchAllCustomers, addNewCustomer } from "@services/customers";
+import { fetchAllPackages } from "@services/subscription";
+import SubscriptionPaymentOption from "./SubscriptionPaymentOption";
 
 const { Text, Title } = Typography;
 
@@ -52,6 +58,8 @@ interface PaymentMethod {
   _id: string;
   name: string;
 }
+
+type STKPaymentStatus = "idle" | "sending" | "waiting" | "success" | "failed";
 
 const PaymentDrawer: React.FC = () => {
   const [form] = Form.useForm();
@@ -73,6 +81,13 @@ const PaymentDrawer: React.FC = () => {
   const [amount1, setAmount1] = useState(0);
   const [amount2, setAmount2] = useState(0);
 
+  // Customer & Subscription states
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [searchingCustomers, setSearchingCustomers] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<string | null>(null);
+  const [useSubscription, setUseSubscription] = useState(false);
+
   // STK Push states
   const [pesapalEnabled, setPesapalEnabled] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
@@ -81,27 +96,32 @@ const PaymentDrawer: React.FC = () => {
     email: "",
   });
   const [pesapalModalVisible, setPesapalModalVisible] = useState(false);
-  const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
-  const [searchingCustomers, setSearchingCustomers] = useState(false);
 
-  // STK Push specific states
-  const [stkPaymentStatus, setStkPaymentStatus] = useState<
-    "idle" | "sending" | "waiting" | "success" | "failed"
-  >("idle");
+  // STK Push specific states - FIXED: Proper type annotation
+  const [stkPaymentStatus, setStkPaymentStatus] = useState<STKPaymentStatus>("idle");
   const [stkTrackingId, setStkTrackingId] = useState<string>("");
   const [countdown, setCountdown] = useState(0);
 
+  // Check if shop has active packages
+  const { data: packagesData, isLoading: packagesLoading } = useQuery({
+    queryKey: ["packages", localStorage.getItem("shopId")],
+    queryFn: () => fetchAllPackages({ is_active: true }),
+    networkMode: "always",
+  });
+
+  const activePackages = packagesData?.packages || [];
+  const hasActivePackages = activePackages.length > 0;
 
   // Phone number validation for Kenyan numbers
   const isValidKenyanPhone = (phone: string): boolean => {
     const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
     const patterns = [
-      /^\+254[17]\d{8}$/, // +254712345678 or +254112345678
-      /^254[17]\d{8}$/, // 254712345678 or 254112345678
-      /^0[17]\d{8}$/, // 0712345678 or 0112345678
-      /^[17]\d{8}$/, // 712345678 or 112345678
+      /^\+254[17]\d{8}$/,
+      /^254[17]\d{8}$/,
+      /^0[17]\d{8}$/,
+      /^[17]\d{8}$/,
     ];
     return patterns.some((pattern) => pattern.test(cleanPhone));
   };
@@ -121,16 +141,16 @@ const PaymentDrawer: React.FC = () => {
     return phone;
   };
 
-  const searchCustomers = async (phone: string) => {
-    if (!phone || phone.length < 3) {
+  const searchCustomers = async (searchTerm: string) => {
+    if (!searchTerm || searchTerm.length < 3) {
       setCustomers([]);
       return;
     }
 
     try {
       setSearchingCustomers(true);
-      const result = await fetchAllCustomers({ phone });
-      setCustomers(result?.data || []);
+      const result = await fetchAllCustomers({ search: searchTerm });
+      setCustomers(result || []);
     } catch (error) {
       console.error("Error searching customers:", error);
       setCustomers([]);
@@ -143,8 +163,9 @@ const PaymentDrawer: React.FC = () => {
     const customer = customers.find((c) => c._id === value);
     if (customer) {
       setSelectedCustomer(customer);
+      setSelectedCustomerId(customer._id);
       setCustomerInfo({
-        phone: customer.phone || "",
+        phone: customer.phone?.toString() || "",
         name: customer.customer_name || "",
         email: customer.email || "",
       });
@@ -155,7 +176,7 @@ const PaymentDrawer: React.FC = () => {
   const handlePhoneChange = (phone: string) => {
     setCustomerInfo({ ...customerInfo, phone });
 
-    if (selectedCustomer && selectedCustomer.phone !== phone) {
+    if (selectedCustomer && selectedCustomer.phone?.toString() !== phone) {
       setSelectedCustomer(null);
       setIsNewCustomer(true);
     }
@@ -178,6 +199,18 @@ const PaymentDrawer: React.FC = () => {
     setCountdown(0);
   };
 
+  // Handle subscription selection
+  const handleSubscriptionSelect = (subscriptionId: string | null) => {
+    setSelectedSubscription(subscriptionId);
+    setUseSubscription(!!subscriptionId);
+
+    // If subscription is selected, clear payment methods
+    if (subscriptionId) {
+      setSelectedMethod(null);
+      setSecondMethod(null);
+    }
+  };
+
   // STK Push countdown timer
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -194,7 +227,6 @@ const PaymentDrawer: React.FC = () => {
     if (stkPaymentStatus === "waiting" && stkTrackingId) {
       intervalId = setInterval(async () => {
         try {
-          // Poll payment status API
           const response = await fetch(
             `/api/orders/payment-status?tracking_id=${stkTrackingId}`
           );
@@ -216,7 +248,7 @@ const PaymentDrawer: React.FC = () => {
         } catch (error) {
           console.error("Error checking payment status:", error);
         }
-      }, 3000); // Check every 3 seconds
+      }, 3000);
     }
 
     return () => {
@@ -268,6 +300,12 @@ const PaymentDrawer: React.FC = () => {
   };
 
   const handleSelectMethod = (method: string) => {
+    // Don't allow method selection if subscription is selected
+    if (useSubscription) {
+      message.info("Please deselect subscription to use a payment method");
+      return;
+    }
+
     if (isPesapalMethod(method) && !pesapalEnabled) {
       message.info(
         "STK Push payment is not available. Please contact administrator to enable Pesapal configuration."
@@ -318,7 +356,6 @@ const PaymentDrawer: React.FC = () => {
     try {
       const result = await dispatch(createOrder(orderDetails));
 
-      // Only proceed after successful order creation
       if (result.type.endsWith("/fulfilled")) {
         setDrawerVisible(false);
         dispatch(createCart(id));
@@ -326,12 +363,50 @@ const PaymentDrawer: React.FC = () => {
         message.success("Payment successful!");
       }
     } catch (error) {
-      // Error handling is managed by Redux, but drawer stays open
       console.error("Split payment failed:", error);
     }
   };
 
   const handlePayment = async () => {
+    // Handle subscription payment
+    if (useSubscription && selectedSubscription) {
+      if (!selectedCustomerId) {
+        message.error("Please select a customer for subscription order");
+        return;
+      }
+
+      const orderDetails = {
+        cart_id: cartDetails?._id,
+        order_amount: 0,
+        table_id: id,
+        updated_by: user?.id,
+        order_no: cartDetails?.order_no,
+        cart_items: cartDetails.items,
+        method_id: null,
+        use_subscription: true,
+        subscription_id: selectedSubscription,
+        customer_id: selectedCustomerId,
+      };
+
+      try {
+        const result = await dispatch(createOrder(orderDetails));
+
+        if (result.type.endsWith("/fulfilled")) {
+          message.success("Order placed successfully using subscription visit!");
+          setDrawerVisible(false);
+          setSelectedSubscription(null);
+          setUseSubscription(false);
+          setSelectedCustomerId(null);
+          dispatch(createCart(id));
+          navigate("/tables");
+        }
+      } catch (error) {
+        console.error("Subscription order failed:", error);
+      }
+      return;
+    }
+
+    // Regular payment flow
     if (!selectedMethod) {
       message.error("Please select a payment method.");
       return;
@@ -353,20 +428,20 @@ const PaymentDrawer: React.FC = () => {
         order_no: cartDetails?.order_no,
         cart_items: cartDetails.items,
         method_id: selectedMethod,
+        customer_id: selectedCustomerId || undefined,
       };
 
       try {
         const result = await dispatch(createOrder(orderDetails));
 
-        // Only close drawer and navigate after successful order creation
         if (result.type.endsWith("/fulfilled")) {
           setDrawerVisible(false);
+          setSelectedCustomerId(null);
           dispatch(createCart(id));
           navigate("/tables");
           message.success("Payment successful!");
         }
       } catch (error) {
-        // Error handling is managed by Redux, but drawer stays open
         console.error("Payment failed:", error);
       }
     }
@@ -395,7 +470,8 @@ const PaymentDrawer: React.FC = () => {
             shop_id: localStorage.getItem("shopId"),
           };
 
-          await addNewCustomer(newCustomerData);
+          const createdCustomer = await addNewCustomer(newCustomerData);
+          setSelectedCustomerId(createdCustomer?.customer?._id || null);
           message.success("New customer created successfully");
         } catch (customerError) {
           console.warn(
@@ -426,10 +502,11 @@ const PaymentDrawer: React.FC = () => {
           customerInfo.email || `${customerInfo.phone}@customer.local`,
         enable_stk_push: true,
         stk_phone_number: customerInfo.phone,
+        customer_id: selectedCustomerId || undefined,
       };
 
       setStkPaymentStatus("sending");
-      setCountdown(300); // 5 minutes countdown
+      setCountdown(300);
 
       const result = await dispatch(createOrder(orderDetails));
 
@@ -461,6 +538,9 @@ const PaymentDrawer: React.FC = () => {
         dispatch(cartVoid(cartDetails));
         dispatch(createCart(id));
         setDrawerVisible(false);
+        setSelectedCustomerId(null);
+        setSelectedSubscription(null);
+        setUseSubscription(false);
         message.success("Bill voided successfully.");
         navigate("/tables");
       },
@@ -479,7 +559,7 @@ const PaymentDrawer: React.FC = () => {
     } else if (name === "debt") {
       return <WalletOutlined style={{ fontSize: "32px" }} />;
     } else if (name.includes("pesapal") || name.includes("gateway")) {
-      return <MobileOutlined style={{ fontSize: "32px" }} />; // Changed to mobile icon for STK push
+      return <MobileOutlined style={{ fontSize: "32px" }} />;
     } else {
       return <FileAddOutlined style={{ fontSize: "32px" }} />;
     }
@@ -561,7 +641,7 @@ const PaymentDrawer: React.FC = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || packagesLoading) {
     return (
       <Space
         style={{
@@ -626,17 +706,24 @@ const PaymentDrawer: React.FC = () => {
                   size={"large"}
                   onClick={handlePayment}
                   loading={loading}
-                  disabled={!selectedMethod}
-                  icon={<FileOutlined />}
+                  disabled={useSubscription ? !selectedSubscription : !selectedMethod}
+                  icon={useSubscription ? <GiftOutlined /> : <FileOutlined />}
                   block
                 >
-                  Confirm Order Payment
+                  {useSubscription
+                    ? "Confirm Subscription Visit"
+                    : "Confirm Payment"}
                 </Button>
                 <Button
                   block
                   key="cancel"
                   size={"large"}
-                  onClick={() => setDrawerVisible(false)}
+                  onClick={() => {
+                    setDrawerVisible(false);
+                    setSelectedCustomerId(null);
+                    setSelectedSubscription(null);
+                    setUseSubscription(false);
+                  }}
                 >
                   Cancel
                 </Button>
@@ -647,6 +734,13 @@ const PaymentDrawer: React.FC = () => {
         form={form}
         drawerProps={{
           destroyOnClose: true,
+          onClose: () => {
+            setSelectedCustomerId(null);
+            setSelectedSubscription(null);
+            setUseSubscription(false);
+            setSelectedMethod(null);
+            setSecondMethod(null);
+          },
         }}
         trigger={
           <Button
@@ -666,21 +760,23 @@ const PaymentDrawer: React.FC = () => {
           </Button>
         }
       >
-        <Space direction="vertical" style={{ width: "100%" }}>
-          <Typography.Text strong style={{ fontSize: "20px" }}>
-            Order Summary
-          </Typography.Text>
-
-          <ProCard>
+        <Space direction="vertical" style={{ width: "100%" }} size="large">
+          {/* ORDER SUMMARY */}
+          <ProCard
+            title={<Text strong>Order Summary</Text>}
+            size="small"
+            bordered={false}
+            style={{ backgroundColor: "#fafafa" }}
+          >
             <Space direction="vertical" style={{ width: "100%" }}>
               <Flex justify="space-between">
                 <Text>Subtotal</Text>
-                <Text>KSH. {subtotal.toLocaleString()}</Text>
+                <Text strong>KSH. {subtotal.toLocaleString()}</Text>
               </Flex>
               <Flex justify="space-between" align="center">
                 <Text>Discount</Text>
                 <Space>
-                  <Text>
+                  <Text type="danger">
                     - KSH.{" "}
                     {(
                       (subtotal * (cartDetails.discount || 0)) /
@@ -705,130 +801,291 @@ const PaymentDrawer: React.FC = () => {
               </Flex>
               <Divider style={{ margin: "8px 0" }} />
               <Flex justify="space-between">
-                <Text strong style={{ fontSize: "16px" }}>
+                <Title level={5} style={{ margin: 0 }}>
                   Amount Due
-                </Text>
-                <Text strong style={{ fontSize: "16px" }}>
-                  KSH. {grandTotal.toLocaleString()}
-                </Text>
+                </Title>
+                <Title level={5} style={{ margin: 0, color: "#6c1c2c" }}>
+                  KSH. {useSubscription ? "0.00" : grandTotal.toLocaleString()}
+                </Title>
               </Flex>
             </Space>
           </ProCard>
 
-          <Space direction="vertical" style={{ width: "100%", marginTop: 24 }}>
-            <Typography.Title level={4}>Payment Method</Typography.Title>
-            <Space
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                marginBottom: 10,
-              }}
-            >
-              {paymentMethods?.map((method: PaymentMethod) => {
-                const isPesapal = isPesapalMethod(method._id);
-                const isDisabled = isPesapal && !pesapalEnabled;
+          {useSubscription && (
+            <Alert
+              message={
+                <Space>
+                  <GiftOutlined />
+                  <Text strong>Using Subscription Visit - Order Total: KSh. 0</Text>
+                </Space>
+              }
+              description="One visit will be deducted from the selected package"
+              type="success"
+              showIcon
+              style={{ borderRadius: 8 }}
+            />
+          )}
 
-                return (
-                  <ProCard
-                    key={method._id}
-                    bodyStyle={{ paddingInline: "20px", paddingBlock: "26px" }}
-                    bordered
-                    onClick={() => handleSelectMethod(method._id)}
-                    style={{
-                      backgroundColor: `${
-                        selectedMethod === method._id ? "#6c1c2c" : grey[400]
-                      }`,
-                      cursor: isDisabled ? "not-allowed" : "pointer",
-                      transition: "background-color 0.3s ease",
-                      opacity: isDisabled ? 0.5 : 1,
-                    }}
-                  >
-                    <Space
+          {/* CUSTOMER & SUBSCRIPTION SECTION - Enhanced UI */}
+          {hasActivePackages && (
+            <>
+              <ProCard
+                title={
+                  <Space>
+                    <UserOutlined style={{ color: "#6c1c2c" }} />
+                    <Text strong>Customer Selection</Text>
+                    {selectedCustomerId && (
+                      <Badge status="success" text="Selected" />
+                    )}
+                  </Space>
+                }
+                size="small"
+                style={{
+                  borderRadius: 8,
+                  border: selectedCustomerId ? "2px solid #52c41a" : "1px solid #d9d9d9"
+                }}
+              >
+                <Select
+                  style={{ width: "100%" }}
+                  size="large"
+                  placeholder={
+                    <Space>
+                      <span>Search by phone or name (min 3 characters)</span>
+                    </Space>
+                  }
+                  showSearch
+                  allowClear
+                  value={selectedCustomerId}
+                  onChange={(value) => {
+                    setSelectedCustomerId(value);
+                    if (!value) {
+                      setSelectedSubscription(null);
+                      setUseSubscription(false);
+                    }
+                  }}
+                  onSearch={(value) => {
+                    if (value.length >= 3) {
+                      searchCustomers(value);
+                    } else {
+                      setCustomers([]);
+                    }
+                  }}
+                  filterOption={false}
+                  notFoundContent={
+                    searchingCustomers ? (
+                      <div style={{ textAlign: "center", padding: "20px" }}>
+                        <Spin size="small" />
+                        <div style={{ marginTop: 8 }}>
+                          <Text type="secondary">Searching customers...</Text>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: "center", padding: "20px" }}>
+                        <InfoCircleOutlined style={{ fontSize: 24, color: "#8c8c8c" }} />
+                        <div style={{ marginTop: 8 }}>
+                          <Text type="secondary">Type at least 3 characters to search</Text>
+                        </div>
+                      </div>
+                    )
+                  }
+                  suffixIcon={<SearchOutlined />}
+                >
+                  {customers.map((customer: any) => (
+                    <Select.Option key={customer._id} value={customer._id}>
+                      <Space direction="vertical" size={0} style={{ width: "100%" }}>
+                        <Flex justify="space-between" align="center">
+                          <Text strong>{customer.customer_name}</Text>
+                          {customer.phone && (
+                            <Tag color="blue" icon={<PhoneOutlined />}>
+                              {customer.phone}
+                            </Tag>
+                          )}
+                        </Flex>
+                        {customer.email && (
+                          <Text type="secondary" style={{ fontSize: "12px" }}>
+                            {customer.email}
+                          </Text>
+                        )}
+                      </Space>
+                    </Select.Option>
+                  ))}
+                </Select>
+
+                {selectedCustomerId && (
+                  <Alert
+                    style={{ marginTop: 12, borderRadius: 6 }}
+                    message={
+                      <Space>
+                        <CheckCircleOutlined style={{ color: "#52c41a" }} />
+                        <Text strong>Customer Selected</Text>
+                      </Space>
+                    }
+                    description={
+                      customers.find((c) => c._id === selectedCustomerId) && (
+                        <Space direction="vertical" size={4}>
+                          <Text>
+                            {customers.find((c) => c._id === selectedCustomerId)?.customer_name}
+                          </Text>
+                          <Text type="secondary">
+                            {customers.find((c) => c._id === selectedCustomerId)?.phone}
+                          </Text>
+                        </Space>
+                      )
+                    }
+                    type="success"
+                    showIcon={false}
+                  />
+                )}
+              </ProCard>
+
+              {/* SUBSCRIPTION PAYMENT OPTION - Always show if customer is selected */}
+              {selectedCustomerId && (
+                <SubscriptionPaymentOption
+                  customerId={selectedCustomerId}
+                  onSubscriptionSelect={handleSubscriptionSelect}
+                  selectedSubscription={selectedSubscription}
+                  orderAmount={grandTotal}
+                />
+              )}
+
+              {!useSubscription && <Divider style={{ margin: "8px 0" }} />}
+            </>
+          )}
+
+          {/* PAYMENT METHOD SECTION - Only show when NOT using subscription */}
+          {!useSubscription && (
+            <ProCard
+              title={
+                <Space>
+                  <WalletOutlined style={{ color: "#6c1c2c" }} />
+                  <Text strong>Payment Method</Text>
+                </Space>
+              }
+              size="small"
+              style={{ borderRadius: 8 }}
+            >
+              <Space
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                }}
+                size={[12, 12]}
+              >
+                {paymentMethods?.map((method: PaymentMethod) => {
+                  const isPesapal = isPesapalMethod(method._id);
+                  const isDisabled = isPesapal && !pesapalEnabled;
+                  const isSelected = selectedMethod === method._id;
+
+                  return (
+                    <ProCard
+                      key={method._id}
+                      bodyStyle={{
+                        minWidth: "100px",
+                      }}
+                      bordered
+                      hoverable={!isDisabled}
+                      onClick={() => handleSelectMethod(method._id)}
                       style={{
-                        color: `${
-                          selectedMethod === method._id ? "white" : "inherit"
-                        }`,
+                        backgroundColor: isSelected ? "#6c1c2c" : "white",
+                        cursor: isDisabled ? "not-allowed" : "pointer",
+                        transition: "all 0.3s ease",
+                        opacity: isDisabled ? 0.5 : 1,
+                        border: isSelected ? "2px solid #6c1c2c" : "1px solid #d9d9d9",
+                        borderRadius: 8,
                       }}
                     >
-                      {getPaymentMethodIcon(method)}
-                      <Typography.Text
-                        strong
+                      <Space
+                        // direction="vertical"
+                        align="center"
                         style={{
-                          color: `${
-                            selectedMethod === method._id ? "white" : "inherit"
-                          }`,
+                          color: isSelected ? "white" : "inherit",
                         }}
                       >
-                        {method.name === "M-Pesa"
-                          ? "Mpesa"
-                          : method.name.includes("pesapal") ||
-                            method.name.includes("gateway")
-                          ? "STK Push"
-                          : method.name.charAt(0).toUpperCase() +
-                            method.name.slice(1)}
-                        {isDisabled && " (Unavailable)"}
-                      </Typography.Text>
-                    </Space>
-                  </ProCard>
-                );
-              })}
-            </Space>
-            <Space
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                marginTop: 16,
-              }}
-            >
-              {(user?.role === "admin" || user?.role === "cashier") && (
-                <Button
-                  danger
-                  onClick={() => {
-                    setSelectedMethod(null);
-                  }}
-                  icon={<CloseCircleOutlined />}
-                >
-                  Clear
-                </Button>
-              )}
-              {(user?.role === "admin" || user?.role === "Cashier") && (
-                <Button
-                  type="default"
-                  onClick={handleVoidBill}
-                  icon={<StopOutlined />}
-                  style={{
-                    color: "#6c1c2c",
-                    borderColor: "#6c1c2c",
-                  }}
-                >
-                  Void Bill
-                </Button>
-              )}
-            </Space>
+                        {getPaymentMethodIcon(method)}
+                        <Typography.Text
+                          strong
+                          style={{
+                            color: isSelected ? "white" : "inherit",
+                            fontSize: "14px",
+                          }}
+                        >
+                          {method.name === "M-Pesa"
+                            ? "Mpesa"
+                            : method.name.includes("pesapal") ||
+                              method.name.includes("gateway")
+                              ? "STK Push"
+                              : method.name.charAt(0).toUpperCase() +
+                              method.name.slice(1)}
+                        </Typography.Text>
+                        {isDisabled && (
+                          <Tag color="red" style={{ fontSize: "10px" }}>
+                            Unavailable
+                          </Tag>
+                        )}
+                      </Space>
+                    </ProCard>
+                  );
+                })}
+              </Space>
 
-            {selectedMethod !== secondMethod && (
-              <SplitBillDialog
-                open={openModal}
-                handleModalClose={handleModalClose}
-                data={paymentMethods}
-                selectedMethod={selectedMethod}
-                secondMethod={secondMethod}
-                totalAmount={grandTotal}
-                amount1={amount1}
-                amount2={amount2}
-                setSelectedMethod={setSelectedMethod}
-                setSecondMethod={setSecondMethod}
-                setAmount1={setAmount1}
-                setAmount2={setAmount2}
-                handleSplitConfirm={handleSplitConfirm}
-              />
-            )}
-          </Space>
+              <Space
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  marginTop: 16,
+                }}
+              >
+                {(user?.role === "admin" || user?.role === "cashier") && selectedMethod && (
+                  <Button
+                    danger
+                    onClick={() => {
+                      setSelectedMethod(null);
+                    }}
+                    icon={<CloseCircleOutlined />}
+                  >
+                    Clear Selection
+                  </Button>
+                )}
+                {(user?.role === "admin" || user?.role === "Cashier") && (
+                  <Button
+                    type="default"
+                    onClick={handleVoidBill}
+                    icon={<StopOutlined />}
+                    style={{
+                      color: "#6c1c2c",
+                      borderColor: "#6c1c2c",
+                    }}
+                  >
+                    Void Bill
+                  </Button>
+                )}
+              </Space>
+            </ProCard>
+          )}
         </Space>
+
+        {selectedMethod !== secondMethod && (
+          <SplitBillDialog
+            open={openModal}
+            handleModalClose={handleModalClose}
+            data={paymentMethods}
+            selectedMethod={selectedMethod}
+            secondMethod={secondMethod}
+            totalAmount={grandTotal}
+            amount1={amount1}
+            amount2={amount2}
+            setSelectedMethod={setSelectedMethod}
+            setSecondMethod={setSecondMethod}
+            setAmount1={setAmount1}
+            setAmount2={setAmount2}
+            handleSplitConfirm={handleSplitConfirm}
+          />
+        )}
       </DrawerForm>
 
+      {/* STK Push Modal */}
       <Modal
         title={
           <Space align="center">
@@ -843,10 +1100,8 @@ const PaymentDrawer: React.FC = () => {
         maskClosable={false}
       >
         <Space direction="vertical" style={{ width: "100%" }} size="large">
-          {/* STK Push Status Display */}
           {renderSTKPushStatus()}
 
-          {/* Customer Information Form */}
           {stkPaymentStatus === "idle" && (
             <Card size="small">
               <Title level={5}>Customer Information</Title>
@@ -954,7 +1209,6 @@ const PaymentDrawer: React.FC = () => {
             </Card>
           )}
 
-          {/* Payment Summary */}
           <Card size="small">
             <Row gutter={16}>
               <Col span={12}>
@@ -975,7 +1229,6 @@ const PaymentDrawer: React.FC = () => {
             </Row>
           </Card>
 
-          {/* Action Buttons */}
           {stkPaymentStatus === "idle" && (
             <Space style={{ width: "100%", justifyContent: "flex-end" }}>
               <Button onClick={resetPesapalModal}>Cancel</Button>
@@ -993,7 +1246,6 @@ const PaymentDrawer: React.FC = () => {
             </Space>
           )}
 
-          {/* STK Push Action Buttons */}
           {stkPaymentStatus === "waiting" && (
             <Space style={{ width: "100%", justifyContent: "space-between" }}>
               <Button
@@ -1022,12 +1274,11 @@ const PaymentDrawer: React.FC = () => {
                 }}
                 icon={<SendOutlined />}
               >
-                Try STK Push
+                Try Again
               </Button>
             </Space>
           )}
 
-          {/* Instructions for STK Push */}
           {stkPaymentStatus === "idle" && (
             <Alert
               message="STK Push Instructions"
@@ -1051,7 +1302,7 @@ const PaymentDrawer: React.FC = () => {
         </Space>
       </Modal>
 
-      {/* Payment Status Monitoring Modal for STK Push */}
+      {/* Payment Waiting Modal */}
       <Modal
         title="Payment Status Monitor"
         open={stkPaymentStatus === "waiting"}
@@ -1135,8 +1386,7 @@ const PaymentDrawer: React.FC = () => {
         </Space>
       </Modal>
 
-      {/* Custom CSS for animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes pulse {
           0% {
             transform: scale(1);
@@ -1150,262 +1400,6 @@ const PaymentDrawer: React.FC = () => {
             transform: scale(1);
             opacity: 1;
           }
-        }
-
-        .payment-method-card {
-          transition: all 0.3s ease;
-          border-radius: 8px;
-        }
-
-        .payment-method-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .stk-status-card {
-          border-radius: 12px;
-          border: 2px dashed #d9d9d9;
-          background: linear-gradient(135deg, #f6f9fc 0%, #ffffff 100%);
-        }
-
-        .phone-input-container {
-          position: relative;
-        }
-
-        .phone-validation-icon {
-          position: absolute;
-          right: 8px;
-          top: 50%;
-          transform: translateY(-50%);
-        }
-
-        .payment-summary-card {
-          background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
-          color: white;
-          border-radius: 12px;
-        }
-
-        .payment-summary-card .ant-statistic-title {
-          color: rgba(255, 255, 255, 0.8) !important;
-        }
-
-        .payment-summary-card .ant-statistic-content {
-          color: white !important;
-        }
-
-        .stk-push-modal .ant-modal-header {
-          background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
-        }
-
-        .stk-push-modal .ant-modal-title {
-          color: white;
-        }
-
-        .stk-push-instructions {
-          background: #f6ffed;
-          border: 1px solid #b7eb8f;
-          border-radius: 8px;
-          padding: 16px;
-          margin-top: 16px;
-        }
-
-        .stk-push-instructions ul {
-          margin: 0;
-          padding-left: 20px;
-        }
-
-        .stk-push-instructions li {
-          margin-bottom: 8px;
-          color: #389e0d;
-        }
-
-        .customer-info-card {
-          background: #fafafa;
-          border: 1px solid #d9d9d9;
-          border-radius: 8px;
-          padding: 16px;
-        }
-
-        .payment-amount-display {
-          background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-          color: white;
-          padding: 20px;
-          border-radius: 12px;
-          text-align: center;
-          margin: 16px 0;
-        }
-
-        .phone-number-display {
-          background: #f0f2f5;
-          border: 2px dashed #d9d9d9;
-          border-radius: 8px;
-          padding: 12px;
-          text-align: center;
-          margin: 8px 0;
-          font-family: monospace;
-          font-size: 16px;
-          font-weight: bold;
-        }
-
-        .status-waiting {
-          animation: pulse 2s infinite;
-        }
-
-        .countdown-timer {
-          background: #1890ff;
-          color: white;
-          padding: 8px 16px;
-          border-radius: 20px;
-          font-weight: bold;
-          font-size: 14px;
-        }
-
-        /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-          .ant-modal {
-            margin: 10px;
-          }
-
-          .payment-method-cards {
-            flex-direction: column;
-          }
-
-          .payment-method-card {
-            width: 100% !important;
-            margin-bottom: 8px;
-          }
-
-          .stk-push-modal {
-            width: 95% !important;
-          }
-        }
-
-        /* Enhanced Button Styles */
-        .stk-push-button {
-          background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
-          border: none;
-          border-radius: 8px;
-          height: 44px;
-          font-weight: 600;
-          box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3);
-          transition: all 0.3s ease;
-        }
-
-        .stk-push-button:hover {
-          background: linear-gradient(135deg, #389e0d 0%, #237804 100%);
-          box-shadow: 0 4px 12px rgba(82, 196, 26, 0.4);
-          transform: translateY(-1px);
-        }
-
-        .stk-push-button:disabled {
-          background: #f5f5f5;
-          color: #bfbfbf;
-          box-shadow: none;
-          transform: none;
-        }
-
-        /* Loading States */
-        .loading-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(255, 255, 255, 0.8);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-
-        .success-animation {
-          animation: successPulse 0.6s ease-in-out;
-        }
-
-        @keyframes successPulse {
-          0% {
-            transform: scale(0.8);
-            opacity: 0;
-          }
-          50% {
-            transform: scale(1.1);
-            opacity: 0.8;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-
-        .error-shake {
-          animation: shake 0.5s ease-in-out;
-        }
-
-        @keyframes shake {
-          0%,
-          100% {
-            transform: translateX(0);
-          }
-          10%,
-          30%,
-          50%,
-          70%,
-          90% {
-            transform: translateX(-5px);
-          }
-          20%,
-          40%,
-          60%,
-          80% {
-            transform: translateX(5px);
-          }
-        }
-
-        /* Card Hover Effects */
-        .info-card {
-          transition: all 0.3s ease;
-          border-radius: 12px;
-        }
-
-        .info-card:hover {
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-          transform: translateY(-2px);
-        }
-
-        /* Status Indicators */
-        .status-indicator {
-          display: inline-flex;
-          align-items: center;
-          padding: 4px 8px;
-          border-radius: 12px;
-          font-size: 12px;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .status-sending {
-          background: #e6f7ff;
-          color: #1890ff;
-          border: 1px solid #91d5ff;
-        }
-
-        .status-waiting {
-          background: #fff2e8;
-          color: #fa8c16;
-          border: 1px solid #ffd591;
-        }
-
-        .status-success {
-          background: #f6ffed;
-          color: #52c41a;
-          border: 1px solid #b7eb8f;
-        }
-
-        .status-failed {
-          background: #fff2f0;
-          color: #ff4d4f;
-          border: 1px solid #ffccc7;
         }
       `}</style>
     </>

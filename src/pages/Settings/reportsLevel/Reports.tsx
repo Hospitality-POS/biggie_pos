@@ -59,8 +59,6 @@ const Reports: React.FC = () => {
     setInventoryUsageDateTimeRange,
     onCloseInventoryUsageModal,
     inventoryUsageDateTimeRange,
-
-
   } = useReport(activeTab);
 
   const handleTabChange = (key: string) => {
@@ -71,8 +69,7 @@ const Reports: React.FC = () => {
     form.resetFields();
   };
 
-
-  const shopId = localStorage.getItem("shopId")
+  const shopId = localStorage.getItem("shopId");
 
   //  Fetch users using React Query
   const { data: users } = useQuery({
@@ -88,35 +85,24 @@ const Reports: React.FC = () => {
     return users?.map((e: { username: any; _id: any }) => {
       return { label: e.username, value: e._id };
     });
-  }
+  };
 
   const onFinish = async (values) => {
-
     const { dateRange, servedBy, commission, locationId, shop_id } = values;
     const [startDate, endDate] = dateRange || [];
     setSalesDateTimeRange([
       dateRange?.[0]?.format("YYYY-MM-DD HH:mm") || "",
       dateRange?.[1]?.format("YYYY-MM-DD HH:mm") || "",
     ]);
-    // setSalesDateTimeRange([startDate, endDate]);
-
-    // setParams({ servedBy, commission });
-
-    // Update your generateReportHandler to include servedBy and commission
-    // generateReportHandler();
-    // const {data, isLoading} = useQuery({queryKey:['itemsales', {startDate?.format("YYYY-MM-DD HH:mm") || "",endDate?.format("YYYY-MM-DD HH:mm") || "", servedBy, commission}], queryFn: fetchItemSalesReport})
-
-    // <ItemSalesModal data={data} loading={isLoading}/>
 
     if (startDate) {
-
       setQueryKey({
         startDate: startDate?.format("YYYY-MM-DD HH:mm") || "",
         endDate: endDate?.format("YYYY-MM-DD HH:mm") || "",
         servedBy,
         commission,
         locationId,
-        shop_id
+        shop_id,
       });
       queryClient.invalidateQueries(["itemsales"]);
     }
@@ -124,16 +110,40 @@ const Reports: React.FC = () => {
     return true;
   };
 
-  const { data, isLoading } = useQuery(
+  // ✅ FIX: Fetch item sales report with proper error handling
+  const { data: itemSalesData, isLoading: isItemSalesLoading } = useQuery(
     ["itemsales", queryKey],
     () => fetchItemSalesReport(queryKey),
     {
       enabled: !!queryKey,
       networkMode: "always",
+      retry: 2,
+      // ✅ Provide default value to prevent undefined
+      initialData: { success: true, data: [] },
     }
   );
 
-  queryClient.invalidateQueries("reports_users_by_shop_id")
+  // ✅ Extract the actual data array from the response
+  const salesReportData = React.useMemo(() => {
+    if (!itemSalesData) return [];
+
+    // Handle { success: true, data: [...] } format
+    if (itemSalesData.success && Array.isArray(itemSalesData.data)) {
+      return itemSalesData.data;
+    }
+
+    // Handle direct array format
+    if (Array.isArray(itemSalesData)) {
+      return itemSalesData;
+    }
+
+    // Handle wrapped data
+    if (itemSalesData.data && Array.isArray(itemSalesData.data)) {
+      return itemSalesData.data;
+    }
+
+    return [];
+  }, [itemSalesData]);
 
   const tabItems = [
     {
@@ -204,14 +214,13 @@ const Reports: React.FC = () => {
               />
             </Form.Item>
             <Form.Item style={{ marginBottom: 16 }}>
-              {/* {queryKey?.startDate && ( */}
+              {/* ✅ Pass the extracted array data */}
               <ItemSalesModal
-                data={data}
-                loading={isLoading}
+                data={salesReportData}
+                loading={isItemSalesLoading}
                 startDate={salesDateTimeRange[0]}
                 endDate={salesDateTimeRange[1]}
               />
-              {/* )} */}
             </Form.Item>
           </Form>
         </>
@@ -260,13 +269,6 @@ const Reports: React.FC = () => {
           >
             Generate Report
           </Button>
-          {/* <Button
-            type="primary"
-            onClick={() => generateReportHandler()}
-            disabled={isGenerateButtonDisabled}
-          >
-            Generate Report
-          </Button> */}
           <PurchaseReportModal
             openM={openPurchaseModal}
             onCloseM={onClosePurchaseModal}
@@ -386,8 +388,8 @@ const Reports: React.FC = () => {
       tab: "inventory_usage",
       label: (
         <Space>
-          <CarOutlined style={{ color: "#1890ff" }} />
-          Generate Inventory Usage  Report
+          <HddOutlined style={{ color: "#1890ff" }} />
+          Generate Inventory Usage Report
         </Space>
       ),
       children: (
@@ -433,7 +435,6 @@ const Reports: React.FC = () => {
         </Form>
       ),
     },
-
   ];
 
   return (

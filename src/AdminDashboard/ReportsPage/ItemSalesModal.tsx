@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, forwardRef } from "react";
 import { ModalForm } from "@ant-design/pro-form";
-import { Button, Spin } from "antd";
+import { Button, Spin, Empty } from "antd";
 import { PrinterOutlined, PrinterFilled } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
 import {
@@ -11,6 +11,9 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Divider,
+  Box,
+  Chip,
 } from "@mui/material";
 import moment from "moment";
 import useSystemDetails from "@hooks/useSystemDetails";
@@ -25,8 +28,10 @@ const PrintableContent = forwardRef(
       endDate,
       BRAND_NAME1,
       overallTotal,
-      overallupplierTotal,
+      overallSupplierTotal,
       totalCommissionAmount,
+      totalSubscriptionItems,
+      totalRegularItems,
       COOP_NAME,
     },
     ref
@@ -44,12 +49,15 @@ const PrintableContent = forwardRef(
           justifyContent: "space-around",
           flexDirection: "column",
           alignItems: "center",
+          marginTop: "16px",
         }}
       >
         <ReportFooter
           overallTotal={overallTotal}
-          overallupplierTotal={overallupplierTotal}
+          overallSupplierTotal={overallSupplierTotal}
           totalCommissionAmount={totalCommissionAmount}
+          totalSubscriptionItems={totalSubscriptionItems}
+          totalRegularItems={totalRegularItems}
           coopName={COOP_NAME}
         />
       </div>
@@ -61,26 +69,70 @@ function ItemSalesModal({ data, startDate, endDate, loading }) {
   const componentRef = useRef(null);
   const { BRAND_NAME1 } = useSystemDetails();
 
-  const { overallTotal, totalCommissionAmount } = useMemo(() => {
-    let total = 0;
-    let commission = 0;
-    data?.forEach((item) => {
-      total += getTotalAmount(item.orderItems);
-      commission += item.commissionAmt;
-    });
-    return { overallTotal: total, totalCommissionAmount: commission };
+  // ✅ FIX: Extract data array from API response
+  const salesData = useMemo(() => {
+    if (!data) return [];
+
+    // If data has 'success' and 'data' properties (new API format)
+    if (data.success && Array.isArray(data.data)) {
+      return data.data;
+    }
+
+    // If data is already an array (old format)
+    if (Array.isArray(data)) {
+      return data;
+    }
+
+    // If data is wrapped in a 'data' property
+    if (data.data && Array.isArray(data.data)) {
+      return data.data;
+    }
+
+    return [];
   }, [data]);
 
+  const {
+    overallTotal,
+    totalCommissionAmount,
+    overallSupplierTotal,
+    totalSubscriptionItems,
+    totalRegularItems
+  } = useMemo(() => {
+    let total = 0;
+    let commission = 0;
+    let supplierTotal = 0;
+    let subscriptionItems = 0;
+    let regularItems = 0;
 
-  const overallupplierTotal = data?.reduce(
-    (accumulator: number, item: { orderItems: any[] }) =>
-      accumulator + getSupplierTotalAmount(item.orderItems),
-    0
-  );
+    salesData.forEach((item) => {
+      const itemTotal = getTotalAmount(item.orderItems);
+      const itemSupplierTotal = getSupplierTotalAmount(item.orderItems);
+
+      total += itemTotal;
+      commission += item.commissionAmt || 0;
+      supplierTotal += itemSupplierTotal;
+
+      // Track subscription vs regular items
+      if (item.subscription_breakdown) {
+        subscriptionItems += item.subscription_breakdown.total_subscription_items || 0;
+        regularItems += item.subscription_breakdown.total_regular_items || 0;
+      }
+    });
+
+    return {
+      overallTotal: total,
+      totalCommissionAmount: commission,
+      overallSupplierTotal: supplierTotal,
+      totalSubscriptionItems: subscriptionItems,
+      totalRegularItems: regularItems
+    };
+  }, [salesData]);
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
   });
+
+  const hasData = salesData && salesData.length > 0;
 
   return (
     <ModalForm
@@ -90,102 +142,197 @@ function ItemSalesModal({ data, startDate, endDate, loading }) {
         destroyOnClose: true,
         cancelText: "Cancel",
         okText: "Confirm Print",
-        okButtonProps: { icon: <PrinterFilled />, disabled: loading },
+        okButtonProps: {
+          icon: <PrinterFilled />,
+          disabled: loading || !hasData
+        },
       }}
       trigger={
-        <Button type="primary" icon={<PrinterOutlined />} htmlType="submit">
+        <Button
+          type="primary"
+          icon={<PrinterOutlined />}
+          htmlType="submit"
+          disabled={!hasData}
+        >
           Print Item Sales Report
         </Button>
       }
       onFinish={async () => {
-        handlePrint();
+        if (hasData) {
+          handlePrint();
+        }
         return true;
       }}
+      width={800}
     >
       <Spin
-        spinning={loading || !startDate}
-        tip="Kindly fill in the form to load the report..."
+        spinning={loading}
+        tip="Loading sales report..."
       >
-        <PrintableContent
-          key={JSON.stringify(data)}
-          ref={componentRef}
-          data={data}
-          startDate={startDate}
-          endDate={endDate}
-          BRAND_NAME1={BRAND_NAME1}
-          overallTotal={overallTotal}
-          overallupplierTotal={overallupplierTotal}
-          totalCommissionAmount={totalCommissionAmount}
-          COOP_NAME={COOP_NAME}
-        />
+        {!startDate || !endDate ? (
+          <Empty
+            description="Please select date range to load the report"
+            style={{ padding: "40px 0" }}
+          />
+        ) : !hasData && !loading ? (
+          <Empty
+            description="No sales data found for the selected period"
+            style={{ padding: "40px 0" }}
+          />
+        ) : (
+          <PrintableContent
+            key={JSON.stringify(salesData)}
+            ref={componentRef}
+            data={salesData}
+            startDate={startDate}
+            endDate={endDate}
+            BRAND_NAME1={BRAND_NAME1}
+            overallTotal={overallTotal}
+            overallSupplierTotal={overallSupplierTotal}
+            totalCommissionAmount={totalCommissionAmount}
+            totalSubscriptionItems={totalSubscriptionItems}
+            totalRegularItems={totalRegularItems}
+            COOP_NAME={COOP_NAME}
+          />
+        )}
       </Spin>
     </ModalForm>
   );
 }
 
 const ReportHeader = ({ brandName, startDate, endDate }) => (
-  <>
+  <Box sx={{ mb: 2 }}>
     <div
       className="logo-print"
-      style={{ display: "flex", flexDirection: "column" }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        marginBottom: "16px"
+      }}
     >
       {brandName && brandName !== "undefined undefined" && (
         <Typography
           variant="h5"
           textAlign="center"
-          sx={{ fontFamily: "monospace", fontWeight: "bold" }}
+          sx={{
+            fontFamily: "monospace",
+            fontWeight: "bold",
+            mb: 1
+          }}
         >
           {brandName}
         </Typography>
       )}
-      <Typography variant="h6" sx={{ fontFamily: "monospace" }}>
+      <Typography
+        variant="h6"
+        sx={{
+          fontFamily: "monospace",
+          fontWeight: "600",
+          color: "#333"
+        }}
+      >
         ITEM SALES REPORT
       </Typography>
     </div>
-    <p style={{ textAlign: "center", fontFamily: "monospace" }}>
-      From: {moment(startDate).format("MMM-DD-YYYY H:mm A")} <br /> to <br />
-      {moment(endDate).format("MMM-DD-YYYY H:mm A")}
-    </p>
-  </>
+    <Divider sx={{ mb: 2 }} />
+    <Typography
+      variant="body2"
+      sx={{
+        textAlign: "center",
+        fontFamily: "monospace",
+        color: "#666"
+      }}
+    >
+      <strong>From:</strong> {moment(startDate).format("MMM DD, YYYY h:mm A")}
+      <br />
+      <strong>To:</strong> {moment(endDate).format("MMM DD, YYYY h:mm A")}
+    </Typography>
+    <Divider sx={{ mt: 2 }} />
+  </Box>
 );
 
 const ReportTable = ({ data }) => (
   <TableContainer sx={{ mt: 2, width: "inherit", mb: 2 }}>
-    <Table>
+    <Table size="small">
       <TableHead>
-        <TableRow>
-          <TableCell sx={{ fontSize: "1em", padding: 0, fontWeight: "bold" }}>
-            Product
+        <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+          <TableCell
+            sx={{
+              fontSize: "0.9em",
+              padding: "8px",
+              fontWeight: "bold",
+              color: "#333"
+            }}
+          >
+            Category / Product
           </TableCell>
           <TableCell
             sx={{
-              fontSize: "1em",
+              fontSize: "0.9em",
               textAlign: "right",
               fontWeight: "bold",
-              padding: 2,
+              padding: "8px",
+              color: "#333"
             }}
           >
-            Amount(.ksh)
+            Total (KSh)
           </TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
-        {data?.map((item) => (
-          <React.Fragment key={item.id}>
-            <TableRow>
-              <TableCell sx={{ fontWeight: "bold", padding: 0 }}>
-                {item.name}
-              </TableCell>
-              <TableCell sx={{ textAlign: "right", fontWeight: "bold" }}>
-                {getTotalAmount(item.orderItems).toFixed(2)}
-              </TableCell>
-
-            </TableRow>
-            {item.orderItems?.length > 0 && (
-              <OrderItemsSubTable orderItems={item.orderItems} />
-            )}
-          </React.Fragment>
-        ))}
+        {data && data.length > 0 ? (
+          data.map((item, index) => (
+            <React.Fragment key={item.id || index}>
+              <TableRow sx={{ backgroundColor: index % 2 === 0 ? "#fafafa" : "white" }}>
+                <TableCell
+                  sx={{
+                    fontWeight: "bold",
+                    padding: "8px",
+                    fontSize: "0.95em"
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {item.name || "Uncategorized"}
+                    {item.subscription_breakdown &&
+                      item.subscription_breakdown.total_subscription_items > 0 && (
+                        <Chip
+                          label={`${item.subscription_breakdown.subscription_percentage}% Subscription`}
+                          size="small"
+                          color="success"
+                          sx={{ fontSize: "0.7em", height: "20px" }}
+                        />
+                      )}
+                  </Box>
+                </TableCell>
+                <TableCell
+                  sx={{
+                    textAlign: "right",
+                    fontWeight: "bold",
+                    fontSize: "0.95em",
+                    color: "#1976d2"
+                  }}
+                >
+                  {getTotalAmount(item.orderItems).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </TableCell>
+              </TableRow>
+              {item.orderItems && item.orderItems.length > 0 && (
+                <OrderItemsSubTable orderItems={item.orderItems} />
+              )}
+            </React.Fragment>
+          ))
+        ) : (
+          <TableRow>
+            <TableCell colSpan={2} sx={{ textAlign: "center", padding: "24px" }}>
+              <Typography variant="body2" color="textSecondary">
+                No sales data available
+              </Typography>
+            </TableCell>
+          </TableRow>
+        )}
       </TableBody>
     </Table>
   </TableContainer>
@@ -193,33 +340,72 @@ const ReportTable = ({ data }) => (
 
 const OrderItemsSubTable = ({ orderItems }) => (
   <TableRow>
-    <TableCell colSpan={2} sx={{ padding: 0 }}>
+    <TableCell colSpan={2} sx={{ padding: "0 8px 8px 8px", backgroundColor: "#f9f9f9" }}>
       <TableContainer sx={{ width: "inherit" }}>
-        <Table>
+        <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ padding: 1 }}>QTY</TableCell>
-              <TableCell sx={{ padding: 0 }}>ITEM</TableCell>
-              <TableCell sx={{ padding: 0 }}>STOCK COST</TableCell>
-              <TableCell sx={{ padding: 0 }}>PRICE(.Ksh)</TableCell>
+              <TableCell sx={{ padding: "4px 8px", fontSize: "0.85em", fontWeight: "600" }}>
+                Qty
+              </TableCell>
+              <TableCell sx={{ padding: "4px 8px", fontSize: "0.85em", fontWeight: "600" }}>
+                Item
+              </TableCell>
+              <TableCell sx={{ padding: "4px 8px", fontSize: "0.85em", fontWeight: "600", textAlign: "right" }}>
+                Stock Cost
+              </TableCell>
+              <TableCell sx={{ padding: "4px 8px", fontSize: "0.85em", fontWeight: "600", textAlign: "right" }}>
+                Unit Price
+              </TableCell>
+              <TableCell sx={{ padding: "4px 8px", fontSize: "0.85em", fontWeight: "600", textAlign: "right" }}>
+                Total
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {orderItems.map((orderItem) => (
-              <TableRow key={orderItem.id}>
-                <TableCell sx={{ borderBottom: "none", padding: 1 }}>
-                  {orderItem.quantity.toFixed(1)}
+            {orderItems.map((orderItem, idx) => (
+              <TableRow key={orderItem.id || idx}>
+                <TableCell sx={{ borderBottom: "none", padding: "4px 8px", fontSize: "0.85em" }}>
+                  {orderItem.quantity?.toFixed(1) || "0.0"}
                 </TableCell>
                 <TableCell
-                  sx={{ borderBottom: "none", padding: 1, fontWeight: "bold" }}
+                  sx={{
+                    borderBottom: "none",
+                    padding: "4px 8px",
+                    fontWeight: "500",
+                    fontSize: "0.85em"
+                  }}
                 >
-                  {orderItem.name}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    {orderItem.name || "Unknown Item"}
+                    {orderItem.is_subscription_item && (
+                      <Chip
+                        label="Subscription"
+                        size="small"
+                        color="success"
+                        variant="outlined"
+                        sx={{ fontSize: "0.65em", height: "16px" }}
+                      />
+                    )}
+                  </Box>
                 </TableCell>
-                <TableCell sx={{ borderBottom: "none", padding: 1 }}>
-                  {orderItem.supplier_price * orderItem.quantity || 0}
+                <TableCell sx={{ borderBottom: "none", padding: "4px 8px", fontSize: "0.85em", textAlign: "right" }}>
+                  {((orderItem.supplier_price || 0) * (orderItem.quantity || 0)).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
                 </TableCell>
-                <TableCell sx={{ borderBottom: "none", padding: 1 }}>
-                  {orderItem.amount.toFixed(2)}
+                <TableCell sx={{ borderBottom: "none", padding: "4px 8px", fontSize: "0.85em", textAlign: "right" }}>
+                  {(orderItem.amount || 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </TableCell>
+                <TableCell sx={{ borderBottom: "none", padding: "4px 8px", fontSize: "0.85em", textAlign: "right", fontWeight: "600" }}>
+                  {(orderItem.total_amount || 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
                 </TableCell>
               </TableRow>
             ))}
@@ -230,48 +416,160 @@ const OrderItemsSubTable = ({ orderItems }) => (
   </TableRow>
 );
 
-const ReportFooter = ({ overallTotal, totalCommissionAmount, coopName, overallupplierTotal }) => (
-  <>
-    <TableRow>
-      <TableCell colSpan={3} sx={{ fontWeight: "bold", textAlign: "center" }}>
-        Overall Total: Ksh. <span>{overallTotal?.toLocaleString() || 0}</span>
-      </TableCell>
-    </TableRow>
-    <TableCell colSpan={3} sx={{ fontWeight: "bold", textAlign: "center" }}>
-      Overall Stock Total: Ksh. <span>{overallupplierTotal?.toLocaleString() || 0}</span>
-    </TableCell>
-    <TableRow>
-      <TableCell colSpan={3} sx={{ fontWeight: "bold", textAlign: "center" }}>
-        Overall Commission: Ksh. <span>{totalCommissionAmount || 0}</span>
-      </TableCell>
-    </TableRow>
-    <Typography
-      variant="body1"
-      style={{ fontSize: "1em", fontFamily: "monospace", textAlign: "center" }}
-    >
-      Powered by: {coopName}
-    </Typography>
-    <Typography variant="body1" sx={{ textAlign: "center", fontSize: "0.9em" }}>
-      Generated on {moment().format("MMM/DD/YYYY")}
-    </Typography>
-  </>
-);
+const ReportFooter = ({
+  overallTotal,
+  totalCommissionAmount,
+  coopName,
+  overallSupplierTotal,
+  totalSubscriptionItems,
+  totalRegularItems
+}) => {
+  const totalItems = totalSubscriptionItems + totalRegularItems;
+  const subscriptionPercentage = totalItems > 0
+    ? ((totalSubscriptionItems / totalItems) * 100).toFixed(1)
+    : 0;
+
+  return (
+    <Box sx={{ width: "100%", mt: 2 }}>
+      <Divider sx={{ mb: 2 }} />
+
+      {/* Subscription Breakdown */}
+      {totalSubscriptionItems > 0 && (
+        <Box sx={{ mb: 2, textAlign: "center" }}>
+          <Typography variant="body2" sx={{ fontWeight: "600", mb: 1 }}>
+            Sales Breakdown
+          </Typography>
+          <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
+            <Chip
+              label={`Subscription: ${totalSubscriptionItems} items (${subscriptionPercentage}%)`}
+              color="success"
+              size="small"
+            />
+            <Chip
+              label={`Regular: ${totalRegularItems} items (${(100 - parseFloat(subscriptionPercentage)).toFixed(1)}%)`}
+              color="primary"
+              size="small"
+            />
+          </Box>
+          <Divider sx={{ mt: 2 }} />
+        </Box>
+      )}
+
+      <Table size="small">
+        <TableBody>
+          <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+            <TableCell
+              colSpan={3}
+              sx={{
+                fontWeight: "bold",
+                textAlign: "center",
+                fontSize: "1em",
+                padding: "8px",
+                borderBottom: "1px solid #ddd"
+              }}
+            >
+              <strong>Overall Total Sales:</strong> KSh. {overallTotal?.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }) || "0.00"}
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell
+              colSpan={3}
+              sx={{
+                fontWeight: "bold",
+                textAlign: "center",
+                fontSize: "0.95em",
+                padding: "8px",
+                borderBottom: "1px solid #ddd",
+                color: "#666"
+              }}
+            >
+              <strong>Overall Stock Cost:</strong> KSh. {overallSupplierTotal?.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }) || "0.00"}
+            </TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell
+              colSpan={3}
+              sx={{
+                fontWeight: "bold",
+                textAlign: "center",
+                fontSize: "0.95em",
+                padding: "8px",
+                color: "#1976d2"
+              }}
+            >
+              <strong>Gross Profit:</strong> KSh. {((overallTotal || 0) - (overallSupplierTotal || 0)).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}
+            </TableCell>
+          </TableRow>
+          {totalCommissionAmount > 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={3}
+                sx={{
+                  fontWeight: "bold",
+                  textAlign: "center",
+                  fontSize: "0.95em",
+                  padding: "8px",
+                  borderTop: "1px solid #ddd"
+                }}
+              >
+                <strong>Overall Commission:</strong> KSh. {totalCommissionAmount?.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                }) || "0.00"}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+
+      <Box sx={{ mt: 3, textAlign: "center" }}>
+        <Typography
+          variant="body2"
+          sx={{
+            fontSize: "0.85em",
+            fontFamily: "monospace",
+            color: "#666",
+            mb: 0.5
+          }}
+        >
+          Powered by: <strong>{coopName}</strong>
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            fontSize: "0.8em",
+            color: "#999"
+          }}
+        >
+          Generated on {moment().format("MMM DD, YYYY [at] h:mm A")}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
 
 function getTotalAmount(orderItems) {
-  return orderItems?.reduce((total, item) => total + item.total_amount, 0) || 0;
+  if (!orderItems || !Array.isArray(orderItems)) return 0;
+  return orderItems.reduce((total, item) => total + (item.total_amount || 0), 0);
 }
 
-function getSupplierTotalAmount(orderItems: any[]): number {
-  let total = 0;
+function getSupplierTotalAmount(orderItems) {
+  if (!orderItems || !Array.isArray(orderItems)) return 0;
 
-  orderItems?.forEach((item) => {
-    const supplierPrice = Number(item.supplier_price) || 0; // Ensure it's a valid number
-    const quantity = Number(item.quantity) || 0; // Ensure it's a valid number
-    total += supplierPrice * quantity;
-  });
-
-  return total;
+  return orderItems.reduce((total, item) => {
+    const supplierPrice = Number(item.supplier_price) || 0;
+    const quantity = Number(item.quantity) || 0;
+    return total + (supplierPrice * quantity);
+  }, 0);
 }
-
 
 export default ItemSalesModal;

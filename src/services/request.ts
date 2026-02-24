@@ -4,18 +4,27 @@ import { message } from "antd";
 
 // Helper function to handle errors
 const handleError = (errorMessage: string) => {
-    message.error(`${errorMessage}`)
+    message.error(`${errorMessage}`);
 };
 
 // Helper function to handle user logout
 const logoutUser = () => {
-    // Clear all relevant storage items
     localStorage.removeItem("user");
     localStorage.removeItem("shopId");
     localStorage.removeItem("companyCode");
+    window.location.href = "/login";
+};
 
-    // Redirect to login page
-    window.location.href = "/login"; // Adjust this path to your login route
+// Helper function to validate shop_id
+const getValidShopId = (): string | null => {
+    const shopId = localStorage.getItem("shopId");
+
+    if (!shopId || shopId === "undefined" || shopId === "null" || shopId.trim() === "") {
+        console.warn("Invalid shop_id detected:", shopId);
+        return null;
+    }
+
+    return shopId;
 };
 
 // Create an axios instance with the base URL and timeout
@@ -27,7 +36,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
     (config) => {
         const user = localStorage.getItem("user");
-        const shopId = localStorage.getItem("shopId");
+        const shopId = getValidShopId();
 
         if (user) {
             const userObject = JSON.parse(user);
@@ -37,37 +46,43 @@ axiosInstance.interceptors.request.use(
                 config.headers['currentUser'] = userObject._id || userObject.id;
             }
 
-            if ((shopId && shopId !== 'undefined') && !(config.url?.includes('/users') || config.url?.includes('/shops'))) {
-                if (config.method === 'get') {
+            console.log("📤 Request:", config.method?.toUpperCase(), config.url);
+            console.log("📍 Shop ID:", shopId);
+
+            // ✅ Only add shop_id if it's valid and not for user/shop/tenant routes
+            if (shopId && !(config.url?.includes('/users') || config.url?.includes('/shops') || config.url?.includes('/tenants'))) {
+
+                // ✅ Handle GET and DELETE methods (query params)
+                if (config.method === 'get' || config.method === 'delete') {
                     config.params = {
                         ...config.params,
                         shop_id: shopId,
                         role: userObject?.role
                     };
-                } else {
+                    console.log("✅ Added shop_id to params:", config.params);
+                }
+                // ✅ Handle POST, PUT, PATCH methods (request body)
+                else if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
                     // Robust handling of different data types
                     if (config.data instanceof FormData) {
                         // If it's FormData, append the shop_id
                         config.data.append('shop_id', shopId);
-                    } else if (config.data instanceof Object) {
+                        console.log("✅ Added shop_id to FormData");
+                    } else if (config.data && typeof config.data === 'object') {
                         // If it's a plain object, add shop_id directly
                         config.data = {
                             ...config.data,
                             shop_id: shopId
                         };
+                        console.log("✅ Added shop_id to body:", config.data);
                     } else {
-                        // If it's some other type, create a new FormData
-                        const formData = new FormData();
-                        formData.append('shop_id', shopId);
-
-                        // If the original data is not null/undefined, append it
-                        if (config.data != null) {
-                            formData.append('data', config.data);
-                        }
-
-                        config.data = formData;
+                        // If no data exists, create an object with shop_id
+                        config.data = { shop_id: shopId };
+                        console.log("✅ Created body with shop_id");
                     }
                 }
+            } else if (!shopId && !config.url?.includes('/users') && !config.url?.includes('/shops') && !config.url?.includes('/tenants')) {
+                console.warn("⚠️ Shop ID is missing for request:", config.url);
             }
         }
 
@@ -92,7 +107,6 @@ axiosInstance.interceptors.response.use(
         if (response) {
             switch (response.status) {
                 case 401:
-                    // Handle token expiration with auto logout
                     handleError("Session expired. Logging out...");
                     logoutUser();
                     break;
@@ -103,12 +117,18 @@ axiosInstance.interceptors.response.use(
                     handleError("Company does not exist kindly contact support");
                     break;
                 case 404:
-                    handleError(response.data.message);
+                    handleError(response.data.message || "Resource not found");
+                    break;
+                case 400:
+                    handleError(response.data.message || "Invalid request");
                     break;
                 default:
-                // Optional: generic error handling
-                // handleError("An error occurred while processing your request.");
+                    // Optional: generic error handling
+                    break;
             }
+        } else {
+            console.error("Network error:", error);
+            handleError("Network error. Please check your connection.");
         }
         return Promise.reject(error);
     }
