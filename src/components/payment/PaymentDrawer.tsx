@@ -669,7 +669,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         <Space direction="vertical" style={{ width: "100%" }} size="large">
 
           {/* ORDER SUMMARY */}
-          <Card
+          <ProCard
             title={<Text strong>Order Summary</Text>}
             size="small" bordered={false}
             style={{ backgroundColor: "#fafafa" }}
@@ -707,7 +707,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                 </Title>
               </Flex>
             </Space>
-          </Card>
+          </ProCard>
 
           {useSubscription && (
             <Alert
@@ -725,7 +725,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           {/* CUSTOMER SEARCH — subscriptions ONLY load when customer selected here */}
           {hasActivePackages && (
             <>
-              <Card
+              <ProCard
                 title={
                   <Space>
                     <UserOutlined style={{ color: "#6c1c2c" }} />
@@ -837,7 +837,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                     type="success" showIcon={false}
                   />
                 )}
-              </Card>
+              </ProCard>
 
               {/* Subscriptions: ONLY render when customer explicitly selected inside this drawer */}
               {selectedCustomerId && (
@@ -855,7 +855,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
 
           {/* PAYMENT METHOD SECTION */}
           {!useSubscription && (
-            <Card
+            <ProCard
               title={
                 <Space>
                   <WalletOutlined style={{ color: "#6c1c2c" }} />
@@ -875,8 +875,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   return (
                     <ProCard
                       key={method._id}
-                      bodyStyle={{ paddingInline: "20px", paddingBlock: "20px", minWidth: "120px" }}
-                      bordered hoverable={!isDisabled}
+                      bodyStyle={{
+                        minWidth: "100px",
+                      }}
+                      bordered
+                      hoverable={!isDisabled}
                       onClick={() => handleSelectMethod(method._id)}
                       style={{
                         backgroundColor: isSelected ? "#6c1c2c" : "white",
@@ -918,7 +921,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   </Button>
                 )}
               </Space>
-            </Card>
+            </ProCard>
           )}
         </Space>
 
