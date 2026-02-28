@@ -162,7 +162,7 @@ const AdminReports: React.FC = () => {
               <ProFormSelect
                 width={"md"}
                 name="shop_id"
-                label="Shop Name"
+                label="Branch Name"
                 showSearch
                 placeholder="Select shop"
                 request={async () => {
@@ -270,7 +270,7 @@ const AdminReports: React.FC = () => {
             <ProFormSelect
               width={"md"}
               name="shop_id"
-              label="Shop Name"
+              label="Branch Name"
               showSearch
               placeholder="Select shop"
               request={async () => {
@@ -345,9 +345,9 @@ const AdminReports: React.FC = () => {
             <ProFormSelect
               width={"md"}
               name="shop_id"
-              label="Shop Name"
+              label="Branch Name"
               showSearch
-              placeholder="Select shop"
+              placeholder="Select Branch"
               request={async () => {
                 const data = await fetchAllShops({});
                 return data?.map((e: { name: any; _id: any }) => {
@@ -414,7 +414,7 @@ const AdminReports: React.FC = () => {
             <ProFormSelect
               width={"md"}
               name="shop_id"
-              label="Shop Name"
+              label="Branch Name"
               showSearch
               placeholder="Select shop"
               request={async () => {
@@ -483,7 +483,7 @@ const AdminReports: React.FC = () => {
             <ProFormSelect
               width={"md"}
               name="shop_id"
-              label="Shop Name"
+              label="Branch Name"
               showSearch
               placeholder="Select shop"
               request={async () => {
@@ -552,7 +552,7 @@ const AdminReports: React.FC = () => {
             <ProFormSelect
               width={"md"}
               name="shop_id"
-              label="Shop Name"
+              label="Branch Name"
               showSearch
               placeholder="Select shop"
               request={async () => {

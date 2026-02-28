@@ -21,7 +21,8 @@ const theme = createTheme({
   },
 });
 
-const queryClient = new QueryClient();
+// ✅ Export queryClient so it can be used in request.ts for cancellation on logout
+export const queryClient = new QueryClient();
 
 // Custom wrapper to use primary color from context
 const AppWithColor = () => {

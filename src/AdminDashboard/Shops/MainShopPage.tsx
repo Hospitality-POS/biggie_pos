@@ -46,7 +46,7 @@ const ShopManagement: React.FC = () => {
         tab={
           <Space>
             <SettingOutlined style={{ color: "#52c41a" }} />
-            <Text>Shops Settings</Text>
+            <Text>Branch Settings</Text>
           </Space>
         }
       >
@@ -77,8 +77,8 @@ const ShopManagement: React.FC = () => {
             borderRadius: "8px",
           }}
         > */}
-          {/* <ShopFinancialSettings /> */}
-        {/* </div>
+      {/* <ShopFinancialSettings /> */}
+      {/* </div>
       </ProCard.TabPane> */}
 
       {/* <ProCard.TabPane
@@ -97,8 +97,8 @@ const ShopManagement: React.FC = () => {
             borderRadius: "8px",
           }}
         > */}
-          {/* <ShopStaffSettings /> */}
-        {/* </div>
+      {/* <ShopStaffSettings /> */}
+      {/* </div>
       </ProCard.TabPane> */}
     </ProCard>
   );

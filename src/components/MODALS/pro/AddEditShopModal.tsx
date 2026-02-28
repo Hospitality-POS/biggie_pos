@@ -25,7 +25,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({
   const [form] = Form.useForm();
   const formRef = useRef();
   const [open, setOpen] = useState(false);
-  
+
   const primaryColor = usePrimaryColor();
 
   useEffect(() => {
@@ -54,7 +54,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({
       title={
         <Space>
           <ShopOutlined />
-          {edit ? "Edit Shop" : "Add New Shop"}
+          {edit ? "Edit Shop" : "Add New Branch"}
         </Space>
       }
       initialValues={
@@ -84,7 +84,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({
           </Button>
         ) : (
           <Button type="primary" key="button" icon={<ShopOutlined />}>
-            New Shop
+            New Branch
           </Button>
         )
       }
@@ -120,9 +120,9 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({
       <ProFormText
         width="lg"
         name="name"
-        label="Shop Name"
-        rules={[{ required: true, message: "Shop name is required" }]}
-        placeholder="Enter shop name"
+        label="Branch Name"
+        rules={[{ required: true, message: "Branch name is required" }]}
+        placeholder="Enter Branch name"
       />
       <ProFormTextArea
         width="lg"

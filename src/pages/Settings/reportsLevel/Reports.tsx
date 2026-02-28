@@ -8,6 +8,7 @@ import {
   HddOutlined,
   PrinterOutlined,
   ShoppingOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { ProCard, ProFormSelect } from "@ant-design/pro-components";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
@@ -16,6 +17,7 @@ import { useReport } from "../hooks/useReport";
 import VoidReportModal from "@components/Reports/VoidReport";
 import { fetchItemSalesReport } from "@services/reports";
 import { fetchAllUsersByShopId } from "@services/users";
+import { fetchAllCustomers } from "@services/customers";
 import ItemSalesModal from "./ItemSalesModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTableLocation } from "@services/tables";
@@ -28,6 +30,7 @@ const Reports: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("sale");
   const [form] = Form.useForm();
   const [queryKey, setQueryKey] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -67,16 +70,26 @@ const Reports: React.FC = () => {
     setOpenPurchaseModal(false);
     setOpenVoidedModal(false);
     form.resetFields();
+    setSelectedCustomer(null);
+    setQueryKey(null);
   };
 
   const shopId = localStorage.getItem("shopId");
 
-  //  Fetch users using React Query
   const { data: users } = useQuery({
     queryKey: ["reports_users_by_shop_id"],
     queryFn: () => fetchAllUsersByShopId(),
     retry: 3,
     refetchInterval: 5000,
+    networkMode: "always",
+    enabled: !!shopId,
+  });
+
+  // Fetch customers for the filter
+  const { data: customersData } = useQuery({
+    queryKey: ["reports_customers"],
+    queryFn: () => fetchAllCustomers(),
+    retry: 2,
     networkMode: "always",
     enabled: !!shopId,
   });
@@ -87,13 +100,37 @@ const Reports: React.FC = () => {
     });
   };
 
+  const fetchCustomersRequest = async () => {
+    const list = Array.isArray(customersData)
+      ? customersData
+      : customersData?.data || [];
+    return list.map((c: any) => ({
+      label: c.customer_name || c.name,
+      value: c._id,
+    }));
+  };
+
   const onFinish = async (values) => {
-    const { dateRange, servedBy, commission, locationId, shop_id } = values;
+    const { dateRange, servedBy, commission, locationId, shop_id, customerId } = values;
     const [startDate, endDate] = dateRange || [];
     setSalesDateTimeRange([
       dateRange?.[0]?.format("YYYY-MM-DD HH:mm") || "",
       dateRange?.[1]?.format("YYYY-MM-DD HH:mm") || "",
     ]);
+
+    // Track selected customer name for display in the modal
+    if (customerId) {
+      const list = Array.isArray(customersData)
+        ? customersData
+        : customersData?.data || [];
+      const found = list.find((c: any) => c._id === customerId);
+      setSelectedCustomer(found
+        ? { id: customerId, name: found.customer_name || found.name }
+        : { id: customerId, name: "Selected Customer" }
+      );
+    } else {
+      setSelectedCustomer(null);
+    }
 
     if (startDate) {
       setQueryKey({
@@ -103,6 +140,7 @@ const Reports: React.FC = () => {
         commission,
         locationId,
         shop_id,
+        customer_id: customerId || undefined,
       });
       queryClient.invalidateQueries(["itemsales"]);
     }
@@ -110,7 +148,6 @@ const Reports: React.FC = () => {
     return true;
   };
 
-  // ✅ FIX: Fetch item sales report with proper error handling
   const { data: itemSalesData, isLoading: isItemSalesLoading } = useQuery(
     ["itemsales", queryKey],
     () => fetchItemSalesReport(queryKey),
@@ -118,30 +155,19 @@ const Reports: React.FC = () => {
       enabled: !!queryKey,
       networkMode: "always",
       retry: 2,
-      // ✅ Provide default value to prevent undefined
       initialData: { success: true, data: [] },
     }
   );
 
-  // ✅ Extract the actual data array from the response
   const salesReportData = React.useMemo(() => {
     if (!itemSalesData) return [];
-
-    // Handle { success: true, data: [...] } format
     if (itemSalesData.success && Array.isArray(itemSalesData.data)) {
       return itemSalesData.data;
     }
-
-    // Handle direct array format
-    if (Array.isArray(itemSalesData)) {
-      return itemSalesData;
-    }
-
-    // Handle wrapped data
+    if (Array.isArray(itemSalesData)) return itemSalesData;
     if (itemSalesData.data && Array.isArray(itemSalesData.data)) {
       return itemSalesData.data;
     }
-
     return [];
   }, [itemSalesData]);
 
@@ -162,12 +188,7 @@ const Reports: React.FC = () => {
               name="dateRange"
               label="Date & Time"
               style={{ marginBottom: 16 }}
-              rules={[
-                {
-                  required: true,
-                  message: "kindly select date & time range",
-                },
-              ]}
+              rules={[{ required: true, message: "kindly select date & time range" }]}
             >
               <RangePicker
                 showTime={{ format: "HH:mm" }}
@@ -194,17 +215,32 @@ const Reports: React.FC = () => {
                 placeholder="Select served by"
                 request={async () => {
                   const data = await getTableLocation({});
-                  return data?.map((e: { name: any; _id: any }) => {
-                    return { label: e.name, value: e._id };
-                  });
+                  return data?.map((e: { name: any; _id: any }) => ({
+                    label: e.name,
+                    value: e._id,
+                  }));
                 }}
               />
             </Form.Item>
-            <Form.Item
-              name="commission"
-              style={{ marginBottom: 16 }}
-              label="Commission"
-            >
+
+            {/* ── Customer filter ── */}
+            <Form.Item name="customerId" style={{ marginBottom: 16 }}>
+              <ProFormSelect
+                width={"md"}
+                name="customerId"
+                label="Customer"
+                showSearch
+                allowClear
+                placeholder="All customers"
+                fieldProps={{
+                  suffixIcon: <UserOutlined />,
+                  allowClear: true,
+                }}
+                request={fetchCustomersRequest}
+              />
+            </Form.Item>
+
+            <Form.Item name="commission" style={{ marginBottom: 16 }} label="Commission">
               <InputNumber
                 placeholder="Commission %"
                 min={0}
@@ -214,12 +250,12 @@ const Reports: React.FC = () => {
               />
             </Form.Item>
             <Form.Item style={{ marginBottom: 16 }}>
-              {/* ✅ Pass the extracted array data */}
               <ItemSalesModal
                 data={salesReportData}
                 loading={isItemSalesLoading}
                 startDate={salesDateTimeRange[0]}
                 endDate={salesDateTimeRange[1]}
+                customerName={selectedCustomer?.name || null}
               />
             </Form.Item>
           </Form>
@@ -241,12 +277,7 @@ const Reports: React.FC = () => {
             name="dateRange"
             label="Date & Time"
             style={{ marginBottom: 16 }}
-            rules={[
-              {
-                required: true,
-                message: "kindly select date & time range",
-              },
-            ]}
+            rules={[{ required: true, message: "kindly select date & time range" }]}
           >
             <RangePicker
               showTime={{ format: "HH:mm" }}
@@ -293,12 +324,7 @@ const Reports: React.FC = () => {
             name="dateRange"
             label="Date & Time"
             style={{ marginBottom: 16 }}
-            rules={[
-              {
-                required: true,
-                message: "kindly select date & time range",
-              },
-            ]}
+            rules={[{ required: true, message: "kindly select date & time range" }]}
           >
             <RangePicker
               showTime={{ format: "HH:mm" }}
@@ -312,7 +338,6 @@ const Reports: React.FC = () => {
               }
             />
           </Form.Item>
-
           <Button
             htmlType="submit"
             type="primary"
@@ -346,12 +371,7 @@ const Reports: React.FC = () => {
             name="dateRange"
             label="Date & Time"
             style={{ marginBottom: 16 }}
-            rules={[
-              {
-                required: true,
-                message: "kindly select date & time range",
-              },
-            ]}
+            rules={[{ required: true, message: "kindly select date & time range" }]}
           >
             <RangePicker
               showTime={{ format: "HH:mm" }}
@@ -398,12 +418,7 @@ const Reports: React.FC = () => {
             name="dateRange"
             label="Date & Time"
             style={{ marginBottom: 16 }}
-            rules={[
-              {
-                required: true,
-                message: "kindly select date & time range",
-              },
-            ]}
+            rules={[{ required: true, message: "kindly select date & time range" }]}
           >
             <RangePicker
               showTime={{ format: "HH:mm" }}

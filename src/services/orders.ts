@@ -8,7 +8,7 @@ export const getAllOrders = async (data: ParamsType) => {
     const response = await axiosInstance.get(`${BASE_URL}/orders`, {
       params: {
         order_no: data?.order_no || data?.keyword,
-        table_name: data?.name,
+        name: data?.name,
         start_date: data?.start_date,
         end_date: data?.end_date,
         shop_id: data?.shop_id,
@@ -58,7 +58,7 @@ export const getTodayOrdersCount = async (data: ParamsType) => {
     const response = await axiosInstance.get(`${BASE_URL}/orders`, {
       params: {
         order_no: data?.order_no || data?.keyword,
-        table_name: data?.name,
+        name: data?.name,
       },
     });
     return response.data;
@@ -151,4 +151,260 @@ export const getSalesChartData = async (params: SalesChartParams = {}) => {
   } catch (error) {
     throw error;
   }
+};
+
+// ============================================
+// ORDER ITEM OPERATIONS
+// ============================================
+
+interface UpdateOrderItemParams {
+  quantity?: number;
+  createdAt?: string;
+}
+
+/**
+ * ✅ Update order item (quantity and/or timestamp)
+ */
+export const updateOrderItem = async (itemId: string, data: UpdateOrderItemParams) => {
+  try {
+    const response = await axiosInstance.patch(
+      `${BASE_URL}/orders/items/${itemId}`,
+      data
+    );
+    message.success("Order item updated successfully");
+    return response.data;
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      message.error(error.response.data.message);
+    } else {
+      message.error("Error updating order item");
+    }
+    throw error;
+  }
+};
+
+/**
+ * ✅ NEW: Delete order item
+ */
+export const deleteOrderItem = async (itemId: string) => {
+  try {
+    const response = await axiosInstance.delete(
+      `${BASE_URL}/orders/items/${itemId}`
+    );
+    message.success("Order item deleted successfully");
+    return response.data;
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      message.error(error.response.data.message);
+    } else {
+      message.error("Error deleting order item");
+    }
+    throw error;
+  }
+};
+
+// ============================================
+// ORDER OPERATIONS
+// ============================================
+
+interface UpdateOrderParams {
+  cart_id?: string;
+  order_amount?: number;
+  table_id?: string;
+  updated_by?: string;
+  order_no?: string;
+  createdAt?: string;  // ✅ NEW: Support timestamp update
+}
+
+/**
+ * ✅ NEW: Update order (including timestamp with cascading updates)
+ */
+export const updateOrder = async (orderId: string, data: UpdateOrderParams) => {
+  try {
+    const response = await axiosInstance.put(
+      `${BASE_URL}/orders/${orderId}`,
+      data
+    );
+
+    // Show appropriate success message
+    // if (data.createdAt) {
+    //   message.success("Order updated successfully. Timestamps propagated to all items and payments.");
+    // } else {
+    //   message.success("Order updated successfully");
+    // }
+
+    return response.data;
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      message.error(error.response.data.message);
+    } else {
+      message.error("Error updating order");
+    }
+    throw error;
+  }
+};
+
+/**
+ * ✅ NEW: Update order timestamp only (convenience function)
+ */
+export const updateOrderTimestamp = async (orderId: string, createdAt: string) => {
+  try {
+    const response = await axiosInstance.put(
+      `${BASE_URL}/orders/${orderId}`,
+      { createdAt }
+    );
+
+    message.success(
+      `Order timestamp updated. ${response.data.timestamp_update?.order_items_updated || 0} items and ${response.data.timestamp_update?.order_payments_updated || 0} payments updated.`
+    );
+
+    return response.data;
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      message.error(error.response.data.message);
+    } else {
+      message.error("Error updating order timestamp");
+    }
+    throw error;
+  }
+};
+
+// ============================================
+// ORDER PAYMENT OPERATIONS
+// ============================================
+
+interface RepostOrderPaymentParams {
+  force_recreate?: boolean;
+}
+
+interface RepostOrderPaymentResponse {
+  success: boolean;
+  message: string;
+  order: {
+    order_id: string;
+    order_no: string;
+    order_amount: number;
+    order_type: string;
+    payment_status: string;
+    order_status: string;
+  };
+  payments_created: Array<{
+    _id: string;
+    method_id: string;
+    method_name: string;
+    method_type: string;
+    amount: number;
+    payment_status: string;
+    payment_date: string;
+    notes: string;
+  }>;
+  summary: {
+    total_payments: number;
+    total_amount: number;
+    was_forced: boolean;
+    deleted_old_payments: number;
+  };
+}
+
+/**
+ * ✅ NEW: Repost missing order payment for regular orders
+ * This function creates or recreates payment records for orders that are missing them
+ * 
+ * @param orderId - The ID of the order to repost payment for
+ * @param params - Optional parameters
+ * @param params.force_recreate - If true, deletes existing payments and recreates them
+ * 
+ * @example
+ * // Create missing payment
+ * await repostOrderPayment('695e063f1d1b335b0e8f3bbc');
+ * 
+ * @example
+ * // Force recreate existing payments
+ * await repostOrderPayment('695e063f1d1b335b0e8f3bbc', { force_recreate: true });
+ */
+export const repostOrderPayment = async (
+  orderId: string,
+  params: RepostOrderPaymentParams = {}
+): Promise<RepostOrderPaymentResponse> => {
+  try {
+    const response = await axiosInstance.post(
+      `${BASE_URL}/orders/${orderId}/repost-payment`,
+      params
+    );
+
+    const data = response.data as RepostOrderPaymentResponse;
+
+    // Show success message with details
+    if (data.summary.was_forced) {
+      message.success(
+        `Payment records recreated for order ${data.order.order_no}. ` +
+        `Created ${data.summary.total_payments} payment(s) totaling ${data.summary.total_amount}. ` +
+        `Deleted ${data.summary.deleted_old_payments} old payment(s).`
+      );
+    } else {
+      message.success(
+        `Payment records created for order ${data.order.order_no}. ` +
+        `Created ${data.summary.total_payments} payment(s) totaling ${data.summary.total_amount}.`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      message.error(error.response.data.message);
+    } else {
+      message.error("Error reposting order payment");
+    }
+    throw error;
+  }
+};
+
+/**
+ * ✅ NEW: Batch repost payments for multiple orders
+ * Useful for fixing multiple orders at once
+ * 
+ * @param orderIds - Array of order IDs to repost payments for
+ * @param forceRecreate - If true, deletes existing payments and recreates them for all orders
+ * 
+ * @returns Object with success/failure counts and details
+ */
+export const batchRepostOrderPayments = async (
+  orderIds: string[],
+  forceRecreate: boolean = false
+) => {
+  const results = {
+    success: [] as string[],
+    failed: [] as Array<{ orderId: string; error: string }>,
+    total: orderIds.length,
+  };
+
+  for (const orderId of orderIds) {
+    try {
+      await repostOrderPayment(orderId, { force_recreate: forceRecreate });
+      results.success.push(orderId);
+    } catch (error) {
+      results.failed.push({
+        orderId,
+        error: error?.response?.data?.message || error.message || "Unknown error",
+      });
+    }
+  }
+
+  // Show summary message
+  if (results.failed.length === 0) {
+    message.success(
+      `Successfully reposted payments for all ${results.total} orders`
+    );
+  } else if (results.success.length === 0) {
+    message.error(
+      `Failed to repost payments for all ${results.total} orders`
+    );
+  } else {
+    message.warning(
+      `Reposted payments for ${results.success.length}/${results.total} orders. ` +
+      `${results.failed.length} failed.`
+    );
+  }
+
+  return results;
 };

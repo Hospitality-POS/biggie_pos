@@ -36,11 +36,12 @@ export const fetchAllWages = async (data: ParamsType) => {
         const response = await axiosInstance.get(wageUrl, {
             params: {
                 user_id: data?.user_id,
-                shop_id: data?.shop_id,
                 wageType: data?.wageType,
                 isActive: data?.isActive,
                 page: data?.page,
-                limit: data?.limit
+                limit: data?.limit,
+                // ✅ search param for backend filtering
+                search: data?.search,
             },
         });
 
@@ -109,14 +110,15 @@ export const updateWage = async (data: ParamsType) => {
         const tenant = getTenant();
         const companyCode = localStorage.getItem("companyCode");
 
-        // Normalize user_id and shop_id - ensure they are strings
+        // ✅ Only normalize user_id — wages are not shop-scoped
         const user_id = normalizeId(data.value.user_id);
-        const shop_id = normalizeId(data.value.shop_id);
+
+        // ✅ Strip shop_id out entirely — backend should not require it for wages
+        const { shop_id: _removed, ...restValue } = data.value;
 
         const requestBody = {
-            ...data.value,
+            ...restValue,
             user_id,
-            shop_id,
             tenant,
             companyCode,
             tenant_code: companyCode || (tenant ? tenant.tenant_code : null)
@@ -140,33 +142,30 @@ export const updateWage = async (data: ParamsType) => {
     }
 };
 
-export const addWage = async (wageData) => {
+export const addWage = async (wageData: any) => {
     try {
         const tenant = getTenant();
         const companyCode = localStorage.getItem("companyCode");
 
-        // Normalize user_id and shop_id - ensure they are strings
+        // ✅ Only normalize user_id — wages are not shop-scoped
         const user_id = normalizeId(wageData.user_id);
-        const shop_id = normalizeId(wageData.shop_id);
 
-        // Validate required fields
         if (!user_id) {
             throw new Error("User ID is required");
         }
-        if (!shop_id) {
-            throw new Error("Shop ID is required");
-        }
+
+        // ✅ Strip shop_id out entirely
+        const { shop_id: _removed, ...restData } = wageData;
 
         const requestBody = {
-            ...wageData,
+            ...restData,
             user_id,
-            shop_id,
             tenant,
             companyCode,
             tenant_code: companyCode || (tenant ? tenant.tenant_code : null)
         };
 
-        console.log('Sending wage data:', requestBody); // Debug log
+        console.log('Sending wage data:', requestBody);
 
         const response = await axiosInstance.post(`${wageUrl}`, requestBody, {
             headers: {
@@ -186,20 +185,19 @@ export const addWage = async (wageData) => {
     }
 };
 
-export const addWagesBulk = async (wagesData) => {
+export const addWagesBulk = async (wagesData: any[]) => {
     try {
         const tenant = getTenant();
         const companyCode = localStorage.getItem("companyCode");
 
+        // ✅ Normalize user_id only, strip shop_id for each wage
         const requestBody = wagesData.map(wage => {
-            // Normalize user_id and shop_id for each wage
             const user_id = normalizeId(wage.user_id);
-            const shop_id = normalizeId(wage.shop_id);
+            const { shop_id: _removed, ...restWage } = wage;
 
             return {
-                ...wage,
+                ...restWage,
                 user_id,
-                shop_id,
                 tenant,
                 companyCode,
                 tenant_code: companyCode || (tenant ? tenant.tenant_code : null)

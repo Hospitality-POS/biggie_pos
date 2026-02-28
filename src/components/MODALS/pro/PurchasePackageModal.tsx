@@ -68,11 +68,21 @@ const PurchasePackageModal: React.FC<PurchasePackageModalProps> = ({
     console.log('Payment Methods Data:', paymentMethodsData);
     console.log('Payment Methods Array:', paymentMethods);
 
-    const filteredCustomers = customers.filter(customer =>
-        customer.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.phone?.includes(searchTerm) ||
-        customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Fixed: Convert phone to string before using includes()
+    const filteredCustomers = customers.filter(customer => {
+        if (!searchTerm.trim()) return true;
+
+        const searchLower = searchTerm.toLowerCase();
+        const phoneString = customer.phone ? String(customer.phone) : '';
+        const name = customer.customer_name ? customer.customer_name.toLowerCase() : '';
+        const email = customer.email ? customer.email.toLowerCase() : '';
+
+        return (
+            name.includes(searchLower) ||
+            phoneString.includes(searchTerm) || // Use original search term for phone (no lowercase)
+            email.includes(searchLower)
+        );
+    });
 
     const handleSubmit = async (values: any) => {
         if (!pkg) return;
@@ -253,7 +263,7 @@ const PurchasePackageModal: React.FC<PurchasePackageModalProps> = ({
                                                 {customer.phone && (
                                                     <span>
                                                         <PhoneOutlined style={{ marginRight: '4px' }} />
-                                                        {customer.phone}
+                                                        {String(customer.phone)}
                                                     </span>
                                                 )}
                                                 {customer.email && (

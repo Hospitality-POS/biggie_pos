@@ -34,7 +34,7 @@ export interface CustomerSubscription {
     end_date: string;
     purchase_amount: number;
     payment_method_id?: string;
-    payment_status: 'Paid' | 'Pending' | 'Refunded';
+    payment_status: 'Paid' | 'Pending' | 'Refunded' | 'Failed';
     payment_date: string;
     status: 'Active' | 'Expired' | 'Exhausted' | 'Cancelled';
     cancellation_reason?: string;
@@ -77,6 +77,7 @@ export const fetchAllPackages = async (params?: {
     page?: number;
     limit?: number;
     is_active?: boolean;
+    search?: string;
 }) => {
     const shopId = localStorage.getItem("shopId");
     const response = await axiosInstance.get(`${BASE_URL}/packages`, {
@@ -189,18 +190,31 @@ export const purchaseSubscription = async (subscriptionData: {
 export const fetchAllSubscriptions = async (params?: {
     page?: number;
     limit?: number;
-    status?: string;
+    status?: string | string[];
     customer_id?: string;
     package_id?: string;
     payment_status?: string;
     search?: string;
+    customer_name?: string;
+    package_name?: string;
 }) => {
     const shopId = localStorage.getItem("shopId");
+
+    // Handle array status parameter
+    const requestParams: any = {
+        shop_id: shopId,
+        page: params?.page,
+        limit: params?.limit,
+        ...params,
+    };
+
+    // Convert status array to comma-separated string if needed
+    if (params?.status && Array.isArray(params.status)) {
+        requestParams.status = params.status.join(',');
+    }
+
     const response = await axiosInstance.get(baseUrl, {
-        params: {
-            shop_id: shopId,
-            ...params,
-        },
+        params: requestParams,
     });
     return response.data;
 };
@@ -210,6 +224,43 @@ export const fetchSubscriptionById = async (subscriptionId: string) => {
     const response = await axiosInstance.get(`${baseUrl}/${subscriptionId}`, {
         params: { shop_id: shopId },
     });
+    return response.data;
+};
+
+// ADDED: Delete subscription function
+export const deleteSubscription = async (subscriptionId: string) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.delete(`${baseUrl}/${subscriptionId}`, {
+        params: { shop_id: shopId },
+    });
+    return response.data;
+};
+
+// ADDED: Update subscription function
+export const updateSubscription = async (
+    subscriptionId: string,
+    updateData: {
+        total_visits_allowed?: number;
+        visits_used?: number;
+        visits_remaining?: number;
+        start_date?: string;
+        end_date?: string;
+        purchase_amount?: number;
+        payment_method_id?: string;
+        payment_status?: 'Paid' | 'Pending' | 'Refunded' | 'Failed';
+        status?: 'Active' | 'Expired' | 'Exhausted' | 'Cancelled';
+        cancellation_reason?: string;
+        refund_amount?: number;
+    }
+) => {
+    const shopId = localStorage.getItem("shopId");
+    const response = await axiosInstance.put(
+        `${baseUrl}/${subscriptionId}`,
+        updateData,
+        {
+            params: { shop_id: shopId },
+        }
+    );
     return response.data;
 };
 
@@ -453,6 +504,8 @@ export default {
     purchaseSubscription,
     fetchAllSubscriptions,
     fetchSubscriptionById,
+    deleteSubscription,
+    updateSubscription, // ADDED: Export the update function
     fetchCustomerSubscriptions,
     fetchCustomerActiveSubscriptions,
     fetchCustomerSubscriptionHistory,

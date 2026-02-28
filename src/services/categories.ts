@@ -2,15 +2,46 @@ import { ParamsType } from "@ant-design/pro-components";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 import axiosInstance from "./request";
+
 const categ_url = `${BASE_URL}/categories`;
 
-//  categories
+// ✅ FIXED: Properly handle shop_id parameter
+export const fetchAllCategories = async (data: ParamsType & { shop_id?: string }) => {
+  try {
+    const params: any = {};
 
-export const fetchAllCategories = async (data: ParamsType) => {
-  const response = await axiosInstance.get(categ_url, {
-    params: { name: data.name, sub_category: data.sub_category?.name },
-  });
-  return response.data;
+    // Add name if provided
+    if (data.name) {
+      params.name = data.name;
+    }
+
+    if (data.state) {
+      params.state = data.state;
+    }
+
+    // Add sub_category name if provided
+    if (data.sub_category?.name) {
+      params.sub_category = data.sub_category.name;
+    }
+
+    // IMPORTANT: Ensure shop_id is passed correctly
+    if (data.shop_id) {
+      // Convert to string and trim whitespace
+      params.shop_id = String(data.shop_id).trim();
+      console.log("📤 Sending shop_id to API:", params.shop_id);
+    }
+
+    console.log("📡 fetchAllCategories called with params:", params);
+
+    const response = await axiosInstance.get(categ_url, { params });
+
+    console.log("✅ Response received:", response.data);
+
+    return response.data;
+  } catch (error) {
+    console.error("❌ Error fetching categories:", error);
+    throw error;
+  }
 };
 
 export const deleteCategory = async (params: ParamsType) => {
@@ -28,6 +59,7 @@ export const addNewCategory = async (params: ParamsType) => {
     const response = await axiosInstance.post(categ_url, {
       name: params.name,
       sub_category: params.subcategory_id,
+      shop_id: params.shop_id,
     });
     message.success("Category added successfully");
     return response.data;
@@ -86,8 +118,6 @@ export const addNewSubCategory = async (params: ParamsType) => {
 
 export const editSubCategory = async (data: ParamsType) => {
   try {
-    // console.log("xxxxxx", data);
-
     const response = await axiosInstance.put(
       `${categ_url}/sub-categories/${data?._id}`,
       {

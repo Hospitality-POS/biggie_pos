@@ -17,30 +17,27 @@ import SubscriptionGuard from "./SubscriptionGuard";
 
 const { Text } = Typography;
 
-
-
 function Layout() {
   const { user } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
   const isLoginRoute = location.pathname === "/login";
-
   const isCustomersRoute = location.pathname === "/admin/customers";
-
   const isClockInRoute = location.pathname === "/admin/staff-clock-in";
-
   const isAdminRoute =
     location.pathname === "/admin" || location.pathname.startsWith("/admin");
 
   const shopId = localStorage.getItem("shopId") || undefined;
 
+  // ✅ Only fetch if we have both a valid shopId AND a logged-in user
+  const isAuthenticated = !!user && !!localStorage.getItem("user");
+  const hasValidShopId = !!shopId && shopId !== "undefined" && shopId !== "null";
+
   const { data: currentShop } = useQuery(
     ["currentShop", shopId],
-    () => {
-      if (!shopId || shopId === 'undefined') return Promise.reject("No shopId");
-      return fetchShop(shopId);
-    },
+    () => fetchShop(shopId!),
     {
-      enabled: !!shopId,
+      enabled: isAuthenticated && hasValidShopId, // ✅ both must be true
+      retry: false,                               // ✅ no retries on failure
       networkMode: "always",
       cacheTime: 0,
       staleTime: 0,

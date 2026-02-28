@@ -1,220 +1,276 @@
-import { ParamsType } from "@ant-design/pro-components";
-import axiosInstance from "../request";
+import { BASE_URL } from "@utils/config";
 import { message } from "antd";
-import { ACCOUNTING_BASE_URL, POS_API_KEY } from "@utils/config";
+import axiosInstance from "../request";
 
-const journalsUrl = `${ACCOUNTING_BASE_URL}/api/v1/journals`;
+// ============================================
+// TYPES
+// ============================================
 
-const getUser = (): any => {
+export type JournalEntryStatus = "Draft" | "Posted" | "Voided";
+export type JournalEntrySource =
+    | "manual"
+    | "pos_sale"
+    | "pos_subscription"
+    | "invoice"
+    | "bill"
+    | "payment"
+    | "reconciliation";
+
+export interface JournalLine {
+    _id?: string;
+    account_id: string | { _id: string; account_code: string; account_name: string; account_type: string };
+    account_code?: string;
+    account_name?: string;
+    debit: number;
+    credit: number;
+    description?: string;
+    customer_id?: string;
+    supplier_id?: string;
+}
+
+export interface JournalEntry {
+    _id: string;
+    entry_no: string;
+    entry_date: string;
+    description: string;
+    reference?: string;
+    lines: JournalLine[];
+    total_debit: number;
+    total_credit: number;
+    status: JournalEntryStatus;
+    posted_at?: string;
+    posted_by?: string | { _id: string; username: string; name: string };
+    voided_at?: string;
+    voided_by?: string | { _id: string; username: string; name: string };
+    voided_reason?: string;
+    source: JournalEntrySource;
+    source_id?: string;
+    source_type?: string;
+    fiscal_year?: number;
+    fiscal_month?: number;
+    shop_id: string;
+    created_by?: string | { _id: string; username: string; name: string };
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface JournalEntrySummary {
+    total_entries: number;
+    total_debits: number;
+    total_credits: number;
+    by_status: Record<string, number>;
+    by_source: Record<string, { debit: number; credit: number; count: number }>;
+}
+
+// ── Query param interfaces ───────────────────────────────────────────────────
+
+export interface GetJournalEntriesParams {
+    shop_id: string;
+    status?: JournalEntryStatus;
+    source?: JournalEntrySource;
+    from?: string;
+    to?: string;
+    fiscal_year?: number;
+    fiscal_month?: number;
+    search?: string;
+    page?: number;
+    limit?: number;
+}
+
+export interface CreateManualEntryParams {
+    shop_id: string;
+    entry_date?: string;
+    description: string;
+    reference?: string;
+    lines: Array<{
+        account_id: string;
+        debit?: number;
+        credit?: number;
+        description?: string;
+        customer_id?: string;
+        supplier_id?: string;
+    }>;
+    auto_post?: boolean;
+}
+
+export interface CreateExpenseEntryParams {
+    shop_id: string;
+    description: string;
+    amount: number;
+    expense_account_id: string;
+    payment_account_id: string;
+    reference?: string;
+    entry_date?: string;
+    vat_amount?: number;
+}
+
+// ============================================
+// JOURNAL ENTRY SERVICES
+// ============================================
+
+/**
+ * Get all journal entries with filters and pagination.
+ */
+export const getAllJournalEntries = async (params: GetJournalEntriesParams) => {
     try {
-        const userStr = localStorage.getItem("user");
-        return userStr ? JSON.parse(userStr) : null;
+        const response = await axiosInstance.get(
+            `${BASE_URL}/accounting/journal-entries`,
+            { params }
+        );
+        return response.data as {
+            entries: JournalEntry[];
+            totalPages: number;
+            currentPage: number;
+            totalEntries: number;
+        };
     } catch (error) {
-        console.error("Error parsing user from localStorage:", error);
-        return null;
-    }
-};
-
-// Helper to add POS headers with user info
-const getPOSHeaders = () => {
-    const user = getUser();
-    return {
-        'x-pos-request': 'true',
-        'x-pos-api-key': POS_API_KEY,
-        'x-user-id': user?._id || user?.id || 'pos-system',
-        'x-user-name': user?.name || user?.username || 'POS User',
-        'x-user-email': user?.email || 'pos@system.local'
-    };
-};
-
-export const fetchAllJournals = async (data: ParamsType) => {
-    try {
-        const response = await axiosInstance.get(journalsUrl, {
-            params: {
-                entry_number: data.entry_number,
-                entry_date: data.entry_date,
-                status: data.status,
-                entry_type: data.entry_type,
-                source: data.source,
-                start_date: data.start_date,
-                end_date: data.end_date,
-                search: data.search,
-                page: data.page || 1,
-                limit: data.limit || 20,
-                sort: data.sort || '-entry_date'
-            },
-            headers: getPOSHeaders(),
-        });
-        return response.data;
-    } catch (error: any) {
-        message.error(error?.response?.data?.message || "Failed to fetch journal entries");
         throw error;
     }
 };
 
-export const addNewJournal = async (params: ParamsType) => {
+/**
+ * Get a single journal entry by ID with fully populated account info on each line.
+ */
+export const getJournalEntryById = async (id: string) => {
     try {
-        // Map frontend fields to backend expected format
-        const payload = {
-            entry_date: params.journal_date || params.entry_date,
-            entry_type: params.type || params.entry_type || 'general',
-            reference: params.reference,
-            description: params.description,
-            status: params.status || 'draft',
-            items: params.entries?.map((entry: any) => ({
-                account_id: entry.account_id,
-                description: entry.description || params.description,
-                debit: parseFloat(entry.debit) || 0,
-                credit: parseFloat(entry.credit) || 0,
-            })) || [],
-            source: 'manual',
-        };
-
-        console.log('Creating journal entry with payload:', payload);
-
-        const response = await axiosInstance.post(journalsUrl, payload, {
-            headers: getPOSHeaders(),
-        });
-
-        message.success("Journal entry created successfully");
-        return response.data;
-    } catch (error: any) {
-        console.error('Create journal error:', error?.response?.data);
-        message.error(error?.response?.data?.message || "Failed to create journal entry");
+        const response = await axiosInstance.get(
+            `${BASE_URL}/accounting/journal-entries/${id}`
+        );
+        return response.data as { entry: JournalEntry };
+    } catch (error) {
         throw error;
     }
 };
 
-export const editJournal = async (params: ParamsType) => {
+/**
+ * Get journal entry dashboard summary — counts by status and totals by source.
+ */
+export const getJournalEntrySummary = async (
+    shop_id: string,
+    fiscal_year?: number,
+    fiscal_month?: number
+) => {
     try {
-        // Map frontend fields to backend expected format
-        const payload = {
-            entry_date: params.value.journal_date || params.value.entry_date,
-            entry_type: params.value.type || params.value.entry_type || 'general',
-            reference: params.value.reference,
-            description: params.value.description,
-            status: params.value.status || 'draft',
-            items: params.value.entries?.map((entry: any) => ({
-                account_id: entry.account_id,
-                description: entry.description || params.value.description,
-                debit: parseFloat(entry.debit) || 0,
-                credit: parseFloat(entry.credit) || 0,
-            })) || [],
-        };
-
-        console.log('Updating journal entry with payload:', payload);
-
-        const response = await axiosInstance.put(`${journalsUrl}/${params._id}`, payload, {
-            headers: getPOSHeaders(),
-        });
-
-        message.success("Journal entry updated successfully");
-        return response.data;
-    } catch (error: any) {
-        console.error('Update journal error:', error?.response?.data);
-        message.error(error?.response?.data?.message || "Failed to update journal entry");
+        const response = await axiosInstance.get(
+            `${BASE_URL}/accounting/journal-entries/summary`,
+            { params: { shop_id, fiscal_year, fiscal_month } }
+        );
+        return response.data as { summary: JournalEntrySummary };
+    } catch (error) {
         throw error;
     }
 };
 
-export const deleteJournal = async (id: string) => {
+/**
+ * Get all journal entries linked to a specific source document.
+ * e.g. source_type = "order", source_id = "65abc123"
+ */
+export const getEntriesBySource = async (
+    source_type: string,
+    source_id: string,
+    shop_id: string
+) => {
     try {
-        const response = await axiosInstance.delete(`${journalsUrl}/${id}`, {
-            headers: getPOSHeaders(),
-        });
-        message.success("Journal entry deleted successfully");
-        return response.data;
-    } catch (error: any) {
-        message.error(error?.response?.data?.message || "Failed to delete journal entry");
+        const response = await axiosInstance.get(
+            `${BASE_URL}/accounting/journal-entries/by-source/${source_type}/${source_id}`,
+            { params: { shop_id } }
+        );
+        return response.data as { count: number; entries: JournalEntry[] };
+    } catch (error) {
         throw error;
     }
 };
 
-export const getJournalById = async (id: string) => {
+/**
+ * Create a manual journal entry.
+ * Defaults to Draft status — pass auto_post: true to post immediately.
+ * Lines must balance (total debits === total credits).
+ */
+export const createManualEntry = async (data: CreateManualEntryParams) => {
     try {
-        const response = await axiosInstance.get(`${journalsUrl}/${id}`, {
-            headers: getPOSHeaders(),
-        });
-        return response.data;
-    } catch (error: any) {
-        message.error(error?.response?.data?.message || "Failed to fetch journal entry");
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/journal-entries`,
+            data
+        );
+        message.success(
+            data.auto_post
+                ? "Journal entry created and posted"
+                : "Journal entry created as Draft"
+        );
+        return response.data as { entry: JournalEntry };
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error creating journal entry");
+        }
         throw error;
     }
 };
 
-export const postJournal = async (id: string) => {
+/**
+ * Create and immediately post a direct expense entry.
+ * Shortcut — no need to build lines manually.
+ */
+export const createExpenseEntry = async (data: CreateExpenseEntryParams) => {
     try {
-        const response = await axiosInstance.post(`${journalsUrl}/${id}/post`, {}, {
-            headers: getPOSHeaders(),
-        });
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/journal-entries/expense`,
+            data
+        );
+        message.success("Expense entry created and posted");
+        return response.data as { entry: JournalEntry };
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error creating expense entry");
+        }
+        throw error;
+    }
+};
+
+/**
+ * Post a Draft journal entry (Draft → Posted).
+ */
+export const postJournalEntry = async (id: string) => {
+    try {
+        const response = await axiosInstance.patch(
+            `${BASE_URL}/accounting/journal-entries/${id}/post`
+        );
         message.success("Journal entry posted successfully");
-        return response.data;
-    } catch (error: any) {
-        message.error(error?.response?.data?.message || "Failed to post journal entry");
+        return response.data as { entry: JournalEntry };
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error posting journal entry");
+        }
         throw error;
     }
 };
 
-export const voidJournal = async (id: string, reason: string) => {
+/**
+ * Void a Posted journal entry.
+ * Automatically creates a reversal entry (debits and credits swapped).
+ */
+export const voidJournalEntry = async (id: string, reason: string) => {
     try {
-        const response = await axiosInstance.post(`${journalsUrl}/${id}/void`, { reason }, {
-            headers: getPOSHeaders(),
-        });
-        message.success("Journal entry voided successfully");
-        return response.data;
-    } catch (error: any) {
-        message.error(error?.response?.data?.message || "Failed to void journal entry");
-        throw error;
-    }
-};
-
-export const approveJournal = async (id: string) => {
-    try {
-        const response = await axiosInstance.post(`${journalsUrl}/${id}/approve`, {}, {
-            headers: getPOSHeaders(),
-        });
-        message.success("Journal entry approved successfully");
-        return response.data;
-    } catch (error: any) {
-        message.error(error?.response?.data?.message || "Failed to approve journal entry");
-        throw error;
-    }
-};
-
-// Get general ledger
-export const getGeneralLedger = async (params: ParamsType) => {
-    try {
-        const response = await axiosInstance.get(`${journalsUrl}/general-ledger`, {
-            params: {
-                page: params.page || 1,
-                limit: params.limit || 50,
-                account_id: params.account_id,
-                start_date: params.start_date,
-                end_date: params.end_date,
-                sort: params.sort || 'createdAt'
-            },
-            headers: getPOSHeaders(),
-        });
-        return response.data;
-    } catch (error: any) {
-        message.error(error?.response?.data?.message || "Failed to fetch general ledger");
-        throw error;
-    }
-};
-
-// Get journal statistics
-export const getJournalStats = async (params: ParamsType) => {
-    try {
-        const response = await axiosInstance.get(`${journalsUrl}/stats`, {
-            params: {
-                start_date: params.start_date,
-                end_date: params.end_date
-            },
-            headers: getPOSHeaders(),
-        });
-        return response.data;
-    } catch (error: any) {
-        message.error(error?.response?.data?.message || "Failed to fetch journal statistics");
+        const response = await axiosInstance.patch(
+            `${BASE_URL}/accounting/journal-entries/${id}/void`,
+            { reason }
+        );
+        message.success("Journal entry voided and reversal created");
+        return response.data as {
+            voided_entry: JournalEntry;
+            reversal_entry: JournalEntry;
+        };
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error voiding journal entry");
+        }
         throw error;
     }
 };

@@ -714,12 +714,12 @@ const ProNavbar = ({ children }) => {
           colorTextAppListIconHover: "black",
           colorTextAppListIcon: "white",
           colorBgAppListIconHover: "white",
-          hashId: "fss001",
+          hashId: "reliatech",
           header: {
             colorBgMenuItemSelected: "#f6ffed",
             colorBgHeader: primaryColor,
-            colorTextMenu: "#ffff",
-            colorTextMenuSecondary: "#f6ffed",
+            colorTextMenu: "#c5bfbfff",
+            colorTextMenuSecondary: "#595959",
             colorBgMenuItemHover: "#f6ffed",
           },
         }}

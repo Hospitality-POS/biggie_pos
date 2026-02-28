@@ -1,6 +1,10 @@
 import axios from "axios";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
+import { queryClient } from "../main";
+
+// Flag to suppress errors during logout
+let isLoggingOut = false;
 
 // Helper function to handle errors
 const handleError = (errorMessage: string) => {
@@ -9,6 +13,9 @@ const handleError = (errorMessage: string) => {
 
 // Helper function to handle user logout
 const logoutUser = () => {
+    isLoggingOut = true;
+    queryClient.cancelQueries();  // ✅ Cancel all in-flight queries immediately
+    queryClient.clear();          // ✅ Clear all cached query data
     localStorage.removeItem("user");
     localStorage.removeItem("shopId");
     localStorage.removeItem("companyCode");
@@ -27,6 +34,23 @@ const getValidShopId = (): string | null => {
     return shopId;
 };
 
+// ✅ Routes that should NOT have shop_id injected
+// Add any route here that is global/tenant-level (not shop-specific)
+const EXCLUDED_ROUTES = [
+    '/users',
+    '/shops',
+    '/tenants',
+    '/wages',        // ✅ wages are per-employee, not per-shop
+    '/payroll',      // ✅ payroll is tenant-level
+    '/subscriptions',
+    '/invoices',
+    '/business-types',
+];
+
+const isExcludedRoute = (url: string = ''): boolean => {
+    return EXCLUDED_ROUTES.some(route => url.includes(route));
+};
+
 // Create an axios instance with the base URL and timeout
 const axiosInstance = axios.create({
     baseURL: BASE_URL,
@@ -35,6 +59,11 @@ const axiosInstance = axios.create({
 // Interceptor to add authorization token to each request if available
 axiosInstance.interceptors.request.use(
     (config) => {
+        // ✅ Block all requests if logout is in progress
+        if (isLoggingOut) {
+            return Promise.reject(new axios.Cancel("Request cancelled due to logout"));
+        }
+
         const user = localStorage.getItem("user");
         const shopId = getValidShopId();
 
@@ -49,8 +78,8 @@ axiosInstance.interceptors.request.use(
             console.log("📤 Request:", config.method?.toUpperCase(), config.url);
             console.log("📍 Shop ID:", shopId);
 
-            // ✅ Only add shop_id if it's valid and not for user/shop/tenant routes
-            if (shopId && !(config.url?.includes('/users') || config.url?.includes('/shops') || config.url?.includes('/tenants'))) {
+            // ✅ Only inject shop_id for shop-specific routes
+            if (shopId && !isExcludedRoute(config.url)) {
 
                 // ✅ Handle GET and DELETE methods (query params)
                 if (config.method === 'get' || config.method === 'delete') {
@@ -63,25 +92,21 @@ axiosInstance.interceptors.request.use(
                 }
                 // ✅ Handle POST, PUT, PATCH methods (request body)
                 else if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
-                    // Robust handling of different data types
                     if (config.data instanceof FormData) {
-                        // If it's FormData, append the shop_id
                         config.data.append('shop_id', shopId);
                         console.log("✅ Added shop_id to FormData");
                     } else if (config.data && typeof config.data === 'object') {
-                        // If it's a plain object, add shop_id directly
                         config.data = {
                             ...config.data,
                             shop_id: shopId
                         };
                         console.log("✅ Added shop_id to body:", config.data);
                     } else {
-                        // If no data exists, create an object with shop_id
                         config.data = { shop_id: shopId };
                         console.log("✅ Created body with shop_id");
                     }
                 }
-            } else if (!shopId && !config.url?.includes('/users') && !config.url?.includes('/shops') && !config.url?.includes('/tenants')) {
+            } else if (!shopId && !isExcludedRoute(config.url)) {
                 console.warn("⚠️ Shop ID is missing for request:", config.url);
             }
         }
@@ -103,6 +128,9 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
+        // ✅ Suppress all error messages if logout is in progress or request was cancelled
+        if (isLoggingOut || axios.isCancel(error)) return Promise.reject(error);
+
         const { response } = error;
         if (response) {
             switch (response.status) {
@@ -123,7 +151,6 @@ axiosInstance.interceptors.response.use(
                     handleError(response.data.message || "Invalid request");
                     break;
                 default:
-                    // Optional: generic error handling
                     break;
             }
         } else {

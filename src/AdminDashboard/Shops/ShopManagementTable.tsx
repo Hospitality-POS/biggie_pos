@@ -26,7 +26,25 @@ const ShopManagementTable = () => {
 
   const handleShopClick = (shopId: string) => {
     localStorage.setItem("shopId", shopId);
-    navigate("/tables");
+
+    // ✅ NEW: Smart navigation based on enabled modules
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+
+    const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
+    const hasAccounting = !!(
+      tenant?.accounting_database?.enabled ||
+      tenant?.modules?.accounting
+    );
+
+    // Navigate based on enabled modules
+    if (hasAccounting && !hasPOS) {
+      // Accounting only → go to /accounting
+      navigate("/accounting");
+    } else {
+      // POS enabled (or both) → go to /tables
+      navigate("/tables");
+    }
   };
 
   const actionColumn = {
@@ -78,14 +96,14 @@ const ShopManagementTable = () => {
       }}
       columns={[
         {
-          title: "Shop Name",
+          title: "Branch Name",
           dataIndex: "name",
           key: "name",
           copyable: true,
           ellipsis: true,
-          tip: "Shop name will be unique across system",
+          tip: "Branch name will be unique across system",
           formItemProps: {
-            rules: [{ required: true, message: "Shop name is required" }],
+            rules: [{ required: true, message: "Branch name is required" }],
           },
         },
         {
@@ -93,7 +111,7 @@ const ShopManagementTable = () => {
           dataIndex: "location",
           hideInSearch: false,
           fieldProps: {
-            placeholder: "Enter shop location",
+            placeholder: "Enter Branch location",
           },
         },
         {
@@ -144,12 +162,12 @@ const ShopManagementTable = () => {
         selections: false,
       }}
       search={{
-        searchText: "Search Shop",
+        searchText: "Search Branch",
         resetText: "Reset",
         labelWidth: "auto",
       }}
       dateFormatter="string"
-      headerTitle="Shop Management"
+      headerTitle="Branch Management"
       toolBarRender={() => [
         <AddEditShopModal edit={false} actionRef={tableRef} />,
       ]}

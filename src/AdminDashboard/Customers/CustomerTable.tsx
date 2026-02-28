@@ -5,7 +5,6 @@ import {
   ProFormInstance,
 } from "@ant-design/pro-components";
 import { fetchAllCustomers } from "@services/customers";
-import { fetchAllInvoices } from "@services/accounting/invoices";
 import ExpandedRowContent from "./ExpandableCustomer";
 import GiftCardModal from "../../components/MODALS/pro/GiftCardModal";
 import {
@@ -17,8 +16,6 @@ import {
   HistoryOutlined,
   BarsOutlined,
   UserAddOutlined,
-  FileTextOutlined,
-  DollarOutlined,
 } from "@ant-design/icons";
 import {
   Tag,
@@ -28,19 +25,12 @@ import {
   Table,
   App,
   Tabs,
-  Typography,
-  Statistic,
-  Card,
-  Row,
-  Col,
 } from "antd";
 import { useDispatch } from "react-redux";
 import { fetchAllGiftCards } from "@services/customers";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
-import dayjs from "dayjs";
 
 const { TabPane } = Tabs;
-const { Text, Title } = Typography;
 
 const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
   const dispatch = useDispatch();
@@ -52,15 +42,12 @@ const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
   const [isSendEmailModalVisible, setIsSendEmailModalVisible] = useState(false);
   const [isViewGiftCardsModalVisible, setIsViewGiftCardsModalVisible] = useState(false);
   const [isAllGiftCardsModalVisible, setIsAllGiftCardsModalVisible] = useState(false);
-  const [isViewInvoicesModalVisible, setIsViewInvoicesModalVisible] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState(null);
   const [currentGiftCard, setCurrentGiftCard] = useState(null);
   const [customerGiftCards, setCustomerGiftCards] = useState([]);
-  const [customerInvoices, setCustomerInvoices] = useState([]);
   const [allGiftCards, setAllGiftCards] = useState([]);
   const [loadingGiftCards, setLoadingGiftCards] = useState(false);
   const [loadingAllGiftCards, setLoadingAllGiftCards] = useState(false);
-  const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [clientName, setClientName] = useState("Relia Pos");
 
   const [activeTabKey, setActiveTabKey] = useState("customers");
@@ -106,25 +93,6 @@ const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
       messageApi.error("Failed to load gift cards");
     } finally {
       setLoadingGiftCards(false);
-    }
-  };
-
-  const showCustomerInvoices = async (record) => {
-    setCurrentCustomer(record);
-    setIsViewInvoicesModalVisible(true);
-    setLoadingInvoices(true);
-
-    try {
-      // Fetch invoices filtered by customer
-      const response = await fetchAllInvoices({
-        customer: record._id,
-      });
-      setCustomerInvoices(response.data || []);
-    } catch (error) {
-      console.error("Failed to fetch customer invoices:", error);
-      messageApi.error("Failed to load invoices");
-    } finally {
-      setLoadingInvoices(false);
     }
   };
 
@@ -241,74 +209,6 @@ const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
     },
   ];
 
-  // Invoice columns for customer invoices table
-  const invoiceColumns = [
-    {
-      title: "Invoice #",
-      dataIndex: "invoice_number",
-      key: "invoice_number",
-      width: 120,
-    },
-    {
-      title: "Date",
-      dataIndex: "invoice_date",
-      key: "invoice_date",
-      width: 120,
-      render: (date) => dayjs(date).format("MMM DD, YYYY"),
-    },
-    {
-      title: "Due Date",
-      dataIndex: "due_date",
-      key: "due_date",
-      width: 120,
-      render: (date) => dayjs(date).format("MMM DD, YYYY"),
-    },
-    {
-      title: "Total",
-      dataIndex: "total",
-      key: "total",
-      width: 120,
-      render: (amount) => `KES ${amount?.toLocaleString()}`,
-    },
-    {
-      title: "Paid",
-      dataIndex: "amount_paid",
-      key: "amount_paid",
-      width: 120,
-      render: (amount) => (
-        <Text style={{ color: "#52c41a" }}>KES {amount?.toLocaleString()}</Text>
-      ),
-    },
-    {
-      title: "Balance",
-      dataIndex: "balance_due",
-      key: "balance_due",
-      width: 120,
-      render: (amount) => (
-        <Text style={{ color: "#fa8c16", fontWeight: 500 }}>
-          KES {amount?.toLocaleString()}
-        </Text>
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      width: 100,
-      render: (status) => {
-        const colors = {
-          draft: "default",
-          sent: "blue",
-          open: "cyan",
-          partial: "orange",
-          paid: "green",
-          overdue: "red",
-        };
-        return <Tag color={colors[status]}>{status?.toUpperCase()}</Tag>;
-      },
-    },
-  ];
-
   const columns = [
     {
       title: "Name",
@@ -372,42 +272,10 @@ const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
           >
             View Gift Cards
           </Button>
-          <Button
-            icon={<FileTextOutlined />}
-            onClick={() => showCustomerInvoices(record)}
-            style={{ background: "#1890ff", color: "white", borderColor: "#1890ff" }}
-          >
-            View Invoices
-          </Button>
         </Space>
       ),
     },
   ];
-
-  // Calculate invoice statistics
-  const calculateInvoiceStats = () => {
-    if (!customerInvoices || customerInvoices.length === 0) {
-      return {
-        totalAmount: 0,
-        paidAmount: 0,
-        balanceAmount: 0,
-        invoiceCount: 0,
-      };
-    }
-
-    const totalAmount = customerInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-    const paidAmount = customerInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
-    const balanceAmount = customerInvoices.reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
-
-    return {
-      totalAmount,
-      paidAmount,
-      balanceAmount,
-      invoiceCount: customerInvoices.length,
-    };
-  };
-
-  const invoiceStats = calculateInvoiceStats();
 
   return (
     <App>
@@ -519,91 +387,6 @@ const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
           scroll={{ x: 800 }}
           size="middle"
         />
-      </Modal>
-
-      {/* View Customer Invoices Modal */}
-      <Modal
-        title={
-          <Space direction="vertical" size="small" style={{ width: "100%" }}>
-            <Title level={4} style={{ margin: 0 }}>
-              <FileTextOutlined /> Invoices for {currentCustomer?.customer_name || ""}
-            </Title>
-            <Text type="secondary">{currentCustomer?.customer_email || ""}</Text>
-          </Space>
-        }
-        open={isViewInvoicesModalVisible}
-        onCancel={() => setIsViewInvoicesModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsViewInvoicesModalVisible(false)}>
-            Close
-          </Button>,
-        ]}
-        width={1100}
-        bodyStyle={{ maxHeight: "75vh", overflow: "auto" }}
-      >
-        <Space direction="vertical" style={{ width: "100%" }} size="large">
-          {/* Invoice Summary Statistics */}
-          <Row gutter={16}>
-            <Col span={6}>
-              <Card size="small" style={{ background: "#f0f5ff", borderColor: "#adc6ff" }}>
-                <Statistic
-                  title="Total Invoices"
-                  value={invoiceStats.invoiceCount}
-                  prefix={<FileTextOutlined />}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card size="small" style={{ background: "#e6f7ff", borderColor: "#91d5ff" }}>
-                <Statistic
-                  title="Total Amount"
-                  value={invoiceStats.totalAmount}
-                  prefix="KES"
-                  precision={0}
-                  valueStyle={{ color: "#1890ff" }}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card size="small" style={{ background: "#f6ffed", borderColor: "#b7eb8f" }}>
-                <Statistic
-                  title="Amount Paid"
-                  value={invoiceStats.paidAmount}
-                  prefix="KES"
-                  precision={0}
-                  valueStyle={{ color: "#52c41a" }}
-                />
-              </Card>
-            </Col>
-            <Col span={6}>
-              <Card size="small" style={{ background: "#fff7e6", borderColor: "#ffd591" }}>
-                <Statistic
-                  title="Balance Due"
-                  value={invoiceStats.balanceAmount}
-                  prefix="KES"
-                  precision={0}
-                  valueStyle={{ color: "#fa8c16" }}
-                />
-              </Card>
-            </Col>
-          </Row>
-
-          {/* Invoices Table */}
-          <Table
-            columns={invoiceColumns}
-            dataSource={customerInvoices}
-            rowKey="_id"
-            loading={loadingInvoices}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showTotal: (total) => `Total ${total} invoices`,
-            }}
-            locale={{ emptyText: "No invoices found for this customer" }}
-            scroll={{ x: 1000 }}
-            size="middle"
-          />
-        </Space>
       </Modal>
 
       {/* All Gift Cards Modal */}

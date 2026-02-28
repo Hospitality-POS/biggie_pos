@@ -16,6 +16,9 @@ import {
     HistoryOutlined,
     BarsOutlined,
     UserAddOutlined,
+    EditOutlined,
+    EnvironmentOutlined,
+    IdcardOutlined,
 } from "@ant-design/icons";
 import {
     Tag,
@@ -25,6 +28,7 @@ import {
     Table,
     App,
     Tabs,
+    Tooltip,
 } from "antd";
 import { fetchAllGiftCards } from "@services/customers";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -33,6 +37,7 @@ const { TabPane } = Tabs;
 
 interface CustomerTableProps {
     nonCustomerEnabled?: boolean;
+    onEditCustomer?: (customer: any) => void;
 }
 
 interface CustomerTableHandle {
@@ -40,7 +45,7 @@ interface CustomerTableHandle {
 }
 
 const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
-    ({ nonCustomerEnabled = false }, ref) => {
+    ({ nonCustomerEnabled = false, onEditCustomer }, ref) => {
         const actionRef = useRef<ActionType>();
         const formRef = useRef<ProFormInstance>();
         const [isGiftCardModalVisible, setIsGiftCardModalVisible] = useState(false);
@@ -237,6 +242,36 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                 render: (phone: string) => <span>{phone}</span>,
             },
             {
+                title: "Location",
+                dataIndex: "location",
+                search: false,
+                render: (location: string) =>
+                    location ? (
+                        <Space size={4}>
+                            <EnvironmentOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
+                            <span>{location}</span>
+                        </Space>
+                    ) : (
+                        <span style={{ color: "#bfbfbf" }}>—</span>
+                    ),
+            },
+            {
+                title: "KRA PIN",
+                dataIndex: "kra_pin",
+                search: false,
+                render: (kra_pin: string) =>
+                    kra_pin ? (
+                        <Tooltip title="KRA PIN">
+                            <Space size={4}>
+                                <IdcardOutlined style={{ color: "#8c8c8c", fontSize: 12 }} />
+                                <span>{kra_pin}</span>
+                            </Space>
+                        </Tooltip>
+                    ) : (
+                        <span style={{ color: "#bfbfbf" }}>—</span>
+                    ),
+            },
+            {
                 title: "Status",
                 dataIndex: "lastVisit",
                 hideInSearch: true,
@@ -288,6 +323,17 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                 search: false,
                 render: (_: any, record: any) => (
                     <Space>
+                        {/* ✅ EDIT BUTTON */}
+                        {onEditCustomer && (
+                            <Button
+                                type="link"
+                                icon={<EditOutlined />}
+                                size="small"
+                                onClick={() => onEditCustomer(record)}
+                            >
+                                Edit
+                            </Button>
+                        )}
                         <Button
                             type="primary"
                             icon={<GiftOutlined />}
