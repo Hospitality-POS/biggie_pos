@@ -151,7 +151,7 @@ const UsersTable = () => {
             hideInSearch: false,
             search: false,
             fieldProps: {
-              placeholder: "Enter shop name",
+              placeholder: "Enter Branch name",
             },
             render: (shop, record) => {
               const isAdminRole =

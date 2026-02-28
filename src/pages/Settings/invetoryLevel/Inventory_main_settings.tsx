@@ -63,16 +63,6 @@ function InventoryMainSettings() {
         children: <PurchaseOrderSettings />,
       },
       {
-        key: "material-transfers",
-        label: (
-          <span>
-            <SwapOutlined style={{ color: "#fa8c16" }} />
-            <span>Material Transfers</span>
-          </span>
-        ),
-        children: <MaterialTransferSettings />,
-      },
-      {
         key: "delivery",
         label: (
           <span>
@@ -81,6 +71,16 @@ function InventoryMainSettings() {
           </span>
         ),
         children: <DeliverySettings />,
+      },
+      {
+        key: "material-transfers",
+        label: (
+          <span>
+            <SwapOutlined style={{ color: "#fa8c16" }} />
+            <span>Material Transfers</span>
+          </span>
+        ),
+        children: <MaterialTransferSettings />,
       },
     ],
     []

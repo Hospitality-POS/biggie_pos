@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Card, Row, Col, Button, Typography, Space, Modal, Form, Input, Alert,
     Avatar, Tag, message, Switch, Divider, Checkbox
 } from 'antd';
 import {
-    CreditCardOutlined, CheckCircleOutlined, PlusOutlined, GlobalOutlined,
-    ApiOutlined, SettingOutlined, StarOutlined, ThunderboltOutlined,
-    EditOutlined, PoweroffOutlined, FileProtectOutlined, CalculatorOutlined,
+    CreditCardOutlined, CheckCircleOutlined, PlusOutlined,
+    ApiOutlined, PoweroffOutlined, FileProtectOutlined, CalculatorOutlined,
     TeamOutlined, InfoCircleOutlined
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
     fetchTenantDetails,
     enableAccounting,
@@ -150,6 +150,14 @@ const availableIntegrations = [
     },
 ];
 
+// ✅ Full app refresh helper — clears query cache then reloads
+const triggerAppRefresh = (queryClient, navigate) => {
+    queryClient.clear(); // wipe all cached queries so every component refetches fresh
+    // Small delay so success message is visible before reload
+    setTimeout(() => {
+        window.location.reload();
+    }, 800);
+};
 
 const DiscoverPage = () => {
     const [selectedIntegration, setSelectedIntegration] = useState(null);
@@ -162,6 +170,7 @@ const DiscoverPage = () => {
     const [accountingForm] = Form.useForm();
     const [posForm] = Form.useForm();
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const tenantId = getCurrentTenantId();
 
     const { data: tenantDetails, refetch: refetchTenant } = useQuery({
@@ -169,6 +178,8 @@ const DiscoverPage = () => {
         queryFn: () => fetchTenantDetails(tenantId),
         enabled: !!tenantId,
         refetchOnWindowFocus: false,
+        staleTime: 0,   // ✅ always fetch fresh so module flags are current
+        cacheTime: 0,
     });
 
     const { data: pesapalConfig } = useQuery({
@@ -188,10 +199,7 @@ const DiscoverPage = () => {
                 return tenant.pos_integration?.enabled === true ? 'enabled' : 'not_enabled';
 
             case 'relia_accounting':
-                return tenant.modules?.accounting === true &&
-                    tenant.accounting_database?.enabled === true
-                    ? 'enabled'
-                    : 'not_enabled';
+                return tenant.modules?.accounting === true ? 'enabled' : 'not_enabled';
 
             case 'pesapal':
                 return tenant.use_pesapal === true || pesapalConfig?.data?.enabled === true
@@ -216,58 +224,59 @@ const DiscoverPage = () => {
             form.resetFields();
             queryClient.invalidateQueries(["pesapalConfig", tenantId]);
             queryClient.invalidateQueries(["tenant", tenantId]);
+            refetchTenant();
         },
         onError: (error) => {
             message.error(error.message || 'Failed to configure Pesapal');
         }
     });
 
+    // ✅ After enabling accounting — invalidate all queries + full reload
     const enableAccountingMutation = useMutation({
         mutationFn: (values) => enableAccounting(tenantId, { terms_acceptance: values }),
         onSuccess: () => {
-            message.success('Accounting enabled successfully');
+            message.success('Accounting enabled successfully! Refreshing...');
             setAccountingModalVisible(false);
             accountingForm.resetFields();
-            queryClient.invalidateQueries(["tenant", tenantId]);
-            refetchTenant();
+            triggerAppRefresh(queryClient, navigate);
         },
         onError: (error) => {
             message.error(error.message || 'Failed to enable accounting');
         }
     });
 
+    // ✅ After disabling accounting — invalidate all queries + full reload
     const disableAccountingMutation = useMutation({
         mutationFn: () => disableAccounting(tenantId),
         onSuccess: () => {
-            message.success('Accounting disabled successfully');
-            queryClient.invalidateQueries(["tenant", tenantId]);
-            refetchTenant();
+            message.success('Accounting disabled. Refreshing...');
+            triggerAppRefresh(queryClient, navigate);
         },
         onError: (error) => {
             message.error(error.message || 'Failed to disable accounting');
         }
     });
 
+    // ✅ After enabling POS — invalidate all queries + full reload
     const enablePosMutation = useMutation({
         mutationFn: (config) => enablePosIntegration(tenantId, config),
         onSuccess: () => {
-            message.success('POS integration enabled successfully');
+            message.success('POS enabled successfully! Refreshing...');
             setPosModalVisible(false);
             posForm.resetFields();
-            queryClient.invalidateQueries(["tenant", tenantId]);
-            refetchTenant();
+            triggerAppRefresh(queryClient, navigate);
         },
         onError: (error) => {
             message.error(error.message || 'Failed to enable POS integration');
         }
     });
 
+    // ✅ After disabling POS — invalidate all queries + full reload
     const disablePosMutation = useMutation({
         mutationFn: () => disablePosIntegration(tenantId),
         onSuccess: () => {
-            message.success('POS integration disabled successfully');
-            queryClient.invalidateQueries(["tenant", tenantId]);
-            refetchTenant();
+            message.success('POS disabled. Refreshing...');
+            triggerAppRefresh(queryClient, navigate);
         },
         onError: (error) => {
             message.error(error.message || 'Failed to disable POS integration');
@@ -330,6 +339,7 @@ const DiscoverPage = () => {
                         message.success('Pesapal disabled successfully');
                         queryClient.invalidateQueries(["pesapalConfig", tenantId]);
                         queryClient.invalidateQueries(["tenant", tenantId]);
+                        refetchTenant();
                     } catch (error) {
                         message.error('Failed to disable Pesapal');
                     }
@@ -431,6 +441,10 @@ const DiscoverPage = () => {
                                                 block
                                                 icon={<PoweroffOutlined />}
                                                 onClick={() => handleDisableIntegration(integration.id)}
+                                                loading={
+                                                    (integration.id === 'relia_accounting' && disableAccountingMutation.isPending) ||
+                                                    (integration.id === 'relia_pos' && disablePosMutation.isPending)
+                                                }
                                             >
                                                 Disable
                                             </Button>
@@ -640,11 +654,7 @@ const DiscoverPage = () => {
                         </ul>
                     </Card>
 
-                    <Form.Item
-                        name="auto_sync"
-                        label="Auto Sync"
-                        valuePropName="checked"
-                    >
+                    <Form.Item name="auto_sync" label="Auto Sync" valuePropName="checked">
                         <Switch checkedChildren="On" unCheckedChildren="Off" />
                     </Form.Item>
 

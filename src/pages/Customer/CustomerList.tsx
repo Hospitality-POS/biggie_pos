@@ -29,6 +29,19 @@ function Customers() {
     const [activeTab, setActiveTab] = useState("customers");
     const customerTableRef = useRef(null);
 
+    // Check which modules are enabled
+    const storedTenant = localStorage.getItem("tenant");
+    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+
+    const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
+    const hasAccounting = !!(
+        tenant?.accounting_database?.enabled ||
+        tenant?.modules?.accounting
+    );
+
+    // Accounting only = show only Customers tab
+    const showOnlyCustomers = hasAccounting && !hasPOS;
+
     const handleCustomerAdded = () => {
         if (customerTableRef.current) {
             customerTableRef.current.reload();
@@ -53,6 +66,46 @@ function Customers() {
         setModalMode('add');
     };
 
+    // If accounting only, show simple layout without tabs
+    if (showOnlyCustomers) {
+        return (
+            <>
+                <ProCard
+                    bordered={false}
+                    style={{ borderRadius: 8 }}
+                    title={
+                        <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                            <Title level={3} style={{ margin: 0, fontWeight: 500 }}>
+                                Customer Management
+                            </Title>
+                            <Button
+                                type="primary"
+                                icon={<UserAddOutlined />}
+                                onClick={handleAddCustomer}
+                            >
+                                Add Customer
+                            </Button>
+                        </Space>
+                    }
+                >
+                    <CustomerTable
+                        ref={customerTableRef}
+                        onEditCustomer={handleEditCustomer}
+                    />
+                </ProCard>
+
+                <AddCustomerModal
+                    visible={addCustomerModalVisible}
+                    onClose={handleCloseModal}
+                    onSuccess={handleCustomerAdded}
+                    customer={editingCustomer}
+                    mode={modalMode}
+                />
+            </>
+        );
+    }
+
+    // POS enabled - show all tabs
     return (
         <>
             <ProCard
