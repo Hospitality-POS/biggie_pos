@@ -18,7 +18,6 @@ import {
 import {
   ClearOutlined,
   CloseCircleOutlined,
-  DeleteOutlined,
   OrderedListOutlined,
   PlusCircleOutlined,
   RestOutlined,
@@ -63,15 +62,15 @@ const CartDrawer: React.FC = () => {
     removeActiveSlot,
   } = useRetailQueue();
 
-  /**
-   * FIX: Ensure tableId is never the string "tables".
-   * If we are in Retail mode, we use the activeTable ID from Context.
-   * If not, we use the ID from the URL, provided it isn't the route name itself.
-   */
   const tableId = useMemo(() => {
     if (isRetailMode) return activeTable?._id;
     return id && id !== "tables" ? id : null;
   }, [isRetailMode, activeTable?._id, id]);
+
+  // Total slots currently in queue
+  const totalQueueSlots = useMemo(() => {
+    return (allLocations || []).reduce((acc, loc) => acc + (loc.tables?.length || 0), 0);
+  }, [allLocations]);
 
   const CartItemCardMemo = React.memo(CartItemCard);
   const memoizedData = useMemo(() => data, [data]);
@@ -113,13 +112,10 @@ const CartDrawer: React.FC = () => {
 
   useEffect(() => {
     const dispatchFetchCart = async () => {
-      // FIX: Strict guard against invalid tableId values
       if (!tableId || tableId === "tables") return;
-
       setLoadingData(true);
       try {
         await dispatch(getCart(tableId));
-        // Only auto-navigate away if we are in Restaurant mode and the cart is empty/invalid
         if (!isRetailMode && !data && !cartDetails) {
           navigate("/tables");
         }
@@ -146,6 +142,8 @@ const CartDrawer: React.FC = () => {
     const slot = allSlots.find(s => s.value === tableSlotId);
     if (slot) setActiveTable(slot.table);
   };
+
+  const isOnlySlot = totalQueueSlots <= 1;
 
   return (
     <ProCard
@@ -181,22 +179,24 @@ const CartDrawer: React.FC = () => {
                 options={allSlots}
                 placeholder="Select slot"
               />
+
+              {/* ── Clear slot button — disabled when only one slot ── */}
               <Popconfirm
                 title={`Clear "${activeTable?.name}"?`}
-                description="This will empty the cart for this slot."
+                description="This will empty the cart and free up this slot."
                 onConfirm={() => removeActiveSlot()}
                 okText="Clear"
                 okButtonProps={{ danger: true }}
                 cancelText="Cancel"
-                disabled={!activeTable}
+                disabled={!activeTable || isOnlySlot}
               >
-                <Tooltip title="Clear this slot's cart">
+                <Tooltip title={isOnlySlot ? "Cannot remove the only slot" : "Clear this slot"}>
                   <Button
                     size="small"
                     danger
                     type="text"
                     icon={<ClearOutlined />}
-                    disabled={!activeTable || isLoadingSlots}
+                    disabled={!activeTable || isLoadingSlots || isOnlySlot}
                   />
                 </Tooltip>
               </Popconfirm>
@@ -294,7 +294,6 @@ const CartDrawer: React.FC = () => {
 
         {memoizedData?.length ? (
           <Space direction="vertical" style={{ width: "100%" }}>
-            {/* Totals and Discounts section */}
             <Flex gap={16} wrap justify="space-between">
               {cartDetails?.tip_amount && (
                 <Typography.Text strong>

@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { getAllTables, createAutoSlot } from '@services/tables';
-import { useAppDispatch } from 'src/store';
-import { getCart } from '../features/Cart/CartActions';
+import { useAppDispatch, useAppSelector } from 'src/store';
+import { getCart, deleteAllCartItems } from '../features/Cart/CartActions';
 import { clearcart } from '../features/Cart/CartSlice';
 import { message } from 'antd';
+import axiosInstance from '../services/request';
+import { BASE_URL } from '@utils/config';
 
 interface TableSlot {
     _id: string;
@@ -61,18 +63,17 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const isAutoCreating = useRef(false);
 
     const dispatch = useAppDispatch();
+    const cartDetails = useAppSelector((state) => state.cart.cartDetails);
 
     const loadSlots = useCallback(async () => {
         const shopId = localStorage.getItem('shopId');
-        if (!shopId || shopId === 'undefined' || shopId === 'null' || shopId.trim() === '') {
-            return;
-        }
+        if (!shopId || shopId === 'undefined' || shopId === 'null' || shopId.trim() === '') return;
 
         setIsLoadingSlots(true);
         try {
             const tables: TableSlot[] = await getAllTables({});
 
-            // ── Auto-create a slot if none exist ──────────────────────────
+            // Auto-create first slot if none exist
             if (!tables?.length) {
                 if (isAutoCreating.current) return;
                 isAutoCreating.current = true;
@@ -82,19 +83,13 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     const newTable: TableSlot = result.data;
                     message.success({ content: `Slot "${newTable.name}" ready`, key: 'auto-init-slot' });
 
-                    // Build a synthetic location from the new table
                     const loc = newTable.locatedAt;
                     const locId = loc && typeof loc === 'object' ? loc._id : (loc || 'default');
                     const locName = loc && typeof loc === 'object'
                         ? (loc.name || loc.locationName || 'Default')
                         : 'Default';
 
-                    const syntheticLocation: Location = {
-                        _id: locId,
-                        name: locName,
-                        tables: [newTable],
-                    };
-
+                    const syntheticLocation: Location = { _id: locId, name: locName, tables: [newTable] };
                     setAllLocations([syntheticLocation]);
                     setActiveTableState(newTable);
                     activeTableRef.current = newTable;
@@ -103,14 +98,13 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     dispatch(getCart(newTable._id));
                 } catch (err) {
                     message.error({ content: 'Failed to create initial slot', key: 'auto-init-slot' });
-                    console.error('RetailQueueContext: auto-create initial slot failed:', err);
                 } finally {
                     isAutoCreating.current = false;
                 }
                 return;
             }
 
-            // ── Normal path: tables exist ─────────────────────────────────
+            // Group by location
             const locationMap = new Map<string, Location>();
             for (const table of tables) {
                 const loc = table.locatedAt;
@@ -119,7 +113,6 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 const locName = typeof loc === 'object'
                     ? (loc.name || loc.locationName || 'Location')
                     : 'Location';
-
                 if (!locationMap.has(locId)) {
                     locationMap.set(locId, { _id: locId, name: locName, tables: [] });
                 }
@@ -169,7 +162,6 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 loadSlots();
             }
         }, 300);
-
         return () => clearInterval(interval);
     }, [loadSlots]);
 
@@ -184,6 +176,7 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
         dispatch(getCart(table._id));
     }, [allLocations, dispatch]);
 
+    // All tables currently in the queue (local state only — not all DB tables)
     const allTables = allLocations.flatMap(loc => loc.tables || []);
 
     const availableTables = allLocations.flatMap(loc =>
@@ -195,6 +188,7 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
     );
 
     const openNewOrder = useCallback(async () => {
+        // Check for a free slot already in queue
         const next = allTables.find(
             t => t._id !== activeTableRef.current?._id && !t.isOccupied
         );
@@ -206,37 +200,136 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
             return;
         }
 
+        // All queue slots are occupied — check DB for any unoccupied table not in queue
         setIsLoadingSlots(true);
         try {
+            const allDbTables: TableSlot[] = await getAllTables({});
+            const queueIds = new Set(allTables.map(t => t._id));
+
+            // Find a table that exists in DB but not currently in queue (i.e. was cleared/removed)
+            const reusable = allDbTables.find(
+                t => !queueIds.has(t._id) && !t.isOccupied
+            );
+
+            if (reusable) {
+                // Add it back to the queue
+                const loc = reusable.locatedAt;
+                const locId = typeof loc === 'object' ? loc._id : loc;
+                const locName = typeof loc === 'object'
+                    ? (loc.name || loc.locationName || 'Location')
+                    : 'Location';
+
+                setAllLocations(prev => {
+                    const existing = prev.find(l => l._id === locId);
+                    if (existing) {
+                        return prev.map(l =>
+                            l._id === locId
+                                ? { ...l, tables: [...l.tables, reusable] }
+                                : l
+                        );
+                    }
+                    return [...prev, { _id: locId, name: locName, tables: [reusable] }];
+                });
+
+                dispatch(clearcart());
+                // Use timeout to let state update before switching
+                setTimeout(() => setActiveTable(reusable), 50);
+                message.success(`Switched to ${reusable.name}`);
+                return;
+            }
+
+            // Truly all tables occupied — create a brand new slot
             message.loading({ content: 'Creating new slot...', key: 'auto-slot' });
             const result = await createAutoSlot();
             const newTable: TableSlot = result.data;
             message.success({ content: `"${newTable.name}" created`, key: 'auto-slot' });
-            await loadSlots();
+
+            const loc = newTable.locatedAt;
+            const locId = typeof loc === 'object' ? loc._id : (loc || 'default');
+            const locName = typeof loc === 'object'
+                ? (loc.name || loc.locationName || 'Location')
+                : 'Location';
+
+            setAllLocations(prev => {
+                const existing = prev.find(l => l._id === locId);
+                if (existing) {
+                    return prev.map(l =>
+                        l._id === locId
+                            ? { ...l, tables: [...l.tables, newTable] }
+                            : l
+                    );
+                }
+                return [...prev, { _id: locId, name: locName, tables: [newTable] }];
+            });
+
             dispatch(clearcart());
-            setActiveTable(newTable);
+            setTimeout(() => setActiveTable(newTable), 50);
+
         } catch (err) {
-            message.error({ content: 'Failed to create new slot', key: 'auto-slot' });
-            console.error('openNewOrder: auto-create failed:', err);
+            message.error({ content: 'Failed to open new order', key: 'auto-slot' });
+            console.error('openNewOrder failed:', err);
         } finally {
             setIsLoadingSlots(false);
         }
-    }, [allTables, setActiveTable, loadSlots, dispatch]);
+    }, [allTables, setActiveTable, dispatch]);
 
-    // Only clears the cart — does NOT delete the table/slot
     const removeActiveSlot = useCallback(async () => {
         if (!activeTableRef.current) return;
         const tableToRemove = activeTableRef.current;
+        const cartId = cartDetails?._id;
 
         try {
             message.loading({ content: `Clearing ${tableToRemove.name}...`, key: 'remove-slot' });
+
+            // 1. Clear all cart items (also marks table unoccupied via CartActions)
+            if (cartId) {
+                await dispatch(deleteAllCartItems(cartId));
+            }
+
+            // 2. Explicitly mark table as unoccupied on backend
+            await axiosInstance.put(`${BASE_URL}/tables/${tableToRemove._id}`, {
+                isOccupied: false,
+            });
+
+            // 3. Remove from local queue (keeps it in DB for reuse)
+            const updatedLocations = allLocations
+                .map(loc => ({
+                    ...loc,
+                    tables: loc.tables.filter(t => t._id !== tableToRemove._id),
+                }))
+                .filter(loc => loc.tables.length > 0);
+
+            setAllLocations(updatedLocations);
             dispatch(clearcart());
+            activeTableRef.current = null;
+            setActiveTableState(null);
+            setActiveLocation(null);
+
+            // 4. Auto-select next slot still in queue
+            let switched = false;
+            for (const loc of updatedLocations) {
+                if (loc.tables?.length > 0) {
+                    const next = loc.tables[0];
+                    setActiveTableState(next);
+                    activeTableRef.current = next;
+                    setActiveLocation(loc);
+                    dispatch(getCart(next._id));
+                    switched = true;
+                    break;
+                }
+            }
+
+            if (!switched) {
+                // Queue is empty — load fresh from DB
+                await loadSlots();
+            }
+
             message.success({ content: `${tableToRemove.name} cleared`, key: 'remove-slot' });
         } catch (err) {
             message.error({ content: 'Failed to clear slot', key: 'remove-slot' });
             console.error('removeActiveSlot failed:', err);
         }
-    }, [dispatch]);
+    }, [dispatch, allLocations, cartDetails, loadSlots]);
 
     const assignNextAvailableTable = useCallback((): TableSlot | null => {
         const next = availableTables.find(t => t._id !== activeTableRef.current?._id)
