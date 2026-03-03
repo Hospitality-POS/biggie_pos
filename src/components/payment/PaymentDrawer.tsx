@@ -52,6 +52,8 @@ import pesapalApi from "@services/pesapalApi";
 import { fetchAllCustomers, addNewCustomer } from "@services/customers";
 import { fetchAllPackages } from "@services/subscription";
 import SubscriptionPaymentOption from "./SubscriptionPaymentOption";
+import { usePOSMode } from "@context/POSModeContext";
+import { useRetailQueue } from "@context/RetailQueueContext";
 
 const { Text, Title } = Typography;
 
@@ -90,7 +92,17 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
 
   const dispatch = useAppDispatch();
   const navigate = (path: string) => (window.location.href = path);
-  const id = window.location.pathname.split("/").pop();
+
+  // FIX: Resolve table_id correctly for both retail and restaurant modes
+  const rawId = window.location.pathname.split("/").pop();
+  const { isRetailMode } = usePOSMode();
+  const { activeTable } = useRetailQueue();
+  const id = isRetailMode
+    ? activeTable?._id
+    : rawId && rawId !== "tables"
+      ? rawId
+      : undefined;
+
   const { cartDetails, subtotal, totalVatAmount, grandTotal } = useAppSelector(
     (state) => state.cart
   );
@@ -103,7 +115,6 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const [amount1, setAmount1] = useState(0);
   const [amount2, setAmount2] = useState(0);
 
-  // selectedCustomerId = ONLY set by in-drawer search. Never from customerDetails prop.
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [searchingCustomers, setSearchingCustomers] = useState(false);
@@ -130,8 +141,6 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const activePackages = packagesData?.packages || [];
   const hasActivePackages = activePackages.length > 0;
 
-  // Pre-populate ONLY customerInfo (phone/name/email) from ClientPin.
-  // Never set selectedCustomerId here — subscriptions must only load from in-drawer search.
   useEffect(() => {
     if (drawerVisible && customerDetails) {
       setCustomerInfo({
@@ -142,7 +151,6 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     }
   }, [drawerVisible, customerDetails]);
 
-  // Helper: extract a plain string ID from a value that might be an object or string
   const extractId = (val: any): string | undefined => {
     if (!val) return undefined;
     if (typeof val === "string") return val;
@@ -150,10 +158,6 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     return undefined;
   };
 
-  // customer_id resolution priority:
-  // 1. Explicit in-drawer search selection
-  // 2. customer_id saved on cartDetails by ClientPin (extracted safely as string)
-  // 3. customer_id from customerDetails prop (extracted safely as string)
   const resolveCustomerId = (): string | undefined => {
     if (selectedCustomerId) return selectedCustomerId;
     const fromCart = extractId(cartDetails?.customer_id);
@@ -298,7 +302,12 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           if (data.success && data.payment_status === "COMPLETED") {
             setStkPaymentStatus("success");
             message.success("Payment completed successfully!");
-            setTimeout(() => { resetPesapalModal(); setDrawerVisible(false); dispatch(createCart(id)); navigate("/tables"); }, 2000);
+            setTimeout(() => {
+              resetPesapalModal();
+              setDrawerVisible(false);
+              dispatch(createCart(id));
+              navigate("/tables");
+            }, 2000);
           } else if (data.payment_status === "FAILED") {
             setStkPaymentStatus("failed");
             message.error("Payment failed. Please try again.");
@@ -352,6 +361,8 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       message.error("The split amounts must equal the total amount.");
       return;
     }
+    // FIX: Guard against invalid id
+    if (!id) { message.error("No active table or slot selected."); return; }
     try {
       const result = await dispatch(createOrder({
         cart_id: cartDetails?._id,
@@ -377,6 +388,9 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   };
 
   const handlePayment = async () => {
+    // FIX: Guard against invalid id
+    if (!id) { message.error("No active table or slot selected."); return; }
+
     if (useSubscription && selectedSubscription) {
       if (!resolveCustomerId()) { message.error("Please select a customer for subscription order"); return; }
       try {
@@ -440,6 +454,9 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   };
 
   const handleSTKPushPayment = async () => {
+    // FIX: Guard against invalid id
+    if (!id) { message.error("No active table or slot selected."); return; }
+
     if (!customerInfo.phone) { message.error("Customer phone number is required for STK Push payment"); return; }
     if (!isValidKenyanPhone(customerInfo.phone)) {
       message.error("Please enter a valid Kenyan phone number for STK Push (e.g., 0712345678)");
@@ -722,7 +739,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
             />
           )}
 
-          {/* CUSTOMER SEARCH — subscriptions ONLY load when customer selected here */}
+          {/* CUSTOMER SEARCH */}
           {hasActivePackages && (
             <>
               <ProCard
@@ -839,7 +856,6 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                 )}
               </ProCard>
 
-              {/* Subscriptions: ONLY render when customer explicitly selected inside this drawer */}
               {selectedCustomerId && (
                 <SubscriptionPaymentOption
                   customerId={selectedCustomerId}
@@ -875,9 +891,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   return (
                     <ProCard
                       key={method._id}
-                      bodyStyle={{
-                        minWidth: "100px",
-                      }}
+                      bodyStyle={{ minWidth: "100px" }}
                       bordered
                       hoverable={!isDisabled}
                       onClick={() => handleSelectMethod(method._id)}

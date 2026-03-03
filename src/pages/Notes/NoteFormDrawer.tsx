@@ -4,7 +4,6 @@ import {
     ProFormSelect,
     ProFormDatePicker,
     ProFormTextArea,
-    ProFormText,
 } from "@ant-design/pro-components";
 import {
     Drawer,
@@ -34,10 +33,10 @@ import {
 } from "@services/accounting/notes";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import { fetchAllCustomers } from "@services/customers";
+import { fetchAllSuppliers } from "@services/supplier";
+import { getAllInvoices } from "@services/accounting/invoice";
 
 const { Text } = Typography;
-
-// ── Types ──────────────────────────────────────────────────────────────────────
 
 interface LineItem {
     key: string;
@@ -57,8 +56,6 @@ interface Props {
     shopId: string;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
 const emptyLine = (): LineItem => ({
     key: crypto.randomUUID(),
     description: "",
@@ -74,7 +71,6 @@ const calcLineTotal = (l: LineItem, vatMode: "INCLUSIVE" | "EXCLUSIVE") => {
     const disc = gross * ((l.discount || 0) / 100);
     const after = gross - disc;
     const vatRate = l.vat_type === "STANDARD" ? 0.16 : 0;
-
     if (vatMode === "INCLUSIVE" && vatRate > 0) {
         const net = after / (1 + vatRate);
         return { net, vat: after - net, lineTotal: after, disc };
@@ -93,30 +89,84 @@ const NoteFormDrawer: React.FC<Props> = ({
     const [vatMode, setVatMode] = useState<"INCLUSIVE" | "EXCLUSIVE">("EXCLUSIVE");
     const [submitting, setSubmitting] = useState(false);
 
-    // ── Queries ────────────────────────────────────────────────────────────────
+    // Track selected customer/supplier to filter their invoices
+    const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+    const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+    const [customerSearch, setCustomerSearch] = useState("");
+    const [supplierSearch, setSupplierSearch] = useState("");
 
+    // ── Queries ────────────────────────────────────────────────────────────────
     const { data: accountsData } = useQuery({
         queryKey: ["accounts-posting", shopId],
-        queryFn: () => getAllAccounts({ shop_id: shopId, is_active: true }),
-        enabled: open && !!shopId,
+        queryFn: () => getAllAccounts({ is_active: true }),
+        // enabled: open && !!shopId,
     });
     const accounts: ChartOfAccount[] = accountsData?.accounts || [];
 
-    const { data: customersRaw } = useQuery({
-        queryKey: ["customers-select"],
-        queryFn: () => fetchAllCustomers({ shop_id: shopId }),
+    const { data: customersRaw, isFetching: customersFetching } = useQuery({
+        queryKey: ["customers-select", customerSearch],
+        queryFn: () => fetchAllCustomers({ shop_id: shopId, customer_name: customerSearch }),
         enabled: open && direction === "customer",
+        select: (res: any) => Array.isArray(res) ? res : (res?.customers || res?.data || []),
+        staleTime: 30_000,
     });
-    const customers = Array.isArray(customersRaw) ? customersRaw : [];
+    const customers = customersRaw || [];
+
+    const { data: suppliersRaw, isFetching: suppliersFetching } = useQuery({
+        queryKey: ["suppliers-select", supplierSearch],
+        queryFn: () => fetchAllSuppliers({ name: supplierSearch }),
+        enabled: open && direction === "supplier",
+        select: (res: any) => Array.isArray(res) ? res : (res?.suppliers || res?.data || []),
+        staleTime: 30_000,
+    });
+    const suppliers = suppliersRaw || [];
+
+    // Fetch invoices for selected customer — for Original Invoice dropdown
+    const { data: customerInvoicesRaw } = useQuery({
+        queryKey: ["invoices-for-customer", selectedCustomerId],
+        queryFn: () => getAllInvoices({ direction: "customer", customer_id: selectedCustomerId }),
+        enabled: !!selectedCustomerId,
+        select: (res: any) => res?.invoices || [],
+    });
+    const customerInvoices = customerInvoicesRaw || [];
+
+    // Fetch invoices for selected supplier — for Original Invoice dropdown
+    const { data: supplierInvoicesRaw } = useQuery({
+        queryKey: ["invoices-for-supplier", selectedSupplierId],
+        queryFn: () => getAllInvoices({ direction: "supplier", supplier_id: selectedSupplierId }),
+        enabled: !!selectedSupplierId,
+        select: (res: any) => res?.invoices || [],
+    });
+    const supplierInvoices = supplierInvoicesRaw || [];
+
+    const invoiceOptions = direction === "customer"
+        ? customerInvoices.map((inv: any) => ({
+            label: `${inv.order_no} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
+            value: inv.order_no,
+        }))
+        : supplierInvoices.map((inv: any) => ({
+            label: `${inv.order_no} — ${inv.counterparty_name || "Supplier"} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
+            value: inv.order_no,
+        }));
 
     // ── Populate on open ───────────────────────────────────────────────────────
-
     useEffect(() => {
         if (!open) return;
         if (isEdit && editingNote) {
             const dir = editingNote.direction;
             setDirection(dir);
             setVatMode(editingNote.vat_pricing_mode || "EXCLUSIVE");
+
+            const custId = typeof editingNote.customer_id === "object"
+                ? (editingNote.customer_id as any)?._id
+                : editingNote.customer_id;
+            const suppId = typeof editingNote.supplier_id === "object"
+                ? (editingNote.supplier_id as any)?._id
+                : editingNote.supplier_id;
+
+            setSelectedCustomerId(custId || null);
+            setSelectedSupplierId(suppId || null);
+
             form.setFieldsValue({
                 note_type: editingNote.note_type,
                 direction: dir,
@@ -127,14 +177,8 @@ const NoteFormDrawer: React.FC<Props> = ({
                 expiry_date: editingNote.expiry_date,
                 vat_pricing_mode: editingNote.vat_pricing_mode || "EXCLUSIVE",
                 original_invoice_no: editingNote.original_invoice_no,
-                customer_id:
-                    typeof editingNote.customer_id === "object"
-                        ? (editingNote.customer_id as any)?._id
-                        : editingNote.customer_id,
-                supplier_id:
-                    typeof editingNote.supplier_id === "object"
-                        ? (editingNote.supplier_id as any)?._id
-                        : editingNote.supplier_id,
+                customer_id: custId,
+                supplier_id: suppId,
             });
             setLines(
                 editingNote.lines.map((l) => ({
@@ -144,10 +188,9 @@ const NoteFormDrawer: React.FC<Props> = ({
                     unit_price: l.unit_price,
                     discount: l.discount || 0,
                     vat_type: l.vat_type || "NONE",
-                    account_id:
-                        typeof l.account_id === "object"
-                            ? (l.account_id as any)?._id
-                            : (l.account_id as string),
+                    account_id: typeof l.account_id === "object"
+                        ? (l.account_id as any)?._id
+                        : (l.account_id as string),
                 }))
             );
         } else {
@@ -155,11 +198,12 @@ const NoteFormDrawer: React.FC<Props> = ({
             setLines([emptyLine()]);
             setDirection("customer");
             setVatMode("EXCLUSIVE");
+            setSelectedCustomerId(null);
+            setSelectedSupplierId(null);
         }
     }, [open, editingNote, isEdit, form]);
 
     // ── Line helpers ───────────────────────────────────────────────────────────
-
     const addLine = () => setLines((p) => [...p, emptyLine()]);
     const removeLine = (key: string) =>
         setLines((p) => p.length > 1 ? p.filter((l) => l.key !== key) : p);
@@ -167,7 +211,6 @@ const NoteFormDrawer: React.FC<Props> = ({
         setLines((p) => p.map((l) => l.key === key ? { ...l, [field]: value } : l));
 
     // ── Totals ─────────────────────────────────────────────────────────────────
-
     const totals = lines.reduce(
         (acc, l) => {
             const c = calcLineTotal(l, vatMode);
@@ -182,7 +225,6 @@ const NoteFormDrawer: React.FC<Props> = ({
     );
 
     // ── Submit ─────────────────────────────────────────────────────────────────
-
     const handleSubmit = async (values: any) => {
         const validLines = lines.filter(
             (l) => l.description && l.account_id && l.unit_price > 0
@@ -235,13 +277,11 @@ const NoteFormDrawer: React.FC<Props> = ({
     };
 
     // ── Account options ────────────────────────────────────────────────────────
-
     const accountOptions = accounts
-        .filter((a) => ["REVENUE", "EXPENSE", "ASSET", "LIABILITY"].includes(a.account_type))
+        .filter((a) => a.allows_direct_posting !== false && a.is_active)
         .map((a) => ({ label: `${a.account_code} — ${a.account_name}`, value: a._id }));
 
     // ── Line table columns ─────────────────────────────────────────────────────
-
     const lineColumns = [
         {
             title: "Description", key: "description",
@@ -364,7 +404,19 @@ const NoteFormDrawer: React.FC<Props> = ({
                                 { label: "Customer", value: "customer" },
                                 { label: "Supplier", value: "supplier" },
                             ]}
-                            fieldProps={{ onChange: (v: NoteDirection) => setDirection(v) }}
+                            fieldProps={{
+                                onChange: (v: NoteDirection) => {
+                                    setDirection(v);
+                                    // Reset contact + invoice when direction changes
+                                    setSelectedCustomerId(null);
+                                    setSelectedSupplierId(null);
+                                    form.setFieldsValue({
+                                        customer_id: undefined,
+                                        supplier_id: undefined,
+                                        original_invoice_no: undefined,
+                                    });
+                                },
+                            }}
                         />
                     </Col>
                     <Col span={6}>
@@ -383,36 +435,87 @@ const NoteFormDrawer: React.FC<Props> = ({
                     </Col>
                 </Row>
 
-                {/* ── Contact ── */}
+                {/* ── Contact + Invoice ── */}
                 <Row gutter={12}>
-                    {direction === "customer" ? (
+                    {/* Customer selector */}
+                    {direction === "customer" && (
                         <Col span={12}>
                             <ProFormSelect
                                 name="customer_id"
                                 label="Customer"
                                 showSearch
+                                placeholder="Search customer…"
+                                fieldProps={{
+                                    filterOption: false,
+                                    onSearch: setCustomerSearch,
+                                    loading: customersFetching,
+                                    allowClear: true,
+                                    optionFilterProp: "label",
+                                    onChange: (val: string) => {
+                                        setSelectedCustomerId(val || null);
+                                        // Clear invoice when customer changes
+                                        form.setFieldValue("original_invoice_no", undefined);
+                                    },
+                                    notFoundContent: customersFetching ? "Searching..." : "No customers found",
+                                }}
                                 options={customers.map((c: any) => ({
                                     label: `${c.customer_name}${c.customer_phone ? ` — ${c.customer_phone}` : ""}`,
                                     value: c._id,
                                 }))}
-                                fieldProps={{ optionFilterProp: "label" }}
-                                placeholder="Search customer…"
-                            />
-                        </Col>
-                    ) : (
-                        <Col span={12}>
-                            <ProFormText
-                                name="supplier_id"
-                                label="Supplier ID"
-                                placeholder="Enter supplier ID"
                             />
                         </Col>
                     )}
+
+                    {/* Supplier selector */}
+                    {direction === "supplier" && (
+                        <Col span={12}>
+                            <ProFormSelect
+                                name="supplier_id"
+                                label="Supplier"
+                                showSearch
+                                placeholder="Search supplier…"
+                                fieldProps={{
+                                    filterOption: false,
+                                    onSearch: setSupplierSearch,
+                                    loading: suppliersFetching,
+                                    allowClear: true,
+                                    optionFilterProp: "label",
+                                    onChange: (val: string) => {
+                                        setSelectedSupplierId(val || null);
+                                        form.setFieldValue("original_invoice_no", undefined);
+                                    },
+                                    notFoundContent: suppliersFetching ? "Searching..." : "No suppliers found",
+                                }}
+                                options={suppliers.map((s: any) => ({
+                                    label: `${s.name}${s.phone ? ` — ${s.phone}` : ""}`,
+                                    value: s._id,
+                                }))}
+                            />
+                        </Col>
+                    )}
+
+                    {/* Original Invoice — populated from contact's invoices */}
                     <Col span={12}>
-                        <ProFormText
+                        <ProFormSelect
                             name="original_invoice_no"
                             label="Original Invoice / Reference No."
-                            placeholder="e.g. INV-0042"
+                            showSearch
+                            placeholder={
+                                direction === "customer" && !selectedCustomerId
+                                    ? "Select a customer first"
+                                    : direction === "supplier" && !selectedSupplierId
+                                        ? "Select a supplier first"
+                                        : "Select invoice…"
+                            }
+                            fieldProps={{
+                                disabled:
+                                    (direction === "customer" && !selectedCustomerId) ||
+                                    (direction === "supplier" && !selectedSupplierId),
+                                optionFilterProp: "label",
+                                allowClear: true,
+                                showSearch: true,
+                            }}
+                            options={invoiceOptions}
                         />
                     </Col>
                 </Row>

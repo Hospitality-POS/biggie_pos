@@ -41,16 +41,9 @@ import dayjs, { Dayjs } from "dayjs";
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const getShopId = (): string => {
-    try {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
-        return user?.shop_id || user?.shopId || "";
-    } catch {
-        return "";
-    }
-};
+// ── Shop ID — same pattern used across the whole app ─────────────────────────
+const getShopId = (): string =>
+    localStorage.getItem("shopId") || "";
 
 const STATUS_CONFIG: Record<NoteStatus, { badge: "success" | "processing" | "warning" | "error" | "default"; color: string }> = {
     Draft: { badge: "default", color: "default" },
@@ -61,8 +54,6 @@ const STATUS_CONFIG: Record<NoteStatus, { badge: "success" | "processing" | "war
 
 const ALL_STATUSES: (NoteStatus | "ALL")[] = ["ALL", "Draft", "Approved", "Applied", "Voided"];
 const ALL_TYPES: (NoteType | "ALL")[] = ["ALL", "CREDIT_NOTE", "DEBIT_NOTE"];
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
 
 const NotesPage: React.FC = () => {
     const shopId = getShopId();
@@ -88,7 +79,6 @@ const NotesPage: React.FC = () => {
     const to = dateRange[1]?.endOf("day").toISOString();
 
     // ── Data ──────────────────────────────────────────────────────────────────
-
     const { data, isLoading, refetch } = useQuery({
         queryKey: ["notes", shopId, activeType, activeStatus, direction, page, pageSize, from, to],
         queryFn: () =>
@@ -105,49 +95,42 @@ const NotesPage: React.FC = () => {
         enabled: !!shopId,
     });
 
-    const notes = data?.notes || [];
+    const notes: Note[] = data?.notes || [];
     const totalNotes = data?.totalNotes || 0;
 
     // ── Mutations ─────────────────────────────────────────────────────────────
-
     const deleteMutation = useMutation({
         mutationFn: (id: string) => deleteNote(id),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
     });
 
     // ── Handlers ──────────────────────────────────────────────────────────────
-
     const openCreate = () => { setEditingNote(null); setFormOpen(true); };
     const openEdit = (note: Note) => { setEditingNote(note); setFormOpen(true); };
     const openDetail = (id: string) => { setSelectedNoteId(id); setDetailOpen(true); };
-
     const onSuccess = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["notes"] });
     }, [queryClient]);
 
-    // ── Summary counts by type ─────────────────────────────────────────────────
-
+    // ── Summary ───────────────────────────────────────────────────────────────
     const creditCount = notes.filter((n) => n.note_type === "CREDIT_NOTE").length;
     const debitCount = notes.filter((n) => n.note_type === "DEBIT_NOTE").length;
     const draftCount = notes.filter((n) => n.status === "Draft").length;
     const approvedCount = notes.filter((n) => n.status === "Approved").length;
-
     const totalCreditAmt = notes
         .filter((n) => n.note_type === "CREDIT_NOTE" && n.status !== "Voided")
         .reduce((s, n) => s + (n.grand_total || 0), 0);
-
     const totalDebitAmt = notes
         .filter((n) => n.note_type === "DEBIT_NOTE" && n.status !== "Voided")
         .reduce((s, n) => s + (n.grand_total || 0), 0);
 
     // ── Columns ───────────────────────────────────────────────────────────────
-
     const columns = [
         {
             title: "Note No.",
             dataIndex: "note_no",
             key: "note_no",
-            width: 130,
+            width: 150,
             render: (v: string) => <Text code style={{ fontSize: 12 }}>{v}</Text>,
         },
         {
@@ -176,19 +159,24 @@ const NotesPage: React.FC = () => {
             key: "contact",
             render: (_: any, r: Note) => {
                 if (r.direction === "customer" && r.customer_id) {
-                    const c = r.customer_id;
-                    return typeof c === "object"
-                        ? <Text style={{ fontSize: 12 }}>{c.customer_name}</Text>
-                        : <Text type="secondary" style={{ fontSize: 12 }}>{c}</Text>;
+                    const c = r.customer_id as any;
+                    return <Text style={{ fontSize: 12 }}>{c?.customer_name || c}</Text>;
                 }
                 if (r.direction === "supplier" && r.supplier_id) {
-                    const s = r.supplier_id;
-                    return typeof s === "object"
-                        ? <Text style={{ fontSize: 12 }}>{s.name}</Text>
-                        : <Text type="secondary" style={{ fontSize: 12 }}>{s}</Text>;
+                    const s = r.supplier_id as any;
+                    return <Text style={{ fontSize: 12 }}>{s?.name || s?.supplier_name || s}</Text>;
                 }
-                return "—";
+                return <Text type="secondary">—</Text>;
             },
+        },
+        {
+            title: "Invoice Ref",
+            dataIndex: "original_invoice_no",
+            key: "original_invoice_no",
+            width: 130,
+            render: (v: string) => v
+                ? <Text code style={{ fontSize: 11 }}>{v}</Text>
+                : <Text type="secondary">—</Text>,
         },
         {
             title: "Issue Date",
@@ -210,13 +198,10 @@ const NotesPage: React.FC = () => {
             width: 130,
             align: "right" as const,
             render: (v: number, r: Note) => (
-                <Text
-                    strong
-                    style={{
-                        color: r.note_type === "CREDIT_NOTE" ? "#389e0d" : "#cf1322",
-                        fontSize: 13,
-                    }}
-                >
+                <Text strong style={{
+                    color: r.note_type === "CREDIT_NOTE" ? "#389e0d" : "#cf1322",
+                    fontSize: 13,
+                }}>
                     {(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                 </Text>
             ),
@@ -225,7 +210,7 @@ const NotesPage: React.FC = () => {
             title: "Status",
             dataIndex: "status",
             key: "status",
-            width: 100,
+            width: 110,
             render: (s: NoteStatus) => {
                 const cfg = STATUS_CONFIG[s] || STATUS_CONFIG.Draft;
                 return <Badge status={cfg.badge} text={s} />;
@@ -234,28 +219,20 @@ const NotesPage: React.FC = () => {
         {
             title: "Actions",
             key: "actions",
-            width: 130,
+            width: 110,
             fixed: "right" as const,
             render: (_: any, record: Note) => (
                 <Space size={4}>
                     <Tooltip title="View Details">
-                        <Button
-                            icon={<EyeOutlined />}
-                            size="small"
-                            onClick={() => openDetail(record._id)}
-                        />
+                        <Button icon={<EyeOutlined />} size="small"
+                            onClick={() => openDetail(record._id)} />
                     </Tooltip>
-
                     {record.status === "Draft" && (
                         <Tooltip title="Edit">
-                            <Button
-                                icon={<EditOutlined />}
-                                size="small"
-                                onClick={() => openEdit(record)}
-                            />
+                            <Button icon={<EditOutlined />} size="small"
+                                onClick={() => openEdit(record)} />
                         </Tooltip>
                     )}
-
                     {record.status === "Draft" && (
                         <Tooltip title="Delete">
                             <Popconfirm
@@ -274,7 +251,6 @@ const NotesPage: React.FC = () => {
     ];
 
     // ── Render ────────────────────────────────────────────────────────────────
-
     return (
         <App>
             {/* ── Summary Cards ── */}
@@ -310,7 +286,7 @@ const NotesPage: React.FC = () => {
                 <Col span={6}>
                     <ProCard bordered size="small">
                         <Statistic
-                            title="Draft (Pending Approval)"
+                            title="Draft (Pending)"
                             value={draftCount}
                             valueStyle={{ color: draftCount > 0 ? "#faad14" : "#8c8c8c", fontSize: 22 }}
                         />
@@ -319,7 +295,7 @@ const NotesPage: React.FC = () => {
                 <Col span={6}>
                     <ProCard bordered size="small">
                         <Statistic
-                            title="Approved (Pending Apply)"
+                            title="Approved"
                             value={approvedCount}
                             valueStyle={{ color: approvedCount > 0 ? "#1890ff" : "#8c8c8c", fontSize: 22 }}
                         />
@@ -348,16 +324,28 @@ const NotesPage: React.FC = () => {
                     </Button>
                 }
                 bordered
-                tabs={{
-                    activeKey: activeType,
-                    onChange: (k) => { setActiveType(k as NoteType | "ALL"); setPage(1); },
-                    items: ALL_TYPES.map((t) => ({
-                        key: t,
-                        label: t === "ALL" ? "All" : t === "CREDIT_NOTE" ? "Credit Notes" : "Debit Notes",
-                    })),
-                }}
             >
-                {/* ── Status sub-tabs ── */}
+                {/* ── Type tabs ── */}
+                <div style={{ marginBottom: 12, borderBottom: "1px solid #f0f0f0", paddingBottom: 8 }}>
+                    <Space size={0}>
+                        {ALL_TYPES.map((t) => (
+                            <Button
+                                key={t}
+                                type={activeType === t ? "primary" : "text"}
+                                onClick={() => { setActiveType(t as NoteType | "ALL"); setPage(1); }}
+                                style={
+                                    activeType === t
+                                        ? { background: primaryColor, borderColor: primaryColor, borderRadius: 0 }
+                                        : { borderRadius: 0 }
+                                }
+                            >
+                                {t === "ALL" ? "All" : t === "CREDIT_NOTE" ? "Credit Notes" : "Debit Notes"}
+                            </Button>
+                        ))}
+                    </Space>
+                </div>
+
+                {/* ── Status filter buttons ── */}
                 <div style={{ marginBottom: 12 }}>
                     <Space size={8}>
                         {ALL_STATUSES.map((s) => (
@@ -366,11 +354,7 @@ const NotesPage: React.FC = () => {
                                 size="small"
                                 type={activeStatus === s ? "primary" : "default"}
                                 onClick={() => { setActiveStatus(s as NoteStatus | "ALL"); setPage(1); }}
-                                style={
-                                    activeStatus === s
-                                        ? { background: primaryColor, borderColor: primaryColor }
-                                        : {}
-                                }
+                                style={activeStatus === s ? { background: primaryColor, borderColor: primaryColor } : {}}
                             >
                                 {s === "ALL" ? "All Statuses" : s}
                             </Button>
@@ -378,7 +362,7 @@ const NotesPage: React.FC = () => {
                     </Space>
                 </div>
 
-                {/* ── Filters ── */}
+                {/* ── Date + Direction filters ── */}
                 <Space style={{ marginBottom: 16 }} wrap>
                     <FilterOutlined style={{ color: "#8c8c8c" }} />
                     <RangePicker
@@ -407,7 +391,12 @@ const NotesPage: React.FC = () => {
                 </Space>
 
                 {!shopId && (
-                    <Alert type="warning" message="Shop ID not found." showIcon style={{ marginBottom: 12 }} />
+                    <Alert
+                        type="warning"
+                        message="Shop not selected. Please select a shop to view notes."
+                        showIcon
+                        style={{ marginBottom: 12 }}
+                    />
                 )}
 
                 <ProTable<Note>
@@ -426,7 +415,7 @@ const NotesPage: React.FC = () => {
                         showTotal: (t) => `${t} notes`,
                         onChange: (p, ps) => { setPage(p); setPageSize(ps); },
                     }}
-                    scroll={{ x: 1050 }}
+                    scroll={{ x: 1100 }}
                     size="small"
                     cardBordered={false}
                     rowClassName={(r) => r.status === "Voided" ? "opacity-50" : ""}

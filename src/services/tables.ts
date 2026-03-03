@@ -55,6 +55,17 @@ export const editLocation = async (data: ParamsType) => {
     throw new Error("Error editing location");
   }
 };
+export const createAutoSlot = async () => {
+  try {
+    const response = await axiosInstance.post(`${tableUrl}/auto-slot`, {});
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status !== 403) {
+      message.error('Error creating new slot');
+    }
+    throw new Error('Error creating auto slot');
+  }
+};
 export const addNewTableLocation = async (data: ParamsType) => {
   try {
     const response = await axiosInstance.post(`${tableUrl}/locations`, {

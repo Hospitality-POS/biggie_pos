@@ -3,7 +3,6 @@ import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import PrintBillSpaModal from "../MODALS/printBillSpaModal";
 import {
-  cartSent,
   deleteAllCartItems,
   getCart,
 } from "../../features/Cart/CartActions";
@@ -12,21 +11,27 @@ import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
-import { Button, Space, Typography, Tag, Empty, Divider, Flex, Avatar, Tooltip } from "antd";
 import {
+  Button, Space, Typography, Tag, Empty, Divider,
+  Flex, Avatar, Tooltip, Select, Popconfirm,
+} from "antd";
+import {
+  ClearOutlined,
   CloseCircleOutlined,
+  DeleteOutlined,
   OrderedListOutlined,
+  PlusCircleOutlined,
   RestOutlined,
-  SendOutlined,
   SmileFilled,
   SwitcherOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
-
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { ProCard } from "@ant-design/pro-components";
+import { usePOSMode } from "@context/POSModeContext";
+import { useRetailQueue } from "@context/RetailQueueContext";
 
 const CartDrawer: React.FC = () => {
   const [loadingData, setLoadingData] = useState(false);
@@ -44,35 +49,43 @@ const CartDrawer: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
 
   const { id } = useParams();
-
   const dispatch = useAppDispatch();
   const { tableData: td } = useAppSelector((state) => state.Tables);
-
   const navigate = useNavigate();
-
   const primaryColor = usePrimaryColor();
+  const { isRetailMode } = usePOSMode();
+  const {
+    activeTable,
+    allLocations,
+    isLoadingSlots,
+    setActiveTable,
+    openNewOrder,
+    removeActiveSlot,
+  } = useRetailQueue();
+
+  /**
+   * FIX: Ensure tableId is never the string "tables".
+   * If we are in Retail mode, we use the activeTable ID from Context.
+   * If not, we use the ID from the URL, provided it isn't the route name itself.
+   */
+  const tableId = useMemo(() => {
+    if (isRetailMode) return activeTable?._id;
+    return id && id !== "tables" ? id : null;
+  }, [isRetailMode, activeTable?._id, id]);
 
   const CartItemCardMemo = React.memo(CartItemCard);
-
   const memoizedData = useMemo(() => data, [data]);
 
   const discountAmount = useMemo(() => {
-    if (!cartDetails?.discount) {
-      return 0;
-    }
+    if (!cartDetails?.discount) return 0;
     if (cartDetails?.discount_type === "percentage") {
       return subtotal * (cartDetails?.discount / 100);
-    } else {
-      return cartDetails?.discount;
     }
+    return cartDetails?.discount;
   }, [subtotal, cartDetails?.discount, cartDetails?.discount_type]);
 
-  const orderNumber = useMemo(
-    () => cartDetails?.order_no,
-    [cartDetails?.order_no]
-  );
+  const orderNumber = useMemo(() => cartDetails?.order_no, [cartDetails?.order_no]);
 
-  // Resolve customer details from cart
   const customerDetails = useMemo(() => {
     if (cartDetails?.customer_id) {
       return {
@@ -100,59 +113,126 @@ const CartDrawer: React.FC = () => {
 
   useEffect(() => {
     const dispatchFetchCart = async () => {
+      // FIX: Strict guard against invalid tableId values
+      if (!tableId || tableId === "tables") return;
+
       setLoadingData(true);
       try {
-        await dispatch(getCart(id));
-        if (!data || !cartDetails) {
+        await dispatch(getCart(tableId));
+        // Only auto-navigate away if we are in Restaurant mode and the cart is empty/invalid
+        if (!isRetailMode && !data && !cartDetails) {
           navigate("/tables");
         }
       } catch (error) {
-        console.log("cart error", error);
+        console.error("cart error", error);
       } finally {
         setLoadingData(false);
       }
     };
-
     dispatchFetchCart();
-  }, [dispatch, id, td._id]);
+  }, [dispatch, tableId, td?._id, isRetailMode, navigate]);
+
+  const allSlots = useMemo(() => {
+    return (allLocations || []).flatMap((loc: any) =>
+      (loc.tables || []).map((t: any) => ({
+        value: t._id,
+        label: `${loc.name} · ${t.name}`,
+        table: t,
+      }))
+    );
+  }, [allLocations]);
+
+  const handleSlotSwitch = (tableSlotId: string) => {
+    const slot = allSlots.find(s => s.value === tableSlotId);
+    if (slot) setActiveTable(slot.table);
+  };
 
   return (
     <ProCard
       bordered
       type="inner"
-      style={{
-        overflow: "hidden",
-        overflowY: "auto",
-      }}
+      style={{ overflow: "hidden", overflowY: "auto" }}
       bodyStyle={{ backgroundColor: "white" }}
     >
       <Space direction="vertical" style={{ width: "100%" }}>
-        <Space
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-          }}
-        >
+
+        {/* ── Retail: slot switcher ──────────────────────────────────────── */}
+        {isRetailMode && (
+          <div style={{
+            background: `${primaryColor}12`,
+            border: `1px solid ${primaryColor}30`,
+            borderRadius: 8,
+            padding: "8px 10px",
+            marginBottom: 4,
+          }}>
+            <Flex align="center" justify="space-between" gap={8}>
+              <Typography.Text
+                strong
+                style={{ fontSize: 12, color: primaryColor, whiteSpace: 'nowrap' }}
+              >
+                Active Slot
+              </Typography.Text>
+              <Select
+                size="small"
+                style={{ flex: 1 }}
+                value={activeTable?._id}
+                loading={isLoadingSlots}
+                onChange={handleSlotSwitch}
+                options={allSlots}
+                placeholder="Select slot"
+              />
+              <Popconfirm
+                title={`Clear "${activeTable?.name}"?`}
+                description="This will empty the cart for this slot."
+                onConfirm={() => removeActiveSlot()}
+                okText="Clear"
+                okButtonProps={{ danger: true }}
+                cancelText="Cancel"
+                disabled={!activeTable}
+              >
+                <Tooltip title="Clear this slot's cart">
+                  <Button
+                    size="small"
+                    danger
+                    type="text"
+                    icon={<ClearOutlined />}
+                    disabled={!activeTable || isLoadingSlots}
+                  />
+                </Tooltip>
+              </Popconfirm>
+            </Flex>
+
+            <Button
+              type="dashed"
+              block
+              size="small"
+              icon={<PlusCircleOutlined />}
+              loading={isLoadingSlots}
+              style={{ marginTop: 8, borderColor: primaryColor, color: primaryColor }}
+              onClick={() => openNewOrder()}
+            >
+              {isLoadingSlots ? 'Creating slot...' : 'Open Another Order'}
+            </Button>
+          </div>
+        )}
+
+        {/* ── Top row ───────────────────────────────────────────────────── */}
+        <Space style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap" }}>
           <Button
-            style={{
-              pl: 2,
-              color: primaryColor,
-              borderColor: primaryColor,
-            }}
+            style={{ color: primaryColor, borderColor: primaryColor }}
             icon={<OrderedListOutlined />}
           >
-            {orderNumber?.toLocaleUpperCase()}
+            {orderNumber?.toLocaleUpperCase() || "NO ORDER"}
           </Button>
 
           <TransferBillModal data={data} />
 
           <Button type="primary" icon={<SwitcherOutlined />}>
-            {td?.name}
+            {isRetailMode ? activeTable?.name || 'No Slot' : td?.name || 'No Table'}
           </Button>
         </Space>
 
-        {/* Customer info banner */}
+        {/* ── Customer info banner ──────────────────────────────────────── */}
         {customerDetails && (
           <Flex
             align="center"
@@ -176,9 +256,7 @@ const CartDrawer: React.FC = () => {
               {customerDetails.customer_phone && (
                 <Typography.Text type="secondary" style={{ fontSize: 11 }}>
                   {customerDetails.customer_phone}
-                  {customerDetails.customer_email
-                    ? ` · ${customerDetails.customer_email}`
-                    : ""}
+                  {customerDetails.customer_email ? ` · ${customerDetails.customer_email}` : ""}
                 </Typography.Text>
               )}
             </Space>
@@ -192,13 +270,8 @@ const CartDrawer: React.FC = () => {
           </Flex>
         )}
 
-        <Space
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            width: "84%",
-          }}
-        >
+        {/* ── Cart headers ──────────────────────────────────────────────── */}
+        <Space style={{ display: "flex", justifyContent: "space-between", width: "84%" }}>
           <Typography.Title level={5}>Item</Typography.Title>
           <Typography.Title level={5}>Qty</Typography.Title>
           <Typography.Title level={5}>Price</Typography.Title>
@@ -207,15 +280,10 @@ const CartDrawer: React.FC = () => {
 
         <Divider style={{ margin: "4px 0" }} />
 
-        <div
-          style={{
-            maxHeight: "calc(92vh - 460px)",
-            overflowY: "auto",
-            width: "100%",
-          }}
-        >
+        {/* ── Cart items ────────────────────────────────────────────────── */}
+        <div style={{ maxHeight: "calc(92vh - 460px)", overflowY: "auto", width: "100%" }}>
           {loading
-            ? Array.from({ length: data?.length }, (_, index) => (
+            ? Array.from({ length: data?.length || 3 }, (_, index) => (
               <SkeletonCartItemCard key={index} />
             ))
             : data?.map((item: { _id: Key | null | undefined | string }) => (
@@ -226,6 +294,7 @@ const CartDrawer: React.FC = () => {
 
         {memoizedData?.length ? (
           <Space direction="vertical" style={{ width: "100%" }}>
+            {/* Totals and Discounts section */}
             <Flex gap={16} wrap justify="space-between">
               {cartDetails?.tip_amount && (
                 <Typography.Text strong>
@@ -248,7 +317,6 @@ const CartDrawer: React.FC = () => {
                         : `KSH ${cartDetails.discount.toLocaleString()} Discount Applied`}
                     </Tag>
                   </Typography.Text>
-
                   {grandTotal != null && (
                     <Typography.Text delete style={{ opacity: 0.7 }}>
                       Original Amount: KSH. {grandTotal.toLocaleString()}
@@ -282,29 +350,17 @@ const CartDrawer: React.FC = () => {
               </Flex>
               <Flex align="center" justify="end">
                 <Typography.Text>
-                  Served By: <SmileFilled /> {cartDetails?.created_by?.username}
+                  Served By: <SmileFilled /> {cartDetails?.created_by?.username || "Staff"}
                 </Typography.Text>
               </Flex>
             </Space>
 
-            <Space
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                marginBottom: "10px",
-              }}
-            >
-              <Button
-                onClick={() => dispatch(cartSent(cartDetails))}
-                icon={<SendOutlined />}
-                style={{
-                  color: primaryColor,
-                  borderColor: primaryColor,
-                }}
-              >
-                Send Bill
-              </Button>
+            <Space style={{
+              display: "flex",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              marginBottom: "10px",
+            }}>
               <ClientPin cart={cartDetails} />
               {tenant?.business_type?.name === "massage_parlour" ? (
                 <PrintBillSpaModal cartDetails={cartDetails} data={data} />
@@ -326,7 +382,6 @@ const CartDrawer: React.FC = () => {
           </Space>
         ) : (
           <Empty
-            title="No items added"
             image="/basket.png"
             imageStyle={{ opacity: 0.6 }}
             description="Add items to your cart to view them here"
@@ -335,10 +390,9 @@ const CartDrawer: React.FC = () => {
       </Space>
 
       <div style={{ display: "flex", marginTop: 20 }}>
-        {(user?.role === "admin" || user?.role === "cashier") &&
-          data?.length > 0 && (
-            <PaymentDrawer customerDetails={customerDetails} />
-          )}
+        {(user?.role === "admin" || user?.role === "cashier") && (data?.length ?? 0) > 0 && (
+          <PaymentDrawer customerDetails={customerDetails} />
+        )}
       </div>
     </ProCard>
   );

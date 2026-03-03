@@ -14,6 +14,8 @@ import enUS from "antd/locale/en_US";
 import DraggableTawkWidget from "./components/tawk/DraggableTawkWidget.tsx";
 import ErrorBoundary from "./components/tawk/ErrorBoundary.tsx";
 import { PrimaryColorProvider, usePrimaryColor } from "./context/PrimaryColorContext";
+import { POSModeProvider } from "./context/POSModeContext";
+import { RetailQueueProvider } from "./context/RetailQueueContext";  // ← ADD
 
 const theme = createTheme({
   typography: {
@@ -21,10 +23,8 @@ const theme = createTheme({
   },
 });
 
-// ✅ Export queryClient so it can be used in request.ts for cancellation on logout
 export const queryClient = new QueryClient();
 
-// Custom wrapper to use primary color from context
 const AppWithColor = () => {
   const primaryColor = usePrimaryColor();
   return (
@@ -37,12 +37,8 @@ const AppWithColor = () => {
           colorBgContainer: "#f6ffed",
         },
         components: {
-          Button: {
-            primaryShadow: "#f6ffed",
-          },
-          Card: {
-            actionsBg: primaryColor,
-          },
+          Button: { primaryShadow: "#f6ffed" },
+          Card: { actionsBg: primaryColor },
         },
       }}
     >
@@ -61,7 +57,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
           <PrimaryColorProvider>
-            <AppWithColor />
+            <POSModeProvider>
+              <RetailQueueProvider>      {/* ← ADD */}
+                <AppWithColor />
+              </RetailQueueProvider>     {/* ← ADD */}
+            </POSModeProvider>
           </PrimaryColorProvider>
         </QueryClientProvider>
       </Provider>

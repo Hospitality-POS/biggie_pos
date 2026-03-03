@@ -5,7 +5,7 @@ import {
     Typography, Alert, Segmented, Steps, Card, Statistic,
 } from "antd";
 import {
-    FileAddOutlined, PlusOutlined, DeleteOutlined,
+    PlusOutlined, DeleteOutlined,
     FileDoneOutlined, FileTextOutlined, DollarOutlined,
     CheckCircleOutlined, ArrowRightOutlined,
 } from "@ant-design/icons";
@@ -17,6 +17,7 @@ import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import dayjs from "dayjs";
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 const PAYMENT_TERMS = [
     { label: "Due on Receipt", value: "Due on Receipt" },
@@ -28,7 +29,6 @@ const PAYMENT_TERMS = [
     { label: "50% Upfront", value: "50% Upfront" },
     { label: "Cash on Delivery", value: "Cash on Delivery" },
 ];
-const { Text } = Typography;
 
 interface Props {
     open: boolean;
@@ -59,10 +59,6 @@ const newLine = (): LineItem => ({
     account_id: "",
 });
 
-// ── Step identifiers ─────────────────────────────────────────────────────────
-// step 0: fill in details + choose Quote or Invoice
-// step 1: (quote only) review quote → convert to invoice
-// step 2: (invoice) optionally record payment immediately
 type DocType = "quote" | "invoice";
 
 const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
@@ -76,6 +72,9 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
     const [step, setStep] = useState(0);
     const [savedInvoice, setSavedInvoice] = useState<any>(null);
     const [customerSearch, setCustomerSearch] = useState("");
+
+    // Resolve shopId once — used in every API payload
+    const shopId = localStorage.getItem("shopId");
 
     // ── Data ──────────────────────────────────────────────────────────────────
     const { data: accountsData } = useQuery({
@@ -132,10 +131,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
             queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
             if (docType === "quote") {
-                // Saved as quote → go to step 1 (review/convert)
                 setStep(1);
             } else {
-                // Saved as invoice → go to step 2 (optional payment)
                 setStep(2);
             }
         },
@@ -183,8 +180,10 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         onClose();
     };
 
+    // FIX: always include shop_id from localStorage in every payload
     const buildPayload = (values: any, status: "Draft" | "Pending") => ({
         direction: "customer" as const,
+        shop_id: shopId,
         customer_id: values.customer_id,
         issue_date: values.issue_date?.toISOString(),
         due_date: values.due_date?.toISOString(),
@@ -202,6 +201,10 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
     } as any);
 
     const handleSave = async () => {
+        if (!shopId) {
+            message.error("No shop selected — please select a branch first");
+            return;
+        }
         const values = await form.validateFields();
         if (lines.some((l) => !l.description || !l.account_id || l.unit_price <= 0)) {
             message.warning("Fill in all line items — description, account, and price required");
@@ -300,7 +303,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         },
     ];
 
-    // ── Totals block (reused in multiple steps) ───────────────────────────────
+    // ── Totals block ──────────────────────────────────────────────────────────
     const TotalsCard = () => (
         <Row justify="end">
             <Col span={10}>
@@ -325,26 +328,17 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         </Row>
     );
 
-    // ── Render steps ──────────────────────────────────────────────────────────
-
-    // STEP 0 — fill in document details
+    // ── Step renders ──────────────────────────────────────────────────────────
     const renderStep0 = () => (
         <>
-            {/* Quote / Invoice toggle */}
             <Row justify="center" style={{ marginBottom: 16 }}>
                 <Segmented
                     value={docType}
                     onChange={(v) => setDocType(v as DocType)}
                     size="large"
                     options={[
-                        {
-                            label: <Space><FileTextOutlined />Quote</Space>,
-                            value: "quote",
-                        },
-                        {
-                            label: <Space><FileDoneOutlined />Invoice</Space>,
-                            value: "invoice",
-                        },
+                        { label: <Space><FileTextOutlined />Quote</Space>, value: "quote" },
+                        { label: <Space><FileDoneOutlined />Invoice</Space>, value: "invoice" },
                     ]}
                 />
             </Row>
@@ -390,7 +384,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
                     </Col>
                 </Row>
 
-                {/* AR + VAT accounts — invoice only */}
                 {docType === "invoice" && (
                     <Row gutter={16}>
                         <Col span={12}>
@@ -442,7 +435,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         </>
     );
 
-    // STEP 1 — quote review → convert to invoice
     const renderStep1 = () => (
         <Space direction="vertical" style={{ width: "100%" }} size="large">
             <Alert type="success" showIcon
@@ -476,7 +468,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         </Space>
     );
 
-    // STEP 2 — optional payment recording
     const renderStep2 = () => (
         <Space direction="vertical" style={{ width: "100%" }} size="large">
             <Alert type="success" showIcon icon={<CheckCircleOutlined />}
@@ -546,7 +537,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         </Space>
     );
 
-    // ── Footer buttons per step ───────────────────────────────────────────────
+    // ── Footer ────────────────────────────────────────────────────────────────
     const renderFooter = () => {
         if (step === 0) return [
             <Button key="cancel" onClick={handleClose}>Cancel</Button>,
@@ -570,9 +561,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         ];
 
         if (step === 2) return [
-            <Button key="skip" onClick={handleClose}>
-                Skip — pay later
-            </Button>,
+            <Button key="skip" onClick={handleClose}>Skip — pay later</Button>,
             <Button key="pay" type="primary"
                 loading={payMutation.isPending}
                 icon={<DollarOutlined />}
@@ -585,7 +574,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         return [];
     };
 
-    // ── Step config for the Steps indicator ──────────────────────────────────
     const stepsConfig = docType === "quote"
         ? [
             { title: "Details", icon: <FileTextOutlined /> },
@@ -597,7 +585,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
             { title: "Payment", icon: <DollarOutlined /> },
         ];
 
-    // Map internal step to steps indicator index
     const stepsIndex = docType === "quote" ? step : step === 0 ? 0 : 1;
 
     return (
@@ -620,7 +607,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
             footer={renderFooter()}
             destroyOnClose
         >
-            {/* Steps indicator */}
             <Steps
                 current={stepsIndex}
                 size="small"

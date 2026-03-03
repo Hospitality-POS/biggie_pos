@@ -5,7 +5,7 @@ import TableCard from "@components/TableCard/TableCard";
 import StaffModal from "@components/staffCard/LoginModal";
 import { fetchTableUsequery } from "@services/tables";
 import { useQuery } from "@tanstack/react-query";
-import { ConfigProvider, Skeleton, Typography, Result, Button } from "antd";
+import { ConfigProvider, Skeleton, Typography, Result, Button, Spin } from "antd";
 import { Space } from "antd/lib";
 import Lottie from "lottie-react";
 import { useState, useEffect, useMemo } from "react";
@@ -13,8 +13,9 @@ import { useAppSelector } from "src/store";
 import fssanimation from "../../components/Loaders/tables.json";
 import EmptyPage from "@routes/EmptyPage";
 import { useNavigate } from "react-router-dom";
-
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { usePOSMode } from "@context/POSModeContext";
+import RestaurantPage from "@pages/Restaurant/Restuarant";
 
 const TableSkeleton = () => <Skeleton.Image active style={{ width: "50%", height: "100px" }} />;
 
@@ -50,12 +51,13 @@ const LoadingTabs = () => (
 export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
-
   const [isBackgroundBlurred, setIsBackgroundBlurred] = useState(false);
 
   const { user } = useAppSelector((state) => state.auth);
   const { openModal: successmodal, loading } = useAppSelector((state) => state.order);
   const navigate = useNavigate();
+  const primaryColor = usePrimaryColor();
+  const { isRetailMode, isModeLoading } = usePOSMode();  // ← isModeLoading
 
   const storedCode = localStorage.getItem("companyCode");
 
@@ -66,20 +68,17 @@ export default function TablePro() {
   const [activeTabId, setActiveTabId] = useState(DEFAULT_TAB);
 
   const setValidActiveTab = (tabId) => {
-    const validTabId = tabId && tabId !== "undefined" && tabId !== "null" && tabId.trim() !== ""
-      ? tabId
-      : DEFAULT_TAB;
-
+    const validTabId =
+      tabId && tabId !== "undefined" && tabId !== "null" && tabId.trim() !== ""
+        ? tabId
+        : DEFAULT_TAB;
     setActiveTabId(validTabId);
     localStorage.setItem(STORAGE_KEY, validTabId);
     return validTabId;
   };
 
-  const primaryColor = usePrimaryColor();
-
   useEffect(() => {
     const isFirstVisit = localStorage.getItem(VISIT_KEY) !== "true";
-
     if (isFirstVisit) {
       localStorage.setItem(VISIT_KEY, "true");
       setValidActiveTab(DEFAULT_TAB);
@@ -125,53 +124,55 @@ export default function TablePro() {
       return [];
     },
     networkMode: "always",
-    enabled: !!storedCode,
+    enabled: !!storedCode && !isRetailMode && !isModeLoading,  // ← wait for mode
     retry: 2,
     retryDelay: 1000,
   });
 
   const generateTabItems = useMemo(() => {
-    const dynamicTabs = data?.map((item) => ({
-      key: `${item._id}`,
-      tab: "Table",
-      label: (
-        <Space>
-          <HolderOutlined />
-          {item.name || 'Unnamed Table'}
-        </Space>
-      ),
-      children: item?.tables && item?.tables.length > 0 ? (
-        <div
-          className="wrapper2"
-          style={{
-            display: "grid",
-            rowGap: 30,
-            height: "calc(100vh - 280px)",
-            overflowY: "auto",
-            alignItems: "start",
-          }}
-        >
-          {item.tables.map((T) => (
+    const dynamicTabs =
+      data?.map((item) => ({
+        key: `${item._id}`,
+        tab: "Table",
+        label: (
+          <Space>
+            <HolderOutlined />
+            {item.name || "Unnamed Table"}
+          </Space>
+        ),
+        children:
+          item?.tables && item?.tables.length > 0 ? (
             <div
-              key={T._id}
-              className="card"
+              className="wrapper2"
               style={{
-                display: "flex",
-                justifyContent: "flex-start",
-                marginTop: "0px",
-                flexWrap: "wrap",
-                width: "100%",
-                bottom: 0,
+                display: "grid",
+                rowGap: 30,
+                height: "calc(100vh - 280px)",
+                overflowY: "auto",
+                alignItems: "start",
               }}
             >
-              <TableCard key={T._id} item={T} openModal={handleOpen} />
+              {item.tables.map((T) => (
+                <div
+                  key={T._id}
+                  className="card"
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-start",
+                    marginTop: "0px",
+                    flexWrap: "wrap",
+                    width: "100%",
+                    bottom: 0,
+                  }}
+                >
+                  <TableCard key={T._id} item={T} openModal={handleOpen} />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <EmptyPage />
-      ),
-    })) || [];
+          ) : (
+            <EmptyPage />
+          ),
+      })) || [];
 
     return [
       {
@@ -196,9 +197,7 @@ export default function TablePro() {
             }}
           >
             <Result
-              icon={
-                <AppstoreOutlined style={{ fontSize: "64px", color: primaryColor }} />
-              }
+              icon={<AppstoreOutlined style={{ fontSize: "64px", color: primaryColor }} />}
               title="Welcome to Slots Management"
               subTitle="Please select a staff slot from above to view its Customer Slots"
               extra={[
@@ -223,46 +222,57 @@ export default function TablePro() {
 
   useEffect(() => {
     if (!isLoading && data) {
-      const tabKeys = generateTabItems.map(item => item.key);
-
+      const tabKeys = generateTabItems.map((item) => item.key);
       if (!tabKeys.includes(activeTabId)) {
-        console.warn(`Active tab '${activeTabId}' not found in available tabs. Falling back to default.`);
         setValidActiveTab(DEFAULT_TAB);
       }
     }
   }, [data, isLoading, activeTabId, generateTabItems]);
 
-  if (successmodal) {
-    return <SuccesssModal />;
-  }
+  // ─── Early returns ──────────────────────────────────────────────────────────
+  if (successmodal) return <SuccesssModal />;
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: "grid",
-          placeContent: "center",
-          placeSelf: "auto",
-          marginTop: "80px",
-        }}
-      >
-        <Lottie
-          animationData={fssanimation}
-          loop={true}
-          height={20}
-          width={20}
-        />
+      <div style={{ display: "grid", placeContent: "center", marginTop: "80px" }}>
+        <Lottie animationData={fssanimation} loop={true} height={20} width={20} />
       </div>
     );
   }
 
-  if (isError) {
-    return <EmptyPage />;
+  // ─── Wait for shop mode to load from server ─────────────────────────────────
+  if (isModeLoading) {
+    return (
+      <div style={{ display: "grid", placeContent: "center", height: "60vh" }}>
+        <Spin size="large" tip="Loading..." />
+      </div>
+    );
   }
 
-  const safeActiveTabId = generateTabItems.some(item => item.key === activeTabId)
+  if (isError) return <EmptyPage />;
+
+  // ─── Retail mode ────────────────────────────────────────────────────────────
+  if (isRetailMode) {
+    return (
+      <>
+        <RestaurantPage />
+        {selectedProductId && (
+          <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} />
+        )}
+      </>
+    );
+  }
+
+  // ─── Restaurant mode ─────────────────────────────────────────────────────────
+  const safeActiveTabId = generateTabItems.some((item) => item.key === activeTabId)
     ? activeTabId
     : DEFAULT_TAB;
+
+  const cardTitle = (
+    <Typography.Text style={{ fontSize: "18px" }}>
+      <AppstoreOutlined /> Tables
+    </Typography.Text>
+  );
 
   const renderContent = () => {
     if (isLoading) {
@@ -280,15 +290,7 @@ export default function TablePro() {
             },
           }}
         >
-          <ProCard
-            title={
-              <Typography.Text style={{ fontSize: "18px" }}>
-                <AppstoreOutlined /> Tables
-              </Typography.Text>
-            }
-            bordered
-            boxShadow
-          >
+          <ProCard title={cardTitle} bordered boxShadow>
             <LoadingTabs />
             <LoadingTabContent />
           </ProCard>
@@ -311,11 +313,7 @@ export default function TablePro() {
         }}
       >
         <ProCard
-          title={
-            <Typography.Text style={{ fontSize: "18px" }}>
-              <AppstoreOutlined /> Tables
-            </Typography.Text>
-          }
+          title={cardTitle}
           tabs={{
             type: "card",
             items: generateTabItems,

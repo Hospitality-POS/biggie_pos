@@ -36,16 +36,8 @@ import dayjs, { Dayjs } from "dayjs";
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const getShopId = (): string => {
-    try {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
-        return user?.shop_id || user?.shopId || "";
-    } catch {
-        return "";
-    }
-};
+// ── Shop ID — same pattern used across the whole app ─────────────────────────
+const getShopId = (): string => localStorage.getItem("shopId") || "";
 
 const STATUS_CONFIG: Record<ReconciliationStatus, { badge: "success" | "processing" | "warning" | "error" | "default"; color: string }> = {
     Open: { badge: "default", color: "default" },
@@ -57,8 +49,6 @@ const STATUS_CONFIG: Record<ReconciliationStatus, { badge: "success" | "processi
 const ALL_STATUSES: (ReconciliationStatus | "ALL")[] = [
     "ALL", "Open", "In Progress", "Completed", "Voided",
 ];
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
 
 const BankReconciliationPage: React.FC = () => {
     const shopId = getShopId();
@@ -80,8 +70,29 @@ const BankReconciliationPage: React.FC = () => {
     const from = dateRange[0]?.startOf("day").toISOString();
     const to = dateRange[1]?.endOf("day").toISOString();
 
-    // ── If workspace is active — render workspace instead ─────────────────────
+    // ── Data — hooks must run unconditionally before any early return ─────────
+    const { data, isLoading, refetch } = useQuery({
+        queryKey: ["reconciliations", shopId, activeStatus, accountFilter, page, pageSize, from, to],
+        queryFn: () =>
+            getAllReconciliations({
+                shop_id: shopId,
+                status: activeStatus === "ALL" ? undefined : activeStatus,
+                account_id: accountFilter,
+                from,
+                to,
+                page,
+                limit: pageSize,
+            }),
+        enabled: !!shopId && !workspaceId,
+    });
 
+    const { data: bankData } = useQuery({
+        queryKey: ["bank-accounts", shopId],
+        queryFn: () => getBankAccounts(shopId),
+        enabled: !!shopId && !workspaceId,
+    });
+
+    // ── Workspace mode — early return AFTER all hooks ─────────────────────────
     if (workspaceId) {
         return (
             <ReconciliationWorkspace
@@ -95,41 +106,16 @@ const BankReconciliationPage: React.FC = () => {
         );
     }
 
-    // ── Data ──────────────────────────────────────────────────────────────────
-
-    const { data, isLoading, refetch } = useQuery({
-        queryKey: ["reconciliations", shopId, activeStatus, accountFilter, page, pageSize, from, to],
-        queryFn: () =>
-            getAllReconciliations({
-                shop_id: shopId,
-                status: activeStatus === "ALL" ? undefined : activeStatus,
-                account_id: accountFilter,
-                from,
-                to,
-                page,
-                limit: pageSize,
-            }),
-        enabled: !!shopId,
-    });
-
-    const { data: bankData } = useQuery({
-        queryKey: ["bank-accounts", shopId],
-        queryFn: () => getBankAccounts(shopId),
-        enabled: !!shopId,
-    });
-
-    const reconciliations = data?.reconciliations || [];
+    const reconciliations: BankReconciliation[] = data?.reconciliations || [];
     const total = data?.total || 0;
     const bankAccounts = bankData?.accounts || [];
 
-    // ── Summary stats ──────────────────────────────────────────────────────────
-
+    // ── Summary ───────────────────────────────────────────────────────────────
     const openCount = reconciliations.filter((r) => r.status === "Open").length;
     const inProgressCount = reconciliations.filter((r) => r.status === "In Progress").length;
     const completedCount = reconciliations.filter((r) => r.status === "Completed").length;
 
     // ── Columns ───────────────────────────────────────────────────────────────
-
     const columns = [
         {
             title: "Recon. No.",
@@ -142,7 +128,7 @@ const BankReconciliationPage: React.FC = () => {
             title: "Account",
             key: "account",
             render: (_: any, r: BankReconciliation) => {
-                const acc = r.account_id;
+                const acc = r.account_id as any;
                 if (typeof acc === "object")
                     return (
                         <Space size={4}>
@@ -306,15 +292,27 @@ const BankReconciliationPage: React.FC = () => {
                     </Button>
                 }
                 bordered
-                tabs={{
-                    activeKey: activeStatus,
-                    onChange: (k) => { setActiveStatus(k as ReconciliationStatus | "ALL"); setPage(1); },
-                    items: ALL_STATUSES.map((s) => ({
-                        key: s,
-                        label: s === "ALL" ? "All" : s,
-                    })),
-                }}
             >
+                {/* ── Status filter buttons (replaces tabs) ── */}
+                <div style={{ marginBottom: 12, borderBottom: "1px solid #f0f0f0", paddingBottom: 8 }}>
+                    <Space size={0}>
+                        {ALL_STATUSES.map((s) => (
+                            <Button
+                                key={s}
+                                type={activeStatus === s ? "primary" : "text"}
+                                onClick={() => { setActiveStatus(s as ReconciliationStatus | "ALL"); setPage(1); }}
+                                style={
+                                    activeStatus === s
+                                        ? { background: primaryColor, borderColor: primaryColor, borderRadius: 0 }
+                                        : { borderRadius: 0 }
+                                }
+                            >
+                                {s === "ALL" ? "All" : s}
+                            </Button>
+                        ))}
+                    </Space>
+                </div>
+
                 {/* ── Filters ── */}
                 <Space style={{ marginBottom: 16 }} wrap>
                     <FilterOutlined style={{ color: "#8c8c8c" }} />
@@ -337,7 +335,7 @@ const BankReconciliationPage: React.FC = () => {
                         showSearch
                         style={{ width: 240 }}
                         optionFilterProp="label"
-                        options={bankAccounts.map((a) => ({
+                        options={bankAccounts.map((a: any) => ({
                             label: `${a.account_code} — ${a.account_name}`,
                             value: a._id,
                         }))}
@@ -345,7 +343,12 @@ const BankReconciliationPage: React.FC = () => {
                 </Space>
 
                 {!shopId && (
-                    <Alert type="warning" message="Shop ID not found." showIcon style={{ marginBottom: 12 }} />
+                    <Alert
+                        type="warning"
+                        message="Shop not selected. Please select a shop to view reconciliations."
+                        showIcon
+                        style={{ marginBottom: 12 }}
+                    />
                 )}
 
                 <ProTable<BankReconciliation>
@@ -367,9 +370,7 @@ const BankReconciliationPage: React.FC = () => {
                     scroll={{ x: 1100 }}
                     size="small"
                     cardBordered={false}
-                    rowClassName={(r) =>
-                        r.status === "Voided" ? "opacity-50" : ""
-                    }
+                    rowClassName={(r) => r.status === "Voided" ? "opacity-50" : ""}
                     onRow={(r) => ({
                         style: { cursor: r.status !== "Voided" ? "pointer" : "default" },
                         onClick: () => r.status !== "Voided" && setWorkspaceId(r._id),
@@ -387,7 +388,7 @@ const BankReconciliationPage: React.FC = () => {
                 onClose={() => setOpenDrawer(false)}
                 onSuccess={(id) => {
                     setOpenDrawer(false);
-                    setWorkspaceId(id); // Go straight into workspace
+                    setWorkspaceId(id);
                 }}
                 shopId={shopId}
             />
