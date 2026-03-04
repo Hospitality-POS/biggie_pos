@@ -213,9 +213,17 @@ export const deleteCartItem = createAsyncThunk(
 
 export const deleteAllCartItems = createAsyncThunk(
   "cart/deleteAllCartItems",
-  async (cartId: string, { rejectWithValue }) => {
+  async (cartId: string, { rejectWithValue, getState }) => {
     try {
       const response = await axiosInstance.delete(`${baseUrl}/cart/${cartId}`);
+
+      // Mark the table as unoccupied after clearing cart
+      const state: any = getState();
+      const tableId = state.cart.cartDetails?.table_id?._id || state.cart.cartDetails?.table_id;
+      if (tableId) {
+        await axiosInstance.put(`${BASE_URL}/tables/${tableId}`, { isOccupied: false });
+      }
+
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

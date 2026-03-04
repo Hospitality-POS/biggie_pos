@@ -147,9 +147,9 @@ axiosInstance.interceptors.response.use(
                 case 404:
                     handleError(response.data.message || "Resource not found");
                     break;
-                case 400:
-                    handleError(response.data.message || "Invalid request");
-                    break;
+                // case 400:
+                //     handleError(response.data.message || "Invalid request");
+                //     break;
                 default:
                     break;
             }

@@ -1,20 +1,33 @@
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
-import { Tooltip, Button, Space, Popconfirm, message, Badge } from "antd";
+import { Tooltip, Button, Space, Popconfirm, message, Tag } from "antd";
 import {
   DeleteOutlined,
   EyeOutlined,
   UserAddOutlined,
+  CoffeeOutlined,
+  ShopOutlined,
 } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import { deleteShop, fetchAllShops } from "@services/shops";
 import AddEditShopModal from "@components/MODALS/pro/AddEditShopModal";
 import { useNavigate } from "react-router-dom";
-import { Spa } from "@mui/icons-material";
 
 const ShopManagementTable = () => {
   const tableRef = useRef<ActionType>();
   const navigate = useNavigate();
+
+  // Resolve tenant config once
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+
+  const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
+  const hasAccounting = !!(
+    tenant?.accounting_database?.enabled || tenant?.modules?.accounting
+  );
+
+  // Only-accounting tenants: POS mode column is irrelevant
+  const isAccountingOnly = hasAccounting && !hasPOS;
 
   const DeleteShopMutation = useMutation(deleteShop, {
     onSuccess: () => {
@@ -26,23 +39,9 @@ const ShopManagementTable = () => {
 
   const handleShopClick = (shopId: string) => {
     localStorage.setItem("shopId", shopId);
-
-    // ✅ NEW: Smart navigation based on enabled modules
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-
-    const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
-    const hasAccounting = !!(
-      tenant?.accounting_database?.enabled ||
-      tenant?.modules?.accounting
-    );
-
-    // Navigate based on enabled modules
-    if (hasAccounting && !hasPOS) {
-      // Accounting only → go to /accounting
+    if (isAccountingOnly) {
       navigate("/accounting");
     } else {
-      // POS enabled (or both) → go to /tables
       navigate("/tables");
     }
   };
@@ -82,6 +81,73 @@ const ShopManagementTable = () => {
     ),
   };
 
+  const posModeColumn = {
+    title: "POS Mode",
+    dataIndex: "pos_mode",
+    hideInSearch: false,
+    valueEnum: {
+      restaurant: { text: "Restaurant" },
+      retail: { text: "Retail" },
+    },
+    render: (_, record: any) => {
+      const isRetail = record?.pos_mode === "retail";
+      return (
+        <Tag
+          icon={isRetail ? <ShopOutlined /> : <CoffeeOutlined />}
+          color={isRetail ? "blue" : "volcano"}
+          style={{ borderRadius: 20, padding: "2px 10px" }}
+        >
+          {isRetail ? "Retail" : "Restaurant"}
+        </Tag>
+      );
+    },
+  };
+
+  const columns = useMemo(() => {
+    const base = [
+      {
+        title: "Branch Name",
+        dataIndex: "name",
+        key: "name",
+        copyable: true,
+        ellipsis: true,
+        tip: "Branch name will be unique across system",
+        formItemProps: {
+          rules: [{ required: true, message: "Branch name is required" }],
+        },
+      },
+      {
+        title: "Location",
+        dataIndex: "location",
+        hideInSearch: false,
+        fieldProps: { placeholder: "Enter Branch location" },
+      },
+      // Only show POS Mode column when POS is enabled
+      ...(!isAccountingOnly ? [posModeColumn] : []),
+      {
+        title: "Daily Revenue",
+        dataIndex: "daily_revenue",
+        hideInSearch: true,
+        valueType: "money",
+        render: (_, record) => `Ksh. ${record?.daily_revenue?.toLocaleString() || 0}`,
+      },
+      {
+        title: "Staff Count",
+        dataIndex: "staff_count",
+        hideInSearch: true,
+        sorter: (a, b) => a.staff_count - b.staff_count,
+        render: (_, record) => (
+          <Space>
+            <UserAddOutlined />
+            <span>{record?.staff_count}</span>
+          </Space>
+        ),
+      },
+      actionColumn,
+    ];
+    return base;
+  }, [isAccountingOnly]);
+
   return (
     <ProTable
       rowKey="_id"
@@ -94,62 +160,14 @@ const ShopManagementTable = () => {
           <div>{`Showing ${range[0]}-${range[1]} of ${total} total shops`}</div>
         ),
       }}
-      columns={[
-        {
-          title: "Branch Name",
-          dataIndex: "name",
-          key: "name",
-          copyable: true,
-          ellipsis: true,
-          tip: "Branch name will be unique across system",
-          formItemProps: {
-            rules: [{ required: true, message: "Branch name is required" }],
-          },
-        },
-        {
-          title: "Location",
-          dataIndex: "location",
-          hideInSearch: false,
-          fieldProps: {
-            placeholder: "Enter Branch location",
-          },
-        },
-        {
-          title: "Daily Revenue",
-          dataIndex: "daily_revenue",
-          hideInSearch: true,
-          valueType: "money",
-          render: (_, record) => {
-            return `Ksh. ${record?.daily_revenue?.toLocaleString() || 0}`;
-          },
-        },
-        {
-          title: "Staff Count",
-          dataIndex: "staff_count",
-          hideInSearch: true,
-          sorter: (a, b) => a.staff_count - b.staff_count,
-          render: (_, record) => {
-            return (
-              <Space>
-                <UserAddOutlined />
-                <span>{record?.staff_count}</span>
-              </Space>
-            );
-          },
-        },
-        actionColumn,
-      ]}
+      columns={columns}
       request={async (params) => {
         const data = await fetchAllShops(params);
-        return {
-          data: data,
-          success: true,
-          total: data.length,
-        };
+        return { data, success: true, total: data.length };
       }}
-      tableAlertRender={({ selectedRowKeys }) => {
-        return <p>Selected {selectedRowKeys.length} shops</p>;
-      }}
+      tableAlertRender={({ selectedRowKeys }) => (
+        <p>Selected {selectedRowKeys.length} shops</p>
+      )}
       actionRef={tableRef}
       options={{
         fullScreen: true,

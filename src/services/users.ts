@@ -24,7 +24,17 @@ const getTenant = () => {
     return null;
   }
 };
-
+export const updateUserStatus = async (id: string, status: 'Active' | 'Suspended' | 'Terminated') => {
+  try {
+    const response = await axiosInstance.patch(`${userUrl}/${id}/status`, { status });
+    message.success(`User status updated to ${status}`);
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || "Failed to update user status";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
 export const fetchAllUsersList = async (data: ParamsType & { shop_id?: string }) => {
   try {
     console.log('fetchAllUsersList called with data:', data);

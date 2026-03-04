@@ -36,6 +36,10 @@ import { fetchActivePackages, Package } from "@services/subscription";
 import PurchasePackageModal from "../../components/MODALS/pro/PurchasePackageModal";
 import { ShoppingCart, Build, CardGiftcard } from "@mui/icons-material";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import { usePOSMode } from "@context/POSModeContext";
+import { useRetailQueue } from "@context/RetailQueueContext";
+import RetailSlotIndicator from "@components/retail/RetailSlotIndicator";
+import { message } from "antd";
 
 function a11yProps(index) {
   return {
@@ -51,25 +55,12 @@ const SkeletonTabs = () => {
       width: '100%',
       overflowX: 'auto',
       gap: 1,
-      '&::-webkit-scrollbar': {
-        height: '4px',
-      },
-      '&::-webkit-scrollbar-track': {
-        backgroundColor: 'rgba(255,255,255,0.1)',
-      },
-      '&::-webkit-scrollbar-thumb': {
-        backgroundColor: 'rgba(255,255,255,0.3)',
-        borderRadius: '2px',
-      },
+      '&::-webkit-scrollbar': { height: '4px' },
+      '&::-webkit-scrollbar-track': { backgroundColor: 'rgba(255,255,255,0.1)' },
+      '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' },
     }}>
       {[...Array(5)].map((_, index) => (
-        <Skeleton
-          key={index}
-          variant="rectangular"
-          width={150}
-          height={48}
-          sx={{ borderRadius: 1, flexShrink: 0 }}
-        />
+        <Skeleton key={index} variant="rectangular" width={150} height={48} sx={{ borderRadius: 1, flexShrink: 0 }} />
       ))}
     </Box>
   );
@@ -81,14 +72,7 @@ const SkeletonCategoryCards = () => {
   const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
 
   return (
-    <Box sx={{
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '10px',
-      mt: 4,
-      ml: 1,
-      width: '100%'
-    }}>
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '10px', mt: 4, ml: 1, width: '100%' }}>
       {[...Array(6)].map((_, index) => (
         <Skeleton
           key={index}
@@ -121,6 +105,9 @@ const RestaurantPage: React.FC = () => {
   const { products, services, loading: productsLoading } = useAppSelector((state) => state.product);
   const dispatch = useAppDispatch();
   const { id } = useParams();
+
+  const { isRetailMode } = usePOSMode();
+  const { activeTable, refreshSlots } = useRetailQueue();
 
   const [selectedCard, setSelectedCard] = useState(null);
   const [showCategories, setShowCategories] = useState(true);
@@ -159,14 +146,12 @@ const RestaurantPage: React.FC = () => {
       setFilteredServices(services || []);
       return;
     }
-
-    const productFiltered = (products || []).filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const productFiltered = (products || []).filter(p =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    const serviceFiltered = (services || []).filter(service =>
-      service.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const serviceFiltered = (services || []).filter(s =>
+      s.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-
     setFilteredProducts(productFiltered);
     setFilteredServices(serviceFiltered);
   }, [searchTerm, products, services]);
@@ -183,8 +168,7 @@ const RestaurantPage: React.FC = () => {
 
   useEffect(() => {
     if (Maincategories?.length > 0) {
-      const firstCategoryId = Maincategories[0]._id;
-      handleChangeMainCategory(firstCategoryId);
+      handleChangeMainCategory(Maincategories[0]._id);
     }
   }, [Maincategories]);
 
@@ -195,7 +179,6 @@ const RestaurantPage: React.FC = () => {
   const handleChangeMainCategory = (maincategoryid) => {
     if (!Maincategories) return;
     const mainCategory = Maincategories.find(categ => categ._id === maincategoryid);
-
     if (mainCategory) {
       setSubcategories(mainCategory.sub_categories || []);
       if (mainCategory.sub_categories.length > 0) {
@@ -223,7 +206,8 @@ const RestaurantPage: React.FC = () => {
 
   const handleCartOpen = () => {
     setCartOpen(true);
-    dispatch(getCart(id));
+    const tableId = isRetailMode ? activeTable?._id : id;
+    if (tableId) dispatch(getCart(tableId));
   };
 
   const handleBack = () => {
@@ -250,16 +234,18 @@ const RestaurantPage: React.FC = () => {
     refetchPackages();
   };
 
+  // Retail: queue current order and get ready for next customer
+  const handleQueueOrder = async () => {
+    await refreshSlots();
+    message.success('Order queued! Ready for next customer.');
+  };
+
   const getDisplayItems = () => {
     switch (activeItemType) {
-      case 'products':
-        return filteredProducts;
-      case 'services':
-        return filteredServices;
-      case 'packages':
-        return availablePackages;
-      default:
-        return filteredServices;
+      case 'products': return filteredProducts;
+      case 'services': return filteredServices;
+      case 'packages': return availablePackages;
+      default: return filteredServices;
     }
   };
 
@@ -290,9 +276,7 @@ const RestaurantPage: React.FC = () => {
               backgroundColor: activeItemType === 'services' ? primaryColor : 'transparent',
               color: activeItemType === 'services' ? 'white' : primaryColor,
               borderColor: primaryColor,
-              '&:hover': {
-                backgroundColor: activeItemType === 'services' ? primaryColor : 'rgba(108, 28, 44, 0.1)',
-              }
+              '&:hover': { backgroundColor: activeItemType === 'services' ? primaryColor : 'rgba(108, 28, 44, 0.1)' },
             }}
           />
         )}
@@ -306,9 +290,7 @@ const RestaurantPage: React.FC = () => {
               backgroundColor: activeItemType === 'products' ? primaryColor : 'transparent',
               color: activeItemType === 'products' ? 'white' : primaryColor,
               borderColor: primaryColor,
-              '&:hover': {
-                backgroundColor: activeItemType === 'products' ? primaryColor : 'rgba(108, 28, 44, 0.1)',
-              }
+              '&:hover': { backgroundColor: activeItemType === 'products' ? primaryColor : 'rgba(108, 28, 44, 0.1)' },
             }}
           />
         )}
@@ -322,9 +304,7 @@ const RestaurantPage: React.FC = () => {
               backgroundColor: activeItemType === 'packages' ? primaryColor : 'transparent',
               color: activeItemType === 'packages' ? 'white' : primaryColor,
               borderColor: primaryColor,
-              '&:hover': {
-                backgroundColor: activeItemType === 'packages' ? primaryColor : 'rgba(108, 28, 44, 0.1)',
-              }
+              '&:hover': { backgroundColor: activeItemType === 'packages' ? primaryColor : 'rgba(108, 28, 44, 0.1)' },
             }}
           />
         )}
@@ -346,6 +326,20 @@ const RestaurantPage: React.FC = () => {
             }}
           >
             <AppBar position="static" sx={{ mb: 2, bgcolor: primaryColor }}>
+              {/* Retail mode: slot indicator in top-right of AppBar */}
+              {isRetailMode && (
+                <Box sx={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  px: 1,
+                  pt: 0.5,
+                  pb: 0,
+                }}>
+                  <RetailSlotIndicator onQueueOrder={handleQueueOrder} />
+                </Box>
+              )}
+
               {mainCategoriesLoading ? (
                 <Box sx={{ p: 1 }}>
                   <SkeletonTabs />
@@ -363,21 +357,12 @@ const RestaurantPage: React.FC = () => {
                   sx={{
                     '& .MuiTabs-scrollButtons': {
                       color: 'white',
-                      '&.Mui-disabled': {
-                        opacity: 0.3,
-                      },
+                      '&.Mui-disabled': { opacity: 0.3 },
                     },
                     '& .MuiTabs-scroller': {
-                      '&::-webkit-scrollbar': {
-                        height: '4px',
-                      },
-                      '&::-webkit-scrollbar-track': {
-                        backgroundColor: 'rgba(255,255,255,0.1)',
-                      },
-                      '&::-webkit-scrollbar-thumb': {
-                        backgroundColor: 'rgba(255,255,255,0.3)',
-                        borderRadius: '2px',
-                      },
+                      '&::-webkit-scrollbar': { height: '4px' },
+                      '&::-webkit-scrollbar-track': { backgroundColor: 'rgba(255,255,255,0.1)' },
+                      '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' },
                     },
                     '& .MuiTab-root': {
                       minWidth: 'auto',
@@ -419,36 +404,27 @@ const RestaurantPage: React.FC = () => {
               <Box sx={{
                 display: 'flex',
                 flexDirection: isMobile ? 'column' : 'row',
-                height: 'calc(100% - 100px)'
+                height: 'calc(100% - 100px)',
               }}>
                 {!isMobile && <SkeletonVerticalTabs />}
                 <SkeletonCategoryCards />
               </Box>
             ) : Subcategories.length ? (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: isMobile ? "column" : "row",
-                  height: isMobile ? "auto" : "64vh",
-                }}
-              >
-                <div
-                  style={{
-                    height: isMobile ? "auto" : "inherit",
-                    width: isMobile ? "100%" : "auto",
-                  }}
-                >
+              <div style={{
+                display: "flex",
+                flexDirection: isMobile ? "column" : "row",
+                height: isMobile ? "auto" : "64vh",
+              }}>
+                <div style={{
+                  height: isMobile ? "auto" : "inherit",
+                  width: isMobile ? "100%" : "auto",
+                }}>
                   <VerticalTabs
                     subcategories={Subcategories}
                     handleSubCategoryChange={handleChangeSubCategory}
                   />
                 </div>
-                <div
-                  style={{
-                    flex: 1,
-                    overflowY: "auto",
-                  }}
-                >
+                <div style={{ flex: 1, overflowY: "auto" }}>
                   {showCategories ? (
                     <section
                       className="cards"
@@ -490,11 +466,7 @@ const RestaurantPage: React.FC = () => {
                           />
                         ))
                       ) : (
-                        <Alert
-                          variant="filled"
-                          severity="info"
-                          sx={{ width: "100%", bgcolor: "#DEAC80" }}
-                        >
+                        <Alert variant="filled" severity="info" sx={{ width: "100%", bgcolor: "#DEAC80" }}>
                           <AlertTitle>Sorry</AlertTitle>
                           Empty categories!
                         </Alert>
@@ -502,14 +474,12 @@ const RestaurantPage: React.FC = () => {
                     </section>
                   ) : (
                     <div style={{ width: "inherit" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginBottom: "16px",
-                        }}
-                      >
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: "16px",
+                      }}>
                         <TextField
                           placeholder={activeItemType === 'packages' ? "Search Packages..." : "Search Items..."}
                           variant="outlined"
@@ -523,12 +493,8 @@ const RestaurantPage: React.FC = () => {
                             "& .MuiOutlinedInput-root": {
                               borderRadius: "20px",
                               borderColor: primaryColor,
-                              "&:hover .MuiOutlinedInput-notchedOutline": {
-                                borderColor: primaryColor,
-                              },
-                              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                                borderColor: primaryColor,
-                              },
+                              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: primaryColor },
+                              "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: primaryColor },
                             },
                           }}
                           InputProps={{
@@ -539,15 +505,9 @@ const RestaurantPage: React.FC = () => {
                             ),
                           }}
                         />
-
                         <IconButton
                           onClick={handleBack}
-                          sx={{
-                            color: primaryColor,
-                            "&:hover": {
-                              color: "#bc8c7c",
-                            },
-                          }}
+                          sx={{ color: primaryColor, "&:hover": { color: "#bc8c7c" } }}
                         >
                           <BackspaceIcon fontSize="large" />
                         </IconButton>
@@ -595,11 +555,7 @@ const RestaurantPage: React.FC = () => {
                                   package={pkg}
                                   onPurchase={handlePurchasePackage}
                                   style={{
-                                    flex: isMobile
-                                      ? "0 0 100%"
-                                      : isTablet
-                                        ? "0 0 45%"
-                                        : "0 0 30%",
+                                    flex: isMobile ? "0 0 100%" : isTablet ? "0 0 45%" : "0 0 30%",
                                     marginBottom: "10px",
                                   }}
                                 />
@@ -611,72 +567,49 @@ const RestaurantPage: React.FC = () => {
                                   menu={item}
                                   handleCart={handleCartOpen}
                                   style={{
-                                    flex: isMobile
-                                      ? "0 0 100%"
-                                      : isTablet
-                                        ? "0 0 45%"
-                                        : "0 0 30%",
+                                    flex: isMobile ? "0 0 100%" : isTablet ? "0 0 45%" : "0 0 30%",
                                     marginBottom: "10px",
                                   }}
                                 />
                               ))
                             )
                           ) : searchTerm ? (
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                width: "100%",
-                                padding: "16px",
-                              }}
-                            >
-                              <Alert
-                                variant="filled"
-                                severity="info"
-                                sx={{ width: "100%", bgcolor: "#DEAC80" }}
-                              >
+                            <div style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: "100%",
+                              padding: "16px",
+                            }}>
+                              <Alert variant="filled" severity="info" sx={{ width: "100%", bgcolor: "#DEAC80" }}>
                                 <AlertTitle>No Results</AlertTitle>
                                 No items match your search "{searchTerm}"
                               </Alert>
                             </div>
                           ) : categoryChosen ? (
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                height: "100%",
-                                width: "inherit",
-                              }}
-                            >
-                              <Alert
-                                variant="filled"
-                                severity="info"
-                                sx={{ width: "100%", bgcolor: "#DEAC80" }}
-                              >
+                            <div style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              height: "100%",
+                              width: "inherit",
+                            }}>
+                              <Alert variant="filled" severity="info" sx={{ width: "100%", bgcolor: "#DEAC80" }}>
                                 <AlertTitle>Sorry</AlertTitle>
                                 This category has no items!
                               </Alert>
                             </div>
                           ) : (
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                height: "100%",
-                              }}
-                            >
-                              <Typography
-                                variant="body1"
-                                gutterBottom
-                                mt={2}
-                                pl={4}
-                              >
+                            <div style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              height: "100%",
+                            }}>
+                              <Typography variant="body1" gutterBottom mt={2} pl={4}>
                                 Choose a category
                               </Typography>
                             </div>
@@ -688,11 +621,7 @@ const RestaurantPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <Alert
-                variant="filled"
-                severity="info"
-                sx={{ width: "100%", bgcolor: "#DEAC80" }}
-              >
+              <Alert variant="filled" severity="info" sx={{ width: "100%", bgcolor: "#DEAC80" }}>
                 <AlertTitle>Sorry</AlertTitle>
                 This category has no items!
               </Alert>
