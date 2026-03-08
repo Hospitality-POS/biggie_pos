@@ -26,32 +26,24 @@ import { ProCard, ProTable } from "@ant-design/pro-components";
 import { useMutation } from "@tanstack/react-query";
 
 interface BookingsListProps {
-  onEditBooking?: (booking: any) => void; // Callback to handle edit action
+  onEditBooking?: (booking: any) => void;
 }
 
 const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
   const dispatch = useDispatch();
 
-  // Helper function to determine booking status
-  function getBookingStatus(appointmentDate, startTime) {
+  function getBookingStatus(appointmentDate: any, startTime: any) {
     if (!appointmentDate || !startTime) return "unknown";
-
     const now = moment();
     const appointmentMoment = moment(
       `${appointmentDate} ${startTime}`,
       "YYYY-MM-DD h:mm A"
     );
-
-    if (appointmentMoment.isBefore(now)) {
-      return "completed";
-    } else if (appointmentMoment.isSame(now, "day")) {
-      return "today";
-    } else {
-      return "upcoming";
-    }
+    if (appointmentMoment.isBefore(now)) return "completed";
+    if (appointmentMoment.isSame(now, "day")) return "today";
+    return "upcoming";
   }
 
-  // Handle booking deletion
   const handleDeleteBooking = useMutation({
     mutationFn: removeSchedule,
     onSuccess: () => {
@@ -64,20 +56,15 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
     },
   });
 
-  // ✅ NEW: Handle edit booking
   const handleEditClick = (record: any) => {
     if (onEditBooking) {
-      // Format the booking data for the calendar view
       const formattedBooking = {
         id: record._id,
         staff: record.staff_id?.fullname || "Unknown Staff",
         staffId: record.staff_id?._id,
         start_time: record.start_time,
         end_time: record.end_time,
-        client:
-          record.customer_id?.customer_name ||
-          record.custom_client_name ||
-          "Unknown Client",
+        client: resolveClientName(record),
         clientId: record.customer_id?._id,
         customClientName: record.custom_client_name,
         service: record.service_id?.name || "Unknown Service",
@@ -92,102 +79,127 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
         specialRequests: record.special_requests,
         phone: record.phone,
       };
-
       onEditBooking(formattedBooking);
     } else {
       message.info("Please switch to Calendar view to edit this booking");
     }
   };
 
-  // Get status tag color
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "green";
-      case "today":
-        return "orange";
-      case "upcoming":
-        return "blue";
-      case "cancelled":
-        return "red";
-      case "pending":
-        return "yellow";
-      case "confirmed":
-        return "blue";
-      default:
-        return "default";
+  const resolveClientName = (record: any): string => {
+    const cid = record.customer_id;
+    const cids = record.customer_ids;
+    const ccn = record.custom_client_name;
+    console.log("[resolveClientName]", record._id, {
+      custom_client_name: ccn,
+      customer_id: cid,
+      customer_ids: cids,
+    });
+
+    // 1. custom_client_name
+    if (ccn && typeof ccn === "string" && ccn.trim() !== "") {
+      return ccn.trim();
     }
+
+    // 2. customer_id object { customer_name, ... }
+    if (cid && typeof cid === "object" && !Array.isArray(cid)) {
+      const name = cid.customer_name || cid.name;
+      console.log("[resolveClientName] customer_id name:", name);
+      if (name && typeof name === "string" && name.trim() !== "") return name.trim();
+    }
+
+    // 3. customer_ids array [{ customer_name, ... }]
+    if (Array.isArray(cids) && cids.length > 0) {
+      const names = cids
+        .map((c: any) => (c && (c.customer_name || c.name)) || null)
+        .filter((n: any) => n !== null && n !== "");
+      if (names.length > 0) return names.join(", ");
+    }
+
+    return "Walk-in / Unassigned";
   };
 
-  // Get status text
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "Completed";
-      case "today":
-        return "Today";
-      case "upcoming":
-        return "Upcoming";
-      case "cancelled":
-        return "Cancelled";
-      case "pending":
-        return "Pending";
-      case "confirmed":
-        return "Confirmed";
-      default:
-        return "Unknown";
-    }
-  };
-
-  // ✅ NEW: Helper to format customer names for display
-  const formatCustomerNames = (record: any) => {
-    // Check if this is a group booking with multiple customers
-    if (record.customer_ids && Array.isArray(record.customer_ids) && record.customer_ids.length > 0) {
-      const customerCount = record.customer_ids.length;
-
-      if (customerCount === 1) {
-        return record.customer_ids[0]?.customer_name || record.custom_client_name || "Unknown";
+  /**
+   * Column display name — truncated for group bookings.
+   */
+  const formatCustomerNames = (record: any): string => {
+    // Group booking: customer_ids[] with 2+ populated objects — show truncated list
+    if (Array.isArray(record.customer_ids) && record.customer_ids.length > 1) {
+      const populated = record.customer_ids.filter(
+        (c: any) => c && (c.customer_name || c.name)
+      );
+      if (populated.length > 1) {
+        const names = populated.map((c: any) => c.customer_name || c.name);
+        const firstTwo = names.slice(0, 2).join(", ");
+        return populated.length > 2 ? `${firstTwo} +${populated.length - 2} more` : firstTwo;
       }
-
-      // For multiple customers, show first 2 names + count
-      const firstTwo = record.customer_ids
-        .slice(0, 2)
-        .map(c => c?.customer_name || "Unknown")
-        .join(", ");
-
-      if (customerCount > 2) {
-        return `${firstTwo} +${customerCount - 2} more`;
-      }
-
-      return firstTwo;
     }
-
-    // Fallback to old format
-    return record.custom_client_name || record.customer_id?.customer_name || "Unknown";
+    // Single customer — resolveClientName handles all three schemas:
+    //   custom_client_name | customer_id{} | customer_ids[single]
+    return resolveClientName(record);
   };
 
-  // ✅ NEW: Get all customer phone numbers
-  const getCustomerPhones = (record: any) => {
+  /**
+   * Collects all phone numbers from a record across all schema shapes.
+   */
+  const getCustomerPhones = (record: any): string[] => {
     const phones: string[] = [];
 
-    if (record.customer_ids && Array.isArray(record.customer_ids)) {
-      record.customer_ids.forEach(customer => {
-        if (customer?.phone) {
-          phones.push(customer.phone);
-        }
+    // From customer_ids array
+    if (Array.isArray(record.customer_ids)) {
+      record.customer_ids.forEach((c: any) => {
+        if (c?.phone) phones.push(String(c.phone));
       });
     }
 
-    // Fallback to old format
-    if (phones.length === 0) {
-      if (record.phone) phones.push(record.phone);
-      if (record.customer_id?.phone) phones.push(record.customer_id.phone);
+    // From legacy customer_id object
+    if (record.customer_id?.phone && !phones.includes(String(record.customer_id.phone))) {
+      phones.push(String(record.customer_id.phone));
+    }
+
+    // From top-level phone field
+    if (record.phone && !phones.includes(String(record.phone))) {
+      phones.push(String(record.phone));
     }
 
     return phones;
   };
 
-  // Table columns configuration
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed": return "green";
+      case "today": return "orange";
+      case "upcoming": return "blue";
+      case "cancelled": return "red";
+      case "pending": return "yellow";
+      case "confirmed": return "blue";
+      default: return "default";
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "completed": return "Completed";
+      case "today": return "Today";
+      case "upcoming": return "Upcoming";
+      case "cancelled": return "Cancelled";
+      case "pending": return "Pending";
+      case "confirmed": return "Confirmed";
+      default: return "Unknown";
+    }
+  };
+
+  // A group booking is one where customer_ids[] has 2+ populated customer objects.
+  // customer_id (single object) and custom_client_name are always individual bookings.
+  const isGroupBooking = (record: any): boolean => {
+    // Only customer_ids[] with 2+ populated objects qualifies as a group booking.
+    // customer_id{} (object) and custom_client_name are always individual bookings.
+    if (!Array.isArray(record.customer_ids) || record.customer_ids.length < 2) return false;
+    const populated = record.customer_ids.filter(
+      (c: any) => c && (c.customer_name || c.name)
+    );
+    return populated.length > 1;
+  };
+
   const columns = [
     {
       title: "Date & Time",
@@ -206,52 +218,69 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
           </div>
         </div>
       ),
-      sorter: (a, b) =>
+      sorter: (a: any, b: any) =>
         moment(a.appointment_date).unix() - moment(b.appointment_date).unix(),
-      defaultSortOrder: "descend",
+      defaultSortOrder: "descend" as const,
     },
     {
       title: "Client",
       key: "client",
-      dataIndex: "custom_client_name",
+      dataIndex: "_id",
       width: 220,
-      render: (text: any, record: any) => {
-        const isGroupBooking = record.customer_ids && record.customer_ids.length > 1;
-        const customerCount = record.customer_ids?.length || 0;
+      render: (_: any, record: any) => {
+        const group = isGroupBooking(record);
+        // Count customers from whichever schema is present
+        const customerCount = Array.isArray(record.customer_ids)
+          ? record.customer_ids.length
+          : record.customer_id && typeof record.customer_id === "object"
+            ? 1
+            : 0;
         const phones = getCustomerPhones(record);
+        const displayName = formatCustomerNames(record);
 
         return (
           <div>
-            <div style={{ fontWeight: "bold", display: "flex", alignItems: "center", gap: "8px" }}>
-              {isGroupBooking ? (
+            <div
+              style={{
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              {group ? (
                 <>
                   <TeamOutlined style={{ color: "#1890ff" }} />
-                  <Badge count={customerCount} style={{ backgroundColor: "#52c41a" }}>
-                    <span>{formatCustomerNames(record)}</span>
+                  <Badge
+                    count={customerCount}
+                    style={{ backgroundColor: "#52c41a" }}
+                  >
+                    <span>{displayName}</span>
                   </Badge>
                 </>
               ) : (
                 <>
                   <UserOutlined style={{ color: "#1890ff" }} />
-                  {formatCustomerNames(record)}
+                  {displayName}
                 </>
               )}
             </div>
 
-            {/* ✅ NEW: Show phone numbers */}
             {phones.length > 0 && (
-              <div style={{ fontSize: "12px", color: "#8c8c8c", marginTop: "4px" }}>
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#8c8c8c",
+                  marginTop: "4px",
+                }}
+              >
                 <PhoneOutlined style={{ marginRight: "4px" }} />
                 {phones.length === 1 ? phones[0] : `${phones.length} contacts`}
               </div>
             )}
 
-            {/* ✅ NEW: Show booking type badge */}
-            {isGroupBooking && (
-              <Tag
-                color="blue"
-                style={{ fontSize: "10px", marginTop: "4px" }}
-              >
+            {group && (
+              <Tag color="blue" style={{ fontSize: "10px", marginTop: "4px" }}>
                 Group Booking
               </Tag>
             )}
@@ -269,7 +298,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
           <Avatar size="small" style={{ marginRight: "8px" }}>
             {text?.charAt(0)?.toUpperCase()}
           </Avatar>
-          {text}
+          {text || "Unassigned"}
         </div>
       ),
     },
@@ -280,7 +309,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
       width: 150,
       render: (text: any, record: any) => (
         <div>
-          <div>{text}</div>
+          <div>{text || "—"}</div>
           {record.duration && (
             <div style={{ fontSize: "12px", color: "#8c8c8c" }}>
               Duration: {record.duration}
@@ -295,15 +324,13 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
       dataIndex: "status",
       search: false,
       width: 100,
-      render: (text: any, record: any) => (
-        <Tag
-          color={getStatusColor(
-            getBookingStatus(record.appointment_date, record.start_time)
-          )}
-        >
-          {getBookingStatus(record.appointment_date, record.start_time)}
-        </Tag>
-      ),
+      render: (_: any, record: any) => {
+        const computed = getBookingStatus(
+          record.appointment_date,
+          record.start_time
+        );
+        return <Tag color={getStatusColor(computed)}>{computed}</Tag>;
+      },
       filters: [
         { text: "Upcoming", value: "upcoming" },
         { text: "Today", value: "today" },
@@ -319,7 +346,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
       key: "actions",
       search: false,
       width: 120,
-      render: (_, record: any) => (
+      render: (_: any, record: any) => (
         <Space size="small">
           <Tooltip title="Edit Booking">
             <Button
@@ -345,23 +372,28 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
     },
   ];
 
-  // ✅ UPDATED: Render expanded row content with multiple customers
   const expandedRowRender = (record: any) => {
-    const isGroupBooking = record.customer_ids && record.customer_ids.length > 1;
-    const customers = record.customer_ids || [];
+    const group = isGroupBooking(record);
+    const customers = Array.isArray(record.customer_ids)
+      ? record.customer_ids
+      : [];
     const phones = getCustomerPhones(record);
+    const primaryEmail =
+      record.customer_id?.email ||
+      record.email ||
+      (customers[0]?.email ?? null);
 
     return (
       <Row gutter={[16, 16]}>
-        {/* ✅ UPDATED: Client Information - Handle Multiple Customers */}
+        {/* Client Information */}
         <Col span={12}>
           <ProCard
             size="small"
             title={
               <Space>
-                {isGroupBooking ? <TeamOutlined /> : <UserOutlined />}
-                {isGroupBooking ? "Group Booking - Customers" : "Client Information"}
-                {isGroupBooking && (
+                {group ? <TeamOutlined /> : <UserOutlined />}
+                {group ? "Group Booking — Customers" : "Client Information"}
+                {group && (
                   <Badge
                     count={customers.length}
                     style={{ backgroundColor: "#52c41a" }}
@@ -370,48 +402,84 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
               </Space>
             }
           >
-            {isGroupBooking ? (
+            {group ? (
               <>
-                {/* ✅ NEW: Display all customers in group booking */}
-                {customers.map((customer, index) => (
+                {customers.map((customer: any, index: number) => (
                   <div
                     key={customer?._id || index}
                     style={{
                       marginBottom: "12px",
                       paddingBottom: "12px",
-                      borderBottom: index < customers.length - 1 ? "1px solid #f0f0f0" : "none"
+                      borderBottom:
+                        index < customers.length - 1
+                          ? "1px solid #f0f0f0"
+                          : "none",
                     }}
                   >
                     <p style={{ marginBottom: "4px" }}>
-                      <UserOutlined style={{ marginRight: "4px", color: "#1890ff" }} />
-                      <strong>Customer {index + 1}:</strong> {customer?.customer_name || "Unknown"}
+                      <UserOutlined
+                        style={{ marginRight: "4px", color: "#1890ff" }}
+                      />
+                      <strong>Customer {index + 1}:</strong>{" "}
+                      {customer?.customer_name ||
+                        customer?.name ||
+                        "Unknown"}
                     </p>
                     {customer?.phone && (
-                      <p style={{ marginBottom: "4px", fontSize: "12px", color: "#8c8c8c" }}>
+                      <p
+                        style={{
+                          marginBottom: "4px",
+                          fontSize: "12px",
+                          color: "#8c8c8c",
+                        }}
+                      >
                         <PhoneOutlined style={{ marginRight: "4px" }} />
                         {customer.phone}
                       </p>
                     )}
                     {customer?.email && (
-                      <p style={{ marginBottom: "0", fontSize: "12px", color: "#8c8c8c" }}>
+                      <p
+                        style={{
+                          marginBottom: 0,
+                          fontSize: "12px",
+                          color: "#8c8c8c",
+                        }}
+                      >
                         📧 {customer.email}
                       </p>
                     )}
                   </div>
                 ))}
 
-                {/* ✅ NEW: Show capacity info */}
                 {record.max_capacity && (
-                  <div style={{ marginTop: "12px", padding: "8px", backgroundColor: "#f0f7ff", borderRadius: "4px" }}>
+                  <div
+                    style={{
+                      marginTop: "12px",
+                      padding: "8px",
+                      backgroundColor: "#f0f7ff",
+                      borderRadius: "4px",
+                    }}
+                  >
                     <p style={{ margin: 0, fontSize: "12px" }}>
-                      <strong>Capacity:</strong> {record.current_capacity || customers.length} / {record.max_capacity}
-                      {record.current_capacity < record.max_capacity && (
-                        <Tag color="green" style={{ marginLeft: "8px", fontSize: "10px" }}>
-                          {record.max_capacity - (record.current_capacity || customers.length)} spots available
+                      <strong>Capacity:</strong>{" "}
+                      {record.current_capacity || customers.length} /{" "}
+                      {record.max_capacity}
+                      {(record.current_capacity || customers.length) <
+                        record.max_capacity ? (
+                        <Tag
+                          color="green"
+                          style={{ marginLeft: "8px", fontSize: "10px" }}
+                        >
+                          {record.max_capacity -
+                            (record.current_capacity ||
+                              customers.length)}{" "}
+                          spots available
                         </Tag>
-                      )}
-                      {record.current_capacity >= record.max_capacity && (
-                        <Tag color="red" style={{ marginLeft: "8px", fontSize: "10px" }}>
+                      ) : (
+                        <Tag
+                          color="red"
+                          style={{ marginLeft: "8px", fontSize: "10px" }}
+                        >
                           Full
                         </Tag>
                       )}
@@ -421,13 +489,9 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
               </>
             ) : (
               <>
-                {/* Single customer display */}
                 <p>
                   <UserOutlined style={{ marginRight: "4px" }} />
-                  <strong>Name:</strong>{" "}
-                  {record.custom_client_name ||
-                    record.customer_id?.customer_name ||
-                    "N/A"}
+                  <strong>Name:</strong> {resolveClientName(record)}
                 </p>
                 {phones.length > 0 && (
                   <p>
@@ -435,9 +499,9 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
                     <strong>Phone:</strong> {phones[0]}
                   </p>
                 )}
-                {(record.customer_id?.email || record.email) && (
+                {primaryEmail && (
                   <p>
-                    📧 <strong>Email:</strong> {record.customer_id?.email || record.email}
+                    📧 <strong>Email:</strong> {primaryEmail}
                   </p>
                 )}
               </>
@@ -453,21 +517,17 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
               <strong>Date:</strong>{" "}
               {moment(record.appointment_date).format("MMMM DD, YYYY")}
             </p>
-
             <p>
               <ClockCircleOutlined style={{ marginRight: "4px" }} />
-              <strong>Time:</strong> {record.start_time} - {record.end_time}
+              <strong>Time:</strong> {record.start_time} — {record.end_time}
             </p>
-
             <p>
               <strong>Duration:</strong> {record.duration || "N/A"}
             </p>
-
-            {/* ✅ NEW: Show booking type */}
             <p>
               <strong>Type:</strong>{" "}
-              <Tag color={isGroupBooking ? "blue" : "default"}>
-                {record.booking_type === "group" ? "Group Booking" : "Individual"}
+              <Tag color={group ? "blue" : "default"}>
+                {group ? "Group Booking" : "Individual"}
               </Tag>
             </p>
           </ProCard>
@@ -477,15 +537,18 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
         <Col span={12}>
           <ProCard size="small" title="Service Information">
             <p>
-              <strong>Service:</strong> {record.service_id?.name || "N/A"}
+              <strong>Service:</strong>{" "}
+              {record.service_id?.name || "—"}
             </p>
             <p>
               <UserOutlined style={{ marginRight: "4px" }} />
-              <strong>Staff:</strong> {record.staff_id?.fullname || "N/A"}
+              <strong>Staff:</strong>{" "}
+              {record.staff_id?.fullname || "Unassigned"}
             </p>
             {record.service_id?.price && (
               <p>
-                <strong>Price:</strong> Ksh {record.service_id.price}
+                <strong>Price:</strong> Ksh{" "}
+                {record.service_id.price.toLocaleString()}
               </p>
             )}
           </ProCard>
@@ -512,8 +575,18 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
 
             <p>
               <strong>Status:</strong>{" "}
-              <Tag color={getStatusColor(record.status)}>
-                {getStatusText(record.status)}
+              <Tag
+                color={getStatusColor(
+                  getBookingStatus(
+                    record.appointment_date,
+                    record.start_time
+                  )
+                )}
+              >
+                {getBookingStatus(
+                  record.appointment_date,
+                  record.start_time
+                )}
               </Tag>
             </p>
 
@@ -532,7 +605,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
     <ProTable
       columns={columns}
       rowKey="_id"
-      request={async (params) => {
+      request={async () => {
         const result = await fetchAllSchedules();
         return {
           data: result.data,
@@ -544,7 +617,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
         pageSize: 10,
         showSizeChanger: true,
         showQuickJumper: true,
-        showTotal: (total, range) =>
+        showTotal: (total: number, range: [number, number]) =>
           `${range[0]}-${range[1]} of ${total} bookings`,
       }}
       scroll={{ x: 1200 }}
@@ -554,9 +627,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
         searchText: "Search",
         resetText: "Reset",
       }}
-      expandable={{
-        expandedRowRender,
-      }}
+      expandable={{ expandedRowRender }}
       headerTitle={
         <Space>
           <CalendarOutlined />
@@ -566,10 +637,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
       toolBarRender={() => [
         <Button
           key="refresh"
-          onClick={() => {
-            // Trigger refetch
-            message.success("Bookings refreshed");
-          }}
+          onClick={() => message.success("Bookings refreshed")}
         >
           Refresh
         </Button>,

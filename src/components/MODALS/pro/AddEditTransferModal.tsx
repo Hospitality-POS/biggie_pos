@@ -439,7 +439,7 @@ const AddEditTransferModal: React.FC<AddEditTransferModalProps> = ({
         </span>
     ) : (
         <Button type="primary" icon={<PlusOutlined />} onClick={showModal}>
-            New Transfer
+            New
         </Button>
     );
 

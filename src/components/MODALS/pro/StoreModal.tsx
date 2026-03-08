@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Button, Form, Space, Upload, message } from "antd";
+import { Button, Form, Space, Upload, message, Typography } from "antd";
 import {
   ModalForm,
   ProFormText,
@@ -11,8 +11,8 @@ import {
 import {
   CarryOutOutlined,
   EditOutlined,
-  FolderAddTwoTone,
-  PlusCircleFilled,
+  FolderAddOutlined,
+  PlusOutlined,
   TagsOutlined,
   InboxOutlined,
 } from "@ant-design/icons";
@@ -26,19 +26,24 @@ import { FormInstance, UploadFile, UploadProps } from "antd/lib";
 import { useAppSelector } from "src/store";
 import { RcFile } from "antd/lib/upload";
 
+const { Text } = Typography;
+
+// ── Palette ────────────────────────────────────────────────────────────────
+const C = {
+  primary: "#6c1c2c",
+  primaryLight: "#f9f0f2",
+  subText: "#64748b",
+  darkText: "#0f172a",
+  border: "#e2e8f0",
+  bg: "#f8fafc",
+};
+
 interface StoreModalProps {
   edit?: boolean;
   data?: any;
 }
-interface categoryValueType {
-  name: string;
-  _id: string;
-}
-interface modifiersAddonsType {
-  name: string;
-  _id: string;
-  addons: any[];
-}
+interface categoryValueType { name: string; _id: string; }
+interface modifiersAddonsType { name: string; _id: string; addons: any[]; }
 
 const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
   const [form] = Form.useForm();
@@ -47,18 +52,10 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
-  // Set initial image if editing a product with an existing thumbnail
   useEffect(() => {
     if (edit && data?.thumbnail) {
       setPreviewImage(data.thumbnail);
-      setFileList([
-        {
-          uid: "-1",
-          name: "thumbnail.png",
-          status: "done",
-          url: data.thumbnail,
-        },
-      ]);
+      setFileList([{ uid: "-1", name: "thumbnail.png", status: "done", url: data.thumbnail }]);
     } else {
       setFileList([]);
       setPreviewImage(null);
@@ -70,151 +67,106 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
     queryKey: ["addons"],
     queryFn: getAllModifierAddons,
     retry: 3,
-    refetchInterval: 5000,
     networkMode: "always",
   });
 
   const { data: categoryData } = useQuery({
     queryKey: ["store-category"],
     queryFn: () => fetchAllCategories({}),
-    refetchInterval: 5000,
     networkMode: "always",
   });
 
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
 
-  const AddonsRequest = async () => {
-    const values = allAddons?.map((modifierAddon: modifiersAddonsType) => ({
+  const AddonsRequest = async () =>
+    allAddons?.map((modifierAddon: modifiersAddonsType) => ({
       label: modifierAddon?.name,
       title: modifierAddon?.name,
       value: modifierAddon?._id,
       key: modifierAddon?._id,
       disabled: true,
-      children: modifierAddon?.addons?.map((childTable) => ({
-        label: childTable?.name,
-        title: childTable?.name,
-        value: childTable?._id,
+      children: modifierAddon?.addons?.map((child) => ({
+        label: child?.name,
+        title: child?.name,
+        value: child?._id,
         icon: <CarryOutOutlined />,
-        key: childTable?._id,
+        key: child?._id,
       })),
     }));
-    return values;
-  };
 
-  const CategoryRequest = async () => {
-    const values = categoryData?.map((e: categoryValueType) => {
-      return { label: e.name, value: e._id, key: e._id };
-    });
-    return values;
-  };
+  const CategoryRequest = async () =>
+    categoryData?.map((e: categoryValueType) => ({
+      label: e.name, value: e._id, key: e._id,
+    }));
 
   const editPayload = {
     ...data,
-    category: {
-      value: data?.category?._id,
-      lable: data?.category?.name,
-    },
-    addons: data?.addons?.map((addon: any) => ({
-      value: addon._id,
-      label: addon.name,
-    })),
+    category: { value: data?.category?._id, lable: data?.category?.name },
+    addons: data?.addons?.map((addon: any) => ({ value: addon._id, label: addon.name })),
   };
 
-  // File upload properties
   const beforeUpload = (file: RcFile) => {
-    const isImage = file.type.startsWith("image/");
-    if (!isImage) {
+    if (!file.type.startsWith("image/")) {
       message.error("You can only upload image files!");
       return false;
     }
-
-    const isLt5M = file.size / 1024 / 1024 < 5;
-    if (!isLt5M) {
+    if (file.size / 1024 / 1024 >= 5) {
       message.error("Image must be smaller than 5MB!");
       return false;
     }
-
-    // Store the file directly
     setUploadedFile(file);
-    return false; // Prevent auto upload
+    return false;
   };
 
   const handleChange: UploadProps["onChange"] = ({ fileList: newFileList }) => {
     if (newFileList.length > 0 && newFileList[0].originFileObj) {
-      // Store the file and update preview
-      const file = newFileList[0].originFileObj;
-      setUploadedFile(file);
-      setPreviewImage(URL.createObjectURL(file));
+      setUploadedFile(newFileList[0].originFileObj);
+      setPreviewImage(URL.createObjectURL(newFileList[0].originFileObj));
     } else if (newFileList.length > 0 && newFileList[0].url) {
       setPreviewImage(newFileList[0].url);
     } else {
       setPreviewImage(null);
       setUploadedFile(null);
     }
-
     setFileList(newFileList);
   };
 
   const customRequest = ({ onSuccess }: any) => {
-    // This function prevents automatic upload and stores the file locally
-    setTimeout(() => {
-      onSuccess && onSuccess("ok");
-    }, 0);
+    setTimeout(() => onSuccess && onSuccess("ok"), 0);
   };
 
   const HandleOnFinish = async (values) => {
     try {
       const confirmed = await ShowConfirm({
-        title: `Are you sure you want to ${
-          edit ? "update this" : "add new"
-        } Product?`,
+        title: `Are you sure you want to ${edit ? "update this" : "add new"} Product?`,
         position: true,
       });
+      if (!confirmed) return false;
 
-      if (confirmed) {
-        console.log("Form values:", values);
-        console.log("File list:", fileList);
+      const thumbnailFile =
+        fileList.length > 0 && fileList[0].originFileObj
+          ? fileList[0].originFileObj
+          : null;
 
-        let thumbnailFile = null;
+      const productData = {
+        ...values,
+        addons: values.addons?.map((addon) => addon.value) || [],
+        ...(thumbnailFile && { thumbnailFile }),
+        name: values.name,
+        price: Number(values.price) || 0,
+        quantity: Number(values.quantity) || 1,
+        min_viable_quantity: Number(values.min_viable_quantity) || 0,
+        activateInventory: Boolean(values.activateInventory),
+      };
 
-        // If a new file is selected, assign it
-        if (fileList.length > 0 && fileList[0].originFileObj) {
-          thumbnailFile = fileList[0].originFileObj;
-        }
-
-        console.log(
-          "Thumbnail file to send:",
-          thumbnailFile ? thumbnailFile.name : "No new file"
-        );
-
-        // Prepare product data
-        const productData = {
-          ...values,
-          addons: values.addons?.map((addon) => addon.value) || [],
-          ...(thumbnailFile && { thumbnailFile }), // Only add if changed
-          name: values.name,
-          price: Number(values.price) || 0,
-          quantity: Number(values.quantity) || 1,
-          min_viable_quantity: Number(values.min_viable_quantity) || 0,
-          activateInventory: Boolean(values.activateInventory),
-        };
-
-        console.log("Final product data before sending:", productData);
-
-        if (edit) {
-          await editProduct({
-            ...productData,
-            _id: data?._id,
-          });
-        } else {
-          await addNewProduct(productData);
-        }
-        return true;
+      if (edit) {
+        await editProduct({ ...productData, _id: data?._id });
+      } else {
+        await addNewProduct(productData);
       }
-      return false;
-    } catch (error) {
-      console.error("Error submitting form:", error);
+      return true;
+    } catch {
       message.error("Failed to save product");
       return false;
     }
@@ -225,10 +177,17 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
       form={form}
       formRef={formRef}
       title={
-        <Space>
-          <FolderAddTwoTone />
-          {edit ? "Edit Product" : "Add New Product"}
-        </Space>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{
+            background: C.primaryLight, borderRadius: 7,
+            padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1,
+          }}>
+            <FolderAddOutlined />
+          </div>
+          <Text strong style={{ fontSize: 14, color: C.darkText }}>
+            {edit ? "Edit Product" : "Add New Product"}
+          </Text>
+        </div>
       }
       initialValues={edit ? editPayload : {}}
       trigger={
@@ -243,11 +202,11 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
                 onClick={() => form.setFieldsValue(editPayload)}
               />
             }
-          ></Button>
+          />
         ) : (
-          <Button type="primary" block>
-            <PlusCircleFilled />
-            New Item
+          <Button type="primary" block
+            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}>
+            <PlusOutlined /> New Item
           </Button>
         )
       }
@@ -264,67 +223,43 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           resetText: "Cancel",
           submitText: edit ? "Edit Product" : "Add New Product",
         },
+        submitButtonProps: {
+          style: { background: C.primary, borderColor: C.primary, borderRadius: 8 },
+        },
       }}
     >
       <ProForm.Group title="Product Details">
         <ProFormText
-          hasFeedback
-          width="md"
-          id="productName"
-          name="name"
-          label="Name"
+          hasFeedback width="md" id="productName" name="name" label="Name"
           rules={[{ required: true, message: "Product name is required" }]}
           placeholder="Enter product name"
         />
-
         <ProFormSelect
-          hasFeedback
-          width="md"
-          name="category"
-          label="Category"
+          hasFeedback width="md" name="category" label="Category"
           rules={[{ required: true, message: "Product category is required" }]}
-          showSearch
-          placeholder="Select product category"
+          showSearch placeholder="Select product category"
           request={CategoryRequest}
         />
-
         {edit && (
           <>
             <ProFormText
-              key={"sub_category"}
-              disabled
-              width="md"
-              id="product-sub-category"
-              name={["sub_category", "name"]}
-              label="Sub-Category"
+              key="sub_category" disabled width="md"
+              id="product-sub-category" name={["sub_category", "name"]} label="Sub-Category"
             />
             <ProFormText
-              hasFeedback
-              disabled
-              width="md"
-              id="productcode"
-              name="code"
-              label="Code"
+              hasFeedback disabled width="md" id="productcode" name="code" label="Code"
               convertValue={(value, _) => value?.toUpperCase()}
             />
           </>
         )}
         <ProFormMoney
-          key={"price"}
-          hasFeedback
-          width="md"
-          name="price"
-          customSymbol="Ksh."
-          label="Price"
+          key="price" hasFeedback width="md" name="price"
+          customSymbol="Ksh." label="Price"
           rules={[{ required: true, message: "Product Price is required" }]}
           placeholder="Enter Product Price"
         />
-
-        {/* vat type */}
         <ProFormSelect
-          name="vat_type"
-          showSearch
-          width="md"
+          name="vat_type" showSearch width="md"
           tooltip="VAT Type can be Standard(16%), Zero Rated(0%) or Exempt(0%)"
           label="VAT Type"
           rules={[{ required: true, message: "VAT type is required" }]}
@@ -336,81 +271,61 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           ]}
         />
         <ProFormSwitch
-          width="md"
-          id="activateInventory"
-          name="activateInventory"
+          width="md" id="activateInventory" name="activateInventory"
           label="Activate Inventory"
-          rules={[
-            {
-              validator: (_, value) => {
-                if (value === undefined) {
-                  return Promise.reject(
-                    "Please select if the product should auto deduct Inventory"
-                  );
-                }
-                return Promise.resolve();
-              },
-            },
-          ]}
+          rules={[{
+            validator: (_, value) =>
+              value === undefined
+                ? Promise.reject("Please select if the product should auto deduct Inventory")
+                : Promise.resolve(),
+          }]}
           placeholder="Select if the product should auto deduct Inventory"
           initialValue={false}
         />
       </ProForm.Group>
 
-      <ProForm.Group size={"large"} title="More Info*">
+      <ProForm.Group size="large" title="More Info*">
         <ProFormTreeSelect
-          name="addons"
-          width={"md"}
-          key={"addons"}
-          label="Addons (optional)"
-          request={AddonsRequest}
-          placeholder="Select addons"
-          allowClear
+          name="addons" width="md" key="addons"
+          label="Addons (optional)" request={AddonsRequest}
+          placeholder="Select addons" allowClear
           fieldProps={{
-            id: "addons",
-            treeLine: true,
-            suffixIcon: <TagsOutlined />,
-            treeIcon: true,
-            filterTreeNode: true,
-            showSearch: true,
-            popupMatchSelectWidth: false,
-            labelInValue: true,
+            id: "addons", treeLine: true,
+            suffixIcon: <TagsOutlined />, treeIcon: true,
+            filterTreeNode: true, showSearch: true,
+            popupMatchSelectWidth: false, labelInValue: true,
             treeTitleRender: (value) => (
-              <span
-                style={{
-                  color: "black",
-                  fontWeight: "normal",
-                  fontSize: "14px",
-                }}
-              >
+              <span style={{ color: "black", fontWeight: "normal", fontSize: "14px" }}>
                 {value.title}
               </span>
             ),
-            autoClearSearchValue: true,
-            multiple: true,
+            autoClearSearchValue: true, multiple: true,
             treeNodeFilterProp: "title",
-            fieldNames: {
-              label: "title",
-            },
+            fieldNames: { label: "title" },
             getPopupContainer: () => document.body,
           }}
           style={{ width: "100%" }}
         />
         <ProFormTextArea
-          key={"desc"}
-          hasFeedback
-          width="md"
-          name="desc"
-          label="Description"
+          key="desc" hasFeedback width="md" name="desc" label="Description"
           placeholder="Enter Product Description if any."
         />
       </ProForm.Group>
 
-      {/* Product Thumbnail Upload Section - Full Width */}
-      <div style={{ padding: "0 24px", marginBottom: "24px" }}>
-        <div style={{ fontWeight: "bold", marginBottom: "16px" }}>
+      {/* Thumbnail upload */}
+      <div style={{
+        margin: "0 0 24px",
+        padding: "16px 20px",
+        background: C.bg,
+        border: `1px solid ${C.border}`,
+        borderRadius: 10,
+      }}>
+        <Text style={{
+          display: "block", fontSize: 10, fontWeight: 700, color: C.subText,
+          textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 12,
+        }}>
           Product Thumbnail
-        </div>
+        </Text>
         <Upload.Dragger
           fileList={fileList}
           beforeUpload={beforeUpload}
@@ -418,24 +333,29 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
           maxCount={1}
           showUploadList={{ showRemoveIcon: true }}
           accept="image/*"
-          style={{ width: "100%" }}
+          style={{ width: "100%", borderRadius: 8 }}
           customRequest={customRequest}
         >
           <p className="ant-upload-drag-icon">
-            <InboxOutlined style={{ fontSize: 48, color: "#40a9ff" }} />
+            <InboxOutlined style={{ fontSize: 40, color: C.primary }} />
           </p>
-          <p className="ant-upload-text">Click or drag file to upload</p>
-          <p className="ant-upload-hint">
-            Support for a single image file. Maximum size: 5MB.
+          <p className="ant-upload-text" style={{ color: C.darkText, fontWeight: 600 }}>
+            Click or drag file to upload
+          </p>
+          <p className="ant-upload-hint" style={{ color: C.subText }}>
+            Single image file · Maximum 5MB
           </p>
         </Upload.Dragger>
 
         {previewImage && (
-          <div style={{ marginTop: 16, textAlign: "center" }}>
+          <div style={{
+            marginTop: 16, textAlign: "center",
+            padding: 12, background: "#fff",
+            border: `1px solid ${C.border}`, borderRadius: 8,
+          }}>
             <img
-              src={previewImage}
-              alt="Product preview"
-              style={{ maxHeight: 200, maxWidth: "100%", objectFit: "contain" }}
+              src={previewImage} alt="Product preview"
+              style={{ maxHeight: 180, maxWidth: "100%", objectFit: "contain", borderRadius: 6 }}
             />
           </div>
         )}

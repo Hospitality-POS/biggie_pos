@@ -812,7 +812,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
                   { label: "Standard", value: "STANDARD" },
                   { label: "Zero Rated", value: "ZERO" },
                   { label: "Exempt", value: "EXEMPT" },
-                ]}             
+                ]}
               />
 
               <ProFormTextArea
@@ -1068,7 +1068,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
               key="button"
               icon={<ReconciliationOutlined />}
             >
-              New Inventory
+              Add New
             </Button>
           )
         }

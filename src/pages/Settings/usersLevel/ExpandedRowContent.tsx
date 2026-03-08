@@ -1,19 +1,40 @@
 import React from "react";
-import { ProDescriptions } from "@ant-design/pro-components";
-import { Typography, List, Card, Tag, Space, Button, Dropdown } from "antd";
+import { Button, Dropdown, Space, Typography } from "antd";
 import {
-  ClockCircleOutlined,
   CalendarOutlined,
-  LoginOutlined,
-  LogoutOutlined,
+  ClockCircleOutlined,
   DownloadOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
+  LoginOutlined,
+  LogoutOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  SafetyCertificateOutlined,
+  ShopOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 
+const { Text } = Typography;
+
+// ── Palette ───────────────────────────────────────────────────────────────────
+const C = {
+  primary: "#6c1c2c",
+  primaryLight: "#f9f0f2",
+  green: "#10b981",
+  orange: "#f59e0b",
+  red: "#ef4444",
+  blue: "#3b82f6",
+  subText: "#64748b",
+  darkText: "#0f172a",
+  border: "#e2e8f0",
+  bg: "#f8fafc",
+};
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface ClockRecord {
   _id: string;
   clock_in: string;
@@ -25,6 +46,7 @@ interface Shop {
   name: string;
   location: string;
 }
+
 interface EmployeeRecord {
   pin: string;
   username: string;
@@ -39,457 +61,440 @@ interface ExpandedRowContentProps {
   record: EmployeeRecord;
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const formatTimeDisplay = (dateString: string) => {
+  const date = new Date(dateString);
+  return {
+    date: date.toLocaleDateString("en-US", {
+      weekday: "short", year: "numeric", month: "short", day: "numeric",
+    }),
+    time: date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+    fullDate: date,
+  };
+};
+
+const calculateDuration = (clockIn: Date, clockOut?: Date): string => {
+  if (!clockOut) return "In Progress";
+  const diffMs = clockOut.getTime() - clockIn.getTime();
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  return `${hours}h ${minutes}m`;
+};
+
+// ── Section label ─────────────────────────────────────────────────────────────
+const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Text style={{
+    fontSize: 10, fontWeight: 700, color: C.subText,
+    textTransform: "uppercase", letterSpacing: "0.5px",
+    display: "block", marginBottom: 10,
+  }}>
+    {children}
+  </Text>
+);
+
+// ── Info row ──────────────────────────────────────────────────────────────────
+const InfoRow: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+}> = ({ icon, label, value }) => (
+  <div style={{
+    display: "flex", alignItems: "center",
+    justifyContent: "space-between",
+    padding: "7px 0",
+    borderBottom: `1px solid ${C.border}`,
+  }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+      <span style={{ color: C.subText, fontSize: 13 }}>{icon}</span>
+      <Text style={{ fontSize: 12, color: C.subText }}>{label}</Text>
+    </div>
+    <Text style={{ fontSize: 12, color: C.darkText, fontWeight: 500 }}>{value}</Text>
+  </div>
+);
+
+// ── Status badge ──────────────────────────────────────────────────────────────
+const StatusBadge: React.FC<{ active: boolean }> = ({ active }) => (
+  <span style={{
+    background: active ? "#fffbeb" : "#f0fdf4",
+    color: active ? C.orange : C.green,
+    borderRadius: 6, fontSize: 10, fontWeight: 700,
+    padding: "2px 8px", textTransform: "uppercase", whiteSpace: "nowrap",
+  }}>
+    {active ? "Active" : "Completed"}
+  </span>
+);
+
+// ── Main component ────────────────────────────────────────────────────────────
 const ExpandedRowContent: React.FC<ExpandedRowContentProps> = ({ record }) => {
-  const { pin, username, createdAt, phone, clockInArray, email, shop_id } =
-    record;
+  const { pin, username, createdAt, phone, clockInArray, email, shop_id } = record;
   const formattedCreatedAt = new Date(createdAt).toLocaleString();
 
-  const formatTimeDisplay = (dateString: string) => {
-    const date = new Date(dateString);
-    return {
-      date: date.toLocaleDateString("en-US", {
-        weekday: "short",
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      }),
-      time: date.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      fullDate: date,
-    };
-  };
+  // ── Stats ───────────────────────────────────────────────────────────────
+  const totalShifts = clockInArray.length;
+  const completedShifts = clockInArray.filter((r) => r.clock_out).length;
+  const activeShifts = totalShifts - completedShifts;
 
-  const employeeInfo = [
-    {
-      title: "Username",
-      dataIndex: "username",
-      value: username,
-    },
-    {
-      title: "Pin",
-      dataIndex: "pin",
-      value: pin,
-    },
-    {
-      title: "Phone No.",
-      dataIndex: "phone",
-      value: phone,
-    },
-    {
-      title: "Date created",
-      dataIndex: "createdAt",
-      value: formattedCreatedAt,
-    },
-  ];
-
-  // Calculate duration between clock in and clock out
-  const calculateDuration = (clockInTime: Date, clockOutTime?: Date) => {
-    if (!clockOutTime) return "In Progress";
-
-    const diffMs = clockOutTime.getTime() - clockInTime.getTime();
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-    return `${hours}h ${minutes}m`;
-  };
-
-  // Export to Excel with professional formatting
+  // ── Export to Excel ─────────────────────────────────────────────────────
   const exportToExcel = () => {
-    // Create workbook and worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([]);
 
-    // Add company/app name and report title
-    XLSX.utils.sheet_add_aoa(
-      ws,
-      [
-        [`TIMESHEET REPORT`],
-        [`Generated on: ${new Date().toLocaleString()}`],
-        [""],
-      ],
-      { origin: "A1" }
-    );
+    XLSX.utils.sheet_add_aoa(ws, [
+      ["TIMESHEET REPORT"],
+      [`Generated on: ${new Date().toLocaleString()}`],
+      [""],
+    ], { origin: "A1" });
 
-    // Add employee information section
-    XLSX.utils.sheet_add_aoa(
-      ws,
-      [
-        [`EMPLOYEE INFORMATION`],
-        [`Name:`, username],
-        [`Employee Email:`, email],
-        [`Phone:`, phone],
-        [`Shop:`, shop_id?.name - shop_id?.location],
-        [`Account Created:`, formattedCreatedAt],
-        [""],
-      ],
-      { origin: "A5" }
-    );
+    XLSX.utils.sheet_add_aoa(ws, [
+      ["EMPLOYEE INFORMATION"],
+      ["Name:", username],
+      ["Email:", email],
+      ["Phone:", phone],
+      ["Shop:", `${shop_id?.name} - ${shop_id?.location}`],
+      ["Account Created:", formattedCreatedAt],
+      [""],
+    ], { origin: "A5" });
 
-    // Add clock records header
-    XLSX.utils.sheet_add_aoa(
-      ws,
-      [
-        [`ATTENDANCE RECORDS`],
-        [""],
-        ["Date", "Day", "Clock In", "Clock Out", "Duration", "Status"],
-      ],
-      { origin: "A12" }
-    );
+    XLSX.utils.sheet_add_aoa(ws, [
+      ["ATTENDANCE RECORDS"],
+      [""],
+      ["Date", "Day", "Clock In", "Clock Out", "Duration", "Status"],
+    ], { origin: "A12" });
 
-    // Add clock records data
-    let rowData = [];
-    clockInArray.forEach((record: ClockRecord) => {
-      const clockInInfo = formatTimeDisplay(record.clock_in);
-      const clockOutInfo = record.clock_out
-        ? formatTimeDisplay(record.clock_out)
-        : null;
-
-      const day = clockInInfo.fullDate.toLocaleDateString("en-US", {
-        weekday: "long",
-      });
-      const status = record.clock_out ? "Completed" : "In Progress";
-      const duration = calculateDuration(
-        clockInInfo.fullDate,
-        clockOutInfo ? clockOutInfo.fullDate : undefined
-      );
-
-      rowData.push([
-        clockInInfo.fullDate.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }),
-        day,
-        clockInInfo.time,
-        clockOutInfo ? clockOutInfo.time : "Active",
-        duration,
-        status,
-      ]);
+    const rowData = clockInArray.map((r) => {
+      const ci = formatTimeDisplay(r.clock_in);
+      const co = r.clock_out ? formatTimeDisplay(r.clock_out) : null;
+      return [
+        ci.fullDate.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" }),
+        ci.fullDate.toLocaleDateString("en-US", { weekday: "long" }),
+        ci.time,
+        co ? co.time : "Active",
+        calculateDuration(ci.fullDate, co?.fullDate),
+        r.clock_out ? "Completed" : "In Progress",
+      ];
     });
 
     XLSX.utils.sheet_add_aoa(ws, rowData, { origin: "A15" });
 
-    // Add summary section
-    const totalEntries = clockInArray.length;
-    const completedEntries = clockInArray.filter((r) => r.clock_out).length;
-    const activeEntries = totalEntries - completedEntries;
-
     const lastRow = 15 + rowData.length + 1;
+    XLSX.utils.sheet_add_aoa(ws, [
+      [""],
+      ["SUMMARY"],
+      ["Total Records:", totalShifts],
+      ["Completed Shifts:", completedShifts],
+      ["Active Shifts:", activeShifts],
+    ], { origin: `A${lastRow}` });
 
-    XLSX.utils.sheet_add_aoa(
-      ws,
-      [
-        [""],
-        [`SUMMARY`],
-        [`Total Records:`, totalEntries],
-        [`Completed Shifts:`, completedEntries],
-        [`Active Shifts:`, activeEntries],
-      ],
-      { origin: `A${lastRow}` }
-    );
-
-    // Set column widths
-    const colWidths = [
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 10 },
-      { wch: 12 },
+    ws["!cols"] = [
+      { wch: 12 }, { wch: 15 }, { wch: 12 },
+      { wch: 12 }, { wch: 10 }, { wch: 12 },
     ];
-    ws["!cols"] = colWidths;
 
-    // Add the worksheet to workbook
     XLSX.utils.book_append_sheet(wb, ws, "Timesheet");
-
-    // Save the file
     XLSX.writeFile(wb, `${username}_timesheet.xlsx`);
   };
 
-  // Export to PDF
+  // ── Export to PDF ───────────────────────────────────────────────────────
   const exportToPDF = () => {
     const doc = new jsPDF();
+    const primary = [108, 28, 44] as [number, number, number];
 
-    // Add company logo placeholder (could be replaced with actual logo)
-    doc.setTextColor(24, 144, 255);
-    doc.setFontSize(22);
+    doc.setTextColor(...primary);
+    doc.setFontSize(20);
     doc.setFont("helvetica", "bold");
-    doc.text("TIMESHEET REPORT", 30, 18);
+    doc.text("TIMESHEET REPORT", 14, 18);
 
-    // Add report generation information
     doc.setTextColor(100, 100, 100);
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
-    doc.text("Confidential - For internal use only", 100, 30);
-    doc.text("powered by ReliaPos", 160, 30);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 26);
+    doc.text("Powered by ReliaTech", doc.internal.pageSize.width - 14, 26, { align: "right" });
 
-    // Add employee information section
-    doc.setDrawColor(200, 200, 200);
+    doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.5);
-    doc.line(14, 35, 196, 35);
+    doc.line(14, 30, 196, 30);
 
-    doc.setFontSize(14);
-    doc.setTextColor(24, 144, 255);
+    doc.setFontSize(11);
+    doc.setTextColor(...primary);
     doc.setFont("helvetica", "bold");
-    doc.text("EMPLOYEE INFORMATION", 14, 42);
+    doc.text("EMPLOYEE INFORMATION", 14, 38);
 
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Name:", 14, 52);
-    doc.text("Shop", 14, 60);
-    doc.text("Email:", 14, 68);
-    doc.text("Account Created:", 14, 76);
+    const empFields: [string, string][] = [
+      ["Name:", username],
+      ["Shop:", shop_id?.name || "—"],
+      ["Email:", email],
+      ["Phone:", phone],
+      ["PIN:", pin],
+      ["Account Created:", formattedCreatedAt],
+    ];
 
-    doc.setFont("helvetica", "normal");
-    doc.text(username, 60, 52);
-    doc.text(shop_id?.name, 60, 60);
-    doc.text(email, 60, 68);
-    doc.text(formattedCreatedAt, 60, 76);
-
-    // Add attendance records section
-    doc.line(14, 85, 196, 85);
-
-    doc.setFontSize(14);
-    doc.setTextColor(24, 144, 255);
-    doc.setFont("helvetica", "bold");
-    doc.text("ATTENDANCE RECORDS", 14, 92);
-
-    // Prepare data for table
-    const tableData = [];
-
-    clockInArray.forEach((record: ClockRecord) => {
-      const clockInInfo = formatTimeDisplay(record.clock_in);
-      const clockOutInfo = record.clock_out
-        ? formatTimeDisplay(record.clock_out)
-        : null;
-
-      const formattedDate = clockInInfo.fullDate.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-      const day = clockInInfo.fullDate.toLocaleDateString("en-US", {
-        weekday: "long",
-      });
-      const status = record.clock_out ? "Completed" : "In Progress";
-      const duration = calculateDuration(
-        clockInInfo.fullDate,
-        clockOutInfo ? clockOutInfo.fullDate : undefined
-      );
-
-      tableData.push([
-        formattedDate,
-        day,
-        clockInInfo.time,
-        clockOutInfo ? clockOutInfo.time : "Active",
-        duration,
-        status,
-      ]);
+    doc.setFontSize(10);
+    empFields.forEach(([label, val], i) => {
+      const y = 46 + i * 7;
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(label, 14, y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(60, 60, 60);
+      doc.text(val, 55, y);
     });
 
-    // @ts-ignore - jspdf-autotable types are not recognized but the function exists
+    const tableStartY = 46 + empFields.length * 7 + 6;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, tableStartY - 4, 196, tableStartY - 4);
+
+    doc.setFontSize(11);
+    doc.setTextColor(...primary);
+    doc.setFont("helvetica", "bold");
+    doc.text("ATTENDANCE RECORDS", 14, tableStartY + 4);
+
+    const tableData = clockInArray.map((r) => {
+      const ci = formatTimeDisplay(r.clock_in);
+      const co = r.clock_out ? formatTimeDisplay(r.clock_out) : null;
+      return [
+        ci.fullDate.toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit" }),
+        ci.fullDate.toLocaleDateString("en-US", { weekday: "long" }),
+        ci.time,
+        co ? co.time : "Active",
+        calculateDuration(ci.fullDate, co?.fullDate),
+        r.clock_out ? "Completed" : "In Progress",
+      ];
+    });
+
+    // @ts-ignore
     doc.autoTable({
-      startY: 100,
+      startY: tableStartY + 10,
       head: [["Date", "Day", "Clock In", "Clock Out", "Duration", "Status"]],
       body: tableData,
       theme: "grid",
-      headStyles: {
-        fillColor: [24, 144, 255],
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-      },
-      styles: {
-        cellPadding: 3,
-        fontSize: 10,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1,
-      },
+      headStyles: { fillColor: primary, textColor: [255, 255, 255], fontStyle: "bold" },
+      styles: { cellPadding: 3, fontSize: 9, lineColor: [226, 232, 240], lineWidth: 0.1 },
       columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 30 },
-        2: { cellWidth: 25 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 25 },
-        5: { cellWidth: 30 },
+        0: { cellWidth: 24 }, 1: { cellWidth: 28 }, 2: { cellWidth: 22 },
+        3: { cellWidth: 22 }, 4: { cellWidth: 22 }, 5: { cellWidth: 28 },
       },
-      alternateRowStyles: {
-        fillColor: [245, 245, 250],
-      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
     });
 
-    // Add summary section
     const finalY = (doc as any).lastAutoTable.finalY + 10;
 
-    doc.setFontSize(14);
-    doc.setTextColor(24, 144, 255);
+    doc.setFontSize(11);
+    doc.setTextColor(...primary);
     doc.setFont("helvetica", "bold");
     doc.text("SUMMARY", 14, finalY);
 
-    const totalEntries = clockInArray.length;
-    const completedEntries = clockInArray.filter((r) => r.clock_out).length;
-    const activeEntries = totalEntries - completedEntries;
+    const summaryRows: [string, string][] = [
+      ["Total Records:", String(totalShifts)],
+      ["Completed Shifts:", String(completedShifts)],
+      ["Active Shifts:", String(activeShifts)],
+    ];
 
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Total Records:", 14, finalY + 10);
-    doc.text("Completed Shifts:", 14, finalY + 18);
-    doc.text("Active Shifts:", 14, finalY + 26);
+    summaryRows.forEach(([label, val], i) => {
+      const y = finalY + 8 + i * 7;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(label, 14, y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(60, 60, 60);
+      doc.text(val, 55, y);
+    });
 
-    doc.setFont("helvetica", "normal");
-    doc.text(totalEntries?.toString(), 60, finalY + 10);
-    doc.text(completedEntries?.toString(), 60, finalY + 18);
-    doc.text(activeEntries?.toString(), 60, finalY + 26);
-
-    // Add footer
     const pageCount = doc.getNumberOfPages();
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.text(
-        `Page ${i} of ${pageCount}`,
-        14,
-        doc.internal.pageSize.height - 10
-      );
-      doc.text(
-        `Confidential - For internal use only`,
-        doc.internal.pageSize.width / 2,
-        doc.internal.pageSize.height - 10,
-        { align: "center" }
-      );
-      doc.text(
-        `${username} - Timesheet Report`,
-        doc.internal.pageSize.width - 14,
-        doc.internal.pageSize.height - 10,
-        { align: "right" }
-      );
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      const footerY = doc.internal.pageSize.height - 10;
+      doc.text(`Page ${i} of ${pageCount}`, 14, footerY);
+      doc.text("Confidential — Internal use only", doc.internal.pageSize.width / 2, footerY, { align: "center" });
+      doc.text(`${username} — Timesheet Report`, doc.internal.pageSize.width - 14, footerY, { align: "right" });
     }
 
-    // Save the PDF
     doc.save(`${username}_timesheet.pdf`);
   };
 
-  const exportOptions = [
-    {
-      key: "excel",
-      label: "Export to Excel",
-      icon: <FileExcelOutlined />,
-      onClick: exportToExcel,
-    },
-    {
-      key: "pdf",
-      label: "Export to PDF",
-      icon: <FilePdfOutlined />,
-      onClick: exportToPDF,
-    },
-  ];
-
   return (
-    <div style={{ padding: "16px" }}>
-      <ProDescriptions
-        size="small"
-        tooltip="Employee Information"
-        layout="horizontal"
-        title="Employee Details"
-        dataSource={{ pin, username, createdAt: formattedCreatedAt, phone }}
-        columns={employeeInfo}
-      />
+    <div style={{ padding: "16px 20px" }}>
 
-      <Card
-        title={
-          <Typography.Title level={5} style={{ margin: 0 }}>
-            Clock In/Out History
-          </Typography.Title>
-        }
-        style={{ marginTop: "16px" }}
-        extra={
-          clockInArray.length > 0 && (
-            <Space>
-              <Dropdown menu={{ items: exportOptions }}>
-                <Button type="primary" icon={<DownloadOutlined />}>Export</Button>
-              </Dropdown>
-            </Space>
-          )
-        }
-      >
-        <List
-          size="small"
-          dataSource={clockInArray}
-          renderItem={(record: ClockRecord) => {
-            const clockIn = formatTimeDisplay(record.clock_in);
-            const clockOut = record.clock_out
-              ? formatTimeDisplay(record.clock_out)
-              : null;
+      {/* ── Employee info + stats grid ─────────────────────────────────── */}
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
 
-            return (
-              <List.Item
-                key={record._id}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                  alignItems: "start",
-                }}
+        {/* Info card */}
+        <div style={{
+          flex: "1 1 260px",
+          background: C.bg, border: `1px solid ${C.border}`,
+          borderRadius: 10, padding: "14px 16px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{
+              background: C.primaryLight, borderRadius: 7,
+              padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1,
+            }}>
+              <UserOutlined />
+            </div>
+            <Text strong style={{ fontSize: 12, color: C.darkText }}>Employee Details</Text>
+          </div>
+          <InfoRow icon={<UserOutlined />} label="Username" value={username} />
+          <InfoRow icon={<SafetyCertificateOutlined />} label="PIN" value={pin} />
+          <InfoRow icon={<PhoneOutlined />} label="Phone" value={phone} />
+          <InfoRow icon={<MailOutlined />} label="Email" value={email} />
+          <InfoRow icon={<ShopOutlined />} label="Shop" value={shop_id?.name || "—"} />
+          <InfoRow icon={<CalendarOutlined />} label="Created" value={formattedCreatedAt} />
+        </div>
+
+        {/* Stats card */}
+        <div style={{
+          flex: "1 1 200px",
+          display: "flex", flexDirection: "column", gap: 10,
+        }}>
+          {[
+            { label: "Total Shifts", value: totalShifts, color: C.blue, bg: "#eff6ff" },
+            { label: "Completed", value: completedShifts, color: C.green, bg: "#f0fdf4" },
+            { label: "Active / Ongoing", value: activeShifts, color: C.orange, bg: "#fffbeb" },
+          ].map(({ label, value, color, bg }) => (
+            <div key={label} style={{
+              background: bg, border: `1px solid ${color}20`,
+              borderLeft: `3px solid ${color}`,
+              borderRadius: 10, padding: "10px 14px",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}>
+              <Text style={{ fontSize: 11, color: C.subText }}>{label}</Text>
+              <Text strong style={{ fontSize: 18, color, lineHeight: 1 }}>{value}</Text>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Clock history ──────────────────────────────────────────────── */}
+      <div style={{
+        background: "#fff", border: `1px solid ${C.border}`,
+        borderRadius: 10, overflow: "hidden",
+      }}>
+        {/* Header */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          flexWrap: "wrap", gap: 10,
+          padding: "12px 14px", borderBottom: `1px solid ${C.border}`,
+          background: C.bg,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <div style={{
+              background: C.primaryLight, borderRadius: 7,
+              padding: "4px 6px", color: C.primary, fontSize: 13, lineHeight: 1, flexShrink: 0,
+            }}>
+              <ClockCircleOutlined />
+            </div>
+            <Text strong style={{ fontSize: 13, color: C.darkText, whiteSpace: "nowrap" }}>
+              Clock In / Out History
+            </Text>
+            <span style={{
+              background: C.primaryLight, color: C.primary,
+              borderRadius: 10, fontSize: 10, fontWeight: 700,
+              padding: "1px 7px", flexShrink: 0,
+            }}>
+              {totalShifts}
+            </span>
+          </div>
+
+          {clockInArray.length > 0 && (
+            <Dropdown
+              trigger={["click"]}
+              menu={{
+                items: [
+                  {
+                    key: "excel",
+                    icon: <FileExcelOutlined style={{ color: C.green }} />,
+                    label: <span style={{ fontSize: 12 }}>Export to Excel</span>,
+                    onClick: exportToExcel,
+                  },
+                  {
+                    key: "pdf",
+                    icon: <FilePdfOutlined style={{ color: C.red }} />,
+                    label: <span style={{ fontSize: 12 }}>Export to PDF</span>,
+                    onClick: exportToPDF,
+                  },
+                ],
+              }}
+            >
+              <Button
+                size="small"
+                icon={<DownloadOutlined />}
+                style={{ borderRadius: 7, borderColor: C.border, fontSize: 12, color: C.darkText }}
               >
-                <Space direction="vertical" size="small">
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    <CalendarOutlined style={{ color: "#1890ff" }} />
-                    <span style={{ fontWeight: "500" }}>{clockIn.date}</span>
-                  </div>
-                  <Space size="large">
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <LoginOutlined style={{ color: "#52c41a" }} />
-                      <span>In: {clockIn.time}</span>
+                Export
+              </Button>
+            </Dropdown>
+          )}
+        </div>
+
+        {/* List */}
+        {clockInArray.length === 0 ? (
+          <div style={{ padding: "32px 0", textAlign: "center" }}>
+            <ClockCircleOutlined style={{ fontSize: 28, color: C.border, display: "block", marginBottom: 8 }} />
+            <Text style={{ fontSize: 12, color: C.subText }}>No clock records found</Text>
+          </div>
+        ) : (
+          <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+            {clockInArray.map((rec: ClockRecord) => {
+              const ci = formatTimeDisplay(rec.clock_in);
+              const co = rec.clock_out ? formatTimeDisplay(rec.clock_out) : null;
+              const duration = calculateDuration(ci.fullDate, co?.fullDate);
+              const isActive = !rec.clock_out;
+
+              return (
+                <div key={rec._id} style={{
+                  background: isActive ? "#fffbeb" : C.bg,
+                  border: `1px solid ${isActive ? C.orange + "40" : C.border}`,
+                  borderLeft: `3px solid ${isActive ? C.orange : C.green}`,
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                }}>
+                  {/* Date row */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                      <CalendarOutlined style={{ color: C.blue, fontSize: 12, flexShrink: 0 }} />
+                      <Text strong style={{ fontSize: 12, color: C.darkText }}>{ci.date}</Text>
                     </div>
-                    {clockOut ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
-                        <LogoutOutlined style={{ color: "#f5222d" }} />
-                        <span>Out: {clockOut.time}</span>
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
-                        <ClockCircleOutlined style={{ color: "#fa8c16" }} />
-                        <Tag color="orange">Currently Working</Tag>
-                      </div>
-                    )}
-                  </Space>
-                </Space>
-              </List.Item>
-            );
-          }}
-          locale={{ emptyText: "No Clock In or Out recorded" }}
-        />
-      </Card>
+                    <StatusBadge active={isActive} />
+                  </div>
+
+                  {/* Times row */}
+                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <LoginOutlined style={{ color: C.green, fontSize: 12 }} />
+                      <Text style={{ fontSize: 11, color: C.subText }}>In:</Text>
+                      <Text strong style={{ fontSize: 12, color: C.darkText }}>{ci.time}</Text>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {isActive ? (
+                        <>
+                          <ClockCircleOutlined style={{ color: C.orange, fontSize: 12 }} />
+                          <Text style={{ fontSize: 11, color: C.subText }}>Out:</Text>
+                          <Text style={{ fontSize: 12, color: C.orange, fontWeight: 600 }}>Still Active</Text>
+                        </>
+                      ) : (
+                        <>
+                          <LogoutOutlined style={{ color: C.red, fontSize: 12 }} />
+                          <Text style={{ fontSize: 11, color: C.subText }}>Out:</Text>
+                          <Text strong style={{ fontSize: 12, color: C.darkText }}>{co!.time}</Text>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Duration */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <ClockCircleOutlined style={{ color: C.subText, fontSize: 11 }} />
+                    <Text style={{ fontSize: 11, color: C.subText }}>{duration}</Text>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
