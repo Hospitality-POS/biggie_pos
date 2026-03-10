@@ -15,6 +15,7 @@ import {
   Drawer,
 } from "antd";
 import {
+  ArrowLeftOutlined,
   BellOutlined,
   DashboardOutlined,
   DownOutlined,
@@ -48,7 +49,21 @@ dayjs.extend(relativeTime);
 
 const { Text, Title } = Typography;
 
-// ── Mobile detection ──────────────────────────────────────────────────────────
+// ── Palette ────────────────────────────────────────────────────────────────
+const C = {
+  primary: "#6c1c2c",
+  primaryLight: "#f9f0f2",
+  green: "#10b981",
+  red: "#ef4444",
+  blue: "#3b82f6",
+  orange: "#f59e0b",
+  subText: "#64748b",
+  darkText: "#0f172a",
+  border: "#e2e8f0",
+  bg: "#f8fafc",
+};
+
+// ── Mobile detection ───────────────────────────────────────────────────────
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   useEffect(() => {
@@ -59,12 +74,9 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Notification helpers ───────────────────────────────────────────────────
 const PRIORITY_COLORS: Record<string, string> = {
-  low: "green",
-  medium: "blue",
-  high: "orange",
-  urgent: "red",
+  low: "green", medium: "blue", high: "orange", urgent: "red",
 };
 
 const TYPE_MAP: Record<string, { color: string; label: string }> = {
@@ -78,24 +90,22 @@ const TYPE_MAP: Record<string, { color: string; label: string }> = {
 const renderPriorityIndicator = (priority: string) => (
   <Badge color={PRIORITY_COLORS[priority] || "default"} />
 );
-
 const renderPriorityTag = (priority: string) => (
   <Tag color={PRIORITY_COLORS[priority] || "default"}>{priority.toUpperCase()}</Tag>
 );
-
 const renderTypeTag = (type: string) => {
   const config = TYPE_MAP[type] || { color: "default", label: type.replace(/_/g, " ") };
   return <Tag color={config.color}>{config.label}</Tag>;
 };
 
-// ── Tenant type ───────────────────────────────────────────────────────────────
+// ── Tenant type ────────────────────────────────────────────────────────────
 interface Tenant {
   tenant_code?: string;
   primary_color?: string;
   tenant_logo?: { url?: string };
 }
 
-// ── ProNavbar ─────────────────────────────────────────────────────────────────
+// ── ProNavbar ──────────────────────────────────────────────────────────────
 const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -112,17 +122,18 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
 
+  const isAdmin = user?.role === "admin";
+
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     if (storedTenant) setTenant(JSON.parse(storedTenant));
   }, []);
 
-  // Close drawer on route change
   useEffect(() => {
     setMobileDrawerOpen(false);
   }, [location.pathname]);
 
-  // ── Notifications ────────────────────────────────────────────────────────────
+  // ── Notifications ─────────────────────────────────────────────────────
   const { data: notificationData, isLoading } = useQuery({
     queryKey: ["userNotifications", { limit: 10 }],
     queryFn: () => fetchMyNotifications({ pageSize: 10, current: 1 }),
@@ -145,9 +156,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   });
 
   const unreadNotificationsCount = notificationData?.unreadCount || 0;
-  const recentNotifications = (notificationData?.data || [])
-    .filter((n: any) => !n.read)
-    .slice(0, 5);
+  const recentNotifications = (notificationData?.data || []).filter((n: any) => !n.read).slice(0, 5);
 
   const handleViewDetails = (notification: any) => {
     setSelectedNotification(notification);
@@ -164,54 +173,43 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     setMobileDrawerOpen(false);
   };
 
-  const notificationsPath =
-    user?.role === "admin" ? "/admin/notifications" : "/notifications";
+  const handleBackToAdmin = () => {
+    localStorage.removeItem("shopId");
+    navigate("/admin/dashboard");
+    setMobileDrawerOpen(false);
+  };
 
-  // ── Notifications popover content ────────────────────────────────────────────
+  const notificationsPath = isAdmin ? "/admin/notifications" : "/notifications";
+
+  // ── Notifications popover ────────────────────────────────────────────
   const notificationsContent = (
     <div style={{ width: 330, maxHeight: 460, overflow: "auto" }}>
-      <div
-        style={{
-          padding: "12px 16px 10px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderBottom: "1px solid #f0f0f0",
-        }}
-      >
+      <div style={{
+        padding: "12px 16px 10px",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        borderBottom: "1px solid #f0f0f0",
+      }}>
         <Text strong style={{ fontSize: 14 }}>Notifications</Text>
         {unreadNotificationsCount > 0 && (
-          <Button
-            type="link"
-            size="small"
-            onClick={() => markAllAsReadMutation.mutate()}
-            style={{ padding: 0, fontSize: 12 }}
-          >
+          <Button type="link" size="small" onClick={() => markAllAsReadMutation.mutate()}
+            style={{ padding: 0, fontSize: 12 }}>
             Mark all read
           </Button>
         )}
       </div>
 
       {isLoading ? (
-        <div style={{ padding: 20, textAlign: "center", color: "#64748b", fontSize: 13 }}>
-          Loading…
-        </div>
+        <div style={{ padding: 20, textAlign: "center", color: C.subText, fontSize: 13 }}>Loading…</div>
       ) : recentNotifications.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="No unread notifications"
-          style={{ padding: "20px 0" }}
-        />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No unread notifications" style={{ padding: "20px 0" }} />
       ) : (
         <List
           dataSource={recentNotifications}
           renderItem={(item: any) => (
             <List.Item
               style={{
-                padding: "10px 16px",
-                background: "rgba(24,144,255,0.04)",
-                cursor: "pointer",
-                borderBottom: "1px solid #f8fafc",
+                padding: "10px 16px", background: "rgba(24,144,255,0.04)",
+                cursor: "pointer", borderBottom: "1px solid #f8fafc",
               }}
               onClick={() => handleViewDetails(item)}
             >
@@ -237,46 +235,35 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       )}
 
       <div style={{ textAlign: "center", padding: "8px 16px", borderTop: "1px solid #f0f0f0" }}>
-        <Button
-          type="link"
-          size="small"
-          onClick={() => navigate(notificationsPath)}
-          style={{ fontSize: 12 }}
-        >
+        <Button type="link" size="small" onClick={() => navigate(notificationsPath)} style={{ fontSize: 12 }}>
           View all notifications
         </Button>
       </div>
     </div>
   );
 
-  // ── Desktop user dropdown items ───────────────────────────────────────────────
+  // ── Desktop user dropdown ────────────────────────────────────────────
   const userMenuItems = [
     {
       key: "profile",
       icon: (
         <div style={{ display: "flex", alignItems: "center", width: "100%", padding: "2px 0" }}>
           <Avatar
-            src={user?.thumbnail}
-            alt={user?.email}
+            src={user?.thumbnail} alt={user?.email}
             style={{ border: `2px solid ${primaryColor}`, width: 48, height: 48 }}
-            size="large"
-            icon={<UserOutlined />}
+            size="large" icon={<UserOutlined />}
           />
           <Space direction="vertical" style={{ marginLeft: 12, gap: 2, flex: 1 }} size="small">
             <Typography.Text strong style={{ fontSize: 14, color: "#262626" }}>
               {user?.name || "User Name"}
             </Typography.Text>
-            <Typography.Text
-              type="secondary"
-              style={{ fontSize: 12, color: "#8c8c8c" }}
-              ellipsis={{ tooltip: user?.email }}
-            >
+            <Typography.Text type="secondary" style={{ fontSize: 12, color: "#8c8c8c" }}
+              ellipsis={{ tooltip: user?.email }}>
               {user?.email}
             </Typography.Text>
             <Typography.Link
               onClick={(e) => { e.stopPropagation(); navigate(`/profile/${user?.id}`); }}
-              style={{ fontSize: 12, fontWeight: 500, color: primaryColor }}
-            >
+              style={{ fontSize: 12, fontWeight: 500, color: primaryColor }}>
               View Your Profile
             </Typography.Link>
           </Space>
@@ -284,25 +271,30 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       ),
       onClick: () => navigate(`/profile/${user?.id}`),
       style: {
-        padding: "8px 12px",
-        height: "auto",
+        padding: "8px 12px", height: "auto",
         background: "linear-gradient(135deg, rgba(24,144,255,0.05), rgba(24,144,255,0.02))",
-        borderRadius: 8,
-        margin: 4,
+        borderRadius: 8, margin: 4,
       },
     },
     { type: "divider" as const },
-    ...(user?.role === "admin"
-      ? [
-        {
-          key: "dashboard",
-          icon: <DashboardOutlined style={{ fontSize: 15, color: "#7f7f7f" }} />,
-          label: "Dashboard",
-          onClick: () => { localStorage.removeItem("shopId"); navigate("/admin/dashboard"); },
-          style: { padding: "8px 12px", margin: "2px 4px", borderRadius: 6 },
-        },
-      ]
-      : []),
+
+    // ── Back to Admin — top of list, prominent ──────────────────────
+    ...(isAdmin ? [{
+      key: "back-to-admin",
+      icon: <ArrowLeftOutlined style={{ fontSize: 14, color: C.primary }} />,
+      label: (
+        <span style={{ fontWeight: 600, color: C.primary }}>Back to Admin Dashboard</span>
+      ),
+      onClick: handleBackToAdmin,
+      style: {
+        padding: "8px 12px", margin: "2px 4px", borderRadius: 6,
+        background: C.primaryLight,
+        border: `1px solid ${C.primary}22`,
+      },
+    }] : []),
+
+    ...(isAdmin ? [{ type: "divider" as const }] : []),
+
     {
       key: "notifications",
       icon: <BellOutlined style={{ fontSize: 15, color: "#52c41a" }} />,
@@ -317,7 +309,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       onClick: () => navigate(notificationsPath),
       style: { padding: "8px 12px", margin: "2px 4px", borderRadius: 6 },
     },
-    ...(user?.role === "admin" || user?.role === "cashier"
+    ...(isAdmin || user?.role === "cashier"
       ? [
         {
           key: "faqs",
@@ -342,15 +334,13 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       onClick: handleLogout,
       danger: true,
       style: {
-        padding: "8px 12px",
-        margin: "2px 4px",
-        borderRadius: 6,
+        padding: "8px 12px", margin: "2px 4px", borderRadius: 6,
         border: "1px solid rgba(255,77,79,0.1)",
       },
     },
   ];
 
-  // ── Header action bar (bell + avatar) ────────────────────────────────────────
+  // ── Header action bar ────────────────────────────────────────────────
   const headerActions = (
     <Space size={isMobile ? 6 : "middle"} align="center">
       <Popover
@@ -365,30 +355,20 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         }}
       >
         <Badge
-          count={unreadNotificationsCount}
-          showZero={false}
-          offset={[-6, 6]}
-          overflowCount={99}
-          size="small"
+          count={unreadNotificationsCount} showZero={false}
+          offset={[-6, 6]} overflowCount={99} size="small"
           style={{
             backgroundColor: unreadNotificationsCount > 1 ? "#ff4d4f" : "#52c41a",
             fontSize: 10,
           }}
         >
           <Button
-            icon={<BellOutlined />}
-            shape="circle"
-            size="middle"
+            icon={<BellOutlined />} shape="circle" size="middle"
             style={{
               background: "rgba(255,255,255,0.15)",
               border: "1px solid rgba(255,255,255,0.25)",
-              color: "white",
-              width: 36,
-              height: 36,
-              fontSize: 15,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              color: "white", width: 36, height: 36, fontSize: 15,
+              display: "flex", alignItems: "center", justifyContent: "center",
             }}
           />
         </Badge>
@@ -400,11 +380,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           arrow={{ pointAtCenter: true }}
           trigger={["hover", "click"]}
           placement="bottomCenter"
-          overlayStyle={{
-            minWidth: 280,
-            borderRadius: 12,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-          }}
+          overlayStyle={{ minWidth: 280, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
         >
           <Button
             type="text"
@@ -412,46 +388,27 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
               padding: "4px 8px",
               background: "rgba(255,255,255,0.12)",
               border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 50,
-              height: "auto",
-              minHeight: 36,
+              borderRadius: 50, height: "auto", minHeight: 36,
             }}
           >
             <Space align="center" size={8} style={{ cursor: "pointer" }}>
               <Badge dot status="success" offset={[-4, 26]}>
                 <Avatar
-                  src={user?.thumbnail}
-                  icon={<UserOutlined />}
-                  size={30}
+                  src={user?.thumbnail} icon={<UserOutlined />} size={30}
                   style={{ border: "2px solid rgba(255,255,255,0.3)" }}
                 />
               </Badge>
               <div style={{ textAlign: "left", lineHeight: 1.2 }}>
-                <Text
-                  strong
-                  style={{
-                    color: "white",
-                    fontSize: 13,
-                    display: "block",
-                    maxWidth: 90,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <Text strong style={{
+                  color: "white", fontSize: 13, display: "block",
+                  maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
                   {user?.name || "User"}
                 </Text>
-                <Text
-                  style={{
-                    color: "rgba(255,255,255,0.75)",
-                    fontSize: 11,
-                    display: "block",
-                    maxWidth: 90,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <Text style={{
+                  color: "rgba(255,255,255,0.75)", fontSize: 11, display: "block",
+                  maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
                   {user?.role || "Role"}
                 </Text>
               </div>
@@ -461,13 +418,11 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </Dropdown>
       )}
 
-      {/* Mobile: avatar taps to open drawer */}
+      {/* Mobile avatar → opens drawer */}
       {isMobile && user && (
         <Badge dot color="green" offset={[-3, 26]}>
           <Avatar
-            src={user?.thumbnail}
-            icon={<UserOutlined />}
-            size={32}
+            src={user?.thumbnail} icon={<UserOutlined />} size={32}
             style={{ border: "2px solid rgba(255,255,255,0.4)", cursor: "pointer" }}
             onClick={() => setMobileDrawerOpen(true)}
           />
@@ -476,10 +431,9 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     </Space>
   );
 
-  // ── Mobile nav items from navRoutes ──────────────────────────────────────────
   const mobileNavItems = navRoutes?.route?.routes || [];
 
-  // ── Mobile drawer ─────────────────────────────────────────────────────────────
+  // ── Mobile drawer ────────────────────────────────────────────────────
   const MobileDrawer = (
     <Drawer
       open={mobileDrawerOpen}
@@ -493,30 +447,17 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       }}
     >
       {/* Drawer header */}
-      <div
-        style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}cc 100%)`,
-          padding: "24px 20px 20px",
-          position: "relative",
-        }}
-      >
+      <div style={{
+        background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}cc 100%)`,
+        padding: "24px 20px 20px", position: "relative",
+      }}>
         <button
           onClick={() => setMobileDrawerOpen(false)}
           style={{
-            position: "absolute",
-            right: 16,
-            top: 16,
-            background: "rgba(255,255,255,0.2)",
-            border: "none",
-            borderRadius: "50%",
-            width: 30,
-            height: 30,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            color: "white",
-            fontSize: 13,
+            position: "absolute", right: 16, top: 16,
+            background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "50%",
+            width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: "white", fontSize: 13,
           }}
         >
           <CloseOutlined />
@@ -524,11 +465,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
         <div style={{ marginBottom: 16 }}>
           {tenant?.tenant_logo?.url ? (
-            <img
-              src={tenant.tenant_logo.url}
-              alt="logo"
-              style={{ height: 38, maxWidth: 110, objectFit: "contain", filter: "brightness(0) invert(1)" }}
-            />
+            <img src={tenant.tenant_logo.url} alt="logo"
+              style={{ height: 38, maxWidth: 110, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
           ) : (
             <img src="/relia.png" alt="logo" style={{ height: 34, width: 85, filter: "brightness(0) invert(1)" }} />
           )}
@@ -537,50 +475,21 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         {user && (
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Badge dot color="green" offset={[-3, 36]}>
-              <Avatar
-                src={user?.thumbnail}
-                icon={<UserOutlined />}
-                size={44}
-                style={{ border: "2px solid rgba(255,255,255,0.4)" }}
-              />
+              <Avatar src={user?.thumbnail} icon={<UserOutlined />} size={44}
+                style={{ border: "2px solid rgba(255,255,255,0.4)" }} />
             </Badge>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  color: "white",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <div style={{ color: "white", fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {user?.name || "User"}
               </div>
-              <div
-                style={{
-                  color: "rgba(255,255,255,0.75)",
-                  fontSize: 11,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  marginBottom: 3,
-                }}
-              >
+              <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>
                 {user?.email}
               </div>
-              <div
-                style={{
-                  display: "inline-block",
-                  background: "rgba(255,255,255,0.2)",
-                  borderRadius: 4,
-                  padding: "1px 8px",
-                  fontSize: 10,
-                  color: "rgba(255,255,255,0.9)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                }}
-              >
+              <div style={{
+                display: "inline-block", background: "rgba(255,255,255,0.2)",
+                borderRadius: 4, padding: "1px 8px", fontSize: 10,
+                color: "rgba(255,255,255,0.9)", textTransform: "uppercase", letterSpacing: "0.5px",
+              }}>
                 {user?.role || "Staff"}
               </div>
             </div>
@@ -588,42 +497,56 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         )}
       </div>
 
-      {/* Nav items from ProLayout routes */}
+      {/* ── Back to Admin — prominent banner (admin only) ── */}
+      {isAdmin && (
+        <div
+          onClick={handleBackToAdmin}
+          style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "11px 20px",
+            background: C.primaryLight,
+            borderBottom: `1px solid ${C.primary}22`,
+            cursor: "pointer",
+          }}
+        >
+          <div style={{
+            width: 30, height: 30, borderRadius: "50%",
+            background: C.primary, display: "flex",
+            alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            <ArrowLeftOutlined style={{ color: "white", fontSize: 13 }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.primary, lineHeight: 1.2 }}>
+              Back to Admin Dashboard
+            </div>
+            <div style={{ fontSize: 11, color: C.subText, lineHeight: 1.2, marginTop: 1 }}>
+              Switch back to admin view
+            </div>
+          </div>
+          <RightOutlined style={{ fontSize: 11, color: C.primary }} />
+        </div>
+      )}
+
+      {/* Nav routes */}
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
         {mobileNavItems.map((item: any) => {
           const isActive =
             location.pathname === item.path ||
             location.pathname.startsWith(item.path + "/");
           return (
-            <NavLink
-              key={item.path || item.key}
-              to={item.path || "/"}
-              style={{ textDecoration: "none" }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "11px 20px",
-                  margin: "2px 8px",
-                  borderRadius: 10,
-                  background: isActive ? `${primaryColor}12` : "transparent",
-                  borderLeft: isActive ? `3px solid ${primaryColor}` : "3px solid transparent",
-                  cursor: "pointer",
-                }}
-              >
-                <span style={{ fontSize: 16, color: isActive ? primaryColor : "#64748b", width: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <NavLink key={item.path || item.key} to={item.path || "/"} style={{ textDecoration: "none" }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "11px 20px", margin: "2px 8px", borderRadius: 10,
+                background: isActive ? `${primaryColor}12` : "transparent",
+                borderLeft: isActive ? `3px solid ${primaryColor}` : "3px solid transparent",
+                cursor: "pointer",
+              }}>
+                <span style={{ fontSize: 16, color: isActive ? primaryColor : C.subText, width: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {item.icon}
                 </span>
-                <span
-                  style={{
-                    fontSize: 14,
-                    fontWeight: isActive ? 600 : 400,
-                    color: isActive ? primaryColor : "#1e293b",
-                    flex: 1,
-                  }}
-                >
+                <span style={{ fontSize: 14, fontWeight: isActive ? 600 : 400, color: isActive ? primaryColor : C.darkText, flex: 1 }}>
                   {item.name}
                 </span>
                 <RightOutlined style={{ fontSize: 10, color: "#94a3b8" }} />
@@ -634,10 +557,10 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       </div>
 
       {/* Bottom quick actions */}
-      <div style={{ borderTop: "1px solid #f1f5f9", padding: "8px 0" }}>
+      <div style={{ borderTop: `1px solid ${C.border}`, padding: "8px 0" }}>
         {[
-          { icon: <BellOutlined />, label: "Notifications", path: notificationsPath, color: "#10b981", badge: unreadNotificationsCount },
-          ...(user?.role === "admin" || user?.role === "cashier"
+          { icon: <BellOutlined />, label: "Notifications", path: notificationsPath, color: C.green, badge: unreadNotificationsCount },
+          ...(isAdmin || user?.role === "cashier"
             ? [
               { icon: <SettingOutlined />, label: "Settings", path: "/system-setup", color: "#06b6d4" },
               { icon: <QuestionCircleOutlined />, label: "FAQs", path: "/fss-faqs", color: "#6366f1" },
@@ -647,13 +570,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           <div
             key={item.path}
             onClick={() => navigate(item.path)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "10px 20px",
-              cursor: "pointer",
-            }}
+            style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 20px", cursor: "pointer" }}
           >
             <span style={{ color: item.color, fontSize: 15 }}>{item.icon}</span>
             <span style={{ fontSize: 14, color: "#374151", flex: 1 }}>{item.label}</span>
@@ -662,16 +579,10 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             )}
           </div>
         ))}
+
         <div
           onClick={handleLogout}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "10px 20px",
-            cursor: "pointer",
-            color: "#ef4444",
-          }}
+          style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 20px", cursor: "pointer", color: C.red }}
         >
           <PoweroffOutlined style={{ fontSize: 15 }} />
           <span style={{ fontSize: 14, fontWeight: 500 }}>Logout</span>
@@ -680,31 +591,19 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     </Drawer>
   );
 
-  // ── ProLayout ────────────────────────────────────────────────────────────────
+  // ── ProLayout ────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
-        /* White hamburger — ProLayout top layout toggle */
         .ant-pro-global-header svg,
-        .ant-pro-global-header .anticon {
-          color: white !important;
-        }
+        .ant-pro-global-header .anticon { color: white !important; }
         .ant-pro-global-header-collapsed-button,
-        .ant-pro-sider-collapsed-button {
-          color: white !important;
-        }
-        /* Mobile page container tightening */
+        .ant-pro-sider-collapsed-button { color: white !important; }
         @media (max-width: 767px) {
-          .ant-pro-page-container {
-            padding: 12px !important;
-          }
-          .ant-pro-global-header {
-            padding: 0 12px !important;
-          }
+          .ant-pro-page-container { padding: 12px !important; }
+          .ant-pro-global-header { padding: 0 12px !important; }
         }
-        .notification-popover-overlay .ant-popover-inner {
-          padding: 0 !important;
-        }
+        .notification-popover-overlay .ant-popover-inner { padding: 0 !important; }
       `}</style>
 
       {MobileDrawer}
@@ -713,32 +612,17 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         style={{ maxWidth: "1920px" }}
         logo={
           tenant?.tenant_logo?.url ? (
-            <Image
-              src={tenant.tenant_logo.url}
-              height={isMobile ? 44 : 60}
-              preview={false}
-              alt="tenant-logo"
-              style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 90 : 120 }}
-            />
+            <Image src={tenant.tenant_logo.url} height={isMobile ? 44 : 60} preview={false} alt="tenant-logo"
+              style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 90 : 120 }} />
           ) : (
-            <Image
-              src="/relia.png"
-              height={isMobile ? 38 : 55}
-              width={isMobile ? 90 : 120}
-              preview={false}
-              alt="relia-logo"
-              style={{ padding: isMobile ? 6 : 12 }}
-            />
+            <Image src="/relia.png" height={isMobile ? 38 : 55} width={isMobile ? 90 : 120}
+              preview={false} alt="relia-logo" style={{ padding: isMobile ? 6 : 12 }} />
           )
         }
         title=""
         menuHeaderRender={(logo: any, title: any) => (
-          <div
-            id="customize_menu_header"
-            style={{ height: 32, display: "flex", alignItems: "center", gap: 8 }}
-          >
-            {logo}
-            {title}
+          <div id="customize_menu_header" style={{ height: 32, display: "flex", alignItems: "center", gap: 8 }}>
+            {logo}{title}
           </div>
         )}
         colorPrimary={primaryColor}
@@ -748,59 +632,38 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         layout="top"
         splitMenus={false}
         fixedHeader={true}
-        // On mobile, hide ProLayout's own menu and render our drawer instead
         menuRender={isMobile ? false : undefined}
         headerRender={
           isMobile
             ? () => (
-              <div
-                style={{
-                  height: 52,
-                  background: primaryColor,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "0 16px",
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 100,
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-                }}
-              >
-                {/* Hamburger — white */}
+              <div style={{
+                height: 52, background: primaryColor,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "0 16px", position: "sticky", top: 0, zIndex: 100,
+                boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+              }}>
                 <button
                   onClick={() => setMobileDrawerOpen(true)}
                   style={{
                     background: "rgba(255,255,255,0.15)",
                     border: "1px solid rgba(255,255,255,0.25)",
-                    borderRadius: 8,
-                    width: 36,
-                    height: 36,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    color: "white",
-                    fontSize: 16,
+                    borderRadius: 8, width: 36, height: 36,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", color: "white", fontSize: 16,
                   }}
                 >
                   <MenuOutlined style={{ color: "white" }} />
                 </button>
 
-                {/* Centered logo */}
                 <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
                   {tenant?.tenant_logo?.url ? (
-                    <img
-                      src={tenant.tenant_logo.url}
-                      alt="logo"
-                      style={{ height: 34, maxWidth: 80, objectFit: "contain", filter: "brightness(0) invert(1)" }}
-                    />
+                    <img src={tenant.tenant_logo.url} alt="logo"
+                      style={{ height: 34, maxWidth: 80, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
                   ) : (
                     <img src="/relia.png" alt="logo" style={{ height: 28, width: 70, filter: "brightness(0) invert(1)" }} />
                   )}
                 </div>
 
-                {/* Right actions */}
                 {user ? headerActions : (
                   <StaffModal setOpen={setStaffModalOpen} open={staffModalOpen} tbl="staff" showButton />
                 )}
@@ -849,11 +712,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           title="Notification Details"
           open={detailsModalVisible}
           onCancel={() => setDetailsModalVisible(false)}
-          footer={[
-            <Button key="close" onClick={() => setDetailsModalVisible(false)}>
-              Close
-            </Button>,
-          ]}
+          footer={[<Button key="close" onClick={() => setDetailsModalVisible(false)}>Close</Button>]}
           width={isMobile ? "94vw" : 560}
           styles={{ body: { padding: isMobile ? 12 : 24 } }}
         >
@@ -871,16 +730,10 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
               {selectedNotification.additionalInfo && (
                 <div style={{ marginTop: 16 }}>
                   <Title level={5}>Additional Info</Title>
-                  <pre
-                    style={{
-                      whiteSpace: "pre-wrap",
-                      background: "#f8fafc",
-                      padding: 12,
-                      borderRadius: 6,
-                      fontSize: 12,
-                      border: "1px solid #e2e8f0",
-                    }}
-                  >
+                  <pre style={{
+                    whiteSpace: "pre-wrap", background: C.bg,
+                    padding: 12, borderRadius: 6, fontSize: 12, border: `1px solid ${C.border}`,
+                  }}>
                     {JSON.stringify(selectedNotification.additionalInfo, null, 2)}
                   </pre>
                 </div>

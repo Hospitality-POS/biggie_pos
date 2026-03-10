@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ProDescriptions } from "@ant-design/pro-components";
 import {
   Alert, Button, DatePicker, Form, InputNumber,
@@ -7,7 +8,6 @@ import {
   CloseOutlined, DeleteOutlined, DollarOutlined,
   EditOutlined, RedoOutlined, SaveOutlined,
 } from "@ant-design/icons";
-import { useState } from "react";
 import dayjs from "dayjs";
 import axiosInstance from "@services/request";
 import { BASE_URL } from "@utils/config";
@@ -28,6 +28,17 @@ const C = {
   darkText: "#0f172a",
   border: "#e2e8f0",
   bg: "#f8fafc",
+};
+
+// ── Mobile hook ────────────────────────────────────────────────────────────
+const useIsMobile = () => {
+  const [v, setV] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setV(window.innerWidth < 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return v;
 };
 
 // ── CSS-only tags ──────────────────────────────────────────────────────────
@@ -82,7 +93,7 @@ interface OrderDetailsInterface {
 }
 interface EditingItem { itemId: string; quantity: number; createdAt: string }
 
-// ── SectionLabel ───────────────────────────────────────────────────────────
+// ── Shared sub-components ──────────────────────────────────────────────────
 const SectionLabel: React.FC<{ children: React.ReactNode; right?: React.ReactNode }> = ({ children, right }) => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
     <Text style={{ fontSize: 10, color: C.subText, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 700 }}>
@@ -92,7 +103,115 @@ const SectionLabel: React.FC<{ children: React.ReactNode; right?: React.ReactNod
   </div>
 );
 
-// ── Main ───────────────────────────────────────────────────────────────────
+const MetaRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div style={{
+    display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+    padding: "7px 0", borderBottom: `1px solid ${C.border}`,
+  }}>
+    <Text style={{ fontSize: 11, color: C.subText, flexShrink: 0, marginRight: 12 }}>{label}</Text>
+    <div style={{ textAlign: "right" }}>{children}</div>
+  </div>
+);
+
+// ── Mobile item card ───────────────────────────────────────────────────────
+const MobileItemCard: React.FC<{
+  item: OrderItem;
+  isEditing: boolean;
+  loading: boolean;
+  deletingItemId: string | null;
+  form: any;
+  onEdit: (item: OrderItem) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  onDelete: (id: string) => void;
+}> = ({ item, isEditing, loading, deletingItemId, form, onEdit, onSave, onCancel, onDelete }) => (
+  <div style={{
+    background: "#fff", border: `1px solid ${C.border}`,
+    borderRadius: 8, padding: "10px 12px", marginBottom: 8,
+  }}>
+    {/* Product name + type */}
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+      <Text strong style={{ fontSize: 13, color: C.darkText, flex: 1, marginRight: 8 }}>
+        {item.product_id?.name}
+      </Text>
+      <ItemTypeTag isSubscription={item.is_subscription_item} />
+    </div>
+
+    {/* Fields */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+      <MetaRow label="Category">
+        <Text style={{ fontSize: 12 }}>{item.category_id?.name || "—"}</Text>
+      </MetaRow>
+      <MetaRow label="Price">
+        <Text style={{ fontSize: 12 }}>KES {item.price?.toFixed(2)}</Text>
+      </MetaRow>
+      <MetaRow label="Qty">
+        {isEditing ? (
+          <Form.Item name="quantity" style={{ margin: 0 }}
+            rules={[{ required: true, message: "Required" }, { type: "number", min: 1, message: "Min 1" }]}>
+            <InputNumber min={1} size="small" style={{ width: 80 }} />
+          </Form.Item>
+        ) : (
+          <Text style={{ fontSize: 12 }}>{item.quantity}</Text>
+        )}
+      </MetaRow>
+      <MetaRow label="VAT">
+        <Text style={{ fontSize: 12, color: C.subText }}>KES {item.vat_amount?.toFixed(2)}</Text>
+      </MetaRow>
+      <MetaRow label="Line Total">
+        <Text strong style={{ fontSize: 12, color: C.primary }}>
+          KES {(item.price * item.quantity).toFixed(2)}
+        </Text>
+      </MetaRow>
+      <MetaRow label="Created">
+        {isEditing ? (
+          <Form.Item name="createdAt" style={{ margin: 0 }} rules={[{ required: true, message: "Required" }]}>
+            <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" size="small" style={{ width: 190 }} />
+          </Form.Item>
+        ) : (
+          <Text style={{ fontSize: 11, color: C.subText }}>{dayjs(item.createdAt).format("DD MMM YYYY HH:mm")}</Text>
+        )}
+      </MetaRow>
+    </div>
+
+    {/* Actions */}
+    <div style={{ display: "flex", gap: 6, paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
+      {isEditing ? (
+        <>
+          <Button type="primary" size="small" icon={<SaveOutlined />} onClick={onSave} loading={loading}
+            style={{ background: C.primary, borderColor: C.primary, borderRadius: 6, flex: 1 }}>
+            Save
+          </Button>
+          <Button size="small" icon={<CloseOutlined />} onClick={onCancel} disabled={loading}
+            style={{ borderRadius: 6, flex: 1 }}>
+            Cancel
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button size="small" icon={<EditOutlined />} onClick={() => onEdit(item)}
+            style={{ borderRadius: 6, flex: 1, fontSize: 11 }}>
+            Edit
+          </Button>
+          <Popconfirm
+            title="Delete this item?"
+            description="This will remove the item and recalculate totals."
+            onConfirm={() => onDelete(item._id)}
+            okText="Yes" cancelText="No" okButtonProps={{ danger: true }}
+          >
+            <Button size="small" danger icon={<DeleteOutlined />}
+              loading={deletingItemId === item._id} disabled={loading}
+              style={{ borderRadius: 6, flex: 1, fontSize: 11 }}>
+              Delete
+            </Button>
+          </Popconfirm>
+        </>
+      )}
+    </div>
+  </div>
+);
+
+// ── Main component ─────────────────────────────────────────────────────────
 const ExpandedRowContent = ({
   record,
   onRefresh,
@@ -100,6 +219,8 @@ const ExpandedRowContent = ({
   record: OrderDetailsInterface;
   onRefresh?: () => void;
 }) => {
+  const isMobile = useIsMobile();
+
   const {
     _id: orderId, order_no, order_type, createdAt,
     served_by, order_items = [], order_payments = [],
@@ -108,7 +229,7 @@ const ExpandedRowContent = ({
   } = record;
 
   const [editingItem, setEditingItem] = useState<EditingItem | null>(null);
-  const [editingOrderTimestamp, setEditingOrderTimestamp] = useState(false);
+  const [editingOrderTs, setEditingOrderTs] = useState(false);
   const [loading, setLoading] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [repostingPayment, setRepostingPayment] = useState(false);
@@ -119,10 +240,18 @@ const ExpandedRowContent = ({
   const hasPayments = order_payments?.length > 0;
   const isRegularOrder = order_type === "Regular";
   const needsPayment = isRegularOrder && !hasPayments;
+  const orderItemsTotal = order_items.reduce((s, i) => s + i.price * i.quantity, 0);
+
+  const vatBreakdownItems = vat_breakdown
+    ? Object.entries(vat_breakdown).map(([type, d]) => ({
+      label: `VAT (${type})`,
+      value: `KES ${d.amount?.toFixed(2)} (${(d.rate * 100).toFixed(0)}%)`,
+    }))
+    : [];
 
   // ── Handlers ───────────────────────────────────────────────────────────
   const handleEditOrderTimestamp = () => {
-    setEditingOrderTimestamp(true);
+    setEditingOrderTs(true);
     orderTimestampForm.setFieldsValue({ createdAt: dayjs(createdAt) });
   };
 
@@ -132,7 +261,7 @@ const ExpandedRowContent = ({
       setLoading(true);
       await axiosInstance.put(`${BASE_URL}/orders/${orderId}`, { createdAt: values.createdAt.toISOString() });
       message.success("Order timestamp updated successfully");
-      setEditingOrderTimestamp(false);
+      setEditingOrderTs(false);
       orderTimestampForm.resetFields();
       onRefresh?.();
     } catch (error: any) {
@@ -143,7 +272,7 @@ const ExpandedRowContent = ({
   };
 
   const handleCancelOrderTimestamp = () => {
-    setEditingOrderTimestamp(false);
+    setEditingOrderTs(false);
     orderTimestampForm.resetFields();
   };
 
@@ -198,17 +327,7 @@ const ExpandedRowContent = ({
     }
   };
 
-  // ── Derived data ───────────────────────────────────────────────────────
-  const orderItemsTotal = order_items.reduce((s, i) => s + i.price * i.quantity, 0);
-
-  const vatBreakdownItems = vat_breakdown
-    ? Object.entries(vat_breakdown).map(([type, d]) => ({
-      label: `VAT (${type})`,
-      value: `KES ${d.amount?.toFixed(2)} (${(d.rate * 100).toFixed(0)}%)`,
-    }))
-    : [];
-
-  // ── Payment display ────────────────────────────────────────────────────
+  // ── Payment list ───────────────────────────────────────────────────────
   const PaymentList = () => (
     order_payments.length === 1 ? (
       <span style={{ fontSize: 12 }}>
@@ -227,7 +346,7 @@ const ExpandedRowContent = ({
     )
   );
 
-  // ── Columns ────────────────────────────────────────────────────────────
+  // ── Desktop items table columns ────────────────────────────────────────
   const orderItemsColumns = [
     {
       title: "Product", dataIndex: ["product_id", "name"], key: "product_name",
@@ -283,20 +402,14 @@ const ExpandedRowContent = ({
         editingItem?.itemId === item._id ? (
           <div style={{ display: "flex", gap: 4 }}>
             <Button type="primary" size="small" icon={<SaveOutlined />} onClick={handleSave} loading={loading}
-              style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}>
-              Save
-            </Button>
+              style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}>Save</Button>
             <Button size="small" icon={<CloseOutlined />} onClick={handleCancel} disabled={loading}
-              style={{ borderRadius: 6 }}>
-              Cancel
-            </Button>
+              style={{ borderRadius: 6 }}>Cancel</Button>
           </div>
         ) : (
           <div style={{ display: "flex", gap: 4 }}>
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(item)}
-              style={{ padding: "0 4px", color: C.subText }}>
-              Edit
-            </Button>
+              style={{ padding: "0 4px", color: C.subText }}>Edit</Button>
             <Popconfirm
               title="Delete this item?"
               description="This will remove the item and recalculate totals."
@@ -305,48 +418,234 @@ const ExpandedRowContent = ({
             >
               <Button type="link" size="small" danger icon={<DeleteOutlined />}
                 loading={deletingItemId === item._id} disabled={loading}
-                style={{ padding: "0 4px" }}>
-                Delete
-              </Button>
+                style={{ padding: "0 4px" }}>Delete</Button>
             </Popconfirm>
           </div>
         ),
     },
   ];
 
-  // ── Render ─────────────────────────────────────────────────────────────
+  // ── Shared: missing payment alert + repost controls ────────────────────
+  const MissingPaymentAlert = () =>
+    isRegularOrder && needsPayment ? (
+      <Alert
+        type="warning" showIcon message="Missing Payment Records"
+        style={{ marginBottom: 14, borderRadius: 8 }}
+        description={
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
+            <Text style={{ fontSize: 12 }}>This order is missing payment records. Click below to create them automatically.</Text>
+            <Popconfirm
+              title="Create payment records?"
+              description="This will create payment records based on the order's payment methods and amount."
+              onConfirm={() => handleRepostPayment(false)}
+              okText="Yes" cancelText="No"
+            >
+              <Button type="primary" size="small" icon={<DollarOutlined />} loading={repostingPayment}
+                style={{ width: "fit-content", background: C.primary, borderColor: C.primary, borderRadius: 6 }}>
+                Create Payment Records
+              </Button>
+            </Popconfirm>
+          </div>
+        }
+      />
+    ) : null;
+
+  const PaymentMethodSection = () => (
+    order_payments.length > 0 ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <PaymentList />
+        {isRegularOrder && (
+          <Tooltip title="Recreate payment records">
+            <Popconfirm
+              title="Recreate payment records?"
+              description="This will delete existing payments and recreate them."
+              onConfirm={() => handleRepostPayment(true)}
+              okText="Yes" cancelText="No" okButtonProps={{ danger: true }}
+            >
+              <Button type="link" size="small" danger icon={<RedoOutlined />} loading={repostingPayment}
+                style={{ padding: 0, width: "fit-content" }}>
+                Repost Payments
+              </Button>
+            </Popconfirm>
+          </Tooltip>
+        )}
+      </div>
+    ) : order_type === "Subscription_Visit" ? (
+      <span style={pill("#fffbeb", C.orange, "#fde68a")}>No Payment (Pre-paid via Subscription)</span>
+    ) : (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={pill("#fef2f2", C.red, "#fecaca")}>Missing Payment Records</span>
+        {isRegularOrder && (
+          <Popconfirm
+            title="Create payment records?"
+            description="This will create payment records for this order."
+            onConfirm={() => handleRepostPayment(false)}
+            okText="Yes" cancelText="No"
+          >
+            <Button type="primary" size="small" icon={<DollarOutlined />} loading={repostingPayment}
+              style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}>
+              Fix
+            </Button>
+          </Popconfirm>
+        )}
+      </div>
+    )
+  );
+
+  const EditableDateSection = () =>
+    editingOrderTs ? (
+      <Form form={orderTimestampForm} layout={isMobile ? "vertical" : "inline"}>
+        <Form.Item name="createdAt" rules={[{ required: true, message: "Required" }]}
+          style={{ marginBottom: isMobile ? 8 : 0 }}>
+          <DatePicker showTime format="YYYY-MM-DD HH:mm:ss"
+            style={{ width: isMobile ? "100%" : 220, borderRadius: 7 }} />
+        </Form.Item>
+        <Form.Item style={{ marginBottom: 0 }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            <Button type="primary" size="small" icon={<SaveOutlined />} onClick={handleSaveOrderTimestamp} loading={loading}
+              style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}>Save</Button>
+            <Button size="small" icon={<CloseOutlined />} onClick={handleCancelOrderTimestamp} disabled={loading}
+              style={{ borderRadius: 6 }}>Cancel</Button>
+          </div>
+        </Form.Item>
+      </Form>
+    ) : (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <Text style={{ fontSize: 12 }}>{formattedCreatedAt}</Text>
+        <Button type="link" size="small" icon={<EditOutlined />} onClick={handleEditOrderTimestamp}
+          style={{ padding: "0 4px", color: C.subText }}>Edit</Button>
+      </div>
+    );
+
+  // ── MOBILE layout ──────────────────────────────────────────────────────
+  if (isMobile) {
+    const card = (content: React.ReactNode) => (
+      <div style={{
+        background: "#fff", border: `1px solid ${C.border}`,
+        borderRadius: 10, padding: "12px 14px", marginBottom: 10,
+      }}>
+        {content}
+      </div>
+    );
+
+    return (
+      <div style={{ padding: "8px 0" }}>
+        <MissingPaymentAlert />
+
+        {/* Order info card */}
+        {card(
+          <>
+            <SectionLabel>Order Info</SectionLabel>
+            <MetaRow label="Order No.">
+              <Text strong style={{ fontSize: 12 }}>{order_no}</Text>
+            </MetaRow>
+            <MetaRow label="Type">
+              <OrderTypeTag type={order_type} />
+            </MetaRow>
+            <MetaRow label="Date">
+              <EditableDateSection />
+            </MetaRow>
+            <MetaRow label="Served By">
+              <Text style={{ fontSize: 12 }}>{served_by?.username || "N/A"}</Text>
+            </MetaRow>
+            <div style={{ paddingTop: 7 }}>
+              <Text style={{ fontSize: 11, color: C.subText }}>Payment</Text>
+              <div style={{ marginTop: 6 }}>
+                <PaymentMethodSection />
+              </div>
+            </div>
+          </>,
+        )}
+
+        {/* Items */}
+        {order_items.length > 0 && (
+          <>
+            <div style={{ marginBottom: 6, paddingLeft: 2 }}>
+              <SectionLabel>
+                Order Items ({order_items.length})
+                {order_type === "Subscription_Visit" && <span style={{ ...pill("#faf5ff", C.purple, "#e9d5ff"), marginLeft: 8 }}>Pre-paid</span>}
+                {order_type === "Subscription_Purchase" && <span style={{ ...pill("#eff6ff", C.blue, "#bfdbfe"), marginLeft: 8 }}>Package</span>}
+              </SectionLabel>
+            </div>
+            <Form form={form} component={false}>
+              {order_items.map((item) => (
+                <MobileItemCard
+                  key={item._id}
+                  item={item}
+                  isEditing={editingItem?.itemId === item._id}
+                  loading={loading}
+                  deletingItemId={deletingItemId}
+                  form={form}
+                  onEdit={handleEdit}
+                  onSave={handleSave}
+                  onCancel={handleCancel}
+                  onDelete={handleDeleteItem}
+                />
+              ))}
+            </Form>
+            {/* Items total */}
+            <div style={{
+              display: "flex", justifyContent: "flex-end",
+              padding: "8px 14px", marginBottom: 10,
+              background: C.primaryLight, borderRadius: 8,
+              border: `1px solid ${C.border}`,
+            }}>
+              <Text style={{ fontSize: 12, color: C.subText, marginRight: 12 }}>Items Total</Text>
+              <Text strong style={{ fontSize: 13, color: C.primary }}>KES {orderItemsTotal.toFixed(2)}</Text>
+            </div>
+          </>
+        )}
+
+        {/* Totals card */}
+        {card(
+          <>
+            <SectionLabel>Summary</SectionLabel>
+            <MetaRow label="Subtotal">
+              <Text strong style={{ fontSize: 12 }}>KES {subtotal?.toFixed(2)}</Text>
+            </MetaRow>
+            {vatBreakdownItems.map((item, i) => (
+              <MetaRow key={i} label={item.label}>
+                <Text style={{ fontSize: 12 }}>{item.value}</Text>
+              </MetaRow>
+            ))}
+            {total_vat_amount > 0 && (
+              <MetaRow label="Total VAT">
+                <span style={pill("#eff6ff", C.blue, "#bfdbfe")}>KES {total_vat_amount?.toFixed(2)}</span>
+              </MetaRow>
+            )}
+            {discount > 0 && (
+              <MetaRow label={`Discount (${discount_type || "fixed"})`}>
+                <span style={pill("#fffbeb", C.orange, "#fde68a")}>−KES {discount?.toFixed(2)}</span>
+              </MetaRow>
+            )}
+            {order_payments.length > 0 && (
+              <MetaRow label="Total Paid">
+                <Text strong style={{ fontSize: 12, color: C.green }}>
+                  KES {order_payments.reduce((s, p) => s + p.amount, 0).toFixed(2)}
+                </Text>
+              </MetaRow>
+            )}
+            {/* Order amount — prominent */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 10 }}>
+              <Text style={{ fontSize: 12, color: C.subText }}>Order Amount</Text>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Text strong style={{ fontSize: 15, color: C.primary }}>KES {order_amount?.toFixed(2)}</Text>
+                {order_type === "Subscription_Visit" && order_amount === 0 && (
+                  <span style={pill("#faf5ff", C.purple, "#e9d5ff")}>Pre-paid</span>
+                )}
+              </div>
+            </div>
+          </>,
+        )}
+      </div>
+    );
+  }
+
+  // ── DESKTOP layout ─────────────────────────────────────────────────────
   return (
     <div style={{ padding: 16, background: C.bg }}>
+      <MissingPaymentAlert />
 
-      {/* Missing payment alert */}
-      {isRegularOrder && needsPayment && (
-        <Alert
-          type="warning"
-          showIcon
-          message="Missing Payment Records"
-          style={{ marginBottom: 14, borderRadius: 8 }}
-          description={
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
-              <Text style={{ fontSize: 12 }}>
-                This order is missing payment records. Click below to create them automatically.
-              </Text>
-              <Popconfirm
-                title="Create payment records?"
-                description="This will create payment records based on the order's payment methods and amount."
-                onConfirm={() => handleRepostPayment(false)}
-                okText="Yes" cancelText="No"
-              >
-                <Button type="primary" size="small" icon={<DollarOutlined />} loading={repostingPayment}
-                  style={{ width: "fit-content", background: C.primary, borderColor: C.primary, borderRadius: 6 }}>
-                  Create Payment Records
-                </Button>
-              </Popconfirm>
-            </div>
-          }
-        />
-      )}
-
-      {/* Order Items */}
       {order_items.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <SectionLabel>
@@ -381,7 +680,6 @@ const ExpandedRowContent = ({
         </div>
       )}
 
-      {/* Order Details */}
       <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
         <ProDescriptions column={2} bordered size="small">
 
@@ -393,84 +691,16 @@ const ExpandedRowContent = ({
             <OrderTypeTag type={order_type} />
           </ProDescriptions.Item>
 
-          {/* Editable date */}
           <ProDescriptions.Item label="Date" span={2}>
-            {editingOrderTimestamp ? (
-              <Form form={orderTimestampForm} layout="inline">
-                <Form.Item name="createdAt" rules={[{ required: true, message: "Required" }]} style={{ marginBottom: 0 }}>
-                  <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" style={{ width: 220, borderRadius: 7 }} />
-                </Form.Item>
-                <Form.Item style={{ marginBottom: 0 }}>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <Button type="primary" size="small" icon={<SaveOutlined />} onClick={handleSaveOrderTimestamp} loading={loading}
-                      style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}>
-                      Save
-                    </Button>
-                    <Button size="small" icon={<CloseOutlined />} onClick={handleCancelOrderTimestamp} disabled={loading}
-                      style={{ borderRadius: 6 }}>
-                      Cancel
-                    </Button>
-                  </div>
-                </Form.Item>
-              </Form>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Text style={{ fontSize: 12 }}>{formattedCreatedAt}</Text>
-                <Button type="link" size="small" icon={<EditOutlined />} onClick={handleEditOrderTimestamp}
-                  style={{ padding: "0 4px", color: C.subText }}>
-                  Edit
-                </Button>
-              </div>
-            )}
+            <EditableDateSection />
           </ProDescriptions.Item>
 
           <ProDescriptions.Item label="Served By">
             <Text style={{ fontSize: 12 }}>{served_by?.username || "N/A"}</Text>
           </ProDescriptions.Item>
 
-          {/* Payment method */}
           <ProDescriptions.Item label="Payment Method" span={2}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
-              {order_payments.length > 0 ? (
-                <>
-                  <PaymentList />
-                  {isRegularOrder && (
-                    <Tooltip title="Recreate payment records">
-                      <Popconfirm
-                        title="Recreate payment records?"
-                        description="This will delete existing payments and recreate them."
-                        onConfirm={() => handleRepostPayment(true)}
-                        okText="Yes" cancelText="No" okButtonProps={{ danger: true }}
-                      >
-                        <Button type="link" size="small" danger icon={<RedoOutlined />} loading={repostingPayment}
-                          style={{ padding: 0, width: "fit-content" }}>
-                          Repost Payments
-                        </Button>
-                      </Popconfirm>
-                    </Tooltip>
-                  )}
-                </>
-              ) : order_type === "Subscription_Visit" ? (
-                <span style={pill("#fffbeb", C.orange, "#fde68a")}>No Payment (Pre-paid via Subscription)</span>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={pill("#fef2f2", C.red, "#fecaca")}>Missing Payment Records</span>
-                  {isRegularOrder && (
-                    <Popconfirm
-                      title="Create payment records?"
-                      description="This will create payment records for this order."
-                      onConfirm={() => handleRepostPayment(false)}
-                      okText="Yes" cancelText="No"
-                    >
-                      <Button type="primary" size="small" icon={<DollarOutlined />} loading={repostingPayment}
-                        style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}>
-                        Fix
-                      </Button>
-                    </Popconfirm>
-                  )}
-                </div>
-              )}
-            </div>
+            <PaymentMethodSection />
           </ProDescriptions.Item>
 
           <ProDescriptions.Item label="Subtotal" span={2}>

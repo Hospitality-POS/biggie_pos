@@ -1,166 +1,346 @@
-import React, { useState, useMemo, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
-  Row,
-  Col,
-  Typography,
-  Button,
-  Form,
-  Input,
-  Space,
-  Result,
-  message,
-  Rate,
+  Button, Form, Input, message, Rate, Result, Typography,
 } from "antd";
 import {
-  SaveOutlined,
-  QrcodeOutlined,
-  UserAddOutlined,
-  MailOutlined,
-  CopyOutlined,
-  UserOutlined,
-  LeftOutlined,
-  StarOutlined,
-  CommentOutlined,
-  PhoneOutlined,
+  CheckCircleOutlined, CommentOutlined, CopyOutlined, LeftOutlined,
+  MailOutlined, PhoneOutlined, QrcodeOutlined, SaveOutlined,
+  StarOutlined, UserAddOutlined, UserOutlined,
 } from "@ant-design/icons";
 import { logCustomerVisit, addNewCustomer } from "@services/customers";
-import { ProCard } from "@ant-design/pro-components";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import { fetchTenantById } from "@services/users";
 import { useQuery } from "@tanstack/react-query";
 
 const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
 
-// Pre-define welcome messages outside component to avoid recreation on each render
-const welcomeMessages = [
+// ── Palette ────────────────────────────────────────────────────────────────
+const C = {
+  primary: "#6c1c2c",
+  primaryLight: "#f9f0f2",
+  green: "#10b981",
+  subText: "#64748b",
+  darkText: "#0f172a",
+  border: "#e2e8f0",
+  bg: "#f8fafc",
+};
+
+// ── Welcome messages ───────────────────────────────────────────────────────
+const WELCOME_MSGS = [
   "🎉 Great to see you again! 🙌",
   "We missed you, welcome back! ❤️",
   "Hello again, ready for something new? 🚀",
   "It's awesome to have you back! 😄",
   "You're back! Let's get started! 💪",
   "Back at it again! We've got more in store for you! 🎁",
-  "Welcome back, your favorite spot is waiting! 🏆",
+  "Welcome back, your favourite spot is waiting! 🏆",
   "Always a pleasure to see you return! 🌟",
   "We're thrilled to have you back! 💙",
 ];
 
+// ── Field label helper ─────────────────────────────────────────────────────
+const FieldLabel = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <span style={{ color: C.primary, fontSize: 16 }}>{icon}</span>
+    <Text strong style={{ fontSize: 13 }}>{text}</Text>
+  </div>
+);
+
+// ── Decorative SVG bg ──────────────────────────────────────────────────────
+const RetailBg = () => (
+  <svg
+    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", opacity: 0.1, zIndex: 0 }}
+    viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"
+  >
+    <defs>
+      <pattern id="retail-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" strokeWidth="0.5" />
+        <path d="M 10 5 L 15 5 L 15 8 L 12.5 10 L 10 8 Z" fill="white" />
+        <path d="M 5 15 C 5 15 6 12 8 12 C 10 12 10 15 10 15" fill="none" stroke="white" strokeWidth="0.5" />
+      </pattern>
+    </defs>
+    <rect width="100" height="100" fill="url(#retail-grid)" />
+  </svg>
+);
+
+// ── Logo ───────────────────────────────────────────────────────────────────
+const Logo = ({ tenantCode, size = 160, filter }: { tenantCode?: string; size?: number; filter?: string }) => (
+  <img
+    src={tenantCode === "RPOS-000004" ? "/logo.png" : "/relia.png"}
+    alt="store-logo"
+    loading="lazy"
+    style={{ width: size, height: "auto", display: "block", margin: "0 auto", filter }}
+  />
+);
+
+// ── Desktop sidebar ────────────────────────────────────────────────────────
+const DesktopSidebar = ({ tenantCode, clientName, randomMessage }: {
+  tenantCode?: string; clientName: string; randomMessage: string;
+}) => (
+  <div style={{
+    position: "relative", height: "100%", minHeight: 560,
+    background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+    padding: 24, borderRadius: "16px 0 0 16px", overflow: "hidden",
+  }}>
+    <RetailBg />
+    <div style={{
+      position: "relative", zIndex: 1,
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      height: "100%", textAlign: "center",
+    }}>
+      <div style={{
+        background: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)",
+        padding: "40px 32px", borderRadius: 24,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+      }}>
+        <Logo tenantCode={tenantCode} size={190} />
+        <Title level={2} style={{
+          color: "white", fontSize: 24, fontWeight: 600,
+          margin: "24px 0 16px", textShadow: "0 2px 4px rgba(0,0,0,0.2)",
+        }}>
+          Welcome to {clientName}
+        </Title>
+        <Paragraph style={{
+          color: "rgba(255,255,255,0.9)", fontSize: 16,
+          lineHeight: 1.8, maxWidth: 360, margin: "0 auto",
+          textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+        }}>
+          {randomMessage}
+        </Paragraph>
+      </div>
+    </div>
+  </div>
+);
+
+// ── Mobile header ──────────────────────────────────────────────────────────
+const MobileHeader = ({ tenantCode, clientName, randomMessage }: {
+  tenantCode?: string; clientName: string; randomMessage: string;
+}) => (
+  <div style={{
+    padding: "24px 20px 20px", textAlign: "center",
+    background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+    borderRadius: "16px 16px 0 0",
+  }}>
+    <Logo tenantCode={tenantCode} size={120} />
+    <Title level={4} style={{ color: "white", margin: "12px 0 4px", fontSize: 18 }}>
+      Welcome to {clientName}
+    </Title>
+    <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 13 }}>{randomMessage}</Text>
+  </div>
+);
+
+// ── Success view ───────────────────────────────────────────────────────────
+const SuccessView = ({ visitType, generatedCode, onCopy, onReset }: {
+  visitType: string | null;
+  generatedCode: string | null;
+  onCopy: () => void;
+  onReset: () => void;
+}) => (
+  <Result
+    icon={<CheckCircleOutlined style={{ color: C.green }} />}
+    title={
+      <Title level={3} style={{ color: C.darkText }}>
+        {visitType === "registration" ? "Registration Successful!" : "Visit Logged!"}
+      </Title>
+    }
+    subTitle={
+      <Text style={{ fontSize: 15, color: C.subText }}>
+        {visitType === "registration"
+          ? "Welcome to our community!"
+          : "Thank you for your feedback and for visiting us today!"}
+      </Text>
+    }
+    extra={
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%" }}>
+        {generatedCode && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+            background: C.bg, border: `1px solid ${C.border}`,
+            borderRadius: 10, padding: "12px 16px",
+          }}>
+            <Text strong style={{ fontSize: 20, color: C.primary, letterSpacing: 2 }}>
+              {generatedCode}
+            </Text>
+            <Button type="text" size="small" icon={<CopyOutlined />} onClick={onCopy}
+              style={{ color: C.subText }} />
+          </div>
+        )}
+        <Button type="primary" size="large" block onClick={onReset}
+          style={{ background: C.primary, borderColor: C.primary, borderRadius: 10, height: 44 }}>
+          Back to Home
+        </Button>
+      </div>
+    }
+  />
+);
+
+// ── Log visit form ─────────────────────────────────────────────────────────
+const LogVisitForm = ({ form, loading, onRegister }: {
+  form: any; loading: boolean; onRegister: () => void;
+}) => (
+  <Form form={form} layout="vertical" size="large" style={{ width: "100%" }}>
+    <PhoneInput
+      label={<FieldLabel icon={<PhoneOutlined />} text="Enter your phone number" />}
+      owner="phoneNumber"
+    />
+
+    <Form.Item
+      name="rating"
+      label={<FieldLabel icon={<StarOutlined />} text="Rate your experience" />}
+      rules={[{ required: true, message: "Please rate your experience" }]}
+    >
+      <Rate
+        allowClear
+        tooltips={["Okay", "Good", "Pretty good", "Great", "Amazing"]}
+        style={{ fontSize: 28 }}
+      />
+    </Form.Item>
+
+    <Form.Item
+      name="review"
+      label={<FieldLabel icon={<CommentOutlined />} text="Share your feedback (optional)" />}
+    >
+      <Input.TextArea
+        placeholder="Tell us about your experience…"
+        rows={4} showCount maxLength={500}
+        style={{ borderRadius: 8 }}
+      />
+    </Form.Item>
+
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
+      <Button type="primary" htmlType="submit" block size="large" icon={<QrcodeOutlined />} loading={loading}
+        style={{ background: C.primary, borderColor: C.primary, borderRadius: 10, height: 44, fontWeight: 500 }}>
+        Log Visit & Submit Feedback
+      </Button>
+      <Button block size="large" icon={<UserAddOutlined />} onClick={onRegister} disabled={loading}
+        style={{ borderRadius: 10, height: 44 }}>
+        First Time? Register Here
+      </Button>
+    </div>
+  </Form>
+);
+
+// ── Register form ──────────────────────────────────────────────────────────
+const RegisterForm = ({ form, loading, onBack }: {
+  form: any; loading: boolean; onBack: () => void;
+}) => (
+  <Form form={form} layout="vertical" size="large" style={{ width: "100%" }}>
+    <Form.Item name="name" label="Full Name"
+      rules={[{ required: true, message: "Please enter your name" }]}>
+      <Input prefix={<UserOutlined style={{ color: C.subText }} />}
+        placeholder="Enter your full name" style={{ borderRadius: 8 }} />
+    </Form.Item>
+
+    <PhoneInput label="Phone Number" owner="phoneNumber" />
+
+    <Form.Item name="email" label="Email Address"
+      rules={[
+        { required: true, message: "Please enter email" },
+        { type: "email", message: "Please enter a valid email" },
+      ]}>
+      <Input prefix={<MailOutlined style={{ color: C.subText }} />}
+        placeholder="Enter your email address" style={{ borderRadius: 8 }} />
+    </Form.Item>
+
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
+      <Button type="primary" htmlType="submit" block size="large" icon={<SaveOutlined />} loading={loading}
+        style={{ background: C.primary, borderColor: C.primary, borderRadius: 10, height: 44, fontWeight: 500 }}>
+        Register & Log Visit
+      </Button>
+      <Button block size="large" icon={<LeftOutlined />} onClick={onBack} disabled={loading}
+        style={{ borderRadius: 10, height: 44 }}>
+        Go Back
+      </Button>
+    </div>
+  </Form>
+);
+
+// ── Main ───────────────────────────────────────────────────────────────────
 const CustomerVisitTracker = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [registrationMode, setRegistrationMode] = useState(false);
   const [visitCompleted, setVisitCompleted] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState(null);
-  const [visitType, setVisitType] = useState(null);
+  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [visitType, setVisitType] = useState<string | null>(null);
 
-  // Get URL parameters once
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const tenantId = useMemo(() => params.get("tenant_id"), [params]);
   const shopId = useMemo(() => params.get("shop_id"), [params]);
 
-  // Get tenant data from localStorage efficiently
   const storedTenant = useMemo(() => {
-    const stored = localStorage.getItem("tenant");
-    return stored ? JSON.parse(stored) : null;
+    const s = localStorage.getItem("tenant");
+    return s ? JSON.parse(s) : null;
   }, []);
 
-  // Fetch tenant data only if not in localStorage (optimized querying)
   const { data: tenantData } = useQuery({
     queryKey: ["tenant", tenantId],
     queryFn: () => fetchTenantById(tenantId),
     retry: 1,
     enabled: !storedTenant && !!tenantId,
-    staleTime: 5 * 60 * 1000, // 5 minutes cache
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
   });
 
-  // Calculate derived values efficiently with memoization
   const tenant = useMemo(() => storedTenant || tenantData, [storedTenant, tenantData]);
-  const clientName = useMemo(() => tenant ? tenant.name : "Relia", [tenant]);
+  const clientName = useMemo(() => tenant?.name || "Relia", [tenant]);
+  const randomMsg = useMemo(() => WELCOME_MSGS[Math.floor(Math.random() * WELCOME_MSGS.length)], []);
 
-  // Get welcome message only once on component mount
-  const randomMessage = useMemo(() => {
-    const randomIndex = Math.floor(Math.random() * welcomeMessages.length);
-    return welcomeMessages[randomIndex];
-  }, []);
-
-  // Optimized handlers with useCallback
-  const handleCustomerRegistration = useCallback(async (values) => {
+  // ── Handlers ──────────────────────────────────────────────────────────
+  const handleVisitLog = useCallback(async (values: any) => {
     if (loading) return;
-
     setLoading(true);
     try {
-      const { email, name, phoneNumber } = values;
-      const phone = getPhoneNumber(phoneNumber);
-      const payload = {
-        email,
-        phone,
-        customer_name: name,
-        tenant_id: tenantId,
-        shop_id: shopId,
-      };
-
-      const response = await addNewCustomer(payload);
-
-      if (response?.status === 201) {
-        const customerCode = response.data.customer.code;
-        setGeneratedCode(customerCode);
-        setVisitType("registration");
-        setVisitCompleted(true);
-        message.success("Registration successful!");
-      }
-    } catch (error) {
-      console.error("Registration error:", error);
-      message.error("Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [loading, tenantId, shopId]);
-
-  const handleVisitLog = useCallback(async (values) => {
-    if (loading) return;
-
-    setLoading(true);
-    try {
-      const { phoneNumber, rating, review } = values;
-      const customerCode = getPhoneNumber(phoneNumber);
-      const payload = {
-        customerCode,
-        tenant_id: tenantId,
-        shop_id: shopId,
-        rating,
-        review,
-      };
-
-      const resp = await logCustomerVisit(payload);
-
+      const resp = await logCustomerVisit({
+        customerCode: getPhoneNumber(values.phoneNumber),
+        tenant_id: tenantId, shop_id: shopId,
+        rating: values.rating, review: values.review,
+      });
       if (resp?.status === 200) {
         setVisitType("visit");
         setVisitCompleted(true);
         message.success("Visit logged successfully!");
       }
-    } catch (error) {
-      console.error("Visit log error:", error);
+    } catch {
       message.error("Failed to log visit. Please try again.");
     } finally {
       setLoading(false);
     }
   }, [loading, tenantId, shopId]);
 
-  const copyCodeToClipboard = useCallback(() => {
-    if (!generatedCode) return;
-
-    navigator.clipboard
-      .writeText(generatedCode)
-      .then(() => message.success("Customer code copied to clipboard"))
-      .catch((err) => {
-        console.error("Clipboard error:", err);
-        message.error("Failed to copy customer code");
+  const handleRegistration = useCallback(async (values: any) => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const response = await addNewCustomer({
+        customer_name: values.name,
+        email: values.email,
+        phone: getPhoneNumber(values.phoneNumber),
+        tenant_id: tenantId, shop_id: shopId,
       });
+      if (response?.status === 201) {
+        setGeneratedCode(response.data.customer.code);
+        setVisitType("registration");
+        setVisitCompleted(true);
+        message.success("Registration successful!");
+      }
+    } catch {
+      message.error("Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, tenantId, shopId]);
+
+  const copyCode = useCallback(() => {
+    if (!generatedCode) return;
+    navigator.clipboard.writeText(generatedCode)
+      .then(() => message.success("Code copied to clipboard"))
+      .catch(() => message.error("Failed to copy code"));
   }, [generatedCode]);
 
-  const resetState = useCallback(() => {
+  const reset = useCallback(() => {
     setRegistrationMode(false);
     setVisitCompleted(false);
     setGeneratedCode(null);
@@ -168,441 +348,75 @@ const CustomerVisitTracker = () => {
     form.resetFields();
   }, [form]);
 
-  // Memoized UI components to prevent re-rendering
-  const RetailBackground = useMemo(() => (
-    <svg
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        opacity: 0.1,
-        zIndex: 0,
-      }}
-      viewBox="0 0 100 100"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <defs>
-        <pattern
-          id="retail-grid"
-          width="20"
-          height="20"
-          patternUnits="userSpaceOnUse"
-        >
-          <path
-            d="M 20 0 L 0 0 0 20"
-            fill="none"
-            stroke="white"
-            strokeWidth="0.5"
-          />
-          <path d="M 10 5 L 15 5 L 15 8 L 12.5 10 L 10 8 Z" fill="white" />
-          <path
-            d="M 5 15 C 5 15 6 12 8 12 C 10 12 10 15 10 15"
-            fill="none"
-            stroke="white"
-            strokeWidth="0.5"
-          />
-        </pattern>
-      </defs>
-      <rect width="100" height="100" fill="url(#retail-grid)" />
-    </svg>
-  ), []);
-
-  const MobileHeader = useMemo(() => (
-    <div
-      style={{
-        padding: "24px",
-        textAlign: "center",
-        background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
-        borderRadius: "16px 16px 0 0",
-      }}
-    >
-      {tenant?.tenant_code === "RPOS-000004" ? (
-        <img
-          src="/logo.png"
-          alt="store-logo"
-          style={{
-            width: "170px",
-            height: "auto",
-            marginBottom: "16px",
-            margin: "0 auto",
-          }}
-          loading="lazy"
-        />
-      ) : (
-        <img
-          src="/relia.png"
-          alt="store-logo"
-          style={{
-            width: "128px",
-            height: "auto",
-            marginBottom: "16px",
-            margin: "0 auto",
-          }}
-          loading="lazy"
-        />
-      )}
-
-      <Title
-        level={4}
-        style={{
-          color: "white",
-          margin: 0,
-          fontSize: "18px",
-        }}
-      >
-        Welcome to {clientName}
-      </Title>
-
-      <Text
-        style={{
-          textAlign: "center",
-          color: "#e0e0e0",
-          fontSize: "14px",
-        }}
-      >
-        {randomMessage}
-      </Text>
-    </div>
-  ), [tenant, clientName, randomMessage]);
-
-  const DesktopSidebar = useMemo(() => (
-    <div
-      style={{
-        position: "relative",
-        height: "100%",
-        background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
-        padding: "24px",
-        borderRadius: "16px 0 0 16px",
-        overflow: "hidden",
-      }}
-    >
-      {RetailBackground}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          textAlign: "center",
-        }}
-      >
-        <div
-          style={{
-            background: "rgba(255, 255, 255, 0.1)",
-            backdropFilter: "blur(10px)",
-            padding: "40px",
-            borderRadius: "24px",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          {tenant?.tenant_code === "RPOS-000004" ? (
-            <img
-              src="/logo.png"
-              alt="store-logo"
-              style={{
-                width: "200px",
-                height: "auto",
-                marginBottom: "24px",
-                margin: "0 auto",
-              }}
-              loading="lazy"
-            />
-          ) : (
-            <img
-              src="/relia.png"
-              alt="store-logo"
-              style={{
-                width: "192px",
-                height: "auto",
-                marginBottom: "24px",
-                margin: "0 auto",
-              }}
-              loading="lazy"
-            />
-          )}
-
-          <Title
-            level={2}
-            style={{
-              color: "white",
-              fontSize: "24px",
-              fontWeight: 600,
-              marginBottom: "24px",
-              textShadow: "0 2px 4px rgba(0,0,0,0.2)",
-            }}
-          >
-            Customer Experience
-          </Title>
-          <Paragraph
-            style={{
-              color: "rgba(255, 255, 255, 0.9)",
-              fontSize: "16px",
-              lineHeight: 1.8,
-              maxWidth: "400px",
-              margin: "0 auto",
-              textShadow: "0 1px 2px rgba(0,0,0,0.1)",
-            }}
-          >
-            {randomMessage}
-          </Paragraph>
-        </div>
-      </div>
-    </div>
-  ), [tenant, randomMessage, RetailBackground]);
-
-  // Render main content based on state
-  const MainContent = () => {
+  // ── Inner form routing ─────────────────────────────────────────────────
+  const formContent = () => {
     if (visitCompleted) {
       return (
-        <Result
-          status="success"
-          title={
-            <Title level={3}>
-              {visitType === "registration"
-                ? "Registration Successful!"
-                : "Visit Logged Successfully"}
-            </Title>
-          }
-          subTitle={
-            <Text style={{ fontSize: "16px", color: "#666" }}>
-              {visitType === "registration"
-                ? "Welcome to our community!"
-                : "Thank you for your feedback and for visiting us today!"}
-            </Text>
-          }
-          extra={
-            <Space direction="vertical" size="large" style={{ width: "100%" }}>
-              {generatedCode && (
-                <ProCard
-                  bordered
-                  style={{
-                    textAlign: "center",
-                    borderRadius: "12px",
-                    background: "#f5f5f5",
-                  }}
-                >
-                  <Space>
-                    <Text strong style={{ fontSize: "18px" }}>
-                      {generatedCode}
-                    </Text>
-                    <Button
-                      type="text"
-                      icon={<CopyOutlined />}
-                      onClick={copyCodeToClipboard}
-                    />
-                  </Space>
-                </ProCard>
-              )}
-              <Button type="primary" size="large" block onClick={resetState}>
-                Back to Home
-              </Button>
-            </Space>
-          }
+        <SuccessView
+          visitType={visitType} generatedCode={generatedCode}
+          onCopy={copyCode} onReset={reset}
         />
       );
     }
-
     if (registrationMode) {
       return (
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCustomerRegistration}
-          size="large"
-          style={{ width: "100%" }}
-        >
-          <Form.Item
-            name="name"
-            label="Enter your full name"
-            rules={[{ required: true, message: "Please enter your name" }]}
-          >
-            <Input
-              prefix={<UserOutlined />}
-              placeholder="Enter your full name"
-            />
-          </Form.Item>
-
-          <PhoneInput label="Enter your phone number" owner="phoneNumber" />
-
-          <Form.Item
-            name="email"
-            label="Enter your email address"
-            rules={[
-              { required: true, message: "Please enter email" },
-              { type: "email", message: "Please enter a valid email" },
-            ]}
-          >
-            <Input
-              prefix={<MailOutlined />}
-              placeholder="Enter your email address"
-            />
-          </Form.Item>
-
-          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-            <Button
-              type="primary"
-              htmlType="submit"
-              block
-              size="large"
-              icon={<SaveOutlined />}
-              loading={loading}
-            >
-              Register & Log Visit
-            </Button>
-            <Button
-              block
-              size="large"
-              onClick={() => setRegistrationMode(false)}
-              icon={<LeftOutlined />}
-              disabled={loading}
-            >
-              Go Back
-            </Button>
-          </Space>
+        <Form form={form} onFinish={handleRegistration}>
+          <RegisterForm form={form} loading={loading} onBack={() => setRegistrationMode(false)} />
         </Form>
       );
     }
-
     return (
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleVisitLog}
-        size="large"
-        style={{ width: "100%" }}
-      >
-        <PhoneInput
-          label={
-            <Space>
-              <PhoneOutlined style={{ color: "#6c1c2c", fontSize: "18px" }} />
-              <Text strong>Enter your phone number</Text>
-            </Space>
-          }
-          owner="phoneNumber"
-        />
-
-        <Form.Item
-          name="rating"
-          label={
-            <Space>
-              <StarOutlined style={{ color: "#6c1c2c", fontSize: "18px" }} />
-              <Text strong>Rate your experience</Text>
-            </Space>
-          }
-          rules={[{ required: true, message: "Please rate your experience" }]}
-          style={{ width: "100%" }}
-        >
-          <Rate
-            style={{ fontSize: "24px", width: "100%" }}
-            allowClear
-            id="rate"
-            tooltips={["Okay", "Good", "Pretty good", "Great", "Amazing"]}
-          />
-        </Form.Item>
-
-        <Form.Item
-          name="review"
-          label={
-            <Space>
-              <CommentOutlined
-                style={{ color: "#6c1c2c", fontSize: "18px" }}
-              />
-              <Text strong>Share your feedback (optional)</Text>
-            </Space>
-          }
-        >
-          <TextArea
-            placeholder="Tell us about your experience..."
-            rows={4}
-            showCount
-            maxLength={500}
-          />
-        </Form.Item>
-
-        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-          <Button
-            type="primary"
-            htmlType="submit"
-            block
-            size="large"
-            icon={<QrcodeOutlined />}
-            loading={loading}
-          >
-            Log Visit & Submit Feedback
-          </Button>
-          <Button
-            type="default"
-            block
-            size="large"
-            icon={<UserAddOutlined />}
-            onClick={() => setRegistrationMode(true)}
-            disabled={loading}
-          >
-            First Time? Register Here
-          </Button>
-        </Space>
+      <Form form={form} onFinish={handleVisitLog}>
+        <LogVisitForm form={form} loading={loading} onRegister={() => setRegistrationMode(true)} />
       </Form>
     );
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "16px",
-        // Use solid color background first for fast initial render
-        backgroundColor: "#f5f5f5",
-        // Then load the image background
-        backgroundImage: `url("/try.png")`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
-    >
-      <ProCard
-        ghost
-        style={{
-          width: "100%",
-          maxWidth: "1200px",
-          background: "rgba(255, 255, 255, 0.95)",
-          borderRadius: "16px",
-          overflow: "hidden",
-          boxShadow: "0 4px 24px rgba(0, 0, 0, 0.1)",
-        }}
-      >
-        <Row>
-          <Col xs={0} md={12}>
-            {DesktopSidebar}
-          </Col>
-          <Col xs={24} md={0}>
-            {MobileHeader}
-          </Col>
-          <Col xs={24} md={12}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "16px",
-                flexDirection: "column",
-                height: "100%",
-              }}
-            >
-              <div style={{ maxWidth: "400px", width: "100%", margin: "0 auto" }}>
-                <MainContent />
-              </div>
-            </div>
-          </Col>
-        </Row>
-      </ProCard>
+    <div style={{
+      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 16, backgroundColor: "#f5f5f5",
+      backgroundImage: `url("/try.png")`, backgroundSize: "cover",
+      backgroundPosition: "center", backgroundRepeat: "no-repeat",
+    }}>
+      <div style={{
+        width: "100%", maxWidth: 1100,
+        background: "rgba(255,255,255,0.97)",
+        borderRadius: 16, overflow: "hidden",
+        boxShadow: "0 4px 32px rgba(0,0,0,0.12)",
+        display: "flex", flexDirection: "row",
+        flexWrap: "wrap",
+      }}>
+        {/* Desktop sidebar — hidden on mobile via minWidth trick */}
+        <div style={{ flex: "1 1 380px", minWidth: 0, display: "flex" }}>
+          <div style={{ display: "none" }} className="mobile-header-slot">
+            <MobileHeader tenantCode={tenant?.tenant_code} clientName={clientName} randomMessage={randomMsg} />
+          </div>
+          <div className="desktop-sidebar-slot" style={{ flex: 1 }}>
+            <DesktopSidebar tenantCode={tenant?.tenant_code} clientName={clientName} randomMessage={randomMsg} />
+          </div>
+        </div>
+
+        {/* Form panel */}
+        <div style={{
+          flex: "1 1 340px", minWidth: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "32px 24px",
+        }}>
+          <div style={{ maxWidth: 400, width: "100%" }}>
+            {formContent()}
+          </div>
+        </div>
+      </div>
+
+      {/* Responsive CSS */}
+      <style>{`
+        @media (max-width: 640px) {
+          .desktop-sidebar-slot { display: none !important; }
+          .mobile-header-slot   { display: block !important; }
+        }
+      `}</style>
     </div>
   );
 };
