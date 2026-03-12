@@ -68,7 +68,6 @@ const matchSlotIndex = (timeStr: string): number => {
   const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
   let idx = ALL_TIME_SLOTS.findIndex(s => norm(s) === norm(timeStr));
   if (idx !== -1) return idx;
-  // fallback: parse h:mm A manually
   const [tp, ap] = timeStr.split(" ");
   let [h, m] = tp.split(":").map(Number);
   if (ap?.toUpperCase() === "PM" && h < 12) h += 12;
@@ -87,6 +86,7 @@ interface AppointmentFormProps {
   open: boolean;
   isEditMode: boolean;
   editingId?: string;
+  formDefaults: any;           // ← NEW: receive defaults from parent
   staffMembers: any[];
   customers: any[];
   products: any[];
@@ -100,7 +100,8 @@ interface AppointmentFormProps {
 }
 
 const AppointmentForm = ({
-  open, isEditMode, editingId, staffMembers, customers, products,
+  open, isEditMode, editingId, formDefaults,
+  staffMembers, customers, products,
   selectedDate, loadingStaff, loadingCustomers, loadingProducts,
   formattedSchedules, onClose, onSuccess,
 }: AppointmentFormProps) => {
@@ -111,6 +112,32 @@ const AppointmentForm = ({
   const [maxCapacity, setMaxCapacity] = useState(1);
   const [selectedCusts, setSelectedCusts] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  // ── Pre-fill form whenever the drawer opens or defaults change ────────────
+  useEffect(() => {
+    if (!open) return;
+
+    // Small timeout lets the Drawer finish mounting before setting values
+    const timer = setTimeout(() => {
+      form.resetFields();
+      form.setFieldsValue(formDefaults);
+
+      // Sync local state from defaults
+      const bt = formDefaults?.bookingType || "individual";
+      setBookingType(bt);
+      setMaxCapacity(formDefaults?.maxCapacity || 1);
+      setSelectedCusts(formDefaults?.clientNames || []);
+
+      // Detect whether this is a custom (non-existing) client edit
+      if (formDefaults?.customClientName && !formDefaults?.clientName && !formDefaults?.clientNames?.length) {
+        setClientInputMode("custom");
+      } else {
+        setClientInputMode("existing");
+      }
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [open, formDefaults, form]);
 
   const isTimeRangeAvailable = (staffName: string, start: string, end: string, excludeId?: string): boolean => {
     const si = matchSlotIndex(start), ei = matchSlotIndex(end);
@@ -201,12 +228,7 @@ const AppointmentForm = ({
         message.success("Appointment booked");
       }
       onSuccess();
-      onClose();
-      form.resetFields();
-      setBookingType("individual");
-      setClientInputMode("existing");
-      setMaxCapacity(1);
-      setSelectedCusts([]);
+      handleClose();
     } catch (e: any) {
       message.error(e.message || `Failed to ${isEditMode ? "update" : "create"} appointment`);
     } finally { setSubmitting(false); }
@@ -221,15 +243,12 @@ const AppointmentForm = ({
     setSelectedCusts([]);
   };
 
-  const nextSlot = (slot: string) => {
-    const i = ALL_TIME_SLOTS.indexOf(slot);
-    return i !== -1 && i < ALL_TIME_SLOTS.length - 1 ? ALL_TIME_SLOTS[i + 1] : slot;
-  };
-
   return (
     <Drawer
       open={open} onClose={handleClose} placement="right"
-      width="min(520px, 96vw)" destroyOnClose
+      width="min(520px, 96vw)"
+      // NOTE: destroyOnClose removed — keeping the form mounted lets
+      // setFieldsValue work reliably. The useEffect + resetFields handles cleanup.
       styles={{ body: { padding: "20px 24px", paddingBottom: 110 }, footer: { padding: "12px 16px" } }}
       title={
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -256,8 +275,7 @@ const AppointmentForm = ({
         </div>
       }
     >
-      <Form form={form} layout="vertical" onFinish={handleSubmit}
-        initialValues={{ bookingType: "individual", maxCapacity: 1 }}>
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
 
         {/* Date & Staff */}
         <FormSection>
@@ -645,7 +663,6 @@ const CalendarView = ({ onRegisterEditHandler }: CalendarViewProps) => {
               flex: "1 0 180px", minWidth: 180, padding: "10px 12px",
               textAlign: "center", borderRight: `1px solid ${C.border}`, position: "relative",
             }}>
-              {/* Avatar circle */}
               <div style={{
                 width: 32, height: 32, borderRadius: "50%", background: C.primaryLight,
                 color: C.primary, fontWeight: 700, fontSize: 13,
@@ -698,7 +715,6 @@ const CalendarView = ({ onRegisterEditHandler }: CalendarViewProps) => {
                   flex: "1 0 180px", minWidth: 180,
                   borderRight: `1px solid ${C.border}`, position: "relative",
                 }}>
-                  {/* Hour grid */}
                   {HOUR_RANGE.map(hour => (
                     <div key={hour} style={{
                       height: 80, borderBottom: `1px solid ${C.border}`,
@@ -762,7 +778,6 @@ const CalendarView = ({ onRegisterEditHandler }: CalendarViewProps) => {
                             {appt.start_time} – {appt.end_time}
                           </Text>
                         )}
-                        {/* Delete button on hover-like placement */}
                         <Popconfirm
                           title="Delete this appointment?"
                           description="This cannot be undone."
@@ -803,7 +818,6 @@ const CalendarView = ({ onRegisterEditHandler }: CalendarViewProps) => {
 
     return (
       <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", maxHeight: "calc(100vh - 260px)" }}>
-        {/* Day headers */}
         <div style={{ display: "flex", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
           <div style={{ width: 64, flexShrink: 0, borderRight: `1px solid ${C.border}` }} />
           {weekDates.map((date, i) => {
@@ -834,7 +848,6 @@ const CalendarView = ({ onRegisterEditHandler }: CalendarViewProps) => {
           })}
         </div>
 
-        {/* Time grid */}
         <div style={{ display: "flex", overflowY: "auto", flexGrow: 1 }}>
           <div style={{ width: 64, flexShrink: 0, borderRight: `1px solid ${C.border}`, background: C.bg }}>
             {HOUR_RANGE.map(hour => {
@@ -885,8 +898,7 @@ const CalendarView = ({ onRegisterEditHandler }: CalendarViewProps) => {
         padding: "14px 16px", borderBottom: `1px solid ${C.border}`,
         background: "#fff", borderRadius: "10px 10px 0 0",
       }}>
-        <Button onClick={() => setSelectedDate(new Date())}
-          style={{ borderRadius: 8 }}>Today</Button>
+        <Button onClick={() => setSelectedDate(new Date())} style={{ borderRadius: 8 }}>Today</Button>
         <Button icon={<LeftOutlined />} onClick={() => navigateDay(-1)} style={{ borderRadius: 8 }} />
         <DatePicker
           value={dayjs(selectedDate)}
@@ -923,6 +935,7 @@ const CalendarView = ({ onRegisterEditHandler }: CalendarViewProps) => {
         open={formOpen}
         isEditMode={isEditMode}
         editingId={editingId}
+        formDefaults={formDefaults}
         staffMembers={staffMembers}
         customers={customers}
         products={formattedProducts}

@@ -3,11 +3,13 @@ import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import PrintBillSpaModal from "../MODALS/printBillSpaModal";
 import { deleteAllCartItems, getCart } from "../../features/Cart/CartActions";
+import { updateCart as updateCartService } from "../../services/cart";
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
+import { fetchAllUsersByShopId } from "../../services/users";
 import {
   Button, Space, Typography, Tag, Empty, Divider,
   Flex, Avatar, Tooltip, Select, Popconfirm, Badge,
@@ -15,7 +17,7 @@ import {
 import {
   ClearOutlined, CloseCircleOutlined, OrderedListOutlined,
   PlusCircleOutlined, RestOutlined, SmileFilled,
-  SwitcherOutlined, UserOutlined,
+  SwitcherOutlined, UserOutlined, EditOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
@@ -64,6 +66,11 @@ const SummaryRow: React.FC<{
 // ── Main component ────────────────────────────────────────────────────────────
 const CartDrawer: React.FC = () => {
   const [loadingData, setLoadingData] = useState(false);
+  const [staffList, setStaffList] = useState<{ value: string; label: string }[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+  const [editingServedBy, setEditingServedBy] = useState(false);
+  const [updatingServedBy, setUpdatingServedBy] = useState(false);
+
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
@@ -126,6 +133,37 @@ const CartDrawer: React.FC = () => {
     return null;
   }, [cartDetails?.customer_id, cartDetails?.client_name, cartDetails?.client_pin, cartDetails?.client_email]);
 
+  // Prefer served_by if set, otherwise fall back to created_by
+  const servedById = useMemo(() => {
+    const cb = cartDetails?.served_by ?? cartDetails?.created_by;
+    if (!cb) return undefined;
+    if (typeof cb === "string") return cb;
+    if (typeof cb === "object" && cb._id) return cb._id;
+    return undefined;
+  }, [cartDetails?.served_by, cartDetails?.created_by]);
+
+  // ── Fetch staff list (non-admin) ───────────────────────────────────────────
+  useEffect(() => {
+    const loadStaff = async () => {
+      setLoadingStaff(true);
+      try {
+        const users = await fetchAllUsersByShopId();
+        const filtered = (users || [])
+          .filter((u: any) => u.role !== "admin")
+          .map((u: any) => ({
+            value: u._id,
+            label: u.username || u.fullname || u.email || "Unknown",
+          }));
+        setStaffList(filtered);
+      } catch (e) {
+        console.error("Failed to load staff list", e);
+      } finally {
+        setLoadingStaff(false);
+      }
+    };
+    loadStaff();
+  }, []);
+
   useEffect(() => {
     const fetch = async () => {
       if (!tableId || tableId === "tables") return;
@@ -154,9 +192,27 @@ const CartDrawer: React.FC = () => {
   );
 
   const isOnlySlot = totalQueueSlots <= 1;
-
   const isSpa = tenant?.business_type?.name === "massage_parlour";
   const canCheckout = (user?.role === "admin" || user?.role === "cashier") && (data?.length ?? 0) > 0;
+
+  // ── Handle served-by update ────────────────────────────────────────────────
+  const handleServedByChange = async (newUserId: string) => {
+    const cartId = cartDetails?._id ?? cartDetails?.id;
+    if (!cartId) {
+      console.error("Cart ID is undefined — cartDetails:", cartDetails);
+      return;
+    }
+    setUpdatingServedBy(true);
+    try {
+      await updateCartService(cartId, { served_by: newUserId });
+      await dispatch(getCart(tableId));
+      setEditingServedBy(false);
+    } catch (e) {
+      console.error("Failed to update served by", e);
+    } finally {
+      setUpdatingServedBy(false);
+    }
+  };
 
   return (
     <div
@@ -345,11 +401,7 @@ const CartDrawer: React.FC = () => {
         </div>
 
         {/* ── Cart items list ─────────────────────────────────────────────── */}
-        <div
-          style={{
-            marginBottom: 8,
-          }}
-        >
+        <div style={{ marginBottom: 8 }}>
           {loading
             ? Array.from({ length: data?.length || 3 }, (_, i) => <SkeletonCartItemCard key={i} />)
             : data?.map((item: { _id: Key | null | undefined | string }) => (
@@ -433,12 +485,114 @@ const CartDrawer: React.FC = () => {
               accent={primaryColor}
             />
 
-            <Flex justify="flex-end" style={{ marginTop: 4 }}>
-              <Text style={{ fontSize: 11, color: "#94a3b8" }}>
-                <SmileFilled style={{ marginRight: 4, color: "#fbbf24" }} />
-                Served by {cartDetails?.created_by?.username || "Staff"}
-              </Text>
-            </Flex>
+            {/* ── Served By row ──────────────────────────────────────────── */}
+            <Divider style={{ margin: "8px 0" }} />
+            {editingServedBy ? (
+              <div
+                style={{
+                  background: `${primaryColor}08`,
+                  border: `1px solid ${primaryColor}40`,
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                }}
+              >
+                <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginBottom: 6 }}>
+                  <SmileFilled style={{ color: "#fbbf24", marginRight: 4 }} />
+                  Change staff member
+                </Text>
+                <Flex align="center" gap={6}>
+                  <Select
+                    size="middle"
+                    style={{ flex: 1 }}
+                    loading={loadingStaff || updatingServedBy}
+                    disabled={updatingServedBy}
+                    value={staffList.find((s) => s.value === servedById) ? servedById : undefined}
+                    options={staffList}
+                    placeholder={
+                      loadingStaff
+                        ? "Loading…"
+                        : staffList.length === 0
+                          ? "No staff found"
+                          : "Select staff"
+                    }
+                    onChange={handleServedByChange}
+                    autoFocus
+                  />
+                  <Button
+                    size="middle"
+                    onClick={() => setEditingServedBy(false)}
+                    disabled={updatingServedBy}
+                    style={{ borderRadius: 6 }}
+                  >
+                    Cancel
+                  </Button>
+                </Flex>
+              </div>
+            ) : (
+              <div
+                onClick={() =>
+                  (user?.role === "admin" || user?.role === "cashier") &&
+                  cartDetails?._id &&
+                  setEditingServedBy(true)
+                }
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background: "#fff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  cursor:
+                    (user?.role === "admin" || user?.role === "cashier") && cartDetails?._id
+                      ? "pointer"
+                      : "default",
+                  transition: "border-color 0.2s, background 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  if ((user?.role === "admin" || user?.role === "cashier") && cartDetails?._id) {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = primaryColor;
+                    (e.currentTarget as HTMLDivElement).style.background = `${primaryColor}06`;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.borderColor = "#e2e8f0";
+                  (e.currentTarget as HTMLDivElement).style.background = "#fff";
+                }}
+              >
+                <Flex align="center" gap={6}>
+                  <SmileFilled style={{ color: "#fbbf24", fontSize: 14 }} />
+                  <div>
+                    <Text style={{ fontSize: 10, color: "#94a3b8", display: "block", lineHeight: 1.2 }}>
+                      Served by
+                    </Text>
+                    <Text style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+                      {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}
+                    </Text>
+                  </div>
+                </Flex>
+
+                {(user?.role === "admin" || user?.role === "cashier") && cartDetails?._id && (
+                  <Flex
+                    align="center"
+                    gap={4}
+                    style={{
+                      background: `${primaryColor}15`,
+                      border: `1px solid ${primaryColor}40`,
+                      borderRadius: 6,
+                      padding: "3px 8px",
+                      color: primaryColor,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <EditOutlined style={{ fontSize: 11 }} />
+                    Change
+                  </Flex>
+                )}
+              </div>
+            )}
           </div>
         )}
 

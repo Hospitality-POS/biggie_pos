@@ -181,7 +181,8 @@ export const createCart = async (cartData: {
 };
 
 /**
- * Update cart (supports updating subscription details)
+ * Update cart — uses PUT /cart/update-cart with cart_id in the body.
+ * Supports discount, tips, client info, subscription details, and created_by (served by).
  */
 export const updateCart = async (
   cartId: string,
@@ -196,11 +197,12 @@ export const updateCart = async (
     use_subscription?: boolean;
     payment_type?: string;
     subscription_id?: string;
+    served_by?: string;
   }
 ) => {
   try {
     const response = await axiosInstance.put(
-      `${baseUrl}/cart/${cartId}`,
+      `${baseUrl}/cart/update-cart/${cartId}`,
       cartData
     );
     return response.data;

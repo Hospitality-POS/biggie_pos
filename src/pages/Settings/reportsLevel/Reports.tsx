@@ -287,7 +287,7 @@ const Reports: React.FC = () => {
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <Form.Item
                   name="servedBy"
-                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Created By</span>}
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Serviced By</span>}
                   style={{ marginBottom: 14 }}
                 >
                   <Select showSearch allowClear placeholder="All users" options={userOptions} style={{ width: "100%", borderRadius: 8 }}
@@ -297,7 +297,7 @@ const Reports: React.FC = () => {
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <Form.Item
                   name="locationId"
-                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><EnvironmentOutlined /> Served By</span>}
+                  label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><EnvironmentOutlined /> Service Location</span>}
                   style={{ marginBottom: 14 }}
                 >
                   <Select showSearch allowClear placeholder="All locations" options={locationOptions} style={{ width: "100%", borderRadius: 8 }}

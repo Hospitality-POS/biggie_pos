@@ -13,16 +13,24 @@ import {
     Badge,
     Alert,
     Spin,
-    Statistic,
     Row,
     Col,
+    Card,
+    Tooltip,
 } from "antd";
 import {
     CheckOutlined,
     LinkOutlined,
     StopOutlined,
+    FileTextOutlined,
+    ArrowRightOutlined,
+    DollarOutlined,
+    ClockCircleOutlined,
+    CheckCircleOutlined,
+    ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
     getNoteById,
     approveNote,
@@ -45,6 +53,16 @@ const STATUS_CONFIG: Record<NoteStatus, { badge: "success" | "processing" | "war
     Voided: { badge: "error", color: "red" },
 };
 
+const INVOICE_STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode }> = {
+    Paid: { color: "#52c41a", icon: <CheckCircleOutlined /> },
+    Partially_Paid: { color: "#faad14", icon: <ExclamationCircleOutlined /> },
+    Pending: { color: "#1890ff", icon: <ClockCircleOutlined /> },
+    Overdue: { color: "#ff4d4f", icon: <ExclamationCircleOutlined /> },
+    Draft: { color: "#8c8c8c", icon: <FileTextOutlined /> },
+    Voided: { color: "#ff4d4f", icon: <StopOutlined /> },
+    Cancelled: { color: "#ff4d4f", icon: <StopOutlined /> },
+};
+
 const VAT_TYPE_COLORS: Record<string, string> = {
     STANDARD: "blue",
     ZERO: "cyan",
@@ -61,6 +79,7 @@ interface Props {
 
 const NoteDetailDrawer: React.FC<Props> = ({ open, onClose, noteId, onSuccess }) => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const [voidModalOpen, setVoidModalOpen] = useState(false);
     const [voidReason, setVoidReason] = useState("");
 
@@ -113,6 +132,40 @@ const NoteDetailDrawer: React.FC<Props> = ({ open, onClose, noteId, onSuccess })
         if (!note?.journal_entry_id) return null;
         if (typeof note.journal_entry_id === "object") return note.journal_entry_id.entry_no;
         return note.journal_entry_id;
+    };
+
+    // ── Invoice helpers ────────────────────────────────────────────────────────
+
+    // Returns the populated invoice object if available
+    const linkedInvoice = () => {
+        if (!note) return null;
+        if (note.original_invoice_id && typeof note.original_invoice_id === "object") {
+            return note.original_invoice_id as any;
+        }
+        return null;
+    };
+
+    const invoiceDisplayNo = () => {
+        const inv = linkedInvoice();
+        if (inv) return inv.invoice_no || inv.order_no || note?.original_invoice_no;
+        return note?.original_invoice_no || null;
+    };
+
+    // Navigate to /orders page with invoice highlighted via query param
+    const handleViewInvoice = () => {
+        const inv = linkedInvoice();
+        const invoiceNo = inv?.invoice_no || inv?.order_no || note?.original_invoice_no;
+        const invoiceId = inv?._id || (
+            typeof note?.original_invoice_id === "string" ? note.original_invoice_id : null
+        );
+
+        // Build query: prefer _id, fall back to invoice_no
+        const params = new URLSearchParams();
+        if (invoiceId) params.set("invoice_id", invoiceId);
+        else if (invoiceNo) params.set("invoice_no", invoiceNo);
+
+        navigate(`/orders?${params.toString()}`);
+        onClose();
     };
 
     // ── Line columns ───────────────────────────────────────────────────────────
@@ -216,11 +269,140 @@ const NoteDetailDrawer: React.FC<Props> = ({ open, onClose, noteId, onSuccess })
         return "—";
     };
 
-    const origInvoice = () => {
-        if (!note?.original_invoice_id) return note?.original_invoice_no || "—";
-        if (typeof note.original_invoice_id === "object")
-            return `${note.original_invoice_id.invoice_no} (${note.original_invoice_id.status})`;
-        return note.original_invoice_no || note.original_invoice_id;
+    // ── Linked Invoice Card ────────────────────────────────────────────────────
+
+    const LinkedInvoiceCard = () => {
+        const inv = linkedInvoice();
+        const displayNo = invoiceDisplayNo();
+
+        // Don't render if there's no invoice reference at all
+        if (!displayNo && !inv) return null;
+
+        const invStatus = inv?.status || null;
+        const statusStyle = invStatus ? INVOICE_STATUS_CONFIG[invStatus] : null;
+
+        const fmt = (n: number) =>
+            (n || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 });
+
+        return (
+            <Card
+                size="small"
+                style={{
+                    marginBottom: 20,
+                    borderRadius: 8,
+                    border: "1px solid #e6f4ff",
+                    background: "linear-gradient(135deg, #f0f7ff 0%, #fafcff 100%)",
+                }}
+                bodyStyle={{ padding: "12px 16px" }}
+            >
+                <Row align="middle" justify="space-between" wrap={false}>
+                    {/* Left: icon + invoice info */}
+                    <Col flex="auto">
+                        <Space size={12} align="start">
+                            <div style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 8,
+                                background: "#1890ff18",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                            }}>
+                                <FileTextOutlined style={{ color: "#1890ff", fontSize: 16 }} />
+                            </div>
+
+                            <div>
+                                <Space size={6} align="center" wrap>
+                                    <Text strong style={{ fontSize: 13 }}>
+                                        {displayNo || "Invoice"}
+                                    </Text>
+                                    {invStatus && statusStyle && (
+                                        <Tag
+                                            icon={statusStyle.icon}
+                                            color={invStatus === "Paid" ? "success"
+                                                : invStatus === "Partially_Paid" ? "warning"
+                                                    : invStatus === "Overdue" ? "error"
+                                                        : invStatus === "Pending" ? "processing"
+                                                            : "default"}
+                                            style={{ fontSize: 11, margin: 0 }}
+                                        >
+                                            {invStatus.replace("_", " ")}
+                                        </Tag>
+                                    )}
+                                </Space>
+
+                                {/* Invoice financials — only if we have the populated object */}
+                                {inv && (
+                                    <Space size={16} style={{ marginTop: 6 }} wrap>
+                                        <Space size={4}>
+                                            <DollarOutlined style={{ color: "#8c8c8c", fontSize: 11 }} />
+                                            <Text type="secondary" style={{ fontSize: 11 }}>Total:</Text>
+                                            <Text style={{ fontSize: 12, fontWeight: 500 }}>
+                                                KES {fmt(inv.grand_total)}
+                                            </Text>
+                                        </Space>
+                                        <Space size={4}>
+                                            <CheckCircleOutlined style={{ color: "#52c41a", fontSize: 11 }} />
+                                            <Text type="secondary" style={{ fontSize: 11 }}>Paid:</Text>
+                                            <Text style={{ fontSize: 12, color: "#52c41a", fontWeight: 500 }}>
+                                                KES {fmt(inv.amount_paid)}
+                                            </Text>
+                                        </Space>
+                                        <Space size={4}>
+                                            <ExclamationCircleOutlined style={{
+                                                color: inv.amount_due > 0 ? "#faad14" : "#52c41a",
+                                                fontSize: 11
+                                            }} />
+                                            <Text type="secondary" style={{ fontSize: 11 }}>Due:</Text>
+                                            <Text style={{
+                                                fontSize: 12,
+                                                fontWeight: 500,
+                                                color: inv.amount_due > 0 ? "#faad14" : "#52c41a",
+                                            }}>
+                                                KES {fmt(inv.amount_due)}
+                                            </Text>
+                                        </Space>
+                                        {inv.due_date && (
+                                            <Space size={4}>
+                                                <ClockCircleOutlined style={{ color: "#8c8c8c", fontSize: 11 }} />
+                                                <Text type="secondary" style={{ fontSize: 11 }}>Due date:</Text>
+                                                <Text style={{ fontSize: 12 }}>
+                                                    {dayjs(inv.due_date).format("DD MMM YYYY")}
+                                                </Text>
+                                            </Space>
+                                        )}
+                                    </Space>
+                                )}
+
+                                {/* Fallback when invoice_id is not populated — just the ref number */}
+                                {!inv && displayNo && (
+                                    <Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 2 }}>
+                                        Invoice reference only — open orders to view full details
+                                    </Text>
+                                )}
+                            </div>
+                        </Space>
+                    </Col>
+
+                    {/* Right: navigate button */}
+                    <Col flex="none">
+                        <Tooltip title="Open in Orders">
+                            <Button
+                                type="primary"
+                                ghost
+                                size="small"
+                                icon={<ArrowRightOutlined />}
+                                onClick={handleViewInvoice}
+                                style={{ borderRadius: 6, fontSize: 12 }}
+                            >
+                                View Invoice
+                            </Button>
+                        </Tooltip>
+                    </Col>
+                </Row>
+            </Card>
+        );
     };
 
     return (
@@ -282,6 +464,9 @@ const NoteDetailDrawer: React.FC<Props> = ({ open, onClose, noteId, onSuccess })
                     <Alert type="error" message="Note not found" />
                 ) : (
                     <>
+                        {/* ── Linked Invoice Card — shown whenever any invoice ref exists ── */}
+                        <LinkedInvoiceCard />
+
                         {/* ── Meta ── */}
                         <Descriptions bordered size="small" column={2} style={{ marginBottom: 20 }}>
                             <Descriptions.Item label="Note No.">
@@ -311,10 +496,6 @@ const NoteDetailDrawer: React.FC<Props> = ({ open, onClose, noteId, onSuccess })
                             </Descriptions.Item>
                             <Descriptions.Item label="Expiry Date">
                                 {note.expiry_date ? dayjs(note.expiry_date).format("DD MMM YYYY") : "—"}
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label="Original Invoice" span={2}>
-                                {origInvoice()}
                             </Descriptions.Item>
 
                             <Descriptions.Item label="Reason" span={2}>

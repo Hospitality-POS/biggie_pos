@@ -50,6 +50,7 @@ export const getCart = createAsyncThunk(
   async (tableId: string, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.get(`${baseUrl}/cart/${tableId}`);
+      console.log('nice uno', response);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
