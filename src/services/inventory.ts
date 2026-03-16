@@ -56,6 +56,26 @@ interface RejectTransferParams {
   rejection_reason: string;
 }
 
+interface AutoCreated {
+  units?: string[];
+  main_categories?: string[];
+  categories?: string[];
+  subcategories?: string[];
+  suppliers?: string[];
+}
+
+interface ImportInventoryResult {
+  message: string;
+  summary: {
+    total: number;
+    created: number;
+    skipped: number;
+    errors: number;
+    auto_created?: AutoCreated;
+  };
+  errors: Array<{ row: number | string; name: string; reason: string }>;
+}
+
 const getTenant = () => {
   try {
     const tenantStr = localStorage.getItem('tenant');
@@ -69,6 +89,98 @@ const getTenant = () => {
   }
 };
 
+// ── TEMPLATE DOWNLOAD ─────────────────────────────────────────────────────────
+// Triggers a browser download of the inventory Excel template
+export const downloadInventoryTemplate = async (): Promise<void> => {
+  try {
+    const response = await axiosInstance.get(`${inventoryUrl}/template`, {
+      responseType: "blob",
+    });
+
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "inventory_import_template.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    message.success("Template downloaded successfully");
+  } catch (error) {
+    console.error("Error downloading inventory template:", error);
+    message.error("Failed to download template");
+    throw new Error("Failed to download inventory template");
+  }
+};
+
+// ── EXCEL IMPORT ──────────────────────────────────────────────────────────────
+// Uses axiosInstance so the interceptor auto-injects Authorization, companyCode,
+// shop_id and tenant — no manual auth/headers needed.
+export const importInventoryFromExcel = async (
+  file: File,
+  shopId: string
+): Promise<ImportInventoryResult> => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    // shop_id is also injected by the axios interceptor for POST FormData,
+    // but we include it explicitly here as a fallback safeguard.
+    formData.append("shop_id", shopId);
+
+    const response = await axiosInstance.post<ImportInventoryResult>(
+      `${inventoryUrl}/import`,
+      formData,
+      {
+        // Do NOT set Content-Type manually — the browser must set it with the
+        // correct multipart boundary, otherwise the server can't parse the file.
+        headers: { "Content-Type": undefined },
+      }
+    );
+
+    const data = response.data;
+
+    if (data.summary.created > 0) {
+      const ac = data.summary.auto_created;
+      const totalAC = ac
+        ? Object.values(ac).reduce((s, arr) => s + (arr?.length ?? 0), 0)
+        : 0;
+      const autoNote = totalAC > 0 ? ` (${totalAC} supporting record(s) auto-created)` : "";
+      message.success(
+        `Import complete — ${data.summary.created} item(s) created` +
+        (data.summary.skipped > 0 ? `, ${data.summary.skipped} skipped` : "") +
+        autoNote
+      );
+    } else if (data.summary.errors > 0) {
+      const firstErr = data.errors?.[0];
+      message.warning(
+        firstErr
+          ? `Import issue: ${firstErr.reason}`
+          : "No items were imported — check the error details below."
+      );
+    } else {
+      message.warning("No items were imported. Check the error details.");
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Error importing inventory from Excel:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to import inventory. Please try again.";
+    if (error?.response?.status !== 403) {
+      message.error(errMsg);
+    }
+    throw error;
+  }
+};
+
+// ── FETCH ALL ─────────────────────────────────────────────────────────────────
 export const fetchAllInventory = async (data: any = {}) => {
   try {
     const response = await axiosInstance.get(inventoryUrl, {
@@ -319,6 +431,38 @@ export const deleteInventory = async (inventoryId: string) => {
       message.error("Error deleting inventory");
     }
     throw new Error("Failed to delete inventory");
+  }
+};
+
+// ── DELETE MULTIPLE ───────────────────────────────────────────────────────────
+export const deleteMultipleInventory = async (ids: string[]): Promise<{ deleted: number; failed: number }> => {
+  try {
+    const response = await axiosInstance.delete(`${inventoryUrl}/bulk/delete`, {
+      data: { ids },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting multiple inventory items:", error);
+    if (error?.response?.status !== 403) {
+      message.error("Failed to delete selected items");
+    }
+    throw error;
+  }
+};
+
+// ── DELETE ALL ────────────────────────────────────────────────────────────────
+export const deleteAllInventory = async (shopId: string): Promise<{ deleted: number }> => {
+  try {
+    const response = await axiosInstance.delete(`${inventoryUrl}/bulk/delete-all`, {
+      data: { shop_id: shopId },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting all inventory:", error);
+    if (error?.response?.status !== 403) {
+      message.error("Failed to delete all inventory items");
+    }
+    throw error;
   }
 };
 

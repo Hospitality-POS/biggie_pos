@@ -53,6 +53,12 @@ const defaultValue: RetailQueueContextType = {
 
 const RetailQueueContext = createContext<RetailQueueContextType>(defaultValue);
 
+// ── Read posMode from localStorage (set by POSModeContext) ────────────────────
+// "restaurant" → physical tables, never auto-create slots
+// "retail"     → auto-create slots as needed
+const isRetailMode = (): boolean =>
+    (localStorage.getItem('posMode') ?? 'restaurant') === 'retail';
+
 export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [allLocations, setAllLocations] = useState<Location[]>([]);
     const [activeTable, setActiveTableState] = useState<TableSlot | null>(null);
@@ -73,8 +79,17 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
         try {
             const tables: TableSlot[] = await getAllTables({});
 
-            // Auto-create first slot if none exist
+            // ── Auto-create first slot only in retail mode ────────────────────
+            // Restaurant mode has physical tables managed manually — never auto-create.
             if (!tables?.length) {
+                if (!isRetailMode()) {
+                    // Restaurant: nothing to auto-create, just clear state and wait
+                    console.info('[RetailQueueContext] No tables found — restaurant mode, skipping auto-create.');
+                    setAllLocations([]);
+                    setIsLoadingSlots(false);
+                    return;
+                }
+
                 if (isAutoCreating.current) return;
                 isAutoCreating.current = true;
                 try {
@@ -176,7 +191,6 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
         dispatch(getCart(table._id));
     }, [allLocations, dispatch]);
 
-    // All tables currently in the queue (local state only — not all DB tables)
     const allTables = allLocations.flatMap(loc => loc.tables || []);
 
     const availableTables = allLocations.flatMap(loc =>
@@ -200,19 +214,17 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
             return;
         }
 
-        // All queue slots are occupied — check DB for any unoccupied table not in queue
+        // All queue slots occupied — check DB for any unoccupied table not in queue
         setIsLoadingSlots(true);
         try {
             const allDbTables: TableSlot[] = await getAllTables({});
             const queueIds = new Set(allTables.map(t => t._id));
 
-            // Find a table that exists in DB but not currently in queue (i.e. was cleared/removed)
             const reusable = allDbTables.find(
                 t => !queueIds.has(t._id) && !t.isOccupied
             );
 
             if (reusable) {
-                // Add it back to the queue
                 const loc = reusable.locatedAt;
                 const locId = typeof loc === 'object' ? loc._id : loc;
                 const locName = typeof loc === 'object'
@@ -232,13 +244,18 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 });
 
                 dispatch(clearcart());
-                // Use timeout to let state update before switching
                 setTimeout(() => setActiveTable(reusable), 50);
                 message.success(`Switched to ${reusable.name}`);
                 return;
             }
 
-            // Truly all tables occupied — create a brand new slot
+            // ── Auto-create new slot only in retail mode ──────────────────────
+            if (!isRetailMode()) {
+                // Restaurant: all tables occupied — show a clear message instead
+                message.warning('All tables are currently occupied. Please free up a table first.');
+                return;
+            }
+
             message.loading({ content: 'Creating new slot...', key: 'auto-slot' });
             const result = await createAutoSlot();
             const newTable: TableSlot = result.data;
@@ -281,17 +298,14 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
         try {
             message.loading({ content: `Clearing ${tableToRemove.name}...`, key: 'remove-slot' });
 
-            // 1. Clear all cart items (also marks table unoccupied via CartActions)
             if (cartId) {
                 await dispatch(deleteAllCartItems(cartId));
             }
 
-            // 2. Explicitly mark table as unoccupied on backend
             await axiosInstance.put(`${BASE_URL}/tables/${tableToRemove._id}`, {
                 isOccupied: false,
             });
 
-            // 3. Remove from local queue (keeps it in DB for reuse)
             const updatedLocations = allLocations
                 .map(loc => ({
                     ...loc,
@@ -305,7 +319,6 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
             setActiveTableState(null);
             setActiveLocation(null);
 
-            // 4. Auto-select next slot still in queue
             let switched = false;
             for (const loc of updatedLocations) {
                 if (loc.tables?.length > 0) {
@@ -320,7 +333,6 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
             }
 
             if (!switched) {
-                // Queue is empty — load fresh from DB
                 await loadSlots();
             }
 

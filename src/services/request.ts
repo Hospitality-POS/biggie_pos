@@ -14,8 +14,8 @@ const handleError = (errorMessage: string) => {
 // Helper function to handle user logout
 const logoutUser = () => {
     isLoggingOut = true;
-    queryClient.cancelQueries();  // ✅ Cancel all in-flight queries immediately
-    queryClient.clear();          // ✅ Clear all cached query data
+    queryClient.cancelQueries();  // Cancel all in-flight queries immediately
+    queryClient.clear();          // Clear all cached query data
     localStorage.removeItem("user");
     localStorage.removeItem("shopId");
     localStorage.removeItem("companyCode");
@@ -34,14 +34,13 @@ const getValidShopId = (): string | null => {
     return shopId;
 };
 
-// ✅ Routes that should NOT have shop_id injected
-// Add any route here that is global/tenant-level (not shop-specific)
+// Routes that should NOT have shop_id injected
 const EXCLUDED_ROUTES = [
     '/users',
     '/shops',
     '/tenants',
-    '/wages',        // ✅ wages are per-employee, not per-shop
-    '/payroll',      // ✅ payroll is tenant-level
+    '/wages',
+    '/payroll',
     '/subscriptions',
     '/invoices',
     '/business-types',
@@ -51,7 +50,18 @@ const isExcludedRoute = (url: string = ''): boolean => {
     return EXCLUDED_ROUTES.some(route => url.includes(route));
 };
 
-// Create an axios instance with the base URL and timeout
+// Check whether a FormData instance already contains a given key.
+// Avoids duplicate fields (e.g. shop_id appended twice on file uploads).
+const formDataHasKey = (formData: FormData, key: string): boolean => {
+    try {
+        // FormData.has() is available in all modern browsers and Node 18+
+        return formData.has(key);
+    } catch {
+        return false;
+    }
+};
+
+// Create an axios instance with the base URL
 const axiosInstance = axios.create({
     baseURL: BASE_URL,
 });
@@ -59,7 +69,7 @@ const axiosInstance = axios.create({
 // Interceptor to add authorization token to each request if available
 axiosInstance.interceptors.request.use(
     (config) => {
-        // ✅ Block all requests if logout is in progress
+        // Block all requests if logout is in progress
         if (isLoggingOut) {
             return Promise.reject(new axios.Cancel("Request cancelled due to logout"));
         }
@@ -78,10 +88,10 @@ axiosInstance.interceptors.request.use(
             console.log("📤 Request:", config.method?.toUpperCase(), config.url);
             console.log("📍 Shop ID:", shopId);
 
-            // ✅ Only inject shop_id for shop-specific routes
+            // Only inject shop_id for shop-specific routes
             if (shopId && !isExcludedRoute(config.url)) {
 
-                // ✅ Handle GET and DELETE methods (query params)
+                // GET and DELETE — inject into query params
                 if (config.method === 'get' || config.method === 'delete') {
                     config.params = {
                         ...config.params,
@@ -90,11 +100,17 @@ axiosInstance.interceptors.request.use(
                     };
                     console.log("✅ Added shop_id to params:", config.params);
                 }
-                // ✅ Handle POST, PUT, PATCH methods (request body)
+                // POST, PUT, PATCH — inject into body
                 else if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
                     if (config.data instanceof FormData) {
-                        config.data.append('shop_id', shopId);
-                        console.log("✅ Added shop_id to FormData");
+                        // Only append if not already present — prevents duplicate
+                        // shop_id on file-upload endpoints like /inventory/import
+                        if (!formDataHasKey(config.data, 'shop_id')) {
+                            config.data.append('shop_id', shopId);
+                            console.log("✅ Added shop_id to FormData");
+                        } else {
+                            console.log("ℹ️ shop_id already in FormData — skipping injection");
+                        }
                     } else if (config.data && typeof config.data === 'object') {
                         config.data = {
                             ...config.data,
@@ -128,7 +144,7 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
-        // ✅ Suppress all error messages if logout is in progress or request was cancelled
+        // Suppress all error messages if logout is in progress or request was cancelled
         if (isLoggingOut || axios.isCancel(error)) return Promise.reject(error);
 
         const { response } = error;
@@ -147,9 +163,6 @@ axiosInstance.interceptors.response.use(
                 case 404:
                     handleError(response.data.message || "Resource not found");
                     break;
-                // case 400:
-                //     handleError(response.data.message || "Invalid request");
-                //     break;
                 default:
                     break;
             }

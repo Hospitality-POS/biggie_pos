@@ -3,10 +3,19 @@ import axiosInstance from "./request";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 
-
-
-
 const tableUrl = `${BASE_URL}/tables`;
+
+// ── Helper: check if POS is in restaurant mode ───────────────────────────────
+// The single source of truth is localStorage key "posMode" set by POSModeContext.
+// restaurant → physical tables, no auto-slot creation
+// retail     → slots are auto-created as needed
+const isRestaurantMode = (): boolean => {
+  try {
+    return (localStorage.getItem("posMode") ?? "restaurant") === "restaurant";
+  } catch {
+    return true; // default safe — don't auto-create if we can't read
+  }
+};
 
 export const getAllTables = async (data: ParamsType) => {
   try {
@@ -29,11 +38,12 @@ export const getTableLocation = async (data: ParamsType) => {
   }
 };
 
-export const fetchTableUsequery = async (params) => {
+export const fetchTableUsequery = async (params: any) => {
   try {
-
-    const response = await axiosInstance.get(`${tableUrl}/tables/unique-locatedAt`, { params: { locationId: params.id } });
-
+    const response = await axiosInstance.get(
+      `${tableUrl}/tables/unique-locatedAt`,
+      { params: { locationId: params.id } }
+    );
     return response.data;
   } catch (error) {
     console.log(error);
@@ -55,17 +65,25 @@ export const editLocation = async (data: ParamsType) => {
     throw new Error("Error editing location");
   }
 };
+
 export const createAutoSlot = async () => {
+  // ── Guard: restaurant mode uses physical tables, not auto-generated slots ──
+  if (isRestaurantMode()) {
+    console.info("[createAutoSlot] Skipped — tenant is in restaurant/table mode.");
+    return null;
+  }
+
   try {
     const response = await axiosInstance.post(`${tableUrl}/auto-slot`, {});
     return response.data;
   } catch (error: any) {
     if (error?.response?.status !== 403) {
-      message.error('Error creating new slot');
+      message.error("Error creating new slot");
     }
-    throw new Error('Error creating auto slot');
+    throw new Error("Error creating auto slot");
   }
 };
+
 export const addNewTableLocation = async (data: ParamsType) => {
   try {
     const response = await axiosInstance.post(`${tableUrl}/locations`, {
@@ -86,7 +104,7 @@ export const delLocation = async (data: ParamsType) => {
     const response = await axiosInstance.delete(`${tableUrl}/locations/${data}`);
     console.log(data);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     if (error?.response?.status != 403) {
       message.error("Error deleting location");
     }
@@ -97,14 +115,12 @@ export const delLocation = async (data: ParamsType) => {
 export const transferCartitems = async (data: ParamsType) => {
   try {
     const transferUrl = `${BASE_URL}/cart`;
-    // console.log({ products: data?.products, table: data?.table?.value });
     const response = await axiosInstance.post(`${transferUrl}/transfer-cart-items`, {
       products: data?.products,
       table: data.table?.value,
     });
-
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     if (error?.response?.status != 403) {
       message.error("Failed to transfer product");
     }

@@ -181,7 +181,7 @@ const StaffLoginPage = () => {
                         src={tenant.tenant_logo.url}
                         alt="tenant-logo"
                         style={{
-                            width: isMobile ? "120px" : "70%",
+                            width: isMobile ? "120px" : "100%",
                             height: "auto",
                             transition: "all 0.3s ease",
                             maxHeight: isMobile ? "80px" : "120px",
@@ -193,25 +193,26 @@ const StaffLoginPage = () => {
                         src="/relia.png"
                         alt="relia-logo"
                         style={{
-                            width: isMobile ? "140px" : "100%",
+                            width: isMobile ? "140px" : "45%",
                             height: "auto",
                             transition: "all 0.3s ease",
                         }}
                     />
                 )}
             </div>
-
-            <h2
-                style={{
-                    color: "white",
-                    fontSize: isMobile ? "18px" : "24px",
-                    marginBottom: "0.75rem",
-                    fontWeight: "600",
-                    textShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                }}
-            >
-                Business Management Suite
-            </h2>
+            {!companyName && (
+                <h2
+                    style={{
+                        color: "white",
+                        fontSize: isMobile ? "18px" : "24px",
+                        marginBottom: "0.75rem",
+                        fontWeight: "600",
+                        textShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                    }}
+                >
+                    Business Management Suite
+                </h2>
+            )}
 
             {companyName && (
                 <Text

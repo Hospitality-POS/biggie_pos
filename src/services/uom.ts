@@ -17,7 +17,7 @@ export const fetchAllUom = async (params: ParamsType) => {
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    if (error?.response?.status != 403) {
+    if ((error as any)?.response?.status != 403) {
       message.error("Failed to fetch uom");
     }
     throw err;
@@ -31,7 +31,7 @@ export const createUom = async (uomData: Uom) => {
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    if (error?.response?.status != 403) {
+    if ((error as any)?.response?.status != 403) {
       message.error("Failed to create uom");
     }
     throw err;
@@ -45,7 +45,7 @@ export const updateUom = async (uomData: Uom) => {
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    if (error?.response?.status != 403) {
+    if ((error as any)?.response?.status != 403) {
       message.error("Failed to update uom");
     }
     throw err;
@@ -59,8 +59,40 @@ export const deleteUom = async (id: string) => {
     return response.data;
   } catch (error: unknown) {
     const err = error as AxiosError;
-    if (error?.response?.status != 403) {
+    if ((error as any)?.response?.status != 403) {
       message.error("Failed to delete uom");
+    }
+    throw err;
+  }
+};
+
+// ── DELETE MULTIPLE ───────────────────────────────────────────────────────────
+export const deleteMultipleUom = async (ids: string[]): Promise<{ deleted: number; failed: number }> => {
+  try {
+    const response = await axiosInstance.delete(`${uomUrl}/bulk/delete`, {
+      data: { ids },
+    });
+    return response.data;
+  } catch (error: unknown) {
+    const err = error as AxiosError;
+    if ((error as any)?.response?.status !== 403) {
+      message.error("Failed to delete selected UoMs");
+    }
+    throw err;
+  }
+};
+
+// ── DELETE ALL ────────────────────────────────────────────────────────────────
+export const deleteAllUom = async (shopId: string): Promise<{ deleted: number }> => {
+  try {
+    const response = await axiosInstance.delete(`${uomUrl}/bulk/delete-all`, {
+      data: { shop_id: shopId },
+    });
+    return response.data;
+  } catch (error: unknown) {
+    const err = error as AxiosError;
+    if ((error as any)?.response?.status !== 403) {
+      message.error("Failed to delete all UoMs");
     }
     throw err;
   }

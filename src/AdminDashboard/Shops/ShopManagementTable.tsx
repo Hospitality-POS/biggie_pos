@@ -1,44 +1,26 @@
-import React, { useRef, useMemo, useEffect, useState } from "react";
+import React, { useRef, useMemo, useEffect, useState, useCallback } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
-  Tooltip,
-  Button,
-  Space,
-  Popconfirm,
-  message,
-  Tag,
-  Typography,
-  Row,
-  Col,
-  Card,
-  Badge,
-  Skeleton,
-  Empty,
+  Tooltip, Button, Space, Popconfirm, message, Tag,
+  Typography, Card, Skeleton, Empty, Tabs, Row, Col,
 } from "antd";
 import {
-  DeleteOutlined,
-  EyeOutlined,
-  UserAddOutlined,
-  CoffeeOutlined,
-  ShopOutlined,
-  ArrowRightOutlined,
-  BranchesOutlined,
-  DollarOutlined,
-  TeamOutlined,
-  EnvironmentOutlined,
-  EditOutlined,
-  ReloadOutlined,
-  PlusOutlined,
+  DeleteOutlined, ShopOutlined, ArrowRightOutlined,
+  BranchesOutlined, DollarOutlined, TeamOutlined,
+  EnvironmentOutlined, ReloadOutlined, CoffeeOutlined,
+  GlobalOutlined, LinkOutlined,
 } from "@ant-design/icons";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { deleteShop, fetchAllShops } from "@services/shops";
+import { useMutation } from "@tanstack/react-query";
+import {
+  deleteShop, fetchAllShops, locationDisplay,
+  GOOGLE_MAPS_API_KEY, ShopLocation,
+} from "@services/shops";
 import AddEditShopModal from "@components/MODALS/pro/AddEditShopModal";
 import { useNavigate } from "react-router-dom";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
 const fmtK = (v: number) => {
   if (!v && v !== 0) return "0";
   if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
@@ -49,27 +31,31 @@ const fmtK = (v: number) => {
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    const h = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
   }, []);
   return isMobile;
 };
-
-// ── Tenant config ─────────────────────────────────────────────────────────────
 
 const useTenantConfig = () => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
-  const hasAccounting = !!(
-    tenant?.accounting_database?.enabled || tenant?.modules?.accounting
-  );
+  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
   return { isAccountingOnly: hasAccounting && !hasPOS };
 };
 
-// ── POS Mode tag ──────────────────────────────────────────────────────────────
+const getLocationDisplay = (loc: any): string => {
+  if (!loc) return "";
+  if (typeof loc === "string") return loc;
+  return loc.formatted_address || loc.address || "";
+};
 
+const hasCoords = (loc: any): boolean =>
+  loc && typeof loc === "object" && loc.lat != null && loc.lng != null;
+
+// ── POS Mode Tag ──────────────────────────────────────────────────────────────
 const PosModeTag: React.FC<{ mode: string }> = ({ mode }) => {
   const isRetail = mode === "retail";
   return (
@@ -78,11 +64,8 @@ const PosModeTag: React.FC<{ mode: string }> = ({ mode }) => {
       style={{
         background: isRetail ? "#eff6ff" : "#fff7ed",
         color: isRetail ? "#1d4ed8" : "#c2410c",
-        border: "none",
-        borderRadius: 6,
-        padding: "2px 8px",
-        fontSize: 11,
-        fontWeight: 500,
+        border: "none", borderRadius: 6,
+        padding: "2px 8px", fontSize: 11, fontWeight: 500,
       }}
     >
       {isRetail ? "Retail" : "Restaurant"}
@@ -90,170 +73,337 @@ const PosModeTag: React.FC<{ mode: string }> = ({ mode }) => {
   );
 };
 
-// ── Mobile shop card ──────────────────────────────────────────────────────────
+// ── Map View — Google Maps JS API with interactive markers ───────────────────
+const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 480 }) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapObjRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const infoWinRef = useRef<any>(null);
+  const shopsRef = useRef<any[]>([]);           // always-current copy of withCoords
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-interface ShopCardProps {
+  const located = shops.filter(s => s.location && getLocationDisplay(s.location));
+  const withCoords = located.filter(s => hasCoords(s.location));
+  shopsRef.current = withCoords;                   // keep ref in sync without re-renders
+
+  const shopKey = withCoords.map(s => s._id).join(",");
+
+  // ── Build / refresh map + markers whenever shops change ──────────────────
+  useEffect(() => {
+    const g = (window as any).google?.maps;
+    if (!g || !mapRef.current || withCoords.length === 0) return;
+
+    // Create map once
+    if (!mapObjRef.current) {
+      mapObjRef.current = new g.Map(mapRef.current, {
+        zoom: 12,
+        center: { lat: withCoords[0].location.lat, lng: withCoords[0].location.lng },
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        styles: [{ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }],
+      });
+    }
+
+    // Shared InfoWindow
+    if (!infoWinRef.current) {
+      infoWinRef.current = new g.InfoWindow();
+    }
+
+    // Clear old markers
+    markersRef.current.forEach(m => m.setMap(null));
+    markersRef.current = [];
+
+    // Drop a numbered pin for every shop with coords
+    withCoords.forEach((shop, idx) => {
+      const marker = new g.Marker({
+        position: { lat: shop.location.lat, lng: shop.location.lng },
+        map: mapObjRef.current,
+        title: shop.name,
+        label: { text: String(idx + 1), color: "#fff", fontSize: "11px", fontWeight: "700" },
+        icon: {
+          path: g.SymbolPath.CIRCLE,
+          scale: 14,
+          fillColor: "#6c1c2c",
+          fillOpacity: 1,
+          strokeColor: "#fff",
+          strokeWeight: 2,
+        },
+      });
+
+      marker.addListener("click", () => {
+        openInfo(g, shop, marker);
+        setActiveId(shop._id);
+      });
+
+      markersRef.current.push(marker);
+    });
+
+    // Fit all pins in view
+    if (withCoords.length > 1) {
+      const bounds = new g.LatLngBounds();
+      withCoords.forEach(s => bounds.extend({ lat: s.location.lat, lng: s.location.lng }));
+      mapObjRef.current.fitBounds(bounds, { top: 60, right: 40, bottom: 60, left: 40 });
+    } else {
+      mapObjRef.current.setCenter({ lat: withCoords[0].location.lat, lng: withCoords[0].location.lng });
+      mapObjRef.current.setZoom(15);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopKey]);
+
+  // ── Open info window helper (no stale closure) ─────────────────────────
+  const openInfo = (g: any, shop: any, marker: any) => {
+    if (!infoWinRef.current || !mapObjRef.current) return;
+    infoWinRef.current.setContent(`
+      <div style="padding:8px 4px;min-width:190px;font-family:system-ui,sans-serif">
+        <div style="font-weight:700;font-size:13px;color:#0f172a;margin-bottom:3px">${shop.name}</div>
+        <div style="font-size:11px;color:#64748b;line-height:1.4;margin-bottom:4px">${getLocationDisplay(shop.location)}</div>
+        ${shop.location?.city ? `<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">${[shop.location.city, shop.location.country].filter(Boolean).join(", ")}</div>` : ""}
+        ${shop.pos_mode ? `<div style="display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${shop.pos_mode === "retail" ? "#eff6ff" : "#fff7ed"};color:${shop.pos_mode === "retail" ? "#1d4ed8" : "#c2410c"};margin-bottom:6px">${shop.pos_mode === "retail" ? "Retail" : "Restaurant"}</div>` : ""}
+        ${shop.location?.maps_url ? `<a href="${shop.location.maps_url}" target="_blank" style="font-size:11px;color:#3b82f6;text-decoration:none;display:block">Open in Maps ↗</a>` : ""}
+      </div>
+    `);
+    infoWinRef.current.open(mapObjRef.current, marker);
+  };
+
+  // ── Card click → pan map to that pin + open its info window ───────────
+  const handleCardSelect = useCallback((id: string) => {
+    setActiveId(id);
+    const g = (window as any).google?.maps;
+    if (!g || !mapObjRef.current) return;
+
+    const idx = shopsRef.current.findIndex(s => s._id === id);
+    if (idx === -1) return;
+
+    const shop = shopsRef.current[idx];
+    const marker = markersRef.current[idx];
+    if (!marker) return;
+
+    mapObjRef.current.panTo({ lat: shop.location.lat, lng: shop.location.lng });
+    mapObjRef.current.setZoom(16);
+    openInfo(g, shop, marker);
+  }, []);
+
+  // ── Empty state ────────────────────────────────────────────────────────
+  if (!located.length) {
+    return (
+      <div style={{ padding: "60px 0", textAlign: "center" }}>
+        <EnvironmentOutlined style={{ fontSize: 36, color: "#cbd5e1", marginBottom: 10 }} />
+        <Text style={{ display: "block", color: "#64748b", fontSize: 13 }}>
+          No location data yet. Edit shops and select locations via Google Maps autocomplete.
+        </Text>
+      </div>
+    );
+  }
+
+  // ── No SDK fallback ────────────────────────────────────────────────────
+  const hasGoogleSDK = !!(window as any).google?.maps;
+  if (!hasGoogleSDK || withCoords.length === 0) {
+    const q = encodeURIComponent(getLocationDisplay(located[0].location));
+    const embedUrl = GOOGLE_MAPS_API_KEY
+      ? `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${q}`
+      : `https://maps.google.com/maps?q=${q}&output=embed`;
+    return (
+      <div>
+        <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0", marginBottom: 14 }}>
+          <iframe title="shops-map" width="100%" height={height}
+            style={{ border: 0, display: "block" }} loading="lazy" allowFullScreen
+            referrerPolicy="no-referrer-when-downgrade" src={embedUrl} />
+        </div>
+        <LocationChips shops={located} activeId={activeId} onSelect={setActiveId} />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0", marginBottom: 14 }}>
+        <div ref={mapRef} style={{ width: "100%", height }} />
+      </div>
+      <LocationChips shops={located} activeId={activeId} onSelect={handleCardSelect} />
+    </div>
+  );
+};
+
+// ── Location chips list ───────────────────────────────────────────────────────
+const LocationChips: React.FC<{
+  shops: any[];
+  activeId?: string | null;
+  onSelect?: (id: string) => void;
+}> = ({ shops, activeId, onSelect }) => (
+  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+    {shops.map((shop, idx) => {
+      const isActive = activeId === shop._id;
+      return (
+        <div
+          key={shop._id}
+          onClick={() => onSelect?.(shop._id)}
+          style={{
+            background: isActive ? "#fff7ed" : "#fff",
+            border: `1px solid ${isActive ? "#f97316" : "#e2e8f0"}`,
+            borderRadius: 10, padding: "10px 14px",
+            display: "flex", alignItems: "center", gap: 10,
+            flex: "1 1 220px", minWidth: 200,
+            boxShadow: isActive ? "0 2px 8px rgba(249,115,22,0.15)" : "0 1px 3px rgba(0,0,0,0.05)",
+            transition: "all 0.15s",
+            cursor: onSelect ? "pointer" : "default",
+          }}
+        >
+          {/* Number badge matching map marker */}
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: isActive ? "#6c1c2c" : "#fff7ed",
+            color: isActive ? "#fff" : "#f97316",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 13, fontWeight: 700, flexShrink: 0,
+            transition: "all 0.15s",
+          }}>
+            {hasCoords(shop.location) ? idx + 1 : <ShopOutlined />}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Text strong style={{ fontSize: 13, color: "#0f172a", display: "block" }}>{shop.name}</Text>
+            <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {getLocationDisplay(shop.location)}
+            </Text>
+            {shop.location?.city && (
+              <Text style={{ fontSize: 10, color: "#cbd5e1" }}>
+                {[shop.location.city, shop.location.country].filter(Boolean).join(", ")}
+              </Text>
+            )}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+            {shop.location?.maps_url && (
+              <Tooltip title="Open in Google Maps">
+                <a href={shop.location.maps_url} target="_blank" rel="noreferrer"
+                  onClick={e => e.stopPropagation()}>
+                  <Button type="text" size="small" icon={<LinkOutlined />}
+                    style={{ color: "#3b82f6", padding: 0, height: 20 }} />
+                </a>
+              </Tooltip>
+            )}
+            {shop.pos_mode && <PosModeTag mode={shop.pos_mode} />}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+);
+
+// ── Summary strip ─────────────────────────────────────────────────────────────
+const SummaryStrip: React.FC<{ shops: any[] }> = ({ shops }) => {
+  if (!shops.length) return null;
+  const stats = [
+    { icon: <ShopOutlined />, label: "Branches", value: shops.length, color: "#f97316", bg: "#fff7ed" },
+    { icon: <DollarOutlined />, label: "Today Revenue", value: `Ksh ${fmtK(shops.reduce((s, r) => s + (r.daily_revenue || 0), 0))}`, color: "#10b981", bg: "#f0fdf4" },
+    { icon: <TeamOutlined />, label: "Total Staff", value: shops.reduce((s, r) => s + (r.staff_count || 0), 0), color: "#06b6d4", bg: "#ecfeff" },
+    { icon: <EnvironmentOutlined />, label: "Mapped", value: shops.filter(s => hasCoords(s.location)).length, color: "#8b5cf6", bg: "#f5f3ff" },
+  ];
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+      {stats.map((s, i) => (
+        <div key={i} style={{ background: s.bg, borderRadius: 10, padding: "10px 14px", border: `1px solid ${s.color}20` }}>
+          <div style={{ color: s.color, fontSize: 14, marginBottom: 3 }}>{s.icon}</div>
+          <Text strong style={{ fontSize: 16, color: "#0f172a", display: "block" }}>{s.value}</Text>
+          <Text style={{ fontSize: 11, color: "#94a3b8" }}>{s.label}</Text>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ── Mobile shop card ──────────────────────────────────────────────────────────
+const ShopCard: React.FC<{
   record: any;
   isAccountingOnly: boolean;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
   deleting: boolean;
   tableRef: React.MutableRefObject<ActionType | undefined>;
-}
-
-const ShopCard: React.FC<ShopCardProps> = ({
-  record, isAccountingOnly, onOpen, onDelete, deleting, tableRef,
-}) => (
-  <Card
-    style={{
-      borderRadius: 12,
-      marginBottom: 10,
-      border: "1px solid #e2e8f0",
-      boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
-    }}
-    bodyStyle={{ padding: "14px 16px" }}
-  >
-    {/* Top row: name + mode tag */}
-    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-      <Space size={8} align="center">
-        <div
-          style={{
-            background: "#fff7ed",
-            borderRadius: 8,
-            padding: "6px 7px",
-            color: "#f97316",
-            fontSize: 15,
-            lineHeight: 1,
-            flexShrink: 0,
-          }}
-        >
-          <ShopOutlined />
-        </div>
-        <div>
-          <Text strong style={{ fontSize: 14, color: "#0f172a", display: "block" }}>
-            {record.name}
-          </Text>
-          {record.location && (
-            <Space size={3} style={{ marginTop: 2 }}>
-              <EnvironmentOutlined style={{ fontSize: 10, color: "#94a3b8" }} />
-              <Text style={{ fontSize: 12, color: "#94a3b8" }}>{record.location}</Text>
-            </Space>
-          )}
-        </div>
-      </Space>
-      {!isAccountingOnly && record.pos_mode && (
-        <PosModeTag mode={record.pos_mode} />
-      )}
-    </div>
-
-    {/* Stats row */}
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        marginBottom: 12,
-        padding: "8px 10px",
-        background: "#f8fafc",
-        borderRadius: 8,
-      }}
+}> = ({ record, isAccountingOnly, onOpen, onDelete, deleting, tableRef }) => {
+  const locDisplay = getLocationDisplay(record.location);
+  return (
+    <Card
+      style={{ borderRadius: 12, marginBottom: 10, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}
+      bodyStyle={{ padding: "14px 16px" }}
     >
-      <div style={{ flex: 1, textAlign: "center" }}>
-        <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Revenue</Text>
-        <Text strong style={{ fontSize: 13, color: "#10b981" }}>
-          Ksh {fmtK(record.daily_revenue || 0)}
-        </Text>
-      </div>
-      <div style={{ width: 1, background: "#e2e8f0" }} />
-      <div style={{ flex: 1, textAlign: "center" }}>
-        <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Staff</Text>
-        <Space size={4}>
-          <TeamOutlined style={{ fontSize: 11, color: "#06b6d4" }} />
-          <Text strong style={{ fontSize: 13, color: "#0f172a" }}>
-            {record.staff_count ?? 0}
-          </Text>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+        <Space size={8} align="center">
+          <div style={{ background: "#fff7ed", borderRadius: 8, padding: "6px 7px", color: "#f97316", fontSize: 15, lineHeight: 1 }}>
+            <ShopOutlined />
+          </div>
+          <div>
+            <Text strong style={{ fontSize: 14, color: "#0f172a", display: "block" }}>{record.name}</Text>
+            {locDisplay && (
+              <Space size={3} style={{ marginTop: 2 }}>
+                <EnvironmentOutlined style={{ fontSize: 10, color: "#94a3b8" }} />
+                <Text style={{ fontSize: 12, color: "#94a3b8" }}>{locDisplay}</Text>
+                {record.location?.maps_url && (
+                  <a href={record.location.maps_url} target="_blank" rel="noreferrer">
+                    <LinkOutlined style={{ fontSize: 10, color: "#3b82f6" }} />
+                  </a>
+                )}
+              </Space>
+            )}
+          </div>
         </Space>
+        {!isAccountingOnly && record.pos_mode && <PosModeTag mode={record.pos_mode} />}
       </div>
-    </div>
 
-    {/* Action row */}
-    <div style={{ display: "flex", gap: 8 }}>
-      <Button
-        type="primary"
-        icon={<ArrowRightOutlined />}
-        size="middle"
-        onClick={() => onOpen(record._id)}
-        style={{
-          flex: 1,
-          background: "#0f172a",
-          borderColor: "#0f172a",
-          borderRadius: 8,
-          fontWeight: 500,
-          fontSize: 13,
-        }}
-      >
-        Open Shop
-      </Button>
-      <AddEditShopModal edit={true} actionRef={tableRef} data={record} />
-      <Popconfirm
-        title="Delete this shop?"
-        description="This action cannot be undone."
-        onConfirm={() => onDelete(record._id)}
-        okText="Delete"
-        okButtonProps={{ danger: true }}
-        cancelText="Cancel"
-        placement="topRight"
-      >
-        <Button
-          danger
-          size="middle"
-          icon={<DeleteOutlined />}
-          loading={deleting}
-          style={{ borderRadius: 8, width: 38, padding: 0 }}
-        />
-      </Popconfirm>
-    </div>
-  </Card>
-);
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, padding: "8px 10px", background: "#f8fafc", borderRadius: 8 }}>
+        <div style={{ flex: 1, textAlign: "center" }}>
+          <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Revenue</Text>
+          <Text strong style={{ fontSize: 13, color: "#10b981" }}>Ksh {fmtK(record.daily_revenue || 0)}</Text>
+        </div>
+        <div style={{ width: 1, background: "#e2e8f0" }} />
+        <div style={{ flex: 1, textAlign: "center" }}>
+          <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Staff</Text>
+          <Space size={4}>
+            <TeamOutlined style={{ fontSize: 11, color: "#06b6d4" }} />
+            <Text strong style={{ fontSize: 13, color: "#0f172a" }}>{record.staff_count ?? 0}</Text>
+          </Space>
+        </div>
+      </div>
 
-// ── Mobile list view ──────────────────────────────────────────────────────────
+      <div style={{ display: "flex", gap: 8 }}>
+        <Button type="primary" icon={<ArrowRightOutlined />} onClick={() => onOpen(record._id)}
+          style={{ flex: 1, background: "#0f172a", borderColor: "#0f172a", borderRadius: 8, fontWeight: 500, fontSize: 13 }}>
+          Open Shop
+        </Button>
+        <AddEditShopModal edit={true} actionRef={tableRef} data={record} />
+        <Popconfirm title="Delete this shop?" description="This action cannot be undone."
+          onConfirm={() => onDelete(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel" placement="topRight">
+          <Button danger icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: 8, width: 38, padding: 0 }} />
+        </Popconfirm>
+      </div>
+    </Card>
+  );
+};
 
-interface MobileListProps {
+// ── Mobile list ───────────────────────────────────────────────────────────────
+const MobileShopList: React.FC<{
   isAccountingOnly: boolean;
   tableRef: React.MutableRefObject<ActionType | undefined>;
-}
-
-const MobileShopList: React.FC<MobileListProps> = ({ isAccountingOnly, tableRef }) => {
+}> = ({ isAccountingOnly, tableRef }) => {
   const navigate = useNavigate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [shops, setShops] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
+  const [activeTab, setActiveTab] = useState("list");
 
-  const loadShops = async () => {
+  const loadShops = useCallback(async () => {
     setLoading(true);
-    try {
-      const data = await fetchAllShops({});
-      setShops(data);
-    } catch {
-      message.error("Failed to load shops");
-    } finally {
-      setLoading(false);
-    }
-  };
+    try { const data = await fetchAllShops({}); setShops(data || []); }
+    catch { message.error("Failed to load shops"); }
+    finally { setLoading(false); }
+  }, []);
 
   useEffect(() => { loadShops(); }, []);
 
   const DeleteMutation = useMutation(deleteShop, {
     onMutate: (id: string) => setDeletingId(id),
-    onSuccess: () => {
-      message.success("Shop deleted");
-      setDeletingId(null);
-      loadShops();
-    },
-    onError: () => {
-      message.error("Failed to delete shop");
-      setDeletingId(null);
-    },
+    onSuccess: () => { message.success("Shop deleted"); setDeletingId(null); loadShops(); },
+    onError: () => { message.error("Failed to delete shop"); setDeletingId(null); },
   });
 
   const handleOpen = (shopId: string) => {
@@ -261,127 +411,82 @@ const MobileShopList: React.FC<MobileListProps> = ({ isAccountingOnly, tableRef 
     navigate(isAccountingOnly ? "/accounting" : "/tables");
   };
 
-  const filtered = shops.filter((s) =>
-    !searchText || s.name?.toLowerCase().includes(searchText.toLowerCase()) ||
-    s.location?.toLowerCase().includes(searchText.toLowerCase())
+  const filtered = shops.filter(s =>
+    !searchText ||
+    s.name?.toLowerCase().includes(searchText.toLowerCase()) ||
+    getLocationDisplay(s.location)?.toLowerCase().includes(searchText.toLowerCase())
   );
+
+  const tabItems = [
+    {
+      key: "list",
+      label: <Space size={4}><BranchesOutlined />Branches</Space>,
+      children: (
+        <>
+          <SummaryStrip shops={shops} />
+          {loading
+            ? Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} style={{ borderRadius: 12, marginBottom: 10, border: "1px solid #e2e8f0" }} bodyStyle={{ padding: 16 }}>
+                <Skeleton active paragraph={{ rows: 2 }} />
+              </Card>
+            ))
+            : filtered.length === 0
+              ? <Empty description="No branches found" style={{ padding: "40px 0" }} />
+              : filtered.map(record => (
+                <ShopCard key={record._id} record={record} isAccountingOnly={isAccountingOnly}
+                  onOpen={handleOpen} onDelete={id => DeleteMutation.mutate(id)}
+                  deleting={deletingId === record._id} tableRef={tableRef} />
+              ))
+          }
+        </>
+      ),
+    },
+    {
+      key: "map",
+      label: (
+        <Space size={4}>
+          <GlobalOutlined />Map View
+          {shops.filter(s => hasCoords(s.location)).length > 0 && (
+            <Tag style={{ fontSize: 10, padding: "0 5px", background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 4 }}>
+              {shops.filter(s => hasCoords(s.location)).length}
+            </Tag>
+          )}
+        </Space>
+      ),
+      children: <MapView shops={shops} height={320} />,
+    },
+  ];
 
   return (
     <div>
-      {/* Mobile toolbar */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
         <input
           placeholder="Search branches…"
           value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          style={{
-            flex: 1,
-            height: 36,
-            borderRadius: 8,
-            border: "1px solid #e2e8f0",
-            padding: "0 12px",
-            fontSize: 13,
-            outline: "none",
-            color: "#0f172a",
-            background: "#f8fafc",
-          }}
+          onChange={e => setSearchText(e.target.value)}
+          style={{ flex: 1, height: 36, borderRadius: 8, border: "1px solid #e2e8f0", padding: "0 12px", fontSize: 13, outline: "none", color: "#0f172a", background: "#f8fafc" }}
         />
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={loadShops}
-          loading={loading}
-          style={{ borderRadius: 8, height: 36, width: 36, padding: 0 }}
-        />
+        <Button icon={<ReloadOutlined />} onClick={loadShops} loading={loading} style={{ borderRadius: 8, height: 36, width: 36, padding: 0 }} />
         <AddEditShopModal edit={false} actionRef={tableRef} />
       </div>
 
-      {/* Summary strip */}
-      {!loading && shops.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            marginBottom: 14,
-            padding: "10px 12px",
-            background: "#f8fafc",
-            borderRadius: 10,
-            border: "1px solid #e2e8f0",
-          }}
-        >
-          {[
-            { icon: <ShopOutlined />, label: "Branches", value: shops.length, color: "#f97316", bg: "#fff7ed" },
-            {
-              icon: <DollarOutlined />,
-              label: "Revenue",
-              value: `Ksh ${fmtK(shops.reduce((s, r) => s + (r.daily_revenue || 0), 0))}`,
-              color: "#10b981",
-              bg: "#f0fdf4",
-            },
-            {
-              icon: <TeamOutlined />,
-              label: "Staff",
-              value: shops.reduce((s, r) => s + (r.staff_count || 0), 0),
-              color: "#06b6d4",
-              bg: "#ecfeff",
-            },
-          ].map((item, i) => (
-            <div
-              key={i}
-              style={{
-                flex: 1,
-                background: item.bg,
-                borderRadius: 8,
-                padding: "6px 8px",
-                textAlign: "center",
-              }}
-            >
-              <div style={{ color: item.color, fontSize: 13, marginBottom: 1 }}>{item.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{item.value}</div>
-              <div style={{ fontSize: 10, color: "#94a3b8" }}>{item.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Cards */}
-      {loading ? (
-        Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i} style={{ borderRadius: 12, marginBottom: 10, border: "1px solid #e2e8f0" }} bodyStyle={{ padding: 16 }}>
-            <Skeleton active paragraph={{ rows: 2 }} />
-          </Card>
-        ))
-      ) : filtered.length === 0 ? (
-        <Empty description="No branches found" style={{ padding: "40px 0" }} />
-      ) : (
-        filtered.map((record) => (
-          <ShopCard
-            key={record._id}
-            record={record}
-            isAccountingOnly={isAccountingOnly}
-            onOpen={handleOpen}
-            onDelete={(id) => DeleteMutation.mutate(id)}
-            deleting={deletingId === record._id}
-            tableRef={tableRef}
-          />
-        ))
-      )}
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="small"
+        style={{ background: "#fff", borderRadius: 12, padding: "0 4px" }} />
     </div>
   );
 };
 
-// ── Main component ────────────────────────────────────────────────────────────
-
-const ShopManagementTable = () => {
+// ── Main desktop component ────────────────────────────────────────────────────
+const ShopManagementTable: React.FC = () => {
   const tableRef = useRef<ActionType>();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { isAccountingOnly } = useTenantConfig();
+  const [activeTab, setActiveTab] = useState("table");
+  const [allShops, setAllShops] = useState<any[]>([]);
 
   const DeleteShopMutation = useMutation(deleteShop, {
-    onSuccess: () => {
-      tableRef.current?.reload();
-      message.success("Shop deleted successfully");
-    },
+    onSuccess: () => { tableRef.current?.reload(); message.success("Shop deleted successfully"); },
     onError: () => message.error("Failed to delete shop"),
   });
 
@@ -390,242 +495,202 @@ const ShopManagementTable = () => {
     navigate(isAccountingOnly ? "/accounting" : "/tables");
   };
 
-  // ── Desktop columns ────────────────────────────────────────────────────────
-  const columns = useMemo(
-    () => [
-      {
-        title: "Branch Name",
-        dataIndex: "name",
-        key: "name",
-        copyable: true,
-        ellipsis: true,
-        tip: "Branch name is unique across the system",
-        formItemProps: {
-          rules: [{ required: true, message: "Branch name is required" }],
-        },
-        render: (_: any, record: any) => (
+  const shopsWithLocation = useMemo(
+    () => allShops.filter(s => s.location && getLocationDisplay(s.location)),
+    [allShops]
+  );
+
+  const columns = useMemo(() => [
+    {
+      title: "Branch Name",
+      dataIndex: "name",
+      key: "name",
+      copyable: true,
+      ellipsis: true,
+      render: (_: any, record: any) => {
+        const loc = getLocationDisplay(record.location);
+        return (
           <Space size={8} align="center">
-            <div
-              style={{
-                background: "#fff7ed",
-                borderRadius: 7,
-                padding: "4px 6px",
-                color: "#f97316",
-                fontSize: 13,
-                lineHeight: 1,
-              }}
-            >
+            <div style={{ background: "#fff7ed", borderRadius: 7, padding: "4px 6px", color: "#f97316", fontSize: 13, lineHeight: 1 }}>
               <ShopOutlined />
             </div>
             <div>
-              <Text strong style={{ fontSize: 13, color: "#0f172a" }}>
-                {record.name}
-              </Text>
-              {record.location && (
-                <Space size={3} style={{ marginTop: 1 }}>
+              <Text strong style={{ fontSize: 13, color: "#0f172a" }}>{record.name}</Text>
+              {loc && (
+                <Space size={3} style={{ display: "flex", marginTop: 1 }}>
                   <EnvironmentOutlined style={{ fontSize: 10, color: "#94a3b8" }} />
-                  <Text style={{ fontSize: 11, color: "#94a3b8" }}>{record.location}</Text>
+                  <Text style={{ fontSize: 11, color: "#94a3b8" }}>{loc}</Text>
                 </Space>
               )}
             </div>
           </Space>
-        ),
+        );
       },
-      {
-        title: "Location",
-        dataIndex: "location",
-        hideInSearch: false,
-        render: (val: string) =>
-          val ? (
-            <Space size={4}>
-              <EnvironmentOutlined style={{ color: "#94a3b8", fontSize: 12 }} />
-              <Text style={{ fontSize: 13, color: "#374151" }}>{val}</Text>
-            </Space>
-          ) : (
-            <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
-          ),
-      },
-      ...(!isAccountingOnly
-        ? [
-          {
-            title: "Mode",
-            dataIndex: "pos_mode",
-            hideInSearch: false,
-            width: 120,
-            valueEnum: {
-              restaurant: { text: "Restaurant" },
-              retail: { text: "Retail" },
-            },
-            render: (_: any, record: any) =>
-              record.pos_mode ? <PosModeTag mode={record.pos_mode} /> : <Text type="secondary">—</Text>,
-          },
-        ]
-        : []),
-      {
-        title: "Daily Revenue",
-        dataIndex: "daily_revenue",
-        hideInSearch: true,
-        width: 140,
-        render: (_: any, record: any) => (
-          <Text strong style={{ color: "#10b981", fontSize: 13 }}>
-            Ksh {fmtK(record?.daily_revenue || 0)}
-          </Text>
-        ),
-      },
-      {
-        title: "Staff",
-        dataIndex: "staff_count",
-        hideInSearch: true,
-        width: 90,
-        sorter: (a: any, b: any) => a.staff_count - b.staff_count,
-        render: (_: any, record: any) => (
+    },
+    {
+      title: "Location",
+      dataIndex: "location",
+      hideInSearch: false,
+      render: (val: any) => {
+        const display = getLocationDisplay(val);
+        if (!display) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
+        return (
           <Space size={4}>
-            <TeamOutlined style={{ color: "#06b6d4", fontSize: 12 }} />
-            <Text style={{ fontSize: 13, color: "#374151" }}>{record?.staff_count ?? 0}</Text>
+            <EnvironmentOutlined style={{ color: "#94a3b8", fontSize: 12 }} />
+            <Text style={{ fontSize: 13, color: "#374151" }}>{display}</Text>
+            {val?.maps_url && (
+              <a href={val.maps_url} target="_blank" rel="noreferrer">
+                <Tooltip title="Open in Google Maps">
+                  <LinkOutlined style={{ fontSize: 11, color: "#3b82f6" }} />
+                </Tooltip>
+              </a>
+            )}
+            {val?.city && (
+              <Tag style={{ fontSize: 10, padding: "0 5px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 4 }}>
+                {val.city}
+              </Tag>
+            )}
           </Space>
-        ),
+        );
       },
-      {
-        title: "Actions",
-        dataIndex: "actions",
-        hideInSearch: true,
-        width: 180,
-        render: (_: any, record: any) => (
-          <Space size={6}>
-            <Tooltip title="Open shop">
-              <Button
-                type="primary"
-                size="small"
-                icon={<ArrowRightOutlined />}
-                onClick={() => handleShopClick(record._id)}
-                style={{
-                  background: "#0f172a",
-                  borderColor: "#0f172a",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  height: 28,
-                  paddingInline: 10,
-                }}
-              >
-                Open
-              </Button>
+    },
+    ...(!isAccountingOnly ? [{
+      title: "Mode",
+      dataIndex: "pos_mode",
+      hideInSearch: false,
+      width: 130,
+      valueEnum: { restaurant: { text: "Restaurant" }, retail: { text: "Retail" } },
+      render: (_: any, record: any) =>
+        record.pos_mode ? <PosModeTag mode={record.pos_mode} /> : <Text type="secondary">—</Text>,
+    }] : []),
+    {
+      title: "Today Revenue",
+      dataIndex: "daily_revenue",
+      hideInSearch: true,
+      width: 140,
+      sorter: (a: any, b: any) => (a.daily_revenue || 0) - (b.daily_revenue || 0),
+      render: (_: any, record: any) => (
+        <Text strong style={{ color: "#10b981", fontSize: 13 }}>Ksh {fmtK(record?.daily_revenue || 0)}</Text>
+      ),
+    },
+    {
+      title: "Staff",
+      dataIndex: "staff_count",
+      hideInSearch: true,
+      width: 90,
+      sorter: (a: any, b: any) => (a.staff_count || 0) - (b.staff_count || 0),
+      render: (_: any, record: any) => (
+        <Space size={4}>
+          <TeamOutlined style={{ color: "#06b6d4", fontSize: 12 }} />
+          <Text style={{ fontSize: 13, color: "#374151" }}>{record?.staff_count ?? 0}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: "Actions",
+      dataIndex: "actions",
+      hideInSearch: true,
+      width: 180,
+      render: (_: any, record: any) => (
+        <Space size={6}>
+          <Tooltip title="Open shop">
+            <Button type="primary" size="small" icon={<ArrowRightOutlined />}
+              onClick={() => handleShopClick(record._id)}
+              style={{ background: "#0f172a", borderColor: "#0f172a", borderRadius: 6, fontSize: 12, fontWeight: 500, height: 28, paddingInline: 10 }}>
+              Open
+            </Button>
+          </Tooltip>
+          <AddEditShopModal edit={true} actionRef={tableRef} data={record} />
+          <Popconfirm title="Delete this shop?" description="This action cannot be undone."
+            onConfirm={() => DeleteShopMutation.mutate(record._id)}
+            okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel">
+            <Tooltip title="Delete shop">
+              <Button danger size="small" icon={<DeleteOutlined />} style={{ borderRadius: 6, height: 28, width: 28, padding: 0 }} />
             </Tooltip>
-            <AddEditShopModal edit={true} actionRef={tableRef} data={record} />
-            <Popconfirm
-              title="Delete this shop?"
-              description="This action cannot be undone."
-              onConfirm={() => DeleteShopMutation.mutate(record._id)}
-              okText="Delete"
-              okButtonProps={{ danger: true }}
-              cancelText="Cancel"
-            >
-              <Tooltip title="Delete shop">
-                <Button
-                  danger
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  style={{ borderRadius: 6, height: 28, width: 28, padding: 0 }}
-                />
-              </Tooltip>
-            </Popconfirm>
-          </Space>
-        ),
-      },
-    ],
-    [isAccountingOnly]
-  );
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ], [isAccountingOnly]);
 
-  // ── Mobile: render card list instead of table ────────────────────────────────
   if (isMobile) {
     return <MobileShopList isAccountingOnly={isAccountingOnly} tableRef={tableRef} />;
   }
 
-  // ── Desktop: ProTable ────────────────────────────────────────────────────────
+  const tabItems = [
+    {
+      key: "table",
+      label: <Space size={4}><BranchesOutlined />All Branches</Space>,
+      children: (
+        <>
+          <SummaryStrip shops={allShops} />
+          <ProTable
+            rowKey="_id"
+            cardBordered={false}
+            style={{ borderRadius: 0 }}
+            columns={columns}
+            request={async (params) => {
+              const data = await fetchAllShops(params);
+              setAllShops(data || []);
+              return { data, success: true, total: data?.length ?? 0 };
+            }}
+            pagination={{
+              pageSize: 10,
+              showQuickJumper: true,
+              showSizeChanger: true,
+              showTotal: (total, range) => (
+                <Text style={{ fontSize: 12, color: "#64748b" }}>{range[0]}–{range[1]} of {total} branches</Text>
+              ),
+            }}
+            actionRef={tableRef}
+            options={{ fullScreen: true, setting: true, density: true, reload: true }}
+            search={{ searchText: "Search", resetText: "Reset", labelWidth: "auto" }}
+            dateFormatter="string"
+            toolBarRender={() => [<AddEditShopModal key="add" edit={false} actionRef={tableRef} />]}
+          />
+        </>
+      ),
+    },
+    {
+      key: "map",
+      label: (
+        <Space size={4}>
+          <GlobalOutlined />
+          Map View
+          {shopsWithLocation.length > 0 && (
+            <Tag style={{ marginLeft: 2, fontSize: 10, padding: "0 5px", background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 4 }}>
+              {shopsWithLocation.length}
+            </Tag>
+          )}
+        </Space>
+      ),
+      children: (
+        <div style={{ padding: 16 }}>
+          <MapView shops={shopsWithLocation} height={500} />
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <ProTable
-      rowKey="_id"
-      cardBordered
-      style={{ borderRadius: 12 }}
-      headerTitle={
+    <Card
+      style={{ borderRadius: 12, border: "1px solid #e2e8f0" }}
+      bodyStyle={{ padding: 0 }}
+      title={
         <Space size={8} align="center">
           <BranchesOutlined style={{ color: "#f97316", fontSize: 16 }} />
-          <Text strong style={{ fontSize: 14, color: "#0f172a" }}>All Branches</Text>
+          <Text strong style={{ fontSize: 14, color: "#0f172a" }}>Branch Management</Text>
         </Space>
       }
-      columns={columns}
-      request={async (params) => {
-        const data = await fetchAllShops(params);
-        return { data, success: true, total: data.length };
-      }}
-      pagination={{
-        pageSize: 10,
-        showQuickJumper: true,
-        showSizeChanger: true,
-        showTotal: (total, range) => (
-          <Text style={{ fontSize: 12, color: "#64748b" }}>
-            {range[0]}–{range[1]} of {total} branches
-          </Text>
-        ),
-      }}
-      actionRef={tableRef}
-      options={{
-        fullScreen: true,
-        setting: true,
-        density: true,
-        reload: true,
-      }}
-      rowSelection={{ alwaysShowAlert: false, selections: false }}
-      tableAlertRender={({ selectedRowKeys }) => (
-        <Text style={{ fontSize: 13 }}>
-          {selectedRowKeys.length} branch{selectedRowKeys.length !== 1 ? "es" : ""} selected
-        </Text>
-      )}
-      search={{
-        searchText: "Search",
-        resetText: "Reset",
-        labelWidth: "auto",
-      }}
-      dateFormatter="string"
-      toolBarRender={() => [
-        <AddEditShopModal key="add" edit={false} actionRef={tableRef} />,
-      ]}
-      summary={(pageData) => {
-        const totalRevenue = pageData.reduce((s: number, r: any) => s + (r.daily_revenue || 0), 0);
-        const totalStaff = pageData.reduce((s: number, r: any) => s + (r.staff_count || 0), 0);
-        if (!pageData.length) return null;
-        return (
-          <tr>
-            <td
-              colSpan={columns.length}
-              style={{ padding: "12px 16px", borderTop: "1px solid #f1f5f9" }}
-            >
-              <Row gutter={[8, 8]}>
-                {[
-                  { icon: <ShopOutlined />, label: "Branches on page", value: pageData.length, color: "#f97316", bg: "#fff7ed" },
-                  { icon: <DollarOutlined />, label: "Page Revenue", value: `Ksh ${fmtK(totalRevenue)}`, color: "#10b981", bg: "#f0fdf4" },
-                  { icon: <TeamOutlined />, label: "Total Staff", value: totalStaff, color: "#06b6d4", bg: "#ecfeff" },
-                ].map((item, i) => (
-                  <Col xs={12} sm={8} key={i}>
-                    <div style={{ background: item.bg, borderRadius: 8, padding: "8px 12px" }}>
-                      <Space size={6} align="center">
-                        <div style={{ background: `${item.color}20`, borderRadius: 6, padding: "4px 5px", color: item.color, fontSize: 13, lineHeight: 1 }}>
-                          {item.icon}
-                        </div>
-                        <div>
-                          <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>{item.label}</Text>
-                          <Text strong style={{ fontSize: 14, color: "#0f172a" }}>{item.value}</Text>
-                        </div>
-                      </Space>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-            </td>
-          </tr>
-        );
-      }}
-    />
+    >
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={tabItems}
+        style={{ padding: "0 16px" }}
+        tabBarStyle={{ marginBottom: 0, borderBottom: "1px solid #f1f5f9" }}
+      />
+    </Card>
   );
 };
 

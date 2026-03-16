@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import {
   ActionType,
   ProColumns,
@@ -17,6 +17,8 @@ import { ENTITY_NAME } from "@utils/config";
 import {
   CalendarOutlined, DeleteOutlined, DollarOutlined,
   DownloadOutlined, FilterOutlined, RedoOutlined, UserOutlined,
+  RiseOutlined, ShoppingCartOutlined, CheckCircleOutlined,
+  WarningOutlined, CreditCardOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 
@@ -135,6 +137,202 @@ const AmountCell: React.FC<{ record: any }> = ({ record }) => {
   return <Text strong style={{ fontSize: 13, color: C.darkText }}>KES {num.toFixed(2)}</Text>;
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ANALYTICS STRIP
+// ═══════════════════════════════════════════════════════════════════════════
+interface OrderAnalytics {
+  totalRevenue: number;
+  totalOrders: number;
+  paidOrders: number;
+  missingPayments: number;
+  avgOrderValue: number;
+  regularOrders: number;
+  subscriptionOrders: number;
+  topClosedBy: string;
+}
+
+const computeAnalytics = (orders: any[]): OrderAnalytics => {
+  if (!orders.length) return {
+    totalRevenue: 0, totalOrders: 0, paidOrders: 0, missingPayments: 0,
+    avgOrderValue: 0, regularOrders: 0, subscriptionOrders: 0, topClosedBy: "—",
+  };
+
+  let revenue = 0, paid = 0, missing = 0, regular = 0, subs = 0;
+  const closedByCount: Record<string, number> = {};
+
+  orders.forEach(o => {
+    const amt = Array.isArray(o.order_amount)
+      ? o.order_amount.reduce((s: number, a: any) => s + (Number(a) || 0), 0)
+      : Number(o.order_amount) || 0;
+    revenue += amt;
+
+    if (o.order_type === "Regular") {
+      regular++;
+      if (o.order_payments?.length > 0) paid++; else missing++;
+    } else {
+      subs++;
+      paid++;
+    }
+
+    const name = o.updated_by?.username;
+    if (name) closedByCount[name] = (closedByCount[name] || 0) + 1;
+  });
+
+  const topClosedBy = Object.entries(closedByCount).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+
+  return {
+    totalRevenue: revenue,
+    totalOrders: orders.length,
+    paidOrders: paid,
+    missingPayments: missing,
+    avgOrderValue: orders.length > 0 ? revenue / orders.length : 0,
+    regularOrders: regular,
+    subscriptionOrders: subs,
+    topClosedBy,
+  };
+};
+
+const fmtKES = (v: number) => {
+  if (v >= 1_000_000) return `KES ${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `KES ${(v / 1_000).toFixed(1)}K`;
+  return `KES ${v.toFixed(0)}`;
+};
+
+const AnalyticsStrip: React.FC<{ orders: any[]; loading: boolean; isMobile: boolean }> = ({
+  orders, loading, isMobile,
+}) => {
+  const stats = useMemo(() => computeAnalytics(orders), [orders]);
+
+  const cards = [
+    {
+      label: "Total Revenue",
+      value: fmtKES(stats.totalRevenue),
+      sub: `${stats.totalOrders} orders`,
+      icon: <RiseOutlined />,
+      iconBg: "#fdf2f4",
+      iconColor: C.primary,
+      accent: C.primary,
+    },
+    {
+      label: "Avg Order Value",
+      value: fmtKES(stats.avgOrderValue),
+      sub: "per order",
+      icon: <ShoppingCartOutlined />,
+      iconBg: "#eff6ff",
+      iconColor: C.blue,
+      accent: C.blue,
+    },
+    {
+      label: "Paid Orders",
+      value: stats.paidOrders.toString(),
+      sub: `${stats.totalOrders > 0 ? Math.round((stats.paidOrders / stats.totalOrders) * 100) : 0}% of total`,
+      icon: <CheckCircleOutlined />,
+      iconBg: "#f0fdf4",
+      iconColor: C.green,
+      accent: C.green,
+    },
+    {
+      label: "Missing Payments",
+      value: stats.missingPayments.toString(),
+      sub: stats.missingPayments > 0 ? "needs attention" : "all clear",
+      icon: <WarningOutlined />,
+      iconBg: stats.missingPayments > 0 ? "#fef2f2" : "#f0fdf4",
+      iconColor: stats.missingPayments > 0 ? C.red : C.green,
+      accent: stats.missingPayments > 0 ? C.red : C.green,
+    },
+    {
+      label: "Subscriptions",
+      value: stats.subscriptionOrders.toString(),
+      sub: `${stats.regularOrders} regular`,
+      icon: <CreditCardOutlined />,
+      iconBg: "#faf5ff",
+      iconColor: C.purple,
+      accent: C.purple,
+    },
+    {
+      label: "Top Cashier",
+      value: stats.topClosedBy,
+      sub: "most closed orders",
+      icon: <UserOutlined />,
+      iconBg: "#fff7ed",
+      iconColor: C.orange,
+      accent: C.orange,
+    },
+  ];
+
+  if (loading && !orders.length) {
+    return (
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)",
+        gap: 10, marginBottom: 16,
+      }}>
+        {cards.map((_, i) => (
+          <div key={i} style={{
+            height: isMobile ? 76 : 84,
+            background: "#f1f5f9",
+            borderRadius: 10,
+            animation: "pulse 1.5s ease-in-out infinite",
+          }} />
+        ))}
+        <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }`}</style>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)",
+      gap: 10,
+      marginBottom: 16,
+    }}>
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          style={{
+            background: "#fff",
+            border: `1px solid ${C.border}`,
+            borderRadius: 10,
+            padding: isMobile ? "10px 12px" : "12px 14px",
+            position: "relative",
+            overflow: "hidden",
+            transition: "box-shadow 0.15s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)")}
+          onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}
+        >
+          {/* Top accent line */}
+          <div style={{
+            position: "absolute", top: 0, left: 0, right: 0,
+            height: 3, background: card.accent, borderRadius: "10px 10px 0 0",
+          }} />
+
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
+            <Text style={{ fontSize: 10, color: C.subText, fontWeight: 500, letterSpacing: "0.3px", textTransform: "uppercase" }}>
+              {card.label}
+            </Text>
+            <div style={{
+              background: card.iconBg, color: card.iconColor,
+              borderRadius: 6, padding: "3px 5px", fontSize: 12, lineHeight: 1,
+            }}>
+              {card.icon}
+            </div>
+          </div>
+
+          <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: C.darkText, lineHeight: 1.2, marginBottom: 2 }}>
+            {card.value}
+          </div>
+          <div style={{ fontSize: 10, color: C.subText }}>{card.sub}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MOBILE FILTER DRAWER
+// ═══════════════════════════════════════════════════════════════════════════
 const MobileFilterDrawer: React.FC<{
   open: boolean; onClose: () => void; onSearch: (p: any) => void;
 }> = ({ open, onClose, onSearch }) => {
@@ -198,6 +396,9 @@ const MobileFilterDrawer: React.FC<{
   );
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// MOBILE ORDER CARD
+// ═══════════════════════════════════════════════════════════════════════════
 const MobileOrderCard: React.FC<{
   record: any;
   isAdmin: boolean;
@@ -299,10 +500,13 @@ const MobileOrderCard: React.FC<{
   );
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════
 const OrdersTable = () => {
   const isMobile = useIsMobile();
 
-  const [exportOrderData, setExportOrderData] = useState([]);
+  const [exportOrderData, setExportOrderData] = useState<any[]>([]);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -329,6 +533,10 @@ const OrdersTable = () => {
     end_date: dayjs().endOf("day").toISOString(),
   });
 
+  // ── Analytics state — updated whenever the desktop table loads ────────────
+  const [analyticsData, setAnalyticsData] = useState<any[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
   const loadMobileData = async (page: number, filters: any = {}) => {
     setMobileLoading(true);
     try {
@@ -338,7 +546,7 @@ const OrdersTable = () => {
         start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
         end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
       });
-      setMobileData(page === 1 ? (response || []) : (prev) => [...prev, ...(response || [])]);
+      setMobileData(page === 1 ? (response || []) : (prev: any[]) => [...prev, ...(response || [])]);
       setMobileTotal(response.pagination?.total || 0);
     } finally {
       setMobileLoading(false);
@@ -568,73 +776,52 @@ const OrdersTable = () => {
   if (isMobile) {
     return (
       <>
+        {/* Analytics strip — mobile (2 col) */}
+        <AnalyticsStrip orders={mobileData} loading={mobileLoading} isMobile={true} />
+
         {/* Mobile header */}
-        <div style={{
-          background: "#fff", border: `1px solid ${C.border}`,
-          borderRadius: 12, marginBottom: 12, overflow: "hidden",
-        }}>
+        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 12, overflow: "hidden" }}>
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             flexWrap: "wrap", gap: 8,
             padding: "12px 14px", background: C.bg, borderBottom: `1px solid ${C.border}`,
           }}>
-            {/* Left: title + count stacked */}
             <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
               <Text strong style={{ fontSize: 14, color: C.darkText, lineHeight: 1.3 }}>Orders</Text>
               <Text style={{ fontSize: 11, color: C.subText, lineHeight: 1.3 }}>
-                {mobileLoading && mobilePage === 1
-                  ? "Loading…"
-                  : `${mobileTotal} order${mobileTotal !== 1 ? "s" : ""} found`}
+                {mobileLoading && mobilePage === 1 ? "Loading…" : `${mobileTotal} order${mobileTotal !== 1 ? "s" : ""} found`}
               </Text>
             </div>
-
-            {/* Right: Filter + CSV — flex row, never wrap */}
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-              <Button
-                size="small" icon={<FilterOutlined />}
-                onClick={() => setFilterOpen(true)}
-                style={{ borderRadius: 8, borderColor: C.border, height: 30, fontSize: 12 }}
-              >
+              <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
+                style={{ borderRadius: 8, borderColor: C.border, height: 30, fontSize: 12 }}>
                 Filter
               </Button>
-              <CSVLink
-                data={csvData}
-                filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}
+              <CSVLink data={csvData} filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 4,
                   height: 30, padding: "0 10px", borderRadius: 8, fontSize: 12,
                   background: C.primary, color: "#fff", textDecoration: "none",
                   fontWeight: 500, whiteSpace: "nowrap",
-                }}
-              >
+                }}>
                 <DownloadOutlined style={{ fontSize: 12 }} /> CSV
               </CSVLink>
             </div>
           </div>
         </div>
 
-        {/* Cards / empty state */}
         {mobileLoading && mobilePage === 1 ? (
           <div style={{ textAlign: "center", padding: "48px 0", color: C.subText }}>Loading…</div>
         ) : mobileData.length === 0 ? (
-          <div style={{
-            textAlign: "center", padding: "48px 16px",
-            background: "#fff", borderRadius: 10, border: `1px solid ${C.border}`,
-          }}>
-            <Text style={{ color: C.subText, fontSize: 13 }}>No orders found.</Text>
-            <br />
-            <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
-              style={{ marginTop: 12, borderRadius: 8 }}>
-              Adjust Filters
-            </Button>
+          <div style={{ textAlign: "center", padding: "48px 16px", background: "#fff", borderRadius: 10, border: `1px solid ${C.border}` }}>
+            <Text style={{ color: C.subText, fontSize: 13 }}>No orders found.</Text><br />
+            <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)} style={{ marginTop: 12, borderRadius: 8 }}>Adjust Filters</Button>
           </div>
         ) : (
           <>
             {mobileData.map((record) => (
               <MobileOrderCard
-                key={record._id}
-                record={record}
-                isAdmin={isAdmin}
+                key={record._id} record={record} isAdmin={isAdmin}
                 repostingPaymentId={repostingPaymentId}
                 onEditDate={handleEditOrderDate}
                 onRepost={handleRepostOrderPayment}
@@ -644,13 +831,10 @@ const OrdersTable = () => {
                 onRefresh={refreshMobile}
               />
             ))}
-
             {mobileData.length < mobileTotal && (
-              <Button
-                block loading={mobileLoading}
+              <Button block loading={mobileLoading}
                 onClick={() => { const n = mobilePage + 1; setMobilePage(n); loadMobileData(n, mobileFilters); }}
-                style={{ borderRadius: 8, marginBottom: 16 }}
-              >
+                style={{ borderRadius: 8, marginBottom: 16 }}>
                 Load More ({mobileData.length} / {mobileTotal})
               </Button>
             )}
@@ -666,6 +850,9 @@ const OrdersTable = () => {
   // ── Desktop render ────────────────────────────────────────────────────
   return (
     <>
+      {/* Analytics strip — desktop (6 col) */}
+      <AnalyticsStrip orders={analyticsData} loading={analyticsLoading} isMobile={false} />
+
       <ProTable
         rowKey="_id"
         cardBordered
@@ -686,16 +873,13 @@ const OrdersTable = () => {
         toolbar={{
           title: "Orders", tooltip: "Order Management",
           actions: [
-            <CSVLink
-              key="csv"
-              data={csvData}
+            <CSVLink key="csv" data={csvData}
               filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 height: 32, padding: "0 15px", borderRadius: 8, fontSize: 13,
                 background: C.primary, color: "#fff", textDecoration: "none", fontWeight: 500,
-              }}
-            >
+              }}>
               <DownloadOutlined /> Export CSV
             </CSVLink>,
           ],
@@ -718,6 +902,7 @@ const OrdersTable = () => {
         ]}
         request={async (params) => {
           const { current, pageSize, dateRange, _timestamp, ...rest } = params;
+          setAnalyticsLoading(true);
           try {
             const response = await getAllOrders({
               ...rest, page: current, limit: pageSize,
@@ -725,8 +910,11 @@ const OrdersTable = () => {
               end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
             });
             setExportOrderData(response);
+            setAnalyticsData(response || []);     // ← feed analytics
+            setAnalyticsLoading(false);
             return { data: response, success: true, total: response.pagination?.total || 0 };
           } catch {
+            setAnalyticsLoading(false);
             return { data: [], success: false, total: 0 };
           }
         }}
