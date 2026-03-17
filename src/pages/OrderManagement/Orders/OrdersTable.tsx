@@ -55,6 +55,15 @@ const badge = (bg: string, color: string, border: string): React.CSSProperties =
   background: bg, color, border: `1px solid ${border}`,
 });
 
+// ── Safe date formatter ────────────────────────────────────────────────────
+// Always reads the raw ISO string from the record, never trusts ProTable's
+// pre-processed `text` argument which can be mangled by valueType:"dateTime".
+const safeFormatDate = (raw: any, format = "DD MMM YYYY HH:mm"): string => {
+  if (!raw) return "N/A";
+  const d = dayjs(raw);
+  return d.isValid() ? d.format(format) : "N/A";
+};
+
 const OrderTypeTag: React.FC<{ type: string }> = ({ type }) => {
   const cfg: Record<string, { bg: string; color: string; border: string; icon: string }> = {
     Regular: { bg: "#f0fdf4", color: C.green, border: "#bbf7d0", icon: "🛒" },
@@ -141,14 +150,9 @@ const AmountCell: React.FC<{ record: any }> = ({ record }) => {
 // ANALYTICS STRIP
 // ═══════════════════════════════════════════════════════════════════════════
 interface OrderAnalytics {
-  totalRevenue: number;
-  totalOrders: number;
-  paidOrders: number;
-  missingPayments: number;
-  avgOrderValue: number;
-  regularOrders: number;
-  subscriptionOrders: number;
-  topClosedBy: string;
+  totalRevenue: number; totalOrders: number; paidOrders: number;
+  missingPayments: number; avgOrderValue: number; regularOrders: number;
+  subscriptionOrders: number; topClosedBy: string;
 }
 
 const computeAnalytics = (orders: any[]): OrderAnalytics => {
@@ -181,14 +185,9 @@ const computeAnalytics = (orders: any[]): OrderAnalytics => {
   const topClosedBy = Object.entries(closedByCount).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
 
   return {
-    totalRevenue: revenue,
-    totalOrders: orders.length,
-    paidOrders: paid,
-    missingPayments: missing,
-    avgOrderValue: orders.length > 0 ? revenue / orders.length : 0,
-    regularOrders: regular,
-    subscriptionOrders: subs,
-    topClosedBy,
+    totalRevenue: revenue, totalOrders: orders.length, paidOrders: paid,
+    missingPayments: missing, avgOrderValue: orders.length > 0 ? revenue / orders.length : 0,
+    regularOrders: regular, subscriptionOrders: subs, topClosedBy,
   };
 };
 
@@ -204,76 +203,19 @@ const AnalyticsStrip: React.FC<{ orders: any[]; loading: boolean; isMobile: bool
   const stats = useMemo(() => computeAnalytics(orders), [orders]);
 
   const cards = [
-    {
-      label: "Total Revenue",
-      value: fmtKES(stats.totalRevenue),
-      sub: `${stats.totalOrders} orders`,
-      icon: <RiseOutlined />,
-      iconBg: "#fdf2f4",
-      iconColor: C.primary,
-      accent: C.primary,
-    },
-    {
-      label: "Avg Order Value",
-      value: fmtKES(stats.avgOrderValue),
-      sub: "per order",
-      icon: <ShoppingCartOutlined />,
-      iconBg: "#eff6ff",
-      iconColor: C.blue,
-      accent: C.blue,
-    },
-    {
-      label: "Paid Orders",
-      value: stats.paidOrders.toString(),
-      sub: `${stats.totalOrders > 0 ? Math.round((stats.paidOrders / stats.totalOrders) * 100) : 0}% of total`,
-      icon: <CheckCircleOutlined />,
-      iconBg: "#f0fdf4",
-      iconColor: C.green,
-      accent: C.green,
-    },
-    {
-      label: "Missing Payments",
-      value: stats.missingPayments.toString(),
-      sub: stats.missingPayments > 0 ? "needs attention" : "all clear",
-      icon: <WarningOutlined />,
-      iconBg: stats.missingPayments > 0 ? "#fef2f2" : "#f0fdf4",
-      iconColor: stats.missingPayments > 0 ? C.red : C.green,
-      accent: stats.missingPayments > 0 ? C.red : C.green,
-    },
-    {
-      label: "Subscriptions",
-      value: stats.subscriptionOrders.toString(),
-      sub: `${stats.regularOrders} regular`,
-      icon: <CreditCardOutlined />,
-      iconBg: "#faf5ff",
-      iconColor: C.purple,
-      accent: C.purple,
-    },
-    {
-      label: "Top Cashier",
-      value: stats.topClosedBy,
-      sub: "most closed orders",
-      icon: <UserOutlined />,
-      iconBg: "#fff7ed",
-      iconColor: C.orange,
-      accent: C.orange,
-    },
+    { label: "Total Revenue", value: fmtKES(stats.totalRevenue), sub: `${stats.totalOrders} orders`, icon: <RiseOutlined />, iconBg: "#fdf2f4", iconColor: C.primary, accent: C.primary },
+    { label: "Avg Order Value", value: fmtKES(stats.avgOrderValue), sub: "per order", icon: <ShoppingCartOutlined />, iconBg: "#eff6ff", iconColor: C.blue, accent: C.blue },
+    { label: "Paid Orders", value: stats.paidOrders.toString(), sub: `${stats.totalOrders > 0 ? Math.round((stats.paidOrders / stats.totalOrders) * 100) : 0}% of total`, icon: <CheckCircleOutlined />, iconBg: "#f0fdf4", iconColor: C.green, accent: C.green },
+    { label: "Missing Payments", value: stats.missingPayments.toString(), sub: stats.missingPayments > 0 ? "needs attention" : "all clear", icon: <WarningOutlined />, iconBg: stats.missingPayments > 0 ? "#fef2f2" : "#f0fdf4", iconColor: stats.missingPayments > 0 ? C.red : C.green, accent: stats.missingPayments > 0 ? C.red : C.green },
+    { label: "Subscriptions", value: stats.subscriptionOrders.toString(), sub: `${stats.regularOrders} regular`, icon: <CreditCardOutlined />, iconBg: "#faf5ff", iconColor: C.purple, accent: C.purple },
+    { label: "Top Cashier", value: stats.topClosedBy, sub: "most closed orders", icon: <UserOutlined />, iconBg: "#fff7ed", iconColor: C.orange, accent: C.orange },
   ];
 
   if (loading && !orders.length) {
     return (
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)",
-        gap: 10, marginBottom: 16,
-      }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)", gap: 10, marginBottom: 16 }}>
         {cards.map((_, i) => (
-          <div key={i} style={{
-            height: isMobile ? 76 : 84,
-            background: "#f1f5f9",
-            borderRadius: 10,
-            animation: "pulse 1.5s ease-in-out infinite",
-          }} />
+          <div key={i} style={{ height: isMobile ? 76 : 84, background: "#f1f5f9", borderRadius: 10, animation: "pulse 1.5s ease-in-out infinite" }} />
         ))}
         <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }`}</style>
       </div>
@@ -281,48 +223,18 @@ const AnalyticsStrip: React.FC<{ orders: any[]; loading: boolean; isMobile: bool
   }
 
   return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)",
-      gap: 10,
-      marginBottom: 16,
-    }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)", gap: 10, marginBottom: 16 }}>
       {cards.map((card) => (
-        <div
-          key={card.label}
-          style={{
-            background: "#fff",
-            border: `1px solid ${C.border}`,
-            borderRadius: 10,
-            padding: isMobile ? "10px 12px" : "12px 14px",
-            position: "relative",
-            overflow: "hidden",
-            transition: "box-shadow 0.15s",
-          }}
+        <div key={card.label} style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: isMobile ? "10px 12px" : "12px 14px", position: "relative", overflow: "hidden", transition: "box-shadow 0.15s" }}
           onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)")}
           onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}
         >
-          {/* Top accent line */}
-          <div style={{
-            position: "absolute", top: 0, left: 0, right: 0,
-            height: 3, background: card.accent, borderRadius: "10px 10px 0 0",
-          }} />
-
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: card.accent, borderRadius: "10px 10px 0 0" }} />
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
-            <Text style={{ fontSize: 10, color: C.subText, fontWeight: 500, letterSpacing: "0.3px", textTransform: "uppercase" }}>
-              {card.label}
-            </Text>
-            <div style={{
-              background: card.iconBg, color: card.iconColor,
-              borderRadius: 6, padding: "3px 5px", fontSize: 12, lineHeight: 1,
-            }}>
-              {card.icon}
-            </div>
+            <Text style={{ fontSize: 10, color: C.subText, fontWeight: 500, letterSpacing: "0.3px", textTransform: "uppercase" }}>{card.label}</Text>
+            <div style={{ background: card.iconBg, color: card.iconColor, borderRadius: 6, padding: "3px 5px", fontSize: 12, lineHeight: 1 }}>{card.icon}</div>
           </div>
-
-          <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: C.darkText, lineHeight: 1.2, marginBottom: 2 }}>
-            {card.value}
-          </div>
+          <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: C.darkText, lineHeight: 1.2, marginBottom: 2 }}>{card.value}</div>
           <div style={{ fontSize: 10, color: C.subText }}>{card.sub}</div>
         </div>
       ))}
@@ -343,27 +255,19 @@ const MobileFilterDrawer: React.FC<{
     onClose();
   };
   return (
-    <Drawer
-      open={open} onClose={onClose} placement="bottom" height="auto"
+    <Drawer open={open} onClose={onClose} placement="bottom" height="auto"
       title={
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ background: C.primaryLight, borderRadius: 7, padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1 }}>
-            <FilterOutlined />
-          </div>
+          <div style={{ background: C.primaryLight, borderRadius: 7, padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1 }}><FilterOutlined /></div>
           <Text strong style={{ fontSize: 14, color: C.darkText }}>Filter Orders</Text>
         </div>
       }
       destroyOnClose
-      styles={{
-        body: { padding: "16px 16px 0" },
-        footer: { padding: "12px 16px", borderTop: `1px solid ${C.border}` },
-      }}
+      styles={{ body: { padding: "16px 16px 0" }, footer: { padding: "12px 16px", borderTop: `1px solid ${C.border}` } }}
       footer={
         <div style={{ display: "flex", gap: 8 }}>
           <Button block onClick={() => { form.resetFields(); onSearch({}); onClose(); }} style={{ borderRadius: 8 }}>Reset</Button>
-          <Button block type="primary" onClick={handleApply} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
-            Apply Filters
-          </Button>
+          <Button block type="primary" onClick={handleApply} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>Apply Filters</Button>
         </div>
       }
     >
@@ -380,16 +284,10 @@ const MobileFilterDrawer: React.FC<{
           />
         </Form.Item>
         <Form.Item name="order_no" label="Order No.">
-          <input placeholder="Enter order number" style={{
-            width: "100%", height: 36, border: `1px solid ${C.border}`,
-            borderRadius: 8, padding: "0 11px", fontSize: 13, outline: "none", color: C.darkText,
-          }} />
+          <input placeholder="Enter order number" style={{ width: "100%", height: 36, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 11px", fontSize: 13, outline: "none", color: C.darkText }} />
         </Form.Item>
         <Form.Item name="name" label="Table Name">
-          <input placeholder="Enter table name" style={{
-            width: "100%", height: 36, border: `1px solid ${C.border}`,
-            borderRadius: 8, padding: "0 11px", fontSize: 13, outline: "none", color: C.darkText,
-          }} />
+          <input placeholder="Enter table name" style={{ width: "100%", height: 36, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 11px", fontSize: 13, outline: "none", color: C.darkText }} />
         </Form.Item>
       </Form>
     </Drawer>
@@ -400,15 +298,10 @@ const MobileFilterDrawer: React.FC<{
 // MOBILE ORDER CARD
 // ═══════════════════════════════════════════════════════════════════════════
 const MobileOrderCard: React.FC<{
-  record: any;
-  isAdmin: boolean;
-  repostingPaymentId: string | null;
-  onEditDate: (r: any) => void;
-  onRepost: (id: string, force: boolean) => void;
-  onDelete: (id: string) => void;
-  onExpand: (r: any) => void;
-  expanded: boolean;
-  onRefresh: () => void;
+  record: any; isAdmin: boolean; repostingPaymentId: string | null;
+  onEditDate: (r: any) => void; onRepost: (id: string, force: boolean) => void;
+  onDelete: (id: string) => void; onExpand: (r: any) => void;
+  expanded: boolean; onRefresh: () => void;
 }> = ({ record, isAdmin, repostingPaymentId, onEditDate, onRepost, onDelete, onExpand, expanded, onRefresh }) => {
   const hasPayments = record.order_payments?.length > 0;
   const isRegular = record.order_type === "Regular";
@@ -420,7 +313,6 @@ const MobileOrderCard: React.FC<{
         <Text strong style={{ fontSize: 13, color: C.darkText }}>{record.order_no}</Text>
         <OrderTypeTag type={record.order_type} />
       </div>
-
       <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Text style={{ fontSize: 11, color: C.subText }}>Table</Text>
@@ -440,22 +332,19 @@ const MobileOrderCard: React.FC<{
         </div>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <Text style={{ fontSize: 11, color: C.subText }}>Time</Text>
+          {/* FIX: Read record.createdAt directly — safe, always an ISO string */}
           <Text style={{ fontSize: 11, color: C.subText }}>
-            {record.createdAt ? dayjs(record.createdAt).format("DD MMM YYYY HH:mm") : "N/A"}
+            {safeFormatDate(record.createdAt, "DD MMM YYYY HH:mm")}
           </Text>
         </div>
       </div>
-
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
-        <Button size="small" onClick={() => onExpand(record)}
-          style={{ flex: "1 1 auto", borderRadius: 6, fontSize: 11 }}>
+        <Button size="small" onClick={() => onExpand(record)} style={{ flex: "1 1 auto", borderRadius: 6, fontSize: 11 }}>
           {expanded ? "Hide Details" : "View Details"}
         </Button>
-
         <Tooltip title="Edit order date/time">
           <Button size="small" icon={<CalendarOutlined />} onClick={() => onEditDate(record)} style={{ borderRadius: 6 }} />
         </Tooltip>
-
         {isRegular && (
           <Tooltip title={needsPayment ? "Create missing payment records" : "Recreate payment records"}>
             <Popconfirm
@@ -465,32 +354,22 @@ const MobileOrderCard: React.FC<{
               okText="Yes" cancelText="No"
               okButtonProps={{ danger: hasPayments, loading: repostingPaymentId === record._id }}
             >
-              <Button
-                size="small"
-                type={needsPayment ? "primary" : "default"}
-                danger={hasPayments && !needsPayment}
+              <Button size="small" type={needsPayment ? "primary" : "default"} danger={hasPayments && !needsPayment}
                 icon={needsPayment ? <DollarOutlined /> : <RedoOutlined />}
                 loading={repostingPaymentId === record._id}
-                style={needsPayment ? { background: C.primary, borderColor: C.primary, borderRadius: 6 } : { borderRadius: 6 }}
-              >
+                style={needsPayment ? { background: C.primary, borderColor: C.primary, borderRadius: 6 } : { borderRadius: 6 }}>
                 {needsPayment ? "Fix" : "Repost"}
               </Button>
             </Popconfirm>
           </Tooltip>
         )}
-
         {isAdmin && (
-          <Popconfirm
-            title="Delete this order?"
-            description="This will permanently delete the order and all related records."
-            onConfirm={() => onDelete(record._id)}
-            okText="Yes" cancelText="No" okButtonProps={{ danger: true }}
-          >
+          <Popconfirm title="Delete this order?" description="This will permanently delete the order and all related records."
+            onConfirm={() => onDelete(record._id)} okText="Yes" cancelText="No" okButtonProps={{ danger: true }}>
             <Button size="small" danger icon={<DeleteOutlined />} style={{ borderRadius: 6 }} />
           </Popconfirm>
         )}
       </div>
-
       {expanded && (
         <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
           <ExpandedRowContent record={record} onRefresh={onRefresh} />
@@ -505,13 +384,11 @@ const MobileOrderCard: React.FC<{
 // ═══════════════════════════════════════════════════════════════════════════
 const OrdersTable = () => {
   const isMobile = useIsMobile();
-
   const [exportOrderData, setExportOrderData] = useState<any[]>([]);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [repostingPaymentId, setRepostingPaymentId] = useState<string | null>(null);
-
   const [filterOpen, setFilterOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [mobileData, setMobileData] = useState<any[]>([]);
@@ -533,7 +410,6 @@ const OrdersTable = () => {
     end_date: dayjs().endOf("day").toISOString(),
   });
 
-  // ── Analytics state — updated whenever the desktop table loads ────────────
   const [analyticsData, setAnalyticsData] = useState<any[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
@@ -553,14 +429,10 @@ const OrdersTable = () => {
     }
   };
 
-  useEffect(() => {
-    if (isMobile) loadMobileData(1, mobileFilters);
-  }, [isMobile]);
+  useEffect(() => { if (isMobile) loadMobileData(1, mobileFilters); }, [isMobile]);
 
   const handleMobileFilter = (filters: any) => {
-    setMobileFilters(filters);
-    setMobilePage(1);
-    loadMobileData(1, filters);
+    setMobileFilters(filters); setMobilePage(1); loadMobileData(1, filters);
   };
 
   const refreshMobile = () => loadMobileData(1, mobileFilters);
@@ -578,26 +450,15 @@ const OrdersTable = () => {
       const response = await updateOrder(editingOrderId!, { createdAt: values.createdAt.toISOString() });
       if (response?.timestamp_update) {
         const { order_items_updated, order_payments_updated } = response.timestamp_update;
-        message.success(
-          `Order timestamp updated! ${order_items_updated} item(s) and ${order_payments_updated} payment(s) updated.`, 5,
-        );
+        message.success(`Order timestamp updated! ${order_items_updated} item(s) and ${order_payments_updated} payment(s) updated.`, 5);
       }
-      setDateModalVisible(false);
-      setEditingOrderId(null);
-      dateForm.resetFields();
+      setDateModalVisible(false); setEditingOrderId(null); dateForm.resetFields();
       actionRef.current?.reload();
       if (isMobile) refreshMobile();
-    } catch {
-    } finally {
-      setLoading(false);
-    }
+    } catch { } finally { setLoading(false); }
   };
 
-  const handleCancelEdit = () => {
-    setDateModalVisible(false);
-    setEditingOrderId(null);
-    dateForm.resetFields();
-  };
+  const handleCancelEdit = () => { setDateModalVisible(false); setEditingOrderId(null); dateForm.resetFields(); };
 
   const handleRepostOrderPayment = async (orderId: string, forceRecreate = false) => {
     try {
@@ -606,18 +467,13 @@ const OrdersTable = () => {
       actionRef.current?.reload();
       if (isMobile) refreshMobile();
       return response;
-    } finally {
-      setRepostingPaymentId(null);
-    }
+    } finally { setRepostingPaymentId(null); }
   };
 
   const handleDelete = async (id: string) => {
     if (!isAdmin) return;
     const success = await deleteOrderById(id);
-    if (success) {
-      actionRef.current?.reload();
-      if (isMobile) refreshMobile();
-    }
+    if (success) { actionRef.current?.reload(); if (isMobile) refreshMobile(); }
   };
 
   const csvData = (exportOrderData || []).map((order: any) => {
@@ -630,12 +486,14 @@ const OrdersTable = () => {
       "Closed By": order?.updated_by?.username || "N/A",
       "Payment Method": order?.order_payments?.[0]?.name || "N/A",
       Amount: `KES ${orderAmount.toFixed(2)}`,
-      "Time Closed": order?.createdAt ? dayjs(order.createdAt).format("MMM DD, YYYY h:mm A") : "N/A",
+      // FIX: use safeFormatDate instead of dayjs(order.createdAt).format(...)
+      "Time Closed": safeFormatDate(order?.createdAt, "MMM DD, YYYY h:mm A"),
       "Order Type": order?.order_type || "Regular",
       "Payment Status": order?.order_payments?.length > 0 ? "Paid" : "Missing Payment",
     };
   });
 
+  // ── Desktop columns ────────────────────────────────────────────────────
   const desktopColumns: ProColumns[] = [
     {
       title: "Order No.", dataIndex: "order_no",
@@ -666,17 +524,27 @@ const OrdersTable = () => {
       ),
     },
     {
-      title: "Time Closed", dataIndex: "createdAt", hideInSearch: true, valueType: "dateTime",
-      render: (text: string) => (
+      title: "Time Closed",
+      dataIndex: "createdAt",
+      hideInSearch: true,
+      // ── FIX ────────────────────────────────────────────────────────────
+      // Do NOT use valueType: "dateTime" here.
+      // When valueType is set, ProTable pre-processes the raw value through its
+      // own date rendering pipeline before passing it to render(text, record).
+      // The `text` argument then arrives as a locale-formatted string like
+      // "2026/03/17 16:30:10" or even an invalid value, which dayjs() can't
+      // reliably re-parse. Always read record.createdAt directly instead.
+      render: (_: any, record: any) => (
         <Text style={{ fontSize: 12, color: C.subText }}>
-          {text ? dayjs(text).format("YYYY-MM-DD HH:mm:ss") : "N/A"}
+          {safeFormatDate(record.createdAt, "DD MMM YYYY HH:mm")}
         </Text>
       ),
-      sorter: (a, b) => new Date(a.createdAt as string).getTime() - new Date(b.createdAt as string).getTime(),
+      sorter: (a: any, b: any) =>
+        new Date(a.createdAt as string).getTime() - new Date(b.createdAt as string).getTime(),
     },
     {
       title: "Actions", search: false, key: "action", width: 220, fixed: "right",
-      render: (_text, record) => {
+      render: (_text: any, record: any) => {
         const hasPayments = record.order_payments?.length > 0;
         const isRegular = record.order_type === "Regular";
         const needsPayment = isRegular && !hasPayments;
@@ -699,15 +567,11 @@ const OrdersTable = () => {
                   okText="Yes" cancelText="No"
                   okButtonProps={{ danger: hasPayments, loading: repostingPaymentId === record._id }}
                 >
-                  <Button
-                    type={needsPayment ? "primary" : "link"} size="small"
+                  <Button type={needsPayment ? "primary" : "link"} size="small"
                     danger={hasPayments && !needsPayment}
                     icon={needsPayment ? <DollarOutlined /> : <RedoOutlined />}
                     loading={repostingPaymentId === record._id}
-                    style={needsPayment
-                      ? { background: C.primary, borderColor: C.primary, borderRadius: 6 }
-                      : { padding: "0 4px" }}
-                  >
+                    style={needsPayment ? { background: C.primary, borderColor: C.primary, borderRadius: 6 } : { padding: "0 4px" }}>
                     {needsPayment ? "Fix" : "Repost"}
                   </Button>
                 </Popconfirm>
@@ -737,36 +601,24 @@ const OrdersTable = () => {
 
   const EditDateModal = (
     <Modal
-      open={dateModalVisible}
-      onOk={handleSaveOrderDate}
-      onCancel={handleCancelEdit}
-      confirmLoading={loading}
-      okText="Save" cancelText="Cancel"
-      width="min(480px, 96vw)"
-      style={{ top: 20 }}
+      open={dateModalVisible} onOk={handleSaveOrderDate} onCancel={handleCancelEdit}
+      confirmLoading={loading} okText="Save" cancelText="Cancel"
+      width="min(480px, 96vw)" style={{ top: 20 }}
       styles={{ body: { padding: "20px 24px" } }}
       okButtonProps={{ style: { background: C.primary, borderColor: C.primary, borderRadius: 8 } }}
       title={
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ background: C.primaryLight, borderRadius: 7, padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1 }}>
-            <CalendarOutlined />
-          </div>
+          <div style={{ background: C.primaryLight, borderRadius: 7, padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1 }}><CalendarOutlined /></div>
           <Text strong style={{ fontSize: 14, color: C.darkText }}>Edit Order Date & Time</Text>
         </div>
       }
     >
       <Form form={dateForm} layout="vertical">
-        <Form.Item
-          name="createdAt" label="Order Date & Time"
+        <Form.Item name="createdAt" label="Order Date & Time"
           rules={[{ required: true, message: "Please select order date and time" }]}
-          extra={
-            <Text style={{ fontSize: 11, color: C.subText }}>
-              This will update the order timestamp and propagate to all order items and payments.
-            </Text>
-          }
+          extra={<Text style={{ fontSize: 11, color: C.subText }}>This will update the order timestamp and propagate to all order items and payments.</Text>}
         >
-          <DatePicker showTime format="YYYY-MM-DD HH:mm:ss"
-            style={{ width: "100%", borderRadius: 8 }} placeholder="Select date and time" />
+          <DatePicker showTime format="YYYY-MM-DD HH:mm:ss" style={{ width: "100%", borderRadius: 8 }} placeholder="Select date and time" />
         </Form.Item>
       </Form>
     </Modal>
@@ -776,16 +628,9 @@ const OrdersTable = () => {
   if (isMobile) {
     return (
       <>
-        {/* Analytics strip — mobile (2 col) */}
         <AnalyticsStrip orders={mobileData} loading={mobileLoading} isMobile={true} />
-
-        {/* Mobile header */}
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 12, overflow: "hidden" }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            flexWrap: "wrap", gap: 8,
-            padding: "12px 14px", background: C.bg, borderBottom: `1px solid ${C.border}`,
-          }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "12px 14px", background: C.bg, borderBottom: `1px solid ${C.border}` }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
               <Text strong style={{ fontSize: 14, color: C.darkText, lineHeight: 1.3 }}>Orders</Text>
               <Text style={{ fontSize: 11, color: C.subText, lineHeight: 1.3 }}>
@@ -793,17 +638,9 @@ const OrdersTable = () => {
               </Text>
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-              <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
-                style={{ borderRadius: 8, borderColor: C.border, height: 30, fontSize: 12 }}>
-                Filter
-              </Button>
+              <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)} style={{ borderRadius: 8, borderColor: C.border, height: 30, fontSize: 12 }}>Filter</Button>
               <CSVLink data={csvData} filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  height: 30, padding: "0 10px", borderRadius: 8, fontSize: 12,
-                  background: C.primary, color: "#fff", textDecoration: "none",
-                  fontWeight: 500, whiteSpace: "nowrap",
-                }}>
+                style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 30, padding: "0 10px", borderRadius: 8, fontSize: 12, background: C.primary, color: "#fff", textDecoration: "none", fontWeight: 500, whiteSpace: "nowrap" }}>
                 <DownloadOutlined style={{ fontSize: 12 }} /> CSV
               </CSVLink>
             </div>
@@ -820,13 +657,10 @@ const OrdersTable = () => {
         ) : (
           <>
             {mobileData.map((record) => (
-              <MobileOrderCard
-                key={record._id} record={record} isAdmin={isAdmin}
+              <MobileOrderCard key={record._id} record={record} isAdmin={isAdmin}
                 repostingPaymentId={repostingPaymentId}
-                onEditDate={handleEditOrderDate}
-                onRepost={handleRepostOrderPayment}
-                onDelete={handleDelete}
-                expanded={expandedId === record._id}
+                onEditDate={handleEditOrderDate} onRepost={handleRepostOrderPayment}
+                onDelete={handleDelete} expanded={expandedId === record._id}
                 onExpand={(r) => setExpandedId(expandedId === r._id ? null : r._id)}
                 onRefresh={refreshMobile}
               />
@@ -840,19 +674,16 @@ const OrdersTable = () => {
             )}
           </>
         )}
-
         <MobileFilterDrawer open={filterOpen} onClose={() => setFilterOpen(false)} onSearch={handleMobileFilter} />
         {EditDateModal}
       </>
     );
   }
 
-  // ── Desktop render ────────────────────────────────────────────────────
+  // ── Desktop render ─────────────────────────────────────────────────────
   return (
     <>
-      {/* Analytics strip — desktop (6 col) */}
       <AnalyticsStrip orders={analyticsData} loading={analyticsLoading} isMobile={false} />
-
       <ProTable
         rowKey="_id"
         cardBordered
@@ -875,11 +706,7 @@ const OrdersTable = () => {
           actions: [
             <CSVLink key="csv" data={csvData}
               filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                height: 32, padding: "0 15px", borderRadius: 8, fontSize: 13,
-                background: C.primary, color: "#fff", textDecoration: "none", fontWeight: 500,
-              }}>
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 15px", borderRadius: 8, fontSize: 13, background: C.primary, color: "#fff", textDecoration: "none", fontWeight: 500 }}>
               <DownloadOutlined /> Export CSV
             </CSVLink>,
           ],
@@ -910,7 +737,7 @@ const OrdersTable = () => {
               end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
             });
             setExportOrderData(response);
-            setAnalyticsData(response || []);     // ← feed analytics
+            setAnalyticsData(response || []);
             setAnalyticsLoading(false);
             return { data: response, success: true, total: response.pagination?.total || 0 };
           } catch {

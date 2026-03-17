@@ -202,7 +202,7 @@ const AnalyticsPanel = ({ data }: { data: CustomerSubscription[] }) => {
         <div style={{ marginBottom: 20 }}>
             {/* KPI strip */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-                <KpiCard icon={<TeamOutlined />} label="Total Subscriptions" value={a.total} color={C.blue} bg="#eff6ff" />
+                <KpiCard icon={<TeamOutlined />} label="Total Subscriptions " value={a.total} color={C.blue} bg="#eff6ff" />
                 <KpiCard icon={<CheckCircleOutlined />} label="Active" value={a.active} color={C.green} bg="#f0fdf4"
                     sub={`${a.total ? Math.round((a.active / a.total) * 100) : 0}% of total`} />
                 <KpiCard icon={<ClockCircleOutlined />} label="Expiring (7 days)" value={a.expiringThisWeek} color={C.orange} bg="#fffbeb" />
@@ -311,6 +311,81 @@ const AnalyticsPanel = ({ data }: { data: CustomerSubscription[] }) => {
     );
 };
 
+// ── Expiring Soon Quick-Filter ─────────────────────────────────────────────
+const ExpiryQuickFilter = ({
+    selected,
+    onChange,
+}: {
+    selected: number | null;
+    onChange: (days: number | null) => void;
+}) => {
+    const [inputVal, setInputVal] = useState<number | null>(selected);
+
+    // Keep local input in sync if parent clears it
+    useEffect(() => { setInputVal(selected); }, [selected]);
+
+    const apply = () => {
+        if (inputVal && inputVal > 0) onChange(inputVal);
+    };
+
+    const clear = () => { setInputVal(null); onChange(null); };
+
+    return (
+        <div style={{
+            display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+            padding: "8px 12px",
+            background: "#fffbeb",
+            border: `1px solid ${selected ? C.orange : "#fde68a"}`,
+            borderRadius: 8,
+            marginBottom: 10,
+        }}>
+            <ClockCircleOutlined style={{ color: C.orange, fontSize: 12, flexShrink: 0 }} />
+            <Text style={{ fontSize: 11, color: C.orange, fontWeight: 600, flexShrink: 0 }}>
+                Expiring in next
+            </Text>
+            <InputNumber
+                min={1}
+                max={365}
+                value={inputVal}
+                onChange={v => setInputVal(v)}
+                onPressEnter={apply}
+                placeholder="e.g. 7"
+                style={{ width: 80, borderRadius: 7, borderColor: selected ? C.orange : "#fde68a" }}
+                size="small"
+            />
+            <Text style={{ fontSize: 11, color: C.orange, fontWeight: 600 }}>days</Text>
+            <Button
+                size="small"
+                type="primary"
+                onClick={apply}
+                disabled={!inputVal || inputVal < 1}
+                style={{
+                    background: C.orange, borderColor: C.orange,
+                    borderRadius: 7, height: 26, fontSize: 11, fontWeight: 600,
+                }}
+            >
+                Apply
+            </Button>
+            {selected !== null && (
+                <>
+                    <span style={pill("#fffbeb", C.orange, C.orange)}>
+                        <ClockCircleOutlined /> Showing: next {selected} day{selected !== 1 ? "s" : ""}
+                    </span>
+                    <button
+                        onClick={clear}
+                        style={{
+                            cursor: "pointer", border: "none", background: "transparent",
+                            fontSize: 11, color: C.subText, marginLeft: "auto", padding: "2px 4px",
+                        }}
+                    >
+                        ✕ Clear
+                    </button>
+                </>
+            )}
+        </div>
+    );
+};
+
 // ── Filter chips ───────────────────────────────────────────────────────────
 const FilterChips = ({ filters, onClear, onClearAll }: {
     filters: any; onClear: (k: string | string[]) => void; onClearAll: () => void;
@@ -394,6 +469,26 @@ const FilterDrawer = ({ open, onClose, onApply, onReset, form }: {
                 </Form.Item>
                 <Form.Item name="max_amount" label="Max Amount (KES)" style={{ flex: "1 1 140px", marginBottom: 12 }}>
                     <InputNumber min={0} style={{ width: "100%", borderRadius: 8 }} placeholder="0" />
+                </Form.Item>
+            </div>
+
+            {/* ── Expiring in X days ── */}
+            <div style={{
+                background: "#fffbeb", border: `1px solid #fde68a`,
+                borderRadius: 10, padding: "12px 14px", marginBottom: 12,
+            }}>
+                <SectionLabel text="Expiring Soon (Active subscriptions)" />
+                <Form.Item
+                    name="expiring_in_days"
+                    label="Show active subs expiring within X days"
+                    style={{ marginBottom: 0 }}
+                >
+                    <InputNumber
+                        min={1} max={365}
+                        placeholder="e.g. 7"
+                        style={{ width: "100%", borderRadius: 8 }}
+                        addonAfter="days"
+                    />
                 </Form.Item>
             </div>
         </Form>
@@ -634,6 +729,8 @@ const CustomerSubscriptionsTable: React.FC = () => {
     const filtersRef = useRef<any>({});
 
     const [filters, setFilters] = useState<any>({});
+    // Tracks which "expiring in X days" quick-filter button is active (null = none)
+    const [expiringInDays, setExpiringInDays] = useState<number | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -699,6 +796,22 @@ const CustomerSubscriptionsTable: React.FC = () => {
         else actionRef.current?.reload();
     };
 
+    // ── Expiring-in-X-days handler ─────────────────────────────────────────
+    // Sends `expiring_in_days` to the backend. On the backend, interpret this as:
+    //   status == "Active" AND end_date <= today + X days AND end_date >= today
+    const handleExpiryDayChange = (days: number | null) => {
+        setExpiringInDays(days);
+        const f = { ...filtersRef.current };
+        if (days !== null) {
+            f.expiring_in_days = days;
+        } else {
+            delete f.expiring_in_days;
+        }
+        // Sync the filter drawer field too
+        filterForm.setFieldValue("expiring_in_days", days ?? undefined);
+        applyFilters(f);
+    };
+
     const handleViewDetails = (r: CustomerSubscription) => { setSelectedSub(r); setDetailsModalOpen(true); };
 
     const handleEdit = (r: CustomerSubscription) => {
@@ -748,7 +861,7 @@ const CustomerSubscriptionsTable: React.FC = () => {
 
     const handleFilterApply = (values: any) => {
         const f: any = { ...filtersRef.current };
-        ["status", "start_date_from", "start_date_to", "customer_name", "package_name", "min_amount", "max_amount"].forEach(k => delete f[k]);
+        ["status", "start_date_from", "start_date_to", "customer_name", "package_name", "min_amount", "max_amount", "expiring_in_days"].forEach(k => delete f[k]);
         if (values.status?.length) f.status = values.status;
         if (values.customer_name) f.customer_name = values.customer_name;
         if (values.package_name) f.package_name = values.package_name;
@@ -758,14 +871,27 @@ const CustomerSubscriptionsTable: React.FC = () => {
             f.start_date_from = dayjs(values.date_range[0]).format("YYYY-MM-DD");
             f.start_date_to = dayjs(values.date_range[1]).format("YYYY-MM-DD");
         }
+        if (values.expiring_in_days) {
+            f.expiring_in_days = values.expiring_in_days;
+            setExpiringInDays(values.expiring_in_days);
+        } else {
+            setExpiringInDays(null);
+        }
         applyFilters(f); setFilterDrawerOpen(false);
     };
 
-    const handleFilterReset = () => { filterForm.resetFields(); searchForm.resetFields(); applyFilters({}); setFilterDrawerOpen(false); };
+    const handleFilterReset = () => {
+        filterForm.resetFields(); searchForm.resetFields();
+        setExpiringInDays(null);
+        applyFilters({});
+        setFilterDrawerOpen(false);
+    };
 
     const clearFilter = (key: string | string[]) => {
         const f = { ...filtersRef.current };
-        (Array.isArray(key) ? key : [key]).forEach(k => delete f[k]);
+        const keys = Array.isArray(key) ? key : [key];
+        keys.forEach(k => delete f[k]);
+        if (keys.includes("expiring_in_days")) setExpiringInDays(null);
         applyFilters(f);
     };
 
@@ -827,7 +953,26 @@ const CustomerSubscriptionsTable: React.FC = () => {
         },
         {
             title: "End", dataIndex: "end_date", key: "end_date", width: 110,
-            render: (_, r) => <Text style={{ fontSize: 12 }}>{fmtDate(r.end_date)}</Text>,
+            render: (_, r) => {
+                const endText = fmtDate(r.end_date);
+                if (r.status === "Active" && r.end_date && expiringInDays !== null) {
+                    const daysLeft = dayjs(r.end_date).diff(dayjs(), "day");
+                    if (daysLeft >= 0 && daysLeft <= expiringInDays) {
+                        return (
+                            <div>
+                                <Text style={{ fontSize: 12 }}>{endText}</Text>
+                                <div>
+                                    <span style={pill("#fffbeb", C.orange, "#fde68a")}>
+                                        <ClockCircleOutlined />
+                                        {daysLeft === 0 ? "Today" : `${daysLeft}d left`}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    }
+                }
+                return <Text style={{ fontSize: 12 }}>{endText}</Text>;
+            },
         },
         {
             title: "Status", dataIndex: "status", key: "status", width: 120,
@@ -908,6 +1053,8 @@ const CustomerSubscriptionsTable: React.FC = () => {
                     </div>
                 </div>
                 {SearchBar}
+                {/* Expiry quick-filter */}
+                <ExpiryQuickFilter selected={expiringInDays} onChange={handleExpiryDayChange} />
                 <FilterChips filters={filters} onClear={clearFilter} onClearAll={handleFilterReset} />
 
                 {mobileData.length === 0 && !mobileLoading && (
@@ -948,6 +1095,8 @@ const CustomerSubscriptionsTable: React.FC = () => {
         <div>
             <AnalyticsPanel data={allData} />
             {SearchBar}
+            {/* Expiry quick-filter */}
+            <ExpiryQuickFilter selected={expiringInDays} onChange={handleExpiryDayChange} />
             <FilterChips filters={filters} onClear={clearFilter} onClearAll={handleFilterReset} />
             <ProTable<CustomerSubscription>
                 columns={columns}
