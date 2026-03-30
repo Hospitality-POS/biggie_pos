@@ -8,6 +8,7 @@ import {
   ReconciliationOutlined,
   ShopOutlined,
   TeamOutlined,
+  UsergroupAddOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
 
@@ -42,7 +43,7 @@ const useProLayoutNav = () => {
   // ── Common routes (always shown if any module is active) ───────────────────
   const commonRoutes = [
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
-    { path: "/admin/staff-management", name: "Staff Management", icon: <TeamOutlined /> },
+    { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
   ];
 
   // ── POS-specific routes ─────────────────────────────────────────────────────
@@ -50,8 +51,8 @@ const useProLayoutNav = () => {
     { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
     ...(userRole === "admin"
       ? [
-        { path: "/admin/wages", name: "Wage Management", icon: <WalletOutlined /> },
-        { path: "/admin/reports", name: "POS Reports", icon: <ReconciliationOutlined /> },
+        // { path: "/admin/wages", name: "Wage Management", icon: <WalletOutlined /> },
+        { path: "/admin/reports", name: "Business Reports", icon: <ReconciliationOutlined /> },
       ]
       : []),
   ];

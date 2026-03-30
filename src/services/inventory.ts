@@ -56,12 +56,59 @@ interface RejectTransferParams {
   rejection_reason: string;
 }
 
+interface AutoCreated {
+  units?: string[];
+  main_categories?: string[];
+  categories?: string[];
+  subcategories?: string[];
+  suppliers?: string[];
+}
+
+interface ImportInventoryResult {
+  message: string;
+  summary: {
+    total: number;
+    created: number;
+    skipped: number;
+    errors: number;
+    auto_created?: AutoCreated;
+    format_detected?: {
+      sheet: string;
+      header_row: number;
+      mapped_columns: number;
+    };
+  };
+  errors: Array<{ row: number | string; name: string; reason: string }>;
+}
+
+interface AnalyseInventoryResult {
+  canImport: boolean;
+  sheetUsed: string;
+  headerRowDetectedAt: number;
+  totalDataRows: number;
+  mappedColumns: string[];
+  unmappedColumns: string[];
+  missingRequired: string[];
+  missingRecommended: string[];
+  columnMapping: Record<string, string>;
+  advice: Array<{ level: "success" | "warning" | "error" | "info"; message: string }>;
+  previewRows: Array<{
+    rowNum: number;
+    name: string;
+    quantity: string;
+    unit: string;
+    usage_type: string;
+    price: string;
+    category: string;
+    supplier: string;
+    barcode: string;
+  }>;
+}
+
 const getTenant = () => {
   try {
     const tenantStr = localStorage.getItem('tenant');
-    if (tenantStr) {
-      return JSON.parse(tenantStr);
-    }
+    if (tenantStr) return JSON.parse(tenantStr);
     return null;
   } catch (error) {
     console.error("Error getting tenant:", error);
@@ -69,6 +116,111 @@ const getTenant = () => {
   }
 };
 
+// ── TEMPLATE DOWNLOAD ─────────────────────────────────────────────────────────
+export const downloadInventoryTemplate = async (): Promise<void> => {
+  try {
+    const response = await axiosInstance.get(`${inventoryUrl}/template`, {
+      responseType: "blob",
+    });
+
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "inventory_import_template.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    message.success("Template downloaded successfully");
+  } catch (error) {
+    console.error("Error downloading inventory template:", error);
+    message.error("Failed to download template");
+    throw new Error("Failed to download inventory template");
+  }
+};
+
+// ── ANALYSE FILE (preview before import — does NOT import anything) ────────────
+export const analyseInventoryFile = async (file: File): Promise<AnalyseInventoryResult> => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await axiosInstance.post<AnalyseInventoryResult>(
+      `${inventoryUrl}/analyse-import`,
+      formData,
+      { headers: { "Content-Type": undefined } }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Error analysing inventory file:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to analyse file. Please check the file format and try again.";
+    if (error?.response?.status !== 403) message.error(errMsg);
+    throw error;
+  }
+};
+
+// ── EXCEL IMPORT ──────────────────────────────────────────────────────────────
+export const importInventoryFromExcel = async (
+  file: File,
+  shopId: string
+): Promise<ImportInventoryResult> => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("shop_id", shopId);
+
+    const response = await axiosInstance.post<ImportInventoryResult>(
+      `${inventoryUrl}/import`,
+      formData,
+      { headers: { "Content-Type": undefined } }
+    );
+
+    const data = response.data;
+
+    if (data.summary.created > 0) {
+      const ac = data.summary.auto_created;
+      const totalAC = ac
+        ? Object.values(ac).reduce((s, arr) => s + (arr?.length ?? 0), 0)
+        : 0;
+      const autoNote = totalAC > 0 ? ` (${totalAC} supporting record(s) auto-created)` : "";
+      message.success(
+        `Import complete — ${data.summary.created} item(s) created` +
+        (data.summary.skipped > 0 ? `, ${data.summary.skipped} skipped` : "") +
+        autoNote
+      );
+    } else if (data.summary.errors > 0) {
+      const firstErr = data.errors?.[0];
+      message.warning(
+        firstErr
+          ? `Import issue: ${firstErr.reason}`
+          : "No items were imported — check the error details below."
+      );
+    } else {
+      message.warning("No items were imported. Check the error details.");
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Error importing inventory from Excel:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to import inventory. Please try again.";
+    if (error?.response?.status !== 403) message.error(errMsg);
+    throw error;
+  }
+};
+
+// ── FETCH ALL ─────────────────────────────────────────────────────────────────
 export const fetchAllInventory = async (data: any = {}) => {
   try {
     const response = await axiosInstance.get(inventoryUrl, {
@@ -108,19 +260,13 @@ export const addNewInventory = async (params) => {
 
       if (tenant) {
         formData.append('tenant', JSON.stringify(tenant));
-        if (tenant.tenant_code) {
-          formData.append('tenant_code', tenant.tenant_code);
-        }
+        if (tenant.tenant_code) formData.append('tenant_code', tenant.tenant_code);
       }
-
       if (companyCode) {
         formData.append('companyCode', companyCode);
         formData.append('tenant_code', companyCode);
       }
-
-      if (shopId && shopId !== "undefined") {
-        formData.append("shop_id", shopId);
-      }
+      if (shopId && shopId !== "undefined") formData.append("shop_id", shopId);
 
       if (typeof params.subcategory_id === 'object' && params.subcategory_id?.value) {
         formData.append('subcategory_id', params.subcategory_id.value);
@@ -150,32 +296,23 @@ export const addNewInventory = async (params) => {
         ? JSON.parse(localStorage.getItem("user")).Token
         : '';
 
-      const headers = {
-        'Authorization': `Bearer ${token}`
-      };
-
       const response = await fetch(inventoryUrl, {
         method: 'POST',
-        headers: headers,
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        console.error("Server error response:", data);
-        throw new Error(data.message || "Failed to add inventory");
-      }
+      if (!response.ok) throw new Error(data.message || "Failed to add inventory");
 
       message.success("Inventory added successfully");
       return data;
     } else {
       const subcategory_id = params.subcategory_id?.value || params.subcategory_id;
       const unit_id = params.unit_id?.value || params.unit_id;
-
       const { imageFile: _, ...cleanParams } = params;
 
-      const requestBody = {
+      const response = await axiosInstance.post(inventoryUrl, {
         ...cleanParams,
         subcategory_id,
         unit_id,
@@ -183,18 +320,14 @@ export const addNewInventory = async (params) => {
         companyCode,
         tenant_code: companyCode || (tenant ? tenant.tenant_code : null),
         shop_id: shopId
-      };
-
-      const response = await axiosInstance.post(inventoryUrl, requestBody);
+      });
 
       message.success("Inventory added successfully");
       return response.data;
     }
   } catch (error) {
     console.error("Error adding inventory:", error);
-    if (error?.response?.status !== 403) {
-      message.error("Error adding inventory, Please try again");
-    }
+    if (error?.response?.status !== 403) message.error("Error adding inventory, Please try again");
     throw new Error("Failed to add inventory");
   }
 };
@@ -214,18 +347,10 @@ export const editInventory = async (params) => {
 
       if (tenant) {
         formData.append('tenant', JSON.stringify(tenant));
-        if (tenant.tenant_code) {
-          formData.append('tenant_code', tenant.tenant_code);
-        }
+        if (tenant.tenant_code) formData.append('tenant_code', tenant.tenant_code);
       }
-
-      if (companyCode) {
-        formData.append('companyCode', companyCode);
-      }
-
-      if (shopId && shopId !== "undefined") {
-        formData.append("shop_id", shopId);
-      }
+      if (companyCode) formData.append('companyCode', companyCode);
+      if (shopId && shopId !== "undefined") formData.append("shop_id", shopId);
 
       if (typeof params.values.subcategory_id === 'object' && params.values.subcategory_id?.value) {
         formData.append('subcategory_id', params.values.subcategory_id.value);
@@ -255,32 +380,23 @@ export const editInventory = async (params) => {
         ? JSON.parse(localStorage.getItem("user")).Token
         : '';
 
-      const headers = {
-        'Authorization': `Bearer ${token}`
-      };
-
       const response = await fetch(`${inventoryUrl}/${params._id}`, {
         method: 'PUT',
-        headers: headers,
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        console.error("Server error response:", data);
-        throw new Error(data.message || "Failed to update inventory");
-      }
+      if (!response.ok) throw new Error(data.message || "Failed to update inventory");
 
       message.success("Inventory updated successfully");
       return data;
     } else {
       const subcategory_id = params.values.subcategory_id?.value || params.values.subcategory_id;
       const unit_id = params.values.unit_id?.value || params.values.unit_id;
-
       const { imageFile: _, ...cleanValues } = params.values;
 
-      const requestBody = {
+      const response = await axiosInstance.put(`${inventoryUrl}/${params._id}`, {
         ...cleanValues,
         subcategory_id,
         unit_id,
@@ -288,18 +404,14 @@ export const editInventory = async (params) => {
         companyCode,
         tenant_code: companyCode || (tenant ? tenant.tenant_code : null),
         shop_id: shopId
-      };
-
-      const response = await axiosInstance.put(`${inventoryUrl}/${params._id}`, requestBody);
+      });
 
       message.success("Inventory updated successfully");
       return response.data;
     }
   } catch (error) {
     console.error("Error updating inventory:", error);
-    if (error?.response?.status !== 403) {
-      message.error("Error updating inventory");
-    }
+    if (error?.response?.status !== 403) message.error("Error updating inventory");
     throw new Error("Failed to update inventory");
   }
 };
@@ -310,15 +422,40 @@ export const deleteInventory = async (inventoryId: string) => {
     const response = await axiosInstance.delete(`${inventoryUrl}/${inventoryId}`, {
       data: { tenant }
     });
-
     message.success("Inventory deleted successfully");
     return response.data;
   } catch (error) {
     console.error("Error deleting inventory:", error);
-    if (error?.response?.status !== 403) {
-      message.error("Error deleting inventory");
-    }
+    if (error?.response?.status !== 403) message.error("Error deleting inventory");
     throw new Error("Failed to delete inventory");
+  }
+};
+
+// ── DELETE MULTIPLE ───────────────────────────────────────────────────────────
+export const deleteMultipleInventory = async (ids: string[]): Promise<{ deleted: number; failed: number }> => {
+  try {
+    const response = await axiosInstance.delete(`${inventoryUrl}/bulk/delete`, {
+      data: { ids },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting multiple inventory items:", error);
+    if (error?.response?.status !== 403) message.error("Failed to delete selected items");
+    throw error;
+  }
+};
+
+// ── DELETE ALL ────────────────────────────────────────────────────────────────
+export const deleteAllInventory = async (shopId: string): Promise<{ deleted: number }> => {
+  try {
+    const response = await axiosInstance.delete(`${inventoryUrl}/bulk/delete-all`, {
+      data: { shop_id: shopId },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting all inventory:", error);
+    if (error?.response?.status !== 403) message.error("Failed to delete all inventory items");
+    throw error;
   }
 };
 
@@ -335,13 +472,8 @@ export const fetchInventoryById = async (inventoryId: string) => {
 export const fetchInventoryUsageByDateRange = async (startDate: string, endDate: string, shopId?: string) => {
   try {
     const params: any = { startDate, endDate };
-    if (shopId && shopId !== 'undefined') {
-      params.shop_id = shopId;
-    }
-
-    const response = await axiosInstance.get(`${inventoryUrl}/date-range-inventory-usage-items/items`, {
-      params
-    });
+    if (shopId && shopId !== 'undefined') params.shop_id = shopId;
+    const response = await axiosInstance.get(`${inventoryUrl}/date-range-inventory-usage-items/items`, { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching inventory usage:", error);
@@ -352,8 +484,6 @@ export const fetchInventoryUsageByDateRange = async (startDate: string, endDate:
 export const createTransfer = async (params: CreateTransferParams) => {
   try {
     const response = await axiosInstance.post(`${transferUrl}`, params);
-
-    //message.success("Transfer created successfully");
     return response.data;
   } catch (error) {
     console.error("Error creating transfer:", error);
@@ -365,14 +495,10 @@ export const createTransfer = async (params: CreateTransferParams) => {
 
 export const fetchAllTransfers = async (filters?: TransferFilters) => {
   try {
-    console.log("Fetching transfers with filters:", filters);
-    const response = await axiosInstance.get(`${transferUrl}`, {
-      params: filters
-    });
+    const response = await axiosInstance.get(`${transferUrl}`, { params: filters });
     return response.data;
   } catch (error) {
     console.error("Error fetching transfers:", error);
-    console.error("Error response:", error?.response?.data);
     throw new Error("Failed to fetch transfers");
   }
 };
@@ -413,12 +539,7 @@ export const fetchTransferStats = async (shopId: string) => {
 
 export const approveTransfer = async (transferId: string, params?: ApproveTransferParams) => {
   try {
-    const response = await axiosInstance.post(
-      `${transferUrl}/${transferId}/approve`,
-      params || {}
-    );
-
-    // message.success("Transfer approved successfully");
+    const response = await axiosInstance.post(`${transferUrl}/${transferId}/approve`, params || {});
     return response.data;
   } catch (error) {
     console.error("Error approving transfer:", error);
@@ -430,12 +551,7 @@ export const approveTransfer = async (transferId: string, params?: ApproveTransf
 
 export const completeTransfer = async (transferId: string, params?: CompleteTransferParams) => {
   try {
-    const response = await axiosInstance.post(
-      `${transferUrl}/${transferId}/complete`,
-      params || {}
-    );
-
-    //message.success("Transfer completed successfully");
+    const response = await axiosInstance.post(`${transferUrl}/${transferId}/complete`, params || {});
     return response.data;
   } catch (error) {
     console.error("Error completing transfer:", error);
@@ -447,11 +563,7 @@ export const completeTransfer = async (transferId: string, params?: CompleteTran
 
 export const rejectTransfer = async (transferId: string, params: RejectTransferParams) => {
   try {
-    const response = await axiosInstance.post(
-      `${transferUrl}/${transferId}/reject`,
-      params
-    );
-
+    const response = await axiosInstance.post(`${transferUrl}/${transferId}/reject`, params);
     message.success("Transfer rejected successfully");
     return response.data;
   } catch (error) {
@@ -464,11 +576,7 @@ export const rejectTransfer = async (transferId: string, params: RejectTransferP
 
 export const cancelTransfer = async (transferId: string) => {
   try {
-    const response = await axiosInstance.post(
-      `${transferUrl}/${transferId}/cancel`,
-      {}
-    );
-
+    const response = await axiosInstance.post(`${transferUrl}/${transferId}/cancel`, {});
     message.success("Transfer cancelled successfully");
     return response.data;
   } catch (error) {
@@ -485,15 +593,8 @@ export const fetchTransfersByDirection = async (
   status?: string
 ) => {
   try {
-    const filters: TransferFilters = {
-      shop_id: shopId,
-      direction,
-    };
-
-    if (status) {
-      filters.status = status as any;
-    }
-
+    const filters: TransferFilters = { shop_id: shopId, direction };
+    if (status) filters.status = status as any;
     return await fetchAllTransfers(filters);
   } catch (error) {
     console.error("Error fetching transfers by direction:", error);
@@ -506,12 +607,7 @@ export const fetchTransfersByStatus = async (
   status: 'pending' | 'in_transit' | 'completed' | 'cancelled' | 'rejected'
 ) => {
   try {
-    const filters: TransferFilters = {
-      shop_id: shopId,
-      status,
-    };
-
-    return await fetchAllTransfers(filters);
+    return await fetchAllTransfers({ shop_id: shopId, status });
   } catch (error) {
     console.error("Error fetching transfers by status:", error);
     throw error;
@@ -524,13 +620,7 @@ export const fetchTransfersByDateRange = async (
   endDate: string
 ) => {
   try {
-    const filters: TransferFilters = {
-      shop_id: shopId,
-      startDate,
-      endDate,
-    };
-
-    return await fetchAllTransfers(filters);
+    return await fetchAllTransfers({ shop_id: shopId, startDate, endDate });
   } catch (error) {
     console.error("Error fetching transfers by date range:", error);
     throw error;

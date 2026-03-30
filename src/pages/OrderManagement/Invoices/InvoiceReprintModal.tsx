@@ -1,49 +1,43 @@
 import React, { useRef, useState } from "react";
-import { ModalForm } from "@ant-design/pro-form";
-import { Button, Spin, Switch, Space } from "antd";
+import { Button, Modal, Segmented, Spin, Typography } from "antd";
 import {
-  PrinterOutlined,
-  PrinterFilled,
-  SafetyCertificateFilled,
   FilePdfOutlined,
+  PrinterFilled,
+  PrinterOutlined,
+  SafetyCertificateFilled,
 } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
-import {
-  Typography,
-  TableContainer,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Grid,
-  Box,
-  Paper,
-  Divider,
-} from "@mui/material";
-import moment from "moment";
+import dayjs from "dayjs";
 import { QRCodeCanvas } from "qrcode.react";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { COOP_NAME } from "@utils/config";
 import { useMutation } from "@tanstack/react-query";
 import { rePrintInvoice } from "@services/cart";
 
-// Color palette
-const colors = {
+const { Text } = Typography;
+
+// ── Palette ────────────────────────────────────────────────────────────────
+const C = {
   primary: "#6c1c2c",
-  secondary: "#bc8c7c",
-  darkText: "#000000",
+  primaryLight: "#f9f0f2",
+  green: "#10b981",
+  red: "#ef4444",
+  subText: "#64748b",
+  darkText: "#0f172a",
+  border: "#e2e8f0",
+  bg: "#f8fafc",
 };
 
-// Currency formatting utility
-const formatCurrency = (amount: number) =>
+// ── Helpers ────────────────────────────────────────────────────────────────
+const fmt = (v: number) =>
   new Intl.NumberFormat("en-KE", {
-    style: "currency",
-    currency: "KES",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(amount) || 0);
+    style: "currency", currency: "KES",
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  }).format(Number(v) || 0);
 
+type PrintMode = "thermal" | "a4";
+
+// ── Interfaces ─────────────────────────────────────────────────────────────
 interface InvoiceItem {
   _id: string;
   product_id: { name: string };
@@ -54,572 +48,454 @@ interface InvoiceItem {
   table_id: { name: string };
 }
 
-// ─── Thermal PrintableContent ─────────────────────────────────────────────────
+interface InvoiceDetailsInterface {
+  _id: string;
+  order_no: string;
+  createdAt: string;
+  subtotal: number;
+  total_vat_amount: number;
+  grand_total: number;
+  discount_amount: number;
+  items: InvoiceItem[];
+  table_id?: { name: string };
+  served_by?: { username: string };
+}
 
-const ThermalContent = React.forwardRef<
-  HTMLDivElement,
-  {
-    data: InvoiceItem[];
-    invoiceData: InvoiceDetailsInterface;
-    BRAND_NAME1: string;
-    orderNo: string;
-    EMAIL_URL?: string;
-    PHONE_NO?: string;
-    QR_Code?: string;
-    PIN?: string;
-    TILL_NO?: string;
-    Paybill_bs?: string;
-    Paybill_ac?: string;
-  }
->(
-  (
-    {
-      data,
-      invoiceData,
-      BRAND_NAME1,
-      orderNo,
-      EMAIL_URL,
-      PHONE_NO,
-      QR_Code,
-      PIN,
-      TILL_NO,
-      Paybill_bs,
-      Paybill_ac,
-    },
-    ref
-  ) => {
-    if (!data || data?.length === 0) return <div ref={ref} />;
+interface InvoiceReprintModalProps {
+  invoiceId: string;
+  orderNo: string;
+  invoiceData: InvoiceDetailsInterface;
+}
+
+interface SharedPrintProps {
+  invoiceData: InvoiceDetailsInterface;
+  BRAND_NAME1: string;
+  orderNo: string;
+  EMAIL_URL?: string;
+  PHONE_NO?: string;
+  QR_Code?: string;
+  PIN?: string;
+  TILL_NO?: string;
+  Paybill_bs?: string;
+  Paybill_ac?: string;
+}
+
+// ─── Thermal Receipt ───────────────────────────────────────────────────────
+const ThermalReceipt = React.forwardRef<HTMLDivElement, SharedPrintProps & { data: InvoiceItem[] }>(
+  ({ data, invoiceData, BRAND_NAME1, orderNo, EMAIL_URL, PHONE_NO, QR_Code, PIN, TILL_NO, Paybill_bs, Paybill_ac }, ref) => {
+    if (!data || data.length === 0) return <div ref={ref} />;
 
     const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const isElectronicsStore = tenant?.business_type?.name === "Electronics";
+    const isElectronics = (() => { try { return JSON.parse(storedTenant || "{}").business_type?.name === "Electronics"; } catch { return false; } })();
 
-    const smallTextStyle = { fontSize: "0.9em", fontWeight: 800 };
-    const baseTextStyle = { fontFamily: "monospace", fontWeight: 700, color: colors.darkText };
-    const headerStyle = { ...baseTextStyle, fontSize: "1.4em", fontWeight: 900 };
-    const subheaderStyle = { ...baseTextStyle, fontSize: "0.9em", fontWeight: 800 };
-    const normalTextStyle = { ...baseTextStyle, fontSize: "0.9em" };
-    const warrantyStyle = {
-      ...subheaderStyle,
-      textAlign: "center" as const,
-      border: "2px solid #000",
-      padding: "8px",
-      margin: "10px 0",
-      backgroundColor: "#f9f9f9",
-      fontWeight: 900,
-    };
-    const tableHeaderStyle = { padding: 1, fontWeight: 800, fontSize: "1.1em", color: colors.darkText };
-    const tableDataStyle = { padding: 1, fontWeight: 700, fontSize: "1.1em", color: colors.darkText };
+    const grandTotal = invoiceData?.grand_total || (invoiceData?.subtotal || 0) + (invoiceData?.total_vat_amount || 0);
 
-    const calculatedGrandTotal =
-      invoiceData?.grand_total ||
-      (invoiceData?.subtotal || 0) + (invoiceData?.total_vat_amount || 0);
+    const mono: React.CSSProperties = { fontFamily: "monospace", color: C.darkText };
+    const bold: React.CSSProperties = { ...mono, fontWeight: 800 };
+    const hdr: React.CSSProperties = { ...bold, fontSize: "1.3em" };
+    const sub: React.CSSProperties = { ...bold, fontSize: "0.85em" };
+    const nor: React.CSSProperties = { ...mono, fontSize: "0.85em", fontWeight: 700 };
 
     return (
-      <div className="receipt" id="receipt" ref={ref} style={{ color: colors.darkText }}>
-        <div className="logo-print" style={{ display: "flex", flexDirection: "column", marginBottom: 15 }}>
-          <Typography variant="body1" style={headerStyle}>
-            {BRAND_NAME1 || ""}
-          </Typography>
-          <Grid container spacing={1}>
-            <Grid item xs={6}>
-              <Typography variant="body2" style={subheaderStyle}>Phone: {PHONE_NO || "N/A"}</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" style={subheaderStyle}>
-                {TILL_NO ? `Till No: ${TILL_NO}` : Paybill_bs ? `Business No: ${Paybill_bs}` : "N/A"}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" style={subheaderStyle}>
-                {Paybill_ac ? `Account No: ${Paybill_ac}` : "N/A"}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" style={normalTextStyle}>
-                {PIN ? `PIN: ${PIN}` : "N/A"}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" style={smallTextStyle}>Invoice Reprint</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" style={smallTextStyle}>
-                Order No: {orderNo?.toUpperCase() || "N/A"}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" style={smallTextStyle}>
-                Table: {invoiceData?.table_id?.name || "N/A"}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" style={smallTextStyle}>
-                Date:{" "}
-                {invoiceData?.createdAt
-                  ? moment(invoiceData.createdAt).format("MMM-DD-YYYY H:mm A")
-                  : "N/A"}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body2" style={smallTextStyle}>
-                Served By: {invoiceData.served_by?.username || "N/A"}
-              </Typography>
-            </Grid>
-          </Grid>
-        </div>
+      <div id="receipt-thermal" ref={ref} style={{ color: C.darkText, maxWidth: 320, margin: "0 auto" }}>
+        {/* Header */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 12 }}>
+          <span style={hdr}>{BRAND_NAME1 || ""}</span>
 
-        <TableContainer sx={{ mt: 3, width: "inherit" }}>
-          <Table style={{ tableLayout: "fixed" }}>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ ...tableHeaderStyle, width: "19%" }}>QTY</TableCell>
-                <TableCell sx={tableHeaderStyle}>ITEM</TableCell>
-                <TableCell sx={{ ...tableHeaderStyle, textAlign: "right" }}>PRICE</TableCell>
-                <TableCell sx={{ ...tableHeaderStyle, textAlign: "right" }}>TOTAL</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {invoiceData.items.map((item) => (
-                <TableRow key={item._id}>
-                  <TableCell sx={{ ...tableDataStyle, width: "5%", textAlign: "left" }}>
-                    {item.quantity || 0}
-                  </TableCell>
-                  <TableCell component="th" scope="row" sx={{ ...tableDataStyle, wordWrap: "break-word" }}>
-                    {item.product_id?.name || "N/A"}
-                  </TableCell>
-                  <TableCell sx={{ ...tableDataStyle, textAlign: "right" }}>
-                    {(item.price || 0).toFixed(2)}
-                  </TableCell>
-                  <TableCell sx={{ ...tableDataStyle, textAlign: "right" }}>
-                    {((item.price || 0) * (item.quantity || 0)).toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <Typography variant="body1" style={subheaderStyle}>Subtotal:</Typography>
-          <Typography variant="body1" style={subheaderStyle}>
-            Ksh. {(invoiceData?.subtotal || 0).toLocaleString()}
-          </Typography>
-        </div>
-        {invoiceData?.discount_amount > 0 && (
           <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <Typography variant="body1" style={normalTextStyle}>Discount:</Typography>
-            <Typography variant="body1" style={normalTextStyle}>
-              - Ksh. {(invoiceData?.discount_amount || 0).toLocaleString()}
-            </Typography>
+            <span style={sub}>Phone: {PHONE_NO || "N/A"}</span>
+            <span style={sub}>{TILL_NO ? `Till: ${TILL_NO}` : Paybill_bs ? `BizNo: ${Paybill_bs}` : "N/A"}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={nor}>{Paybill_ac ? `Acc: ${Paybill_ac}` : "N/A"}</span>
+            <span style={nor}>{PIN ? `PIN: ${PIN}` : "N/A"}</span>
+          </div>
+
+          <div style={{ borderTop: "1px dashed #999", margin: "6px 0" }} />
+
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={sub}>Invoice Reprint</span>
+            <span style={sub}>#{orderNo?.toUpperCase() || "N/A"}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={nor}>Table: {invoiceData?.table_id?.name || "N/A"}</span>
+            <span style={nor}>{invoiceData?.createdAt ? dayjs(invoiceData.createdAt).format("MMM DD YYYY H:mm") : "N/A"}</span>
+          </div>
+          <span style={nor}>Served By: {invoiceData.served_by?.username || "N/A"}</span>
+        </div>
+
+        {/* Items */}
+        <div style={{ borderTop: "1px dashed #999", borderBottom: "1px dashed #999", padding: "6px 0", marginBottom: 8 }}>
+          {/* Column headers */}
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+            <span style={{ ...bold, width: "8%" }}>QTY</span>
+            <span style={{ ...bold, flex: 1, paddingLeft: 4 }}>ITEM</span>
+            <span style={{ ...bold, width: "20%", textAlign: "right" }}>PRICE</span>
+            <span style={{ ...bold, width: "22%", textAlign: "right" }}>TOTAL</span>
+          </div>
+          {invoiceData.items.map((item) => (
+            <div key={item._id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+              <span style={{ ...nor, width: "8%" }}>{item.quantity || 0}</span>
+              <span style={{ ...nor, flex: 1, paddingLeft: 4, wordBreak: "break-word" }}>{item.product_id?.name || "N/A"}</span>
+              <span style={{ ...nor, width: "20%", textAlign: "right" }}>{(item.price || 0).toFixed(2)}</span>
+              <span style={{ ...nor, width: "22%", textAlign: "right" }}>{((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Totals */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={sub}>Subtotal:</span>
+            <span style={sub}>Ksh. {(invoiceData?.subtotal || 0).toLocaleString()}</span>
+          </div>
+          {(invoiceData?.discount_amount || 0) > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={nor}>Discount:</span>
+              <span style={nor}>- Ksh. {(invoiceData.discount_amount || 0).toLocaleString()}</span>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={nor}>VAT:</span>
+            <span style={nor}>Ksh. {(invoiceData?.total_vat_amount || 0).toLocaleString()}</span>
+          </div>
+          <div style={{ borderTop: "1px dashed #999", margin: "4px 0" }} />
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={hdr}>AMOUNT DUE:</span>
+            <span style={hdr}>Ksh. {grandTotal.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Warranty — Electronics only */}
+        {isElectronics && (
+          <div style={{
+            border: "2px solid #000", padding: "8px", margin: "10px 0",
+            textAlign: "center", background: "#f9f9f9",
+          }}>
+            <span style={{ ...bold, fontSize: "1em" }}>
+              <SafetyCertificateFilled /> WARRANTY: 6 MONTHS <SafetyCertificateFilled />
+            </span>
+            <div style={{ ...nor, textAlign: "center", marginTop: 4 }}>
+              This receipt serves as your warranty certificate. Retain for warranty claims.
+            </div>
           </div>
         )}
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <Typography variant="body1" style={normalTextStyle}>VAT:</Typography>
-          <Typography variant="body1" style={normalTextStyle}>
-            Ksh. {(invoiceData?.total_vat_amount || 0).toLocaleString()}
-          </Typography>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <Typography variant="body1" style={headerStyle}>Amount Due:</Typography>
-          <Typography variant="body1" style={headerStyle}>
-            Ksh. {calculatedGrandTotal.toLocaleString()}
-          </Typography>
-        </div>
 
-        {isElectronicsStore && (
-          <>
-            <div style={{ margin: "15px 0" }}>
-              <Typography variant="body1" style={warrantyStyle}>
-                <SafetyCertificateFilled /> WARRANTY: 6 MONTHS <SafetyCertificateFilled />
-              </Typography>
+        {/* Footer */}
+        <div style={{ textAlign: "center", marginTop: 12, display: "flex", flexDirection: "column", gap: 3 }}>
+          <span style={{ ...nor, letterSpacing: 2 }}>===========================</span>
+          {QR_Code && (
+            <div style={{ display: "flex", justifyContent: "center", margin: "6px 0" }}>
+              <QRCodeCanvas value={QR_Code} size={90} />
             </div>
-            <div style={{ margin: "10px 0" }}>
-              <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
-                * This receipt serves as your warranty certificate *
-              </Typography>
-              <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
-                * Please retain for warranty claims *
-              </Typography>
-            </div>
-          </>
-        )}
+          )}
+          <span style={{ ...sub, textAlign: "center" }}>Thank you for your business!</span>
+          {EMAIL_URL && <span style={{ ...nor, textAlign: "center" }}>Email: {EMAIL_URL}</span>}
+          <span style={{ ...nor, textAlign: "center" }}>Generated on {new Date().toLocaleDateString()}</span>
+          <span style={{ ...nor, textAlign: "center" }}>Powered By: {COOP_NAME || ""}</span>
+        </div>
 
-        <Typography variant="body1" sx={{ textAlign: "center", fontWeight: 900, margin: "15px 0" }}>
-          ===========================
-        </Typography>
-
-        {QR_Code && (
-          <div className="qrcoded" style={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
-            <QRCodeCanvas value={QR_Code} size={100} className="qrcode" />
-          </div>
-        )}
-
-        <Typography variant="body1" style={{ ...subheaderStyle, textAlign: "center", marginTop: 10 }}>
-          Thank you for your business!
-        </Typography>
-        {EMAIL_URL && (
-          <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
-            Info email: {EMAIL_URL}
-          </Typography>
-        )}
-        <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
-          Generated on {new Date().toLocaleDateString()}
-        </Typography>
-        <Typography variant="body1" style={{ ...normalTextStyle, textAlign: "center" }}>
-          Powered By: {COOP_NAME || ""}
-        </Typography>
+        {/* Thermal print styles */}
+        <style>{`
+          @media print {
+            #receipt-thermal { max-width: 80mm !important; }
+            @page { size: 80mm auto; margin: 4mm; }
+            * { color-adjust: exact !important; -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important; color: black !important; font-weight: bold !important; }
+          }
+        `}</style>
       </div>
     );
   }
 );
 
-// ─── PDF A4 Content ───────────────────────────────────────────────────────────
-
-const PdfContent = React.forwardRef<
-  HTMLDivElement,
-  {
-    invoiceData: InvoiceDetailsInterface;
-    BRAND_NAME1: string;
-    orderNo: string;
-    EMAIL_URL?: string;
-    PHONE_NO?: string;
-    QR_Code?: string;
-    PIN?: string;
-    TILL_NO?: string;
-    Paybill_bs?: string;
-    Paybill_ac?: string;
-  }
->(
-  (
-    {
-      invoiceData,
-      BRAND_NAME1,
-      orderNo,
-      EMAIL_URL,
-      PHONE_NO,
-      QR_Code,
-      PIN,
-      TILL_NO,
-      Paybill_bs,
-      Paybill_ac,
-    },
-    ref
-  ) => {
+// ─── A4 PDF Content ────────────────────────────────────────────────────────
+const A4Report = React.forwardRef<HTMLDivElement, SharedPrintProps>(
+  ({ invoiceData, BRAND_NAME1, orderNo, EMAIL_URL, PHONE_NO, QR_Code, PIN, TILL_NO, Paybill_bs, Paybill_ac }, ref) => {
     const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const isElectronicsStore = tenant?.business_type?.name === "Electronics";
+    const isElectronics = (() => { try { return JSON.parse(storedTenant || "{}").business_type?.name === "Electronics"; } catch { return false; } })();
 
-    const pdfBase = { fontFamily: "'Segoe UI', Roboto, sans-serif", color: "#333" };
-    const pdfHeader = { ...pdfBase, fontSize: "26px", fontWeight: 700, color: "#1a1a1a" };
-    const pdfSub = { ...pdfBase, fontSize: "15px", fontWeight: 600, color: "#444" };
-    const pdfNormal = { ...pdfBase, fontSize: "13px", fontWeight: 400 };
+    const grandTotal = invoiceData?.grand_total || (invoiceData?.subtotal || 0) + (invoiceData?.total_vat_amount || 0);
 
-    const pdfThCell = {
-      padding: "10px 8px",
-      fontWeight: 700,
-      fontSize: "14px",
-      color: "#1a1a1a",
-      backgroundColor: "#f5f5f5",
-      borderBottom: "2px solid #ddd",
+    const base: React.CSSProperties = { fontFamily: "'Segoe UI', Roboto, sans-serif", color: "#333" };
+    const th: React.CSSProperties = {
+      padding: "10px 12px", fontWeight: 700, fontSize: 13, color: "#1a1a1a",
+      background: "#f5f5f5", borderBottom: "2px solid #ddd", textAlign: "left",
     };
-
-    const pdfTdCell = {
-      padding: "8px",
-      fontSize: "13px",
-      color: "#333",
-      borderBottom: "1px solid #eee",
+    const td: React.CSSProperties = {
+      padding: "9px 12px", fontSize: 13, color: "#333", borderBottom: "1px solid #eee",
     };
-
-    const calculatedGrandTotal =
-      invoiceData?.grand_total ||
-      (invoiceData?.subtotal || 0) + (invoiceData?.total_vat_amount || 0);
 
     return (
-      <div
-        ref={ref}
-        style={{
-          backgroundColor: "#fff",
-          padding: "40px",
-          maxWidth: "900px",
-          margin: "0 auto",
-          boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-          fontFamily: "'Segoe UI', Roboto, sans-serif",
-        }}
-      >
-        {/* Header */}
-        <Box sx={{ borderBottom: "3px solid #333", pb: 3, mb: 3 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-            <div>
-              <div style={{ ...pdfHeader, lineHeight: 1.2 }}>{BRAND_NAME1}</div>
-              <div style={{ ...pdfNormal, color: "#666", marginTop: 4 }}>
-                Powered by: {COOP_NAME}
-              </div>
+      <div id="receipt-a4" ref={ref} style={{
+        ...base, background: "#fff", padding: 40, maxWidth: 860,
+        margin: "0 auto", boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+      }}>
+        {/* Cover band */}
+        <div style={{
+          background: C.primary, color: "#fff", margin: "-40px -40px 32px",
+          padding: "22px 40px", display: "flex", justifyContent: "space-between", alignItems: "center",
+          printColorAdjust: "exact", WebkitPrintColorAdjust: "exact",
+        } as React.CSSProperties}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 0.5 }}>{BRAND_NAME1}</div>
+            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>Powered by: {COOP_NAME}</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+            <span style={{
+              background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.4)",
+              borderRadius: 6, padding: "4px 14px", fontWeight: 700, fontSize: 14, letterSpacing: 1,
+            }}>
+              INVOICE REPRINT
+            </span>
+            {QR_Code && <QRCodeCanvas value={QR_Code} size={72} />}
+          </div>
+        </div>
+
+        {/* Two-column meta */}
+        <div style={{ display: "flex", gap: 32, marginBottom: 28, paddingBottom: 20, borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: C.subText, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 700, marginBottom: 8 }}>
+              Business Details
             </div>
-            <Box sx={{ textAlign: "right" }}>
-              <Box sx={{ backgroundColor: colors.primary, color: "#fff", px: 3, py: 1, borderRadius: 2, mb: 1 }}>
-                <span style={{ fontWeight: 700, fontSize: 18 }}>INVOICE REPRINT</span>
-              </Box>
-              {QR_Code && <QRCodeCanvas value={QR_Code} size={80} />}
-            </Box>
-          </Box>
-
-          {/* Business info + order info in two columns */}
-          <Box sx={{ display: "flex", gap: 4 }}>
-            <Box sx={{ flex: 1 }}>
-              <div style={pdfSub}>Business Details</div>
-              <div style={pdfNormal}>Phone: {PHONE_NO || "N/A"}</div>
-              {TILL_NO && <div style={pdfNormal}>Till No: {TILL_NO}</div>}
-              {Paybill_bs && <div style={pdfNormal}>Business No: {Paybill_bs}</div>}
-              {Paybill_ac && <div style={pdfNormal}>Account No: {Paybill_ac}</div>}
-              {PIN && <div style={pdfNormal}>PIN: {PIN}</div>}
-              {EMAIL_URL && <div style={pdfNormal}>Email: {EMAIL_URL}</div>}
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <div style={pdfSub}>Invoice Details</div>
-              <div style={pdfNormal}>Order No: <strong>{orderNo?.toUpperCase() || "N/A"}</strong></div>
-              <div style={pdfNormal}>Table: {invoiceData?.table_id?.name || "N/A"}</div>
-              <div style={pdfNormal}>
-                Date:{" "}
-                {invoiceData?.createdAt
-                  ? moment(invoiceData.createdAt).format("MMM DD, YYYY h:mm A")
-                  : "N/A"}
+            {[
+              ["Phone", PHONE_NO],
+              TILL_NO ? ["Till No", TILL_NO] : null,
+              Paybill_bs ? ["Business No", Paybill_bs] : null,
+              Paybill_ac ? ["Account No", Paybill_ac] : null,
+              PIN ? ["PIN", PIN] : null,
+              EMAIL_URL ? ["Email", EMAIL_URL] : null,
+            ].filter(Boolean).map(([label, value]: any) => (
+              <div key={label} style={{ fontSize: 13, marginBottom: 3 }}>
+                <span style={{ color: C.subText }}>{label}: </span>
+                <span style={{ fontWeight: 600 }}>{value || "N/A"}</span>
               </div>
-              <div style={pdfNormal}>Served By: {invoiceData.served_by?.username || "N/A"}</div>
-            </Box>
-          </Box>
-        </Box>
+            ))}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: C.subText, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 700, marginBottom: 8 }}>
+              Invoice Details
+            </div>
+            {[
+              ["Order No", orderNo?.toUpperCase()],
+              ["Table", invoiceData?.table_id?.name],
+              ["Date", invoiceData?.createdAt ? dayjs(invoiceData.createdAt).format("MMM DD, YYYY h:mm A") : null],
+              ["Served By", invoiceData.served_by?.username],
+            ].map(([label, value]) => (
+              <div key={label} style={{ fontSize: 13, marginBottom: 3 }}>
+                <span style={{ color: C.subText }}>{label}: </span>
+                <span style={{ fontWeight: 600 }}>{value || "N/A"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        {/* Items Table */}
-        <Box component={Paper} elevation={0} sx={{ border: "1px solid #eee", mb: 4 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th style={{ ...pdfThCell, width: "10%", textAlign: "center" }}>QTY</th>
-                <th style={{ ...pdfThCell, textAlign: "left" }}>ITEM</th>
-                <th style={{ ...pdfThCell, textAlign: "right" }}>UNIT PRICE</th>
-                <th style={{ ...pdfThCell, textAlign: "right" }}>TOTAL</th>
+        {/* Items table */}
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 24, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+          <thead>
+            <tr>
+              <th style={{ ...th, width: "8%", textAlign: "center" }}>QTY</th>
+              <th style={th}>ITEM</th>
+              <th style={{ ...th, textAlign: "right" }}>UNIT PRICE</th>
+              <th style={{ ...th, textAlign: "right" }}>TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoiceData.items.map((item, i) => (
+              <tr key={item._id} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                <td style={{ ...td, textAlign: "center" }}>{item.quantity || 0}</td>
+                <td style={{ ...td, fontWeight: 600 }}>{item.product_id?.name || "N/A"}</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmt(item.price || 0)}</td>
+                <td style={{ ...td, textAlign: "right" }}>{fmt((item.price || 0) * (item.quantity || 0))}</td>
               </tr>
-            </thead>
-            <tbody>
-              {invoiceData.items.map((item, i) => (
-                <tr key={item._id} style={{ backgroundColor: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                  <td style={{ ...pdfTdCell, textAlign: "center" }}>{item.quantity || 0}</td>
-                  <td style={{ ...pdfTdCell, fontWeight: 600 }}>{item.product_id?.name || "N/A"}</td>
-                  <td style={{ ...pdfTdCell, textAlign: "right" }}>{formatCurrency(item.price || 0)}</td>
-                  <td style={{ ...pdfTdCell, textAlign: "right" }}>
-                    {formatCurrency((item.price || 0) * (item.quantity || 0))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Box>
+            ))}
+          </tbody>
+        </table>
 
         {/* Totals */}
-        <Box
-          sx={{
-            ml: "auto",
-            maxWidth: "380px",
-            p: 2,
-            backgroundColor: "#f9f9f9",
-            borderRadius: 2,
-            border: "1px solid #eee",
-          }}
-        >
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-            <span style={pdfNormal}>Subtotal:</span>
-            <span style={pdfNormal}>{formatCurrency(invoiceData?.subtotal || 0)}</span>
-          </Box>
-          {invoiceData?.discount_amount > 0 && (
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-              <span style={{ ...pdfNormal, color: "#d32f2f" }}>Discount:</span>
-              <span style={{ ...pdfNormal, color: "#d32f2f" }}>
-                - {formatCurrency(invoiceData?.discount_amount || 0)}
-              </span>
-            </Box>
-          )}
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-            <span style={pdfNormal}>VAT:</span>
-            <span style={pdfNormal}>{formatCurrency(invoiceData?.total_vat_amount || 0)}</span>
-          </Box>
-          <Divider sx={{ my: 1, borderColor: "#ccc" }} />
-          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ ...pdfSub, fontSize: "16px" }}>Amount Due:</span>
-            <span style={{ ...pdfSub, fontSize: "16px" }}>{formatCurrency(calculatedGrandTotal)}</span>
-          </Box>
-        </Box>
+        <div style={{
+          marginLeft: "auto", maxWidth: 340,
+          background: C.bg, border: `1px solid ${C.border}`,
+          borderRadius: 10, padding: "14px 18px", marginBottom: 24,
+        }}>
+          {[
+            { label: "Subtotal", value: fmt(invoiceData?.subtotal || 0), color: "#333" },
+            ...(invoiceData?.discount_amount > 0 ? [{ label: "Discount", value: `- ${fmt(invoiceData.discount_amount)}`, color: "#d32f2f" }] : []),
+            { label: "VAT", value: fmt(invoiceData?.total_vat_amount || 0), color: "#333" },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 13 }}>
+              <span style={{ color: C.subText }}>{label}</span>
+              <span style={{ fontWeight: 600, color }}>{value}</span>
+            </div>
+          ))}
+          <div style={{ borderTop: `2px solid ${C.border}`, margin: "10px 0 6px" }} />
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontWeight: 700, fontSize: 15, color: C.darkText }}>Amount Due</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: C.primary }}>{fmt(grandTotal)}</span>
+          </div>
+        </div>
 
         {/* Warranty — Electronics only */}
-        {isElectronicsStore && (
-          <Box
-            sx={{
-              mt: 4,
-              border: "3px solid #000",
-              borderRadius: 2,
-              p: 2,
-              textAlign: "center",
-              backgroundColor: "#fff9e6",
-            }}
-          >
-            <div style={{ ...pdfSub, fontSize: "18px" }}>
+        {isElectronics && (
+          <div style={{
+            border: "3px solid #000", borderRadius: 8, padding: "14px 20px",
+            textAlign: "center", background: "#fff9e6", marginBottom: 24,
+            printColorAdjust: "exact", WebkitPrintColorAdjust: "exact",
+          } as React.CSSProperties}>
+            <div style={{ fontWeight: 700, fontSize: 18 }}>
               <SafetyCertificateFilled style={{ marginRight: 8 }} />
               WARRANTY: 6 MONTHS
               <SafetyCertificateFilled style={{ marginLeft: 8 }} />
             </div>
-            <div style={{ ...pdfNormal, marginTop: 8 }}>
+            <div style={{ fontSize: 13, marginTop: 6, color: "#555" }}>
               This receipt serves as your warranty certificate. Please retain for warranty claims.
             </div>
-          </Box>
+          </div>
         )}
 
         {/* Footer */}
-        <Box sx={{ borderTop: "2px solid #ddd", pt: 3, mt: 4, textAlign: "center" }}>
-          <div style={{ ...pdfSub, marginBottom: 4 }}>Thank you for your business!</div>
-          <div style={{ ...pdfNormal, color: "#666" }}>
-            Generated on {new Date().toLocaleDateString()}
-          </div>
-        </Box>
+        <div style={{ borderTop: `2px solid ${C.border}`, paddingTop: 20, textAlign: "center" }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Thank you for your business!</div>
+          <div style={{ fontSize: 12, color: C.subText }}>Generated on {new Date().toLocaleDateString()}</div>
+        </div>
+
+        {/* A4 print styles */}
+        <style>{`
+          @media print {
+            #receipt-a4 { box-shadow: none !important; }
+            @page { size: A4 portrait; margin: 16mm; }
+            * { color-adjust: exact !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          }
+        `}</style>
       </div>
     );
   }
 );
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
-function InvoiceReprintModal({
-  invoiceId,
-  orderNo,
-  invoiceData,
-}: InvoiceReprintModalProps) {
-  const componentRef = useRef<HTMLDivElement>(null);
-  const {
-    BRAND_NAME1,
-    EMAIL_URL,
-    PIN,
-    PHONE_NO,
-    QR_Code,
-    Paybill_bs,
-    Paybill_ac,
-    TILL_NO,
-  } = useSystemDetails();
+// ─── Main Modal ────────────────────────────────────────────────────────────
+function InvoiceReprintModal({ invoiceId, orderNo, invoiceData }: InvoiceReprintModalProps) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<PrintMode>("thermal");
   const [data, setData] = useState<InvoiceItem[] | null>(null);
-  const [isPdfView, setIsPdfView] = useState(false);
+
+  const thermalRef = useRef<HTMLDivElement>(null);
+  const a4Ref = useRef<HTMLDivElement>(null);
+
+  const {
+    BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO, QR_Code,
+    Paybill_bs, Paybill_ac, TILL_NO,
+  } = useSystemDetails();
 
   const reprintMutation = useMutation(rePrintInvoice, {
-    onSuccess: (data) => setData(data),
-    onError: (error) => console.log(error),
+    onSuccess: (res) => setData(res),
   });
 
-  const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
-    pageStyle: isPdfView
-      ? `
-        @page { size: A4; margin: 20mm; }
-        @media print {
-          * {
-            color-adjust: exact !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          body { margin: 0; padding: 0; }
-        }
-      `
-      : `
-        @media print {
-          * {
-            color-adjust: exact !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            color: black !important;
-            font-weight: bold !important;
-          }
-        }
-      `,
+  const printThermal = useReactToPrint({
+    content: () => thermalRef.current,
+    pageStyle: `@page { size: 80mm auto; margin: 4mm; } @media print { * { color-adjust: exact !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; font-weight: bold !important; } }`,
   });
 
-  const canPrint = data && data?.length > 0;
+  const printA4 = useReactToPrint({
+    content: () => a4Ref.current,
+    pageStyle: `@page { size: A4 portrait; margin: 16mm; } @media print { * { color-adjust: exact !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }`,
+  });
 
-  const sharedProps = {
-    invoiceData,
-    BRAND_NAME1,
-    orderNo,
-    EMAIL_URL,
-    PHONE_NO,
-    QR_Code,
-    PIN,
-    TILL_NO,
-    Paybill_bs,
-    Paybill_ac,
+  const handleOpen = () => {
+    setOpen(true);
+    setData(null);
+    setMode("thermal");
+    reprintMutation.mutate(invoiceId);
+  };
+
+  const handlePrint = () => {
+    if (mode === "thermal") printThermal();
+    else printA4();
+  };
+
+  const canPrint = data && data.length > 0;
+
+  const sharedProps: SharedPrintProps = {
+    invoiceData, BRAND_NAME1, orderNo,
+    EMAIL_URL, PHONE_NO, QR_Code, PIN, TILL_NO, Paybill_bs, Paybill_ac,
   };
 
   return (
-    <ModalForm
-      className="receiptM"
-      modalProps={{
-        centered: true,
-        destroyOnClose: true,
-        cancelText: "Cancel",
-        okText: isPdfView ? "Save as PDF" : "Reprint Invoice",
-        okButtonProps: {
-          icon: isPdfView ? <FilePdfOutlined /> : <PrinterFilled />,
-          disabled: reprintMutation.isLoading || !canPrint,
-          style: { backgroundColor: colors.primary, borderColor: colors.primary },
-        },
-        width: isPdfView ? 1100 : 700,
-        bodyStyle: { maxHeight: "calc(100vh - 150px)", overflowY: "auto" },
-      }}
-      trigger={
-        <Button
-          type="primary"
-          icon={<PrinterOutlined />}
-          style={{ backgroundColor: colors.primary, borderColor: colors.primary }}
-          onClick={() => reprintMutation.mutate(invoiceId)}
-        >
-          {reprintMutation.isLoading ? "Loading..." : "Reprint Invoice"}
-        </Button>
-      }
-      onFinish={async () => {
-        if (canPrint) handlePrint();
-        return true;
-      }}
-    >
-      {/* Thermal / PDF Toggle */}
-      <Space
-        direction="horizontal"
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          marginBottom: 16,
-          paddingBottom: 12,
-          borderBottom: "1px solid #f0f0f0",
-        }}
+    <>
+      <Button
+        type="primary" size="small" icon={<PrinterOutlined />}
+        onClick={handleOpen}
+        style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}
       >
-        <PrinterOutlined style={{ fontSize: 18 }} />
-        <span style={{ fontWeight: 600 }}>Thermal Receipt</span>
-        <Switch
-          checked={isPdfView}
-          onChange={(checked) => setIsPdfView(checked)}
-          checkedChildren="PDF"
-          unCheckedChildren="Thermal"
-        />
-        <span style={{ fontWeight: 600 }}>A4 PDF</span>
-        <FilePdfOutlined style={{ fontSize: 18 }} />
-      </Space>
+        Reprint
+      </Button>
 
-      <Spin spinning={reprintMutation.isLoading} tip="Loading invoice data...">
-        {data === null ? (
-          <div className="text-center p-4">Click the button to load invoice data</div>
-        ) : data?.length === 0 ? (
-          <div className="text-center p-4">No invoice data found</div>
-        ) : isPdfView ? (
-          <PdfContent ref={componentRef} {...sharedProps} />
-        ) : (
-          <ThermalContent ref={componentRef} data={data} {...sharedProps} />
-        )}
-      </Spin>
-    </ModalForm>
+      <Modal
+        open={open}
+        onCancel={() => setOpen(false)}
+        destroyOnClose
+        style={{ top: 16 }}
+        width={mode === "a4" ? 960 : 560}
+        styles={{ body: { maxHeight: "calc(100vh - 160px)", overflowY: "auto", padding: "16px 20px" } }}
+        title={
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{
+                background: C.primaryLight, borderRadius: 7,
+                padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1,
+              }}>
+                <PrinterOutlined />
+              </div>
+              <Text strong style={{ fontSize: 14, color: C.darkText }}>
+                Reprint Invoice — {orderNo}
+              </Text>
+            </div>
+            {/* Mode toggle in title bar */}
+            <Segmented
+              size="small"
+              value={mode}
+              onChange={(v) => setMode(v as PrintMode)}
+              options={[
+                { label: <span><PrinterOutlined style={{ marginRight: 4 }} />Thermal</span>, value: "thermal" },
+                { label: <span><FilePdfOutlined style={{ marginRight: 4 }} />A4 PDF</span>, value: "a4" },
+              ]}
+            />
+          </div>
+        }
+        footer={[
+          <Button key="cancel" onClick={() => setOpen(false)} style={{ borderRadius: 8 }}>
+            Close
+          </Button>,
+          <Button
+            key="print"
+            type="primary"
+            icon={mode === "a4" ? <FilePdfOutlined /> : <PrinterFilled />}
+            disabled={reprintMutation.isLoading || !canPrint}
+            onClick={handlePrint}
+            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
+          >
+            {mode === "a4" ? "Save as PDF" : "Print Receipt"}
+          </Button>,
+        ]}
+      >
+        <Spin spinning={reprintMutation.isLoading} tip="Loading invoice data…">
+          {data === null ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>Loading invoice data…</div>
+          ) : data.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: C.subText }}>No invoice data found.</div>
+          ) : (
+            <>
+              {/* Both rendered, display toggled — same pattern as other print modals */}
+              <div style={{ display: mode === "thermal" ? "block" : "none" }}>
+                <ThermalReceipt ref={thermalRef} data={data} {...sharedProps} />
+              </div>
+              <div style={{ display: mode === "a4" ? "block" : "none" }}>
+                <A4Report ref={a4Ref} {...sharedProps} />
+              </div>
+            </>
+          )}
+        </Spin>
+      </Modal>
+    </>
   );
 }
 

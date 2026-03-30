@@ -1,88 +1,63 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Button, Form, Input, Modal, Typography, message } from "antd";
 import {
-    Modal,
-    Form,
-    Input,
-    Button,
-    Space,
-    message,
-    Row,
-    Col,
-} from "antd";
-import {
-    UserOutlined,
-    MailOutlined,
-    SaveOutlined,
-    UserAddOutlined,
-    EditOutlined,
-    EnvironmentOutlined,
-    IdcardOutlined,
+    EditOutlined, EnvironmentOutlined, IdcardOutlined,
+    MailOutlined, SaveOutlined, UserAddOutlined, UserOutlined,
 } from "@ant-design/icons";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import { addNewCustomer, updateCustomer } from "@services/customers";
 
+const { Text } = Typography;
+
+// ── Palette ────────────────────────────────────────────────────────────────
+const C = {
+    primary: "#6c1c2c",
+    primaryLight: "#f9f0f2",
+    blue: "#3b82f6",
+    subText: "#64748b",
+    darkText: "#0f172a",
+    border: "#e2e8f0",
+    bg: "#f8fafc",
+};
+
+// ── Types ──────────────────────────────────────────────────────────────────
 interface AddCustomerModalProps {
     visible: boolean;
     onClose: () => void;
     onSuccess?: () => void;
-    customer?: any; // ✅ For edit mode
-    mode?: 'add' | 'edit'; // ✅ Modal mode
+    customer?: any;
+    mode?: "add" | "edit";
 }
 
+// ── Component ──────────────────────────────────────────────────────────────
 const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
-    visible,
-    onClose,
-    onSuccess,
-    customer,
-    mode = 'add',
+    visible, onClose, onSuccess, customer, mode = "add",
 }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
 
-    // ✅ Pre-fill form when editing
+    const isEdit = mode === "edit";
+
     useEffect(() => {
-        if (visible && mode === 'edit' && customer) {
-            // ✅ Format phone number as object for PhoneInput component
-            // The PhoneInput expects an object with { code, phone, short } structure
-            let phoneValue;
-
+        if (!visible) return;
+        if (isEdit && customer) {
+            let phoneValue: any;
             if (customer.phone) {
-                const phoneStr = String(customer.phone);
-                // Check if phone starts with country code
-                if (phoneStr.startsWith('254')) {
-                    // Kenyan number with country code
-                    phoneValue = {
-                        code: 254,
-                        phone: phoneStr.substring(3), // Remove country code
-                        short: 'KE'
-                    };
-                } else if (phoneStr.startsWith('+254')) {
-                    phoneValue = {
-                        code: 254,
-                        phone: phoneStr.substring(4),
-                        short: 'KE'
-                    };
-                } else {
-                    // Local number without country code
-                    phoneValue = {
-                        code: 254,
-                        phone: phoneStr,
-                        short: 'KE'
-                    };
-                }
-            } else {
-                phoneValue = undefined;
+                const s = String(customer.phone);
+                const local = s.startsWith("+254") ? s.slice(4)
+                    : s.startsWith("254") ? s.slice(3)
+                        : s;
+                phoneValue = { code: 254, phone: local, short: "KE" };
             }
-
             form.setFieldsValue({
                 customer_name: customer.customer_name,
-                email: customer.email || '',
+                email: customer.email || "",
                 phoneNumber: phoneValue,
-                location: customer.location || '',
-                kra_pin: customer.kra_pin || '',
+                location: customer.location || "",
+                kra_pin: customer.kra_pin || "",
             });
-        } else if (visible && mode === 'add') {
+        } else {
             form.resetFields();
         }
     }, [visible, mode, customer, form]);
@@ -91,178 +66,154 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         setLoading(true);
         try {
             const { customer_name, email, phoneNumber, location, kra_pin } = values;
-            const phone = getPhoneNumber(phoneNumber);
-
             const payload = {
                 customer_name,
+                phone: getPhoneNumber(phoneNumber),
                 ...(email && { email }),
-                phone,
                 ...(location && { location }),
                 ...(kra_pin && { kra_pin }),
             };
 
-            let response;
-
-            if (mode === 'edit' && customer?._id) {
-                // ✅ Update existing customer
-                response = await updateCustomer(customer._id, payload);
-            } else {
-                // ✅ Add new customer
-                response = await addNewCustomer(payload);
-            }
+            const response = isEdit && customer?._id
+                ? await updateCustomer(customer._id, payload)
+                : await addNewCustomer(payload);
 
             if (response?.status === 200 || response?.status === 201) {
-                message.success(
-                    mode === 'edit'
-                        ? "Customer updated successfully!"
-                        : "Customer added successfully!"
-                );
+                message.success(isEdit ? "Customer updated successfully!" : "Customer added successfully!");
                 form.resetFields();
                 onClose();
                 onSuccess?.();
             }
         } catch (error: any) {
-            console.error(`Error ${mode === 'edit' ? 'updating' : 'adding'} customer:`, error);
-            const errorMessage =
+            message.error(
                 error?.response?.data?.message ||
                 error?.message ||
-                `Failed to ${mode === 'edit' ? 'update' : 'add'} customer`;
-            message.error(errorMessage);
+                `Failed to ${isEdit ? "update" : "add"} customer`,
+            );
         } finally {
             setLoading(false);
         }
     };
 
     const handleCancel = () => {
-        if (!loading) {
-            form.resetFields();
-            onClose();
-        }
+        if (loading) return;
+        form.resetFields();
+        onClose();
     };
+
+    const iconColor = isEdit ? C.blue : C.primary;
 
     return (
         <Modal
-            title={
-                <Space>
-                    {mode === 'edit' ? (
-                        <>
-                            <EditOutlined style={{ color: "#1890ff" }} />
-                            <span>Edit Customer</span>
-                        </>
-                    ) : (
-                        <>
-                            <UserAddOutlined style={{ color: "#1890ff" }} />
-                            <span>Add New Customer </span>
-                        </>
-                    )}
-                </Space>
-            }
             open={visible}
             onCancel={handleCancel}
-            footer={null}
-            width={600}
             destroyOnClose
+            style={{ top: 20 }}
+            width="min(560px, 96vw)"
+            footer={null}
+            styles={{ body: { padding: "20px 24px 24px" } }}
+            title={
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{
+                        background: isEdit ? "#eff6ff" : C.primaryLight,
+                        borderRadius: 7, padding: "4px 6px",
+                        color: iconColor, fontSize: 14, lineHeight: 1,
+                    }}>
+                        {isEdit ? <EditOutlined /> : <UserAddOutlined />}
+                    </div>
+                    <Text strong style={{ fontSize: 14, color: C.darkText }}>
+                        {isEdit ? "Edit Customer" : "Add New Customer"}
+                    </Text>
+                </div>
+            }
         >
-            <Form
-                form={form}
-                layout="vertical"
-                onFinish={handleSubmit}
-                size="large"
-                style={{ marginTop: 24 }}
-            >
+            <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 4 }}>
+
+                {/* Name */}
                 <Form.Item
-                    name="customer_name"
-                    label="Customer Name"
+                    name="customer_name" label="Customer Name"
                     rules={[
                         { required: true, message: "Please enter customer name" },
                         { min: 2, message: "Name must be at least 2 characters" },
                     ]}
                 >
                     <Input
-                        prefix={<UserOutlined />}
+                        prefix={<UserOutlined style={{ color: C.subText }} />}
                         placeholder="Enter customer full name"
+                        style={{ borderRadius: 8 }}
                         autoFocus
                     />
                 </Form.Item>
 
+                {/* Phone */}
                 <PhoneInput
                     label="Phone Number"
                     owner="phoneNumber"
-                    rules={[
-                        { required: true, message: "Please enter phone number" },
-                    ]}
+                    rules={[{ required: true, message: "Please enter phone number" }]}
                 />
 
-                <Form.Item
-                    name="email"
-                    label="Email Address (Optional)"
-                    rules={[
-                        { type: "email", message: "Please enter a valid email" },
-                    ]}
-                >
-                    <Input
-                        prefix={<MailOutlined />}
-                        placeholder="customer@example.com (optional)"
-                        type="email"
-                    />
-                </Form.Item>
+                {/* Two-column: Email + Location */}
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <Form.Item
+                        name="email" label="Email Address"
+                        rules={[{ type: "email", message: "Please enter a valid email" }]}
+                        style={{ flex: "1 1 200px", marginBottom: 16 }}
+                    >
+                        <Input
+                            prefix={<MailOutlined style={{ color: C.subText }} />}
+                            placeholder="customer@example.com"
+                            type="email"
+                            style={{ borderRadius: 8 }}
+                        />
+                    </Form.Item>
 
-                <Form.Item
-                    name="location"
-                    label="Location (Optional)"
-                >
-                    <Input
-                        prefix={<EnvironmentOutlined />}
-                        placeholder="e.g. Nairobi, Westlands (optional)"
-                    />
-                </Form.Item>
+                    <Form.Item
+                        name="location" label="Location"
+                        style={{ flex: "1 1 200px", marginBottom: 16 }}
+                    >
+                        <Input
+                            prefix={<EnvironmentOutlined style={{ color: C.subText }} />}
+                            placeholder="e.g. Nairobi, Westlands"
+                            style={{ borderRadius: 8 }}
+                        />
+                    </Form.Item>
+                </div>
 
+                {/* KRA PIN */}
                 <Form.Item
-                    name="kra_pin"
-                    label="KRA PIN (Optional)"
-                    rules={[
-                        {
-                            pattern: /^[A-Z]\d{9}[A-Z]$/,
-                            message: "Invalid KRA PIN format. Expected format: A123456789Z",
-                        },
-                    ]}
+                    name="kra_pin" label="KRA PIN"
+                    rules={[{
+                        pattern: /^[A-Z]\d{9}[A-Z]$/,
+                        message: "Invalid KRA PIN format. Expected: A123456789Z",
+                    }]}
                 >
                     <Input
-                        prefix={<IdcardOutlined />}
+                        prefix={<IdcardOutlined style={{ color: C.subText }} />}
                         placeholder="e.g. A123456789Z (optional)"
-                        style={{ textTransform: "uppercase" }}
-                        onChange={(e) => {
-                            form.setFieldsValue({ kra_pin: e.target.value.toUpperCase() });
-                        }}
+                        style={{ borderRadius: 8, textTransform: "uppercase" }}
+                        onChange={(e) => form.setFieldsValue({ kra_pin: e.target.value.toUpperCase() })}
                     />
                 </Form.Item>
 
-                <Form.Item style={{ marginBottom: 0, marginTop: 32 }}>
-                    <Row gutter={16}>
-                        <Col span={12}>
-                            <Button
-                                block
-                                size="large"
-                                onClick={handleCancel}
-                                disabled={loading}
-                            >
-                                Cancel
-                            </Button>
-                        </Col>
-                        <Col span={12}>
-                            <Button
-                                type="primary"
-                                htmlType="submit"
-                                block
-                                size="large"
-                                icon={<SaveOutlined />}
-                                loading={loading}
-                            >
-                                {mode === 'edit' ? 'Update Customer' : 'Add Customer'}
-                            </Button>
-                        </Col>
-                    </Row>
-                </Form.Item>
+                {/* Optional fields note */}
+                <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 20, marginTop: -8 }}>
+                    Email, location and KRA PIN are optional.
+                </Text>
+
+                {/* Footer buttons */}
+                <div style={{ display: "flex", gap: 10 }}>
+                    <Button block onClick={handleCancel} disabled={loading}
+                        style={{ borderRadius: 8, height: 38 }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        block type="primary" htmlType="submit" icon={<SaveOutlined />}
+                        loading={loading}
+                        style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 38, fontWeight: 500 }}
+                    >
+                        {isEdit ? "Update Customer" : "Add Customer"}
+                    </Button>
+                </div>
             </Form>
         </Modal>
     );

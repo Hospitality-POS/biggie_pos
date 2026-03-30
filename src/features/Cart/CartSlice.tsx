@@ -20,6 +20,7 @@ interface CartDetails {
   _id: string;
   table_id: { _id: string; name: string };
   created_by: { _id: string; username: string };
+  served_by?: { _id: string; username: string };
   items: string[];
   order_no: string;
   status: string;
@@ -61,6 +62,7 @@ const initialState: CartState = {
     _id: "",
     table_id: { _id: "", name: "" },
     created_by: { _id: "", username: "" },
+    served_by: undefined,
     items: [],
     order_no: "",
     status: "",
@@ -200,6 +202,8 @@ const cartSlice = createSlice({
         state.cartDetails = action.payload;
         state.cartDetails.clientPin = action.payload.client_pin;
         state.cartDetails.clientName = action.payload.client_name;
+        // Preserve served_by from API response
+        state.cartDetails.served_by = action.payload.served_by ?? undefined;
         state.cartItems = action.payload.items.map((item: any) => ({
           ...item,
           vat_type: item.product_id?.vat_type || "STANDARD",
@@ -233,7 +237,12 @@ const cartSlice = createSlice({
       .addCase(updateCart.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(updateCart.fulfilled, (state, action) => {
         state.loading = false;
-        state.cartDetails = action.payload;
+        state.cartDetails = {
+          ...state.cartDetails,
+          ...action.payload,
+          // Always re-map served_by so the display updates immediately
+          served_by: action.payload.served_by ?? state.cartDetails.served_by,
+        };
         calculateTotals(state);
       })
       .addCase(updateCart.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; })

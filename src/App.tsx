@@ -1,9 +1,15 @@
 import { useEffect } from "react";
 import Routers from "@routes/Routers";
+import { db } from "../src/db/index";
 
 const App = () => {
   useEffect(() => {
-    // Service Worker Registration
+    const pruneExpiredCache = async () => {
+      const now = Date.now();
+      await db.cache.where("expiresAt").below(now).delete();
+    };
+    pruneExpiredCache();
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then((registration) => {
@@ -13,13 +19,11 @@ const App = () => {
         });
       });
 
-      // Reload when a new service worker takes control
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload(); // Reload when a new SW takes control
+        window.location.reload();
       });
     }
 
-    // Set primary color based on tenant settings
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
     if (tenant && tenant.color_scheme.primary) {

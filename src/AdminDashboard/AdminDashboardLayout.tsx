@@ -12,6 +12,7 @@ import {
   Modal,
   Tag,
   Avatar,
+  Drawer,
 } from "antd";
 import { PageContainer, ProLayout } from "@ant-design/pro-components";
 import {
@@ -24,6 +25,8 @@ import {
   DownOutlined,
   GlobalOutlined,
   CreditCardOutlined,
+  MenuOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector } from "src/store";
@@ -42,29 +45,115 @@ dayjs.extend(relativeTime);
 
 const { Text, Title } = Typography;
 
+// ── Mobile detection hook ─────────────────────────────────────────────────────
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
+// ── Mobile nav item ───────────────────────────────────────────────────────────
+interface MobileNavItemProps {
+  icon?: React.ReactNode;
+  label: string;
+  path: string;
+  isActive: boolean;
+  onClick: () => void;
+  primaryColor: string;
+  children?: MobileNavItemProps[];
+}
+
+const MobileNavItem: React.FC<MobileNavItemProps> = ({
+  icon, label, path, isActive, onClick, primaryColor, children,
+}) => {
+  const [expanded, setExpanded] = React.useState(false);
+  const hasChildren = children && children.length > 0;
+
+  return (
+    <div>
+      <div
+        onClick={hasChildren ? () => setExpanded(!expanded) : onClick}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "12px 20px",
+          borderRadius: 10,
+          margin: "2px 8px",
+          background: isActive ? `${primaryColor}15` : "transparent",
+          borderLeft: isActive ? `3px solid ${primaryColor}` : "3px solid transparent",
+          cursor: "pointer",
+          transition: "all 0.2s ease",
+        }}
+      >
+        <span
+          style={{
+            fontSize: 16,
+            color: isActive ? primaryColor : "#64748b",
+            width: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {icon}
+        </span>
+        <span
+          style={{
+            flex: 1,
+            fontSize: 14,
+            fontWeight: isActive ? 600 : 400,
+            color: isActive ? primaryColor : "#1e293b",
+          }}
+        >
+          {label}
+        </span>
+        {hasChildren && (
+          <span
+            style={{
+              fontSize: 10,
+              color: "#94a3b8",
+              transform: expanded ? "rotate(180deg)" : "none",
+              transition: "transform 0.2s",
+            }}
+          >
+            ▼
+          </span>
+        )}
+      </div>
+      {hasChildren && expanded && (
+        <div style={{ paddingLeft: 16 }}>
+          {children!.map((child) => (
+            <MobileNavItem key={child.path} {...child} primaryColor={primaryColor} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Main component ─────────────────────────────────────────────────────────────
 const AdminDashboard: React.FC = () => {
   const storedTenant = localStorage.getItem("tenant");
   const storedUser = localStorage.getItem("user");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const user = storedUser ? JSON.parse(storedUser) : null;
 
   const allNavRoutes = useProLayoutNav();
   const hiddenRoutes = ["help-center"];
 
-  // Filter hidden routes
   const navRoutes = useMemo(() => {
     const filteredRoutes =
       allNavRoutes.route?.routes?.filter(
-        (route) =>
+        (route: any) =>
           !hiddenRoutes.includes(route.key || route.path?.split("/").pop())
       ) || [];
-
     return {
       ...allNavRoutes,
-      route: {
-        ...allNavRoutes.route,
-        routes: filteredRoutes,
-      },
+      route: { ...allNavRoutes.route, routes: filteredRoutes },
     };
   }, [allNavRoutes]);
 
@@ -72,13 +161,14 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const primaryColor = usePrimaryColor();
+  const isMobile = useIsMobile();
 
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const primaryColor = usePrimaryColor();
-
-  // Auto-redirect to first available route if on /admin root
+  // Auto-redirect to first available route
   useEffect(() => {
     if (location.pathname === "/admin" || location.pathname === "/admin/") {
       const firstRoute = navRoutes.route?.routes?.[0]?.path;
@@ -88,9 +178,10 @@ const AdminDashboard: React.FC = () => {
     }
   }, [location.pathname, navRoutes, navigate]);
 
-  const handleLogin = () => {
-    navigate("/login");
-  };
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -108,160 +199,101 @@ const AdminDashboard: React.FC = () => {
     cacheTime: 0,
     staleTime: 0,
     retry: 2,
-    onError: (error) => {
-      console.error("Failed to fetch notifications:", error);
-    },
   });
 
   const markAsReadMutation = useMutation({
     mutationFn: markNotificationAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["userNotifications"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["userNotifications"] }),
   });
 
   const markAllAsReadMutation = useMutation({
     mutationFn: markAllNotificationsAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["userNotifications"] });
-    },
-    onError: (error) => {
-      console.error("Failed to mark all notifications as read:", error);
-    },
-    cacheTime: 0,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["userNotifications"] }),
     networkMode: "always",
   });
 
   const unreadNotificationsCount = notificationData?.unreadCount || 0;
   const recentNotifications = (notificationData?.data || [])
-    .filter((notification: any) => !notification.read)
+    .filter((n: any) => !n.read)
     .slice(0, 5);
 
   const handleViewDetails = (notification: any) => {
     setSelectedNotification(notification);
     setDetailsModalVisible(true);
-    if (!notification.read) {
-      markAsReadMutation.mutate(notification._id);
-    }
-  };
-
-  const handleMarkAllAsRead = () => {
-    markAllAsReadMutation.mutate();
-  };
-
-  const goToNotifications = () => {
-    navigate("/admin/notifications");
-  };
-
-  const handleCloseDetails = () => {
-    setDetailsModalVisible(false);
+    if (!notification.read) markAsReadMutation.mutate(notification._id);
   };
 
   const renderPriorityIndicator = (priority: string) => {
-    const colorMap: any = {
-      low: "green",
-      medium: "blue",
-      high: "orange",
-      urgent: "red",
-    };
+    const colorMap: any = { low: "green", medium: "blue", high: "orange", urgent: "red" };
     return <Badge color={colorMap[priority] || "default"} />;
   };
 
   const renderPriorityTag = (priority: string) => {
-    const colorMap: any = {
-      low: "green",
-      medium: "blue",
-      high: "orange",
-      urgent: "red",
-    };
-    return (
-      <Tag color={colorMap[priority] || "default"}>
-        {priority.toUpperCase()}
-      </Tag>
-    );
+    const colorMap: any = { low: "green", medium: "blue", high: "orange", urgent: "red" };
+    return <Tag color={colorMap[priority] || "default"}>{priority.toUpperCase()}</Tag>;
   };
 
   const renderTypeTag = (type: string) => {
     const typeMap: any = {
-      new_appointment_booking: {
-        color: "purple",
-        label: "New Appointment Booking",
-      },
+      new_appointment_booking: { color: "purple", label: "New Appointment Booking" },
       inventory_out_of_stock: { color: "red", label: "Out of Stock" },
       new_appointment: { color: "green", label: "New Appointment" },
       low_inventory: { color: "orange", label: "Low Inventory" },
       system: { color: "blue", label: "System" },
     };
-    const config = typeMap[type] || {
-      color: "default",
-      label: type.replace(/_/g, " "),
-    };
+    const config = typeMap[type] || { color: "default", label: type.replace(/_/g, " ") };
     return <Tag color={config.color}>{config.label}</Tag>;
   };
 
+  // ── Notifications panel ──────────────────────────────────────────────────────
   const notificationsContent = (
-    <div style={{ width: 350, maxHeight: 500, overflow: "auto" }}>
+    <div style={{ width: 340, maxHeight: 480, overflow: "auto" }}>
       <div
         style={{
-          padding: "12px 12px 8px",
+          padding: "12px 16px 10px",
           display: "flex",
           justifyContent: "space-between",
+          alignItems: "center",
           borderBottom: "1px solid #f0f0f0",
         }}
       >
-        <Text strong>Notifications</Text>
+        <Text strong style={{ fontSize: 14 }}>Notifications</Text>
         {unreadNotificationsCount > 0 && (
-          <Button
-            type="link"
-            size="small"
-            onClick={handleMarkAllAsRead}
-            style={{ padding: 0 }}
-          >
-            Mark all as read
+          <Button type="link" size="small" onClick={() => markAllAsReadMutation.mutate()} style={{ padding: 0, fontSize: 12 }}>
+            Mark all read
           </Button>
         )}
       </div>
 
       {isLoading ? (
-        <div style={{ padding: 20, textAlign: "center" }}>
-          Loading notifications...
-        </div>
+        <div style={{ padding: 20, textAlign: "center", color: "#64748b", fontSize: 13 }}>Loading…</div>
       ) : recentNotifications.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="No unread notifications"
-          style={{ padding: "20px 0" }}
-        />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No unread notifications" style={{ padding: "20px 0" }} />
       ) : (
         <List
           dataSource={recentNotifications}
           renderItem={(item: any) => (
             <List.Item
               style={{
-                padding: "12px 16px",
-                backgroundColor: "rgba(24, 144, 255, 0.05)",
+                padding: "10px 16px",
+                background: "rgba(24, 144, 255, 0.04)",
                 cursor: "pointer",
+                borderBottom: "1px solid #f8fafc",
               }}
               onClick={() => handleViewDetails(item)}
             >
               <List.Item.Meta
                 avatar={renderPriorityIndicator(item.priority)}
                 title={
-                  <div
-                    style={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <Text strong>{item.title}</Text>
-                    <Text type="secondary" style={{ fontSize: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <Text strong style={{ fontSize: 13, lineHeight: 1.3 }}>{item.title}</Text>
+                    <Text type="secondary" style={{ fontSize: 11, marginLeft: 8, whiteSpace: "nowrap" }}>
                       {dayjs(item.createdAt).fromNow()}
                     </Text>
                   </div>
                 }
                 description={
-                  <Text
-                    type="secondary"
-                    style={{ fontSize: "13px" }}
-                    ellipsis={{ tooltip: item.message }}
-                  >
+                  <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: item.message }}>
                     {item.message}
                   </Text>
                 }
@@ -271,71 +303,492 @@ const AdminDashboard: React.FC = () => {
         />
       )}
 
-      <div
-        style={{
-          textAlign: "center",
-          padding: "8px 16px",
-          borderTop: "1px solid #f0f0f0",
-        }}
-      >
-        <Button type="link" onClick={goToNotifications}>
+      <div style={{ textAlign: "center", padding: "8px 16px", borderTop: "1px solid #f0f0f0" }}>
+        <Button type="link" size="small" onClick={() => navigate("/admin/notifications")} style={{ fontSize: 12 }}>
           View all notifications
         </Button>
       </div>
     </div>
   );
 
+  // ── Breadcrumbs ──────────────────────────────────────────────────────────────
   const breadcrumbItems = location.pathname
     .split("/")
-    .filter((path) => path)
+    .filter((p) => p)
     .map((path, index, arr) => {
       const isLast = index === arr.length - 1;
       const url = `/${arr.slice(0, index + 1).join("/")}`;
-
-      const isDynamicSegment =
-        /^[a-f0-9]{24}$/i.test(path) || /^[0-9]+$/.test(path);
+      const isDynamicSegment = /^[a-f0-9]{24}$/i.test(path) || /^[0-9]+$/.test(path);
       const label = isDynamicSegment
         ? "Details"
-        : path
-          .replace(/-/g, " ")
-          .replace(/(^\w|\s\w)/g, (match) => match.toUpperCase());
-
+        : path.replace(/-/g, " ").replace(/(^\w|\s\w)/g, (m) => m.toUpperCase());
       return {
         title: isLast ? (
           <span key={path}>{label}</span>
         ) : (
-          <NavLink to={url} key={path}>
-            {label}
-          </NavLink>
+          <NavLink to={url} key={path}>{label}</NavLink>
         ),
       };
     });
 
+  // ── Mobile menu drawer ────────────────────────────────────────────────────────
+  const buildMobileNavItems = (routes: any[]): MobileNavItemProps[] =>
+    routes.map((route) => ({
+      icon: route.icon,
+      label: route.name || route.label || "",
+      path: route.path || "/admin",
+      isActive: location.pathname === route.path || location.pathname.startsWith(route.path + "/"),
+      onClick: () => navigate(route.path || "/admin"),
+      primaryColor,
+      children: route.routes ? buildMobileNavItems(route.routes) : undefined,
+    }));
+
+  const mobileNavItems = buildMobileNavItems(navRoutes.route?.routes || []);
+
+  const MobileDrawer = (
+    <Drawer
+      open={mobileMenuOpen}
+      onClose={() => setMobileMenuOpen(false)}
+      placement="left"
+      width={300}
+      styles={{
+        header: { display: "none" },
+        body: { padding: 0, display: "flex", flexDirection: "column" },
+        wrapper: { boxShadow: "4px 0 32px rgba(0,0,0,0.15)" },
+      }}
+    >
+      {/* Drawer header */}
+      <div
+        style={{
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}cc 100%)`,
+          padding: "24px 20px 20px",
+          position: "relative",
+        }}
+      >
+        <button
+          onClick={() => setMobileMenuOpen(false)}
+          style={{
+            position: "absolute",
+            right: 16,
+            top: 16,
+            background: "rgba(255,255,255,0.2)",
+            border: "none",
+            borderRadius: "50%",
+            width: 32,
+            height: 32,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            color: "white",
+            fontSize: 14,
+          }}
+        >
+          <CloseOutlined />
+        </button>
+
+        {/* Logo */}
+        <div style={{ marginBottom: 20 }}>
+          {tenant?.tenant_logo?.url ? (
+            <Image
+              src={tenant.tenant_logo.url}
+              height={40}
+              preview={false}
+              alt="logo"
+              style={{ objectFit: "contain", maxWidth: 120, filter: "brightness(0) invert(1)" }}
+            />
+          ) : (
+            <Image src="/relia.png" height={36} width={90} preview={false} alt="logo" style={{ filter: "brightness(0) invert(1)" }} />
+          )}
+        </div>
+
+        {/* User profile strip */}
+        {authUser && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Badge dot status="success" offset={[-4, 28]}>
+              <Avatar
+                src={authUser?.avatar || authUser?.thumbnail}
+                icon={<UserOutlined />}
+                size={44}
+                style={{ border: "2px solid rgba(255,255,255,0.4)" }}
+              />
+            </Badge>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  color: "white",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {authUser?.name || "User"}
+              </div>
+              <div
+                style={{
+                  color: "rgba(255,255,255,0.75)",
+                  fontSize: 11,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {authUser?.email}
+              </div>
+              <div
+                style={{
+                  display: "inline-block",
+                  background: "rgba(255,255,255,0.2)",
+                  borderRadius: 4,
+                  padding: "1px 8px",
+                  fontSize: 10,
+                  color: "rgba(255,255,255,0.9)",
+                  marginTop: 2,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                {authUser?.role || "Staff"}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Nav items */}
+      <div style={{ flex: 1, overflowY: "auto", paddingTop: 8, paddingBottom: 8 }}>
+        {mobileNavItems.map((item) => (
+          <MobileNavItem key={item.path} {...item} />
+        ))}
+      </div>
+
+      {/* Bottom actions */}
+      <div
+        style={{
+          borderTop: "1px solid #f1f5f9",
+          padding: "12px 8px",
+        }}
+      >
+        {[
+          { icon: <BellOutlined />, label: "Notifications", path: "/admin/notifications", color: "#10b981" },
+          { icon: <CreditCardOutlined />, label: "Billing", path: "/admin/billing", color: "#f59e0b" },
+          { icon: <SettingOutlined />, label: "Settings", path: "/admin/settings", color: "#06b6d4" },
+          { icon: <GlobalOutlined />, label: "Discover", path: "/admin/discover", color: "#3b82f6" },
+        ].map((item) => (
+          <div
+            key={item.path}
+            onClick={() => { navigate(item.path); setMobileMenuOpen(false); }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "10px 20px",
+              borderRadius: 8,
+              margin: "2px 0",
+              cursor: "pointer",
+            }}
+          >
+            <span style={{ color: item.color, fontSize: 15 }}>{item.icon}</span>
+            <span style={{ fontSize: 14, color: "#374151" }}>{item.label}</span>
+            {item.label === "Notifications" && unreadNotificationsCount > 0 && (
+              <Tag color="green" style={{ marginLeft: "auto", fontSize: 10 }}>{unreadNotificationsCount}</Tag>
+            )}
+          </div>
+        ))}
+        <div
+          onClick={handleLogout}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "10px 20px",
+            borderRadius: 8,
+            margin: "2px 0",
+            cursor: "pointer",
+            color: "#ef4444",
+          }}
+        >
+          <PoweroffOutlined style={{ fontSize: 15 }} />
+          <span style={{ fontSize: 14, fontWeight: 500 }}>Logout</span>
+        </div>
+      </div>
+    </Drawer>
+  );
+
+  // ── Header action bar (shared mobile/desktop avatar area) ────────────────────
+  const headerActions = (
+    <Space size={isMobile ? 6 : "middle"} align="center">
+      {/* Bell */}
+      <Popover
+        content={notificationsContent}
+        placement="bottomRight"
+        trigger={["hover", "click"]}
+        overlayInnerStyle={{
+          borderRadius: 12,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          border: "1px solid rgba(0,0,0,0.06)",
+          padding: 0,
+        }}
+      >
+        <Badge
+          count={unreadNotificationsCount}
+          showZero={false}
+          offset={[-6, 6]}
+          overflowCount={99}
+          size="small"
+          style={{
+            backgroundColor: unreadNotificationsCount > 1 ? "#ff4d4f" : "#52c41a",
+            fontSize: "10px",
+          }}
+        >
+          <Button
+            icon={<BellOutlined />}
+            shape="circle"
+            size="middle"
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.25)",
+              color: "white",
+              width: 36,
+              height: 36,
+              fontSize: 15,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          />
+        </Badge>
+      </Popover>
+
+      {/* User dropdown — desktop only; mobile uses drawer */}
+      {!isMobile && authUser && (
+        <Dropdown
+          arrow
+          menu={{
+            items: [
+              {
+                key: "profile",
+                icon: (
+                  <div style={{ display: "flex", alignItems: "center", width: "100%", padding: "2px 0" }}>
+                    <Avatar
+                      src={authUser?.thumbnail}
+                      alt={authUser?.email}
+                      style={{ border: `2px solid ${primaryColor}`, width: 48, height: 48 }}
+                      size="large"
+                    />
+                    <Space direction="vertical" style={{ marginLeft: 12, gap: 2, flex: 1 }} size="small">
+                      <Typography.Text strong style={{ fontSize: 14, color: "#262626" }}>
+                        {authUser?.name || "User Name"}
+                      </Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: authUser?.email }}>
+                        {authUser?.email}
+                      </Typography.Text>
+                      <Typography.Link
+                        onClick={(e) => { e.stopPropagation(); navigate(`/admin/profile/${authUser?.id}`); }}
+                        style={{ fontSize: 12, fontWeight: 500, color: primaryColor }}
+                      >
+                        View Profile
+                      </Typography.Link>
+                    </Space>
+                  </div>
+                ),
+                onClick: () => navigate(`/admin/profile/${authUser?.id}`),
+                style: {
+                  padding: "8px 12px",
+                  height: "auto",
+                  background: "linear-gradient(135deg, rgba(24,144,255,0.05), rgba(24,144,255,0.02))",
+                  borderRadius: 8,
+                  margin: 4,
+                },
+              },
+              { type: "divider" },
+              {
+                key: "notifications",
+                icon: <BellOutlined style={{ fontSize: 15, color: "#52c41a" }} />,
+                label: (
+                  <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                    <span>Notifications</span>
+                    {unreadNotificationsCount > 0 && <Tag color="green">{unreadNotificationsCount}</Tag>}
+                  </Space>
+                ),
+                onClick: () => navigate("/admin/notifications"),
+              },
+              {
+                key: "billing",
+                icon: <CreditCardOutlined style={{ fontSize: 15, color: "#faad14" }} />,
+                label: "Billing",
+                onClick: () => navigate("/admin/billing"),
+              },
+              {
+                key: "help-center",
+                icon: <CompassOutlined style={{ fontSize: 15, color: "#722ed1" }} />,
+                label: "Help Center",
+                onClick: () => navigate("/admin/help-center"),
+              },
+              {
+                key: "discover",
+                icon: <GlobalOutlined style={{ fontSize: 15, color: "#1890ff" }} />,
+                label: "Discover",
+                onClick: () => navigate("/admin/discover"),
+              },
+              {
+                key: "settings",
+                icon: <SettingOutlined style={{ fontSize: 15, color: "#13c2c2" }} />,
+                label: "Settings",
+                onClick: () => navigate("/admin/settings"),
+              },
+              { type: "divider" },
+              {
+                key: "logout",
+                icon: <PoweroffOutlined style={{ fontSize: 15 }} />,
+                label: "Logout",
+                onClick: handleLogout,
+                danger: true,
+              },
+            ],
+          }}
+          trigger={["hover", "click"]}
+          placement="bottomRight"
+          overlayStyle={{ minWidth: 280, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
+        >
+          <Button
+            type="text"
+            style={{
+              padding: "4px 8px",
+              background: "rgba(255,255,255,0.12)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 50,
+              height: "auto",
+              minHeight: 36,
+            }}
+          >
+            <Space align="center" size={8} style={{ cursor: "pointer" }}>
+              <Badge dot status="success" offset={[-4, 26]}>
+                <Avatar
+                  src={authUser?.avatar || authUser?.thumbnail}
+                  icon={<UserOutlined />}
+                  size={30}
+                  style={{ border: "2px solid rgba(255,255,255,0.3)" }}
+                />
+              </Badge>
+              <div style={{ textAlign: "left", lineHeight: 1.2 }}>
+                <Text strong style={{ color: "white", fontSize: 13, display: "block", maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {authUser?.name || "User"}
+                </Text>
+                <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, display: "block", maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {authUser?.role || "Role"}
+                </Text>
+              </div>
+              <DownOutlined style={{ color: "rgba(255,255,255,0.8)", fontSize: 10 }} />
+            </Space>
+          </Button>
+        </Dropdown>
+      )}
+
+      {/* Mobile avatar (no dropdown — menu is in drawer) */}
+      {isMobile && authUser && (
+        <Badge dot status="success" offset={[-3, 26]}>
+          <Avatar
+            src={authUser?.avatar || authUser?.thumbnail}
+            icon={<UserOutlined />}
+            size={32}
+            style={{ border: "2px solid rgba(255,255,255,0.4)", cursor: "pointer" }}
+            onClick={() => setMobileMenuOpen(true)}
+          />
+        </Badge>
+      )}
+    </Space>
+  );
+
   return (
     <>
+      {/* ── Global mobile styles ── */}
+      <style>{`
+        /* White hamburger on mobile */
+        .ant-pro-global-header-collapsed-button,
+        .ant-pro-sider-collapsed-button,
+        .ant-layout-sider-trigger {
+          color: white !important;
+        }
+
+        /* ProLayout hamburger override — target the menu toggle in the header */
+        .ant-pro-global-header .ant-pro-global-header-logo + span,
+        .ant-pro-global-header [class*="collapsedButton"],
+        .ant-pro-layout-container [class*="menuRender"] button {
+          color: white !important;
+        }
+
+        /* Force all SVG icons in header area white */
+        .ant-pro-global-header svg,
+        .ant-pro-global-header .anticon {
+          color: white !important;
+          fill: white !important;
+        }
+
+        /* Keep bell & user icons white */
+        .notification-button svg,
+        .notification-button .anticon {
+          color: white !important;
+        }
+
+        /* Mobile page container padding */
+        @media (max-width: 767px) {
+          .ant-pro-page-container {
+            padding: 12px !important;
+            margin: 0 !important;
+          }
+          .ant-pro-page-container-warp-page-header {
+            padding: 8px 12px !important;
+          }
+          .ant-breadcrumb {
+            font-size: 12px !important;
+          }
+          /* Compact ProLayout header on mobile */
+          .ant-pro-global-header {
+            padding: 0 12px !important;
+            height: 52px !important;
+            line-height: 52px !important;
+          }
+          /* Tighter content area */
+          .ant-layout-content {
+            overflow-x: hidden;
+          }
+        }
+
+        /* Smooth drawer transition */
+        .ant-drawer-content-wrapper {
+          transition: transform 0.28s cubic-bezier(0.32, 0, 0.67, 0) !important;
+        }
+
+        /* Notification popover */
+        .notification-popover-overlay .ant-popover-inner {
+          padding: 0 !important;
+        }
+      `}</style>
+
+      {MobileDrawer}
+
       <ProLayout
         style={{ maxWidth: "1920px" }}
         logo={
           tenant?.tenant_logo?.url ? (
             <Image
               src={tenant.tenant_logo.url}
-              height={60}
+              height={isMobile ? 44 : 60}
               preview={false}
               alt="tenant-logo"
-              style={{
-                padding: 5,
-                objectFit: "contain",
-                maxWidth: "120px",
-              }}
+              style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 90 : 120 }}
             />
           ) : (
             <Image
               src="/relia.png"
-              height={55}
-              width={120}
+              height={isMobile ? 38 : 55}
+              width={isMobile ? 90 : 120}
               preview={false}
               alt="relia-logo"
-              style={{ padding: 12 }}
+              style={{ padding: isMobile ? 6 : 12 }}
             />
           )
         }
@@ -345,326 +798,87 @@ const AdminDashboard: React.FC = () => {
         colorPrimary={primaryColor}
         contentStyle={{ padding: 0, margin: "0 auto" }}
         layout="mix"
-        splitMenus={true}
+        splitMenus={!isMobile}
         fixedHeader={false}
         {...navRoutes}
-        avatarProps={{
-          src:
-            authUser?.thumbnail ||
-            "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg",
-          shape: "circle",
-          alt: "image",
-          size: "large",
-          style: { border: `2px solid white`, width: 32, height: 32 },
-          render: (_props, dom) => (
-            <Space size="middle">
-              <Popover
-                content={notificationsContent}
-                placement="bottomRight"
-                trigger={["hover", "click"]}
-                overlayStyle={{ width: 350, padding: 0 }}
-                overlayClassName="notification-popover-overlay"
-                arrow={{ pointAtCenter: true }}
-                overlayInnerStyle={{
-                  borderRadius: 12,
-                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
-                  border: "1px solid rgba(0, 0, 0, 0.06)",
-                  background: "rgba(255, 255, 255, 0.98)",
-                  backdropFilter: "blur(20px)",
-                  padding: 0,
+        // Custom hamburger for mobile
+        menuRender={isMobile ? false : undefined}
+        headerRender={
+          isMobile
+            ? () => (
+              <div
+                style={{
+                  height: 52,
+                  background: primaryColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0 16px",
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 100,
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
                 }}
               >
-                <Badge
-                  count={unreadNotificationsCount}
-                  showZero={false}
-                  offset={[-8, 8]}
-                  overflowCount={99}
-                  size="small"
+                {/* Hamburger */}
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
                   style={{
-                    backgroundColor:
-                      unreadNotificationsCount > 1 ? "#ff4d4f" : "#52c41a",
-                    boxShadow: "0 2px 8px rgba(255, 77, 79, 0.3)",
-                    fontSize: "10px",
-                    lineHeight: "14px",
+                    background: "rgba(255,255,255,0.15)",
+                    border: "1px solid rgba(255,255,255,0.25)",
+                    borderRadius: 8,
+                    width: 36,
+                    height: 36,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    color: "white",
+                    fontSize: 16,
                   }}
                 >
-                  <Button
-                    icon={<BellOutlined />}
-                    shape="circle"
-                    size="middle"
-                    className="notification-button"
-                    style={{
-                      background: "rgba(255, 255, 255, 0.1)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      color: "rgba(255, 255, 255, 0.9)",
-                      width: "44px",
-                      height: "44px",
-                      fontSize: "16px",
-                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  />
-                </Badge>
-              </Popover>
+                  <MenuOutlined style={{ color: "white" }} />
+                </button>
 
-              {authUser ? (
-                <Dropdown
-                  autoFocus
-                  arrow
-                  menu={{
-                    disabled: !authUser,
-                    items: [
-                      {
-                        key: "profile",
-                        icon: (
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              width: "100%",
-                              padding: "2px 0",
-                            }}
-                          >
-                            <Avatar
-                              src={authUser?.thumbnail}
-                              alt={authUser?.email}
-                              style={{
-                                border: `2px solid ${primaryColor}`,
-                                width: 48,
-                                height: 48,
-                                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-                              }}
-                              size="large"
-                            />
-                            <Space
-                              direction="vertical"
-                              style={{ marginLeft: 12, gap: 2, flex: 1 }}
-                              size="small"
-                            >
-                              <Typography.Text
-                                strong
-                                style={{
-                                  fontSize: 14,
-                                  color: "#262626",
-                                  lineHeight: 1.2,
-                                }}
-                              >
-                                {authUser?.name || "User Name"}
-                              </Typography.Text>
-                              <Typography.Text
-                                type="secondary"
-                                style={{
-                                  fontSize: 12,
-                                  lineHeight: 1.2,
-                                  color: "#8c8c8c",
-                                }}
-                                ellipsis={{ tooltip: authUser?.email }}
-                              >
-                                {authUser?.email}
-                              </Typography.Text>
-                              <Typography.Link
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/admin/profile/${authUser?.id}`);
-                                }}
-                                style={{
-                                  fontSize: 12,
-                                  fontWeight: 500,
-                                  color: primaryColor,
-                                }}
-                              >
-                                View Profile
-                              </Typography.Link>
-                            </Space>
-                          </div>
-                        ),
-                        onClick: () => navigate(`/admin/profile/${authUser?.id}`),
-                        style: {
-                          padding: "8px 12px",
-                          height: "auto",
-                          background:
-                            "linear-gradient(135deg, rgba(24, 144, 255, 0.05), rgba(24, 144, 255, 0.02))",
-                          borderRadius: "8px",
-                          margin: "4px",
-                        },
-                      },
-                      { type: "divider" },
-                      {
-                        key: "notifications",
-                        icon: (
-                          <BellOutlined
-                            style={{ fontSize: 16, color: "#52c41a" }}
-                          />
-                        ),
-                        label: (
-                          <Space
-                            style={{
-                              width: "100%",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <span>Notifications</span>
-                            {unreadNotificationsCount > 0 && (
-                              <Tag color="green">
-                                {unreadNotificationsCount}
-                              </Tag>
-                            )}
-                          </Space>
-                        ),
-                        onClick: () => navigate("/admin/notifications"),
-                      },
-                      {
-                        key: "billing",
-                        icon: (
-                          <CreditCardOutlined
-                            style={{ fontSize: 16, color: "#faad14" }}
-                          />
-                        ),
-                        label: "Billing",
-                        onClick: () => navigate("/admin/billing"),
-                      },
-                      {
-                        key: "help-center",
-                        icon: (
-                          <CompassOutlined
-                            style={{ fontSize: 16, color: "#722ed1" }}
-                          />
-                        ),
-                        label: "Help Center",
-                        onClick: () => navigate("/admin/help-center"),
-                      },
-                      {
-                        key: "discover",
-                        icon: (
-                          <GlobalOutlined
-                            style={{ fontSize: 16, color: "#1890ff" }}
-                          />
-                        ),
-                        label: "Discover",
-                        onClick: () => navigate("/admin/discover"),
-                      },
-                      {
-                        key: "settings",
-                        icon: (
-                          <SettingOutlined
-                            style={{ fontSize: 16, color: "#13c2c2" }}
-                          />
-                        ),
-                        label: "Settings",
-                        onClick: () => navigate("/admin/settings"),
-                      },
-                      { type: "divider" },
-                      {
-                        key: "logout",
-                        icon: <PoweroffOutlined style={{ fontSize: 16 }} />,
-                        label: "Logout",
-                        onClick: handleLogout,
-                        danger: true,
-                      },
-                    ],
-                  }}
-                  trigger={["hover", "click"]}
-                  placement="bottomRight"
-                  overlayStyle={{
-                    minWidth: 280,
-                    borderRadius: 12,
-                    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                  }}
-                >
-                  <Button
-                    type="text"
-                    className="user-dropdown-trigger"
-                    style={{
-                      padding: "4px 8px",
-                      background: "rgba(255, 255, 255, 0.1)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      borderRadius: 50,
-                      height: "auto",
-                      minHeight: "36px",
-                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                    }}
-                  >
-                    <Space
-                      align="center"
-                      size={8}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <Badge dot status="success" offset={[-6, 24]}>
-                        <Avatar
-                          src={authUser?.avatar || authUser?.thumbnail}
-                          alt={authUser?.email}
-                          size={32}
-                          style={{
-                            border: "2px solid rgba(255, 255, 255, 0.3)",
-                            boxShadow: "0 1px 4px rgba(0, 0, 0, 0.15)",
-                          }}
-                          icon={<UserOutlined />}
-                        />
-                      </Badge>
-                      <div
-                        style={{
-                          textAlign: "left",
-                          lineHeight: 1.2,
-                          minWidth: 0,
-                          flex: 1,
-                        }}
-                      >
-                        <Text
-                          strong
-                          style={{
-                            color: "white",
-                            fontSize: 13,
-                            fontWeight: 600,
-                            textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
-                            display: "block",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            maxWidth: 100,
-                          }}
-                        >
-                          {authUser?.name || "User"}
-                        </Text>
+                {/* Logo center */}
+                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
+                  {tenant?.tenant_logo?.url ? (
+                    <Image
+                      src={tenant.tenant_logo.url}
+                      height={36}
+                      preview={false}
+                      alt="logo"
+                      style={{ objectFit: "contain", maxWidth: 80, filter: "brightness(0) invert(1)" }}
+                    />
+                  ) : (
+                    <Image
+                      src="/relia.png"
+                      height={30}
+                      width={75}
+                      preview={false}
+                      alt="logo"
+                      style={{ filter: "brightness(0) invert(1)" }}
+                    />
+                  )}
+                </div>
 
-                        <Text
-                          style={{
-                            color: "rgba(255, 255, 255, 0.8)",
-                            fontSize: 11,
-                            fontWeight: 400,
-                            textShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
-                            display: "block",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            maxWidth: 100,
-                          }}
-                        >
-                          {authUser?.role || "Role"}
-                        </Text>
-                      </div>
-                      <DownOutlined
-                        style={{
-                          color: "rgba(255, 255, 255, 0.9)",
-                          fontSize: 10,
-                        }}
-                      />
-                    </Space>
-                  </Button>
-                </Dropdown>
-              ) : (
-                <Button icon={<PoweroffOutlined />} onClick={handleLogin}>
-                  Login
-                </Button>
-              )}
-            </Space>
-          ),
-        }}
+                {/* Right actions */}
+                {headerActions}
+              </div>
+            )
+            : undefined
+        }
+        avatarProps={
+          !isMobile
+            ? {
+              src: authUser?.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg",
+              shape: "circle",
+              size: "large",
+              style: { border: "2px solid white", width: 32, height: 32 },
+              render: (_props: any, _dom: any) => headerActions,
+            }
+            : undefined
+        }
         token={{
           bgLayout: "#f6ffed",
           colorPrimary: primaryColor,
@@ -680,22 +894,14 @@ const AdminDashboard: React.FC = () => {
             colorBgMenuItemHover: "#f6ffed",
           },
         }}
-        menuHeaderRender={(logo, title) => (
-          <div
-            id="customize_menu_header"
-            style={{
-              height: "0px",
-              display: "flex",
-              alignItems: "center",
-              rowGap: 8,
-            }}
-          >
+        menuHeaderRender={(logo: any, _title: any) => (
+          <div id="customize_menu_header" style={{ height: "0px", display: "flex", alignItems: "center" }}>
             {logo}
           </div>
         )}
-        menuItemRender={(item, dom) => {
-          return <NavLink to={item.path || "/admin"}>{dom}</NavLink>;
-        }}
+        menuItemRender={(item: any, dom: any) => (
+          <NavLink to={item.path || "/admin"}>{dom}</NavLink>
+        )}
       >
         <PageContainer
           breadcrumb={{
@@ -703,13 +909,14 @@ const AdminDashboard: React.FC = () => {
               {
                 title: (
                   <NavLink to="/admin">
-                    <HomeFilled /> Home
+                    <HomeFilled /> {!isMobile && "Home"}
                   </NavLink>
                 ),
               },
               ...breadcrumbItems,
             ],
           }}
+          style={{ padding: isMobile ? "0 4px" : undefined }}
         >
           <Outlet />
         </PageContainer>
@@ -717,24 +924,19 @@ const AdminDashboard: React.FC = () => {
         <Modal
           title="Notification Details"
           open={detailsModalVisible}
-          onCancel={handleCloseDetails}
-          footer={[
-            <Button key="close" onClick={handleCloseDetails}>
-              Close
-            </Button>,
-          ]}
-          width={600}
+          onCancel={() => setDetailsModalVisible(false)}
+          footer={[<Button key="close" onClick={() => setDetailsModalVisible(false)}>Close</Button>]}
+          width={isMobile ? "94vw" : 600}
+          styles={{ body: { padding: isMobile ? 12 : 24 } }}
         >
           {selectedNotification && (
             <div>
-              <Title level={4}>{selectedNotification.title}</Title>
-              <Space style={{ marginBottom: 16 }}>
+              <Title level={isMobile ? 5 : 4}>{selectedNotification.title}</Title>
+              <Space style={{ marginBottom: 16, flexWrap: "wrap" }}>
                 {renderTypeTag(selectedNotification.type)}
                 {renderPriorityTag(selectedNotification.priority)}
-                <Text type="secondary">
-                  {dayjs(selectedNotification.createdAt).format(
-                    "MMMM D, YYYY h:mm A"
-                  )}
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {dayjs(selectedNotification.createdAt).format("MMM D, YYYY h:mm A")}
                 </Text>
               </Space>
               <Text>{selectedNotification.message}</Text>

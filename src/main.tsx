@@ -43,9 +43,9 @@ const AppWithColor = () => {
       }}
     >
       <App />
-      <ErrorBoundary>
+      {/* <ErrorBoundary>
         <DraggableTawkWidget />
-      </ErrorBoundary>
+      </ErrorBoundary> */}
     </ConfigProvider>
   );
 };

@@ -1,218 +1,727 @@
-import { CheckOutlined, DeleteOutlined, FilterOutlined, MailOutlined } from '@ant-design/icons';
-import { ActionType, ProList } from '@ant-design/pro-components';
-import { fetchMyNotifications } from '@services/notifications';
-import { Badge, Button, Flex, message, Popconfirm, Space, Tag, Tooltip, Typography } from 'antd';
-import moment from 'moment';
-import React, { useRef, useState } from 'react';
-import NotificationDetailView from './NotificationDetailView';
-import { useNotificationMutations } from '../Hooks/NotificationsCustomHook';
+import React, { useRef, useState } from "react";
+import {
+    Button,
+    Card,
+    Drawer,
+    Dropdown,
+    Empty,
+    message,
+    Modal,
+    Popconfirm,
+    Skeleton,
+    Space,
+    Typography,
+} from "antd";
+import { ActionType, ProList } from "@ant-design/pro-components";
+import {
+    BellOutlined,
+    CheckCircleOutlined,
+    CheckOutlined,
+    DeleteOutlined,
+    ExclamationCircleOutlined,
+    FilterOutlined,
+    MailOutlined,
+    MoreOutlined,
+    ReloadOutlined,
+} from "@ant-design/icons";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+    fetchMyNotifications,
+    markAllNotificationsAsRead,
+} from "@services/notifications";
+import { useNotificationMutations } from "../Hooks/NotificationsCustomHook";
+import NotificationDetailView from "./NotificationDetailView";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
 
-import { usePrimaryColor } from "@context/PrimaryColorContext";
+dayjs.extend(relativeTime);
 
+const { Text } = Typography;
+const { confirm } = Modal;
+
+// ── Palette ───────────────────────────────────────────────────────────────────
+const C = {
+    primary: "#6c1c2c",
+    primaryLight: "#f9f0f2",
+    green: "#10b981",
+    orange: "#f59e0b",
+    red: "#ef4444",
+    blue: "#3b82f6",
+    indigo: "#6366f1",
+    purple: "#8b5cf6",
+    subText: "#64748b",
+    darkText: "#0f172a",
+    border: "#e2e8f0",
+    bg: "#f8fafc",
+};
+
+// ── Mobile hook ───────────────────────────────────────────────────────────────
+const useIsMobile = () => {
+    const [v, setV] = React.useState(window.innerWidth < 768);
+    React.useEffect(() => {
+        const h = () => setV(window.innerWidth < 768);
+        window.addEventListener("resize", h);
+        return () => window.removeEventListener("resize", h);
+    }, []);
+    return v;
+};
+
+// ── Priority badge ────────────────────────────────────────────────────────────
+const PRIORITY_CFG: Record<string, { color: string; bg: string }> = {
+    low: { color: C.green, bg: "#f0fdf4" },
+    medium: { color: C.blue, bg: "#eff6ff" },
+    high: { color: C.orange, bg: "#fffbeb" },
+    urgent: { color: C.red, bg: "#fef2f2" },
+};
+
+const PriorityTag: React.FC<{ priority: string }> = ({ priority }) => {
+    const cfg = PRIORITY_CFG[priority?.toLowerCase()] || { color: C.subText, bg: C.bg };
+    return (
+        <span style={{
+            background: cfg.bg, color: cfg.color,
+            borderRadius: 6, fontSize: 10, fontWeight: 700,
+            padding: "2px 8px", textTransform: "uppercase", whiteSpace: "nowrap",
+        }}>
+            {priority}
+        </span>
+    );
+};
+
+// ── Type badge ────────────────────────────────────────────────────────────────
+const TYPE_CFG: Record<string, { color: string; bg: string; label: string }> = {
+    new_appointment_booking: { color: C.purple, bg: "#f5f3ff", label: "New Booking" },
+    inventory_out_of_stock: { color: C.red, bg: "#fef2f2", label: "Out of Stock" },
+    new_appointment: { color: C.green, bg: "#f0fdf4", label: "Appointment" },
+    low_inventory: { color: C.orange, bg: "#fffbeb", label: "Low Inventory" },
+    system: { color: C.blue, bg: "#eff6ff", label: "System" },
+};
+
+const TypeTag: React.FC<{ type: string }> = ({ type }) => {
+    const cfg = TYPE_CFG[type] || { color: C.subText, bg: C.bg, label: type?.replace(/_/g, " ") };
+    return (
+        <span style={{
+            background: cfg.bg, color: cfg.color,
+            borderRadius: 6, fontSize: 10, fontWeight: 600,
+            padding: "2px 8px", whiteSpace: "nowrap", textTransform: "capitalize",
+        }}>
+            {cfg.label}
+        </span>
+    );
+};
+
+// ── Unread dot ────────────────────────────────────────────────────────────────
+const UnreadDot: React.FC = () => (
+    <span style={{
+        display: "inline-block", width: 7, height: 7,
+        borderRadius: "50%", background: C.blue,
+        flexShrink: 0, marginTop: 2,
+    }} />
+);
+
+// ── Detail drawer (mobile) ────────────────────────────────────────────────────
+const DetailDrawer: React.FC<{
+    notification: any;
+    open: boolean;
+    onClose: () => void;
+    onMarkRead: (id: string) => void;
+    onDelete: (id: string) => void;
+}> = ({ notification, open, onClose, onMarkRead, onDelete }) => (
+    <Drawer
+        open={open}
+        onClose={onClose}
+        placement="bottom"
+        height="82vh"
+        destroyOnClose
+        title={
+            <Space size={8}>
+                <div style={{
+                    background: C.primaryLight, borderRadius: 7,
+                    padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1,
+                }}>
+                    <BellOutlined />
+                </div>
+                <Text strong style={{ fontSize: 13, color: C.darkText }}>Notification Details</Text>
+            </Space>
+        }
+        styles={{
+            body: { padding: "14px 14px 100px", overflowY: "auto" },
+            footer: { padding: "12px 14px", borderTop: `1px solid ${C.border}`, background: "#fff" },
+        }}
+        footer={
+            notification && (
+                <div style={{ display: "flex", gap: 10 }}>
+                    {!notification.read && (
+                        <Button
+                            block type="primary"
+                            icon={<CheckCircleOutlined />}
+                            onClick={() => { onMarkRead(notification._id); onClose(); }}
+                            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 44 }}
+                        >
+                            Mark as Read
+                        </Button>
+                    )}
+                    <Button
+                        block danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => { onDelete(notification._id); onClose(); }}
+                        style={{ borderRadius: 8, height: 44 }}
+                    >
+                        Delete
+                    </Button>
+                </div>
+            )
+        }
+    >
+        {notification && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* Header */}
+                <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderTop: `3px solid ${notification.read ? C.border : C.primary}`, borderRadius: 10, padding: "14px 16px" }}>
+                    <Text strong={!notification.read} style={{ fontSize: 14, color: C.darkText, display: "block", marginBottom: 8 }}>
+                        {notification.title}
+                    </Text>
+                    <Space wrap size={6}>
+                        <TypeTag type={notification.type} />
+                        <PriorityTag priority={notification.priority} />
+                        {!notification.read && <UnreadDot />}
+                    </Space>
+                </div>
+
+                {/* Message */}
+                <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px" }}>
+                    <Text style={{ fontSize: 10, fontWeight: 700, color: C.subText, textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 8 }}>
+                        Message
+                    </Text>
+                    <Text style={{ fontSize: 13, color: C.darkText, lineHeight: 1.6 }}>{notification.message}</Text>
+                </div>
+
+                {/* Time */}
+                <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 16px", display: "flex", justifyContent: "space-between" }}>
+                    <Text style={{ fontSize: 11, color: C.subText }}>Received</Text>
+                    <Text style={{ fontSize: 11, color: C.darkText, fontWeight: 500 }}>
+                        {dayjs(notification.createdAt).format("MMM D, YYYY h:mm A")}
+                    </Text>
+                </div>
+
+                {/* Additional info */}
+                {notification.additionalInfo && (
+                    <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px" }}>
+                        <Text style={{ fontSize: 10, fontWeight: 700, color: C.subText, textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 8 }}>
+                            Additional Info
+                        </Text>
+                        <pre style={{ margin: 0, padding: 12, background: "#fff", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 11, color: C.subText, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                            {JSON.stringify(notification.additionalInfo, null, 2)}
+                        </pre>
+                    </div>
+                )}
+            </div>
+        )}
+    </Drawer>
+);
+
+// ── Mobile notification card ──────────────────────────────────────────────────
+const NotificationCard: React.FC<{
+    record: any;
+    onMarkRead: (id: string) => void;
+    onDelete: (id: string) => void;
+    onViewDetails: (record: any) => void;
+}> = ({ record, onMarkRead, onDelete, onViewDetails }) => {
+    const menuItems = [
+        { key: "details", label: "View Details" },
+        ...(record.read ? [] : [{
+            key: "mark",
+            icon: <CheckCircleOutlined style={{ color: C.green }} />,
+            label: <span style={{ color: C.green }}>Mark as Read</span>,
+        }]),
+        {
+            key: "delete",
+            icon: <DeleteOutlined style={{ color: C.red }} />,
+            danger: true,
+            label: <span style={{ color: C.red }}>Delete</span>,
+        },
+    ];
+
+    return (
+        <div style={{
+            background: !record.read ? `${C.blue}05` : "#fff",
+            border: `1px solid ${!record.read ? C.blue + "30" : C.border}`,
+            borderLeft: `3px solid ${!record.read ? C.blue : C.border}`,
+            borderRadius: 10, padding: "12px 14px", marginBottom: 10,
+        }}>
+            {/* Header row */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flex: 1, minWidth: 0 }}>
+                    {!record.read && <UnreadDot />}
+                    <Text strong={!record.read} style={{ fontSize: 13, color: C.darkText, lineHeight: 1.3 }}>
+                        {record.title}
+                    </Text>
+                </div>
+                <Dropdown
+                    menu={{
+                        items: menuItems,
+                        onClick: ({ key }) => {
+                            if (key === "mark") onMarkRead(record._id);
+                            else if (key === "delete") onDelete(record._id);
+                            else if (key === "details") onViewDetails(record);
+                        },
+                    }}
+                    trigger={["click"]}
+                >
+                    <Button type="text" icon={<MoreOutlined />} style={{
+                        width: 28, height: 28, padding: 0, flexShrink: 0,
+                        border: `1px solid ${C.border}`, borderRadius: 6,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                    }} />
+                </Dropdown>
+            </div>
+
+            {/* Message */}
+            <Text
+                style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 10, lineHeight: 1.5 }}
+                ellipsis={{ tooltip: record.message }}
+            >
+                {record.message}
+            </Text>
+
+            {/* Footer */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+                <Space size={6} wrap>
+                    <TypeTag type={record.type} />
+                    <PriorityTag priority={record.priority} />
+                </Space>
+                <Text style={{ fontSize: 11, color: "#94a3b8" }}>{dayjs(record.createdAt).fromNow()}</Text>
+            </div>
+        </div>
+    );
+};
+
+// ── Mobile list wrapper ───────────────────────────────────────────────────────
+const MobileNotificationList: React.FC<{
+    notificationtype?: string;
+    onViewDetails: (record: any) => void;
+    onMarkRead: (id: string) => void;
+    onDelete: (id: string) => void;
+    filterPriority: string | null;
+}> = ({ notificationtype, onViewDetails, onMarkRead, onDelete, filterPriority }) => {
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const PAGE_SIZE = 10;
+
+    const load = async (p = 1) => {
+        setLoading(true);
+        try {
+            const data = await fetchMyNotifications({
+                current: p,
+                pageSize: PAGE_SIZE,
+                priority: filterPriority || undefined,
+                read: notificationtype === "unread" ? false : undefined,
+                type: notificationtype === "system" ? "system" : "",
+            });
+            const list = data?.data || [];
+            setNotifications(list);
+            setTotal(data?.pagination?.total || list.length);
+            setPage(p);
+        } catch {
+            message.error("Failed to load notifications");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    React.useEffect(() => { load(1); }, [notificationtype, filterPriority]);
+
+    if (loading) {
+        return (
+            <>
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <Card key={i} style={{ borderRadius: 10, marginBottom: 10, border: `1px solid ${C.border}` }} bodyStyle={{ padding: 14 }}>
+                        <Skeleton active paragraph={{ rows: 2 }} />
+                    </Card>
+                ))}
+            </>
+        );
+    }
+
+    if (notifications.length === 0) {
+        return <Empty description="No notifications" style={{ padding: "48px 0" }} />;
+    }
+
+    return (
+        <>
+            {notifications.map((record) => (
+                <NotificationCard
+                    key={record._id}
+                    record={record}
+                    onMarkRead={onMarkRead}
+                    onDelete={onDelete}
+                    onViewDetails={onViewDetails}
+                />
+            ))}
+
+            {/* Simple pagination strip */}
+            {total > PAGE_SIZE && (
+                <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 10 }}>
+                    <Button size="small" disabled={page <= 1} onClick={() => load(page - 1)} style={{ borderRadius: 7 }}>
+                        ← Prev
+                    </Button>
+                    <Text style={{ fontSize: 12, color: C.subText, lineHeight: "24px" }}>
+                        {page} / {Math.ceil(total / PAGE_SIZE)}
+                    </Text>
+                    <Button size="small" disabled={page >= Math.ceil(total / PAGE_SIZE)} onClick={() => load(page + 1)} style={{ borderRadius: 7 }}>
+                        Next →
+                    </Button>
+                </div>
+            )}
+        </>
+    );
+};
+
+// ── Toolbar (shared) ──────────────────────────────────────────────────────────
+const Toolbar: React.FC<{
+    notificationtype?: string;
+    filterPriority: string | null;
+    onClearFilter: () => void;
+    priorityMenu: any;
+    onMarkAll: () => void;
+    markAllLoading: boolean;
+    isMobile: boolean;
+    onReload?: () => void;
+}> = ({ notificationtype, filterPriority, onClearFilter, priorityMenu, onMarkAll, markAllLoading, isMobile, onReload }) => (
+    <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        flexWrap: "wrap", gap: 10, padding: "0 0 14px",
+    }}>
+        {/* Left */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+                background: C.primaryLight, borderRadius: 8,
+                padding: "4px 6px", color: C.primary, fontSize: 15, lineHeight: 1,
+            }}>
+                <BellOutlined />
+            </div>
+            <Text strong style={{ fontSize: 13, color: C.darkText }}>
+                {notificationtype
+                    ? `${notificationtype.charAt(0).toUpperCase() + notificationtype.slice(1)} Notifications`
+                    : "All Notifications"}
+            </Text>
+            {filterPriority && (
+                <Button size="small" icon={<ReloadOutlined />} onClick={onClearFilter}
+                    style={{ borderRadius: 6, fontSize: 11 }}>
+                    Clear filter
+                </Button>
+            )}
+        </div>
+
+        {/* Right */}
+        <Space size={8} wrap>
+            {isMobile && onReload && (
+                <Button size="small" icon={<ReloadOutlined />} onClick={onReload} style={{ borderRadius: 7 }} />
+            )}
+            <Dropdown menu={priorityMenu}>
+                <Button size="small" icon={<FilterOutlined />} style={{
+                    borderRadius: 7,
+                    background: filterPriority ? C.primaryLight : undefined,
+                    color: filterPriority ? C.primary : undefined,
+                }}>
+                    {filterPriority
+                        ? filterPriority.charAt(0).toUpperCase() + filterPriority.slice(1)
+                        : "Priority"}
+                </Button>
+            </Dropdown>
+            {notificationtype !== "system" && (
+                <Button size="small" type="primary" icon={<CheckOutlined />}
+                    loading={markAllLoading}
+                    onClick={onMarkAll}
+                    style={{ background: C.primary, borderColor: C.primary, borderRadius: 7 }}>
+                    {isMobile ? "Read All" : "Mark All as Read"}
+                </Button>
+            )}
+        </Space>
+    </div>
+);
+
+// ── Main component ────────────────────────────────────────────────────────────
 interface AllNotificationsProps {
     notificationtype?: string;
 }
 
 const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype }) => {
-    const [showDetails, setShowDetails] = React.useState(false);
-    const [selectedNotification, setSelectedNotification] = React.useState<any>(null);
-    const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
-
+    const isMobile = useIsMobile();
     const actionRef = useRef<ActionType>();
+    const queryClient = useQueryClient();
 
-    const primaryColor = usePrimaryColor();
+    const [showDetails, setShowDetails] = useState(false);
+    const [selectedNotification, setSelectedNotification] = useState<any>(null);
+    const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
+    const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+    const [filterPriority, setFilterPriority] = useState<string | null>(null);
+    const [mobileReloadKey, setMobileReloadKey] = useState(0);
 
     const { deleteNotificationMutation, markAsReadMutation } =
         useNotificationMutations(actionRef);
 
-    const handleViewDetails = (notification: any) => {
-        setShowDetails(true);
-        setSelectedNotification(notification);
-        // markAsReadMutation.mutate(notification._id);
+    const invalidate = () => {
+        queryClient.invalidateQueries({ queryKey: ["myNotifications"] });
+        queryClient.invalidateQueries({ queryKey: ["systemNotifications"] });
+        queryClient.invalidateQueries({ queryKey: ["userNotifications"] });
     };
 
-    const handleBulkSelectedMarkAsRead = () => {
-        if (selectedKeys.length === 0) {
-            message.warning('Please select notifications to mark as read');
-            return;
-        }
+    const markAllMutation = useMutation({
+        mutationFn: markAllNotificationsAsRead,
+        onSuccess: () => {
+            message.success("All notifications marked as read");
+            invalidate();
+            actionRef.current?.reload();
+            setMobileReloadKey((k) => k + 1);
+        },
+    });
+
+    const handleViewDetails = (record: any) => {
+        setSelectedNotification(record);
+        if (isMobile) setDetailDrawerOpen(true);
+        else setShowDetails(true);
+    };
+
+    const handleDelete = (id: string) => {
+        confirm({
+            title: "Delete this notification?",
+            icon: <ExclamationCircleOutlined />,
+            content: "This action cannot be undone.",
+            okText: "Delete",
+            okType: "danger",
+            cancelText: "Cancel",
+            onOk: () => {
+                deleteNotificationMutation.mutate(id);
+                setMobileReloadKey((k) => k + 1);
+            },
+        });
+    };
+
+    const handleMarkRead = (id: string) => {
+        markAsReadMutation.mutate(id);
+        setMobileReloadKey((k) => k + 1);
+    };
+
+    const handleBulkMarkRead = () => {
+        if (selectedKeys.length === 0) { message.warning("Select notifications first"); return; }
         selectedKeys.forEach((id) => markAsReadMutation.mutate(id as string));
-        message.success('Selected notifications marked as read');
+        message.success("Selected notifications marked as read");
         actionRef.current?.reload();
         setSelectedKeys([]);
     };
 
+    const priorityMenu = {
+        items: [
+            { key: "low", label: <PriorityTag priority="low" /> },
+            { key: "medium", label: <PriorityTag priority="medium" /> },
+            { key: "high", label: <PriorityTag priority="high" /> },
+            { key: "urgent", label: <PriorityTag priority="urgent" /> },
+            { key: "clear", label: "Clear", danger: true },
+        ],
+        onClick: ({ key }: { key: string }) => {
+            const next = key === "clear" ? null : key;
+            setFilterPriority(next);
+            actionRef.current?.reload();
+            setMobileReloadKey((k) => k + 1);
+        },
+    };
+
+    // ── Desktop: show detail full-page view ────────────────────────────────────
     if (showDetails) {
-        return <NotificationDetailView record={selectedNotification} setShowDetails={setShowDetails} />
+        return (
+            <NotificationDetailView
+                record={selectedNotification}
+                setShowDetails={setShowDetails}
+            />
+        );
     }
-    return (
-        <ProList
-            rowKey="_id"
-            headerTitle={`All ${notificationtype ? `${notificationtype?.replace(/_/g, " ")} notifications` : "Notifications"}`}
-            showActions="hover"
-            showExtra="hover"
-            actionRef={actionRef}
-            metas={{
-                title: {
-                    search: false,
-                    dataIndex: 'title',
-                    render: (text) => (
-                        <span style={{ fontWeight: 'bold' }}>{text}</span>
-                    ),
-                },
-                description: {
-                    search: false,
-                    dataIndex: 'message',
-                    render: (text) => <Typography.Paragraph ellipsis={{ rows: 1, expandable: false }} style={{ marginBottom: 0 }}>{text}</Typography.Paragraph>,
-                },
-                subTitle: {
-                    title: <span style={{ color: primaryColor }}><FilterOutlined /> Priority</span>,
-                    dataIndex: 'priority',
-                    render: (_, record) => (
-                        <Tag color={record.priority === "high" ? "red" : record.priority === "medium" ? "orange" : "green"}>
-                            {record.priority.charAt(0).toUpperCase() + record.priority.slice(1)}
-                        </Tag>
-                    ),
-                    valueType: "select",
-                    valueEnum: {
-                        High: "High",
-                        Medium: "Medium",
-                        Low: "Low",
-                    },
-                },
-                id: {
-                    search: false,
-                    dataIndex: '_id',
-                },
 
-                avatar: {
-                    search: notificationtype !== "unread",
-                    title: <span style={{ color: primaryColor }}><MailOutlined /> Status</span>,
-                    dataIndex: 'read',
-                    render: (_, record) => (
-                        <span
-                            style={{
-                                width: 12,
-                                height: '100%',
-                                backgroundColor: 'black',
-                                border: `${record.read ? 'none' : `2px solid ${primaryColor}`}`,
-                                borderRadius: 2,
-
-                            }}
-                        />
-                    ),
-                    valueType: "select",
-                    valueEnum: {
-                        "": "All",
-                        false: "Unread",
-                        true: "Read",
-                    },
-                },
-                extra: {
-                    search: false,
-                    render: (_, record) => (
-                        <Flex>
-                            <Tooltip title="View Notification" key="view-tooltip">
-                                <Button
-                                    type="text"
-                                    icon={<MailOutlined />}
-                                    onClick={() => handleViewDetails(record)}
-                                />
-                            </Tooltip>
-
-                            {!record.read && <Tooltip title="Mark as Read" key="mark-as-read-tooltip">
-                                <Button
-                                    type="text"
-                                    icon={<Badge dot key="badge" color={primaryColor} style={{ marginTop: 4 }}><MailOutlined /> </Badge>}
-                                    onClick={() => markAsReadMutation.mutate(record._id)}
-                                />
-
-                            </Tooltip>}
-
-                            <Popconfirm
-                                title="Are you sure you want to delete this notification?"
-                                onConfirm={() => deleteNotificationMutation.mutate(record._id)}
-                                okText="Yes"
-                                cancelText="No"
-                            >
-                                <Button
-                                    danger
-                                    type="text"
-                                    icon={<DeleteOutlined />}
-                                />
-                            </Popconfirm>
-
-                        </Flex>
-                    ),
-                },
-                actions: {
-                    search: false,
-                    render: (_, record) => [
-                        record?.createdAt ? moment(record.createdAt).format('MMM D') : 'No Date',
-                    ],
-                },
-            }}
-            search={{
-                filterType: 'light',
-            }}
-            bordered
-            size="large"
-            request={async (params) => {
-                const data = await fetchMyNotifications({
-                    current: params.current,
-                    pageSize: params.pageSize,
-                    priority: params.priority?.toLowerCase(),
-                    read: notificationtype === "unread" ? false : params.read,
-                    type: notificationtype === "system" ? "system" : "",
-                });
-
-                const allNotifications = data?.data || [];
-                return {
-                    data: allNotifications,
-                    success: true,
-                    total: data?.pagination?.total || allNotifications.length,
-                };
-            }
-            }
-            rowSelection={{
-                selectedRowKeys: selectedKeys,
-                onChange: (keys) => setSelectedKeys(keys),
-            }}
-            tableAlertRender={({ selectedRowKeys }) =>
-                `Selected ${selectedRowKeys.length} item${selectedRowKeys.length > 1 ? '(s)' : ''}`
-            }
-            tableAlertOptionRender={({ onCleanSelected }) =>
-                <Space>
-
-                    <Button
-                        key="mark-read"
-                        icon={<CheckOutlined />}
-                        type="link"
-                        onClick={handleBulkSelectedMarkAsRead}
-                    >
-                        Mark as Read
-                    </Button>
-
-                    <Button key="clear" type="link" onClick={onCleanSelected}>
-                        Clear
-                    </Button>
-                </Space>
-
-            }
-            scroll={{ x: "inherit" }}
-            options={{
-                fullScreen: true,
-                setting: false,
-            }}
-            pagination={{
-                pageSize: 10,
-                responsive: true,
-                showTotal: (total, range) => (
-                    <div>{`Showing ${range[0]}-${range[1]} of ${total} total notifications`}</div>
-                ),
-            }}
-
+    const toolbarNode = (
+        <Toolbar
+            notificationtype={notificationtype}
+            filterPriority={filterPriority}
+            onClearFilter={() => { setFilterPriority(null); actionRef.current?.reload(); setMobileReloadKey((k) => k + 1); }}
+            priorityMenu={priorityMenu}
+            onMarkAll={() => markAllMutation.mutate()}
+            markAllLoading={markAllMutation.isLoading}
+            isMobile={isMobile}
+            onReload={() => setMobileReloadKey((k) => k + 1)}
         />
+    );
+
+    // ── Mobile ─────────────────────────────────────────────────────────────────
+    if (isMobile) {
+        return (
+            <>
+                {toolbarNode}
+
+                {/* key forces MobileNotificationList to re-fetch when reload triggered */}
+                <MobileNotificationList
+                    key={mobileReloadKey}
+                    notificationtype={notificationtype}
+                    onViewDetails={handleViewDetails}
+                    onMarkRead={handleMarkRead}
+                    onDelete={handleDelete}
+                    filterPriority={filterPriority}
+                />
+
+                <DetailDrawer
+                    notification={selectedNotification}
+                    open={detailDrawerOpen}
+                    onClose={() => setDetailDrawerOpen(false)}
+                    onMarkRead={handleMarkRead}
+                    onDelete={handleDelete}
+                />
+            </>
+        );
+    }
+
+    // ── Desktop ────────────────────────────────────────────────────────────────
+    return (
+        <>
+            {toolbarNode}
+
+            <ProList
+                rowKey="_id"
+                showActions="hover"
+                showExtra="hover"
+                actionRef={actionRef}
+                metas={{
+                    title: {
+                        search: false,
+                        dataIndex: "title",
+                        render: (_, record) => (
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                {!record.read && <UnreadDot />}
+                                <Text strong={!record.read} style={{ fontSize: 13, color: C.darkText }}>
+                                    {record.title}
+                                </Text>
+                            </div>
+                        ),
+                    },
+                    description: {
+                        search: false,
+                        dataIndex: "message",
+                        render: (text) => (
+                            <Text style={{ fontSize: 12, color: C.subText }} ellipsis={{ tooltip: String(text) }}>
+                                {String(text)}
+                            </Text>
+                        ),
+                    },
+                    subTitle: {
+                        title: <span style={{ color: C.primary }}><FilterOutlined /> Priority</span>,
+                        dataIndex: "priority",
+                        render: (_, record) => <PriorityTag priority={record.priority} />,
+                        valueType: "select",
+                        valueEnum: { High: "High", Medium: "Medium", Low: "Low" },
+                    },
+                    avatar: {
+                        search: notificationtype !== "unread",
+                        title: <span style={{ color: C.primary }}><MailOutlined /> Status</span>,
+                        dataIndex: "read",
+                        render: (_, record) => (
+                            <span style={{
+                                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                width: 10, height: 10, borderRadius: "50%",
+                                background: record.read ? C.border : C.blue,
+                            }} />
+                        ),
+                        valueType: "select",
+                        valueEnum: { "": "All", false: "Unread", true: "Read" },
+                    },
+                    extra: {
+                        search: false,
+                        render: (_, record) => (
+                            <Space size={4}>
+                                {!record.read && (
+                                    <Button type="text" size="small"
+                                        icon={<CheckCircleOutlined style={{ color: C.green }} />}
+                                        title="Mark as Read"
+                                        onClick={() => markAsReadMutation.mutate(record._id)}
+                                    />
+                                )}
+                                <Popconfirm
+                                    title="Delete this notification?"
+                                    onConfirm={() => deleteNotificationMutation.mutate(record._id)}
+                                    okText="Delete" cancelText="Cancel"
+                                    okButtonProps={{ danger: true }}
+                                >
+                                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                                </Popconfirm>
+                                <Dropdown
+                                    menu={{
+                                        items: [
+                                            { key: "details", label: "View Details" },
+                                            ...(!record.read ? [{
+                                                key: "mark",
+                                                icon: <CheckCircleOutlined style={{ color: C.green }} />,
+                                                label: <span style={{ color: C.green }}>Mark as Read</span>,
+                                            }] : []),
+                                        ],
+                                        onClick: ({ key }) => {
+                                            if (key === "mark") markAsReadMutation.mutate(record._id);
+                                            else if (key === "details") handleViewDetails(record);
+                                        },
+                                    }}
+                                    trigger={["click"]}
+                                >
+                                    <Button type="text" size="small" icon={<MoreOutlined />}
+                                        style={{ border: `1px solid ${C.border}`, borderRadius: 6 }} />
+                                </Dropdown>
+                            </Space>
+                        ),
+                    },
+                    actions: {
+                        search: false,
+                        render: (_, record) => [
+                            <Text key="time" style={{ fontSize: 11, color: "#94a3b8" }}>
+                                {dayjs(record.createdAt).fromNow()}
+                            </Text>,
+                        ],
+                    },
+                }}
+                search={{ filterType: "light" }}
+                bordered
+                size="large"
+                request={async (params) => {
+                    const data = await fetchMyNotifications({
+                        current: params.current,
+                        pageSize: params.pageSize,
+                        priority: filterPriority || params.priority?.toLowerCase(),
+                        read: notificationtype === "unread" ? false : params.read,
+                        type: notificationtype === "system" ? "system" : "",
+                    });
+                    const list = data?.data || [];
+                    return { data: list, success: true, total: data?.pagination?.total || list.length };
+                }}
+                rowSelection={{
+                    selectedRowKeys: selectedKeys,
+                    onChange: (keys) => setSelectedKeys(keys),
+                }}
+                tableAlertRender={({ selectedRowKeys }) => `${selectedRowKeys.length} selected`}
+                tableAlertOptionRender={({ onCleanSelected }) => (
+                    <Space>
+                        <Button type="link" size="small" icon={<CheckOutlined />} onClick={handleBulkMarkRead}>
+                            Mark as Read
+                        </Button>
+                        <Button type="link" size="small" onClick={onCleanSelected}>Clear</Button>
+                    </Space>
+                )}
+                scroll={{ x: "inherit" }}
+                options={{ fullScreen: true, setting: false, reload: () => actionRef.current?.reload() }}
+                pagination={{
+                    pageSize: 10,
+                    responsive: true,
+                    showTotal: (total, range) => (
+                        <Text style={{ fontSize: 12, color: C.subText }}>{range[0]}–{range[1]} of {total}</Text>
+                    ),
+                }}
+                rowClassName={(record) => !record.read ? "notif-unread" : ""}
+            />
+
+            <style>{`.notif-unread { background-color: ${C.blue}06 !important; }`}</style>
+        </>
     );
 };
 

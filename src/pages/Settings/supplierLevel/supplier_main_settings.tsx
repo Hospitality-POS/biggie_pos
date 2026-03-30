@@ -1,7 +1,7 @@
 import React from "react";
 import { ProCard } from "@ant-design/pro-components";
 import SupplierTable from "./Supplier";
-import { ShopOutlined, AppstoreAddOutlined } from "@ant-design/icons"; // Using relevant icons
+import { ShopOutlined, AppstoreAddOutlined } from "@ant-design/icons";
 import { Flex, Space, Typography } from "antd";
 
 const { Title } = Typography;
@@ -22,29 +22,30 @@ function SupplierMainSettings() {
         type: "card",
         defaultActiveKey: "suppliers",
         size: "large",
+        items: [
+          {
+            key: "suppliers",
+            label: (
+              <Space>
+                <AppstoreAddOutlined style={{ color: "#52c41a" }} />
+                <Typography.Text>Suppliers</Typography.Text>
+              </Space>
+            ),
+            children: (
+              <div
+                style={{
+                  padding: "0",
+                  backgroundColor: "#fafafa",
+                  borderRadius: "8px",
+                }}
+              >
+                <SupplierTable />
+              </div>
+            ),
+          },
+        ],
       }}
-    >
-      <ProCard.TabPane
-        key="suppliers"
-        tab={
-          <Space>
-            {/* blue color for supplier */}
-            <AppstoreAddOutlined style={{ color: "#52c41a" }} />
-            <Typography.Text>Suppliers</Typography.Text>
-          </Space>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
-        >
-          <SupplierTable />
-        </div>
-      </ProCard.TabPane>
-    </ProCard>
+    />
   );
 }
 

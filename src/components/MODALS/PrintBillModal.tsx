@@ -395,7 +395,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               {cartDetails?.order_no}
             </Typography>
             <Typography variant="body1" style={subheaderStyle}>
-              Served By: {cartDetails?.created_by?.username}
+              Served By:  {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}
             </Typography>
           </div>
           <div

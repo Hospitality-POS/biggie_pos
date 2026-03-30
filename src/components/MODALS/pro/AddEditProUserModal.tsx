@@ -1,22 +1,42 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Avatar, Button, Form, Space, Upload, message, Checkbox, Tabs, Empty, Alert } from "antd";
+import {
+  Alert,
+  Avatar,
+  Button,
+  Checkbox,
+  DatePicker,
+  Drawer,
+  Empty,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Skeleton,
+  Space,
+  Tabs,
+  Typography,
+  Upload,
+  message,
+} from "antd";
 import {
   ModalForm,
-  ProFormText,
   ProForm,
+  ProFormDigit,
   ProFormSelect,
-} from "@ant-design/pro-form";
+  ProFormText,
+} from "@ant-design/pro-components";
 import {
+  CheckCircleOutlined,
   EditOutlined,
-  UsergroupAddOutlined,
   InboxOutlined,
-  UserOutlined,
+  PlusOutlined,
   ShoppingOutlined,
+  UserOutlined,
+  UsergroupAddOutlined,
 } from "@ant-design/icons";
 import useAddEditUserModal from "../Hooks/useAddEditUserModal";
-import { ProFormDigit } from "@ant-design/pro-components";
 import { fetchUserRoles, updateUsers } from "@services/users";
-import { fetchAllCategories } from "@services/categories"; // ✅ Use service
+import { fetchAllCategories } from "@services/categories";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { User } from "src/interfaces/User";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
@@ -28,8 +48,33 @@ import { fetchAllShops } from "@services/shops";
 import { RcFile } from "antd/lib/upload";
 import { UploadFile, UploadProps } from "antd/lib";
 
-import { usePrimaryColor } from "@context/PrimaryColorContext";
+const { Text } = Typography;
 
+// ── Palette ───────────────────────────────────────────────────────────────────
+const C = {
+  primary: "#6c1c2c",
+  primaryLight: "#f9f0f2",
+  green: "#10b981",
+  subText: "#64748b",
+  darkText: "#0f172a",
+  border: "#e2e8f0",
+  bg: "#f8fafc",
+};
+
+// ── Mobile hook ───────────────────────────────────────────────────────────────
+const useIsMobile = () => {
+  const [v, setV] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+  useEffect(() => {
+    const h = () => setV(window.innerWidth < 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return v;
+};
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
   actionRef: any;
@@ -39,6 +84,369 @@ interface AddEditProUserModalProps {
   userId?: string;
 }
 
+// ── Section label ─────────────────────────────────────────────────────────────
+const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Text
+    style={{
+      fontSize: 10,
+      fontWeight: 700,
+      color: C.subText,
+      textTransform: "uppercase",
+      letterSpacing: "0.5px",
+      display: "block",
+      marginBottom: 12,
+    }}
+  >
+    {children}
+  </Text>
+);
+
+// ── Form section card ─────────────────────────────────────────────────────────
+const FormSection: React.FC<{
+  label: string;
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+}> = ({ label, children, style }) => (
+  <div
+    style={{
+      background: C.bg,
+      border: `1px solid ${C.border}`,
+      borderRadius: 10,
+      padding: "14px 14px 6px",
+      marginBottom: 14,
+      ...style,
+    }}
+  >
+    <SectionLabel>{label}</SectionLabel>
+    {children}
+  </div>
+);
+
+// ── Category card ─────────────────────────────────────────────────────────────
+const CategoryCard: React.FC<{
+  category: any;
+  checked: boolean;
+  onChange: (id: string, checked: boolean) => void;
+}> = ({ category, checked, onChange }) => (
+  <label
+    style={{
+      padding: "10px 12px",
+      border: `2px solid ${checked ? C.primary : C.border}`,
+      borderRadius: 9,
+      background: checked ? `${C.primary}12` : "#fff",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: 9,
+      transition: "border-color 0.2s, background 0.2s",
+    }}
+  >
+    <Checkbox
+      checked={checked}
+      onChange={(e) => onChange(category._id, e.target.checked)}
+    />
+    <Text
+      style={{
+        fontSize: 12,
+        fontWeight: checked ? 600 : 400,
+        color: checked ? C.primary : C.darkText,
+        lineHeight: 1.3,
+      }}
+    >
+      {category.name}
+    </Text>
+  </label>
+);
+
+// ── Categories tab content (shared) ──────────────────────────────────────────
+const CategoriesTabContent: React.FC<{
+  currentShopId: string | null;
+  categoriesLoading: boolean;
+  categoriesData: any[];
+  selectedCategories: string[];
+  onCategoryChange: (id: string, checked: boolean) => void;
+}> = ({
+  currentShopId,
+  categoriesLoading,
+  categoriesData,
+  selectedCategories,
+  onCategoryChange,
+}) => (
+    <div style={{ padding: "4px 0" }}>
+      {/* Header */}
+      <div
+        style={{
+          background: C.bg,
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: "12px 14px",
+          marginBottom: 14,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            background: C.primaryLight,
+            borderRadius: 7,
+            padding: 6,
+            color: C.primary,
+            fontSize: 16,
+            lineHeight: 1,
+          }}
+        >
+          <ShoppingOutlined />
+        </div>
+        <div>
+          <Text strong style={{ fontSize: 13, color: C.darkText, display: "block" }}>
+            Product Categories
+          </Text>
+          <Text style={{ fontSize: 11, color: C.subText }}>
+            Branch-specific — select a branch first.
+          </Text>
+        </div>
+      </div>
+
+      {!currentShopId && (
+        <Alert
+          message="Select a branch in the User Details tab to load categories."
+          type="warning"
+          showIcon
+          style={{ borderRadius: 9, marginBottom: 14 }}
+        />
+      )}
+
+      {currentShopId && categoriesLoading && (
+        <div
+          style={{
+            background: C.bg,
+            border: `1px solid ${C.border}`,
+            borderRadius: 10,
+            padding: "14px",
+          }}
+        >
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} active paragraph={{ rows: 1 }} style={{ marginBottom: 8 }} />
+          ))}
+        </div>
+      )}
+
+      {currentShopId && !categoriesLoading && categoriesData.length > 0 && (
+        <>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+              gap: 10,
+              marginBottom: 14,
+            }}
+          >
+            {categoriesData.map((cat: any) => (
+              <CategoryCard
+                key={cat._id}
+                category={cat}
+                checked={selectedCategories.includes(cat._id)}
+                onChange={onCategoryChange}
+              />
+            ))}
+          </div>
+
+          {selectedCategories.length > 0 && (
+            <div
+              style={{
+                background: C.primaryLight,
+                borderLeft: `3px solid ${C.primary}`,
+                borderRadius: "0 8px 8px 0",
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <CheckCircleOutlined style={{ color: C.primary, fontSize: 14 }} />
+              <Text style={{ fontSize: 12, color: C.primary, fontWeight: 600 }}>
+                {selectedCategories.length}{" "}
+                {selectedCategories.length === 1 ? "category" : "categories"} selected
+              </Text>
+            </div>
+          )}
+        </>
+      )}
+
+      {currentShopId && !categoriesLoading && categoriesData.length === 0 && (
+        <Empty
+          description="No categories found for this branch"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          style={{ padding: "32px 0" }}
+        />
+      )}
+    </div>
+  );
+
+// ── Mobile form fields (plain AntD Form.Item — full width) ────────────────────
+const MobileDetailsFields: React.FC<{
+  form: any;
+  isAdmin: boolean;
+  isProfile: boolean;
+  isEditingOwnProfile: boolean;
+  userRole: string;
+  fileList: UploadFile[];
+  previewImage: string | null;
+  beforeUpload: (file: RcFile) => boolean;
+  handleUploadChange: UploadProps["onChange"];
+  shops: any[];
+  userRoles: any[];
+  handleShopChange: (id: string) => void;
+}> = ({
+  form,
+  isAdmin,
+  isProfile,
+  isEditingOwnProfile,
+  userRole,
+  fileList,
+  previewImage,
+  beforeUpload,
+  handleUploadChange,
+  shops,
+  userRoles,
+  handleShopChange,
+}) => {
+    const fieldLabel = (label: string) => (
+      <Text style={{ fontSize: 12, color: C.subText }}>{label}</Text>
+    );
+
+    return (
+      <>
+        {/* Profile image */}
+        <FormSection label="Profile Image">
+          <Upload.Dragger
+            fileList={fileList}
+            beforeUpload={beforeUpload}
+            onChange={handleUploadChange}
+            maxCount={1}
+            showUploadList={{ showRemoveIcon: true }}
+            accept="image/*"
+            customRequest={({ onSuccess }) => setTimeout(() => onSuccess?.("ok"), 0)}
+            style={{ borderRadius: 8 }}
+          >
+            <p className="ant-upload-drag-icon" style={{ margin: "8px 0 4px" }}>
+              <InboxOutlined style={{ fontSize: 30, color: C.primary }} />
+            </p>
+            <Text style={{ fontSize: 12, color: C.darkText }}>Tap to upload image</Text>
+            <br />
+            <Text style={{ fontSize: 11, color: C.subText }}>Single file · max 5 MB</Text>
+          </Upload.Dragger>
+          {previewImage && (
+            <div style={{ marginTop: 12, textAlign: "center" }}>
+              <Avatar
+                size={80}
+                src={previewImage}
+                icon={<UserOutlined />}
+                style={{ border: `3px solid ${C.primary}` }}
+              />
+            </div>
+          )}
+        </FormSection>
+
+        {/* Basic info */}
+        <FormSection label="Basic Info">
+          <Form.Item
+            name="fullname"
+            label={fieldLabel("Full Name")}
+            rules={[{ required: true, message: "Name is required" }]}
+            style={{ marginBottom: 10 }}
+          >
+            <Input placeholder="Enter full name" style={{ borderRadius: 8 }} />
+          </Form.Item>
+          <Form.Item
+            name="username"
+            label={fieldLabel("Username")}
+            rules={[{ required: true, message: "Username is required" }]}
+            style={{ marginBottom: 10 }}
+          >
+            <Input placeholder="Preferred username" style={{ borderRadius: 8 }} />
+          </Form.Item>
+          {isAdmin && (
+            <Form.Item
+              name="roleId"
+              label={fieldLabel("Role")}
+              rules={[{ required: true, message: "Role is required" }]}
+              style={{ marginBottom: 10 }}
+            >
+              <Select
+                placeholder="Select role"
+                disabled={isProfile || isEditingOwnProfile}
+                showSearch
+                optionFilterProp="label"
+                style={{ borderRadius: 8 }}
+                options={(userRoles || []).map((r: any) => ({
+                  label: r.role_type,
+                  value: r._id,
+                }))}
+              />
+            </Form.Item>
+          )}
+          <Form.Item
+            name="email"
+            label={fieldLabel("Email")}
+            rules={[
+              { required: true, pattern: /^\S+@\S+\.\S+$/, message: "Invalid email" },
+            ]}
+            style={{ marginBottom: 10 }}
+          >
+            <Input placeholder="user@example.com" style={{ borderRadius: 8 }} />
+          </Form.Item>
+          <Form.Item
+            name="pin"
+            label={fieldLabel("PIN")}
+            tooltip="4-digit login PIN"
+            rules={[
+              { required: true, pattern: /^[0-9]{4}$/, message: "Must be 4 digits" },
+            ]}
+            style={{ marginBottom: 10 }}
+          >
+            <Input.Password placeholder="••••" style={{ borderRadius: 8 }} maxLength={4} />
+          </Form.Item>
+          <Form.Item
+            name="idNumber"
+            label={fieldLabel("National ID")}
+            rules={[{ required: true, message: "National ID is required" }]}
+            style={{ marginBottom: 10 }}
+          >
+            <InputNumber
+              placeholder="ID number"
+              style={{ width: "100%", borderRadius: 8 }}
+              controls={false}
+            />
+          </Form.Item>
+          {userRole !== "cashier" && (!isAdmin || !isEditingOwnProfile) && (
+            <Form.Item
+              name="shop_id"
+              label={fieldLabel("Branch")}
+              rules={[{ required: true, message: "Branch is required" }]}
+              style={{ marginBottom: 10 }}
+            >
+              <Select
+                placeholder="Select branch"
+                showSearch
+                optionFilterProp="label"
+                onChange={handleShopChange}
+                style={{ borderRadius: 8 }}
+                options={(shops || []).map((s: any) => ({
+                  label: s.name,
+                  value: s._id,
+                }))}
+              />
+            </Form.Item>
+          )}
+          <PhoneInput label="Phone" owner="phoneNumber" />
+        </FormSection>
+      </>
+    );
+  };
+
+// ── Main component ────────────────────────────────────────────────────────────
 const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   onAddUser,
   actionRef,
@@ -48,8 +456,9 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   userId,
 }) => {
   const [form] = Form.useForm();
-  const formRef = useRef();
+  const formRef = useRef<any>();
   const [open, setOpen] = useState(false);
+  const isMobile = useIsMobile();
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
   const isEditingOwnProfile = edit && data?._id === userId;
@@ -66,90 +475,88 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   const [categoriesData, setCategoriesData] = useState<any[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
-  const primaryColor = usePrimaryColor();
+  // ── Queries ─────────────────────────────────────────────────────────────────
+  const { data: userRoles } = useQuery({
+    queryKey: ["userRoles"],
+    queryFn: fetchUserRoles,
+    retry: 3,
+    networkMode: "always",
+  });
 
+  const { data: shops } = useQuery({
+    queryKey: ["shops"],
+    queryFn: fetchAllShops,
+    retry: 3,
+    networkMode: "always",
+  });
+
+  const roleRequest = async () =>
+    (userRoles || []).map((r: any) => ({ label: r.role_type, value: r._id }));
+
+  const shopRequest = async () =>
+    (shops || []).map((s: any) => ({ label: s.name, value: s._id }));
+
+  // ── Populate on open ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (open && data) {
-      // Get shop ID - handle both object and string formats
-      const shopId = typeof data?.shop_id === 'object'
-        ? data?.shop_id?._id
-        : data?.shop_id;
+    if (!open || !data) return;
 
-      console.log("🔍 Initial Shop ID:", shopId);
+    const shopId =
+      typeof data?.shop_id === "object" ? data?.shop_id?._id : data?.shop_id;
+    setCurrentShopId(shopId);
 
-      setCurrentShopId(shopId);
-
-      form.setFieldsValue({
-        ...data,
-        phoneNumber: reversePhoneNumber(data?.phone),
-        roleId: data?.role?._id,
-        shop_id: shopId ? {
+    form.setFieldsValue({
+      ...data,
+      phoneNumber: reversePhoneNumber(data?.phone),
+      roleId: data?.role?._id,
+      shop_id: shopId
+        ? {
           value: shopId,
-          label: typeof data?.shop_id === 'object' ? data?.shop_id?.name : data?.shop_id
-        } : undefined,
-      });
+          label:
+            typeof data?.shop_id === "object"
+              ? data?.shop_id?.name
+              : data?.shop_id,
+        }
+        : undefined,
+    });
 
-      // Set initial categories
-      if (data?.categories && Array.isArray(data.categories)) {
-        const categoryIds = data.categories.map((cat: any) =>
-          typeof cat === 'string' ? cat : cat._id
-        );
-        setSelectedCategories(categoryIds);
-      }
+    if (data?.categories?.length) {
+      setSelectedCategories(
+        data.categories.map((c: any) => (typeof c === "string" ? c : c._id))
+      );
+    }
 
-      // Set initial image
-      if (data?.thumbnail) {
-        setPreviewImage(data.thumbnail);
-        setFileList([
-          {
-            uid: '-1',
-            name: 'profile-image.png',
-            status: 'done',
-            url: data.thumbnail,
-          },
-        ]);
-      }
+    if (data?.thumbnail) {
+      setPreviewImage(data.thumbnail);
+      setFileList([{ uid: "-1", name: "profile.png", status: "done", url: data.thumbnail }]);
     }
   }, [open, data, form]);
 
-  // ✅ FIXED: Fetch categories when shop changes using service
+  // ── Fetch categories when shop changes ────────────────────────────────────
   useEffect(() => {
-    if (currentShopId) {
-      fetchCategoriesForShop(currentShopId);
-    }
+    if (!currentShopId) return;
+    const load = async () => {
+      setCategoriesLoading(true);
+      try {
+        const result = await fetchAllCategories({
+          name: "",
+          state: "all",
+          shop_id: String(currentShopId).trim(),
+        });
+        setCategoriesData(Array.isArray(result) ? result : []);
+      } catch {
+        message.error("Failed to load categories");
+        setCategoriesData([]);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    load();
   }, [currentShopId]);
 
-  const fetchCategoriesForShop = async (shopId: string) => {
-    try {
-      setCategoriesLoading(true);
-      console.log("📡 Fetching categories for shop_id:", shopId);
-
-      // ✅ Use the service function
-      const result = await fetchAllCategories({
-        name: "",
-        state: 'all',
-        shop_id: String(shopId).trim(),
-      });
-
-      console.log("✅ Categories fetched:", {
-        shop_id: shopId,
-        count: result?.length || 0,
-        data: result
-      });
-
-      setCategoriesData(Array.isArray(result) ? result : []);
-    } catch (error) {
-      console.error("❌ Error fetching categories:", error);
-      message.error("Failed to load categories");
-      setCategoriesData([]);
-    } finally {
-      setCategoriesLoading(false);
-    }
-  };
-
-  const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
-    if (!newOpen) {
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) {
       form.resetFields();
       setFileList([]);
       setPreviewImage(null);
@@ -163,463 +570,468 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   const { handleConfirmAddUser } = useAddEditUserModal({ onAddUser });
 
   const beforeUpload = (file: RcFile) => {
-    const isImage = file.type.startsWith('image/');
-    if (!isImage) {
-      message.error('You can only upload image files!');
-      return false;
-    }
-
-    const isLt5M = file.size / 1024 / 1024 < 5;
-    if (!isLt5M) {
-      message.error('Image must be smaller than 5MB!');
-      return false;
-    }
-
+    if (!file.type.startsWith("image/")) { message.error("Images only"); return false; }
+    if (file.size / 1024 / 1024 > 5) { message.error("Max 5 MB"); return false; }
     setUploadedFile(file);
     return false;
   };
 
-  const handleChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
-    if (newFileList.length > 0 && newFileList[0].originFileObj) {
-      const file = newFileList[0].originFileObj;
-      setUploadedFile(file);
-      setPreviewImage(URL.createObjectURL(file));
-    } else if (newFileList.length > 0 && newFileList[0].url) {
-      setPreviewImage(newFileList[0].url);
+  const handleUploadChange: UploadProps["onChange"] = ({ fileList: next }) => {
+    const first = next[0];
+    if (first?.originFileObj) {
+      setUploadedFile(first.originFileObj);
+      setPreviewImage(URL.createObjectURL(first.originFileObj));
+    } else if (first?.url) {
+      setPreviewImage(first.url);
     } else {
       setPreviewImage(null);
       setUploadedFile(null);
     }
-
-    setFileList(newFileList);
+    setFileList(next);
   };
 
-  const customRequest = ({ onSuccess }: any) => {
-    setTimeout(() => {
-      onSuccess && onSuccess("ok");
-    }, 0);
+  const handleShopChange = (value: any) => {
+    const shopId = typeof value === "object" ? value.value : value;
+    setCurrentShopId(shopId);
+    setSelectedCategories([]);
+    setCategoriesData([]);
   };
 
-  const onFinish = async (values) => {
+  const handleCategoryChange = (id: string, checked: boolean) => {
+    setSelectedCategories((prev) =>
+      checked ? [...prev, id] : prev.filter((x) => x !== id)
+    );
+  };
+
+  const buildPayload = (values: any) => {
     const phoneNumber = getPhoneNumber(values?.phoneNumber);
-    const value = { ...values, phone: phoneNumber };
+    const payload: any = { ...values, phone: phoneNumber };
+    if (uploadedFile) payload.imageFile = uploadedFile;
+    if (selectedCategories.length > 0) payload.categories = selectedCategories;
+    return payload;
+  };
 
-    if (uploadedFile) {
-      value.imageFile = uploadedFile;
+  const submitPayload = async (payload: any) => {
+    try {
+      if (edit) {
+        await updateUsers({ value: payload, _id: data._id });
+        if (isProfile) await queryClient.invalidateQueries(["user", userId]);
+      } else {
+        await handleConfirmAddUser(payload);
+      }
+      actionRef.current?.reload();
+      return true;
+    } catch {
+      message.error("Failed to save user");
+      return false;
     }
+  };
 
-    if (selectedCategories.length > 0) {
-      value.categories = selectedCategories;
-    }
-
+  // ── Desktop onFinish (used by ModalForm) ───────────────────────────────────
+  const onFinish = async (values: any) => {
     const confirmed = await ShowConfirm({
-      title: `Are you sure you want to ${edit ? "update this" : "add new"} ${isProfile ? "profile" : "user"
-        }?`,
+      title: `${edit ? "Update" : "Add"} ${isProfile ? "profile" : "user"}?`,
       position: true,
     });
+    if (!confirmed) return false;
+    return submitPayload(buildPayload(values));
+  };
 
-    if (confirmed) {
-      try {
-        if (edit) {
-          await updateUsers({
-            value,
-            _id: data._id,
-          });
-          isProfile && (await queryClient.invalidateQueries(["user", userId]));
-        } else {
-          await handleConfirmAddUser(value);
-        }
-        actionRef.current?.reload();
-        return true;
-      } catch (error) {
-        console.error("Error submitting form:", error);
-        message.error("Failed to save user");
-        return false;
-      }
+  // ── Mobile submit ──────────────────────────────────────────────────────────
+  const handleMobileSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      const confirmed = await ShowConfirm({
+        title: `${edit ? "Update" : "Add"} ${isProfile ? "profile" : "user"}?`,
+        position: true,
+      });
+      if (!confirmed) return;
+      await submitPayload(buildPayload(values));
+      handleOpenChange(false);
+    } catch {
+      // validation errors shown inline
     }
   };
 
-  const { data: userRoles } = useQuery({
-    queryKey: ["userRoles"],
-    queryFn: fetchUserRoles,
-    retry: 3,
-    refetchInterval: 5000,
-    networkMode: "always",
-  });
-
-  const roleRequest = async () => {
-    const values = userRoles.map((e: { role_type: any; _id: any }) => {
-      return { label: e.role_type, value: e._id };
-    });
-    return values;
-  };
-
-  const { data: shops } = useQuery({
-    queryKey: ["shops"],
-    queryFn: fetchAllShops,
-    retry: 3,
-    refetchInterval: 5000,
-    networkMode: "always",
-  });
-
-  const shopRequest = async () => {
-    const values = shops.map((e: { name: any; _id: any }) => {
-      return { label: e.name, value: e._id };
-    });
-    return values;
-  };
-
-  // ✅ Handle shop change properly
-  const handleShopChange = (value: any) => {
-    const shopId = typeof value === 'object' ? value.value : value;
-    console.log("🔄 Shop changed to:", shopId);
-    setCurrentShopId(shopId);
-    setSelectedCategories([]); // Reset categories
-    setCategoriesData([]); // Clear old categories
-  };
-
-  const handleCategoryChange = (categoryId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedCategories([...selectedCategories, categoryId]);
-    } else {
-      setSelectedCategories(selectedCategories.filter(id => id !== categoryId));
-    }
-  };
-
-  const tabItems = [
-    {
-      key: "details",
-      label: (
-        <span>
-          <UserOutlined style={{ marginRight: 8 }} />
-          User Details
+  // ── Shared tab items ───────────────────────────────────────────────────────
+  const categoriesTabLabel = (
+    <Space size={6}>
+      <ShoppingOutlined style={{ fontSize: 13 }} />
+      <span>Categories</span>
+      {selectedCategories.length > 0 && (
+        <span
+          style={{
+            background: C.primary,
+            color: "#fff",
+            borderRadius: 10,
+            padding: "0 6px",
+            fontSize: 11,
+            fontWeight: 700,
+            lineHeight: "18px",
+            display: "inline-block",
+          }}
+        >
+          {selectedCategories.length}
         </span>
-      ),
-      children: (
-        <>
-          <div style={{ padding: '0 24px', marginBottom: '24px' }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '16px' }}>Profile Image</div>
-            <Upload.Dragger
-              fileList={fileList}
-              beforeUpload={beforeUpload}
-              onChange={handleChange}
-              maxCount={1}
-              showUploadList={{ showRemoveIcon: true }}
-              accept="image/*"
-              style={{ width: '100%' }}
-              customRequest={customRequest}
-            >
-              <p className="ant-upload-drag-icon">
-                <InboxOutlined style={{ fontSize: 48, color: '#40a9ff' }} />
-              </p>
-              <p className="ant-upload-text">Click or drag file to upload</p>
-              <p className="ant-upload-hint">
-                Support for a single image file. Maximum size: 5MB.
-              </p>
-            </Upload.Dragger>
+      )}
+    </Space>
+  );
 
-            {previewImage && (
-              <div style={{ marginTop: 16, textAlign: 'center' }}>
-                <Avatar
-                  size={100}
-                  icon={<UserOutlined />}
-                  src={previewImage}
-                  style={{ border: `2px solid ${primaryColor}` }}
-                  alt={data?.fullname}
-                  aria-label="User Avatar"
-                />
-              </div>
-            )}
+  const categoriesContent = (
+    <CategoriesTabContent
+      currentShopId={currentShopId}
+      categoriesLoading={categoriesLoading}
+      categoriesData={categoriesData}
+      selectedCategories={selectedCategories}
+      onCategoryChange={handleCategoryChange}
+    />
+  );
+
+  // ── Modal title ────────────────────────────────────────────────────────────
+  const modalTitle = (
+    <Space size={8}>
+      <div
+        style={{
+          background: C.primaryLight,
+          borderRadius: 7,
+          padding: "4px 6px",
+          color: C.primary,
+          fontSize: 14,
+          lineHeight: 1,
+        }}
+      >
+        {edit ? <EditOutlined /> : <UsergroupAddOutlined />}
+      </div>
+      <Text strong style={{ fontSize: 13, color: C.darkText }}>
+        {edit ? `Edit ${isProfile ? "Profile" : "User"}` : "New Staff"}
+      </Text>
+    </Space>
+  );
+
+  // ── Trigger button ─────────────────────────────────────────────────────────
+  const triggerButton = edit ? (
+    <Button
+      size="small"
+      icon={<EditOutlined style={{ color: C.primary }} />}
+      style={{ borderRadius: 7 }}
+      onClick={() => setOpen(true)}
+    >
+      Edit
+    </Button>
+  ) : (
+    <Button
+      type="primary"
+      icon={<PlusOutlined />}
+      style={{
+        background: C.primary,
+        borderColor: C.primary,
+        borderRadius: 7,
+        fontWeight: 500,
+      }}
+      onClick={() => setOpen(true)}
+    >
+      {isMobile ? "Add" : "New Staff"}
+    </Button>
+  );
+
+  // ── Desktop: ProForm inside ModalForm ──────────────────────────────────────
+  const desktopDetailsTab = (
+    <>
+      {/* Avatar upload */}
+      <div
+        style={{
+          background: C.bg,
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: "14px 14px 10px",
+          marginBottom: 16,
+        }}
+      >
+        <SectionLabel>Profile Image</SectionLabel>
+        <Upload.Dragger
+          fileList={fileList}
+          beforeUpload={beforeUpload}
+          onChange={handleUploadChange}
+          maxCount={1}
+          showUploadList={{ showRemoveIcon: true }}
+          accept="image/*"
+          customRequest={({ onSuccess }) => setTimeout(() => onSuccess?.("ok"), 0)}
+          style={{ borderRadius: 8 }}
+        >
+          <p className="ant-upload-drag-icon" style={{ margin: "8px 0 4px" }}>
+            <InboxOutlined style={{ fontSize: 36, color: C.primary }} />
+          </p>
+          <Text style={{ fontSize: 13, color: C.darkText }}>
+            Click or drag image to upload
+          </Text>
+          <br />
+          <Text style={{ fontSize: 11, color: C.subText }}>Single image · max 5 MB</Text>
+        </Upload.Dragger>
+        {previewImage && (
+          <div style={{ marginTop: 14, textAlign: "center" }}>
+            <Avatar
+              size={90}
+              src={previewImage}
+              icon={<UserOutlined />}
+              style={{ border: `3px solid ${C.primary}` }}
+            />
           </div>
+        )}
+      </div>
 
-          <ProForm.Group>
-            <ProFormText
+      {/* Fields */}
+      <div
+        style={{
+          background: C.bg,
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: "14px 14px 4px",
+          marginBottom: 16,
+        }}
+      >
+        <SectionLabel>Basic Info</SectionLabel>
+        <ProForm.Group>
+          <ProFormText
+            hasFeedback
+            width="xl"
+            name="fullname"
+            label="Full Name"
+            rules={[{ required: true, message: "Name is required" }]}
+            placeholder="Enter full name"
+          />
+          <ProFormText
+            hasFeedback
+            width="xl"
+            name="username"
+            label="Username"
+            rules={[{ required: true, message: "Username is required" }]}
+            placeholder="Preferred username"
+          />
+          {isAdmin && (
+            <ProFormSelect
               hasFeedback
-              width="md"
-              id="fullName"
-              name="fullname"
-              label="fullname"
-              rules={[{ required: true, message: "Name is required" }]}
-              placeholder="Enter user fullname"
+              width="xl"
+              name="roleId"
+              label="Role"
+              disabled={isProfile || isEditingOwnProfile}
+              rules={[{ required: true, message: "Role is required" }]}
+              showSearch
+              placeholder="Select role"
+              request={roleRequest}
             />
-            <ProFormText
+          )}
+          <ProFormText
+            hasFeedback
+            width="xl"
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, pattern: /^\S+@\S+\.\S+$/, message: "Invalid email" },
+            ]}
+            placeholder="user@example.com"
+          />
+          <ProFormText.Password
+            hasFeedback
+            width="xl"
+            name="pin"
+            label="PIN"
+            tooltip="4-digit login PIN"
+            rules={[{ required: true, pattern: /^[0-9]{4}$/, message: "Must be 4 digits" }]}
+            placeholder="••••"
+          />
+          <ProFormDigit
+            hasFeedback
+            width="xl"
+            name="idNumber"
+            label="National ID"
+            rules={[{ required: true, message: "National ID is required" }]}
+            placeholder="Enter national ID number"
+          />
+          {user?.role !== "cashier" && (!isAdmin || !isEditingOwnProfile) && (
+            <ProFormSelect
               hasFeedback
-              width="md"
-              name="username"
-              label="username"
-              rules={[{ required: true, message: "username is required" }]}
-              placeholder="Enter preferred username"
+              width="xl"
+              name="shop_id"
+              label="Branch"
+              rules={[{ required: true, message: "Branch is required" }]}
+              showSearch
+              placeholder="Select branch"
+              request={shopRequest}
+              fieldProps={{ onChange: handleShopChange }}
             />
+          )}
+          <PhoneInput label="Phone" owner="phoneNumber" />
+        </ProForm.Group>
+      </div>
+    </>
+  );
 
-            {isAdmin && (
-              <ProFormSelect
-                hasFeedback
-                width="md"
-                name="roleId"
-                label="Roles"
-                disabled={isProfile || isEditingOwnProfile}
-                rules={[{ required: true, message: "Roles is required" }]}
-                showSearch
-                placeholder="Select role"
-                request={roleRequest}
-              />
-            )}
+  // ── Render ─────────────────────────────────────────────────────────────────
 
-            <ProFormText
-              hasFeedback
-              width="md"
-              id="user_email"
-              name="email"
-              label="Email"
-              rules={[
-                {
-                  required: true,
-                  pattern: /^\S+@\S+\.\S+$/,
-                  message: "Invalid email format",
-                },
-              ]}
-              placeholder="Enter user email"
-            />
-
-            <ProFormText.Password
-              hasFeedback
-              width="md"
-              name="pin"
-              label="Pin"
-              tooltip="Users Login PIN 4 digits only"
-              rules={[
-                {
-                  required: true,
-                  pattern: /^[0-9]{4}$/,
-                  message: "Invalid Pin format",
-                },
-              ]}
-              placeholder="Enter user Pin"
-            />
-            <ProFormDigit
-              hasFeedback
-              width="md"
-              name="idNumber"
-              label="ID Number"
-              rules={[
-                { required: true, message: "National ID Number is required" },
-              ]}
-              placeholder="Enter user National ID"
-            />
-            {user?.role !== "cashier" && (!isAdmin || !isEditingOwnProfile) ? (
-              <ProFormSelect
-                hasFeedback
-                width="md"
-                name="shop_id"
-                label="Branch Name"
-                rules={[{ required: true, message: "Branch is required" }]}
-                showSearch
-                placeholder="Select Branch name"
-                request={shopRequest}
-                fieldProps={{
-                  onChange: handleShopChange,
+  // Mobile → bottom Drawer with plain Form ────────────────────────────────────
+  if (isMobile) {
+    return (
+      <>
+        {triggerButton}
+        <Drawer
+          open={open}
+          onClose={() => handleOpenChange(false)}
+          placement="bottom"
+          height="92vh"
+          destroyOnClose
+          title={modalTitle}
+          styles={{
+            body: { padding: "14px 14px 100px", overflowY: "auto" },
+            footer: {
+              padding: "12px 14px",
+              borderTop: `1px solid ${C.border}`,
+              background: "#fff",
+            },
+          }}
+          footer={
+            <div style={{ display: "flex", gap: 10 }}>
+              <Button
+                block
+                onClick={() => handleOpenChange(false)}
+                style={{ borderRadius: 8, height: 44 }}
+              >
+                Cancel
+              </Button>
+              <Button
+                block
+                type="primary"
+                onClick={handleMobileSubmit}
+                style={{
+                  background: C.primary,
+                  borderColor: C.primary,
+                  borderRadius: 8,
+                  height: 44,
+                  fontWeight: 600,
                 }}
-              />
-            ) : null}
-
-            <PhoneInput label="Phone" owner="phoneNumber" />
-          </ProForm.Group>
-        </>
-      ),
-    },
-    {
-      key: "categories",
-      label: (
-        <span>
-          <ShoppingOutlined style={{ marginRight: 8 }} />
-          Categories
-          {selectedCategories.length > 0 && (
-            <span style={{
-              marginLeft: '8px',
-              backgroundColor: primaryColor,
-              color: '#fff',
-              borderRadius: '10px',
-              padding: '0 6px',
-              fontSize: '12px',
-              fontWeight: 'bold'
-            }}>
-              {selectedCategories.length}
-            </span>
-          )}
-        </span>
-      ),
-      children: (
-        <div style={{ padding: '24px' }}>
-          <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShoppingOutlined style={{ fontSize: '18px', color: primaryColor }} />
-              Assign Product Categories
-            </h3>
-            <p style={{ color: '#666', marginBottom: '16px' }}>
-              Select the product categories this user has access to. Categories are specific to the selected branch.
-            </p>
-          </div>
-
-          {!currentShopId && (
-            <Alert
-              message="Please select a branch first to view available categories."
-              type="warning"
-              showIcon
-              style={{ marginBottom: '16px' }}
+              >
+                {edit ? "Save Changes" : "Create Staff"}
+              </Button>
+            </div>
+          }
+        >
+          <Form form={form} layout="vertical" requiredMark={false}>
+            <Tabs
+              defaultActiveKey="details"
+              size="small"
+              items={[
+                {
+                  key: "details",
+                  label: (
+                    <Space size={6}>
+                      <UserOutlined style={{ fontSize: 13 }} />
+                      <span>User Details</span>
+                    </Space>
+                  ),
+                  children: (
+                    <MobileDetailsFields
+                      form={form}
+                      isAdmin={isAdmin}
+                      isProfile={!!isProfile}
+                      isEditingOwnProfile={!!isEditingOwnProfile}
+                      userRole={user?.role || ""}
+                      fileList={fileList}
+                      previewImage={previewImage}
+                      beforeUpload={beforeUpload}
+                      handleUploadChange={handleUploadChange}
+                      shops={shops || []}
+                      userRoles={userRoles || []}
+                      handleShopChange={handleShopChange}
+                    />
+                  ),
+                },
+                {
+                  key: "categories",
+                  label: categoriesTabLabel,
+                  children: categoriesContent,
+                },
+              ]}
             />
-          )}
+          </Form>
+        </Drawer>
+      </>
+    );
+  }
 
-          {currentShopId && categoriesLoading && (
-            <div style={{
-              padding: '16px',
-              backgroundColor: '#f0f2f5',
-              borderRadius: '6px',
-              marginBottom: '16px',
-              textAlign: 'center',
-              color: '#666'
-            }}>
-              Loading categories for this branch...
-            </div>
-          )}
-
-          {currentShopId && !categoriesLoading && categoriesData && categoriesData.length > 0 ? (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-              gap: '12px',
-            }}>
-              {categoriesData.map((category: any) => (
-                <label
-                  key={category._id}
-                  style={{
-                    padding: '12px',
-                    border: `2px solid ${selectedCategories.includes(category._id) ? primaryColor : '#d9d9d9'}`,
-                    borderRadius: '6px',
-                    backgroundColor: selectedCategories.includes(category._id)
-                      ? `${primaryColor}15`
-                      : '#fff',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!selectedCategories.includes(category._id)) {
-                      e.currentTarget.style.borderColor = primaryColor;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!selectedCategories.includes(category._id)) {
-                      e.currentTarget.style.borderColor = '#d9d9d9';
-                    }
-                  }}
-                >
-                  <Checkbox
-                    checked={selectedCategories.includes(category._id)}
-                    onChange={(e) => handleCategoryChange(category._id, e.target.checked)}
-                  />
-                  <span style={{
-                    fontSize: '14px',
-                    fontWeight: selectedCategories.includes(category._id) ? '600' : '500',
-                    color: selectedCategories.includes(category._id) ? primaryColor : '#000'
-                  }}>
-                    {category.name}
-                  </span>
-                </label>
-              ))}
-            </div>
-          ) : currentShopId && !categoriesLoading ? (
-            <Empty
-              description="No categories available for this branch"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              style={{ marginTop: '20px' }}
-            />
-          ) : null}
-
-          {selectedCategories.length > 0 && (
-            <div style={{
-              marginTop: '16px',
-              padding: '12px',
-              backgroundColor: `${primaryColor}10`,
-              borderRadius: '6px',
-              borderLeft: `3px solid ${primaryColor}`,
-              fontSize: '13px',
-              color: '#666'
-            }}>
-              <strong style={{ color: primaryColor }}>
-                {selectedCategories.length} categor{selectedCategories.length === 1 ? 'y' : 'ies'} selected
-              </strong>
-            </div>
-          )}
-        </div>
-      ),
-    },
-  ];
-
+  // Desktop → ModalForm ────────────────────────────────────────────────────────
   return (
     <ModalForm
       form={form}
       open={open}
       onOpenChange={handleOpenChange}
       formRef={formRef}
-      title={
-        <Space>
-          {isProfile ? <EditOutlined /> : <UsergroupAddOutlined />}
-          {edit ? `Edit ${isProfile ? "Profile" : "User"}` : "Add New User "}
-        </Space>
-      }
+      title={modalTitle}
       initialValues={
         edit
           ? {
             ...data,
             phoneNumber: reversePhoneNumber(data?.phone),
-            roleId: {
-              value: data?.role?._id,
-              label: data?.role?.role_type,
-            },
+            roleId: { value: data?.role?._id, label: data?.role?.role_type },
             shop_id: {
-              value: typeof data?.shop_id === 'object' ? data?.shop_id?._id : data?.shop_id,
-              label: typeof data?.shop_id === 'object' ? data?.shop_id?.name : data?.shop_id,
+              value:
+                typeof data?.shop_id === "object"
+                  ? data?.shop_id?._id
+                  : data?.shop_id,
+              label:
+                typeof data?.shop_id === "object"
+                  ? data?.shop_id?.name
+                  : data?.shop_id,
             },
           }
           : {}
       }
-      trigger={
-        edit ? (
-          <Button
-            key="button"
-            icon={
-              <EditOutlined
-                style={{ color: primaryColor }}
-                onClick={() => form.setFieldsValue(data)}
-              />
-            }
-            size="small"
-          >
-            Edit
-          </Button>
-        ) : (
-          <Button type="primary" key="button" icon={<UsergroupAddOutlined />}>
-            New Staff
-          </Button>
-        )
-      }
+      trigger={triggerButton}
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
         centered: true,
-        width: 800,
+        width: "min(820px, 96vw)",
+        styles: {
+          body: { maxHeight: "78vh", overflowY: "auto", padding: "20px 20px 8px" },
+        },
       }}
       onFinish={onFinish}
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: edit ? "Save Profile" : "Add New User",
+          submitText: edit ? "Save Changes" : "Create Staff",
         },
+        submitButtonProps: {
+          style: {
+            background: C.primary,
+            borderColor: C.primary,
+            borderRadius: 7,
+            fontWeight: 500,
+          },
+        },
+        resetButtonProps: { style: { borderRadius: 7 } },
       }}
     >
-      <Tabs items={tabItems} defaultActiveKey="details" />
+      <Tabs
+        defaultActiveKey="details"
+        size="small"
+        items={[
+          {
+            key: "details",
+            label: (
+              <Space size={6}>
+                <UserOutlined style={{ fontSize: 13 }} />
+                <span>User Details</span>
+              </Space>
+            ),
+            children: desktopDetailsTab,
+          },
+          {
+            key: "categories",
+            label: categoriesTabLabel,
+            children: categoriesContent,
+          },
+        ]}
+      />
     </ModalForm>
   );
 };

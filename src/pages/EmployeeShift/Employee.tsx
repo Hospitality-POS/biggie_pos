@@ -1,767 +1,528 @@
-import React, { useRef, useState, useEffect } from "react";
-import {
-  Select,
-  Button,
-  Modal,
-  message,
-  Space,
-  Spin,
-  Typography,
-  Card,
-  Avatar,
-  Tooltip,
-  Divider,
-  List,
-  Popover,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SolutionOutlined,
-  LeftOutlined,
-  RightOutlined,
-  ClockCircleOutlined,
-  UserOutlined,
-  FilePdfOutlined,
-  SwitcherOutlined,
-} from "@ant-design/icons";
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import EmployeeShiftModal from "@components/MODALS/pro/EmployeeShiftModal";
-import { deleteShift, fetchAllShifts } from "@services/shifts";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { fetchAllUsersList } from "@services/users";
-import dayjs from "dayjs";
-import weekOfYear from "dayjs/plugin/weekOfYear";
-import isoWeek from "dayjs/plugin/isoWeek";
+import React, { useEffect, useMemo, useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
+import {
+  CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined,
+  DollarOutlined, LockOutlined, RiseOutlined, WarningOutlined,
+} from "@ant-design/icons";
+import { Empty, Select, Skeleton, Tag, Typography } from "antd";
+import { useAppSelector } from "src/store";
+import RestaurantShiftSchedule from "./RestaurantShiftSchedule";
+import StaffLeavePortal from "@pages/Settings/usersLevel/StaffLeavePortal";
+import {
+  fetchMyAttendance, fetchLeaveBalance,
+  AttendanceSummary, LeaveBalance, LeaveType,
+} from "@services/hr/leave";
+import dayjs from "dayjs";
 
-// Extend dayjs with plugins
-dayjs.extend(weekOfYear);
-dayjs.extend(isoWeek);
+const { Text } = Typography;
 
-const RestaurantShiftSchedule = () => {
-  const actionRef = useRef({ reset: () => { } });
-  const scheduleRef = useRef(null);
-  const newShiftButtonRef = useRef(null);
-  const editShiftButtonRef = useRef(null);
-  const [currentDate, setCurrentDate] = useState(dayjs());
-  const [timeFilter, setTimeFilter] = useState('all');
-  const [exportLoading, setExportLoading] = useState(false);
-  const [currentShift, setCurrentShift] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+const C = {
+  primary: "#6c1c2c",
+  primaryLight: "#f9f0f2",
+  green: "#10b981",
+  orange: "#f59e0b",
+  red: "#ef4444",
+  blue: "#3b82f6",
+  purple: "#8b5cf6",
+  darkText: "#0f172a",
+  subText: "#64748b",
+  border: "#e2e8f0",
+  bg: "#f8fafc",
+  white: "#ffffff",
+};
 
-  // Fetch data queries
-  const {
-    data: shifts,
-    isLoading: isLoadingShifts,
-    refetch: refetchShifts
-  } = useQuery({
-    queryKey: ["shifts"],
-    queryFn: fetchAllShifts,
-    retry: 1,
-    refetchInterval: 5000,
-    networkMode: "always",
-  });
+// ── Bandu gate ────────────────────────────────────────────────────────────────
+const isBanduEnabled = (): boolean => {
+  try {
+    const stored = localStorage.getItem("tenant");
+    if (!stored) return false;
+    const tenant = JSON.parse(stored);
+    return tenant?.modules?.payroll === true;
+  } catch {
+    return false;
+  }
+};
 
-
-  const shopId = localStorage.getItem("shopId");
-
-  const { data: users } = useQuery({
-    queryKey: ["users", shopId],
-    enabled: !!shopId,
-    queryFn: () =>
-      fetchAllUsersList({
-        fullname: "",
-        email: "",
-        shop_id: shopId!,
-      }),
-    retry: 1,
-    refetchInterval: 5000,
-    networkMode: "always",
-    select: (data: any[]) =>
-      data?.filter((user: any) => {
-        const roleType = user.role?.role_type?.toLowerCase();
-        return roleType !== "admin" && roleType !== "cleaner";
-      }) ?? [],
-  });
-
-  // Delete mutation
-  const DeleteShiftMutation = useMutation({
-    mutationFn: deleteShift,
-    onSuccess: () => {
-      refetchShifts();
-      message.success("Shift deleted successfully");
-    },
-    onError: (error) => {
-      console.error("Delete error:", error);
-      message.error("Failed to delete shift");
-    },
-  });
-
-  // Get the days of the current week
-  const getWeekDays = () => {
-    const startOfWeek = currentDate.startOf("week");
-    const days = [];
-    for (let i = 0; i < 7; i++) {
-      days.push(startOfWeek.add(i, "day"));
-    }
-    return days;
-  };
-
-  const weekDays = getWeekDays();
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const shortDayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-  // Navigation functions
-  const goToPreviousWeek = () => {
-    setCurrentDate(currentDate.subtract(1, "week"));
-  };
-
-  const goToNextWeek = () => {
-    setCurrentDate(currentDate.add(1, "week"));
-  };
-
-  const goToToday = () => {
-    setCurrentDate(dayjs());
-  };
-
-  // Get shifts for a specific employee on a specific day
-  const getEmployeeShiftsForDay = (employeeId, day) => {
-    const dayOfWeek = dayNames[day.day()];
-
-    let filteredShifts = shifts?.filter(
-      (shift) =>
-        shift.employee_id?._id === employeeId &&
-        shift.dayOfWeek === dayOfWeek
-    ) || [];
-
-    // Apply time filter if not 'all'
-    if (timeFilter !== 'all') {
-      filteredShifts = filteredShifts.filter(shift => {
-        const hour = parseInt(shift.startTime.split(":")[0]);
-        if (timeFilter === 'morning' && hour < 12) return true;
-        if (timeFilter === 'afternoon' && hour >= 12 && hour < 17) return true;
-        if (timeFilter === 'evening' && hour >= 17) return true;
-        return false;
-      });
-    }
-
-    return filteredShifts;
-  };
-
-  // Generate a unique color for each employee
-  const getEmployeeColor = (employeeId) => {
-    // List of distinct colors
-    const colors = [
-      "#f56a00", "#7265e6", "#ffbf00", "#00a2ae", "#1890ff",
-      "#52c41a", "#722ed1", "#eb2f96", "#fa8c16", "#a0d911",
-      "#13c2c2", "#1677ff", "#faad14", "#fadb14", "#a8071a",
-      "#006d75", "#0958d9", "#531dab", "#c41d7f", "#d4380d"
-    ];
-
-    // Find index of the employee in the users array
-    const userIndex = users?.findIndex(user => user._id === employeeId) || 0;
-
-    // Use modulo to ensure we don't go out of bounds
-    return colors[userIndex % colors.length];
-  };
-
-  // Handle clicking "New Employee Shift" button
-  const handleNewShiftClick = () => {
-    if (newShiftButtonRef.current) {
-      // Find the button element and programmatically click it
-      const buttonElement = newShiftButtonRef.current.querySelector('button');
-      if (buttonElement) {
-        buttonElement.click();
-      }
-    }
-  };
-
-  // Handle click to add a new shift from empty cell
-  const handleAddShift = (employeeId, dayOfWeek, date) => {
-    console.log("Adding shift for:", employeeId, "on day:", dayOfWeek, "date:", date.format("YYYY-MM-DD"));
-
-    const employee = users?.find(user => user._id === employeeId);
-
-    // Set the current shift data (will be picked up by the modal via initialValues)
-    setCurrentShift({
-      employee_id: employee?._id,
-      dayOfWeek: dayOfWeek,
-      date: date.format("YYYY-MM-DD")
-    });
-
-    setIsEditMode(false);
-
-    // Delay slightly to ensure state is updated before clicking
-    setTimeout(() => {
-      if (newShiftButtonRef.current) {
-        const buttonElement = newShiftButtonRef.current.querySelector('button');
-        if (buttonElement) {
-          buttonElement.click();
-        }
-      }
-    }, 50);
-  };
-
-  // Handle editing a shift
-  const handleEditShift = (shift) => {
-    console.log("Editing shift:", shift);
-
-    // Set the current shift data for editing
-    setCurrentShift(shift);
-    setIsEditMode(true);
-
-    // Delay slightly to ensure state is updated before clicking
-    setTimeout(() => {
-      if (editShiftButtonRef.current) {
-        const buttonElement = editShiftButtonRef.current.querySelector('button');
-        if (buttonElement) {
-          buttonElement.click();
-        }
-      }
-    }, 50);
-  };
-
-  // Export schedule as PDF
-  const exportToPDF = async () => {
-    if (!scheduleRef.current) return;
-
-    setExportLoading(true);
-
-    try {
-      const canvas = await html2canvas(scheduleRef.current, {
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-      });
-
-      const imgWidth = 280;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
-      pdf.save(`schedule-week-${currentDate.week()}.pdf`);
-
-      message.success('Schedule exported successfully!');
-    } catch (error) {
-      console.error('Error exporting PDF:', error);
-      message.error('Failed to export schedule');
-    } finally {
-      setExportLoading(false);
-    }
-  };
-
-  // Effect to clear current shift data when refetching
+// ── Width hook ────────────────────────────────────────────────────────────────
+const useWindowWidth = () => {
+  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
   useEffect(() => {
-    const handleActionReset = () => {
-      setCurrentShift(null);
-      refetchShifts();
-    };
+    const h = () => setW(window.innerWidth);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return w;
+};
 
-    // Create a reset method on the action ref
-    actionRef.current.reset = handleActionReset;
-  }, [refetchShifts]);
+// ── Tab label ─────────────────────────────────────────────────────────────────
+const TabLabel: React.FC<{
+  icon: React.ReactNode; label: string; color: string;
+  comingSoon?: boolean; isMobile: boolean;
+}> = ({ icon, label, color, comingSoon, isMobile }) => (
+  <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+    <span style={{ color, fontSize: 14, lineHeight: 1, display: "flex" }}>{icon}</span>
+    {!isMobile && (
+      <Text style={{ fontSize: 13, fontWeight: 500, color: C.darkText }}>{label}</Text>
+    )}
+    {comingSoon && !isMobile && (
+      <Tag style={{
+        background: "#f0f9ff", color: C.blue, border: "none",
+        borderRadius: 4, fontSize: 9, fontWeight: 700,
+        padding: "1px 5px", lineHeight: "14px",
+      }}>
+        Soon
+      </Tag>
+    )}
+  </span>
+);
 
-  // Shift card component
-  const ShiftCard = ({ shift, onEdit, onDelete }) => {
-    const backgroundColor = getEmployeeColor(shift?.employee_id?._id);
+// ── Bandu locked placeholder ──────────────────────────────────────────────────
+const BanduLockedTab: React.FC = () => (
+  <div style={{
+    display: "flex", flexDirection: "column", alignItems: "center",
+    justifyContent: "center", padding: "60px 24px", textAlign: "center",
+  }}>
+    <div style={{
+      width: 64, height: 64, borderRadius: 16, background: "#fff8ed",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: 28, color: C.orange, marginBottom: 20,
+    }}>
+      <LockOutlined />
+    </div>
+    <Text strong style={{ fontSize: 16, color: C.darkText, display: "block", marginBottom: 8 }}>
+      Bandu by Base is not enabled
+    </Text>
+    <Text style={{ fontSize: 13, color: C.subText, maxWidth: 360, lineHeight: 1.6 }}>
+      Enable Bandu by Base from the <strong>Discover</strong> page to unlock
+      Leave, Attendance, and Payroll features.
+    </Text>
+  </div>
+);
 
-    return (
-      <Popover
-        content={
-          <div className="shift-popover">
-            <div className="shift-detail">
-              <UserOutlined /> {shift?.employee_id?.fullname}
-            </div>
-            <div className="shift-detail">
-              <ClockCircleOutlined /> {shift?.startTime} - {shift?.endTime}
-            </div>
-            <Divider style={{ margin: '8px 0' }} />
-            <Space>
-              <Button
-                size="small"
-                icon={<EditOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(shift);
-                }}
-              >
-                Edit
-              </Button>
-              <Button
-                size="small"
-                icon={<DeleteOutlined />}
-                danger
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(shift._id);
-                }}
-              >
-                Delete
-              </Button>
-            </Space>
-          </div>
-        }
-        trigger="hover"
-        placement="top"
-      >
-        <div
-          className="shift-card"
-          style={{ backgroundColor }}
-          onClick={() => onEdit(shift)}
-        >
-          <div className="shift-info">
-            <div className="shift-time">{shift?.startTime} - {shift?.endTime}</div>
-          </div>
-        </div>
-      </Popover>
-    );
-  };
+// ── Range options ─────────────────────────────────────────────────────────────
+const RANGE_OPTIONS = [
+  { value: "7", label: "Last 7 days" },
+  { value: "30", label: "Last 30 days" },
+  { value: "90", label: "Last 90 days" },
+];
 
-  // Weekly View with users on the side
-  const renderWeeklyView = () => {
-    if (!users || users.length === 0) {
-      return <div className="empty-message">No employees found</div>;
-    }
+const LEAVE_TYPE_COLOR: Record<string, string> = {
+  Annual: C.blue,
+  Sick: C.red,
+  Emergency: C.orange,
+  Maternity: C.purple,
+  Paternity: "#6366f1",
+  Unpaid: C.subText,
+};
 
-    return (
-      <div className="weekly-schedule" ref={scheduleRef}>
-        <div className="schedule-container">
-          {/* User list on the left */}
-          <div className="user-list-col">
-            <div className="user-list-header">
-              <span>Employees</span>
-            </div>
-            <List
-              className="user-list"
-              dataSource={users}
-              renderItem={user => (
-                <List.Item className="user-list-item" key={user?._id}>
-                  <Space size={12} align="center" style={{ width: '100%', paddingLeft: '8px' }}>
-                    <Avatar
-                      src={user?.thumbnail || ''}
-                      icon={<UserOutlined />}
-                      style={{ backgroundColor: getEmployeeColor(user._id) }}
-                      size={40}
-                    />
-                    <span className="user-name">{user.fullname}</span>
-                  </Space>
-                </List.Item>
-              )}
-            />
-          </div>
-
-          {/* Schedule grid on the right */}
-          <div className="schedule-grid">
-            {/* Header row with days */}
-            <div className="week-header-row">
-              {weekDays.map((day, index) => (
-                <div
-                  key={index}
-                  className={`day-header ${day.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD') ? 'today' : ''}`}
-                >
-                  <div className="day-name">{shortDayNames[day.day()]}</div>
-                  <div className="day-date">{day.format("D")}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Employee rows */}
-            {users?.map(user => (
-              <div key={user._id} className="employee-row">
-                {weekDays.map((day, dayIndex) => {
-                  const dayOfWeek = dayNames[day.day()];
-                  const employeeShifts = getEmployeeShiftsForDay(user._id, day);
-
-                  return (
-                    <div
-                      key={dayIndex}
-                      className={`day-cell ${day.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD') ? 'today' : ''}`}
-                    >
-                      <div className="shift-container">
-                        {employeeShifts.map(shift => (
-                          <ShiftCard
-                            key={shift._id}
-                            shift={shift}
-                            onEdit={handleEditShift}
-                            onDelete={(shiftId) => {
-                              Modal.confirm({
-                                title: 'Delete Shift',
-                                content: 'Are you sure you want to delete this shift?',
-                                okText: 'Yes',
-                                okType: 'danger',
-                                cancelText: 'No',
-                                onOk() {
-                                  DeleteShiftMutation.mutate(shiftId);
-                                }
-                              });
-                            }}
-                          />
-                        ))}
-
-                        {employeeShifts.length === 0 && (
-                          <div
-                            className="empty-slot"
-                            onClick={() => handleAddShift(user._id, dayOfWeek, day)}
-                          >
-                            <PlusOutlined className="add-icon" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
+// ── Stat card ─────────────────────────────────────────────────────────────────
+const StatCard: React.FC<{
+  label: string; value: string; sub: string;
+  icon: React.ReactNode; iconBg: string; iconColor: string;
+  accent: string;
+}> = ({ label, value, sub, icon, iconBg, iconColor, accent }) => (
+  <div style={{
+    background: C.white, border: `1px solid ${C.border}`,
+    borderRadius: 10, padding: "12px 14px",
+    position: "relative", overflow: "hidden",
+    transition: "box-shadow 0.15s", minWidth: 0,
+  }}
+    onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)")}
+    onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
+  >
+    <div style={{
+      position: "absolute", top: 0, left: 0, right: 0,
+      height: 3, background: accent, borderRadius: "10px 10px 0 0",
+    }} />
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+      <Text style={{
+        fontSize: 10, color: C.subText, fontWeight: 500,
+        letterSpacing: "0.3px", textTransform: "uppercase", lineHeight: 1.4,
+      }}>
+        {label}
+      </Text>
+      <div style={{
+        background: iconBg, color: iconColor,
+        borderRadius: 6, padding: "3px 5px", fontSize: 12, lineHeight: 1, flexShrink: 0,
+      }}>
+        {icon}
       </div>
-    );
-  };
+    </div>
+    <div style={{ fontSize: 20, fontWeight: 700, color: C.darkText, lineHeight: 1.1, marginBottom: 2 }}>
+      {value}
+    </div>
+    <div style={{ fontSize: 11, color: C.subText }}>{sub}</div>
+  </div>
+);
 
+// ── Skeleton cards ────────────────────────────────────────────────────────────
+const SkeletonCards: React.FC<{ count: number; cols: number }> = ({ count, cols }) => (
+  <>
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: `repeat(${cols}, 1fr)`,
+      gap: 10, marginBottom: 16,
+    }}>
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} style={{
+          height: 88, background: "#f1f5f9",
+          borderRadius: 10, animation: "pulse 1.5s ease-in-out infinite",
+        }} />
+      ))}
+    </div>
+    <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}`}</style>
+  </>
+);
+
+// ── Leave balance pills ───────────────────────────────────────────────────────
+const BalancePills: React.FC<{ balances: LeaveBalance[]; cols: number }> = ({ balances, cols }) => {
+  if (!balances.length) return null;
   return (
-    <div className="schedule-container-main">
-      <ProCard bordered={false} className="calendar-card">
-        {/* Header section */}
-        <div className="calendar-header">
-          <div className="header-top-row">
-            <Typography.Title level={4} className="calendar-title">
-              <SolutionOutlined style={{ color: '#6c1c2c', marginRight: 8 }} />
-              Staff Schedule
-            </Typography.Title>
-
-            <Space size={16}>
-              <div className="current-period">
-                {currentDate.format("MMMM YYYY")} - Week {currentDate.week()}
+    <div style={{ marginBottom: 18 }}>
+      <Text style={{
+        fontSize: 11, color: C.subText, fontWeight: 600,
+        textTransform: "uppercase", letterSpacing: "0.4px",
+        display: "block", marginBottom: 10,
+      }}>
+        Leave Balance
+      </Text>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gap: 10,
+      }}>
+        {balances.map((b) => {
+          const pct = b.entitled > 0 ? Math.round((b.remaining / b.entitled) * 100) : 0;
+          const barColor = pct > 50 ? C.green : pct > 20 ? C.orange : C.red;
+          const typeColor = LEAVE_TYPE_COLOR[b.leave_type as LeaveType] || C.blue;
+          return (
+            <div key={b.leave_type} style={{
+              background: C.white, border: `1px solid ${C.border}`,
+              borderTop: `3px solid ${typeColor}`,
+              borderRadius: 10, padding: "12px 12px 10px",
+            }}>
+              <Text style={{
+                fontSize: 10, color: C.subText, display: "block",
+                marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.3px",
+              }}>
+                {b.leave_type}
+              </Text>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 2, marginBottom: 2 }}>
+                <Text strong style={{ fontSize: 22, color: barColor, lineHeight: 1 }}>{b.remaining}</Text>
+                <Text style={{ fontSize: 12, color: C.subText }}>/{b.entitled}</Text>
               </div>
-              <Space>
-                <Button
-                  icon={<LeftOutlined />}
-                  onClick={goToPreviousWeek}
-                />
-                <Button onClick={goToToday}>Today</Button>
-                <Button
-                  icon={<RightOutlined />}
-                  onClick={goToNextWeek}
-                />
-              </Space>
-
-
-
-              <Space>
-
-                <div className="header-bottom-row">
-                  <Select
-                    placeholder="Filter by time"
-                    style={{ width: 120 }}
-                    value={timeFilter}
-                    onChange={setTimeFilter}
-                    options={[
-                      { value: 'all', label: 'All Hours' },
-                      { value: 'morning', label: 'Morning' },
-                      { value: 'afternoon', label: 'Afternoon' },
-                      { value: 'evening', label: 'Evening' }
-                    ]}
-                  />
-                </div>
-                <Tooltip title="Export as PDF">
-                  <Button
-                    icon={<FilePdfOutlined />}
-                    onClick={exportToPDF}
-                    loading={exportLoading}
-                  >
-                    Export
-                  </Button>
-                </Tooltip>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={handleNewShiftClick}
-                >
-                  New Shift
-                </Button>
-              </Space>
-            </Space>
-          </div>
-        </div>
-
-        {/* Main content */}
-        <Spin spinning={isLoadingShifts || DeleteShiftMutation.isLoading || exportLoading}>
-          <div className="calendar-content">
-            {renderWeeklyView()}
-          </div>
-        </Spin>
-      </ProCard>
-
-      {/* Hidden EmployeeShiftModal components */}
-      <div style={{ display: 'none' }}>
-        {/* For adding new shifts */}
-        <div ref={newShiftButtonRef}>
-          <EmployeeShiftModal
-            actionRef={actionRef}
-            edit={false}
-            data={currentShift || {}}
-          />
-        </div>
-
-        {/* For editing existing shifts */}
-        <div ref={editShiftButtonRef}>
-          <EmployeeShiftModal
-            actionRef={actionRef}
-            edit={true}
-            data={currentShift || {}}
-          />
-        </div>
+              <Text style={{ fontSize: 10, color: C.subText }}>days remaining</Text>
+              <div style={{ marginTop: 8, height: 4, background: C.border, borderRadius: 2, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", width: `${pct}%`, background: barColor,
+                  borderRadius: 2, transition: "width 0.3s",
+                }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
-
-      {/* Styles */}
-      <style jsx>{`
-        .schedule-container-main {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        }
-        
-        .calendar-card {
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-        }
-        
-        /* Header styles */
-        .calendar-header {
-          display: flex;
-          flex-direction: column;
-          margin-bottom: 16px;
-          gap: 16px;
-        }
-        
-        .header-top-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 16px;
-        }
-        
-        .header-bottom-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        
-        .calendar-title {
-          margin: 0 !important;
-          display: flex;
-          align-items: center;
-        }
-        
-        .current-period {
-          font-weight: 500;
-          font-size: 16px;
-          color: #262626;
-        }
-        
-        .calendar-content {
-          margin-top: 8px;
-          min-height: 720px;
-        }
-        
-        /* Weekly schedule layout */
-        .weekly-schedule {
-          border: 1px solid #f0f0f0;
-          border-radius: 4px;
-          overflow: hidden;
-        }
-        
-        .schedule-container {
-          display: flex;
-          width: 100%;
-        }
-        
-        /* User list styles */
-        .user-list-col {
-          width: 220px;
-          border-right: 1px solid #f0f0f0;
-          background-color: #fafafa;
-          flex-shrink: 0;
-        }
-        
-        .schedule-grid {
-          flex: 1;
-          overflow-x: auto;
-        }
-        
-        .user-list-header {
-          padding: 12px 16px;
-          font-weight: 500;
-          height: 60px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background-color: #f5f5f5;
-          border-bottom: 1px solid #f0f0f0;
-          font-size: 16px;
-        }
-        
-        .user-list-item {
-          padding: 12px 16px;
-          border-bottom: 1px solid #f0f0f0;
-          height: 80px;
-          display: flex;
-          align-items: center;
-        }
-        
-        .user-name {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          font-size: 14px;
-          font-weight: 500;
-        }
-        
-        /* Week header styles */
-        .week-header-row {
-          display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          background-color: #f5f5f5;
-          border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .day-header {
-          text-align: center;
-          padding: 12px 8px;
-          height: 60px;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          font-weight: 500;
-          border-right: 1px solid #f0f0f0;
-        }
-        
-        .day-header:last-child {
-          border-right: none;
-        }
-        
-        .day-name {
-          font-size: 14px;
-          margin-bottom: 4px;
-        }
-        
-        .day-date {
-          font-size: 18px;
-          font-weight: 600;
-        }
-        
-        /* Grid styles */
-        .employee-row {
-          display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          border-bottom: 1px solid #f0f0f0;
-          min-width: 700px;
-        }
-        
-        .employee-row:last-child {
-          border-bottom: none;
-        }
-        
-        .day-cell {
-          height: 80px;
-          border-right: 1px solid #f0f0f0;
-          padding: 6px;
-          cursor: pointer;
-        }
-        
-        .day-cell:last-child {
-          border-right: none;
-        }
-        
-        .today {
-          background-color: rgba(24, 144, 255, 0.05);
-        }
-        
-        /* Shift container styles */
-        .shift-container {
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          overflow-y: auto;
-          padding: 2px;
-        }
-        
-        .empty-slot {
-          height: 100%;
-          width: 100%;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          border-radius: 4px;
-        }
-        
-        .add-icon {
-          color: #d9d9d9;
-          transition: color 0.3s;
-        }
-        
-        .day-cell:hover {
-          background-color: rgba(0, 0, 0, 0.02);
-        }
-        
-        .day-cell:hover .add-icon {
-          color: #1890ff;
-        }
-        
-        /* Shift card styles */
-        .shift-card {
-          display: flex;
-          align-items: center;
-          padding: 6px 8px;
-          border-radius: 4px;
-          color: white;
-          cursor: pointer;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-          margin-bottom: 6px;
-          min-height: 28px;
-          font-size: 12px;
-        }
-        
-        .shift-info {
-          flex: 1;
-          text-align: center;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        
-        .shift-time {
-          font-weight: 500;
-        }
-        
-        .shift-popover {
-          padding: 4px;
-          min-width: 200px;
-        }
-        
-        .shift-detail {
-          margin-bottom: 8px;
-        }
-        
-        .empty-message {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          height: 300px;
-          font-size: 16px;
-          color: #8c8c8c;
-        }
-      `}</style>
     </div>
   );
 };
 
-export default RestaurantShiftSchedule;
+// ── Attendance list ───────────────────────────────────────────────────────────
+const AttendanceList: React.FC<{ records: AttendanceSummary[]; isMobile: boolean }> = ({ records, isMobile }) => {
+  const STATUS: Record<string, { color: string; bg: string }> = {
+    Present: { color: C.green, bg: "#f0fdf4" },
+    Late: { color: C.orange, bg: "#fffbeb" },
+    Absent: { color: C.red, bg: "#fef2f2" },
+    "On Leave": { color: C.blue, bg: "#eff6ff" },
+    "Public Holiday": { color: C.purple, bg: "#faf5ff" },
+  };
+
+  if (!records.length) return (
+    <Empty
+      image={Empty.PRESENTED_IMAGE_SIMPLE}
+      description={<Text style={{ fontSize: 13, color: C.subText }}>No records for this period</Text>}
+      style={{ padding: "32px 0" }}
+    />
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {records.map((r) => {
+        const cfg = STATUS[r.status] || STATUS.Absent;
+        return (
+          <div key={r._id} style={{
+            background: C.white, border: `1px solid ${C.border}`,
+            borderLeft: `3px solid ${cfg.color}`,
+            borderRadius: 8, padding: "10px 14px",
+            display: "flex", alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8, flexWrap: "wrap",
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <Text strong style={{ fontSize: 13, color: C.darkText, display: "block" }}>
+                {dayjs(r.date).format(isMobile ? "DD MMM YY" : "ddd, DD MMM YYYY")}
+              </Text>
+              {r.shift_id && (
+                <Text style={{ fontSize: 11, color: C.subText }}>
+                  {r.shift_id.startTime} – {r.shift_id.endTime}
+                </Text>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+              {r.actual_hours > 0 && (
+                <Text style={{ fontSize: 11, color: C.subText }}>{r.actual_hours.toFixed(1)}h</Text>
+              )}
+              <Tag style={{
+                background: cfg.bg, color: cfg.color,
+                border: "none", borderRadius: 6,
+                fontSize: 11, fontWeight: 600, padding: "2px 10px", margin: 0,
+              }}>
+                {r.status}
+              </Tag>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── My analytics panel ────────────────────────────────────────────────────────
+const MyAnalyticsPanel: React.FC<{ width: number }> = ({ width }) => {
+  const isMobile = width < 768;
+  const statCols = width < 480 ? 2 : width < 768 ? 2 : width < 1024 ? 3 : 6;
+  const balanceCols = width < 480 ? 2 : width < 768 ? 3 : 4;
+
+  const { user } = useAppSelector((s) => s.auth);
+
+  const [days, setDays] = useState("30");
+  const [records, setRecords] = useState<AttendanceSummary[]>([]);
+  const [balances, setBalances] = useState<LeaveBalance[]>([]);
+  const [loadingAtt, setLoadingAtt] = useState(true);
+  const [loadingBal, setLoadingBal] = useState(true);
+
+  useEffect(() => {
+    setLoadingAtt(true);
+    const from = dayjs().subtract(Number(days), "day").format("YYYY-MM-DD");
+    const to = dayjs().format("YYYY-MM-DD");
+    fetchMyAttendance({ from, to, limit: "100" })
+      .then((d) => setRecords(d?.summaries || []))
+      .catch(() => { })
+      .finally(() => setLoadingAtt(false));
+  }, [days]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setLoadingBal(true);
+    fetchLeaveBalance(user.id)
+      .then((d) => setBalances(d?.balances || []))
+      .catch(() => { })
+      .finally(() => setLoadingBal(false));
+  }, [user?.id]);
+
+  const stats = useMemo(() => {
+    const present = records.filter((r) => r.status === "Present").length;
+    const late = records.filter((r) => r.status === "Late").length;
+    const absent = records.filter((r) => r.status === "Absent").length;
+    const onLeave = records.filter((r) => r.status === "On Leave").length;
+    const totalHrs = records.reduce((s, r) => s + (r.actual_hours || 0), 0);
+    const overtime = records.reduce((s, r) => s + (r.overtime_hours || 0), 0);
+    const worked = present + late + absent;
+    const rate = worked > 0 ? Math.round(((present + late) / worked) * 100) : 0;
+    return { present, late, absent, onLeave, totalHrs, overtime, rate, total: records.length };
+  }, [records]);
+
+  const cards = [
+    {
+      label: "Present", value: String(stats.present),
+      sub: `of ${stats.total} days`,
+      icon: <CheckCircleOutlined />, iconBg: "#f0fdf4", iconColor: C.green, accent: C.green,
+    },
+    {
+      label: "Late", value: String(stats.late),
+      sub: stats.late > 0 ? "days late" : "all on time",
+      icon: <ClockCircleOutlined />,
+      iconBg: stats.late > 0 ? "#fffbeb" : "#f0fdf4",
+      iconColor: stats.late > 0 ? C.orange : C.green,
+      accent: stats.late > 0 ? C.orange : C.green,
+    },
+    {
+      label: "Absent", value: String(stats.absent),
+      sub: stats.absent > 0 ? "days missed" : "none",
+      icon: <WarningOutlined />,
+      iconBg: stats.absent > 0 ? "#fef2f2" : "#f0fdf4",
+      iconColor: stats.absent > 0 ? C.red : C.green,
+      accent: stats.absent > 0 ? C.red : C.green,
+    },
+    {
+      label: "On Leave", value: String(stats.onLeave),
+      sub: "approved days",
+      icon: <CalendarOutlined />, iconBg: "#eff6ff", iconColor: C.blue, accent: C.blue,
+    },
+    {
+      label: "Hours", value: `${stats.totalHrs.toFixed(1)}h`,
+      sub: `${stats.overtime.toFixed(1)}h overtime`,
+      icon: <RiseOutlined />, iconBg: C.primaryLight, iconColor: C.primary, accent: C.primary,
+    },
+    {
+      label: "Att. Rate", value: `${stats.rate}%`,
+      sub: "present + late",
+      icon: <CheckCircleOutlined />,
+      iconBg: stats.rate >= 80 ? "#f0fdf4" : stats.rate >= 60 ? "#fffbeb" : "#fef2f2",
+      iconColor: stats.rate >= 80 ? C.green : stats.rate >= 60 ? C.orange : C.red,
+      accent: stats.rate >= 80 ? C.green : stats.rate >= 60 ? C.orange : C.red,
+    },
+  ];
+
+  return (
+    <div style={{ padding: isMobile ? "14px 14px" : "20px 20px" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <Select
+          value={days} onChange={setDays} size="small"
+          style={{ width: isMobile ? "100%" : 150 }}
+          options={RANGE_OPTIONS}
+        />
+      </div>
+      {loadingAtt && !records.length ? (
+        <SkeletonCards count={6} cols={statCols} />
+      ) : (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${statCols}, 1fr)`,
+          gap: 10, marginBottom: 18,
+        }}>
+          {cards.map((c) => <StatCard key={c.label} {...c} />)}
+        </div>
+      )}
+      {loadingBal
+        ? <Skeleton active paragraph={{ rows: 2 }} style={{ marginBottom: 18 }} />
+        : <BalancePills balances={balances} cols={balanceCols} />
+      }
+      <Text style={{
+        fontSize: 11, color: C.subText, fontWeight: 600,
+        textTransform: "uppercase", letterSpacing: "0.4px",
+        display: "block", marginBottom: 10,
+      }}>
+        Attendance History
+      </Text>
+      {loadingAtt ? (
+        Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} style={{
+            background: C.white, border: `1px solid ${C.border}`,
+            borderRadius: 8, padding: "12px 14px", marginBottom: 6,
+          }}>
+            <Skeleton active paragraph={false} />
+          </div>
+        ))
+      ) : (
+        <AttendanceList records={records} isMobile={isMobile} />
+      )}
+    </div>
+  );
+};
+
+// ── Payroll coming soon ───────────────────────────────────────────────────────
+const PayrollComingSoon: React.FC = () => (
+  <div style={{
+    display: "flex", flexDirection: "column",
+    alignItems: "center", justifyContent: "center",
+    padding: "56px 24px", textAlign: "center",
+  }}>
+    <div style={{
+      width: 64, height: 64, borderRadius: 16,
+      background: "#f0fdf4", display: "flex",
+      alignItems: "center", justifyContent: "center",
+      fontSize: 28, color: C.green, marginBottom: 18,
+    }}>
+      <DollarOutlined />
+    </div>
+    <Text strong style={{ fontSize: 16, color: C.darkText, display: "block", marginBottom: 8 }}>
+      Payroll is coming soon
+    </Text>
+    <Text style={{ fontSize: 13, color: C.subText, maxWidth: 340, lineHeight: 1.7 }}>
+      Salary calculations, payslips, deductions, and tax summaries —
+      all linked to your shifts and attendance.
+    </Text>
+    <div style={{ display: "flex", gap: 8, marginTop: 20, flexWrap: "wrap", justifyContent: "center" }}>
+      {["Salary", "Payslips", "Deductions", "Tax summaries"].map((f) => (
+        <Tag key={f} style={{
+          background: C.bg, color: C.subText,
+          border: `1px solid ${C.border}`,
+          borderRadius: 6, fontSize: 11, padding: "3px 12px",
+        }}>
+          {f}
+        </Tag>
+      ))}
+    </div>
+  </div>
+);
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+const EmployeePage: React.FC = () => {
+  const width = useWindowWidth();
+  const isMobile = width < 768;
+  const banduEnabled = isBanduEnabled();
+
+  return (
+    <div style={{ width: "100%", boxSizing: "border-box" }}>
+      <ProCard
+        bordered
+        style={{ borderRadius: 12, width: "100%" }}
+        bodyStyle={{ padding: 0 }}
+        tabs={{
+          type: "card",
+          defaultActiveKey: "shifts",
+          size: "middle",
+          style: { marginBottom: 0 },
+          tabBarStyle: {
+            margin: 0,
+            padding: isMobile ? "0 8px" : "0 16px",
+          },
+          tabBarGutter: isMobile ? 2 : 8,
+        }}
+      >
+        {/* Shifts — always visible */}
+        <ProCard.TabPane
+          key="shifts"
+          tab={<TabLabel icon={<ClockCircleOutlined />} label="Shifts" color={C.blue} isMobile={isMobile} />}
+        >
+          <RestaurantShiftSchedule />
+        </ProCard.TabPane>
+
+        {/* My Leave — Bandu only */}
+        {banduEnabled && (
+          <ProCard.TabPane
+            key="leave"
+            tab={<TabLabel icon={<CalendarOutlined />} label="My Leave" color={C.orange} isMobile={isMobile} />}
+          >
+            <StaffLeavePortal />
+          </ProCard.TabPane>
+        )}
+
+        {/* Attendance — Bandu only */}
+        {banduEnabled && (
+          <ProCard.TabPane
+            key="attendance"
+            tab={<TabLabel icon={<RiseOutlined />} label="Attendance" color={C.purple} isMobile={isMobile} />}
+          >
+            <MyAnalyticsPanel width={width} />
+          </ProCard.TabPane>
+        )}
+
+        {/* Payroll — Bandu only */}
+        {banduEnabled && (
+          <ProCard.TabPane
+            key="payroll"
+            tab={
+              <TabLabel icon={<DollarOutlined />} label="Payroll"
+                color={C.green} comingSoon isMobile={isMobile} />
+            }
+          >
+            <PayrollComingSoon />
+          </ProCard.TabPane>
+        )}
+      </ProCard>
+    </div>
+  );
+};
+
+export default EmployeePage;

@@ -44,12 +44,25 @@ export const createCart = createAsyncThunk(
     }
   }
 );
-
+export const addToCartByBarcode = createAsyncThunk(
+  "cart/addByBarcode",
+  async ({ barcode, tableId }: { barcode: string; tableId: string }, { rejectWithValue }) => {
+    try {
+      const res = await axiosInstance.post(`/cart/${tableId}/add-by-barcode`, { barcode });
+      return { success: true, productName: res.data.product?.name, ...res.data };
+    } catch (err: any) {
+      if (err.response?.status === 404)
+        return { success: false, notFound: true };
+      return rejectWithValue(err.response?.data);
+    }
+  }
+);
 export const getCart = createAsyncThunk(
   "cart/getCart",
   async (tableId: string, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.get(`${baseUrl}/cart/${tableId}`);
+      console.log('nice uno', response);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

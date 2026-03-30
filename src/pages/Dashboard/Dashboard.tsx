@@ -4,10 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Button,
   Typography,
-  Card,
   Row,
   Col,
-  Statistic,
   Table,
   Badge,
   Space,
@@ -21,6 +19,7 @@ import {
   Tag,
   Progress,
   Empty,
+  Drawer,
   Tooltip,
 } from "antd";
 import {
@@ -38,9 +37,14 @@ import {
   CheckCircleOutlined,
   FileTextOutlined,
   SyncOutlined,
-  CopyOutlined,
   PieChartOutlined,
   SnippetsOutlined,
+  FilterOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  ShopOutlined,
+  CopyOutlined,
+  MedicineBoxOutlined,
 } from "@ant-design/icons";
 import { Line } from "@ant-design/charts";
 import {
@@ -49,23 +53,33 @@ import {
   getSalesChartData,
 } from "@services/orders";
 import dayjs from "dayjs";
+import { ProCard } from "@ant-design/pro-components";
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
+// ── POS mode helper ───────────────────────────────────────────────────────────
+const getPosMode = (): string =>
+  localStorage.getItem("posMode") ?? "service";
+
+const isHospitalMode = (): boolean => getPosMode() === "hospital";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 const COLORS = {
   primary: "#1890ff",
-  success: "#52c41a",
-  warning: "#faad14",
-  error: "#ff4d4f",
-  purple: "#722ed1",
-  orange: "#fa8c16",
-  cyan: "#13c2c2",
-  gray: "#8c8c8c",
-  lightGray: "#f5f7fa",
+  success: "#10b981",
+  warning: "#f59e0b",
+  error: "#ef4444",
+  purple: "#6366f1",
+  orange: "#f97316",
+  cyan: "#06b6d4",
+  gray: "#64748b",
+  lightGray: "#f8fafc",
+  text: "#0f172a",
+  subtext: "#64748b",
 };
 
-const PERIOD_LABELS = {
+const PERIOD_LABELS: Record<string, string> = {
   day: "Today",
   week: "This Week",
   month: "This Month",
@@ -73,413 +87,380 @@ const PERIOD_LABELS = {
   custom: "Custom Period",
 };
 
-const calculateBusinessIndicators = (chartData, apiData, periodFilter) => {
-  const totalRevenue =
-    chartData?.data?.summary?.total_sales || apiData?.todayRevenue || 0;
-  const totalOrders =
-    chartData?.data?.summary?.total_orders || apiData?.totalOrderCount || 0;
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmtK = (v: number) => {
+  if (!v && v !== 0) return "0";
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+  return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
+};
+
+// ── KPI Card ──────────────────────────────────────────────────────────────────
+interface KPICardProps {
+  title: string;
+  value: number | string;
+  icon: React.ReactNode;
+  color: string;
+  bg: string;
+  pctChange?: number | null;
+  prefix?: string;
+  suffix?: string;
+  onClick?: () => void;
+  loading?: boolean;
+}
+
+const KPICard: React.FC<KPICardProps> = ({
+  title, value, icon, color, bg, pctChange, prefix = "Ksh", suffix, onClick, loading,
+}) => (
+  <Col xs={12} sm={12} lg={6}>
+    <div
+      onClick={onClick}
+      style={{
+        background: bg, borderRadius: 12, padding: "18px 20px", height: "100%",
+        position: "relative", overflow: "hidden",
+        cursor: onClick ? "pointer" : "default",
+        transition: "box-shadow 0.2s ease",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+      }}
+      onMouseEnter={(e) => {
+        if (onClick) (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.1)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
+      }}
+    >
+      <div style={{
+        position: "absolute", right: -16, top: -16,
+        width: 80, height: 80, borderRadius: "50%", background: `${color}18`,
+      }} />
+      {loading ? (
+        <Skeleton active paragraph={false} />
+      ) : (
+        <Space direction="vertical" size={4} style={{ width: "100%", position: "relative", zIndex: 1 }}>
+          <Space align="center" size={6}>
+            <div style={{
+              background: `${color}20`, borderRadius: 8,
+              padding: "5px 7px", color, fontSize: 16, lineHeight: 1,
+            }}>
+              {icon}
+            </div>
+            <Text style={{ fontSize: 11, color: COLORS.subtext, fontWeight: 500 }}>{title}</Text>
+          </Space>
+          <Text strong style={{ fontSize: 20, color: COLORS.text, display: "block", lineHeight: 1.2 }}>
+            {prefix ? `${prefix} ` : ""}{typeof value === "number" ? fmtK(value) : value}
+            {suffix && <span style={{ fontSize: 11, marginLeft: 4, color: COLORS.subtext }}>{suffix}</span>}
+          </Text>
+          {pctChange !== null && pctChange !== undefined && (
+            <Space size={3}>
+              {pctChange >= 0
+                ? <ArrowUpOutlined style={{ color: COLORS.success, fontSize: 10 }} />
+                : <ArrowDownOutlined style={{ color: COLORS.error, fontSize: 10 }} />}
+              <Text style={{ fontSize: 10, color: pctChange >= 0 ? COLORS.success : COLORS.error }}>
+                {Math.abs(pctChange).toFixed(1)}% vs last period
+              </Text>
+            </Space>
+          )}
+        </Space>
+      )}
+    </div>
+  </Col>
+);
+
+// ── Business performance ──────────────────────────────────────────────────────
+const calculateBusinessIndicators = (chartData: any, apiData: any, periodFilter: string) => {
+  const totalRevenue = chartData?.data?.summary?.total_sales || apiData?.todayRevenue || 0;
+  const totalOrders = chartData?.data?.summary?.total_orders || apiData?.totalOrderCount || 0;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const growthRate = chartData?.data?.summary?.growth_rate || 0;
 
   if (!chartData?.data?.chart_data?.length || totalRevenue === 0) {
     return {
-      trend: "no-sales",
-      trendText: `No sales ${
-        PERIOD_LABELS[periodFilter]?.toLowerCase() || "in selected period"
-      }`,
+      trend: "no-sales", trendText: `No sales ${PERIOD_LABELS[periodFilter]?.toLowerCase() || "in selected period"}`,
       trendColor: COLORS.error,
       insights: [
-        { type: "negative", text: "Zero revenue - immediate action needed" },
-        {
-          type: "warning",
-          text: "Consider promotions or check shop operations",
-        },
+        { type: "negative", text: "Zero revenue — immediate action needed" },
+        { type: "warning", text: "Consider promotions or check shop operations" },
       ],
-      performance: "critical",
-      performanceColor: COLORS.error,
-      performanceText: "Critical - No Sales",
-      avgOrderValue: 0,
+      performance: "critical", performanceColor: COLORS.error, performanceText: "Critical — No Sales", avgOrderValue: 0,
     };
   }
 
-  let performance, performanceColor, performanceText;
-  if (totalOrders >= 15) {
-    [performance, performanceColor, performanceText] = [
-      "excellent",
-      COLORS.success,
-      "Excellent Shop Performance",
-    ];
-  } else if (totalOrders >= 8) {
-    [performance, performanceColor, performanceText] = [
-      "good",
-      COLORS.success,
-      "Strong Shop Activity",
-    ];
-  } else if (totalOrders >= 5) {
-    [performance, performanceColor, performanceText] = [
-      "moderate",
-      COLORS.primary,
-      "Moderate Shop Activity",
-    ];
-  } else if (totalOrders >= 1) {
-    [performance, performanceColor, performanceText] = [
-      "low",
-      COLORS.warning,
-      "Low Shop Activity",
-    ];
-  } else {
-    [performance, performanceColor, performanceText] = [
-      "critical",
-      COLORS.error,
-      "Critical - Shop Issues",
-    ];
-  }
+  let performance: string, performanceColor: string, performanceText: string;
+  if (totalOrders >= 15) [performance, performanceColor, performanceText] = ["excellent", COLORS.success, "Excellent"];
+  else if (totalOrders >= 8) [performance, performanceColor, performanceText] = ["good", COLORS.success, "Strong"];
+  else if (totalOrders >= 5) [performance, performanceColor, performanceText] = ["moderate", COLORS.primary, "Moderate"];
+  else if (totalOrders >= 1) [performance, performanceColor, performanceText] = ["low", COLORS.warning, "Low Activity"];
+  else[performance, performanceColor, performanceText] = ["critical", COLORS.error, "Critical"];
 
-  let trend, trendColor, trendText;
-  if (growthRate > 20) {
-    [trend, trendColor, trendText] = [
-      "up-strong",
-      COLORS.success,
-      `Shop Accelerating (+${growthRate.toFixed(1)}%)`,
-    ];
-  } else if (growthRate > 5) {
-    [trend, trendColor, trendText] = [
-      "up",
-      COLORS.success,
-      `Shop Growing (+${growthRate.toFixed(1)}%)`,
-    ];
-  } else if (growthRate > -5) {
-    [trend, trendColor, trendText] = [
-      "neutral",
-      COLORS.gray,
-      `Shop Stable (${growthRate.toFixed(1)}%)`,
-    ];
-  } else if (growthRate > -15) {
-    [trend, trendColor, trendText] = [
-      "down",
-      COLORS.warning,
-      `Shop Slowing (${growthRate.toFixed(1)}%)`,
-    ];
-  } else {
-    [trend, trendColor, trendText] = [
-      "down-critical",
-      COLORS.error,
-      `Critical Shop Decline (${growthRate.toFixed(1)}%)`,
-    ];
-  }
+  let trend: string, trendColor: string, trendText: string;
+  if (growthRate > 20) [trend, trendColor, trendText] = ["up-strong", COLORS.success, `Accelerating (+${growthRate.toFixed(1)}%)`];
+  else if (growthRate > 5) [trend, trendColor, trendText] = ["up", COLORS.success, `Growing (+${growthRate.toFixed(1)}%)`];
+  else if (growthRate > -5) [trend, trendColor, trendText] = ["neutral", COLORS.gray, `Stable (${growthRate.toFixed(1)}%)`];
+  else if (growthRate > -15) [trend, trendColor, trendText] = ["down", COLORS.warning, `Slowing (${growthRate.toFixed(1)}%)`];
+  else[trend, trendColor, trendText] = ["down-critical", COLORS.error, `Declining (${growthRate.toFixed(1)}%)`];
 
-  const insights = [];
-
+  const insights: { type: string; text: string }[] = [];
   if (totalOrders > 0) {
-    if (avgOrderValue > 2000) {
-      insights.push({
-        type: "positive",
-        text: `Excellent order value: Ksh ${avgOrderValue.toFixed(0)}`,
-      });
-    } else if (avgOrderValue < 400) {
-      insights.push({
-        type: "warning",
-        text: `Consider upselling - avg: Ksh ${avgOrderValue.toFixed(0)}`,
-      });
-    }
+    if (avgOrderValue > 2000) insights.push({ type: "positive", text: `Excellent avg: Ksh ${avgOrderValue.toFixed(0)}` });
+    else if (avgOrderValue < 400) insights.push({ type: "warning", text: `Low avg: Ksh ${avgOrderValue.toFixed(0)} — consider upselling` });
   }
-
   if (chartData?.data?.summary?.peak_period) {
     const peak = chartData.data.summary.peak_period;
-    insights.push({
-      type: "positive",
-      text: `Peak shop period: ${
-        peak.time
-      } (Ksh ${peak.sales?.toLocaleString()})`,
-    });
+    insights.push({ type: "positive", text: `Peak: ${peak.time} (Ksh ${peak.sales?.toLocaleString()})` });
   }
 
-  return {
-    trend,
-    trendText,
-    trendColor,
-    insights,
-    performance,
-    performanceColor,
-    performanceText,
-    avgOrderValue,
-  };
+  return { trend, trendText, trendColor, insights, performance, performanceColor, performanceText, avgOrderValue };
 };
 
-const createOrderColumns = () => [
-  { title: "Order No", dataIndex: "order_no", key: "order_no", width: 120 },
-  { title: "Table", dataIndex: "table", key: "table", width: 80 },
-  {
-    title: "Amount",
-    dataIndex: "order_amount",
-    key: "order_amount",
-    width: 120,
-    render: (amount) => (
-      <Text strong style={{ color: COLORS.success }}>
-        Ksh {amount?.toFixed(2)}
-      </Text>
-    ),
-  },
-  {
-    title: "Served By",
-    dataIndex: "servedBy",
-    key: "servedBy",
-    ellipsis: true,
-  },
-];
+// ── Table columns ─────────────────────────────────────────────────────────────
+const createOrderColumns = (isMobile: boolean, hospital: boolean) =>
+  isMobile
+    ? [
+      { title: hospital ? "Bill No" : "Order No", dataIndex: "order_no", key: "order_no", width: 100 },
+      {
+        title: "Amount",
+        dataIndex: "order_amount",
+        key: "order_amount",
+        render: (amount: number) => (
+          <Text strong style={{ color: COLORS.success, fontSize: 12 }}>Ksh {amount?.toFixed(2)}</Text>
+        ),
+      },
+      { title: hospital ? "Ward/Bed" : "Table", dataIndex: "table", key: "table", width: 70 },
+    ]
+    : [
+      { title: hospital ? "Bill No" : "Order No", dataIndex: "order_no", key: "order_no", width: 120 },
+      { title: hospital ? "Ward/Bed" : "Table", dataIndex: "table", key: "table", width: 80 },
+      {
+        title: "Amount",
+        dataIndex: "order_amount",
+        key: "order_amount",
+        width: 120,
+        render: (amount: number) => (
+          <Text strong style={{ color: COLORS.success }}>Ksh {amount?.toFixed(2)}</Text>
+        ),
+      },
+      { title: hospital ? "Attended By" : "Served By", dataIndex: "servedBy", key: "servedBy", ellipsis: true },
+    ];
 
-const createStockColumns = () => [
-  { title: "Item Name", dataIndex: "name", key: "name", ellipsis: true },
-  {
-    title: "Current",
-    dataIndex: "quantity",
-    key: "quantity",
-    width: 80,
-    render: (quantity) => (
-      <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning }}>
-        {quantity}
-      </Text>
-    ),
-  },
-  {
-    title: "Min Required",
-    dataIndex: "min_viable_quantity",
-    key: "min_viable_quantity",
-    width: 100,
-  },
-  {
-    title: "Status",
-    key: "status",
-    width: 120,
-    render: (_, record) => {
-      const isOutOfStock = record.quantity <= 0;
-      const isLow = record.quantity <= record.min_viable_quantity;
-      return (
-        <Badge
-          status={isOutOfStock ? "error" : "warning"}
-          text={
-            isOutOfStock
-              ? "Out of stock"
-              : isLow
-              ? `${record.quantity} left`
-              : "Low stock"
-          }
-        />
-      );
-    },
-  },
-];
+const createStockColumns = (isMobile: boolean, hospital: boolean) =>
+  isMobile
+    ? [
+      { title: hospital ? "Medicine/Item" : "Item", dataIndex: "name", key: "name", ellipsis: true },
+      {
+        title: "Qty",
+        dataIndex: "quantity",
+        key: "quantity",
+        width: 60,
+        render: (quantity: number) => (
+          <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning, fontWeight: 600 }}>{quantity}</Text>
+        ),
+      },
+      {
+        title: "Status",
+        key: "status",
+        width: 80,
+        render: (_: any, record: any) => (
+          <Badge status={record.quantity <= 0 ? "error" : "warning"} text={record.quantity <= 0 ? "Out" : "Low"} />
+        ),
+      },
+    ]
+    : [
+      { title: hospital ? "Medicine / Item" : "Item Name", dataIndex: "name", key: "name", ellipsis: true },
+      {
+        title: "Current",
+        dataIndex: "quantity",
+        key: "quantity",
+        width: 80,
+        render: (quantity: number) => (
+          <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning, fontWeight: 600 }}>{quantity}</Text>
+        ),
+      },
+      { title: "Min Required", dataIndex: "min_viable_quantity", key: "min_viable_quantity", width: 100 },
+      {
+        title: "Status",
+        key: "status",
+        width: 120,
+        render: (_: any, record: any) => {
+          const isOutOfStock = record.quantity <= 0;
+          return (
+            <Badge
+              status={isOutOfStock ? "error" : "warning"}
+              text={isOutOfStock ? (hospital ? "Out of stock" : "Out of stock") : `${record.quantity} left`}
+            />
+          );
+        },
+      },
+    ];
 
-const createBestSellerColumns = () => [
-  {
-    title: "Rank",
-    dataIndex: "rank",
-    key: "rank",
-    width: 60,
-    render: (rank) => (
-      <div style={{ textAlign: "center" }}>
-        {rank <= 3 ? (
-          <TrophyOutlined
-            style={{
-              color:
-                rank === 1 ? "#ffd700" : rank === 2 ? "#c0c0c0" : "#cd7f32",
-              fontSize: rank === 1 ? 18 : 16,
-            }}
-          />
-        ) : (
-          <span style={{ fontWeight: 600, color: COLORS.primary }}>
-            #{rank}
-          </span>
-        )}
-      </div>
-    ),
-  },
-  {
-    title: "Product",
-    dataIndex: "name",
-    key: "name",
-    render: (name, record) => (
-      <div>
-        <div style={{ fontWeight: 500, marginBottom: 2 }}>{name}</div>
-        <div style={{ fontSize: 12, color: COLORS.gray }}>
-          {record.category?.name || "Uncategorized"} • {record.product_type}
-        </div>
-      </div>
-    ),
-  },
-  {
-    title: "Sales",
-    dataIndex: ["sales_metrics", "total_quantity_sold"],
-    key: "quantity_sold",
-    sorter: (a, b) =>
-      a.sales_metrics.total_quantity_sold - b.sales_metrics.total_quantity_sold,
-    render: (quantity, record) => (
-      <div>
-        <div style={{ fontWeight: 600, color: COLORS.success }}>
-          {quantity} units
-        </div>
-        <div style={{ fontSize: 12, color: COLORS.gray }}>
-          {record.sales_metrics.order_count} orders
-        </div>
-      </div>
-    ),
-  },
-  {
-    title: "Revenue",
-    dataIndex: ["sales_metrics", "total_revenue"],
-    key: "revenue",
-    sorter: (a, b) =>
-      a.sales_metrics.total_revenue - b.sales_metrics.total_revenue,
-    render: (revenue, record) => (
-      <div>
-        <div style={{ fontWeight: 600, color: COLORS.primary }}>
-          Ksh {revenue?.toLocaleString()}
-        </div>
-        {record.sales_metrics?.total_profit && (
-          <div style={{ fontSize: 12, color: COLORS.success }}>
-            Profit: Ksh {record.sales_metrics.total_profit.toLocaleString()}
+const createBestSellerColumns = (isMobile: boolean, hospital: boolean) =>
+  isMobile
+    ? [
+      {
+        title: "#", dataIndex: "rank", key: "rank", width: 40,
+        render: (rank: number) =>
+          rank <= 3 ? (
+            <TrophyOutlined style={{ color: rank === 1 ? "#ffd700" : rank === 2 ? "#c0c0c0" : "#cd7f32", fontSize: 16 }} />
+          ) : (
+            <span style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>#{rank}</span>
+          ),
+      },
+      {
+        title: hospital ? "Service / Medicine" : "Product",
+        dataIndex: "name",
+        key: "name",
+        render: (name: string, record: any) => (
+          <div>
+            <div style={{ fontWeight: 500, fontSize: 13, color: COLORS.text }}>{name}</div>
+            <div style={{ fontSize: 11, color: COLORS.gray }}>{record.sales_metrics.order_count} {hospital ? "visits" : "orders"}</div>
           </div>
-        )}
-      </div>
-    ),
-  },
-  {
-    title: "Performance",
-    key: "performance",
-    render: (_, record) => (
-      <div>
-        <div style={{ marginBottom: 4 }}>
-          <Tag
-            color={
-              record.performance_indicators?.is_top_performer ? "gold" : "blue"
-            }
-          >
-            {record.performance_indicators?.is_top_performer
-              ? "Top Performer"
-              : "Popular"}
-          </Tag>
-        </div>
-        <div style={{ fontSize: 12, color: COLORS.gray }}>
-          Avg:{" "}
-          {record.performance_indicators?.avg_quantity_per_order?.toFixed(1)}{" "}
-          per order
-        </div>
-      </div>
-    ),
-  },
-];
+        ),
+      },
+      {
+        title: "Revenue",
+        dataIndex: ["sales_metrics", "total_revenue"],
+        key: "revenue",
+        render: (revenue: number) => (
+          <Text style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>Ksh {revenue?.toLocaleString()}</Text>
+        ),
+      },
+    ]
+    : [
+      {
+        title: "Rank", dataIndex: "rank", key: "rank", width: 60,
+        render: (rank: number) => (
+          <div style={{ textAlign: "center" }}>
+            {rank <= 3 ? (
+              <TrophyOutlined style={{ color: rank === 1 ? "#ffd700" : rank === 2 ? "#c0c0c0" : "#cd7f32", fontSize: rank === 1 ? 18 : 16 }} />
+            ) : (
+              <span style={{ fontWeight: 600, color: COLORS.primary }}>#{rank}</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        title: hospital ? "Service / Medicine" : "Product",
+        dataIndex: "name",
+        key: "name",
+        render: (name: string, record: any) => (
+          <div>
+            <div style={{ fontWeight: 500, marginBottom: 2, color: COLORS.text }}>{name}</div>
+            <div style={{ fontSize: 12, color: COLORS.gray }}>
+              {record.category?.name || "Uncategorized"} • {record.product_type}
+            </div>
+          </div>
+        ),
+      },
+      {
+        title: hospital ? "Dispensed" : "Sales",
+        dataIndex: ["sales_metrics", "total_quantity_sold"],
+        key: "quantity_sold",
+        sorter: (a: any, b: any) => a.sales_metrics.total_quantity_sold - b.sales_metrics.total_quantity_sold,
+        render: (quantity: number, record: any) => (
+          <div>
+            <div style={{ fontWeight: 600, color: COLORS.success }}>{quantity} {hospital ? "units" : "units"}</div>
+            <div style={{ fontSize: 12, color: COLORS.gray }}>{record.sales_metrics.order_count} {hospital ? "visits" : "orders"}</div>
+          </div>
+        ),
+      },
+      {
+        title: "Revenue",
+        dataIndex: ["sales_metrics", "total_revenue"],
+        key: "revenue",
+        sorter: (a: any, b: any) => a.sales_metrics.total_revenue - b.sales_metrics.total_revenue,
+        render: (revenue: number, record: any) => (
+          <div>
+            <div style={{ fontWeight: 600, color: COLORS.primary }}>Ksh {revenue?.toLocaleString()}</div>
+            {record.sales_metrics?.total_profit && (
+              <div style={{ fontSize: 12, color: COLORS.success }}>Profit: Ksh {record.sales_metrics.total_profit.toLocaleString()}</div>
+            )}
+          </div>
+        ),
+      },
+      {
+        title: "Performance", key: "performance",
+        render: (_: any, record: any) => (
+          <div>
+            <Tag style={{
+              background: record.performance_indicators?.is_top_performer ? "#fef9c3" : "#eff6ff",
+              color: record.performance_indicators?.is_top_performer ? "#a16207" : "#1d4ed8",
+              border: "none", fontSize: 11, borderRadius: 4,
+            }}>
+              {record.performance_indicators?.is_top_performer ? "⭐ Top" : hospital ? "Frequently Used" : "Popular"}
+            </Tag>
+            <div style={{ fontSize: 11, color: COLORS.gray, marginTop: 4 }}>
+              {record.performance_indicators?.avg_quantity_per_order?.toFixed(1)}/{hospital ? "visit" : "order"}
+            </div>
+          </div>
+        ),
+      },
+    ];
 
-const createPOColumns = () => [
-  { title: "PO Number", dataIndex: "po_number", key: "po_number", width: 120 },
-  {
-    title: "Supplier",
-    dataIndex: ["supplier_id", "name"],
-    key: "supplier_name",
-    ellipsis: true,
-  },
-  {
-    title: "Status",
-    dataIndex: "status",
-    key: "status",
-    width: 120,
-    render: (status) => {
-      const statusColors = {
-        pending: COLORS.warning,
-        approved: COLORS.primary,
-        partially_delivered: COLORS.cyan,
-        fully_delivered: COLORS.success,
-        cancelled: COLORS.error,
-      };
-      return (
-        <Badge
-          color={statusColors[status] || COLORS.gray}
-          text={status?.replace("_", " ")?.toUpperCase()}
-        />
-      );
-    },
-  },
-  {
-    title: "Amount",
-    dataIndex: "total_amount",
-    key: "total_amount",
-    width: 120,
-    render: (amount) => (
-      <Text strong style={{ color: COLORS.primary }}>
-        Ksh {amount?.toLocaleString()}
-      </Text>
-    ),
-  },
-];
+const createPOColumns = (isMobile: boolean, hospital: boolean) =>
+  isMobile
+    ? [
+      { title: "PO#", dataIndex: "po_number", key: "po_number", width: 90 },
+      {
+        title: "Status", dataIndex: "status", key: "status",
+        render: (status: string) => {
+          const colors: Record<string, string> = {
+            pending: COLORS.warning, approved: COLORS.primary,
+            fully_delivered: COLORS.success, cancelled: COLORS.error,
+          };
+          return (
+            <Badge color={colors[status] || COLORS.gray} text={<span style={{ fontSize: 11 }}>{status?.replace(/_/g, " ")}</span>} />
+          );
+        },
+      },
+      {
+        title: "Amount", dataIndex: "total_amount", key: "total_amount",
+        render: (amount: number) => (
+          <Text style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>Ksh {amount?.toLocaleString()}</Text>
+        ),
+      },
+    ]
+    : [
+      { title: "PO Number", dataIndex: "po_number", key: "po_number", width: 120 },
+      { title: hospital ? "Supplier / Vendor" : "Supplier", dataIndex: ["supplier_id", "name"], key: "supplier_name", ellipsis: true },
+      {
+        title: "Status", dataIndex: "status", key: "status", width: 140,
+        render: (status: string) => {
+          const colors: Record<string, string> = {
+            pending: COLORS.warning, approved: COLORS.primary,
+            partially_delivered: COLORS.cyan, fully_delivered: COLORS.success, cancelled: COLORS.error,
+          };
+          return (
+            <Tag style={{
+              background: `${colors[status] || COLORS.gray}15`, color: colors[status] || COLORS.gray,
+              border: "none", fontSize: 11, borderRadius: 4,
+            }}>
+              {status?.replace(/_/g, " ").toUpperCase()}
+            </Tag>
+          );
+        },
+      },
+      {
+        title: "Amount", dataIndex: "total_amount", key: "total_amount", width: 120,
+        render: (amount: number) => (
+          <Text strong style={{ color: COLORS.primary }}>Ksh {amount?.toLocaleString()}</Text>
+        ),
+      },
+    ];
 
-const StatisticCard = ({ title, value, prefix, loading, trend, onClick }) => (
-  <Col xs={24} sm={12} lg={6}>
-    <Card
-      bordered={false}
-      hoverable={!!onClick}
-      onClick={onClick}
-      style={{
-        background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-        borderRadius: 12,
-        cursor: onClick ? "pointer" : "default",
-      }}
-      bodyStyle={{ padding: "12px" }}
-    >
-      {loading ? (
-        <Skeleton active paragraph={false} />
-      ) : (
-        <Flex wrap justify="space-between" align="end" gap={8}>
-          <Statistic
-            title={
-              <span
-                style={{ color: COLORS.gray, fontWeight: 500, fontSize: 14 }}
-              >
-                {title}
-              </span>
-            }
-            value={value || 0}
-            prefix={prefix}
-            precision={
-              title.includes("Revenue") || title.includes("Amount") ? 2 : 0
-            }
-            valueStyle={{
-              color: "#1f2937",
-              fontSize: "1.6rem",
-              fontWeight: 600,
-            }}
-          />
-          {trend && (
-            <Space>
-              {trend > 0 ? (
-                <RiseOutlined style={{ color: COLORS.success }} />
-              ) : trend < 0 ? (
-                <FallOutlined style={{ color: COLORS.error }} />
-              ) : (
-                <CheckCircleOutlined style={{ color: COLORS.gray }} />
-              )}
-              <Text
-                strong
-                style={{
-                  color:
-                    trend > 0
-                      ? COLORS.success
-                      : trend < 0
-                      ? COLORS.error
-                      : COLORS.gray,
-                }}
-              >
-                {trend > 0 ? "+" : ""}
-                {trend?.toFixed(1)}%
-              </Text>
-            </Space>
-          )}
-        </Flex>
-      )}
-    </Card>
-  </Col>
-);
-
-const SalesChart = ({ data, loading, title, businessIndicators }) => {
+// ── SalesChart ─────────────────────────────────────────────────────────────────
+const SalesChart: React.FC<{
+  data: any[]; loading: boolean; title: string; businessIndicators: any;
+}> = ({ data, loading, title, businessIndicators }) => {
   const chartData = useMemo(() => {
     if (!data || !Array.isArray(data)) return [];
     return data.map((item) => ({
@@ -491,207 +472,131 @@ const SalesChart = ({ data, loading, title, businessIndicators }) => {
     }));
   }, [data]);
 
-  const config = useMemo(
-    () => ({
-      data: chartData,
-      xField: "time",
-      yField: "sales",
-      height: 350,
-      smooth: true,
-      lineStyle: { stroke: COLORS.primary, lineWidth: 3 },
-      point: {
-        size: 5,
-        style: { fill: COLORS.primary, stroke: "#fff", lineWidth: 2 },
-      },
-      tooltip: {
-        formatter: (datum) => [
-          {
-            name: "Total Sales",
-            value: `Ksh ${Number(datum.sales)?.toLocaleString()}`,
-          },
-          { name: "Total Orders", value: `${datum.orders} orders` },
-          {
-            name: "Avg Order Value",
-            value: `Ksh ${Number(datum.avgOrderValue)?.toLocaleString()}`,
-          },
-          {
-            name: "Cumulative Sales",
-            value: `Ksh ${Number(datum.cumulativeSales)?.toLocaleString()}`,
-          },
-        ],
-      },
-      xAxis: {
-        label: { style: { fill: "#64748b", fontSize: 12 }, autoRotate: true },
-        line: { style: { stroke: "#e2e8f0" } },
-      },
-      yAxis: {
-        label: {
-          style: { fill: "#64748b", fontSize: 12 },
-          formatter: (value) => {
-            const numValue = Number(value);
-            if (numValue >= 1000000)
-              return `${(numValue / 1000000).toFixed(1)}M`;
-            if (numValue >= 1000) return `${(numValue / 1000).toFixed(0)}K`;
-            return `${numValue}`;
-          },
-        },
-        min: 0,
-        grid: {
-          line: {
-            style: { stroke: "#f0f0f0", lineWidth: 1, lineDash: [3, 3] },
-          },
+  const hospital = isHospitalMode();
+
+  const config = useMemo(() => ({
+    data: chartData,
+    xField: "time",
+    yField: "sales",
+    height: 260,
+    smooth: true,
+    lineStyle: { stroke: COLORS.primary, lineWidth: 2.5 },
+    point: { size: 4, style: { fill: COLORS.primary, stroke: "#fff", lineWidth: 2 } },
+    tooltip: {
+      formatter: (datum: any) => [
+        { name: "Revenue", value: `Ksh ${Number(datum.sales)?.toLocaleString()}` },
+        { name: hospital ? "Visits" : "Orders", value: `${datum.orders}` },
+        { name: "Avg", value: `Ksh ${Number(datum.avgOrderValue)?.toLocaleString()}` },
+        { name: "Cumulative", value: `Ksh ${Number(datum.cumulativeSales)?.toLocaleString()}` },
+      ],
+    },
+    xAxis: {
+      label: { style: { fill: COLORS.gray, fontSize: 11 }, autoRotate: true },
+      line: { style: { stroke: "#e2e8f0" } },
+    },
+    yAxis: {
+      label: {
+        style: { fill: COLORS.gray, fontSize: 11 },
+        formatter: (value: string) => {
+          const n = Number(value);
+          if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+          if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+          return `${n}`;
         },
       },
-      animation: { appear: { animation: "path-in", duration: 1000 } },
-    }),
-    [chartData]
-  );
+      min: 0,
+      grid: { line: { style: { stroke: "#f1f5f9", lineWidth: 1, lineDash: [3, 3] } } },
+    },
+    animation: { appear: { animation: "path-in", duration: 1000 } },
+  }), [chartData, hospital]);
 
   return (
-    <Card
+    <ProCard
+      bordered headerBordered size="small"
       title={
-        <Space>
+        <Space size={6}>
           <LineChartOutlined style={{ color: COLORS.primary }} />
-          {title}
+          <Text strong style={{ fontSize: 14 }}>{title}</Text>
         </Space>
       }
       extra={
         businessIndicators && (
-          <Space size="large">
-            <Space>
-              <Badge
-                status={
-                  businessIndicators.performance === "excellent"
-                    ? "success"
-                    : businessIndicators.performance === "good"
-                    ? "processing"
-                    : businessIndicators.performance === "moderate"
-                    ? "default"
-                    : businessIndicators.performance === "low"
-                    ? "warning"
-                    : "error"
-                }
-              />
-              <Text
-                style={{
-                  color: businessIndicators.performanceColor,
-                  fontWeight: 600,
-                }}
-              >
-                {businessIndicators.performanceText}
-              </Text>
-            </Space>
+          <Space size={4}>
+            <Badge status={
+              businessIndicators.performance === "excellent" ? "success"
+                : businessIndicators.performance === "good" ? "processing"
+                  : businessIndicators.performance === "moderate" ? "default"
+                    : businessIndicators.performance === "low" ? "warning" : "error"
+            } />
+            <Text style={{ color: businessIndicators.performanceColor, fontWeight: 600, fontSize: 12 }}>
+              {businessIndicators.performanceText}
+            </Text>
           </Space>
         )
       }
-      style={{ borderRadius: 12, marginBottom: 24 }}
+      style={{ borderRadius: 12, marginBottom: 16 }}
+      bodyStyle={{ paddingTop: 8 }}
     >
       {loading ? (
-        <Skeleton active paragraph={{ rows: 8 }} />
+        <Skeleton active paragraph={{ rows: 6 }} />
       ) : (
         <>
           {businessIndicators?.insights?.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <Space wrap>
-                {businessIndicators.insights.map((insight, index) => (
-                  <Badge
-                    key={index}
-                    status={
-                      insight.type === "positive"
-                        ? "success"
-                        : insight.type === "warning"
-                        ? "warning"
-                        : "error"
-                    }
-                    text={
-                      <Text
-                        style={{
-                          color:
-                            insight.type === "positive"
-                              ? COLORS.success
-                              : insight.type === "warning"
-                              ? COLORS.warning
-                              : COLORS.error,
-                          fontSize: 12,
-                        }}
-                      >
-                        {insight.text}
-                      </Text>
-                    }
-                  />
+            <div style={{ marginBottom: 12 }}>
+              <Space wrap size={[6, 4]}>
+                {businessIndicators.insights.map((insight: any, index: number) => (
+                  <div key={index} style={{
+                    background: insight.type === "positive" ? "#f0fdf4" : insight.type === "warning" ? "#fffbeb" : "#fef2f2",
+                    borderRadius: 6, padding: "3px 10px", fontSize: 11,
+                    color: insight.type === "positive" ? COLORS.success : insight.type === "warning" ? COLORS.warning : COLORS.error,
+                  }}>
+                    {insight.text}
+                  </div>
                 ))}
               </Space>
-              <Divider style={{ margin: "12px 0" }} />
+              <Divider style={{ margin: "10px 0" }} />
             </div>
           )}
-          {chartData.length > 0 ? (
-            <Line {...config} />
-          ) : (
-            <Empty description="No chart data available" />
-          )}
+          {chartData.length > 0 ? <Line {...config} /> : <Empty description="No chart data available" />}
         </>
       )}
-    </Card>
+    </ProCard>
   );
 };
 
-const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
+// ── BestSellersCard ───────────────────────────────────────────────────────────
+const BestSellersCard: React.FC<{
+  bestSellersData: any; loading: boolean; dateRange: string; isMobile: boolean;
+}> = ({ bestSellersData, loading, dateRange, isMobile }) => {
+  const hospital = isHospitalMode();
+
   const bestSellers = useMemo(() => {
     if (!bestSellersData?.data?.best_sellers?.length) return [];
-    return bestSellersData.data.best_sellers.map((item, index) => ({
-      ...item,
-      rank: index + 1,
-    }));
+    return bestSellersData.data.best_sellers.map((item: any, index: number) => ({ ...item, rank: index + 1 }));
   }, [bestSellersData]);
 
   const summary = bestSellersData?.data?.summary || {};
+  const cardTitle = hospital ? `Top Services & Medicines (${dateRange})` : `Top Selling Products (${dateRange})`;
 
   if (!bestSellers.length && !loading) {
     return (
-      <Card
-        title={
-          <Space>
-            <FireOutlined style={{ color: COLORS.orange }} />
-            Top Selling Products in This Shop ({dateRange})
-          </Space>
-        }
+      <ProCard bordered headerBordered size="small"
+        title={<Space size={6}><FireOutlined style={{ color: COLORS.orange }} /><Text strong style={{ fontSize: 14 }}>{cardTitle}</Text></Space>}
         style={{ borderRadius: 12 }}
       >
-        <Empty
-          image={
-            <FireOutlined style={{ fontSize: 48, color: COLORS.orange }} />
-          }
-          description={
-            <div>
-              <Title level={4} style={{ color: COLORS.gray }}>
-                No Sales Data
-              </Title>
-              <Text type="secondary">
-                No products have been sold during this period in this shop.
-              </Text>
-            </div>
-          }
-        />
-      </Card>
+        <Empty description={hospital ? "No services or medicines dispensed in this period." : "No products sold in this period."} style={{ padding: "24px 0" }} />
+      </ProCard>
     );
   }
 
   return (
-    <Card
-      title={
-        <Space>
-          <FireOutlined style={{ color: COLORS.orange }} />
-          Top Selling Products in This Shop ({dateRange})
-        </Space>
-      }
+    <ProCard bordered headerBordered size="small"
+      title={<Space size={6}>{hospital ? <MedicineBoxOutlined style={{ color: COLORS.orange }} /> : <FireOutlined style={{ color: COLORS.orange }} />}<Text strong style={{ fontSize: 14 }}>{cardTitle}</Text></Space>}
       extra={
         summary.total_products_analyzed > 0 && (
-          <Space>
-            <Badge
-              count={summary.total_products_analyzed}
-              style={{ backgroundColor: COLORS.primary }}
-            />
-            <Text type="secondary">Products analyzed</Text>
+          <Space size={4}>
+            <Badge count={summary.total_products_analyzed} style={{ backgroundColor: COLORS.primary }} />
+            <Text type="secondary" style={{ fontSize: 11 }}>analyzed</Text>
           </Space>
         )
       }
@@ -702,1023 +607,574 @@ const BestSellersCard = ({ bestSellersData, loading, dateRange }) => {
       ) : (
         <>
           {summary.total_revenue > 0 && (
-            <div
-              style={{
-                marginBottom: 16,
-                padding: 16,
-                background: COLORS.lightGray,
-                borderRadius: 8,
-              }}
-            >
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Statistic
-                    title="Total Revenue"
-                    value={summary.total_revenue}
-                    prefix="Ksh"
-                    precision={2}
-                    valueStyle={{ fontSize: 16, fontWeight: 600 }}
-                  />
-                </Col>
-                <Col span={8}>
-                  <Statistic
-                    title="Units Sold"
-                    value={summary.total_quantity_sold}
-                    valueStyle={{ fontSize: 16, fontWeight: 600 }}
-                  />
-                </Col>
-                <Col span={8}>
-                  <Statistic
-                    title="Avg Order Value"
-                    value={summary.average_order_value}
-                    prefix="Ksh"
-                    precision={2}
-                    valueStyle={{ fontSize: 16, fontWeight: 600 }}
-                  />
-                </Col>
-              </Row>
+            <div style={{
+              marginBottom: 16, padding: "12px 16px", background: "#f8fafc",
+              borderRadius: 8, display: "flex", gap: 24, flexWrap: "wrap", border: "1px solid #e2e8f0",
+            }}>
+              {[
+                { label: "Total Revenue", value: `Ksh ${fmtK(summary.total_revenue)}`, color: COLORS.success },
+                { label: hospital ? "Units Dispensed" : "Units Sold", value: summary.total_quantity_sold, color: COLORS.primary },
+                { label: hospital ? "Avg Bill" : "Avg Order", value: `Ksh ${fmtK(summary.average_order_value)}`, color: COLORS.orange },
+              ].map((s, i) => (
+                <div key={i}>
+                  <Text style={{ fontSize: 10, color: COLORS.gray, display: "block" }}>{s.label}</Text>
+                  <Text strong style={{ fontSize: 14, color: s.color }}>{s.value}</Text>
+                </div>
+              ))}
             </div>
           )}
           <Table
-            columns={createBestSellerColumns()}
+            columns={createBestSellerColumns(isMobile, hospital)}
             dataSource={bestSellers}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: false,
-              showQuickJumper: true,
-            }}
-            size="middle"
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+            size="small"
             rowKey="product_id"
-            scroll={{ x: 800 }}
+            scroll={{ x: isMobile ? 380 : 800 }}
           />
         </>
       )}
-    </Card>
+    </ProCard>
   );
 };
 
-const Dashboard = () => {
+// ── MetricTile ────────────────────────────────────────────────────────────────
+const MetricTile: React.FC<{ value: any; label: string; color: string; isMobile: boolean }> = ({
+  value, label, color, isMobile,
+}) => (
+  <Col xs={12} sm={6}>
+    <div style={{
+      textAlign: "center", padding: isMobile ? "10px 6px" : "16px 12px",
+      background: "#f8fafc", borderRadius: 8, borderLeft: `3px solid ${color}`,
+    }}>
+      <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, color, marginBottom: 4, wordBreak: "break-word" }}>
+        {value}
+      </div>
+      <div style={{ color: COLORS.gray, fontSize: isMobile ? 11 : 12 }}>{label}</div>
+    </div>
+  </Col>
+);
+
+// ── Main Dashboard ────────────────────────────────────────────────────────────
+const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const hospital = isHospitalMode();
   const [messageApi, contextHolder] = message.useMessage();
   const [periodFilter, setPeriodFilter] = useState("day");
-  const [customDateRange, setCustomDateRange] = useState([]);
+  const [customDateRange, setCustomDateRange] = useState<any[]>([]);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+
+  const shopId = localStorage.getItem("shopId");
 
   const getDateRange = useCallback(() => {
     const today = dayjs();
-    let startDate, endDate;
-
+    let startDate: dayjs.Dayjs, endDate: dayjs.Dayjs;
     switch (periodFilter) {
-      case "day":
-        startDate = today.startOf("day");
-        endDate = today.endOf("day");
-        break;
-      case "week":
-        startDate = today.startOf("week");
-        endDate = today.endOf("week");
-        break;
-      case "month":
-        startDate = today.startOf("month");
-        endDate = today.endOf("month");
-        break;
-      case "year":
-        startDate = today.startOf("year");
-        endDate = today.endOf("year");
-        break;
+      case "day": startDate = today.startOf("day"); endDate = today.endOf("day"); break;
+      case "week": startDate = today.startOf("week"); endDate = today.endOf("week"); break;
+      case "month": startDate = today.startOf("month"); endDate = today.endOf("month"); break;
+      case "year": startDate = today.startOf("year"); endDate = today.endOf("year"); break;
       case "custom":
         if (customDateRange?.length === 2) {
-          startDate = customDateRange[0].startOf("day");
-          endDate = customDateRange[1].endOf("day");
+          startDate = customDateRange[0].startOf("day"); endDate = customDateRange[1].endOf("day");
         } else {
-          startDate = today.startOf("day");
-          endDate = today.endOf("day");
+          startDate = today.startOf("day"); endDate = today.endOf("day");
         }
         break;
-      default:
-        startDate = today.startOf("day");
-        endDate = today.endOf("day");
+      default: startDate = today.startOf("day"); endDate = today.endOf("day");
     }
-
     return { startDate, endDate };
   }, [periodFilter, customDateRange]);
 
   const { startDate, endDate } = getDateRange();
-  const shopId = localStorage.getItem("shopId");
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["dashBoardAnalysis", startDate.format(), endDate.format()],
-    queryFn: () =>
-      getDashboardAnalysis(startDate.toISOString(), endDate.toISOString()),
+    queryFn: () => getDashboardAnalysis(startDate.toISOString(), endDate.toISOString()),
     networkMode: "always",
     refetchOnWindowFocus: false,
     staleTime: 30000,
     retry: 2,
     onError: () => {
-      notification.error({
-        message: "Failed to fetch dashboard data. Please try again.",
-        duration: 3,
-        placement: "bottomRight",
-      });
+      notification.error({ message: "Failed to fetch dashboard data.", duration: 3, placement: "bottomRight" });
     },
   });
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
-    queryKey: [
-      "salesChartData",
-      periodFilter,
-      startDate.format(),
-      endDate.format(),
-      shopId,
-    ],
-    queryFn: () =>
-      getSalesChartData({
-        period: periodFilter,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        shop_id: shopId,
-      }),
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    staleTime: 30000,
-    retry: 2,
+    queryKey: ["salesChartData", periodFilter, startDate.format(), endDate.format(), shopId],
+    queryFn: () => getSalesChartData({ period: periodFilter, startDate: startDate.toISOString(), endDate: endDate.toISOString(), shop_id: shopId }),
+    networkMode: "always", refetchOnWindowFocus: false, staleTime: 30000, retry: 2,
   });
 
   const { data: bestSellersData, isLoading: bestSellersLoading } = useQuery({
     queryKey: ["bestSellers", startDate.format(), endDate.format(), shopId],
-    queryFn: () =>
-      getBestSellers({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        shop_id: shopId,
-        limit: 10,
-      }),
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    staleTime: 30000,
-    retry: 2,
+    queryFn: () => getBestSellers({ startDate: startDate.toISOString(), endDate: endDate.toISOString(), shop_id: shopId, limit: 10 }),
+    networkMode: "always", refetchOnWindowFocus: false, staleTime: 30000, retry: 2,
   });
 
   const purchaseOrderStats = useMemo(() => {
-    if (!data?.purchaseOrderStats) {
-      return {
-        totalPurchaseOrders: 0,
-        totalPOValue: 0,
-        pendingPOs: 0,
-        approvedPOs: 0,
-        deliveredPOs: 0,
-        avgPOValue: 0,
-        recentPurchaseOrders: [],
-      };
-    }
+    if (!data?.purchaseOrderStats) return { totalPurchaseOrders: 0, totalPOValue: 0, pendingPOs: 0, approvedPOs: 0, deliveredPOs: 0, avgPOValue: 0, recentPurchaseOrders: [] };
     return data.purchaseOrderStats;
   }, [data]);
 
   const handleRefresh = useCallback(async () => {
-    try {
-      await refetch();
-      messageApi.success({
-        content: "Shop dashboard refreshed successfully!",
-        duration: 2,
-      });
-    } catch (error) {
-      messageApi.error({
-        content: "Failed to refresh dashboard. Please try again.",
-        duration: 3,
-      });
-    }
+    try { await refetch(); messageApi.success({ content: "Dashboard refreshed!", duration: 2 }); }
+    catch { messageApi.error({ content: "Refresh failed.", duration: 3 }); }
   }, [refetch, messageApi]);
 
-  const handlePeriodChange = useCallback((e) => {
-    const value = e.target.value;
+  const handlePeriodChange = useCallback((value: string) => {
     setPeriodFilter(value);
     setShowCustomDatePicker(value === "custom");
-  }, []);
-
-  const handleCustomDateChange = useCallback((dates) => {
-    setCustomDateRange(dates || []);
-  }, []);
+    if (isMobile) setFilterDrawerOpen(false);
+  }, [isMobile]);
 
   const handleCopyStaffUrl = useCallback(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const tenantId = tenant?._id || null;
-
-    const staffUrl = `${
-      import.meta.env.VITE_APP_URL
-    }/admin/staff-clock-in?tenant_id=${tenantId}&shop_id=${shopId}`;
-
-    navigator.clipboard
-      .writeText(staffUrl)
-      .then(() =>
-        messageApi.success({
-          content: "Staff URL copied to clipboard!",
-          duration: 2,
-        })
-      )
-      .catch(() =>
-        messageApi.error({ content: "Failed to copy URL", duration: 2 })
-      );
+    const staffUrl = `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenant?._id}&shop_id=${shopId}`;
+    navigator.clipboard.writeText(staffUrl)
+      .then(() => messageApi.success({ content: "Staff URL copied!", duration: 2 }))
+      .catch(() => messageApi.error({ content: "Failed to copy URL", duration: 2 }));
   }, [messageApi, shopId]);
 
   const handleCopyCustomerUrl = useCallback(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const tenantId = tenant?._id || null;
-
-    const customerUrl = `${
-      import.meta.env.VITE_APP_URL
-    }/admin/customers?tenant_id=${tenantId}&shop_id=${shopId}`;
-
-    navigator.clipboard
-      .writeText(customerUrl)
-      .then(() =>
-        messageApi.success({
-          content: "Customer URL copied to clipboard!",
-          duration: 2,
-        })
-      )
-      .catch(() =>
-        messageApi.error({ content: "Failed to copy URL", duration: 2 })
-      );
-  }, [messageApi, shopId]);
-
-  const statisticsData = useMemo(
-    () => [
-      {
-        title: periodFilter === "day" ? "Today's Orders" : "Total Orders",
-        value: chartData?.data?.summary?.total_orders || data?.totalOrderCount,
-        prefix: <ShoppingCartOutlined style={{ color: COLORS.primary }} />,
-        trend: chartData?.data?.summary?.growth_rate,
-        onClick: () => navigate("/orders"),
-      },
-      {
-        title: "Total Revenue",
-        value: chartData?.data?.summary?.total_sales || data?.todayRevenue,
-        prefix: <DollarOutlined style={{ color: COLORS.success }} />,
-      },
-      {
-        title: "Active Orders",
-        value: data?.activeOrders,
-        prefix: <SnippetsOutlined style={{ color: COLORS.orange }} />,
-      },
-      {
-        title: "Active Shifts",
-        value: data?.activeShift,
-        prefix: <TeamOutlined style={{ color: COLORS.primary }} />,
-      },
-    ],
-    [chartData, data, navigate, periodFilter]
-  );
-
-  const businessIndicators = useMemo(
-    () => calculateBusinessIndicators(chartData, data, periodFilter),
-    [chartData, data, periodFilter]
-  );
+    const url = `${import.meta.env.VITE_APP_URL}/admin/customers?tenant_id=${tenant?._id}&shop_id=${shopId}`;
+    navigator.clipboard.writeText(url)
+      .then(() => messageApi.success({ content: hospital ? "Patient URL copied!" : "Customer URL copied!", duration: 2 }))
+      .catch(() => messageApi.error({ content: "Failed to copy URL", duration: 2 }));
+  }, [messageApi, shopId, hospital]);
 
   const getFormattedDateRange = useCallback(() => {
-    const dateFormat = "MMM D, YYYY";
+    const fmt = "MMM D, YYYY";
     switch (periodFilter) {
-      case "day":
-        return startDate.format("MMMM D, YYYY");
-      case "week":
-        return `${startDate.format(dateFormat)} - ${endDate.format(
-          dateFormat
-        )}`;
-      case "month":
-        return startDate.format("MMMM YYYY");
-      case "year":
-        return startDate.format("YYYY");
+      case "day": return startDate.format("MMM D, YYYY");
+      case "week": return `${startDate.format(fmt)} – ${endDate.format(fmt)}`;
+      case "month": return startDate.format("MMMM YYYY");
+      case "year": return startDate.format("YYYY");
       case "custom":
-        if (customDateRange?.length === 2) {
-          return `${customDateRange[0].format(
-            dateFormat
-          )} - ${customDateRange[1].format(dateFormat)}`;
-        }
+        if (customDateRange?.length === 2) return `${customDateRange[0].format(fmt)} – ${customDateRange[1].format(fmt)}`;
         return "Custom Range";
-      default:
-        return startDate.format("MMMM D, YYYY");
+      default: return startDate.format("MMM D, YYYY");
     }
   }, [periodFilter, startDate, endDate, customDateRange]);
 
+  const growthRate = chartData?.data?.summary?.growth_rate || 0;
+  const businessIndicators = useMemo(() => calculateBusinessIndicators(chartData, data, periodFilter), [chartData, data, periodFilter]);
   const isDataLoading = isLoading || isRefetching || chartLoading;
+
+  const kpiCards = useMemo(() => [
+    {
+      title: hospital
+        ? (periodFilter === "day" ? "Today's Visits" : "Total Visits")
+        : (periodFilter === "day" ? "Today's Orders" : "Total Orders"),
+      value: chartData?.data?.summary?.total_orders || data?.totalOrderCount || 0,
+      icon: hospital ? <MedicineBoxOutlined /> : <ShoppingCartOutlined />,
+      color: "#3b82f6", bg: "#eff6ff",
+      pctChange: growthRate || null,
+      prefix: "",
+      onClick: () => navigate("/orders"),
+    },
+    {
+      title: "Total Revenue",
+      value: chartData?.data?.summary?.total_sales || data?.todayRevenue || 0,
+      icon: <DollarOutlined />, color: COLORS.success, bg: "#f0fdf4",
+      pctChange: null, prefix: "Ksh",
+    },
+    {
+      title: hospital ? "Active Patients" : "Active Orders",
+      value: data?.activeOrders || 0,
+      icon: hospital ? <MedicineBoxOutlined /> : <SnippetsOutlined />,
+      color: COLORS.orange, bg: "#fff7ed",
+      pctChange: null, prefix: "",
+    },
+    {
+      title: "Active Shifts",
+      value: data?.activeShift || 0,
+      icon: <TeamOutlined />, color: COLORS.cyan, bg: "#ecfeff",
+      pctChange: null, prefix: "",
+    },
+  ], [chartData, data, growthRate, navigate, periodFilter, hospital]);
 
   return (
     <>
       {contextHolder}
 
-      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
-        <div>
-          <Title
-            level={2}
-            style={{ margin: 0, fontWeight: 600, color: "#1e293b" }}
-          >
-            {PERIOD_LABELS[periodFilter]} Shop Overview
-          </Title>
-          <Text type="secondary" style={{ fontSize: 16 }}>
-            {getFormattedDateRange()} • Individual Shop Performance
-          </Text>
-        </div>
-
-        <Space wrap size="middle">
-          <Card size="small" style={{ borderRadius: 8 }}>
-            <Flex align="center" gap={12}>
-              <CalendarOutlined style={{ color: COLORS.primary }} />
-              <Radio.Group
-                value={periodFilter}
-                onChange={handlePeriodChange}
-                buttonStyle="solid"
-                size="small"
-              >
-                <Radio.Button value="day">Day</Radio.Button>
-                <Radio.Button value="week">Week</Radio.Button>
-                <Radio.Button value="month">Month</Radio.Button>
-                <Radio.Button value="year">Year</Radio.Button>
-                <Radio.Button value="custom">Custom</Radio.Button>
-              </Radio.Group>
-            </Flex>
-          </Card>
-
+      {/* ── Mobile filter drawer ── */}
+      <Drawer
+        title="Filter Period" placement="bottom" height="auto"
+        open={filterDrawerOpen} onClose={() => setFilterDrawerOpen(false)}
+        styles={{ body: { paddingBottom: 32 } }}
+      >
+        <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+          <Radio.Group value={periodFilter} onChange={(e) => handlePeriodChange(e.target.value)} style={{ width: "100%" }}>
+            <Space direction="vertical" style={{ width: "100%" }}>
+              {Object.entries(PERIOD_LABELS).map(([val, label]) => (
+                <Radio.Button key={val} value={val} style={{ width: "100%", textAlign: "center", borderRadius: 8, marginBottom: 4 }}>
+                  {label}
+                </Radio.Button>
+              ))}
+            </Space>
+          </Radio.Group>
           {showCustomDatePicker && (
-            <RangePicker
-              value={customDateRange}
-              onChange={handleCustomDateChange}
-              allowClear
-              style={{ minWidth: 280 }}
-              placeholder={["Start date", "End date"]}
-            />
+            <RangePicker value={customDateRange as any} onChange={(d) => setCustomDateRange(d || [])} allowClear style={{ width: "100%" }} />
           )}
-
-          <Tooltip title="Share this URL with staff to allow them to clock in for this shop">
-            <Button
-              type="default"
-              icon={<TeamOutlined />}
-              onClick={handleCopyStaffUrl}
-              style={{ fontWeight: 500 }}
-            >
-              Staff Clock-In URL
-            </Button>
-          </Tooltip>
-
-          <Tooltip title="Share this URL with customers to allow them to place orders for this shop">
-            <Button
-              type="default"
-              icon={<ShoppingCartOutlined />}
-              onClick={handleCopyCustomerUrl}
-              style={{ fontWeight: 500 }}
-            >
-              Customer Order URL
-            </Button>
-          </Tooltip>
-
-          <Button
-            type="primary"
-            icon={<ReloadOutlined spin={isRefetching} />}
-            onClick={handleRefresh}
-            loading={isDataLoading}
-            style={{ fontWeight: 500 }}
-          >
-            {isRefetching ? "Refreshing..." : "Refresh"}
-          </Button>
         </Space>
+      </Drawer>
+
+      {/* ── Header ── */}
+      <div style={{ marginBottom: 20 }}>
+        <Flex justify="space-between" align="flex-start" wrap gap={12}>
+          <Space align="center" size={10}>
+            <div style={{ background: hospital ? "#f0fdf4" : "#fff7ed", borderRadius: 10, padding: "8px 10px", color: hospital ? COLORS.success : COLORS.orange, fontSize: 18 }}>
+              {hospital ? <MedicineBoxOutlined /> : <ShopOutlined />}
+            </div>
+            <div>
+              <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: COLORS.text }}>
+                {PERIOD_LABELS[periodFilter]} {hospital ? "Hospital Overview" : "Shop Overview"}
+              </Title>
+              <Text style={{ fontSize: 12, color: COLORS.subtext }}>
+                {getFormattedDateRange()} · {hospital ? "Individual Branch Performance" : "Individual Shop Performance"}
+              </Text>
+            </div>
+          </Space>
+
+          <Space size="small" wrap>
+            {isMobile ? (
+              <>
+                <Button icon={<FilterOutlined />} onClick={() => setFilterDrawerOpen(true)} size="middle">
+                  {PERIOD_LABELS[periodFilter]}
+                </Button>
+                <Tooltip title="Copy Staff Clock-In URL">
+                  <Button icon={<TeamOutlined />} onClick={handleCopyStaffUrl} size="middle" />
+                </Tooltip>
+                <Tooltip title={hospital ? "Copy Patient Portal URL" : "Copy Customer Order URL"}>
+                  <Button icon={<ShoppingCartOutlined />} onClick={handleCopyCustomerUrl} size="middle" />
+                </Tooltip>
+                <Button type="primary" icon={<ReloadOutlined spin={isRefetching} />} onClick={handleRefresh} loading={isDataLoading} size="middle" />
+              </>
+            ) : (
+              <>
+                <div style={{
+                  background: "#f8fafc", borderRadius: 8, padding: "6px 12px",
+                  display: "flex", alignItems: "center", gap: 10, border: "1px solid #e2e8f0",
+                }}>
+                  <CalendarOutlined style={{ color: COLORS.primary, fontSize: 13 }} />
+                  <Radio.Group value={periodFilter} onChange={(e) => handlePeriodChange(e.target.value)} buttonStyle="solid" size="small">
+                    <Radio.Button value="day">Day</Radio.Button>
+                    <Radio.Button value="week">Week</Radio.Button>
+                    <Radio.Button value="month">Month</Radio.Button>
+                    <Radio.Button value="year">Year</Radio.Button>
+                    <Radio.Button value="custom">Custom</Radio.Button>
+                  </Radio.Group>
+                </div>
+                {showCustomDatePicker && (
+                  <RangePicker value={customDateRange as any} onChange={(d) => setCustomDateRange(d || [])} allowClear style={{ minWidth: 260 }} />
+                )}
+                <Tooltip title="Share with staff to allow clock-in for this branch">
+                  <Button icon={<TeamOutlined />} onClick={handleCopyStaffUrl} style={{ fontWeight: 500 }}>
+                    Staff Clock-In URL
+                  </Button>
+                </Tooltip>
+                <Tooltip title={hospital ? "Share patient portal link" : "Share with customers to allow ordering"}>
+                  <Button icon={<ShoppingCartOutlined />} onClick={handleCopyCustomerUrl} style={{ fontWeight: 500 }}>
+                    {hospital ? "Patient Portal URL" : "Customer Order URL"}
+                  </Button>
+                </Tooltip>
+                <Button type="primary" icon={<ReloadOutlined spin={isRefetching} />} onClick={handleRefresh} loading={isDataLoading} style={{ fontWeight: 500 }}>
+                  {isRefetching ? "Refreshing..." : "Refresh"}
+                </Button>
+              </>
+            )}
+          </Space>
+        </Flex>
+      </div>
+
+      {/* ── KPI Cards ── */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
+        {kpiCards.map((card, i) => <KPICard key={i} loading={isDataLoading} {...card} />)}
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginTop: 16, marginBottom: 24 }}>
-        {statisticsData.map((stat, index) => (
-          <StatisticCard key={index} loading={isDataLoading} {...stat} />
-        ))}
-      </Row>
-
-      <Row style={{ marginBottom: 24 }}>
+      {/* ── Purchase Orders Overview ── */}
+      <Row style={{ marginBottom: 16 }}>
         <Col span={24}>
-          <Card
+          <ProCard bordered headerBordered size="small"
             title={
-              <Space>
+              <Space size={6}>
                 <FileTextOutlined style={{ color: COLORS.purple }} />
-                Purchase Orders Overview
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Pharmacy Purchase Orders" : "Purchase Orders"}</Text>
               </Space>
             }
-            extra={
-              <Button type="link" onClick={() => navigate("/purchase-orders")}>
-                View All
-              </Button>
-            }
+            extra={<Button type="link" size="small" onClick={() => navigate("/purchase-orders")}>View All</Button>}
             style={{ borderRadius: 12 }}
           >
             {isDataLoading ? (
-              <Skeleton active paragraph={{ rows: 3 }} />
+              <Skeleton active paragraph={{ rows: 2 }} />
             ) : (
-              <Row gutter={[24, 16]}>
+              <Row gutter={[8, 8]}>
                 {[
-                  {
-                    value: purchaseOrderStats.totalPurchaseOrders,
-                    label: "Total Purchase Orders",
-                    color: COLORS.purple,
-                    desc: "All time",
-                  },
-                  {
-                    value: `Ksh ${purchaseOrderStats.totalPOValue.toLocaleString()}`,
-                    label: "Total PO Value",
-                    color: COLORS.success,
-                    desc: "Procurement spending",
-                  },
-                  {
-                    value: purchaseOrderStats.pendingPOs,
-                    label: "Pending Approval",
-                    color: COLORS.warning,
-                    desc: "Need attention",
-                  },
-                  {
-                    value: purchaseOrderStats.deliveredPOs,
-                    label: "Delivered",
-                    color: COLORS.cyan,
-                    desc: "Completed orders",
-                  },
+                  { value: purchaseOrderStats.totalPurchaseOrders, label: "Total POs", color: COLORS.purple, bg: "#eef2ff" },
+                  { value: `Ksh ${fmtK(purchaseOrderStats.totalPOValue || 0)}`, label: "Total Value", color: COLORS.success, bg: "#f0fdf4" },
+                  { value: purchaseOrderStats.pendingPOs, label: "Pending", color: COLORS.warning, bg: "#fffbeb" },
+                  { value: purchaseOrderStats.deliveredPOs, label: "Delivered", color: COLORS.cyan, bg: "#ecfeff" },
                 ].map((item, index) => (
-                  <Col xs={24} sm={12} md={6} key={index}>
-                    <div style={{ textAlign: "center", padding: "16px" }}>
-                      <div
-                        style={{
-                          fontSize: 28,
-                          fontWeight: 700,
-                          color: item.color,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {item.value}
-                      </div>
-                      <div style={{ color: COLORS.gray, fontSize: 14 }}>
-                        {item.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: COLORS.gray,
-                          marginTop: 4,
-                        }}
-                      >
-                        {item.desc}
-                      </div>
+                  <Col xs={12} sm={12} md={6} key={index}>
+                    <div style={{ textAlign: "center", padding: isMobile ? "10px 6px" : "14px 12px", background: item.bg, borderRadius: 8 }}>
+                      <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 700, color: item.color, marginBottom: 2 }}>{item.value}</div>
+                      <div style={{ color: COLORS.gray, fontSize: 12 }}>{item.label}</div>
                     </div>
                   </Col>
                 ))}
               </Row>
             )}
-          </Card>
+          </ProCard>
         </Col>
       </Row>
 
-      <Row style={{ marginBottom: 24 }}>
+      {/* ── Sales Chart ── */}
+      <Row style={{ marginBottom: 16 }}>
         <Col span={24}>
           {chartData?.data?.chart_data?.length > 0 ? (
             <SalesChart
               data={chartData.data.chart_data}
               loading={chartLoading}
-              title={`Shop Sales Trends - ${getFormattedDateRange()}`}
+              title={`${hospital ? "Revenue Trend" : "Sales Trend"} — ${getFormattedDateRange()}`}
               businessIndicators={businessIndicators}
             />
           ) : (
-            <Card
-              title={
-                <Space>
-                  <LineChartOutlined style={{ color: COLORS.primary }} />
-                  Shop Sales Trends - {getFormattedDateRange()}
-                </Space>
-              }
-              extra={
-                businessIndicators && (
-                  <Space size="large">
-                    <Badge status="error" />
-                    <Text
-                      style={{
-                        color: businessIndicators.performanceColor,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {businessIndicators.performanceText}
-                    </Text>
-                  </Space>
-                )
-              }
-              style={{ borderRadius: 12 }}
+            <ProCard bordered headerBordered size="small"
+              title={<Space size={6}><LineChartOutlined style={{ color: COLORS.primary }} /><Text strong style={{ fontSize: 14 }}>{hospital ? "Revenue" : "Sales"} Trend — {getFormattedDateRange()}</Text></Space>}
+              style={{ borderRadius: 12 }} bodyStyle={{ paddingTop: 8 }}
             >
-              {chartLoading ? (
-                <Skeleton active paragraph={{ rows: 8 }} />
-              ) : (
-                <>
-                  {businessIndicators?.insights?.length > 0 && (
-                    <div style={{ marginBottom: 16 }}>
-                      <Space wrap>
-                        {businessIndicators.insights.map((insight, index) => (
-                          <Badge
-                            key={index}
-                            status={
-                              insight.type === "positive"
-                                ? "success"
-                                : insight.type === "warning"
-                                ? "warning"
-                                : "error"
-                            }
-                            text={
-                              <Text
-                                style={{
-                                  color:
-                                    insight.type === "positive"
-                                      ? COLORS.success
-                                      : insight.type === "warning"
-                                      ? COLORS.warning
-                                      : COLORS.error,
-                                  fontSize: 12,
-                                }}
-                              >
-                                {insight.text}
-                              </Text>
-                            }
-                          />
-                        ))}
-                      </Space>
-                      <Divider style={{ margin: "12px 0" }} />
-                    </div>
-                  )}
-                  <Empty
-                    image={
-                      <LineChartOutlined
-                        style={{ fontSize: 64, color: COLORS.error }}
-                      />
-                    }
-                    description={
-                      <div style={{ padding: "20px" }}>
-                        <Title level={4} style={{ color: COLORS.error }}>
-                          No Sales {PERIOD_LABELS[periodFilter]} In This Shop
-                        </Title>
-                        <Text type="secondary" style={{ fontSize: 16 }}>
-                          {periodFilter === "day"
-                            ? "Check shop operations and connectivity."
-                            : periodFilter === "week"
-                            ? "Review shop strategies and operational issues."
-                            : "Consider shop-specific strategy adjustments."}
-                        </Text>
-                      </div>
-                    }
-                  />
-                </>
+              {chartLoading ? <Skeleton active paragraph={{ rows: 5 }} /> : (
+                <Empty description={<Text type="secondary">No {hospital ? "billing" : "sales"} data for {PERIOD_LABELS[periodFilter]?.toLowerCase()}.</Text>} style={{ padding: "32px 0" }} />
               )}
-            </Card>
+            </ProCard>
           )}
         </Col>
       </Row>
 
-      <Row style={{ marginBottom: 24 }}>
+      {/* ── Best Sellers ── */}
+      <Row style={{ marginBottom: 16 }}>
         <Col span={24}>
-          <BestSellersCard
-            bestSellersData={bestSellersData}
-            loading={bestSellersLoading}
-            dateRange={getFormattedDateRange()}
-          />
+          <BestSellersCard bestSellersData={bestSellersData} loading={bestSellersLoading} dateRange={getFormattedDateRange()} isMobile={isMobile} />
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      {/* ── Recent Orders + Low Stock ── */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} lg={12}>
-          <Card
+          <ProCard bordered headerBordered size="small"
             title={
-              <Space>
-                <ShoppingCartOutlined style={{ color: COLORS.primary }} />
-                Recent Orders ({getFormattedDateRange()})
+              <Space size={6}>
+                {hospital ? <MedicineBoxOutlined style={{ color: "#3b82f6" }} /> : <ShoppingCartOutlined style={{ color: "#3b82f6" }} />}
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Recent Patient Bills" : "Recent Orders"}</Text>
               </Space>
             }
             extra={
-              <Space>
-                <Badge
-                  count={data?.totalOrderCount || 0}
-                  style={{ backgroundColor: COLORS.primary }}
-                />
-                <Button type="link" onClick={() => navigate("/orders")}>
-                  View All
-                </Button>
+              <Space size={4}>
+                <Badge count={data?.totalOrderCount || 0} style={{ backgroundColor: "#3b82f6" }} />
+                <Button type="link" size="small" onClick={() => navigate("/orders")}>All</Button>
               </Space>
             }
-            style={{ borderRadius: 12 }}
+            style={{ borderRadius: 12 }} bodyStyle={{ padding: 0 }}
           >
             {isDataLoading ? (
-              <Skeleton active paragraph={{ rows: 4 }} />
+              <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 4 }} /></div>
             ) : (
               <Table
-                columns={createOrderColumns()}
-                dataSource={
-                  Array.isArray(data?.currentOrders) ? data.currentOrders : []
-                }
-                pagination={{
-                  pageSize: 5,
-                  hideOnSinglePage: true,
-                  showSizeChanger: false,
-                }}
-                size="middle"
-                rowClassName={() => "hover:bg-gray-50 transition-colors"}
-                locale={{
-                  emptyText: (
-                    <Empty
-                      image={
-                        <ShoppingCartOutlined
-                          style={{ fontSize: 32, color: COLORS.gray }}
-                        />
-                      }
-                      description="No recent orders"
-                      style={{ padding: "20px" }}
-                    />
-                  ),
-                }}
+                columns={createOrderColumns(isMobile, hospital)}
+                dataSource={Array.isArray(data?.currentOrders) ? data.currentOrders : []}
+                pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
+                size="small"
+                scroll={{ x: isMobile ? 300 : undefined }}
+                locale={{ emptyText: <Empty description={hospital ? "No patient bills yet" : "No recent orders"} style={{ padding: 20 }} /> }}
               />
             )}
-          </Card>
+          </ProCard>
         </Col>
 
         <Col xs={24} lg={12}>
-          <Card
+          <ProCard bordered headerBordered size="small"
             title={
-              <Space>
+              <Space size={6}>
                 <WarningOutlined style={{ color: COLORS.error }} />
-                Low Stock Alerts
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Low Pharmacy Stock" : "Low Stock Alerts"}</Text>
               </Space>
             }
             extra={
-              <Space>
-                {data?.lowStockItems?.length > 0 && (
-                  <Badge
-                    count={data.lowStockItems.length}
-                    style={{ backgroundColor: COLORS.error }}
-                  />
+              <Space size={4}>
+                {(data?.lowStockItems?.length || 0) > 0 && (
+                  <Badge count={data.lowStockItems.length} style={{ backgroundColor: COLORS.error }} />
                 )}
-                <Button type="link" onClick={() => navigate("/inventory")}>
-                  View All
-                </Button>
+                <Button type="link" size="small" onClick={() => navigate("/inventory")}>All</Button>
               </Space>
             }
-            style={{ borderRadius: 12 }}
+            style={{ borderRadius: 12 }} bodyStyle={{ padding: 0 }}
           >
             {isDataLoading ? (
-              <Skeleton active paragraph={{ rows: 4 }} />
+              <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 4 }} /></div>
             ) : (
               <Table
-                columns={createStockColumns()}
-                dataSource={
-                  Array.isArray(data?.lowStockItems) ? data.lowStockItems : []
-                }
-                pagination={{
-                  pageSize: 5,
-                  hideOnSinglePage: true,
-                  showSizeChanger: false,
-                }}
-                size="middle"
-                rowClassName={() => "hover:bg-gray-50 transition-colors"}
+                columns={createStockColumns(isMobile, hospital)}
+                dataSource={Array.isArray(data?.lowStockItems) ? data.lowStockItems : []}
+                pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
+                size="small"
+                scroll={{ x: isMobile ? 280 : undefined }}
                 locale={{
                   emptyText: (
                     <Empty
-                      image={
-                        <CheckCircleOutlined
-                          style={{ fontSize: 32, color: COLORS.success }}
-                        />
-                      }
-                      description="All items are well stocked"
-                      style={{ padding: "20px" }}
+                      image={<CheckCircleOutlined style={{ fontSize: 28, color: COLORS.success }} />}
+                      description={hospital ? "Pharmacy fully stocked" : "All items are well stocked"}
+                      style={{ padding: 20 }}
                     />
                   ),
                 }}
               />
             )}
-          </Card>
+          </ProCard>
         </Col>
       </Row>
 
-      <Row style={{ marginBottom: 24 }}>
+      {/* ── Recent POs ── */}
+      <Row style={{ marginBottom: 16 }}>
         <Col span={24}>
-          <Card
+          <ProCard bordered headerBordered size="small"
             title={
-              <Space>
+              <Space size={6}>
                 <FileTextOutlined style={{ color: COLORS.purple }} />
-                Recent Purchase Orders
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Recent Pharmacy POs" : "Recent Purchase Orders"}</Text>
               </Space>
             }
             extra={
-              <Space>
+              <Space size={4}>
                 {purchaseOrderStats.totalPurchaseOrders > 0 && (
-                  <Badge
-                    count={purchaseOrderStats.totalPurchaseOrders}
-                    style={{ backgroundColor: COLORS.purple }}
-                  />
+                  <Badge count={purchaseOrderStats.totalPurchaseOrders} style={{ backgroundColor: COLORS.purple }} />
                 )}
-                <Button
-                  type="link"
-                  onClick={() => navigate("/purchase-orders")}
-                >
-                  View All
-                </Button>
+                <Button type="link" size="small" onClick={() => navigate("/purchase-orders")}>All</Button>
               </Space>
             }
-            style={{ borderRadius: 12 }}
+            style={{ borderRadius: 12 }} bodyStyle={{ padding: 0 }}
           >
             {isDataLoading ? (
-              <Skeleton active paragraph={{ rows: 4 }} />
+              <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 4 }} /></div>
             ) : (
               <Table
-                columns={createPOColumns()}
+                columns={createPOColumns(isMobile, hospital)}
                 dataSource={purchaseOrderStats.recentPurchaseOrders || []}
-                pagination={{
-                  pageSize: 5,
-                  hideOnSinglePage: true,
-                  showSizeChanger: false,
-                }}
-                size="middle"
-                rowKey="_id"
-                rowClassName={() => "hover:bg-gray-50 transition-colors"}
-                locale={{
-                  emptyText: (
-                    <Empty
-                      image={
-                        <FileTextOutlined
-                          style={{ fontSize: 32, color: COLORS.gray }}
-                        />
-                      }
-                      description="No recent purchase orders"
-                      style={{ padding: "20px" }}
-                    />
-                  ),
-                }}
+                pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
+                size="small" rowKey="_id"
+                scroll={{ x: isMobile ? 300 : undefined }}
+                locale={{ emptyText: <Empty description={hospital ? "No pharmacy purchase orders" : "No recent purchase orders"} style={{ padding: 20 }} /> }}
               />
             )}
-          </Card>
+          </ProCard>
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      {/* ── PO Insights ── */}
+      <Row style={{ marginBottom: 16 }}>
         <Col span={24}>
-          <Card
+          <ProCard bordered headerBordered size="small"
             title={
-              <Space>
+              <Space size={6}>
                 <SyncOutlined style={{ color: COLORS.cyan }} />
-                Purchase Order Insights
-              </Space>
-            }
-            style={{ borderRadius: 12 }}
-          >
-            {isDataLoading ? (
-              <Skeleton active paragraph={{ rows: 4 }} />
-            ) : (
-              <div style={{ padding: "16px" }}>
-                {purchaseOrderStats.totalPurchaseOrders > 0 ? (
-                  <Space
-                    direction="vertical"
-                    size="large"
-                    style={{ width: "100%" }}
-                  >
-                    <div>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text>Delivery Rate</Text>
-                        <Text strong>
-                          {(
-                            (purchaseOrderStats.deliveredPOs /
-                              purchaseOrderStats.totalPurchaseOrders) *
-                            100
-                          ).toFixed(1)}
-                          %
-                        </Text>
-                      </div>
-                      <Progress
-                        percent={
-                          (purchaseOrderStats.deliveredPOs /
-                            purchaseOrderStats.totalPurchaseOrders) *
-                          100
-                        }
-                        strokeColor={COLORS.success}
-                      />
-                    </div>
-
-                    <div>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text>Pending Orders</Text>
-                        <Text strong style={{ color: COLORS.warning }}>
-                          {purchaseOrderStats.pendingPOs} orders
-                        </Text>
-                      </div>
-                      <Progress
-                        percent={
-                          (purchaseOrderStats.pendingPOs /
-                            purchaseOrderStats.totalPurchaseOrders) *
-                          100
-                        }
-                        strokeColor={COLORS.warning}
-                      />
-                    </div>
-
-                    <Divider style={{ margin: "16px 0" }} />
-
-                    <Row gutter={16}>
-                      <Col span={12}>
-                        <div style={{ textAlign: "center" }}>
-                          <div
-                            style={{
-                              fontSize: 20,
-                              fontWeight: 600,
-                              color: COLORS.purple,
-                            }}
-                          >
-                            Ksh {purchaseOrderStats.avgPOValue.toLocaleString()}
-                          </div>
-                          <div style={{ fontSize: 12, color: COLORS.gray }}>
-                            Average PO Value
-                          </div>
-                        </div>
-                      </Col>
-                      <Col span={12}>
-                        <div style={{ textAlign: "center" }}>
-                          <div
-                            style={{
-                              fontSize: 20,
-                              fontWeight: 600,
-                              color: COLORS.primary,
-                            }}
-                          >
-                            {purchaseOrderStats.approvedPOs}
-                          </div>
-                          <div style={{ fontSize: 12, color: COLORS.gray }}>
-                            Approved Orders
-                          </div>
-                        </div>
-                      </Col>
-                    </Row>
-                  </Space>
-                ) : (
-                  <Empty
-                    image={
-                      <FileTextOutlined
-                        style={{ fontSize: 48, color: COLORS.gray }}
-                      />
-                    }
-                    description="No purchase orders found"
-                  />
-                )}
-              </div>
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]}>
-        <Col span={24}>
-          <Card
-            title={
-              <Space>
-                <PieChartOutlined style={{ color: COLORS.purple }} />
-                Shop Performance Summary ({getFormattedDateRange()})
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Pharmacy PO Insights" : "Purchase Order Insights"}</Text>
               </Space>
             }
             style={{ borderRadius: 12 }}
           >
             {isDataLoading ? (
               <Skeleton active paragraph={{ rows: 3 }} />
-            ) : (
-              <Row gutter={[24, 16]}>
+            ) : purchaseOrderStats.totalPurchaseOrders > 0 ? (
+              <Space direction="vertical" size="middle" style={{ width: "100%" }}>
                 {[
                   {
-                    value: data?.totalOrderCount || 0,
-                    label: "Total Orders",
-                    color: COLORS.primary,
-                    desc: "This shop",
-                  },
-                  {
-                    value: `Ksh ${(data?.todayRevenue || 0).toLocaleString()}`,
-                    label: "Total Revenue",
+                    label: "Delivery Rate",
+                    value: `${((purchaseOrderStats.deliveredPOs / purchaseOrderStats.totalPurchaseOrders) * 100).toFixed(1)}%`,
+                    percent: Number(((purchaseOrderStats.deliveredPOs / purchaseOrderStats.totalPurchaseOrders) * 100).toFixed(1)),
                     color: COLORS.success,
-                    desc: "Shop revenue",
                   },
                   {
-                    value: data?.activeOrders || 0,
-                    label: "Active Orders",
-                    color: COLORS.orange,
-                    desc: "Currently processing",
+                    label: "Pending Rate",
+                    value: `${purchaseOrderStats.pendingPOs} orders`,
+                    percent: Math.round((purchaseOrderStats.pendingPOs / purchaseOrderStats.totalPurchaseOrders) * 100),
+                    color: COLORS.warning,
                   },
-                  {
-                    value: data?.activeShift || 0,
-                    label: "Active Shifts",
-                    color: COLORS.cyan,
-                    desc: "Staff on duty",
-                  },
-                ].map((item, index) => (
-                  <Col xs={24} sm={12} md={6} key={index}>
-                    <div style={{ textAlign: "center", padding: "16px" }}>
-                      <div
-                        style={{
-                          fontSize: 28,
-                          fontWeight: 700,
-                          color: item.color,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {item.value}
-                      </div>
-                      <div style={{ color: COLORS.gray, fontSize: 14 }}>
-                        {item.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: COLORS.gray,
-                          marginTop: 4,
-                        }}
-                      >
-                        {item.desc}
-                      </div>
-                    </div>
-                  </Col>
+                ].map((item, i) => (
+                  <div key={i}>
+                    <Flex justify="space-between" style={{ marginBottom: 5 }}>
+                      <Text style={{ fontSize: 12, color: COLORS.subtext }}>{item.label}</Text>
+                      <Text strong style={{ fontSize: 12, color: item.color }}>{item.value}</Text>
+                    </Flex>
+                    <Progress percent={item.percent} strokeColor={item.color} size="small" showInfo={false} />
+                  </div>
                 ))}
+                <Divider style={{ margin: "6px 0" }} />
+                <Row gutter={8}>
+                  {[
+                    { value: `Ksh ${fmtK(purchaseOrderStats.avgPOValue || 0)}`, label: "Avg PO Value", color: COLORS.purple },
+                    { value: purchaseOrderStats.approvedPOs, label: "Approved", color: "#3b82f6" },
+                  ].map((item, i) => (
+                    <Col span={12} key={i}>
+                      <div style={{ textAlign: "center", background: "#f8fafc", borderRadius: 8, padding: "10px 8px" }}>
+                        <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: item.color }}>{item.value}</div>
+                        <div style={{ fontSize: 11, color: COLORS.gray, marginTop: 2 }}>{item.label}</div>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+              </Space>
+            ) : (
+              <Empty description={hospital ? "No pharmacy purchase orders found" : "No purchase orders found"} style={{ padding: "24px 0" }} />
+            )}
+          </ProCard>
+        </Col>
+      </Row>
+
+      {/* ── Performance Summary ── */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col span={24}>
+          <ProCard bordered headerBordered size="small"
+            title={
+              <Space size={6}>
+                <PieChartOutlined style={{ color: COLORS.purple }} />
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Branch" : "Shop"} Performance Summary — {getFormattedDateRange()}</Text>
+              </Space>
+            }
+            style={{ borderRadius: 12 }}
+          >
+            {isDataLoading ? <Skeleton active paragraph={{ rows: 2 }} /> : (
+              <Row gutter={[8, 8]}>
+                <MetricTile value={data?.totalOrderCount || 0} label={hospital ? "Total Visits" : "Total Orders"} color="#3b82f6" isMobile={isMobile} />
+                <MetricTile value={`Ksh ${fmtK(data?.todayRevenue || 0)}`} label="Revenue" color={COLORS.success} isMobile={isMobile} />
+                <MetricTile value={data?.activeOrders || 0} label={hospital ? "Active Patients" : "Active Orders"} color={COLORS.orange} isMobile={isMobile} />
+                <MetricTile value={data?.activeShift || 0} label="Active Shifts" color={COLORS.cyan} isMobile={isMobile} />
               </Row>
             )}
-          </Card>
+          </ProCard>
         </Col>
 
         {chartData?.data?.summary && (
-          <Col span={24} style={{ marginTop: 16 }}>
-            <Card
-              title={
-                <Space>
-                  <RiseOutlined style={{ color: COLORS.success }} />
-                  Advanced Shop Metrics ({getFormattedDateRange()})
-                </Space>
-              }
+          <Col span={24}>
+            <ProCard bordered headerBordered size="small"
+              title={<Space size={6}><RiseOutlined style={{ color: COLORS.success }} /><Text strong style={{ fontSize: 14 }}>Advanced {hospital ? "Branch" : "Shop"} Metrics</Text></Space>}
               style={{ borderRadius: 12 }}
             >
-              <Row gutter={[24, 16]}>
-                {[
-                  {
-                    value: chartData.data.summary.data_points,
-                    label: "Data Points",
-                    color: COLORS.primary,
-                    desc: "Reporting periods",
-                  },
-                  {
-                    value: `${
-                      chartData.data.summary.growth_rate > 0 ? "+" : ""
-                    }${chartData.data.summary.growth_rate.toFixed(1)}%`,
-                    label: "Growth Rate",
-                    color:
-                      chartData.data.summary.growth_rate >= 0
-                        ? COLORS.success
-                        : COLORS.error,
-                    desc: "Shop trend",
-                  },
-                  {
-                    value: `Ksh ${chartData.data.summary.average_order_value?.toLocaleString()}`,
-                    label: "Avg Order Value",
-                    color: COLORS.orange,
-                    desc: "Shop average",
-                  },
-                  {
-                    value: chartData.data.summary.peak_period?.time || "N/A",
-                    label: "Peak Period",
-                    color: COLORS.cyan,
-                    desc: "Highest sales time",
-                  },
-                ].map((item, index) => (
-                  <Col xs={24} sm={12} md={6} key={index}>
-                    <div style={{ textAlign: "center", padding: "16px" }}>
-                      <div
-                        style={{
-                          fontSize: 24,
-                          fontWeight: 700,
-                          color: item.color,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {item.value}
-                      </div>
-                      <div style={{ color: COLORS.gray, fontSize: 14 }}>
-                        {item.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: COLORS.gray,
-                          marginTop: 4,
-                        }}
-                      >
-                        {item.desc}
-                      </div>
-                    </div>
-                  </Col>
-                ))}
+              <Row gutter={[8, 8]}>
+                <MetricTile value={chartData.data.summary.data_points} label="Data Points" color="#3b82f6" isMobile={isMobile} />
+                <MetricTile
+                  value={`${chartData.data.summary.growth_rate > 0 ? "+" : ""}${chartData.data.summary.growth_rate.toFixed(1)}%`}
+                  label="Growth"
+                  color={chartData.data.summary.growth_rate >= 0 ? COLORS.success : COLORS.error}
+                  isMobile={isMobile}
+                />
+                <MetricTile value={`Ksh ${fmtK(chartData.data.summary.average_order_value || 0)}`} label={hospital ? "Avg Bill" : "Avg Order"} color={COLORS.orange} isMobile={isMobile} />
+                <MetricTile value={chartData.data.summary.peak_period?.time || "N/A"} label="Peak Period" color={COLORS.cyan} isMobile={isMobile} />
               </Row>
-            </Card>
+            </ProCard>
           </Col>
         )}
       </Row>

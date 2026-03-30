@@ -51,6 +51,8 @@ interface Tenant {
         accounting?: boolean;
         inventory?: boolean;
         reports?: boolean;
+        payroll?: boolean;
+        crm?: boolean;
     };
     accounting_database?: {
         enabled?: boolean;
@@ -63,6 +65,16 @@ interface Tenant {
     };
     terms_acceptance?: {
         accounting_enabled_at?: string;
+        accepted_terms?: boolean;
+        accepted_charges?: boolean;
+    };
+    bandu_settings?: {
+        enabled_at?: string;
+        accepted_terms?: boolean;
+        accepted_charges?: boolean;
+    };
+    mteja_settings?: {
+        enabled_at?: string;
         accepted_terms?: boolean;
         accepted_charges?: boolean;
     };
@@ -89,6 +101,8 @@ interface UpdateTenantData {
         accounting?: boolean;
         inventory?: boolean;
         reports?: boolean;
+        payroll?: boolean;
+        crm?: boolean;
     };
     accounting_database?: {
         enabled?: boolean;
@@ -111,6 +125,11 @@ interface EnableAccountingData {
         accept_terms: boolean;
         accept_charges: boolean;
     };
+}
+
+interface EnableModuleData {
+    accept_terms: boolean;
+    accept_charges: boolean;
 }
 
 interface ChartOfAccountsResult {
@@ -155,12 +174,8 @@ const getUser = (): any => {
     }
 };
 
-/**
- * Helper to add POS headers with user info
- */
 const getPOSHeaders = () => {
     const user = getUser();
-
     return {
         'x-pos-request': 'true',
         'x-pos-api-key': POS_API_KEY,
@@ -168,6 +183,18 @@ const getPOSHeaders = () => {
         'x-user-name': user?.name || user?.username || 'POS User',
         'x-user-email': user?.email || 'pos@system.local'
     };
+};
+
+const refreshTenantInStorage = async (id: string) => {
+    try {
+        const freshTenantData = await fetchTenantDetails(id);
+        if (freshTenantData?.data) {
+            localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
+            window.dispatchEvent(new CustomEvent('tenantUpdated', { detail: freshTenantData.data }));
+        }
+    } catch (fetchError) {
+        console.warn("Failed to fetch fresh tenant data:", fetchError);
+    }
 };
 
 export const getCurrentTenantId = (): string | null => {
@@ -226,10 +253,7 @@ export const updateTenant = async (id: string, tenantData: UpdateTenantData | Fo
             const freshTenantData = await fetchTenantDetails(id);
             if (freshTenantData?.data) {
                 localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
-
-                window.dispatchEvent(new CustomEvent('tenantUpdated', {
-                    detail: freshTenantData.data
-                }));
+                window.dispatchEvent(new CustomEvent('tenantUpdated', { detail: freshTenantData.data }));
             }
         } catch (fetchError) {
             console.warn("Failed to fetch fresh tenant data after update:", fetchError);
@@ -239,7 +263,6 @@ export const updateTenant = async (id: string, tenantData: UpdateTenantData | Fo
                 if (storedTenant) {
                     try {
                         const tenant = JSON.parse(storedTenant);
-
                         const updatedTenant = {
                             ...tenant,
                             ...tenantData,
@@ -247,16 +270,11 @@ export const updateTenant = async (id: string, tenantData: UpdateTenantData | Fo
                             ...(tenantData.primary_color && { primary_color: tenantData.primary_color }),
                             updatedAt: new Date().toISOString()
                         };
-
                         if (tenantData.color_scheme?.primary) {
                             updatedTenant.primary_color = tenantData.color_scheme.primary;
                         }
-
                         localStorage.setItem("tenant", JSON.stringify(updatedTenant));
-
-                        window.dispatchEvent(new CustomEvent('tenantUpdated', {
-                            detail: updatedTenant
-                        }));
+                        window.dispatchEvent(new CustomEvent('tenantUpdated', { detail: updatedTenant }));
                     } catch (parseError) {
                         console.warn("Failed to parse stored tenant data:", parseError);
                     }
@@ -283,36 +301,14 @@ export const updateTenant = async (id: string, tenantData: UpdateTenantData | Fo
 // ACCOUNTING MODULE FUNCTIONS
 // ============================================
 
-/**
- * Enable Accounting Module
- * This will configure accounting database and seed chart of accounts
- */
 export const enableAccounting = async (id: string, data: EnableAccountingData) => {
     try {
         const response = await axiosInstance.post(
             `${tenantUrl}/${id}/enable-accounting`,
             data,
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
-
-        // Fetch fresh tenant data
-        try {
-            const freshTenantData = await fetchTenantDetails(id);
-            if (freshTenantData?.data) {
-                localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
-
-                window.dispatchEvent(new CustomEvent('tenantUpdated', {
-                    detail: freshTenantData.data
-                }));
-            }
-        } catch (fetchError) {
-            console.warn("Failed to fetch fresh tenant data after enabling accounting:", fetchError);
-        }
-
-        // message.success("Accounting module enabled successfully! Chart of accounts has been created.");
-
+        await refreshTenantInStorage(id);
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to enable accounting module";
@@ -321,35 +317,14 @@ export const enableAccounting = async (id: string, data: EnableAccountingData) =
     }
 };
 
-/**
- * Disable Accounting Module
- */
 export const disableAccounting = async (id: string) => {
     try {
         const response = await axiosInstance.post(
             `${tenantUrl}/${id}/disable-accounting`,
             {},
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
-
-        // Fetch fresh tenant data
-        try {
-            const freshTenantData = await fetchTenantDetails(id);
-            if (freshTenantData?.data) {
-                localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
-
-                window.dispatchEvent(new CustomEvent('tenantUpdated', {
-                    detail: freshTenantData.data
-                }));
-            }
-        } catch (fetchError) {
-            console.warn("Failed to fetch fresh tenant data after disabling accounting:", fetchError);
-        }
-
-        // message.success("Accounting module disabled successfully!");
-
+        await refreshTenantInStorage(id);
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to disable accounting module";
@@ -358,26 +333,18 @@ export const disableAccounting = async (id: string) => {
     }
 };
 
-/**
- * Reseed Chart of Accounts
- * Use this to recreate chart of accounts if they're missing
- */
 export const reseedChartOfAccounts = async (id: string) => {
     try {
         const response = await axiosInstance.post(
             `${accountingUrl}/${id}/reseed-chart-of-accounts`,
             {},
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
-
         message.success(
             response.data.data?.chart_of_accounts?.skipped
                 ? "Chart of accounts already exists (26 accounts)"
                 : `Chart of accounts created successfully! (${response.data.data?.chart_of_accounts?.accounts_count || 26} accounts)`
         );
-
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to reseed chart of accounts";
@@ -386,16 +353,11 @@ export const reseedChartOfAccounts = async (id: string) => {
     }
 };
 
-/**
- * Get Accounting Status
- */
 export const getAccountingStatus = async (id: string) => {
     try {
         const response = await axiosInstance.get(
             `${tenantUrl}/${id}/accounting-status`,
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
         return response.data;
     } catch (error: any) {
@@ -404,16 +366,11 @@ export const getAccountingStatus = async (id: string) => {
     }
 };
 
-/**
- * Check Module Access
- */
-export const checkModuleAccess = async (id: string, module: 'pos' | 'accounting' | 'inventory' | 'hrm') => {
+export const checkModuleAccess = async (id: string, module: 'pos' | 'accounting' | 'inventory' | 'hrm' | 'payroll' | 'crm') => {
     try {
         const response = await axiosInstance.get(
             `${tenantUrl}/${id}/module-access/${module}`,
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
         return response.data;
     } catch (error: any) {
@@ -422,16 +379,11 @@ export const checkModuleAccess = async (id: string, module: 'pos' | 'accounting'
     }
 };
 
-/**
- * Get Tenants with Accounting Enabled
- */
 export const getTenantsWithAccounting = async () => {
     try {
         const response = await axiosInstance.get(
             `${tenantUrl}/accounting/enabled`,
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
         return response.data;
     } catch (error: any) {
@@ -444,32 +396,14 @@ export const getTenantsWithAccounting = async () => {
 // POS INTEGRATION MODULE FUNCTIONS
 // ============================================
 
-/**
- * Enable POS Integration
- */
 export const enablePosIntegration = async (id: string, config?: any) => {
     try {
         const response = await axiosInstance.post(
             `${tenantUrl}/${id}/enable-pos-integration`,
             config || {},
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
-
-        try {
-            const freshTenantData = await fetchTenantDetails(id);
-            if (freshTenantData?.data) {
-                localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
-                window.dispatchEvent(new CustomEvent('tenantUpdated', {
-                    detail: freshTenantData.data
-                }));
-            }
-        } catch (fetchError) {
-            console.warn("Failed to fetch fresh tenant data after enabling POS integration:", fetchError);
-        }
-
-        //  message.success("POS integration enabled successfully!");
+        await refreshTenantInStorage(id);
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to enable POS integration";
@@ -478,32 +412,14 @@ export const enablePosIntegration = async (id: string, config?: any) => {
     }
 };
 
-/**
- * Disable POS Integration
- */
 export const disablePosIntegration = async (id: string) => {
     try {
         const response = await axiosInstance.post(
             `${tenantUrl}/${id}/disable-pos-integration`,
             {},
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
-
-        try {
-            const freshTenantData = await fetchTenantDetails(id);
-            if (freshTenantData?.data) {
-                localStorage.setItem("tenant", JSON.stringify(freshTenantData.data));
-                window.dispatchEvent(new CustomEvent('tenantUpdated', {
-                    detail: freshTenantData.data
-                }));
-            }
-        } catch (fetchError) {
-            console.warn("Failed to fetch fresh tenant data after disabling POS integration:", fetchError);
-        }
-
-        // message.success("POS integration disabled successfully!");
+        await refreshTenantInStorage(id);
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to disable POS integration";
@@ -512,19 +428,13 @@ export const disablePosIntegration = async (id: string) => {
     }
 };
 
-/**
- * Update POS Integration Configuration
- */
 export const updatePosIntegrationConfig = async (id: string, config: any) => {
     try {
         const response = await axiosInstance.patch(
             `${tenantUrl}/${id}/pos-integration-config`,
             config,
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
-
         message.success("POS integration configuration updated successfully!");
         return response.data;
     } catch (error: any) {
@@ -534,16 +444,11 @@ export const updatePosIntegrationConfig = async (id: string, config: any) => {
     }
 };
 
-/**
- * Get POS Integration Status
- */
 export const getPosIntegrationStatus = async (id: string) => {
     try {
         const response = await axiosInstance.get(
             `${tenantUrl}/${id}/pos-integration-status`,
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
         return response.data;
     } catch (error: any) {
@@ -552,20 +457,113 @@ export const getPosIntegrationStatus = async (id: string) => {
     }
 };
 
-/**
- * Get Tenants with POS Integration Enabled
- */
 export const getTenantsWithPosIntegration = async () => {
     try {
         const response = await axiosInstance.get(
             `${tenantUrl}/pos-integration/enabled`,
-            {
-                headers: getPOSHeaders()
-            }
+            { headers: getPOSHeaders() }
         );
         return response.data;
     } catch (error: any) {
         console.error("Failed to get tenants with POS integration:", error);
+        throw error;
+    }
+};
+
+// ============================================
+// BANDU BY BASE — PAYROLL & HR MODULE
+// ============================================
+
+export const enableBandu = async (id: string, data: EnableModuleData) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/enable-bandu`,
+            data,
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to enable Bandu by Base";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+export const disableBandu = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/disable-bandu`,
+            {},
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to disable Bandu by Base";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+export const getBanduStatus = async (id: string) => {
+    try {
+        const response = await axiosInstance.get(
+            `${tenantUrl}/${id}/bandu-status`,
+            { headers: getPOSHeaders() }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error("Failed to get Bandu status:", error);
+        throw error;
+    }
+};
+
+// ============================================
+// MTEJA BY BASE — CRM & CUSTOMER ENGAGEMENT
+// ============================================
+
+export const enableMteja = async (id: string, data: EnableModuleData) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/enable-mteja`,
+            data,
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to enable Mteja by Base";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+export const disableMteja = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/disable-mteja`,
+            {},
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to disable Mteja by Base";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+export const getMtejaStatus = async (id: string) => {
+    try {
+        const response = await axiosInstance.get(
+            `${tenantUrl}/${id}/mteja-status`,
+            { headers: getPOSHeaders() }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error("Failed to get Mteja status:", error);
         throw error;
     }
 };
