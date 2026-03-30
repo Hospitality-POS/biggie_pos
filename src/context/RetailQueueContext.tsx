@@ -53,11 +53,16 @@ const defaultValue: RetailQueueContextType = {
 
 const RetailQueueContext = createContext<RetailQueueContextType>(defaultValue);
 
-// ── Read posMode from localStorage (set by POSModeContext) ────────────────────
-// "restaurant" → physical tables, never auto-create slots
-// "retail"     → auto-create slots as needed
-const isRetailMode = (): boolean =>
-    (localStorage.getItem('posMode') ?? 'restaurant') === 'retail';
+// ── Read posMode from localStorage ────────────────────────────────────────────
+// "service" / "restaurant" → physical tables, never auto-create slots
+// "retail"                 → auto-create slots as needed
+// "hospital"               → physical wards/beds, never auto-create slots
+type StoredMode = 'service' | 'restaurant' | 'retail' | 'hospital';
+
+const getStoredMode = (): StoredMode =>
+    (localStorage.getItem('posMode') ?? 'service') as StoredMode;
+
+const isAutoSlotMode = (): boolean => getStoredMode() === 'retail';
 
 export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [allLocations, setAllLocations] = useState<Location[]>([]);
@@ -79,12 +84,11 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
         try {
             const tables: TableSlot[] = await getAllTables({});
 
-            // ── Auto-create first slot only in retail mode ────────────────────
-            // Restaurant mode has physical tables managed manually — never auto-create.
             if (!tables?.length) {
-                if (!isRetailMode()) {
-                    // Restaurant: nothing to auto-create, just clear state and wait
-                    console.info('[RetailQueueContext] No tables found — restaurant mode, skipping auto-create.');
+                if (!isAutoSlotMode()) {
+                    // Service / hospital: physical tables managed manually — skip auto-create
+                    const mode = getStoredMode();
+                    console.info(`[RetailQueueContext] No tables found — ${mode} mode, skipping auto-create.`);
                     setAllLocations([]);
                     setIsLoadingSlots(false);
                     return;
@@ -137,7 +141,6 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
             const populated = Array.from(locationMap.values());
             setAllLocations(populated);
 
-            // Auto-select first table only on initial load
             if (!activeTableRef.current) {
                 for (const loc of populated) {
                     if (loc.tables?.length > 0) {
@@ -158,7 +161,6 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
     }, [dispatch]);
 
-    // Watch for shopId changes
     useEffect(() => {
         const interval = setInterval(() => {
             const shopId = localStorage.getItem('shopId');
@@ -202,7 +204,6 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
     );
 
     const openNewOrder = useCallback(async () => {
-        // Check for a free slot already in queue
         const next = allTables.find(
             t => t._id !== activeTableRef.current?._id && !t.isOccupied
         );
@@ -214,7 +215,6 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
             return;
         }
 
-        // All queue slots occupied — check DB for any unoccupied table not in queue
         setIsLoadingSlots(true);
         try {
             const allDbTables: TableSlot[] = await getAllTables({});
@@ -249,10 +249,10 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 return;
             }
 
-            // ── Auto-create new slot only in retail mode ──────────────────────
-            if (!isRetailMode()) {
-                // Restaurant: all tables occupied — show a clear message instead
-                message.warning('All tables are currently occupied. Please free up a table first.');
+            if (!isAutoSlotMode()) {
+                const mode = getStoredMode();
+                const modeLabel = mode === 'hospital' ? 'ward/bed' : 'table';
+                message.warning(`All ${modeLabel}s are currently occupied. Please free one up first.`);
                 return;
             }
 

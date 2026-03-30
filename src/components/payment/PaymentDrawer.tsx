@@ -48,7 +48,7 @@ const useDebounce = (callback: (...args: any[]) => void, delay: number) => {
 const fmtKsh = (v: number) =>
   `KSH ${v?.toLocaleString("en-KE", { minimumFractionDigits: 0 }) ?? "0"}`;
 
-// ── Payment method icon map ────────────────────────────────────────────────
+// ── Payment method icon map ───────────────────────────────────────────────────
 const getMethodIcon = (name: string, size = 26) => {
   const n = name.toLowerCase();
   const style = { fontSize: size };
@@ -66,7 +66,7 @@ const getMethodLabel = (name: string) => {
   return name.charAt(0).toUpperCase() + name.slice(1);
 };
 
-// ── STK status card ────────────────────────────────────────────────────────
+// ── STK status card ───────────────────────────────────────────────────────────
 const STKStatusCard: React.FC<{
   status: STKPaymentStatus;
   phone: string;
@@ -80,33 +80,25 @@ const STKStatusCard: React.FC<{
       icon: <LoadingOutlined style={{ fontSize: 32, color: "#3b82f6" }} spin />,
       title: "Sending Payment Request…",
       sub: "Please wait while we send the STK push",
-      color: "#3b82f6",
-      bg: "#eff6ff",
-      border: "#bfdbfe",
+      color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe",
     },
     waiting: {
       icon: <MobileOutlined style={{ fontSize: 32, color: "#10b981" }} />,
       title: "Check Your Phone",
       sub: `STK sent to ${formatPhone(phone)} — enter your M-Pesa PIN`,
-      color: "#10b981",
-      bg: "#f0fdf4",
-      border: "#bbf7d0",
+      color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0",
     },
     success: {
       icon: <CheckCircleOutlined style={{ fontSize: 32, color: "#10b981" }} />,
       title: "Payment Confirmed!",
       sub: "Redirecting you now…",
-      color: "#10b981",
-      bg: "#f0fdf4",
-      border: "#bbf7d0",
+      color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0",
     },
     failed: {
       icon: <CloseCircleOutlined style={{ fontSize: 32, color: "#ef4444" }} />,
       title: "Payment Failed",
       sub: "Please try again or choose a different method",
-      color: "#ef4444",
-      bg: "#fef2f2",
-      border: "#fecaca",
+      color: "#ef4444", bg: "#fef2f2", border: "#fecaca",
     },
   };
   if (status === "idle") return null;
@@ -114,24 +106,16 @@ const STKStatusCard: React.FC<{
   return (
     <div
       style={{
-        background: c.bg,
-        border: `1px solid ${c.border}`,
-        borderRadius: 12,
-        padding: "20px 16px",
-        textAlign: "center",
-        marginBottom: 12,
+        background: c.bg, border: `1px solid ${c.border}`,
+        borderRadius: 12, padding: "20px 16px",
+        textAlign: "center", marginBottom: 12,
       }}
     >
       <div style={{ marginBottom: 10 }}>{c.icon}</div>
-      <Text strong style={{ fontSize: 15, color: c.color, display: "block", marginBottom: 4 }}>
-        {c.title}
-      </Text>
+      <Text strong style={{ fontSize: 15, color: c.color, display: "block", marginBottom: 4 }}>{c.title}</Text>
       <Text style={{ fontSize: 13, color: "#64748b", display: "block" }}>{c.sub}</Text>
       {status === "waiting" && (
-        <Tag
-          color="blue"
-          style={{ marginTop: 10, fontSize: 13, padding: "2px 12px", borderRadius: 20 }}
-        >
+        <Tag color="blue" style={{ marginTop: 10, fontSize: 13, padding: "2px 12px", borderRadius: 20 }}>
           ⏱ {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
         </Tag>
       )}
@@ -156,9 +140,12 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const navigate = (path: string) => (window.location.href = path);
 
   const rawId = window.location.pathname.split("/").pop();
-  const { isRetailMode } = usePOSMode();
+  const { isRetailMode, isHospitalMode } = usePOSMode();
   const { activeTable } = useRetailQueue();
-  const id = isRetailMode ? activeTable?._id : (rawId && rawId !== "tables" ? rawId : undefined);
+
+  // Hospital and retail both use the active slot/ward/bed as the table ID
+  const isSlotMode = isRetailMode || isHospitalMode;
+  const id = isSlotMode ? activeTable?._id : (rawId && rawId !== "tables" ? rawId : undefined);
 
   const { cartDetails, subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
   const { loading } = useAppSelector((s) => s.order);
@@ -464,9 +451,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     Modal.confirm({
       title: "Void this bill?",
       content: "This action cannot be undone.",
-      okText: "Yes, Void it",
-      okType: "danger",
-      cancelText: "Cancel",
+      okText: "Yes, Void it", okType: "danger", cancelText: "Cancel",
       onOk: () => {
         dispatch(cartVoid(cartDetails));
         dispatch(createCart(id));
@@ -490,10 +475,8 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
 
   return (
     <>
-      {/* Trigger button — lives outside DrawerForm to avoid lifecycle coupling */}
       <Button
-        type="primary" block size="large"
-        style={{ borderRadius: 8 }}
+        type="primary" block size="large" style={{ borderRadius: 8 }}
         onClick={() => {
           if (!cartDetails?.items || cartDetails.items.length === 0) {
             message.error("Cart is empty. Add items before proceeding.");
@@ -531,12 +514,10 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                 {useSubscription ? "Confirm Subscription" : "Confirm Payment"}
               </Button>
               <Button
-                size="large" block onClick={() => {
-                  setDrawerVisible(false);
-                  setSelectedCustomerId(null);
-                  setSelectedSubscription(null);
-                  setUseSubscription(false);
-                  setSearchTerm("");
+                size="large" block
+                onClick={() => {
+                  setDrawerVisible(false); setSelectedCustomerId(null);
+                  setSelectedSubscription(null); setUseSubscription(false); setSearchTerm("");
                 }}
                 style={{ borderRadius: 8 }}
               >
@@ -560,13 +541,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       >
         <Space direction="vertical" style={{ width: "100%" }} size={16}>
 
-          {/* ── Order summary ─────────────────────────────────────────────── */}
+          {/* ── Order summary ──────────────────────────────────────────── */}
           <div
             style={{
-              background: "#f8fafc",
-              borderRadius: 12,
-              padding: "14px 16px",
-              border: "1px solid #e2e8f0",
+              background: "#f8fafc", borderRadius: 12,
+              padding: "14px 16px", border: "1px solid #e2e8f0",
             }}
           >
             <Text strong style={{ fontSize: 13, color: "#64748b", letterSpacing: 0.5, textTransform: "uppercase" }}>
@@ -585,12 +564,8 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                     - {fmtKsh((subtotal * (cartDetails?.discount || 0)) / 100)}
                   </Text>
                   {cartDetails?.discount > 0 && (
-                    <Button
-                      type="text" danger size="small"
-                      onClick={handleRemoveDiscount}
-                      icon={<CloseCircleOutlined />}
-                      style={{ padding: 0, height: "auto", lineHeight: 1 }}
-                    />
+                    <Button type="text" danger size="small" onClick={handleRemoveDiscount}
+                      icon={<CloseCircleOutlined />} style={{ padding: 0, height: "auto", lineHeight: 1 }} />
                   )}
                 </Flex>
               </Flex>
@@ -612,20 +587,18 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
             <Alert
               message={<Flex gap={6} align="center"><GiftOutlined /><Text strong>Using Subscription — Order Total: KSH 0</Text></Flex>}
               description="One visit will be deducted from the selected package"
-              type="success" showIcon={false}
-              style={{ borderRadius: 8 }}
+              type="success" showIcon={false} style={{ borderRadius: 8 }}
             />
           )}
 
-          {/* ── Customer search ────────────────────────────────────────────── */}
+          {/* ── Customer search ─────────────────────────────────────────── */}
           {hasActivePackages && (
             <>
               <div
                 style={{
                   borderRadius: 12,
                   border: selectedCustomerId ? "2px solid #10b981" : "1px solid #e2e8f0",
-                  overflow: "hidden",
-                  transition: "border-color 0.2s",
+                  overflow: "hidden", transition: "border-color 0.2s",
                 }}
               >
                 <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
@@ -639,8 +612,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                 </div>
                 <div style={{ padding: "10px 14px" }}>
                   <Select
-                    style={{ width: "100%" }}
-                    size="large"
+                    style={{ width: "100%" }} size="large"
                     placeholder={<Flex gap={6} align="center"><SearchOutlined /><span>Search by phone, name or email…</span></Flex>}
                     showSearch allowClear
                     value={selectedCustomerId}
@@ -675,8 +647,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                     {customers.map((customer: any) => (
                       <Select.Option key={customer._id} value={customer._id}>
                         <Flex align="center" gap={10} style={{ padding: "6px 0" }}>
-                          <Avatar icon={<UserOutlined />} size={28}
-                            style={{ background: "#6c1c2c", flexShrink: 0 }} />
+                          <Avatar icon={<UserOutlined />} size={28} style={{ background: "#6c1c2c", flexShrink: 0 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <Text strong style={{ fontSize: 13, display: "block" }}>{customer.customer_name}</Text>
                             <Flex gap={10} style={{ fontSize: 11, color: "#94a3b8" }}>
@@ -690,12 +661,8 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   </Select>
 
                   {selectedCustomerId && (
-                    <Flex
-                      align="center" gap={8}
-                      style={{
-                        marginTop: 10, background: "#f0fdf4", border: "1px solid #bbf7d0",
-                        borderRadius: 8, padding: "8px 10px",
-                      }}
+                    <Flex align="center" gap={8}
+                      style={{ marginTop: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 10px" }}
                     >
                       <CheckCircleOutlined style={{ color: "#10b981", fontSize: 14 }} />
                       <Avatar icon={<UserOutlined />} size={22} style={{ background: "#6c1c2c" }} />
@@ -725,15 +692,9 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
             </>
           )}
 
-          {/* ── Payment methods ────────────────────────────────────────────── */}
+          {/* ── Payment methods ─────────────────────────────────────────── */}
           {!useSubscription && (
-            <div
-              style={{
-                borderRadius: 12,
-                border: "1px solid #e2e8f0",
-                overflow: "hidden",
-              }}
-            >
+            <div style={{ borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden" }}>
               <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
                 <Flex align="center" gap={8}>
                   <WalletOutlined style={{ color: "#6c1c2c", fontSize: 13 }} />
@@ -747,13 +708,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
               </div>
 
               <div style={{ padding: "12px 14px" }}>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))",
-                    gap: 10,
-                  }}
-                >
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 10 }}>
                   {paymentMethods?.map((method: PaymentMethod) => {
                     const isPesapal = isPesapalMethod(method._id);
                     const isDisabled = isPesapal && !pesapalEnabled;
@@ -764,13 +719,9 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                         onClick={() => !isDisabled && handleSelectMethod(method._id)}
                         disabled={isDisabled}
                         style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 6,
-                          padding: "14px 8px",
-                          borderRadius: 10,
+                          display: "flex", flexDirection: "column",
+                          alignItems: "center", justifyContent: "center",
+                          gap: 6, padding: "14px 8px", borderRadius: 10,
                           border: isSelected ? "2px solid #6c1c2c" : "1.5px solid #e2e8f0",
                           background: isSelected ? "#6c1c2c" : "#fff",
                           color: isSelected ? "white" : "#374151",
@@ -804,18 +755,14 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                 {(selectedMethod || (user?.role === "admin" || user?.role === "Cashier")) && (
                   <Flex gap={8} style={{ marginTop: 12 }} wrap="wrap">
                     {selectedMethod && (user?.role === "admin" || user?.role === "cashier") && (
-                      <Button
-                        size="small" danger onClick={() => setSelectedMethod(null)}
-                        icon={<CloseCircleOutlined />} style={{ borderRadius: 6 }}
-                      >
+                      <Button size="small" danger onClick={() => setSelectedMethod(null)}
+                        icon={<CloseCircleOutlined />} style={{ borderRadius: 6 }}>
                         Clear
                       </Button>
                     )}
                     {(user?.role === "admin" || user?.role === "Cashier") && (
-                      <Button
-                        size="small" onClick={handleVoidBill} icon={<StopOutlined />}
-                        style={{ color: "#6c1c2c", borderColor: "#6c1c2c", borderRadius: 6 }}
-                      >
+                      <Button size="small" onClick={handleVoidBill} icon={<StopOutlined />}
+                        style={{ color: "#6c1c2c", borderColor: "#6c1c2c", borderRadius: 6 }}>
                         Void Bill
                       </Button>
                     )}
@@ -837,16 +784,14 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         )}
       </DrawerForm>
 
-      {/* ── STK Push Modal ────────────────────────────────────────────────── */}
+      {/* ── STK Push Modal ──────────────────────────────────────────────── */}
       <Modal
         title={<Flex align="center" gap={8}><MobileOutlined style={{ color: "#10b981" }} /><span>STK Push Payment</span></Flex>}
         open={pesapalModalVisible} onCancel={resetPesapalModal}
-        footer={null} width={Math.min(520, window.innerWidth - 32)} maskClosable={false}
-        centered zIndex={1400} getContainer={() => document.body}
+        footer={null} width={Math.min(520, window.innerWidth - 32)}
+        maskClosable={false} centered zIndex={1400} getContainer={() => document.body}
       >
         <Space direction="vertical" style={{ width: "100%" }} size={14}>
-
-          {/* Status banner */}
           <STKStatusCard
             status={stkPaymentStatus} phone={customerInfo.phone} countdown={countdown}
             formatPhone={formatPhoneNumber}
@@ -854,7 +799,6 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
             onCancel={resetPesapalModal}
           />
 
-          {/* Customer info form — only when idle */}
           {stkPaymentStatus === "idle" && (
             <div style={{ borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
               <div style={{ padding: "10px 14px", background: "#fafafa", borderBottom: "1px solid #f1f5f9" }}>
@@ -867,8 +811,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                     value={customerInfo.phone}
                     onChange={(e) => handlePhoneChange(e.target.value)}
                     placeholder="0712345678"
-                    style={{ marginTop: 6, borderRadius: 8 }}
-                    maxLength={15}
+                    style={{ marginTop: 6, borderRadius: 8 }} maxLength={15}
                     prefix={<PhoneOutlined style={{ color: "#94a3b8" }} />}
                     status={customerInfo.phone && !isValidKenyanPhone(customerInfo.phone) ? "error" : ""}
                   />
@@ -901,17 +844,15 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   <>
                     <div>
                       <Text strong style={{ fontSize: 13 }}>Customer Name</Text>
-                      <Input
-                        value={customerInfo.name}
+                      <Input value={customerInfo.name}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
-                        placeholder="Full name"
-                        style={{ marginTop: 6, borderRadius: 8 }}
-                      />
+                        placeholder="Full name" style={{ marginTop: 6, borderRadius: 8 }} />
                     </div>
                     <div>
-                      <Text strong style={{ fontSize: 13 }}>Email <Text type="secondary" style={{ fontWeight: 400 }}>(optional)</Text></Text>
-                      <Input
-                        type="email" value={customerInfo.email}
+                      <Text strong style={{ fontSize: 13 }}>
+                        Email <Text type="secondary" style={{ fontWeight: 400 }}>(optional)</Text>
+                      </Text>
+                      <Input type="email" value={customerInfo.email}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
                         placeholder="customer@email.com"
                         style={{ marginTop: 6, borderRadius: 8 }}
@@ -935,13 +876,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
             </div>
           )}
 
-          {/* Amount summary */}
-          <div
-            style={{
-              background: "#f8fafc", borderRadius: 10,
-              border: "1px solid #e2e8f0", padding: "12px 14px",
-            }}
-          >
+          <div style={{ background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0", padding: "12px 14px" }}>
             <Row gutter={16}>
               <Col span={12}>
                 <Statistic title="Amount" value={grandTotal} prefix="KSh." precision={0} valueStyle={{ fontSize: 18 }} />
@@ -960,16 +895,14 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   type="primary" onClick={handleSTKPushPayment}
                   loading={loading || stkPaymentStatus === "sending"}
                   disabled={!customerInfo.phone || !isValidKenyanPhone(customerInfo.phone)}
-                  icon={<SendOutlined />}
-                  style={{ borderRadius: 8 }}
+                  icon={<SendOutlined />} style={{ borderRadius: 8 }}
                 >
                   Send STK Push
                 </Button>
               </Flex>
-
               <Alert
                 message="How STK Push works"
-                description="Customer receives an M-Pesa prompt on their phone. They enter their PIN to confirm payment. Ensure the number is active and has sufficient balance."
+                description="Customer receives an M-Pesa prompt on their phone. They enter their PIN to confirm payment."
                 type="info" showIcon style={{ borderRadius: 8 }}
               />
             </>
@@ -977,20 +910,17 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         </Space>
       </Modal>
 
-      {/* ── Payment waiting overlay modal ─────────────────────────────────── */}
+      {/* ── Waiting overlay ──────────────────────────────────────────────── */}
       <Modal
         title={null} open={stkPaymentStatus === "waiting"} footer={null}
         closable={false} width={360} centered zIndex={1400} getContainer={() => document.body}
       >
         <Space direction="vertical" style={{ width: "100%", textAlign: "center", padding: "8px 0" }} size={14}>
-          <div
-            style={{
-              width: 64, height: 64, borderRadius: "50%",
-              background: "#f0fdf4", border: "2px solid #bbf7d0",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto",
-            }}
-          >
+          <div style={{
+            width: 64, height: 64, borderRadius: "50%",
+            background: "#f0fdf4", border: "2px solid #bbf7d0",
+            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto",
+          }}>
             <MobileOutlined style={{ fontSize: 28, color: "#10b981" }} />
           </div>
           <Title level={4} style={{ margin: 0 }}>Waiting for Payment</Title>
@@ -1010,17 +940,15 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         </Space>
       </Modal>
 
-      {/* ── Success modal ─────────────────────────────────────────────────── */}
-      <Modal title={null} open={stkPaymentStatus === "success"} footer={null} closable={false} width={300} centered zIndex={1400} getContainer={() => document.body}>
+      {/* ── Success modal ────────────────────────────────────────────────── */}
+      <Modal title={null} open={stkPaymentStatus === "success"} footer={null}
+        closable={false} width={300} centered zIndex={1400} getContainer={() => document.body}>
         <Space direction="vertical" style={{ width: "100%", textAlign: "center", padding: "16px 0" }} size={12}>
-          <div
-            style={{
-              width: 72, height: 72, borderRadius: "50%",
-              background: "#f0fdf4", border: "2px solid #bbf7d0",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto",
-            }}
-          >
+          <div style={{
+            width: 72, height: 72, borderRadius: "50%",
+            background: "#f0fdf4", border: "2px solid #bbf7d0",
+            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto",
+          }}>
             <CheckCircleOutlined style={{ fontSize: 36, color: "#10b981" }} />
           </div>
           <Title level={3} style={{ color: "#10b981", margin: 0 }}>Payment Successful!</Title>

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -28,6 +28,7 @@
     "axios": "^1.4.0",
     "cra-template-pwa-typescript": "^2.0.0",
     "dayjs": "^1.11.9",
+    "dexie": "^4.3.0",
     "dotenv": "^16.3.1",
     "formik": "^2.4.2",
     "html2canvas": "^1.4.1",

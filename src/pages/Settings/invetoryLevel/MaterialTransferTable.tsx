@@ -63,11 +63,28 @@ const useIsMobile = () => {
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+interface ShopLocation {
+    address?: string;
+    formatted_address?: string;
+    city?: string;
+    country?: string;
+    place_id?: string;
+    lat?: number;
+    lng?: number;
+    maps_url?: string;
+}
+
+interface Shop {
+    _id: string;
+    name: string;
+    location: string | ShopLocation;
+}
+
 interface Transfer {
     _id: string;
     transfer_code: string;
-    from_shop_id: { _id: string; name: string; location: string };
-    to_shop_id: { _id: string; name: string; location: string };
+    from_shop_id: Shop;
+    to_shop_id: Shop;
     status: "pending" | "in_transit" | "completed" | "cancelled" | "rejected";
     initiated_by: { _id: string; name: string; email?: string };
     approved_by?: { _id: string; name: string; email?: string };
@@ -108,6 +125,13 @@ interface MaterialTransferTableProps {
         total: number;
     }>;
 }
+
+// ── Location helper ───────────────────────────────────────────────────────────
+const getLocationStr = (location: string | ShopLocation | undefined): string => {
+    if (!location) return "";
+    if (typeof location === "string") return location;
+    return location.formatted_address || location.address || location.city || "";
+};
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string; text: string; bg: string }> = {
@@ -153,31 +177,34 @@ const InfoPill: React.FC<{ label: string; value: React.ReactNode; color?: string
 );
 
 // ── Route arrow ───────────────────────────────────────────────────────────────
-const RouteDisplay: React.FC<{ from: Transfer["from_shop_id"]; to: Transfer["to_shop_id"]; compact?: boolean }> = ({
-    from, to, compact,
-}) => (
-    <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 10, flexWrap: "wrap" }}>
-        <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.blue, flexShrink: 0, display: "inline-block" }} />
-                <Text strong style={{ fontSize: compact ? 12 : 13, color: C.darkText }}>{from?.name || "N/A"}</Text>
+const RouteDisplay: React.FC<{ from: Shop; to: Shop; compact?: boolean }> = ({ from, to, compact }) => {
+    const fromLocation = getLocationStr(from?.location);
+    const toLocation = getLocationStr(to?.location);
+
+    return (
+        <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 10, flexWrap: "wrap" }}>
+            <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.blue, flexShrink: 0, display: "inline-block" }} />
+                    <Text strong style={{ fontSize: compact ? 12 : 13, color: C.darkText }}>{from?.name || "N/A"}</Text>
+                </div>
+                {!compact && fromLocation && (
+                    <Text style={{ fontSize: 11, color: C.subText, marginLeft: 13 }}>{fromLocation}</Text>
+                )}
             </div>
-            {!compact && from?.location && (
-                <Text style={{ fontSize: 11, color: C.subText, marginLeft: 13 }}>{from.location}</Text>
-            )}
-        </div>
-        <ArrowRightOutlined style={{ fontSize: compact ? 11 : 13, color: C.orange, flexShrink: 0 }} />
-        <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, flexShrink: 0, display: "inline-block" }} />
-                <Text strong style={{ fontSize: compact ? 12 : 13, color: C.darkText }}>{to?.name || "N/A"}</Text>
+            <ArrowRightOutlined style={{ fontSize: compact ? 11 : 13, color: C.orange, flexShrink: 0 }} />
+            <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.green, flexShrink: 0, display: "inline-block" }} />
+                    <Text strong style={{ fontSize: compact ? 12 : 13, color: C.darkText }}>{to?.name || "N/A"}</Text>
+                </div>
+                {!compact && toLocation && (
+                    <Text style={{ fontSize: 11, color: C.subText, marginLeft: 13 }}>{toLocation}</Text>
+                )}
             </div>
-            {!compact && to?.location && (
-                <Text style={{ fontSize: 11, color: C.subText, marginLeft: 13 }}>{to.location}</Text>
-            )}
         </div>
-    </div>
-);
+    );
+};
 
 // ── Product mapping item ──────────────────────────────────────────────────────
 const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ item, index }) => (
@@ -193,7 +220,6 @@ const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ ite
             flexWrap: "wrap",
         }}
     >
-        {/* Index */}
         <div style={{
             background: C.primaryLight,
             borderRadius: 6,
@@ -210,7 +236,6 @@ const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ ite
             {index + 1}
         </div>
 
-        {/* From product */}
         <div style={{ flex: 1, minWidth: 120 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 {item.from_product_id?.thumbnail && (
@@ -227,10 +252,8 @@ const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ ite
             </div>
         </div>
 
-        {/* Arrow */}
         <ArrowRightOutlined style={{ color: C.green, fontSize: 14, flexShrink: 0 }} />
 
-        {/* To product */}
         <div style={{ flex: 1, minWidth: 120 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 {item.to_product_id?.thumbnail && (
@@ -247,7 +270,6 @@ const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ ite
             </div>
         </div>
 
-        {/* Qty + notes */}
         <div style={{ textAlign: "right", flexShrink: 0 }}>
             <div style={{ background: "#eef2ff", borderRadius: 6, padding: "4px 10px", marginBottom: item.notes ? 4 : 0 }}>
                 <Text strong style={{ fontSize: 13, color: C.indigo }}>{item.quantity}</Text>
@@ -264,7 +286,6 @@ const TransferItemCard: React.FC<{ item: TransferItem; index: number }> = ({ ite
 const ExpandedRow: React.FC<{ record: Transfer; isMobile?: boolean }> = ({ record, isMobile }) => (
     <div style={{ padding: isMobile ? "12px 4px 4px" : "14px 16px", background: "#f8fafc", borderTop: `1px solid ${C.tableBorder}` }}>
 
-        {/* Route */}
         <div style={{
             background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10,
             padding: "12px 14px", marginBottom: 14,
@@ -275,7 +296,6 @@ const ExpandedRow: React.FC<{ record: Transfer; isMobile?: boolean }> = ({ recor
             <RouteDisplay from={record.from_shop_id} to={record.to_shop_id} />
         </div>
 
-        {/* Meta grid */}
         <Text style={{ fontSize: 10, color: C.subText, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 8 }}>
             Details
         </Text>
@@ -303,7 +323,6 @@ const ExpandedRow: React.FC<{ record: Transfer; isMobile?: boolean }> = ({ recor
             <InfoPill label="Total Items" value={`${record.total_items} item${record.total_items !== 1 ? "s" : ""}`} color={C.indigo} bg="#eef2ff" />
         </div>
 
-        {/* Rejection reason */}
         {record.rejection_reason && (
             <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8, padding: "8px 12px", marginBottom: 14 }}>
                 <Text style={{ fontSize: 10, color: "#b91c1c", fontWeight: 600, display: "block", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.4px" }}>Rejection Reason</Text>
@@ -311,7 +330,6 @@ const ExpandedRow: React.FC<{ record: Transfer; isMobile?: boolean }> = ({ recor
             </div>
         )}
 
-        {/* Notes */}
         {record.notes && (
             <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", marginBottom: 14 }}>
                 <Text style={{ fontSize: 10, color: "#92400e", fontWeight: 600, display: "block", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.4px" }}>Notes</Text>
@@ -319,7 +337,6 @@ const ExpandedRow: React.FC<{ record: Transfer; isMobile?: boolean }> = ({ recor
             </div>
         )}
 
-        {/* Items */}
         <Text style={{ fontSize: 10, color: C.subText, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 8 }}>
             <SwapOutlined style={{ marginRight: 4 }} />
             Item Mapping ({record.items?.length || 0})
@@ -406,7 +423,6 @@ const TransferCard: React.FC<{
     expanded: boolean;
     onToggleExpand: () => void;
 }> = ({ record, actionRef, onViewTransfer, onPrintTransfer, onApprove, onComplete, onRejectClick, onCancel, onDelete, expanded, onToggleExpand }) => {
-    const cfg = STATUS_CONFIG[record.status] || STATUS_CONFIG["pending"];
     const isOverdue = record.expected_delivery_date && new Date(record.expected_delivery_date) < new Date();
 
     return (
@@ -420,7 +436,6 @@ const TransferCard: React.FC<{
             }}
             bodyStyle={{ padding: "12px 14px" }}
         >
-            {/* Header row */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <Space size={6} style={{ marginBottom: 5, flexWrap: "wrap" }}>
@@ -451,7 +466,6 @@ const TransferCard: React.FC<{
                 />
             </div>
 
-            {/* Stats */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
                 <div style={{ background: "#eef2ff", borderRadius: 8, padding: "7px 10px" }}>
                     <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Items</Text>
@@ -465,7 +479,6 @@ const TransferCard: React.FC<{
                 </div>
             </div>
 
-            {/* Expand toggle */}
             <Button
                 type="text"
                 size="small"
@@ -563,7 +576,6 @@ const MobileTransferList: React.FC<{
 
     return (
         <div>
-            {/* Toolbar */}
             <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
                 <input
                     placeholder="Search transfers…"
@@ -583,7 +595,6 @@ const MobileTransferList: React.FC<{
                 <AddEditTransferModal key="add-transfer" actionRef={actionRef} />
             </div>
 
-            {/* Summary strip */}
             {!loading && transfers.length > 0 && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
                     {[
@@ -599,7 +610,6 @@ const MobileTransferList: React.FC<{
                 </div>
             )}
 
-            {/* Cards */}
             {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                     <Card key={i} style={{ borderRadius: 12, marginBottom: 10, border: `1px solid ${C.tableBorder}` }} bodyStyle={{ padding: 14 }}>
@@ -953,6 +963,7 @@ const RejectModal: React.FC<{
         okText="Reject"
         okButtonProps={{ danger: true, style: { borderRadius: 7 } }}
         cancelButtonProps={{ style: { borderRadius: 7 } }}
+        destroyOnClose
     >
         <Space direction="vertical" style={{ width: "100%" }} size={8}>
             <Text style={{ fontSize: 13, color: C.subText }}>Please provide a reason for rejecting this transfer:</Text>

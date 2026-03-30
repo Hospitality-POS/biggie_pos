@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Button, Form, Input, Modal, Space, Tag, Typography } from "antd";
 import {
-  CheckCircleFilled, CoffeeOutlined, EditOutlined,
-  EnvironmentOutlined, LoadingOutlined, SearchOutlined, ShopOutlined,
+  CheckCircleFilled, EditOutlined,
+  EnvironmentOutlined, LoadingOutlined, MedicineBoxOutlined,
+  SearchOutlined, ShopOutlined, SolutionOutlined,
 } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { createShop, updateShop } from "@services/shops";
@@ -10,11 +11,12 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 interface ShopModalProps { actionRef: any; edit?: boolean; data?: any; }
 
+type PosMode = "restaurant" | "retail" | "hospital";
+
 // ── Load Google Maps SDK on demand ───────────────────────────────────────────
 const loadGoogleMaps = (): Promise<void> => {
   return new Promise((resolve, reject) => {
     if ((window as any).google?.maps?.places) { resolve(); return; }
-    // Check if script already loading
     if (document.getElementById("gmap-script")) {
       const check = setInterval(() => {
         if ((window as any).google?.maps?.places) { clearInterval(check); resolve(); }
@@ -47,12 +49,11 @@ const useGooglePlaces = () => {
   const plcRef = useRef<any>(null);
   const timer = useRef<any>(null);
 
-  // Load SDK on mount if not already loaded
   useEffect(() => {
     if (sdkReady) return;
     loadGoogleMaps()
       .then(() => setSdkReady(true))
-      .catch(() => { }); // silently fallback to plain text
+      .catch(() => { });
   }, []);
 
   const ensureServices = useCallback(() => {
@@ -106,7 +107,6 @@ const LocationInput: React.FC<{ value?: any; onChange?: (v: any) => void }> = ({
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Populate from edit data
   useEffect(() => {
     if (!value) return;
     const display = typeof value === "string"
@@ -117,7 +117,6 @@ const LocationInput: React.FC<{ value?: any; onChange?: (v: any) => void }> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Close on outside click
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
@@ -126,7 +125,6 @@ const LocationInput: React.FC<{ value?: any; onChange?: (v: any) => void }> = ({
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  // Show dropdown whenever options arrive
   useEffect(() => {
     if (options.length > 0 && text.length >= 2) setOpen(true);
     else if (options.length === 0) setOpen(false);
@@ -172,8 +170,6 @@ const LocationInput: React.FC<{ value?: any; onChange?: (v: any) => void }> = ({
 
   return (
     <div ref={wrapRef} style={{ position: "relative" }}>
-
-      {/* ── Input row ── */}
       <div style={{ position: "relative" }}>
         <EnvironmentOutlined style={{
           position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)",
@@ -210,7 +206,6 @@ const LocationInput: React.FC<{ value?: any; onChange?: (v: any) => void }> = ({
         </span>
       </div>
 
-      {/* ── Dropdown (fixed position so it escapes modal stacking) ── */}
       {open && options.length > 0 && (() => {
         const rect = wrapRef.current?.getBoundingClientRect();
         if (!rect) return null;
@@ -234,11 +229,9 @@ const LocationInput: React.FC<{ value?: any; onChange?: (v: any) => void }> = ({
                 key={opt.placeId || i}
                 onMouseDown={e => { e.preventDefault(); handlePick(opt); }}
                 style={{
-                  padding: "10px 14px",
-                  cursor: "pointer",
+                  padding: "10px 14px", cursor: "pointer",
                   borderBottom: i < options.length - 1 ? "1px solid #f1f5f9" : "none",
-                  background: "transparent",
-                  transition: "background 0.1s",
+                  background: "transparent", transition: "background 0.1s",
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#f0f7ff")}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -262,7 +255,6 @@ const LocationInput: React.FC<{ value?: any; onChange?: (v: any) => void }> = ({
         );
       })()}
 
-      {/* ── Confirmed badge ── */}
       {place && !fetching && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
           <CheckCircleFilled style={{ color: "#10b981", fontSize: 12 }} />
@@ -275,7 +267,6 @@ const LocationInput: React.FC<{ value?: any; onChange?: (v: any) => void }> = ({
         </div>
       )}
 
-      {/* ── Mini map preview ── */}
       {place?.lat && place?.lng && (
         <div style={{ marginTop: 10, borderRadius: 10, overflow: "hidden", border: "1px solid #e2e8f0", position: "relative" }}>
           <iframe
@@ -323,12 +314,20 @@ const ModeCard: React.FC<{
   </div>
 );
 
+// ── Normalise legacy "restaurant" → "service" on read ─────────────────────────
+const normalisePosMode = (mode: string | undefined): PosMode => {
+  if (mode === "restaurant") return "restaurant";
+  if (mode === "retail") return "retail";
+  if (mode === "hospital") return "hospital";
+  return "restaurant";
+};
+
 // ── Main modal ────────────────────────────────────────────────────────────────
 const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) => {
   const [form] = Form.useForm();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [posMode, setPosMode] = useState<"restaurant" | "retail">(data?.pos_mode || "restaurant");
+  const [posMode, setPosMode] = useState<PosMode>(normalisePosMode(data?.pos_mode));
   const primaryColor = usePrimaryColor();
 
   const storedTenant = localStorage.getItem("tenant");
@@ -340,7 +339,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
   const handleOpen = () => {
     if (edit && data) {
       form.setFieldsValue({ name: data.name, location: data.location });
-      setPosMode(data?.pos_mode || "restaurant");
+      setPosMode(normalisePosMode(data?.pos_mode));
     }
     setOpen(true);
   };
@@ -412,12 +411,30 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
           {!isAccountingOnly && (
             <Form.Item label="POS Mode" style={{ marginBottom: 0 }}>
               <div style={{ display: "flex", gap: 12 }}>
-                <ModeCard active={posMode === "restaurant"} onClick={() => setPosMode("restaurant")}
-                  primaryColor={primaryColor} icon={<CoffeeOutlined />}
-                  title="Restaurant" desc="Table-first. Customers sit, orders go to kitchen." />
-                <ModeCard active={posMode === "retail"} onClick={() => setPosMode("retail")}
-                  primaryColor={primaryColor} icon={<ShopOutlined />}
-                  title="Retail" desc="Products-first. Queue orders per slot." />
+                <ModeCard
+                  active={posMode === "restaurant"}
+                  onClick={() => setPosMode("restaurant")}
+                  primaryColor={primaryColor}
+                  icon={<SolutionOutlined />}
+                  title="Duka Services"
+                  desc="For restaurants, spas, salons & anywhere offering in-person services."
+                />
+                <ModeCard
+                  active={posMode === "retail"}
+                  onClick={() => setPosMode("retail")}
+                  primaryColor={primaryColor}
+                  icon={<ShopOutlined />}
+                  title="Retail"
+                  desc="Products-first. Queue-based orders per slot."
+                />
+                <ModeCard
+                  active={posMode === "hospital"}
+                  onClick={() => setPosMode("hospital")}
+                  primaryColor={primaryColor}
+                  icon={<MedicineBoxOutlined />}
+                  title="Hospital"
+                  desc="Patient-first. Appointments, wards, and billing."
+                />
               </div>
             </Form.Item>
           )}

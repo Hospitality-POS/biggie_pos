@@ -37,16 +37,53 @@ const useIsMobile = () => {
     return v;
 };
 
+// ── Tenant flags ───────────────────────────────────────────────────────────
+const getTenantFlags = () => {
+    try {
+        const stored = localStorage.getItem("tenant");
+        if (!stored) return { hasPOS: true, hasAccounting: false, hasMteja: false };
+        const tenant = JSON.parse(stored);
+        return {
+            hasPOS: !!(tenant?.pos_integration?.enabled ?? true),
+            hasAccounting: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting),
+            hasMteja: tenant?.modules?.crm === true,
+        };
+    } catch {
+        return { hasPOS: true, hasAccounting: false, hasMteja: false };
+    }
+};
+
+const getPosMode = (): string =>
+    localStorage.getItem("posMode") ?? "service";
+
 // ── Tab config ─────────────────────────────────────────────────────────────
-const ALL_TABS = [
-    { key: "customers", label: "Customers", icon: <UserOutlined /> },
-    { key: "packages", label: "Packages", icon: <CreditCardOutlined /> },
-    { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined /> },
-    { key: "schedule", label: "Bookings", icon: <CalendarOutlined /> },
-    { key: "consultations", label: "Consultations", icon: <StarOutlined /> },
-    { key: "feedback", label: "Feedback", icon: <MessageOutlined /> },
-    { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined /> },
-];
+type TabItem = { key: string; label: string; icon: React.ReactNode };
+
+const getTabConfig = (): TabItem[] => {
+    const posMode = getPosMode();
+    const isHospital = posMode === "hospital";
+
+    if (isHospital) {
+        // Hospital: patients, appointments, consultations, packages — no gift cards / feedback
+        return [
+            { key: "customers", label: "Patients", icon: <UserOutlined /> },
+            { key: "schedule", label: "Appointments", icon: <CalendarOutlined /> },
+            { key: "consultations", label: "Consultations", icon: <StarOutlined /> },
+            { key: "packages", label: "Packages", icon: <CreditCardOutlined /> },
+            { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined /> },
+        ];
+    }
+
+    return [
+        { key: "customers", label: "Customers", icon: <UserOutlined /> },
+        { key: "packages", label: "Packages", icon: <CreditCardOutlined /> },
+        { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined /> },
+        { key: "schedule", label: "Bookings", icon: <CalendarOutlined /> },
+        { key: "consultations", label: "Consultations", icon: <StarOutlined /> },
+        { key: "feedback", label: "Feedback", icon: <MessageOutlined /> },
+        { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined /> },
+    ];
+};
 
 // ── TabNav ─────────────────────────────────────────────────────────────────
 const TabNav = ({
@@ -54,7 +91,7 @@ const TabNav = ({
     active,
     onChange,
 }: {
-    tabs: typeof ALL_TABS;
+    tabs: TabItem[];
     active: string;
     onChange: (key: string) => void;
 }) => (
@@ -91,6 +128,7 @@ const TabNav = ({
 // ── Main ───────────────────────────────────────────────────────────────────
 function Customers() {
     const isMobile = useIsMobile();
+    const { hasPOS, hasAccounting, hasMteja } = getTenantFlags();
 
     const [addCustomerModalVisible, setAddCustomerModalVisible] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<any>(null);
@@ -98,11 +136,11 @@ function Customers() {
     const [activeTab, setActiveTab] = useState("customers");
     const customerTableRef = useRef<any>(null);
 
-    const storedTenant = localStorage.getItem("tenant");
-    const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
-    const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
-    const showOnlyCustomers = hasAccounting && !hasPOS;
+    const ALL_TABS = getTabConfig();
+    const isHospital = getPosMode() === "hospital";
+    // Hospital always shows full tabs (appointments are core, not Mteja-gated)
+    // Other modes: hide tabs if Mteja not enabled or accounting-only
+    const showOnlyCustomers = !isHospital && ((hasAccounting && !hasPOS) || !hasMteja);
 
     const handleCustomerAdded = () => customerTableRef.current?.reload();
 
@@ -147,10 +185,14 @@ function Customers() {
         }}>
             <div>
                 <Text strong style={{ fontSize: isMobile ? 15 : 17, color: C.darkText, display: "block", lineHeight: 1.3 }}>
-                    Customer Management
+                    {isHospital ? "Patient Management" : "Customer Management"}
                 </Text>
                 <Text style={{ fontSize: 11, color: C.subText, lineHeight: 1.3 }}>
-                    {showOnlyCustomers ? "Manage your customers" : "Customers, subscriptions, bookings & more"}
+                    {showOnlyCustomers
+                        ? `Manage your ${getPosMode() === "hospital" ? "patients" : "customers"}`
+                        : getPosMode() === "hospital"
+                            ? "Patients, appointments, services & more"
+                            : "Customers, subscriptions, bookings & more"}
                 </Text>
             </div>
             {showAdd && (
@@ -182,7 +224,7 @@ function Customers() {
         </div>
     );
 
-    // ── Accounting-only: no tabs ─────────────────────────────────────────
+    // ── Customers only (no Mteja, or accounting-only) ────────────────────
     if (showOnlyCustomers) {
         return (
             <>
@@ -200,7 +242,7 @@ function Customers() {
         );
     }
 
-    // ── POS-enabled: tabs ────────────────────────────────────────────────
+    // ── Mteja enabled: full tabs ─────────────────────────────────────────
     return (
         <>
             {wrap(

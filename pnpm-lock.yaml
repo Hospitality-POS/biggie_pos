@@ -62,6 +62,9 @@ importers:
       dayjs:
         specifier: ^1.11.9
         version: 1.11.11
+      dexie:
+        specifier: ^4.3.0
+        version: 4.3.0
       dotenv:
         specifier: ^16.3.1
         version: 16.4.5
@@ -2544,6 +2547,9 @@ packages:
 
   detect-node@2.1.0:
     resolution: {integrity: sha512-T0NIuQpnTvFDATNuHN5roPwSBG83rFsuO+MXXH9/3N1eFbn4wcPjttvjMLEPWJ0RGUYgQE7cGgS3tNxbqCGM7g==}
+
+  dexie@4.3.0:
+    resolution: {integrity: sha512-5EeoQpJvMKHe6zWt/FSIIuRa3CWlZeIl6zKXt+Lz7BU6RoRRLgX9dZEynRfXrkLcldKYCBiz7xekTEylnie1Ug==}
 
   dijkstrajs@1.0.3:
     resolution: {integrity: sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA==}
@@ -7409,6 +7415,8 @@ snapshots:
   delayed-stream@1.0.0: {}
 
   detect-node@2.1.0: {}
+
+  dexie@4.3.0: {}
 
   dijkstrajs@1.0.3: {}
 

@@ -44,6 +44,7 @@ import {
   ArrowDownOutlined,
   ShopOutlined,
   CopyOutlined,
+  MedicineBoxOutlined,
 } from "@ant-design/icons";
 import { Line } from "@ant-design/charts";
 import {
@@ -57,8 +58,13 @@ import { ProCard } from "@ant-design/pro-components";
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// ── POS mode helper ───────────────────────────────────────────────────────────
+const getPosMode = (): string =>
+  localStorage.getItem("posMode") ?? "service";
 
+const isHospitalMode = (): boolean => getPosMode() === "hospital";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 const COLORS = {
   primary: "#1890ff",
   success: "#10b981",
@@ -81,8 +87,7 @@ const PERIOD_LABELS: Record<string, string> = {
   custom: "Custom Period",
 };
 
-// ── Hooks ────────────────────────────────────────────────────────────────────
-
+// ── Hooks ─────────────────────────────────────────────────────────────────────
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   React.useEffect(() => {
@@ -94,7 +99,6 @@ const useIsMobile = () => {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
 const fmtK = (v: number) => {
   if (!v && v !== 0) return "0";
   if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
@@ -102,8 +106,7 @@ const fmtK = (v: number) => {
   return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
 };
 
-// ── KPI Card ─────────────────────────────────────────────────────────────────
-
+// ── KPI Card ──────────────────────────────────────────────────────────────────
 interface KPICardProps {
   title: string;
   value: number | string;
@@ -124,12 +127,8 @@ const KPICard: React.FC<KPICardProps> = ({
     <div
       onClick={onClick}
       style={{
-        background: bg,
-        borderRadius: 12,
-        padding: "18px 20px",
-        height: "100%",
-        position: "relative",
-        overflow: "hidden",
+        background: bg, borderRadius: 12, padding: "18px 20px", height: "100%",
+        position: "relative", overflow: "hidden",
         cursor: onClick ? "pointer" : "default",
         transition: "box-shadow 0.2s ease",
         boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
@@ -141,33 +140,19 @@ const KPICard: React.FC<KPICardProps> = ({
         (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
       }}
     >
-      {/* decorative circle */}
-      <div
-        style={{
-          position: "absolute",
-          right: -16,
-          top: -16,
-          width: 80,
-          height: 80,
-          borderRadius: "50%",
-          background: `${color}18`,
-        }}
-      />
+      <div style={{
+        position: "absolute", right: -16, top: -16,
+        width: 80, height: 80, borderRadius: "50%", background: `${color}18`,
+      }} />
       {loading ? (
         <Skeleton active paragraph={false} />
       ) : (
         <Space direction="vertical" size={4} style={{ width: "100%", position: "relative", zIndex: 1 }}>
           <Space align="center" size={6}>
-            <div
-              style={{
-                background: `${color}20`,
-                borderRadius: 8,
-                padding: "5px 7px",
-                color,
-                fontSize: 16,
-                lineHeight: 1,
-              }}
-            >
+            <div style={{
+              background: `${color}20`, borderRadius: 8,
+              padding: "5px 7px", color, fontSize: 16, lineHeight: 1,
+            }}>
               {icon}
             </div>
             <Text style={{ fontSize: 11, color: COLORS.subtext, fontWeight: 500 }}>{title}</Text>
@@ -178,11 +163,9 @@ const KPICard: React.FC<KPICardProps> = ({
           </Text>
           {pctChange !== null && pctChange !== undefined && (
             <Space size={3}>
-              {pctChange >= 0 ? (
-                <ArrowUpOutlined style={{ color: COLORS.success, fontSize: 10 }} />
-              ) : (
-                <ArrowDownOutlined style={{ color: COLORS.error, fontSize: 10 }} />
-              )}
+              {pctChange >= 0
+                ? <ArrowUpOutlined style={{ color: COLORS.success, fontSize: 10 }} />
+                : <ArrowDownOutlined style={{ color: COLORS.error, fontSize: 10 }} />}
               <Text style={{ fontSize: 10, color: pctChange >= 0 ? COLORS.success : COLORS.error }}>
                 {Math.abs(pctChange).toFixed(1)}% vs last period
               </Text>
@@ -195,7 +178,6 @@ const KPICard: React.FC<KPICardProps> = ({
 );
 
 // ── Business performance ──────────────────────────────────────────────────────
-
 const calculateBusinessIndicators = (chartData: any, apiData: any, periodFilter: string) => {
   const totalRevenue = chartData?.data?.summary?.total_sales || apiData?.todayRevenue || 0;
   const totalOrders = chartData?.data?.summary?.total_orders || apiData?.totalOrderCount || 0;
@@ -204,53 +186,34 @@ const calculateBusinessIndicators = (chartData: any, apiData: any, periodFilter:
 
   if (!chartData?.data?.chart_data?.length || totalRevenue === 0) {
     return {
-      trend: "no-sales",
-      trendText: `No sales ${PERIOD_LABELS[periodFilter]?.toLowerCase() || "in selected period"}`,
+      trend: "no-sales", trendText: `No sales ${PERIOD_LABELS[periodFilter]?.toLowerCase() || "in selected period"}`,
       trendColor: COLORS.error,
       insights: [
         { type: "negative", text: "Zero revenue — immediate action needed" },
         { type: "warning", text: "Consider promotions or check shop operations" },
       ],
-      performance: "critical",
-      performanceColor: COLORS.error,
-      performanceText: "Critical — No Sales",
-      avgOrderValue: 0,
+      performance: "critical", performanceColor: COLORS.error, performanceText: "Critical — No Sales", avgOrderValue: 0,
     };
   }
 
   let performance: string, performanceColor: string, performanceText: string;
-  if (totalOrders >= 15) {
-    [performance, performanceColor, performanceText] = ["excellent", COLORS.success, "Excellent"];
-  } else if (totalOrders >= 8) {
-    [performance, performanceColor, performanceText] = ["good", COLORS.success, "Strong"];
-  } else if (totalOrders >= 5) {
-    [performance, performanceColor, performanceText] = ["moderate", COLORS.primary, "Moderate"];
-  } else if (totalOrders >= 1) {
-    [performance, performanceColor, performanceText] = ["low", COLORS.warning, "Low Activity"];
-  } else {
-    [performance, performanceColor, performanceText] = ["critical", COLORS.error, "Critical"];
-  }
+  if (totalOrders >= 15) [performance, performanceColor, performanceText] = ["excellent", COLORS.success, "Excellent"];
+  else if (totalOrders >= 8) [performance, performanceColor, performanceText] = ["good", COLORS.success, "Strong"];
+  else if (totalOrders >= 5) [performance, performanceColor, performanceText] = ["moderate", COLORS.primary, "Moderate"];
+  else if (totalOrders >= 1) [performance, performanceColor, performanceText] = ["low", COLORS.warning, "Low Activity"];
+  else[performance, performanceColor, performanceText] = ["critical", COLORS.error, "Critical"];
 
   let trend: string, trendColor: string, trendText: string;
-  if (growthRate > 20) {
-    [trend, trendColor, trendText] = ["up-strong", COLORS.success, `Accelerating (+${growthRate.toFixed(1)}%)`];
-  } else if (growthRate > 5) {
-    [trend, trendColor, trendText] = ["up", COLORS.success, `Growing (+${growthRate.toFixed(1)}%)`];
-  } else if (growthRate > -5) {
-    [trend, trendColor, trendText] = ["neutral", COLORS.gray, `Stable (${growthRate.toFixed(1)}%)`];
-  } else if (growthRate > -15) {
-    [trend, trendColor, trendText] = ["down", COLORS.warning, `Slowing (${growthRate.toFixed(1)}%)`];
-  } else {
-    [trend, trendColor, trendText] = ["down-critical", COLORS.error, `Declining (${growthRate.toFixed(1)}%)`];
-  }
+  if (growthRate > 20) [trend, trendColor, trendText] = ["up-strong", COLORS.success, `Accelerating (+${growthRate.toFixed(1)}%)`];
+  else if (growthRate > 5) [trend, trendColor, trendText] = ["up", COLORS.success, `Growing (+${growthRate.toFixed(1)}%)`];
+  else if (growthRate > -5) [trend, trendColor, trendText] = ["neutral", COLORS.gray, `Stable (${growthRate.toFixed(1)}%)`];
+  else if (growthRate > -15) [trend, trendColor, trendText] = ["down", COLORS.warning, `Slowing (${growthRate.toFixed(1)}%)`];
+  else[trend, trendColor, trendText] = ["down-critical", COLORS.error, `Declining (${growthRate.toFixed(1)}%)`];
 
   const insights: { type: string; text: string }[] = [];
   if (totalOrders > 0) {
-    if (avgOrderValue > 2000) {
-      insights.push({ type: "positive", text: `Excellent avg: Ksh ${avgOrderValue.toFixed(0)}` });
-    } else if (avgOrderValue < 400) {
-      insights.push({ type: "warning", text: `Low avg: Ksh ${avgOrderValue.toFixed(0)} — consider upselling` });
-    }
+    if (avgOrderValue > 2000) insights.push({ type: "positive", text: `Excellent avg: Ksh ${avgOrderValue.toFixed(0)}` });
+    else if (avgOrderValue < 400) insights.push({ type: "warning", text: `Low avg: Ksh ${avgOrderValue.toFixed(0)} — consider upselling` });
   }
   if (chartData?.data?.summary?.peak_period) {
     const peak = chartData.data.summary.peak_period;
@@ -261,11 +224,10 @@ const calculateBusinessIndicators = (chartData: any, apiData: any, periodFilter:
 };
 
 // ── Table columns ─────────────────────────────────────────────────────────────
-
-const createOrderColumns = (isMobile: boolean) =>
+const createOrderColumns = (isMobile: boolean, hospital: boolean) =>
   isMobile
     ? [
-      { title: "Order No", dataIndex: "order_no", key: "order_no", width: 100 },
+      { title: hospital ? "Bill No" : "Order No", dataIndex: "order_no", key: "order_no", width: 100 },
       {
         title: "Amount",
         dataIndex: "order_amount",
@@ -274,11 +236,11 @@ const createOrderColumns = (isMobile: boolean) =>
           <Text strong style={{ color: COLORS.success, fontSize: 12 }}>Ksh {amount?.toFixed(2)}</Text>
         ),
       },
-      { title: "Table", dataIndex: "table", key: "table", width: 70 },
+      { title: hospital ? "Ward/Bed" : "Table", dataIndex: "table", key: "table", width: 70 },
     ]
     : [
-      { title: "Order No", dataIndex: "order_no", key: "order_no", width: 120 },
-      { title: "Table", dataIndex: "table", key: "table", width: 80 },
+      { title: hospital ? "Bill No" : "Order No", dataIndex: "order_no", key: "order_no", width: 120 },
+      { title: hospital ? "Ward/Bed" : "Table", dataIndex: "table", key: "table", width: 80 },
       {
         title: "Amount",
         dataIndex: "order_amount",
@@ -288,22 +250,20 @@ const createOrderColumns = (isMobile: boolean) =>
           <Text strong style={{ color: COLORS.success }}>Ksh {amount?.toFixed(2)}</Text>
         ),
       },
-      { title: "Served By", dataIndex: "servedBy", key: "servedBy", ellipsis: true },
+      { title: hospital ? "Attended By" : "Served By", dataIndex: "servedBy", key: "servedBy", ellipsis: true },
     ];
 
-const createStockColumns = (isMobile: boolean) =>
+const createStockColumns = (isMobile: boolean, hospital: boolean) =>
   isMobile
     ? [
-      { title: "Item", dataIndex: "name", key: "name", ellipsis: true },
+      { title: hospital ? "Medicine/Item" : "Item", dataIndex: "name", key: "name", ellipsis: true },
       {
         title: "Qty",
         dataIndex: "quantity",
         key: "quantity",
         width: 60,
         render: (quantity: number) => (
-          <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning, fontWeight: 600 }}>
-            {quantity}
-          </Text>
+          <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning, fontWeight: 600 }}>{quantity}</Text>
         ),
       },
       {
@@ -311,24 +271,19 @@ const createStockColumns = (isMobile: boolean) =>
         key: "status",
         width: 80,
         render: (_: any, record: any) => (
-          <Badge
-            status={record.quantity <= 0 ? "error" : "warning"}
-            text={record.quantity <= 0 ? "Out" : "Low"}
-          />
+          <Badge status={record.quantity <= 0 ? "error" : "warning"} text={record.quantity <= 0 ? "Out" : "Low"} />
         ),
       },
     ]
     : [
-      { title: "Item Name", dataIndex: "name", key: "name", ellipsis: true },
+      { title: hospital ? "Medicine / Item" : "Item Name", dataIndex: "name", key: "name", ellipsis: true },
       {
         title: "Current",
         dataIndex: "quantity",
         key: "quantity",
         width: 80,
         render: (quantity: number) => (
-          <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning, fontWeight: 600 }}>
-            {quantity}
-          </Text>
+          <Text style={{ color: quantity <= 0 ? COLORS.error : COLORS.warning, fontWeight: 600 }}>{quantity}</Text>
         ),
       },
       { title: "Min Required", dataIndex: "min_viable_quantity", key: "min_viable_quantity", width: 100 },
@@ -338,42 +293,36 @@ const createStockColumns = (isMobile: boolean) =>
         width: 120,
         render: (_: any, record: any) => {
           const isOutOfStock = record.quantity <= 0;
-          const isLow = record.quantity <= record.min_viable_quantity;
           return (
             <Badge
               status={isOutOfStock ? "error" : "warning"}
-              text={isOutOfStock ? "Out of stock" : isLow ? `${record.quantity} left` : "Low stock"}
+              text={isOutOfStock ? (hospital ? "Out of stock" : "Out of stock") : `${record.quantity} left`}
             />
           );
         },
       },
     ];
 
-const createBestSellerColumns = (isMobile: boolean) =>
+const createBestSellerColumns = (isMobile: boolean, hospital: boolean) =>
   isMobile
     ? [
       {
-        title: "#",
-        dataIndex: "rank",
-        key: "rank",
-        width: 40,
+        title: "#", dataIndex: "rank", key: "rank", width: 40,
         render: (rank: number) =>
           rank <= 3 ? (
-            <TrophyOutlined
-              style={{ color: rank === 1 ? "#ffd700" : rank === 2 ? "#c0c0c0" : "#cd7f32", fontSize: 16 }}
-            />
+            <TrophyOutlined style={{ color: rank === 1 ? "#ffd700" : rank === 2 ? "#c0c0c0" : "#cd7f32", fontSize: 16 }} />
           ) : (
             <span style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>#{rank}</span>
           ),
       },
       {
-        title: "Product",
+        title: hospital ? "Service / Medicine" : "Product",
         dataIndex: "name",
         key: "name",
         render: (name: string, record: any) => (
           <div>
             <div style={{ fontWeight: 500, fontSize: 13, color: COLORS.text }}>{name}</div>
-            <div style={{ fontSize: 11, color: COLORS.gray }}>{record.sales_metrics.order_count} orders</div>
+            <div style={{ fontSize: 11, color: COLORS.gray }}>{record.sales_metrics.order_count} {hospital ? "visits" : "orders"}</div>
           </div>
         ),
       },
@@ -382,24 +331,17 @@ const createBestSellerColumns = (isMobile: boolean) =>
         dataIndex: ["sales_metrics", "total_revenue"],
         key: "revenue",
         render: (revenue: number) => (
-          <Text style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>
-            Ksh {revenue?.toLocaleString()}
-          </Text>
+          <Text style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>Ksh {revenue?.toLocaleString()}</Text>
         ),
       },
     ]
     : [
       {
-        title: "Rank",
-        dataIndex: "rank",
-        key: "rank",
-        width: 60,
+        title: "Rank", dataIndex: "rank", key: "rank", width: 60,
         render: (rank: number) => (
           <div style={{ textAlign: "center" }}>
             {rank <= 3 ? (
-              <TrophyOutlined
-                style={{ color: rank === 1 ? "#ffd700" : rank === 2 ? "#c0c0c0" : "#cd7f32", fontSize: rank === 1 ? 18 : 16 }}
-              />
+              <TrophyOutlined style={{ color: rank === 1 ? "#ffd700" : rank === 2 ? "#c0c0c0" : "#cd7f32", fontSize: rank === 1 ? 18 : 16 }} />
             ) : (
               <span style={{ fontWeight: 600, color: COLORS.primary }}>#{rank}</span>
             )}
@@ -407,7 +349,7 @@ const createBestSellerColumns = (isMobile: boolean) =>
         ),
       },
       {
-        title: "Product",
+        title: hospital ? "Service / Medicine" : "Product",
         dataIndex: "name",
         key: "name",
         render: (name: string, record: any) => (
@@ -420,14 +362,14 @@ const createBestSellerColumns = (isMobile: boolean) =>
         ),
       },
       {
-        title: "Sales",
+        title: hospital ? "Dispensed" : "Sales",
         dataIndex: ["sales_metrics", "total_quantity_sold"],
         key: "quantity_sold",
         sorter: (a: any, b: any) => a.sales_metrics.total_quantity_sold - b.sales_metrics.total_quantity_sold,
         render: (quantity: number, record: any) => (
           <div>
-            <div style={{ fontWeight: 600, color: COLORS.success }}>{quantity} units</div>
-            <div style={{ fontSize: 12, color: COLORS.gray }}>{record.sales_metrics.order_count} orders</div>
+            <div style={{ fontWeight: 600, color: COLORS.success }}>{quantity} {hospital ? "units" : "units"}</div>
+            <div style={{ fontSize: 12, color: COLORS.gray }}>{record.sales_metrics.order_count} {hospital ? "visits" : "orders"}</div>
           </div>
         ),
       },
@@ -440,115 +382,84 @@ const createBestSellerColumns = (isMobile: boolean) =>
           <div>
             <div style={{ fontWeight: 600, color: COLORS.primary }}>Ksh {revenue?.toLocaleString()}</div>
             {record.sales_metrics?.total_profit && (
-              <div style={{ fontSize: 12, color: COLORS.success }}>
-                Profit: Ksh {record.sales_metrics.total_profit.toLocaleString()}
-              </div>
+              <div style={{ fontSize: 12, color: COLORS.success }}>Profit: Ksh {record.sales_metrics.total_profit.toLocaleString()}</div>
             )}
           </div>
         ),
       },
       {
-        title: "Performance",
-        key: "performance",
+        title: "Performance", key: "performance",
         render: (_: any, record: any) => (
           <div>
-            <Tag
-              style={{
-                background: record.performance_indicators?.is_top_performer ? "#fef9c3" : "#eff6ff",
-                color: record.performance_indicators?.is_top_performer ? "#a16207" : "#1d4ed8",
-                border: "none",
-                fontSize: 11,
-                borderRadius: 4,
-              }}
-            >
-              {record.performance_indicators?.is_top_performer ? "⭐ Top" : "Popular"}
+            <Tag style={{
+              background: record.performance_indicators?.is_top_performer ? "#fef9c3" : "#eff6ff",
+              color: record.performance_indicators?.is_top_performer ? "#a16207" : "#1d4ed8",
+              border: "none", fontSize: 11, borderRadius: 4,
+            }}>
+              {record.performance_indicators?.is_top_performer ? "⭐ Top" : hospital ? "Frequently Used" : "Popular"}
             </Tag>
             <div style={{ fontSize: 11, color: COLORS.gray, marginTop: 4 }}>
-              {record.performance_indicators?.avg_quantity_per_order?.toFixed(1)}/order
+              {record.performance_indicators?.avg_quantity_per_order?.toFixed(1)}/{hospital ? "visit" : "order"}
             </div>
           </div>
         ),
       },
     ];
 
-const createPOColumns = (isMobile: boolean) =>
+const createPOColumns = (isMobile: boolean, hospital: boolean) =>
   isMobile
     ? [
       { title: "PO#", dataIndex: "po_number", key: "po_number", width: 90 },
       {
-        title: "Status",
-        dataIndex: "status",
-        key: "status",
+        title: "Status", dataIndex: "status", key: "status",
         render: (status: string) => {
           const colors: Record<string, string> = {
             pending: COLORS.warning, approved: COLORS.primary,
             fully_delivered: COLORS.success, cancelled: COLORS.error,
           };
           return (
-            <Badge
-              color={colors[status] || COLORS.gray}
-              text={<span style={{ fontSize: 11 }}>{status?.replace(/_/g, " ")}</span>}
-            />
+            <Badge color={colors[status] || COLORS.gray} text={<span style={{ fontSize: 11 }}>{status?.replace(/_/g, " ")}</span>} />
           );
         },
       },
       {
-        title: "Amount",
-        dataIndex: "total_amount",
-        key: "total_amount",
+        title: "Amount", dataIndex: "total_amount", key: "total_amount",
         render: (amount: number) => (
-          <Text style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>
-            Ksh {amount?.toLocaleString()}
-          </Text>
+          <Text style={{ fontWeight: 600, color: COLORS.primary, fontSize: 12 }}>Ksh {amount?.toLocaleString()}</Text>
         ),
       },
     ]
     : [
       { title: "PO Number", dataIndex: "po_number", key: "po_number", width: 120 },
-      { title: "Supplier", dataIndex: ["supplier_id", "name"], key: "supplier_name", ellipsis: true },
+      { title: hospital ? "Supplier / Vendor" : "Supplier", dataIndex: ["supplier_id", "name"], key: "supplier_name", ellipsis: true },
       {
-        title: "Status",
-        dataIndex: "status",
-        key: "status",
-        width: 140,
+        title: "Status", dataIndex: "status", key: "status", width: 140,
         render: (status: string) => {
           const colors: Record<string, string> = {
             pending: COLORS.warning, approved: COLORS.primary,
             partially_delivered: COLORS.cyan, fully_delivered: COLORS.success, cancelled: COLORS.error,
           };
           return (
-            <Tag
-              style={{
-                background: `${colors[status] || COLORS.gray}15`,
-                color: colors[status] || COLORS.gray,
-                border: "none",
-                fontSize: 11,
-                borderRadius: 4,
-              }}
-            >
+            <Tag style={{
+              background: `${colors[status] || COLORS.gray}15`, color: colors[status] || COLORS.gray,
+              border: "none", fontSize: 11, borderRadius: 4,
+            }}>
               {status?.replace(/_/g, " ").toUpperCase()}
             </Tag>
           );
         },
       },
       {
-        title: "Amount",
-        dataIndex: "total_amount",
-        key: "total_amount",
-        width: 120,
+        title: "Amount", dataIndex: "total_amount", key: "total_amount", width: 120,
         render: (amount: number) => (
           <Text strong style={{ color: COLORS.primary }}>Ksh {amount?.toLocaleString()}</Text>
         ),
       },
     ];
 
-// ── SalesChart ────────────────────────────────────────────────────────────────
-
+// ── SalesChart ─────────────────────────────────────────────────────────────────
 const SalesChart: React.FC<{
-  data: any[];
-  loading: boolean;
-  title: string;
-  businessIndicators: any;
+  data: any[]; loading: boolean; title: string; businessIndicators: any;
 }> = ({ data, loading, title, businessIndicators }) => {
   const chartData = useMemo(() => {
     if (!data || !Array.isArray(data)) return [];
@@ -561,6 +472,8 @@ const SalesChart: React.FC<{
     }));
   }, [data]);
 
+  const hospital = isHospitalMode();
+
   const config = useMemo(() => ({
     data: chartData,
     xField: "time",
@@ -571,8 +484,8 @@ const SalesChart: React.FC<{
     point: { size: 4, style: { fill: COLORS.primary, stroke: "#fff", lineWidth: 2 } },
     tooltip: {
       formatter: (datum: any) => [
-        { name: "Sales", value: `Ksh ${Number(datum.sales)?.toLocaleString()}` },
-        { name: "Orders", value: `${datum.orders}` },
+        { name: "Revenue", value: `Ksh ${Number(datum.sales)?.toLocaleString()}` },
+        { name: hospital ? "Visits" : "Orders", value: `${datum.orders}` },
         { name: "Avg", value: `Ksh ${Number(datum.avgOrderValue)?.toLocaleString()}` },
         { name: "Cumulative", value: `Ksh ${Number(datum.cumulativeSales)?.toLocaleString()}` },
       ],
@@ -595,13 +508,11 @@ const SalesChart: React.FC<{
       grid: { line: { style: { stroke: "#f1f5f9", lineWidth: 1, lineDash: [3, 3] } } },
     },
     animation: { appear: { animation: "path-in", duration: 1000 } },
-  }), [chartData]);
+  }), [chartData, hospital]);
 
   return (
     <ProCard
-      bordered
-      headerBordered
-      size="small"
+      bordered headerBordered size="small"
       title={
         <Space size={6}>
           <LineChartOutlined style={{ color: COLORS.primary }} />
@@ -611,14 +522,12 @@ const SalesChart: React.FC<{
       extra={
         businessIndicators && (
           <Space size={4}>
-            <Badge
-              status={
-                businessIndicators.performance === "excellent" ? "success"
-                  : businessIndicators.performance === "good" ? "processing"
-                    : businessIndicators.performance === "moderate" ? "default"
-                      : businessIndicators.performance === "low" ? "warning" : "error"
-              }
-            />
+            <Badge status={
+              businessIndicators.performance === "excellent" ? "success"
+                : businessIndicators.performance === "good" ? "processing"
+                  : businessIndicators.performance === "moderate" ? "default"
+                    : businessIndicators.performance === "low" ? "warning" : "error"
+            } />
             <Text style={{ color: businessIndicators.performanceColor, fontWeight: 600, fontSize: 12 }}>
               {businessIndicators.performanceText}
             </Text>
@@ -636,20 +545,11 @@ const SalesChart: React.FC<{
             <div style={{ marginBottom: 12 }}>
               <Space wrap size={[6, 4]}>
                 {businessIndicators.insights.map((insight: any, index: number) => (
-                  <div
-                    key={index}
-                    style={{
-                      background:
-                        insight.type === "positive" ? "#f0fdf4"
-                          : insight.type === "warning" ? "#fffbeb" : "#fef2f2",
-                      borderRadius: 6,
-                      padding: "3px 10px",
-                      fontSize: 11,
-                      color:
-                        insight.type === "positive" ? COLORS.success
-                          : insight.type === "warning" ? COLORS.warning : COLORS.error,
-                    }}
-                  >
+                  <div key={index} style={{
+                    background: insight.type === "positive" ? "#f0fdf4" : insight.type === "warning" ? "#fffbeb" : "#fef2f2",
+                    borderRadius: 6, padding: "3px 10px", fontSize: 11,
+                    color: insight.type === "positive" ? COLORS.success : insight.type === "warning" ? COLORS.warning : COLORS.error,
+                  }}>
                     {insight.text}
                   </div>
                 ))}
@@ -657,11 +557,7 @@ const SalesChart: React.FC<{
               <Divider style={{ margin: "10px 0" }} />
             </div>
           )}
-          {chartData.length > 0 ? (
-            <Line {...config} />
-          ) : (
-            <Empty description="No chart data available" />
-          )}
+          {chartData.length > 0 ? <Line {...config} /> : <Empty description="No chart data available" />}
         </>
       )}
     </ProCard>
@@ -669,53 +565,33 @@ const SalesChart: React.FC<{
 };
 
 // ── BestSellersCard ───────────────────────────────────────────────────────────
-
 const BestSellersCard: React.FC<{
-  bestSellersData: any;
-  loading: boolean;
-  dateRange: string;
-  isMobile: boolean;
+  bestSellersData: any; loading: boolean; dateRange: string; isMobile: boolean;
 }> = ({ bestSellersData, loading, dateRange, isMobile }) => {
+  const hospital = isHospitalMode();
+
   const bestSellers = useMemo(() => {
     if (!bestSellersData?.data?.best_sellers?.length) return [];
-    return bestSellersData.data.best_sellers.map((item: any, index: number) => ({
-      ...item,
-      rank: index + 1,
-    }));
+    return bestSellersData.data.best_sellers.map((item: any, index: number) => ({ ...item, rank: index + 1 }));
   }, [bestSellersData]);
 
   const summary = bestSellersData?.data?.summary || {};
+  const cardTitle = hospital ? `Top Services & Medicines (${dateRange})` : `Top Selling Products (${dateRange})`;
 
   if (!bestSellers.length && !loading) {
     return (
-      <ProCard
-        bordered
-        headerBordered
-        size="small"
-        title={
-          <Space size={6}>
-            <FireOutlined style={{ color: COLORS.orange }} />
-            <Text strong style={{ fontSize: 14 }}>Top Sellers — This Shop ({dateRange})</Text>
-          </Space>
-        }
+      <ProCard bordered headerBordered size="small"
+        title={<Space size={6}><FireOutlined style={{ color: COLORS.orange }} /><Text strong style={{ fontSize: 14 }}>{cardTitle}</Text></Space>}
         style={{ borderRadius: 12 }}
       >
-        <Empty description="No products sold in this period." style={{ padding: "24px 0" }} />
+        <Empty description={hospital ? "No services or medicines dispensed in this period." : "No products sold in this period."} style={{ padding: "24px 0" }} />
       </ProCard>
     );
   }
 
   return (
-    <ProCard
-      bordered
-      headerBordered
-      size="small"
-      title={
-        <Space size={6}>
-          <FireOutlined style={{ color: COLORS.orange }} />
-          <Text strong style={{ fontSize: 14 }}>Top Selling Products ({dateRange})</Text>
-        </Space>
-      }
+    <ProCard bordered headerBordered size="small"
+      title={<Space size={6}>{hospital ? <MedicineBoxOutlined style={{ color: COLORS.orange }} /> : <FireOutlined style={{ color: COLORS.orange }} />}<Text strong style={{ fontSize: 14 }}>{cardTitle}</Text></Space>}
       extra={
         summary.total_products_analyzed > 0 && (
           <Space size={4}>
@@ -731,22 +607,14 @@ const BestSellersCard: React.FC<{
       ) : (
         <>
           {summary.total_revenue > 0 && (
-            <div
-              style={{
-                marginBottom: 16,
-                padding: "12px 16px",
-                background: "#f8fafc",
-                borderRadius: 8,
-                display: "flex",
-                gap: 24,
-                flexWrap: "wrap",
-                border: "1px solid #e2e8f0",
-              }}
-            >
+            <div style={{
+              marginBottom: 16, padding: "12px 16px", background: "#f8fafc",
+              borderRadius: 8, display: "flex", gap: 24, flexWrap: "wrap", border: "1px solid #e2e8f0",
+            }}>
               {[
                 { label: "Total Revenue", value: `Ksh ${fmtK(summary.total_revenue)}`, color: COLORS.success },
-                { label: "Units Sold", value: summary.total_quantity_sold, color: COLORS.primary },
-                { label: "Avg Order", value: `Ksh ${fmtK(summary.average_order_value)}`, color: COLORS.orange },
+                { label: hospital ? "Units Dispensed" : "Units Sold", value: summary.total_quantity_sold, color: COLORS.primary },
+                { label: hospital ? "Avg Bill" : "Avg Order", value: `Ksh ${fmtK(summary.average_order_value)}`, color: COLORS.orange },
               ].map((s, i) => (
                 <div key={i}>
                   <Text style={{ fontSize: 10, color: COLORS.gray, display: "block" }}>{s.label}</Text>
@@ -756,7 +624,7 @@ const BestSellersCard: React.FC<{
             </div>
           )}
           <Table
-            columns={createBestSellerColumns(isMobile)}
+            columns={createBestSellerColumns(isMobile, hospital)}
             dataSource={bestSellers}
             pagination={{ pageSize: 10, showSizeChanger: false }}
             size="small"
@@ -770,20 +638,14 @@ const BestSellersCard: React.FC<{
 };
 
 // ── MetricTile ────────────────────────────────────────────────────────────────
-
 const MetricTile: React.FC<{ value: any; label: string; color: string; isMobile: boolean }> = ({
   value, label, color, isMobile,
 }) => (
   <Col xs={12} sm={6}>
-    <div
-      style={{
-        textAlign: "center",
-        padding: isMobile ? "10px 6px" : "16px 12px",
-        background: "#f8fafc",
-        borderRadius: 8,
-        borderLeft: `3px solid ${color}`,
-      }}
-    >
+    <div style={{
+      textAlign: "center", padding: isMobile ? "10px 6px" : "16px 12px",
+      background: "#f8fafc", borderRadius: 8, borderLeft: `3px solid ${color}`,
+    }}>
       <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, color, marginBottom: 4, wordBreak: "break-word" }}>
         {value}
       </div>
@@ -793,10 +655,10 @@ const MetricTile: React.FC<{ value: any; label: string; color: string; isMobile:
 );
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
-
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const hospital = isHospitalMode();
   const [messageApi, contextHolder] = message.useMessage();
   const [periodFilter, setPeriodFilter] = useState("day");
   const [customDateRange, setCustomDateRange] = useState<any[]>([]);
@@ -809,14 +671,10 @@ const Dashboard: React.FC = () => {
     const today = dayjs();
     let startDate: dayjs.Dayjs, endDate: dayjs.Dayjs;
     switch (periodFilter) {
-      case "day":
-        startDate = today.startOf("day"); endDate = today.endOf("day"); break;
-      case "week":
-        startDate = today.startOf("week"); endDate = today.endOf("week"); break;
-      case "month":
-        startDate = today.startOf("month"); endDate = today.endOf("month"); break;
-      case "year":
-        startDate = today.startOf("year"); endDate = today.endOf("year"); break;
+      case "day": startDate = today.startOf("day"); endDate = today.endOf("day"); break;
+      case "week": startDate = today.startOf("week"); endDate = today.endOf("week"); break;
+      case "month": startDate = today.startOf("month"); endDate = today.endOf("month"); break;
+      case "year": startDate = today.startOf("year"); endDate = today.endOf("year"); break;
       case "custom":
         if (customDateRange?.length === 2) {
           startDate = customDateRange[0].startOf("day"); endDate = customDateRange[1].endOf("day");
@@ -824,8 +682,7 @@ const Dashboard: React.FC = () => {
           startDate = today.startOf("day"); endDate = today.endOf("day");
         }
         break;
-      default:
-        startDate = today.startOf("day"); endDate = today.endOf("day");
+      default: startDate = today.startOf("day"); endDate = today.endOf("day");
     }
     return { startDate, endDate };
   }, [periodFilter, customDateRange]);
@@ -846,38 +703,18 @@ const Dashboard: React.FC = () => {
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
     queryKey: ["salesChartData", periodFilter, startDate.format(), endDate.format(), shopId],
-    queryFn: () =>
-      getSalesChartData({
-        period: periodFilter,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        shop_id: shopId,
-      }),
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    staleTime: 30000,
-    retry: 2,
+    queryFn: () => getSalesChartData({ period: periodFilter, startDate: startDate.toISOString(), endDate: endDate.toISOString(), shop_id: shopId }),
+    networkMode: "always", refetchOnWindowFocus: false, staleTime: 30000, retry: 2,
   });
 
   const { data: bestSellersData, isLoading: bestSellersLoading } = useQuery({
     queryKey: ["bestSellers", startDate.format(), endDate.format(), shopId],
-    queryFn: () =>
-      getBestSellers({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        shop_id: shopId,
-        limit: 10,
-      }),
-    networkMode: "always",
-    refetchOnWindowFocus: false,
-    staleTime: 30000,
-    retry: 2,
+    queryFn: () => getBestSellers({ startDate: startDate.toISOString(), endDate: endDate.toISOString(), shop_id: shopId, limit: 10 }),
+    networkMode: "always", refetchOnWindowFocus: false, staleTime: 30000, retry: 2,
   });
 
   const purchaseOrderStats = useMemo(() => {
-    if (!data?.purchaseOrderStats) {
-      return { totalPurchaseOrders: 0, totalPOValue: 0, pendingPOs: 0, approvedPOs: 0, deliveredPOs: 0, avgPOValue: 0, recentPurchaseOrders: [] };
-    }
+    if (!data?.purchaseOrderStats) return { totalPurchaseOrders: 0, totalPOValue: 0, pendingPOs: 0, approvedPOs: 0, deliveredPOs: 0, avgPOValue: 0, recentPurchaseOrders: [] };
     return data.purchaseOrderStats;
   }, [data]);
 
@@ -895,8 +732,7 @@ const Dashboard: React.FC = () => {
   const handleCopyStaffUrl = useCallback(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const tenantId = tenant?._id || null;
-    const staffUrl = `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenantId}&shop_id=${shopId}`;
+    const staffUrl = `${import.meta.env.VITE_APP_URL}/admin/staff-clock-in?tenant_id=${tenant?._id}&shop_id=${shopId}`;
     navigator.clipboard.writeText(staffUrl)
       .then(() => messageApi.success({ content: "Staff URL copied!", duration: 2 }))
       .catch(() => messageApi.error({ content: "Failed to copy URL", duration: 2 }));
@@ -905,12 +741,11 @@ const Dashboard: React.FC = () => {
   const handleCopyCustomerUrl = useCallback(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const tenantId = tenant?._id || null;
-    const customerUrl = `${import.meta.env.VITE_APP_URL}/admin/customers?tenant_id=${tenantId}&shop_id=${shopId}`;
-    navigator.clipboard.writeText(customerUrl)
-      .then(() => messageApi.success({ content: "Customer URL copied!", duration: 2 }))
+    const url = `${import.meta.env.VITE_APP_URL}/admin/customers?tenant_id=${tenant?._id}&shop_id=${shopId}`;
+    navigator.clipboard.writeText(url)
+      .then(() => messageApi.success({ content: hospital ? "Patient URL copied!" : "Customer URL copied!", duration: 2 }))
       .catch(() => messageApi.error({ content: "Failed to copy URL", duration: 2 }));
-  }, [messageApi, shopId]);
+  }, [messageApi, shopId, hospital]);
 
   const getFormattedDateRange = useCallback(() => {
     const fmt = "MMM D, YYYY";
@@ -927,21 +762,17 @@ const Dashboard: React.FC = () => {
   }, [periodFilter, startDate, endDate, customDateRange]);
 
   const growthRate = chartData?.data?.summary?.growth_rate || 0;
-
-  const businessIndicators = useMemo(
-    () => calculateBusinessIndicators(chartData, data, periodFilter),
-    [chartData, data, periodFilter]
-  );
-
+  const businessIndicators = useMemo(() => calculateBusinessIndicators(chartData, data, periodFilter), [chartData, data, periodFilter]);
   const isDataLoading = isLoading || isRefetching || chartLoading;
 
   const kpiCards = useMemo(() => [
     {
-      title: periodFilter === "day" ? "Today's Orders" : "Total Orders",
+      title: hospital
+        ? (periodFilter === "day" ? "Today's Visits" : "Total Visits")
+        : (periodFilter === "day" ? "Today's Orders" : "Total Orders"),
       value: chartData?.data?.summary?.total_orders || data?.totalOrderCount || 0,
-      icon: <ShoppingCartOutlined />,
-      color: "#3b82f6",
-      bg: "#eff6ff",
+      icon: hospital ? <MedicineBoxOutlined /> : <ShoppingCartOutlined />,
+      color: "#3b82f6", bg: "#eff6ff",
       pctChange: growthRate || null,
       prefix: "",
       onClick: () => navigate("/orders"),
@@ -949,31 +780,23 @@ const Dashboard: React.FC = () => {
     {
       title: "Total Revenue",
       value: chartData?.data?.summary?.total_sales || data?.todayRevenue || 0,
-      icon: <DollarOutlined />,
-      color: COLORS.success,
-      bg: "#f0fdf4",
-      pctChange: null,
-      prefix: "Ksh",
+      icon: <DollarOutlined />, color: COLORS.success, bg: "#f0fdf4",
+      pctChange: null, prefix: "Ksh",
     },
     {
-      title: "Active Orders",
+      title: hospital ? "Active Patients" : "Active Orders",
       value: data?.activeOrders || 0,
-      icon: <SnippetsOutlined />,
-      color: COLORS.orange,
-      bg: "#fff7ed",
-      pctChange: null,
-      prefix: "",
+      icon: hospital ? <MedicineBoxOutlined /> : <SnippetsOutlined />,
+      color: COLORS.orange, bg: "#fff7ed",
+      pctChange: null, prefix: "",
     },
     {
       title: "Active Shifts",
       value: data?.activeShift || 0,
-      icon: <TeamOutlined />,
-      color: COLORS.cyan,
-      bg: "#ecfeff",
-      pctChange: null,
-      prefix: "",
+      icon: <TeamOutlined />, color: COLORS.cyan, bg: "#ecfeff",
+      pctChange: null, prefix: "",
     },
-  ], [chartData, data, growthRate, navigate, periodFilter]);
+  ], [chartData, data, growthRate, navigate, periodFilter, hospital]);
 
   return (
     <>
@@ -981,11 +804,8 @@ const Dashboard: React.FC = () => {
 
       {/* ── Mobile filter drawer ── */}
       <Drawer
-        title="Filter Period"
-        placement="bottom"
-        height="auto"
-        open={filterDrawerOpen}
-        onClose={() => setFilterDrawerOpen(false)}
+        title="Filter Period" placement="bottom" height="auto"
+        open={filterDrawerOpen} onClose={() => setFilterDrawerOpen(false)}
         styles={{ body: { paddingBottom: 32 } }}
       >
         <Space direction="vertical" size="middle" style={{ width: "100%" }}>
@@ -1008,15 +828,15 @@ const Dashboard: React.FC = () => {
       <div style={{ marginBottom: 20 }}>
         <Flex justify="space-between" align="flex-start" wrap gap={12}>
           <Space align="center" size={10}>
-            <div style={{ background: "#fff7ed", borderRadius: 10, padding: "8px 10px", color: COLORS.orange, fontSize: 18 }}>
-              <ShopOutlined />
+            <div style={{ background: hospital ? "#f0fdf4" : "#fff7ed", borderRadius: 10, padding: "8px 10px", color: hospital ? COLORS.success : COLORS.orange, fontSize: 18 }}>
+              {hospital ? <MedicineBoxOutlined /> : <ShopOutlined />}
             </div>
             <div>
               <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: COLORS.text }}>
-                {PERIOD_LABELS[periodFilter]} Shop Overview
+                {PERIOD_LABELS[periodFilter]} {hospital ? "Hospital Overview" : "Shop Overview"}
               </Title>
               <Text style={{ fontSize: 12, color: COLORS.subtext }}>
-                {getFormattedDateRange()} · Individual Shop Performance
+                {getFormattedDateRange()} · {hospital ? "Individual Branch Performance" : "Individual Shop Performance"}
               </Text>
             </div>
           </Space>
@@ -1030,24 +850,17 @@ const Dashboard: React.FC = () => {
                 <Tooltip title="Copy Staff Clock-In URL">
                   <Button icon={<TeamOutlined />} onClick={handleCopyStaffUrl} size="middle" />
                 </Tooltip>
-                <Tooltip title="Copy Customer Order URL">
+                <Tooltip title={hospital ? "Copy Patient Portal URL" : "Copy Customer Order URL"}>
                   <Button icon={<ShoppingCartOutlined />} onClick={handleCopyCustomerUrl} size="middle" />
                 </Tooltip>
                 <Button type="primary" icon={<ReloadOutlined spin={isRefetching} />} onClick={handleRefresh} loading={isDataLoading} size="middle" />
               </>
             ) : (
               <>
-                <div
-                  style={{
-                    background: "#f8fafc",
-                    borderRadius: 8,
-                    padding: "6px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    border: "1px solid #e2e8f0",
-                  }}
-                >
+                <div style={{
+                  background: "#f8fafc", borderRadius: 8, padding: "6px 12px",
+                  display: "flex", alignItems: "center", gap: 10, border: "1px solid #e2e8f0",
+                }}>
                   <CalendarOutlined style={{ color: COLORS.primary, fontSize: 13 }} />
                   <Radio.Group value={periodFilter} onChange={(e) => handlePeriodChange(e.target.value)} buttonStyle="solid" size="small">
                     <Radio.Button value="day">Day</Radio.Button>
@@ -1060,14 +873,14 @@ const Dashboard: React.FC = () => {
                 {showCustomDatePicker && (
                   <RangePicker value={customDateRange as any} onChange={(d) => setCustomDateRange(d || [])} allowClear style={{ minWidth: 260 }} />
                 )}
-                <Tooltip title="Share with staff to allow clock-in for this shop">
+                <Tooltip title="Share with staff to allow clock-in for this branch">
                   <Button icon={<TeamOutlined />} onClick={handleCopyStaffUrl} style={{ fontWeight: 500 }}>
                     Staff Clock-In URL
                   </Button>
                 </Tooltip>
-                <Tooltip title="Share with customers to allow ordering for this shop">
+                <Tooltip title={hospital ? "Share patient portal link" : "Share with customers to allow ordering"}>
                   <Button icon={<ShoppingCartOutlined />} onClick={handleCopyCustomerUrl} style={{ fontWeight: 500 }}>
-                    Customer Order URL
+                    {hospital ? "Patient Portal URL" : "Customer Order URL"}
                   </Button>
                 </Tooltip>
                 <Button type="primary" icon={<ReloadOutlined spin={isRefetching} />} onClick={handleRefresh} loading={isDataLoading} style={{ fontWeight: 500 }}>
@@ -1081,22 +894,17 @@ const Dashboard: React.FC = () => {
 
       {/* ── KPI Cards ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 20 }}>
-        {kpiCards.map((card, i) => (
-          <KPICard key={i} loading={isDataLoading} {...card} />
-        ))}
+        {kpiCards.map((card, i) => <KPICard key={i} loading={isDataLoading} {...card} />)}
       </Row>
 
       {/* ── Purchase Orders Overview ── */}
       <Row style={{ marginBottom: 16 }}>
         <Col span={24}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
+          <ProCard bordered headerBordered size="small"
             title={
               <Space size={6}>
                 <FileTextOutlined style={{ color: COLORS.purple }} />
-                <Text strong style={{ fontSize: 14 }}>Purchase Orders</Text>
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Pharmacy Purchase Orders" : "Purchase Orders"}</Text>
               </Space>
             }
             extra={<Button type="link" size="small" onClick={() => navigate("/purchase-orders")}>View All</Button>}
@@ -1114,9 +922,7 @@ const Dashboard: React.FC = () => {
                 ].map((item, index) => (
                   <Col xs={12} sm={12} md={6} key={index}>
                     <div style={{ textAlign: "center", padding: isMobile ? "10px 6px" : "14px 12px", background: item.bg, borderRadius: 8 }}>
-                      <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 700, color: item.color, marginBottom: 2 }}>
-                        {item.value}
-                      </div>
+                      <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 700, color: item.color, marginBottom: 2 }}>{item.value}</div>
                       <div style={{ color: COLORS.gray, fontSize: 12 }}>{item.label}</div>
                     </div>
                   </Col>
@@ -1134,32 +940,16 @@ const Dashboard: React.FC = () => {
             <SalesChart
               data={chartData.data.chart_data}
               loading={chartLoading}
-              title={`Sales Trend — ${getFormattedDateRange()}`}
+              title={`${hospital ? "Revenue Trend" : "Sales Trend"} — ${getFormattedDateRange()}`}
               businessIndicators={businessIndicators}
             />
           ) : (
-            <ProCard
-              bordered
-              headerBordered
-              size="small"
-              title={
-                <Space size={6}>
-                  <LineChartOutlined style={{ color: COLORS.primary }} />
-                  <Text strong style={{ fontSize: 14 }}>Sales Trend — {getFormattedDateRange()}</Text>
-                </Space>
-              }
-              style={{ borderRadius: 12 }}
-              bodyStyle={{ paddingTop: 8 }}
+            <ProCard bordered headerBordered size="small"
+              title={<Space size={6}><LineChartOutlined style={{ color: COLORS.primary }} /><Text strong style={{ fontSize: 14 }}>{hospital ? "Revenue" : "Sales"} Trend — {getFormattedDateRange()}</Text></Space>}
+              style={{ borderRadius: 12 }} bodyStyle={{ paddingTop: 8 }}
             >
-              {chartLoading ? (
-                <Skeleton active paragraph={{ rows: 5 }} />
-              ) : (
-                <Empty
-                  description={
-                    <Text type="secondary">No sales data for {PERIOD_LABELS[periodFilter]?.toLowerCase()}.</Text>
-                  }
-                  style={{ padding: "32px 0" }}
-                />
+              {chartLoading ? <Skeleton active paragraph={{ rows: 5 }} /> : (
+                <Empty description={<Text type="secondary">No {hospital ? "billing" : "sales"} data for {PERIOD_LABELS[periodFilter]?.toLowerCase()}.</Text>} style={{ padding: "32px 0" }} />
               )}
             </ProCard>
           )}
@@ -1176,14 +966,11 @@ const Dashboard: React.FC = () => {
       {/* ── Recent Orders + Low Stock ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={24} lg={12}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
+          <ProCard bordered headerBordered size="small"
             title={
               <Space size={6}>
-                <ShoppingCartOutlined style={{ color: "#3b82f6" }} />
-                <Text strong style={{ fontSize: 14 }}>Recent Orders</Text>
+                {hospital ? <MedicineBoxOutlined style={{ color: "#3b82f6" }} /> : <ShoppingCartOutlined style={{ color: "#3b82f6" }} />}
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Recent Patient Bills" : "Recent Orders"}</Text>
               </Space>
             }
             extra={
@@ -1192,33 +979,29 @@ const Dashboard: React.FC = () => {
                 <Button type="link" size="small" onClick={() => navigate("/orders")}>All</Button>
               </Space>
             }
-            style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: 0 }}
+            style={{ borderRadius: 12 }} bodyStyle={{ padding: 0 }}
           >
             {isDataLoading ? (
               <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 4 }} /></div>
             ) : (
               <Table
-                columns={createOrderColumns(isMobile)}
+                columns={createOrderColumns(isMobile, hospital)}
                 dataSource={Array.isArray(data?.currentOrders) ? data.currentOrders : []}
                 pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
                 size="small"
                 scroll={{ x: isMobile ? 300 : undefined }}
-                locale={{ emptyText: <Empty description="No recent orders" style={{ padding: 20 }} /> }}
+                locale={{ emptyText: <Empty description={hospital ? "No patient bills yet" : "No recent orders"} style={{ padding: 20 }} /> }}
               />
             )}
           </ProCard>
         </Col>
 
         <Col xs={24} lg={12}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
+          <ProCard bordered headerBordered size="small"
             title={
               <Space size={6}>
                 <WarningOutlined style={{ color: COLORS.error }} />
-                <Text strong style={{ fontSize: 14 }}>Low Stock Alerts</Text>
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Low Pharmacy Stock" : "Low Stock Alerts"}</Text>
               </Space>
             }
             extra={
@@ -1229,14 +1012,13 @@ const Dashboard: React.FC = () => {
                 <Button type="link" size="small" onClick={() => navigate("/inventory")}>All</Button>
               </Space>
             }
-            style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: 0 }}
+            style={{ borderRadius: 12 }} bodyStyle={{ padding: 0 }}
           >
             {isDataLoading ? (
               <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 4 }} /></div>
             ) : (
               <Table
-                columns={createStockColumns(isMobile)}
+                columns={createStockColumns(isMobile, hospital)}
                 dataSource={Array.isArray(data?.lowStockItems) ? data.lowStockItems : []}
                 pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
                 size="small"
@@ -1245,7 +1027,7 @@ const Dashboard: React.FC = () => {
                   emptyText: (
                     <Empty
                       image={<CheckCircleOutlined style={{ fontSize: 28, color: COLORS.success }} />}
-                      description="All items are well stocked"
+                      description={hospital ? "Pharmacy fully stocked" : "All items are well stocked"}
                       style={{ padding: 20 }}
                     />
                   ),
@@ -1259,14 +1041,11 @@ const Dashboard: React.FC = () => {
       {/* ── Recent POs ── */}
       <Row style={{ marginBottom: 16 }}>
         <Col span={24}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
+          <ProCard bordered headerBordered size="small"
             title={
               <Space size={6}>
                 <FileTextOutlined style={{ color: COLORS.purple }} />
-                <Text strong style={{ fontSize: 14 }}>Recent Purchase Orders</Text>
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Recent Pharmacy POs" : "Recent Purchase Orders"}</Text>
               </Space>
             }
             extra={
@@ -1277,20 +1056,18 @@ const Dashboard: React.FC = () => {
                 <Button type="link" size="small" onClick={() => navigate("/purchase-orders")}>All</Button>
               </Space>
             }
-            style={{ borderRadius: 12 }}
-            bodyStyle={{ padding: 0 }}
+            style={{ borderRadius: 12 }} bodyStyle={{ padding: 0 }}
           >
             {isDataLoading ? (
               <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 4 }} /></div>
             ) : (
               <Table
-                columns={createPOColumns(isMobile)}
+                columns={createPOColumns(isMobile, hospital)}
                 dataSource={purchaseOrderStats.recentPurchaseOrders || []}
                 pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
-                size="small"
-                rowKey="_id"
+                size="small" rowKey="_id"
                 scroll={{ x: isMobile ? 300 : undefined }}
-                locale={{ emptyText: <Empty description="No recent purchase orders" style={{ padding: 20 }} /> }}
+                locale={{ emptyText: <Empty description={hospital ? "No pharmacy purchase orders" : "No recent purchase orders"} style={{ padding: 20 }} /> }}
               />
             )}
           </ProCard>
@@ -1300,14 +1077,11 @@ const Dashboard: React.FC = () => {
       {/* ── PO Insights ── */}
       <Row style={{ marginBottom: 16 }}>
         <Col span={24}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
+          <ProCard bordered headerBordered size="small"
             title={
               <Space size={6}>
                 <SyncOutlined style={{ color: COLORS.cyan }} />
-                <Text strong style={{ fontSize: 14 }}>Purchase Order Insights</Text>
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Pharmacy PO Insights" : "Purchase Order Insights"}</Text>
               </Space>
             }
             style={{ borderRadius: 12 }}
@@ -1354,7 +1128,7 @@ const Dashboard: React.FC = () => {
                 </Row>
               </Space>
             ) : (
-              <Empty description="No purchase orders found" style={{ padding: "24px 0" }} />
+              <Empty description={hospital ? "No pharmacy purchase orders found" : "No purchase orders found"} style={{ padding: "24px 0" }} />
             )}
           </ProCard>
         </Col>
@@ -1363,25 +1137,20 @@ const Dashboard: React.FC = () => {
       {/* ── Performance Summary ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col span={24}>
-          <ProCard
-            bordered
-            headerBordered
-            size="small"
+          <ProCard bordered headerBordered size="small"
             title={
               <Space size={6}>
                 <PieChartOutlined style={{ color: COLORS.purple }} />
-                <Text strong style={{ fontSize: 14 }}>Shop Performance Summary — {getFormattedDateRange()}</Text>
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Branch" : "Shop"} Performance Summary — {getFormattedDateRange()}</Text>
               </Space>
             }
             style={{ borderRadius: 12 }}
           >
-            {isDataLoading ? (
-              <Skeleton active paragraph={{ rows: 2 }} />
-            ) : (
+            {isDataLoading ? <Skeleton active paragraph={{ rows: 2 }} /> : (
               <Row gutter={[8, 8]}>
-                <MetricTile value={data?.totalOrderCount || 0} label="Total Orders" color="#3b82f6" isMobile={isMobile} />
+                <MetricTile value={data?.totalOrderCount || 0} label={hospital ? "Total Visits" : "Total Orders"} color="#3b82f6" isMobile={isMobile} />
                 <MetricTile value={`Ksh ${fmtK(data?.todayRevenue || 0)}`} label="Revenue" color={COLORS.success} isMobile={isMobile} />
-                <MetricTile value={data?.activeOrders || 0} label="Active Orders" color={COLORS.orange} isMobile={isMobile} />
+                <MetricTile value={data?.activeOrders || 0} label={hospital ? "Active Patients" : "Active Orders"} color={COLORS.orange} isMobile={isMobile} />
                 <MetricTile value={data?.activeShift || 0} label="Active Shifts" color={COLORS.cyan} isMobile={isMobile} />
               </Row>
             )}
@@ -1390,16 +1159,8 @@ const Dashboard: React.FC = () => {
 
         {chartData?.data?.summary && (
           <Col span={24}>
-            <ProCard
-              bordered
-              headerBordered
-              size="small"
-              title={
-                <Space size={6}>
-                  <RiseOutlined style={{ color: COLORS.success }} />
-                  <Text strong style={{ fontSize: 14 }}>Advanced Shop Metrics</Text>
-                </Space>
-              }
+            <ProCard bordered headerBordered size="small"
+              title={<Space size={6}><RiseOutlined style={{ color: COLORS.success }} /><Text strong style={{ fontSize: 14 }}>Advanced {hospital ? "Branch" : "Shop"} Metrics</Text></Space>}
               style={{ borderRadius: 12 }}
             >
               <Row gutter={[8, 8]}>
@@ -1410,7 +1171,7 @@ const Dashboard: React.FC = () => {
                   color={chartData.data.summary.growth_rate >= 0 ? COLORS.success : COLORS.error}
                   isMobile={isMobile}
                 />
-                <MetricTile value={`Ksh ${fmtK(chartData.data.summary.average_order_value || 0)}`} label="Avg Order" color={COLORS.orange} isMobile={isMobile} />
+                <MetricTile value={`Ksh ${fmtK(chartData.data.summary.average_order_value || 0)}`} label={hospital ? "Avg Bill" : "Avg Order"} color={COLORS.orange} isMobile={isMobile} />
                 <MetricTile value={chartData.data.summary.peak_period?.time || "N/A"} label="Peak Period" color={COLORS.cyan} isMobile={isMobile} />
               </Row>
             </ProCard>

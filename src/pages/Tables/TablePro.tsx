@@ -4,8 +4,8 @@ import {
   PlusOutlined,
   MenuOutlined,
   TableOutlined,
-  ChevronRightOutlined,
   RightOutlined,
+  MedicineBoxOutlined,
 } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import SuccesssModal from "@components/MODALS/SuccessModal";
@@ -17,13 +17,10 @@ import {
   ConfigProvider,
   Skeleton,
   Typography,
-  Result,
   Button,
   Spin,
   Space,
   Drawer,
-  Badge,
-  Tag,
   Empty,
 } from "antd";
 import Lottie from "lottie-react";
@@ -35,6 +32,7 @@ import { useNavigate } from "react-router-dom";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import RestaurantPage from "@pages/Restaurant/Restuarant";
+import HospitalPage from "@pages/Hospital/HospitalPage";
 import React from "react";
 
 const { Text, Title } = Typography;
@@ -102,7 +100,6 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
 
   return (
     <>
-      {/* Current slot header bar */}
       <div
         style={{
           background: "#fff",
@@ -130,9 +127,7 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
             {activeKey === "overview" ? <AppstoreOutlined /> : <HolderOutlined />}
           </div>
           <div>
-            <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>
-              Active Slot
-            </Text>
+            <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Active Slot</Text>
             <Text strong style={{ fontSize: 13, color: "#0f172a" }}>
               {activeKey === "overview" ? "Overview" : activeTab?.label?.props?.children?.[1] || "Select Slot"}
             </Text>
@@ -155,7 +150,6 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
         </Button>
       </div>
 
-      {/* Slot picker drawer */}
       <Drawer
         title={
           <Space size={8}>
@@ -172,9 +166,7 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
               <TableOutlined />
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>
-                Staff Slots
-              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>Staff Slots</div>
               <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400 }}>
                 Select a slot to view its customer tables
               </div>
@@ -190,16 +182,11 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
           header: { borderBottom: "1px solid #f1f5f9", padding: "16px 16px 12px" },
         }}
       >
-        {/* Overview option */}
         <div
           onClick={() => { onChange("overview"); setDrawerOpen(false); }}
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "12px 16px",
-            margin: "0 8px 4px",
-            borderRadius: 10,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 16px", margin: "0 8px 4px", borderRadius: 10,
             background: activeKey === "overview" ? `${primaryColor}10` : "transparent",
             border: activeKey === "overview" ? `1px solid ${primaryColor}30` : "1px solid transparent",
             cursor: "pointer",
@@ -209,11 +196,9 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
             <div
               style={{
                 background: activeKey === "overview" ? `${primaryColor}20` : "#f1f5f9",
-                borderRadius: 7,
-                padding: "5px 6px",
+                borderRadius: 7, padding: "5px 6px",
                 color: activeKey === "overview" ? primaryColor : "#64748b",
-                fontSize: 14,
-                lineHeight: 1,
+                fontSize: 14, lineHeight: 1,
               }}
             >
               <AppstoreOutlined />
@@ -226,18 +211,10 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
             </Text>
           </Space>
           {activeKey === "overview" && (
-            <div
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: primaryColor,
-              }}
-            />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: primaryColor }} />
           )}
         </div>
 
-        {/* Slot list */}
         {loading ? (
           <div style={{ padding: "16px" }}>
             {[...Array(3)].map((_, i) => (
@@ -249,33 +226,25 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
         ) : (
           slots.map((slot) => {
             const isActive = activeKey === slot.key;
-            const tableCount = 0; // Could be passed if available
             return (
               <div
                 key={slot.key}
                 onClick={() => { onChange(slot.key); setDrawerOpen(false); }}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 16px",
-                  margin: "0 8px 4px",
-                  borderRadius: 10,
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "12px 16px", margin: "0 8px 4px", borderRadius: 10,
                   background: isActive ? `${primaryColor}10` : "transparent",
                   border: isActive ? `1px solid ${primaryColor}30` : "1px solid transparent",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
+                  cursor: "pointer", transition: "all 0.15s ease",
                 }}
               >
                 <Space size={10}>
                   <div
                     style={{
                       background: isActive ? `${primaryColor}20` : "#f1f5f9",
-                      borderRadius: 7,
-                      padding: "5px 6px",
+                      borderRadius: 7, padding: "5px 6px",
                       color: isActive ? primaryColor : "#64748b",
-                      fontSize: 14,
-                      lineHeight: 1,
+                      fontSize: 14, lineHeight: 1,
                     }}
                   >
                     <HolderOutlined />
@@ -303,10 +272,7 @@ const MobileSlotSelector: React.FC<SlotSelectorProps> = ({
 };
 
 // ── Mobile table grid ─────────────────────────────────────────────────────────
-const MobileTableGrid: React.FC<{
-  children: React.ReactNode;
-  empty?: boolean;
-}> = ({ children, empty }) => {
+const MobileTableGrid: React.FC<{ children: React.ReactNode; empty?: boolean }> = ({ children, empty }) => {
   if (empty) return <EmptyPage />;
   return (
     <div
@@ -322,7 +288,7 @@ const MobileTableGrid: React.FC<{
   );
 };
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Main component ────────────────────────────────────────────────────────────
 export default function TablePro() {
   const [open, setOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState(null);
@@ -332,7 +298,7 @@ export default function TablePro() {
   const { openModal: successmodal, loading } = useAppSelector((state) => state.order);
   const navigate = useNavigate();
   const primaryColor = usePrimaryColor();
-  const { isRetailMode, isModeLoading } = usePOSMode();
+  const { isRetailMode, isHospitalMode, isModeLoading } = usePOSMode();
   const isMobile = useIsMobile();
 
   const storedCode = localStorage.getItem("companyCode");
@@ -400,35 +366,28 @@ export default function TablePro() {
       return [];
     },
     networkMode: "always",
-    enabled: !!storedCode && !isRetailMode && !isModeLoading,
+    enabled: !!storedCode && !isRetailMode && !isHospitalMode && !isModeLoading,
     retry: 2,
     retryDelay: 1000,
   });
 
-  // ── Overview tab content ────────────────────────────────────────────────────
+  // ── Overview tab content ──────────────────────────────────────────────────
   const overviewContent = (
     <div
       style={{
         height: isMobile ? "auto" : "calc(100vh - 280px)",
         minHeight: isMobile ? 240 : undefined,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#f8fafc",
-        borderRadius: 10,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "#f8fafc", borderRadius: 10,
         padding: isMobile ? "32px 16px" : 20,
       }}
     >
       <div style={{ textAlign: "center", maxWidth: 320 }}>
         <div
           style={{
-            background: `${primaryColor}15`,
-            borderRadius: "50%",
-            width: 72,
-            height: 72,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            background: `${primaryColor}15`, borderRadius: "50%",
+            width: 72, height: 72,
+            display: "flex", alignItems: "center", justifyContent: "center",
             margin: "0 auto 16px",
           }}
         >
@@ -460,7 +419,7 @@ export default function TablePro() {
     </div>
   );
 
-  // ── Tab items ───────────────────────────────────────────────────────────────
+  // ── Tab items ─────────────────────────────────────────────────────────────
   const generateTabItems = useMemo(() => {
     const dynamicTabs =
       data?.map((item: any) => ({
@@ -525,7 +484,7 @@ export default function TablePro() {
 
   const activeTabContent = generateTabItems.find((t: any) => t.key === safeActiveTabId)?.children;
 
-  // ── Early returns ───────────────────────────────────────────────────────────
+  // ── Early returns ─────────────────────────────────────────────────────────
   if (successmodal) return <SuccesssModal />;
 
   if (loading) {
@@ -546,7 +505,19 @@ export default function TablePro() {
 
   if (isError) return <EmptyPage />;
 
-  // ── Retail mode ─────────────────────────────────────────────────────────────
+  // ── Hospital mode ─────────────────────────────────────────────────────────
+  if (isHospitalMode) {
+    return (
+      <>
+        <HospitalPage />
+        {selectedProductId && (
+          <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} />
+        )}
+      </>
+    );
+  }
+
+  // ── Retail mode ───────────────────────────────────────────────────────────
   if (isRetailMode) {
     return (
       <>
@@ -558,47 +529,33 @@ export default function TablePro() {
     );
   }
 
-  // ── Mobile layout ───────────────────────────────────────────────────────────
+  // ── Mobile layout ─────────────────────────────────────────────────────────
   if (isMobile) {
     return (
       <>
         <style>{`
-          .table-pro-mobile {
-            padding: 0;
-          }
-          .table-pro-mobile .ant-pro-card {
-            border-radius: 0 !important;
-          }
+          .table-pro-mobile { padding: 0; }
+          .table-pro-mobile .ant-pro-card { border-radius: 0 !important; }
         `}</style>
 
         <div style={{ padding: "0 0 80px" }}>
-          {/* Page header */}
           <div style={{ marginBottom: 12 }}>
             <Space align="center" size={8}>
               <div
                 style={{
-                  background: `${primaryColor}15`,
-                  borderRadius: 9,
-                  padding: "7px 8px",
-                  color: primaryColor,
-                  fontSize: 16,
-                  lineHeight: 1,
+                  background: `${primaryColor}15`, borderRadius: 9,
+                  padding: "7px 8px", color: primaryColor, fontSize: 16, lineHeight: 1,
                 }}
               >
                 <AppstoreOutlined />
               </div>
               <div>
-                <Text strong style={{ fontSize: 15, color: "#0f172a", display: "block" }}>
-                  Tables
-                </Text>
-                <Text style={{ fontSize: 11, color: "#94a3b8" }}>
-                  Manage customer slots
-                </Text>
+                <Text strong style={{ fontSize: 15, color: "#0f172a", display: "block" }}>Tables</Text>
+                <Text style={{ fontSize: 11, color: "#94a3b8" }}>Manage customer slots</Text>
               </div>
             </Space>
           </div>
 
-          {/* Slot selector */}
           <MobileSlotSelector
             tabs={generateTabItems}
             activeKey={safeActiveTabId}
@@ -607,13 +564,8 @@ export default function TablePro() {
             loading={isLoading}
           />
 
-          {/* Active tab content */}
           <div style={{ minHeight: 200 }}>
-            {isLoading ? (
-              <LoadingTabContent isMobile={true} />
-            ) : (
-              activeTabContent
-            )}
+            {isLoading ? <LoadingTabContent isMobile={true} /> : activeTabContent}
           </div>
         </div>
 
@@ -624,17 +576,13 @@ export default function TablePro() {
     );
   }
 
-  // ── Desktop layout ──────────────────────────────────────────────────────────
+  // ── Desktop layout ────────────────────────────────────────────────────────
   const cardTitle = (
     <Space size={8} align="center">
       <div
         style={{
-          background: `${primaryColor}15`,
-          borderRadius: 8,
-          padding: "6px 7px",
-          color: primaryColor,
-          fontSize: 16,
-          lineHeight: 1,
+          background: `${primaryColor}15`, borderRadius: 8,
+          padding: "6px 7px", color: primaryColor, fontSize: 16, lineHeight: 1,
         }}
       >
         <AppstoreOutlined />

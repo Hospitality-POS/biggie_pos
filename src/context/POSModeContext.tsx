@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { fetchShop } from '@services/shops';
 
-export type POSMode = 'restaurant' | 'retail';
+export type POSMode = 'restaurant' | 'retail' | 'hospital';
 
 interface POSModeContextType {
     posMode: POSMode;
     setPosMode: (mode: POSMode) => Promise<void>;
     isRetailMode: boolean;
+    isHospitalMode: boolean;
+    isServiceMode: boolean;
     isModeLoading: boolean;
 }
 
@@ -14,12 +16,22 @@ const POSModeContext = createContext<POSModeContextType>({
     posMode: 'restaurant',
     setPosMode: async () => { },
     isRetailMode: false,
+    isHospitalMode: false,
+    isServiceMode: false,
     isModeLoading: true,
 });
 
+// Normalise legacy "restaurant" → "service" so old DB records still work
+const normaliseMode = (raw: string | null): POSMode => {
+    if (raw === 'retail') return 'retail';
+    if (raw === 'hospital') return 'hospital';
+    if (raw === 'service') return 'service';
+    return 'service'; // "restaurant" and anything else → service
+};
+
 export const POSModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [posMode, setPOSModeState] = useState<POSMode>(
-        () => (localStorage.getItem('posMode') as POSMode) || 'restaurant'
+        () => normaliseMode(localStorage.getItem('posMode'))
     );
     const [isModeLoading, setIsModeLoading] = useState(true);
     const lastShopId = useRef<string | null>(null);
@@ -28,7 +40,7 @@ export const POSModeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIsModeLoading(true);
         fetchShop(shopId)
             .then(shop => {
-                const mode: POSMode = shop?.pos_mode || 'restaurant';
+                const mode = normaliseMode(shop?.pos_mode);
                 console.log('POSModeContext: mode =', mode, 'shopId =', shopId);
                 setPOSModeState(mode);
                 localStorage.setItem('posMode', mode);
@@ -42,7 +54,6 @@ export const POSModeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     useEffect(() => {
-        // Poll for shopId — handles initial load and shop switches
         const interval = setInterval(() => {
             const shopId = localStorage.getItem('shopId');
             if (
@@ -50,17 +61,16 @@ export const POSModeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 shopId !== 'undefined' &&
                 shopId !== 'null' &&
                 shopId.trim() !== '' &&
-                shopId !== lastShopId.current  // ← only re-fetch if shop actually changed
+                shopId !== lastShopId.current
             ) {
                 lastShopId.current = shopId;
                 fetchAndSetMode(shopId);
             }
         }, 300);
 
-        // Give up after 15s if no shopId ever appears
         const timeout = setTimeout(() => {
             if (!lastShopId.current) {
-                console.warn('POSModeContext: no shopId after 15s, defaulting to restaurant');
+                console.warn('POSModeContext: no shopId after 15s, defaulting to service');
                 setIsModeLoading(false);
             }
         }, 15000);
@@ -81,6 +91,8 @@ export const POSModeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             posMode,
             setPosMode,
             isRetailMode: posMode === 'retail',
+            isHospitalMode: posMode === 'hospital',
+            isServiceMode: posMode === 'service' || posMode === 'restaurant',
             isModeLoading,
         }}>
             {children}

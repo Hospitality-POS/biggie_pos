@@ -85,16 +85,19 @@ const CartDrawer: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const primaryColor = usePrimaryColor();
-  const { isRetailMode } = usePOSMode();
+  const { isRetailMode, isHospitalMode } = usePOSMode();
   const {
     activeTable, allLocations, isLoadingSlots,
     setActiveTable, openNewOrder, removeActiveSlot,
   } = useRetailQueue();
 
+  // Hospital and retail both resolve tableId from activeTable (slot/ward/bed)
+  const isSlotMode = isRetailMode || isHospitalMode;
+
   const tableId = useMemo(() => {
-    if (isRetailMode) return activeTable?._id;
+    if (isSlotMode) return activeTable?._id;
     return id && id !== "tables" ? id : null;
-  }, [isRetailMode, activeTable?._id, id]);
+  }, [isSlotMode, activeTable?._id, id]);
 
   const totalQueueSlots = useMemo(
     () => (allLocations || []).reduce((acc, loc) => acc + (loc.tables?.length || 0), 0),
@@ -133,7 +136,6 @@ const CartDrawer: React.FC = () => {
     return null;
   }, [cartDetails?.customer_id, cartDetails?.client_name, cartDetails?.client_pin, cartDetails?.client_email]);
 
-  // Prefer served_by if set, otherwise fall back to created_by
   const servedById = useMemo(() => {
     const cb = cartDetails?.served_by ?? cartDetails?.created_by;
     if (!cb) return undefined;
@@ -142,7 +144,20 @@ const CartDrawer: React.FC = () => {
     return undefined;
   }, [cartDetails?.served_by, cartDetails?.created_by]);
 
-  // ── Fetch staff list (non-admin) ───────────────────────────────────────────
+  // ── Slot label (context-aware) ─────────────────────────────────────────────
+  const slotLabel = useMemo(() => {
+    if (isHospitalMode) return activeTable?.name || "No Ward/Bed";
+    if (isRetailMode) return activeTable?.name || "No Slot";
+    return td?.name || "No Table";
+  }, [isHospitalMode, isRetailMode, activeTable?.name, td?.name]);
+
+  const slotSectionLabel = isHospitalMode ? "Active Ward / Bed" : "Active Slot";
+  const addOrderLabel = isHospitalMode ? "Open Another Patient" : "Open Another Order";
+  const clearSlotTitle = isHospitalMode
+    ? `Clear "${activeTable?.name}"? This will empty the cart and free this bed/ward.`
+    : `Clear "${activeTable?.name}"? This will empty the cart and free up this slot.`;
+
+  // ── Fetch staff list ───────────────────────────────────────────────────────
   useEffect(() => {
     const loadStaff = async () => {
       setLoadingStaff(true);
@@ -170,7 +185,7 @@ const CartDrawer: React.FC = () => {
       setLoadingData(true);
       try {
         await dispatch(getCart(tableId));
-        if (!isRetailMode && !data && !cartDetails) navigate("/tables");
+        if (!isSlotMode && !data && !cartDetails) navigate("/tables");
       } catch (e) {
         console.error("cart error", e);
       } finally {
@@ -178,7 +193,7 @@ const CartDrawer: React.FC = () => {
       }
     };
     fetch();
-  }, [dispatch, tableId, td?._id, isRetailMode, navigate]);
+  }, [dispatch, tableId, td?._id, isSlotMode, navigate]);
 
   const allSlots = useMemo(() =>
     (allLocations || []).flatMap((loc: any) =>
@@ -195,13 +210,10 @@ const CartDrawer: React.FC = () => {
   const isSpa = tenant?.business_type?.name === "massage_parlour";
   const canCheckout = (user?.role === "admin" || user?.role === "cashier") && (data?.length ?? 0) > 0;
 
-  // ── Handle served-by update ────────────────────────────────────────────────
+  // ── Handle served-by update ───────────────────────────────────────────────
   const handleServedByChange = async (newUserId: string) => {
     const cartId = cartDetails?._id ?? cartDetails?.id;
-    if (!cartId) {
-      console.error("Cart ID is undefined — cartDetails:", cartDetails);
-      return;
-    }
+    if (!cartId) return;
     setUpdatingServedBy(true);
     try {
       await updateCartService(cartId, { served_by: newUserId });
@@ -224,7 +236,7 @@ const CartDrawer: React.FC = () => {
         overflow: "hidden",
       }}
     >
-      {/* ── Scrollable body ─────────────────────────────────────────────── */}
+      {/* ── Scrollable body ──────────────────────────────────────────────── */}
       <div
         style={{
           flex: 1,
@@ -234,8 +246,8 @@ const CartDrawer: React.FC = () => {
           scrollbarColor: "#e2e8f0 transparent",
         }}
       >
-        {/* ── Retail slot switcher ───────────────────────────────────────── */}
-        {isRetailMode && (
+        {/* ── Slot/ward switcher (retail + hospital) ────────────────────── */}
+        {isSlotMode && (
           <div
             style={{
               background: `${primaryColor}0f`,
@@ -247,9 +259,12 @@ const CartDrawer: React.FC = () => {
           >
             <Text
               strong
-              style={{ fontSize: 11, color: primaryColor, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}
+              style={{
+                fontSize: 11, color: primaryColor, letterSpacing: 0.8,
+                textTransform: "uppercase", display: "block", marginBottom: 6,
+              }}
             >
-              Active Slot
+              {slotSectionLabel}
             </Text>
             <Flex align="center" gap={6}>
               <Select
@@ -265,8 +280,7 @@ const CartDrawer: React.FC = () => {
                 placeholder="Select slot"
               />
               <Popconfirm
-                title={`Clear "${activeTable?.name}"?`}
-                description="This will empty the cart and free up this slot."
+                title={clearSlotTitle}
                 onConfirm={() => removeActiveSlot()}
                 okText="Clear"
                 okButtonProps={{ danger: true }}
@@ -275,41 +289,30 @@ const CartDrawer: React.FC = () => {
               >
                 <Tooltip title={isOnlySlot ? "Cannot remove the only slot" : "Clear slot"}>
                   <Button
-                    size="small"
-                    danger
-                    type="text"
-                    icon={<ClearOutlined />}
+                    size="small" danger type="text" icon={<ClearOutlined />}
                     disabled={!activeTable || isLoadingSlots || isOnlySlot}
                   />
                 </Tooltip>
               </Popconfirm>
             </Flex>
             <Button
-              type="dashed"
-              block
-              size="small"
-              icon={<PlusCircleOutlined />}
+              type="dashed" block size="small" icon={<PlusCircleOutlined />}
               loading={isLoadingSlots}
               style={{ marginTop: 8, borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
               onClick={() => openNewOrder()}
             >
-              {isLoadingSlots ? "Creating…" : "Open Another Order"}
+              {isLoadingSlots ? "Creating…" : addOrderLabel}
             </Button>
           </div>
         )}
 
-        {/* ── Header row ─────────────────────────────────────────────────── */}
+        {/* ── Header row ───────────────────────────────────────────────── */}
         <Flex align="center" justify="space-between" wrap="wrap" gap={6} style={{ marginBottom: 10 }}>
-          {/* Order badge */}
           <div
             style={{
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
-              borderRadius: 8,
-              padding: "5px 10px",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
+              background: "#f8fafc", border: "1px solid #e2e8f0",
+              borderRadius: 8, padding: "5px 10px",
+              display: "flex", alignItems: "center", gap: 6,
             }}
           >
             <OrderedListOutlined style={{ color: primaryColor, fontSize: 13 }} />
@@ -321,34 +324,25 @@ const CartDrawer: React.FC = () => {
           <Flex gap={6} align="center">
             <TransferBillModal data={data} />
             <Button
-              type="primary"
-              size="small"
-              icon={<SwitcherOutlined />}
+              type="primary" size="small" icon={<SwitcherOutlined />}
               style={{ background: primaryColor, borderColor: primaryColor, borderRadius: 6, fontSize: 12 }}
             >
-              {isRetailMode ? (activeTable?.name || "No Slot") : (td?.name || "No Table")}
+              {slotLabel}
             </Button>
           </Flex>
         </Flex>
 
-        {/* ── Customer banner ────────────────────────────────────────────── */}
+        {/* ── Customer banner ──────────────────────────────────────────── */}
         {customerDetails && (
           <Flex
-            align="center"
-            gap={8}
+            align="center" gap={8}
             style={{
-              background: "#f0fdf4",
-              border: "1px solid #bbf7d0",
-              borderRadius: 8,
-              padding: "8px 10px",
-              marginBottom: 10,
+              background: "#f0fdf4", border: "1px solid #bbf7d0",
+              borderRadius: 8, padding: "8px 10px", marginBottom: 10,
             }}
           >
-            <Avatar
-              size={28}
-              icon={<UserOutlined />}
-              style={{ background: primaryColor, flexShrink: 0 }}
-            />
+            <Avatar size={28} icon={<UserOutlined />}
+              style={{ background: primaryColor, flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <Text strong style={{ fontSize: 13, display: "block", lineHeight: 1.3 }}>
                 {customerDetails.customer_name || "Customer"}
@@ -361,37 +355,27 @@ const CartDrawer: React.FC = () => {
               )}
             </div>
             {customerDetails.customer_id && (
-              <Tag
-                color="success"
-                style={{ fontSize: 10, borderRadius: 4, flexShrink: 0, margin: 0 }}
-              >
+              <Tag color="success" style={{ fontSize: 10, borderRadius: 4, flexShrink: 0, margin: 0 }}>
                 Linked
               </Tag>
             )}
           </Flex>
         )}
 
-        {/* ── Column headers ─────────────────────────────────────────────── */}
+        {/* ── Column headers ───────────────────────────────────────────── */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 52px 80px 32px",
-            gap: 4,
-            padding: "4px 6px",
-            background: "#f8fafc",
-            borderRadius: 6,
-            marginBottom: 6,
+            display: "grid", gridTemplateColumns: "1fr 52px 80px 32px",
+            gap: 4, padding: "4px 6px",
+            background: "#f8fafc", borderRadius: 6, marginBottom: 6,
           }}
         >
           {["Item", "Qty", "Price", ""].map((h, i) => (
             <Text
               key={i}
               style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#94a3b8",
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
+                fontSize: 11, fontWeight: 600, color: "#94a3b8",
+                letterSpacing: 0.5, textTransform: "uppercase",
                 textAlign: i > 0 ? "center" : "left",
               }}
             >
@@ -400,7 +384,7 @@ const CartDrawer: React.FC = () => {
           ))}
         </div>
 
-        {/* ── Cart items list ─────────────────────────────────────────────── */}
+        {/* ── Cart items ───────────────────────────────────────────────── */}
         <div style={{ marginBottom: 8 }}>
           {loading
             ? Array.from({ length: data?.length || 3 }, (_, i) => <SkeletonCartItemCard key={i} />)
@@ -410,16 +394,14 @@ const CartDrawer: React.FC = () => {
           {loadingData && loading && <CartLoader />}
         </div>
 
-        {/* ── Empty state ─────────────────────────────────────────────────── */}
+        {/* ── Empty state ──────────────────────────────────────────────── */}
         {!memoizedData?.length && !loading && (
           <div style={{ padding: "20px 0", textAlign: "center" }}>
             <Empty
               image="/basket.png"
               imageStyle={{ height: 64, opacity: 0.5 }}
               description={
-                <Text style={{ fontSize: 13, color: "#94a3b8" }}>
-                  Add items to get started
-                </Text>
+                <Text style={{ fontSize: 13, color: "#94a3b8" }}>Add items to get started</Text>
               }
             />
           </div>
@@ -429,14 +411,11 @@ const CartDrawer: React.FC = () => {
         {memoizedData?.length > 0 && (
           <div
             style={{
-              background: "#f8fafc",
-              borderRadius: 10,
-              padding: "10px 12px",
-              marginBottom: 10,
+              background: "#f8fafc", borderRadius: 10,
+              padding: "10px 12px", marginBottom: 10,
               border: "1px solid #e2e8f0",
             }}
           >
-            {/* Tip */}
             {cartDetails?.tip_amount && (
               <>
                 <SummaryRow
@@ -458,10 +437,7 @@ const CartDrawer: React.FC = () => {
                 label={
                   <Flex align="center" gap={6}>
                     Discount
-                    <Tag
-                      color="success"
-                      style={{ fontSize: 10, margin: 0, borderRadius: 4 }}
-                    >
+                    <Tag color="success" style={{ fontSize: 10, margin: 0, borderRadius: 4 }}>
                       {cartDetails.discount_type === "percentage"
                         ? `${cartDetails.discount}% off`
                         : fmtKsh(cartDetails.discount)}
@@ -475,25 +451,17 @@ const CartDrawer: React.FC = () => {
             )}
 
             <SummaryRow label="VAT" value={`KSH ${totalVatAmount}`} muted />
-
             <Divider style={{ margin: "8px 0" }} />
+            <SummaryRow label="Amount Due" value={fmtKsh(grandTotal)} strong accent={primaryColor} />
 
-            <SummaryRow
-              label="Amount Due"
-              value={fmtKsh(grandTotal)}
-              strong
-              accent={primaryColor}
-            />
-
-            {/* ── Served By row ──────────────────────────────────────────── */}
+            {/* ── Served by ──────────────────────────────────────────────── */}
             <Divider style={{ margin: "8px 0" }} />
             {editingServedBy ? (
               <div
                 style={{
                   background: `${primaryColor}08`,
                   border: `1px solid ${primaryColor}40`,
-                  borderRadius: 8,
-                  padding: "8px 10px",
+                  borderRadius: 8, padding: "8px 10px",
                 }}
               >
                 <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginBottom: 6 }}>
@@ -502,28 +470,17 @@ const CartDrawer: React.FC = () => {
                 </Text>
                 <Flex align="center" gap={6}>
                   <Select
-                    size="middle"
-                    style={{ flex: 1 }}
+                    size="middle" style={{ flex: 1 }}
                     loading={loadingStaff || updatingServedBy}
                     disabled={updatingServedBy}
                     value={staffList.find((s) => s.value === servedById) ? servedById : undefined}
                     options={staffList}
-                    placeholder={
-                      loadingStaff
-                        ? "Loading…"
-                        : staffList.length === 0
-                          ? "No staff found"
-                          : "Select staff"
-                    }
+                    placeholder={loadingStaff ? "Loading…" : staffList.length === 0 ? "No staff found" : "Select staff"}
                     onChange={handleServedByChange}
                     autoFocus
                   />
-                  <Button
-                    size="middle"
-                    onClick={() => setEditingServedBy(false)}
-                    disabled={updatingServedBy}
-                    style={{ borderRadius: 6 }}
-                  >
+                  <Button size="middle" onClick={() => setEditingServedBy(false)}
+                    disabled={updatingServedBy} style={{ borderRadius: 6 }}>
                     Cancel
                   </Button>
                 </Flex>
@@ -536,17 +493,11 @@ const CartDrawer: React.FC = () => {
                   setEditingServedBy(true)
                 }
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  background: "#fff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
-                  padding: "8px 10px",
-                  cursor:
-                    (user?.role === "admin" || user?.role === "cashier") && cartDetails?._id
-                      ? "pointer"
-                      : "default",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  background: "#fff", border: "1px solid #e2e8f0",
+                  borderRadius: 8, padding: "8px 10px",
+                  cursor: (user?.role === "admin" || user?.role === "cashier") && cartDetails?._id
+                    ? "pointer" : "default",
                   transition: "border-color 0.2s, background 0.2s",
                 }}
                 onMouseEnter={(e) => {
@@ -571,19 +522,13 @@ const CartDrawer: React.FC = () => {
                     </Text>
                   </div>
                 </Flex>
-
                 {(user?.role === "admin" || user?.role === "cashier") && cartDetails?._id && (
                   <Flex
-                    align="center"
-                    gap={4}
+                    align="center" gap={4}
                     style={{
-                      background: `${primaryColor}15`,
-                      border: `1px solid ${primaryColor}40`,
-                      borderRadius: 6,
-                      padding: "3px 8px",
-                      color: primaryColor,
-                      fontSize: 11,
-                      fontWeight: 600,
+                      background: `${primaryColor}15`, border: `1px solid ${primaryColor}40`,
+                      borderRadius: 6, padding: "3px 8px",
+                      color: primaryColor, fontSize: 11, fontWeight: 600,
                       pointerEvents: "none",
                     }}
                   >
@@ -596,7 +541,7 @@ const CartDrawer: React.FC = () => {
           </div>
         )}
 
-        {/* ── Action buttons ──────────────────────────────────────────────── */}
+        {/* ── Action buttons ───────────────────────────────────────────── */}
         {memoizedData?.length > 0 && (
           <Space direction="vertical" style={{ width: "100%" }} size={8}>
             <Flex gap={8} wrap="wrap">
@@ -607,23 +552,14 @@ const CartDrawer: React.FC = () => {
                 <PrintBillModal cartDetails={cartDetails} data={data} />
               )}
             </Flex>
-
             {user?.role === "admin" && (
               <Popconfirm
                 title="Clear all items?"
                 description="This will remove everything from the cart."
                 onConfirm={() => dispatch(deleteAllCartItems(cartDetails?._id))}
-                okText="Clear"
-                okButtonProps={{ danger: true }}
-                cancelText="Cancel"
+                okText="Clear" okButtonProps={{ danger: true }} cancelText="Cancel"
               >
-                <Button
-                  danger
-                  block
-                  size="small"
-                  icon={<CloseCircleOutlined />}
-                  style={{ borderRadius: 6 }}
-                >
+                <Button danger block size="small" icon={<CloseCircleOutlined />} style={{ borderRadius: 6 }}>
                   Clear Cart
                 </Button>
               </Popconfirm>
@@ -632,15 +568,13 @@ const CartDrawer: React.FC = () => {
         )}
       </div>
 
-      {/* ── Sticky checkout footer ──────────────────────────────────────── */}
+      {/* ── Sticky checkout footer ───────────────────────────────────────── */}
       {canCheckout && (
         <div
           style={{
-            flexShrink: 0,
-            padding: "10px 14px",
+            flexShrink: 0, padding: "10px 14px",
             borderTop: "1px solid #e2e8f0",
-            background: "#fff",
-            boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
+            background: "#fff", boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
           }}
         >
           <PaymentDrawer customerDetails={customerDetails} />

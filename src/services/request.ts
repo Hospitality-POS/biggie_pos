@@ -2,39 +2,32 @@ import axios from "axios";
 import { BASE_URL } from "@utils/config";
 import { message } from "antd";
 import { queryClient } from "../main";
+import { getCache, setCache } from "@utils/cache";
 
-// Flag to suppress errors during logout
 let isLoggingOut = false;
 
-// Helper function to handle errors
 const handleError = (errorMessage: string) => {
     message.error(`${errorMessage}`);
 };
 
-// Helper function to handle user logout
 const logoutUser = () => {
     isLoggingOut = true;
-    queryClient.cancelQueries();  // Cancel all in-flight queries immediately
-    queryClient.clear();          // Clear all cached query data
+    queryClient.cancelQueries();
+    queryClient.clear();
     localStorage.removeItem("user");
     localStorage.removeItem("shopId");
     localStorage.removeItem("companyCode");
     window.location.href = "/login";
 };
 
-// Helper function to validate shop_id
 const getValidShopId = (): string | null => {
     const shopId = localStorage.getItem("shopId");
-
     if (!shopId || shopId === "undefined" || shopId === "null" || shopId.trim() === "") {
-        console.warn("Invalid shop_id detected:", shopId);
         return null;
     }
-
     return shopId;
 };
 
-// Routes that should NOT have shop_id injected
 const EXCLUDED_ROUTES = [
     '/users',
     '/shops',
@@ -46,30 +39,42 @@ const EXCLUDED_ROUTES = [
     '/business-types',
 ];
 
-const isExcludedRoute = (url: string = ''): boolean => {
-    return EXCLUDED_ROUTES.some(route => url.includes(route));
-};
+// Routes that should NOT be cached locally (mutations, auth, payments, etc.)
+const NON_CACHEABLE_ROUTES = [
+    '/auth',
+    '/login',
+    '/logout',
+    '/payments',
+    '/subscriptions',
+    '/invoices',
+];
 
-// Check whether a FormData instance already contains a given key.
-// Avoids duplicate fields (e.g. shop_id appended twice on file uploads).
+const isExcludedRoute = (url: string = ''): boolean =>
+    EXCLUDED_ROUTES.some(route => url.includes(route));
+
+const isNonCacheableRoute = (url: string = ''): boolean =>
+    NON_CACHEABLE_ROUTES.some(route => url.includes(route));
+
 const formDataHasKey = (formData: FormData, key: string): boolean => {
     try {
-        // FormData.has() is available in all modern browsers and Node 18+
         return formData.has(key);
     } catch {
         return false;
     }
 };
 
-// Create an axios instance with the base URL
+// Build a deterministic cache key from url + params + shopId
+const buildCacheKey = (url: string, params: Record<string, unknown> = {}, shopId: string | null): string => {
+    const paramStr = JSON.stringify(params, Object.keys(params).sort());
+    return `GET::${shopId ?? "global"}::${url}::${paramStr}`;
+};
+
 const axiosInstance = axios.create({
     baseURL: BASE_URL,
 });
 
-// Interceptor to add authorization token to each request if available
 axiosInstance.interceptors.request.use(
     (config) => {
-        // Block all requests if logout is in progress
         if (isLoggingOut) {
             return Promise.reject(new axios.Cancel("Request cancelled due to logout"));
         }
@@ -85,45 +90,24 @@ axiosInstance.interceptors.request.use(
                 config.headers['currentUser'] = userObject._id || userObject.id;
             }
 
-            console.log("📤 Request:", config.method?.toUpperCase(), config.url);
-            console.log("📍 Shop ID:", shopId);
-
-            // Only inject shop_id for shop-specific routes
             if (shopId && !isExcludedRoute(config.url)) {
-
-                // GET and DELETE — inject into query params
                 if (config.method === 'get' || config.method === 'delete') {
                     config.params = {
                         ...config.params,
                         shop_id: shopId,
-                        role: userObject?.role
+                        role: userObject?.role,
                     };
-                    console.log("✅ Added shop_id to params:", config.params);
-                }
-                // POST, PUT, PATCH — inject into body
-                else if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
+                } else if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
                     if (config.data instanceof FormData) {
-                        // Only append if not already present — prevents duplicate
-                        // shop_id on file-upload endpoints like /inventory/import
                         if (!formDataHasKey(config.data, 'shop_id')) {
                             config.data.append('shop_id', shopId);
-                            console.log("✅ Added shop_id to FormData");
-                        } else {
-                            console.log("ℹ️ shop_id already in FormData — skipping injection");
                         }
                     } else if (config.data && typeof config.data === 'object') {
-                        config.data = {
-                            ...config.data,
-                            shop_id: shopId
-                        };
-                        console.log("✅ Added shop_id to body:", config.data);
+                        config.data = { ...config.data, shop_id: shopId };
                     } else {
                         config.data = { shop_id: shopId };
-                        console.log("✅ Created body with shop_id");
                     }
                 }
-            } else if (!shopId && !isExcludedRoute(config.url)) {
-                console.warn("⚠️ Shop ID is missing for request:", config.url);
             }
         }
 
@@ -140,11 +124,9 @@ axiosInstance.interceptors.request.use(
     }
 );
 
-// Interceptor to handle response errors globally
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
-        // Suppress all error messages if logout is in progress or request was cancelled
         if (isLoggingOut || axios.isCancel(error)) return Promise.reject(error);
 
         const { response } = error;
@@ -167,20 +149,34 @@ axiosInstance.interceptors.response.use(
                     break;
             }
         } else {
-            console.error("Network error:", error);
             handleError("Network error. Please check your connection.");
         }
         return Promise.reject(error);
     }
 );
 
-// Utility functions for different HTTP methods
-export const getRequest = (url: string, config = {}) => axiosInstance.get(url, config);
+export const getRequest = async (url: string, config: Record<string, unknown> = {}, ttlMs?: number) => {
+    if (!isNonCacheableRoute(url)) {
+        const shopId = getValidShopId();
+        const cacheKey = buildCacheKey(url, (config.params as Record<string, unknown>) ?? {}, shopId);
+        const cached = await getCache<unknown>(cacheKey);
+        if (cached !== null) {
+            return { data: cached, fromCache: true };
+        }
+        const response = await axiosInstance.get(url, config);
+        await setCache(cacheKey, response.data, ttlMs);
+        return response;
+    }
+    return axiosInstance.get(url, config);
+};
 
-export const postRequest = (url: string, data: any, config = {}) => axiosInstance.post(url, data, config);
+export const postRequest = (url: string, data: unknown, config = {}) =>
+    axiosInstance.post(url, data, config);
 
-export const putRequest = (url: string, data: any, config = {}) => axiosInstance.put(url, data, config);
+export const putRequest = (url: string, data: unknown, config = {}) =>
+    axiosInstance.put(url, data, config);
 
-export const deleteRequest = (url: string, config = {}) => axiosInstance.delete(url, config);
+export const deleteRequest = (url: string, config = {}) =>
+    axiosInstance.delete(url, config);
 
 export default axiosInstance;

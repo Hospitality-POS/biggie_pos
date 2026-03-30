@@ -29,6 +29,10 @@ import {
   BookOutlined,
   DollarOutlined,
   ShopOutlined,
+  UsergroupAddOutlined,
+  MedicineBoxOutlined,
+  HeartOutlined,
+  ExperimentOutlined,
 } from "@ant-design/icons";
 import { PeopleOutlined } from "@mui/icons-material";
 import { useAppSelector } from "src/store";
@@ -37,19 +41,18 @@ import React from "react";
 /**
  * defaultprops.tsx — Shop-level Layout (path="/")
  *
- * Module rules:
- *  - POS only        → POS routes flat
- *  - Accounting only → Accounting routes flat
- *  - Both active     → POS routes + Accounting group
+ * Role visibility rules:
+ *  - admin / cashier  → full access including Reports
+ *  - other staff      → all POS routes EXCEPT Reports
+ *  - non-admin/cashier in accounting-only → accounting routes, no reports
  *
- * Inventory is shared — visible in both POS and Accounting.
- * AppList uses Ant Design icons rendered as coloured SVG data-URIs
- * so no image files are required.
+ * POS mode routing:
+ *  - service / restaurant → Tables
+ *  - retail               → Tables (slot-based)
+ *  - hospital             → Wards (patient/bed management)
  */
 
-// ── Icon tile helper ─────────────────────────────────────────────────────────
-// Generates a coloured rounded-square tile with an SVG icon path.
-// Uses encodeURIComponent (NOT btoa) — safe for all Unicode characters.
+// ── Icon tile helper ──────────────────────────────────────────────────────────
 const makeTile = (color: string, pathD: string): string => {
   const svg = [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">',
@@ -62,7 +65,6 @@ const makeTile = (color: string, pathD: string): string => {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 };
 
-// Material Design icon paths (24x24 viewBox, scaled to fit 24px tile in 40px square)
 const ICONS = {
   checklist: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z',
   table: 'M20 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14H5v-5h6v5zm0-7H5V5h6v5zm9 7h-7v-5h7v5zm0-7h-7V5h7v5z',
@@ -71,7 +73,7 @@ const ICONS = {
   supplier: 'M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z',
   settings: 'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',
   faq: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z',
-  web: 'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.9 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z',
+  web: 'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 17.52 22 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.9 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z',
   accounting: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z',
   invoice: 'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z',
   debit: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z',
@@ -83,46 +85,74 @@ const ICONS = {
 
 const useProLayoutNav = () => {
   const { user } = useAppSelector((state) => state.auth);
+
   const isAdminOrCashier = !!(user?.role === "admin" || user?.role === "cashier");
+  const isAdmin = user?.role === "admin";
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
-  const storeName = "Services";
-  const tableName =
+  // ── POS mode from localStorage (set by POSModeContext) ────────────────────
+  const posMode = (localStorage.getItem("posMode") ?? "restaurant") as string;
+  const isHospitalMode = posMode === "hospital";
+
+  // ── Home route label and icon based on mode ───────────────────────────────
+  const homeRouteName = isHospitalMode ? "POS" : (
     tenant?.business_type?.name === "Electronics" ||
       tenant?.business_type?.name === "massage_parlour"
-      ? "Slots"
-      : "Tables";
+      ? "POS"
+      : "POS"
+  );
+
+  const homeRouteIcon = isHospitalMode ? <MedicineBoxOutlined /> : <HomeFilled />;
 
   // ── Module flags ──────────────────────────────────────────────────────────
   const hasPOS = tenant?.pos_integration?.enabled === true;
   const hasAccounting = tenant?.modules?.accounting === true;
 
   console.log("[ShopNav] Module check:", {
-    "modules.pos": tenant?.pos_integration?.enabled,
+    posMode,
+    isHospitalMode,
+    "pos_integration.enabled": tenant?.pos_integration?.enabled,
     "modules.accounting": tenant?.modules?.accounting,
     hasPOS,
     hasAccounting,
   });
 
-  // ── Shared inventory route ────────────────────────────────────────────────
-  const inventoryRoute = {
-    path: "/inventory",
-    name: "Inventory",
-    icon: <AppstoreOutlined />,
-  };
+  // ── Shared routes ─────────────────────────────────────────────────────────
+  const inventoryRoute = isHospitalMode
+    ? { path: "/inventory", name: "Pharmacy", icon: <MedicineBoxOutlined /> }
+    : { path: "/inventory", name: "Inventory", icon: <AppstoreOutlined /> };
 
-  // ── POS routes ────────────────────────────────────────────────────────────
-  const posRoutes = [
-    { path: "/tables", name: "Home", icon: <HomeFilled /> },
+  // ── Hospital-specific extra routes ────────────────────────────────────────
+  // No extra routes needed — /customers is already renamed to Patients
+  // and /appointments is handled via the Customers page tabs
+  const hospitalExtraRoutes: any[] = [];
+
+  // ── POS routes — full set (admin + cashier) ───────────────────────────────
+  const posRoutesFullAccess = [
+    { path: "/tables", name: homeRouteName, icon: homeRouteIcon },
     { path: "/home-dashboard", name: "Dashboard", icon: <BarChartOutlined /> },
     { path: "/orders", name: "Orders", icon: <CalculatorFilled /> },
-    { path: "/store", name: storeName, icon: <FolderFilled /> },
+    // Services hidden in retail mode (product-only workflow)
+    ...(posMode !== "retail" ? [{ path: "/store", name: isHospitalMode ? "Services" : "Services", icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled /> }] : []),
     inventoryRoute,
-    { path: "/employee-shift", name: "Shifts", icon: <SolutionOutlined /> },
-    { path: "/customers", name: "Customers", icon: <PeopleOutlined /> },
-    { path: "/reports", name: "Reports", icon: <ApiFilled /> },
+    { path: "/employee-shift", name: "Crew", icon: <UsergroupAddOutlined /> },
+    { path: "/customers", name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined /> },
+    { path: "/reports", name: "Business Reports", icon: <ApiFilled /> },
+  ];
+
+  // ── POS routes — staff (no Reports) ──────────────────────────────────────
+  const posRoutesStaff = [
+    { path: "/tables", name: homeRouteName, icon: homeRouteIcon },
+    { path: "/home-dashboard", name: "Dashboard", icon: <BarChartOutlined /> },
+    { path: "/orders", name: "Orders", icon: <CalculatorFilled /> },
+    // Services hidden in retail mode
+    ...(posMode !== "retail" ? [{ path: "/store", name: isHospitalMode ? "Services" : "Services", icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled /> }] : []),
+    inventoryRoute,
+    { path: "/employee-shift", name: "Crew", icon: <UsergroupAddOutlined /> },
+    { path: "/customers", name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined /> },
+    // ← Reports intentionally omitted for non-admin/cashier staff
   ];
 
   // ── Accounting routes ─────────────────────────────────────────────────────
@@ -140,19 +170,27 @@ const useProLayoutNav = () => {
     { path: "/system-setup", name: "System Setup", icon: <SettingOutlined /> },
   ];
 
-  // ── POS appList ───────────────────────────────────────────────────────────
+  const accountingRoutesStaff = accountingRoutes.filter(
+    (r) => r.path !== "/accounting/reports"
+  );
+
+  // ── AppLists ──────────────────────────────────────────────────────────────
   const posAppList = [
     { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize your products with clear categories.", url: "/Category-settings" },
-    { icon: makeTile("#0ea5e9", ICONS.table), title: tableName, desc: "Manage Tables location and naming.", url: "/table-settings" },
-    { icon: makeTile("#10b981", ICONS.inventory), title: "Inventory", desc: "Track and manage your stock levels.", url: "/inventory" },
+    {
+      icon: makeTile("#0ea5e9", ICONS.table),
+      title: homeRouteName,
+      desc: isHospitalMode ? "Manage wards, beds and patient locations." : "Manage Tables location and naming.",
+      url: "/table-settings",
+    },
+    { icon: makeTile("#10b981", ICONS.inventory), title: isHospitalMode ? "Pharmacy" : "Inventory", desc: isHospitalMode ? "Manage medicines and medical supplies." : "Track and manage your stock levels.", url: "/inventory" },
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: "/payment-methods" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: "/suppliers" },
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: "/system-setup" },
     { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Get answers to your most common questions.", url: "/fss-faqs" },
-    { icon: makeTile("#06b6d4", ICONS.web), title: "Website Builder", desc: "Start building your website content.", url: "/website-builder" },
+    { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store your store images.", url: "/website-builder" },
   ];
 
-  // ── Accounting appList ────────────────────────────────────────────────────
   const accountingAppList = [
     { icon: makeTile("#6c1c2c", ICONS.accounting), title: "Accounting", desc: "View your financial overview and KPIs.", url: "/accounting" },
     { icon: makeTile("#3b82f6", ICONS.invoice), title: "Invoices & Bills", desc: "Manage customer invoices and supplier bills.", url: "/orders" },
@@ -167,21 +205,15 @@ const useProLayoutNav = () => {
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: "/system-setup" },
   ];
 
-  // ── Non-admin: single Home ────────────────────────────────────────────────
-  if (!isAdminOrCashier) {
-    return {
-      route: {
-        path: "/",
-        routes: [{ path: "/tables", name: "Home", icon: <SmileFilled /> }],
-      },
-    };
-  }
+  // ── Pick which POS route set to use based on role ─────────────────────────
+  const posRoutes = isAdminOrCashier ? posRoutesFullAccess : posRoutesStaff;
 
   // ── Accounting ONLY (no POS) ──────────────────────────────────────────────
   if (hasAccounting && !hasPOS) {
+    const routes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
     console.log("[ShopNav] ✅ Showing: Accounting only");
     return {
-      route: { path: "/", routes: accountingRoutes },
+      route: { path: "/", routes },
       appList: accountingAppList,
     };
   }
@@ -197,6 +229,7 @@ const useProLayoutNav = () => {
 
   // ── Both POS + Accounting ─────────────────────────────────────────────────
   if (hasPOS && hasAccounting) {
+    const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
     console.log("[ShopNav] ✅ Showing: Both POS and Accounting");
     return {
       route: {
@@ -207,7 +240,7 @@ const useProLayoutNav = () => {
             path: "/accounting",
             name: "Accounting",
             icon: <AccountBookOutlined />,
-            routes: accountingRoutes,
+            routes: accRoutes,
           },
         ],
       },

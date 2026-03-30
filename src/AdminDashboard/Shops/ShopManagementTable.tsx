@@ -7,8 +7,8 @@ import {
 import {
   DeleteOutlined, ShopOutlined, ArrowRightOutlined,
   BranchesOutlined, DollarOutlined, TeamOutlined,
-  EnvironmentOutlined, ReloadOutlined, CoffeeOutlined,
-  GlobalOutlined, LinkOutlined,
+  EnvironmentOutlined, ReloadOutlined, MedicineBoxOutlined,
+  GlobalOutlined, LinkOutlined, SolutionOutlined,
 } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -55,45 +55,82 @@ const getLocationDisplay = (loc: any): string => {
 const hasCoords = (loc: any): boolean =>
   loc && typeof loc === "object" && loc.lat != null && loc.lng != null;
 
+// ── POS mode config ───────────────────────────────────────────────────────────
+const POS_MODE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
+  restaurant: {
+    label: "Duka Services",
+    icon: <SolutionOutlined />,
+    color: "#c2410c",
+    bg: "#fff7ed",
+  },
+  retail: {
+    label: "Retail",
+    icon: <ShopOutlined />,
+    color: "#1d4ed8",
+    bg: "#eff6ff",
+  },
+  hospital: {
+    label: "Hospital",
+    icon: <MedicineBoxOutlined />,
+    color: "#059669",
+    bg: "#f0fdf4",
+  },
+};
+
 // ── POS Mode Tag ──────────────────────────────────────────────────────────────
 const PosModeTag: React.FC<{ mode: string }> = ({ mode }) => {
-  const isRetail = mode === "retail";
+  const cfg = POS_MODE_CONFIG[mode] ?? POS_MODE_CONFIG.restaurant;
   return (
     <Tag
-      icon={isRetail ? <ShopOutlined /> : <CoffeeOutlined />}
+      icon={cfg.icon}
       style={{
-        background: isRetail ? "#eff6ff" : "#fff7ed",
-        color: isRetail ? "#1d4ed8" : "#c2410c",
+        background: cfg.bg,
+        color: cfg.color,
         border: "none", borderRadius: 6,
         padding: "2px 8px", fontSize: 11, fontWeight: 500,
       }}
     >
-      {isRetail ? "Retail" : "Restaurant"}
+      {cfg.label}
     </Tag>
   );
 };
 
-// ── Map View — Google Maps JS API with interactive markers ───────────────────
+// ── InfoWindow HTML for map markers ──────────────────────────────────────────
+const buildInfoHtml = (shop: any): string => {
+  const cfg = POS_MODE_CONFIG[shop.pos_mode] ?? POS_MODE_CONFIG.restaurant;
+  const modeHtml = shop.pos_mode
+    ? `<div style="display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${cfg.bg};color:${cfg.color};margin-bottom:6px">${cfg.label}</div>`
+    : "";
+  return `
+    <div style="padding:8px 4px;min-width:190px;font-family:system-ui,sans-serif">
+      <div style="font-weight:700;font-size:13px;color:#0f172a;margin-bottom:3px">${shop.name}</div>
+      <div style="font-size:11px;color:#64748b;line-height:1.4;margin-bottom:4px">${getLocationDisplay(shop.location)}</div>
+      ${shop.location?.city ? `<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">${[shop.location.city, shop.location.country].filter(Boolean).join(", ")}</div>` : ""}
+      ${modeHtml}
+      ${shop.location?.maps_url ? `<a href="${shop.location.maps_url}" target="_blank" style="font-size:11px;color:#3b82f6;text-decoration:none;display:block">Open in Maps ↗</a>` : ""}
+    </div>
+  `;
+};
+
+// ── Map View ──────────────────────────────────────────────────────────────────
 const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 480 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapObjRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const infoWinRef = useRef<any>(null);
-  const shopsRef = useRef<any[]>([]);           // always-current copy of withCoords
+  const shopsRef = useRef<any[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const located = shops.filter(s => s.location && getLocationDisplay(s.location));
   const withCoords = located.filter(s => hasCoords(s.location));
-  shopsRef.current = withCoords;                   // keep ref in sync without re-renders
+  shopsRef.current = withCoords;
 
   const shopKey = withCoords.map(s => s._id).join(",");
 
-  // ── Build / refresh map + markers whenever shops change ──────────────────
   useEffect(() => {
     const g = (window as any).google?.maps;
     if (!g || !mapRef.current || withCoords.length === 0) return;
 
-    // Create map once
     if (!mapObjRef.current) {
       mapObjRef.current = new g.Map(mapRef.current, {
         zoom: 12,
@@ -105,16 +142,13 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
       });
     }
 
-    // Shared InfoWindow
     if (!infoWinRef.current) {
       infoWinRef.current = new g.InfoWindow();
     }
 
-    // Clear old markers
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current = [];
 
-    // Drop a numbered pin for every shop with coords
     withCoords.forEach((shop, idx) => {
       const marker = new g.Marker({
         position: { lat: shop.location.lat, lng: shop.location.lng },
@@ -139,7 +173,6 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
       markersRef.current.push(marker);
     });
 
-    // Fit all pins in view
     if (withCoords.length > 1) {
       const bounds = new g.LatLngBounds();
       withCoords.forEach(s => bounds.extend({ lat: s.location.lat, lng: s.location.lng }));
@@ -151,40 +184,26 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopKey]);
 
-  // ── Open info window helper (no stale closure) ─────────────────────────
   const openInfo = (g: any, shop: any, marker: any) => {
     if (!infoWinRef.current || !mapObjRef.current) return;
-    infoWinRef.current.setContent(`
-      <div style="padding:8px 4px;min-width:190px;font-family:system-ui,sans-serif">
-        <div style="font-weight:700;font-size:13px;color:#0f172a;margin-bottom:3px">${shop.name}</div>
-        <div style="font-size:11px;color:#64748b;line-height:1.4;margin-bottom:4px">${getLocationDisplay(shop.location)}</div>
-        ${shop.location?.city ? `<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">${[shop.location.city, shop.location.country].filter(Boolean).join(", ")}</div>` : ""}
-        ${shop.pos_mode ? `<div style="display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${shop.pos_mode === "retail" ? "#eff6ff" : "#fff7ed"};color:${shop.pos_mode === "retail" ? "#1d4ed8" : "#c2410c"};margin-bottom:6px">${shop.pos_mode === "retail" ? "Retail" : "Restaurant"}</div>` : ""}
-        ${shop.location?.maps_url ? `<a href="${shop.location.maps_url}" target="_blank" style="font-size:11px;color:#3b82f6;text-decoration:none;display:block">Open in Maps ↗</a>` : ""}
-      </div>
-    `);
+    infoWinRef.current.setContent(buildInfoHtml(shop));
     infoWinRef.current.open(mapObjRef.current, marker);
   };
 
-  // ── Card click → pan map to that pin + open its info window ───────────
   const handleCardSelect = useCallback((id: string) => {
     setActiveId(id);
     const g = (window as any).google?.maps;
     if (!g || !mapObjRef.current) return;
-
     const idx = shopsRef.current.findIndex(s => s._id === id);
     if (idx === -1) return;
-
     const shop = shopsRef.current[idx];
     const marker = markersRef.current[idx];
     if (!marker) return;
-
     mapObjRef.current.panTo({ lat: shop.location.lat, lng: shop.location.lng });
     mapObjRef.current.setZoom(16);
     openInfo(g, shop, marker);
   }, []);
 
-  // ── Empty state ────────────────────────────────────────────────────────
   if (!located.length) {
     return (
       <div style={{ padding: "60px 0", textAlign: "center" }}>
@@ -196,7 +215,6 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
     );
   }
 
-  // ── No SDK fallback ────────────────────────────────────────────────────
   const hasGoogleSDK = !!(window as any).google?.maps;
   if (!hasGoogleSDK || withCoords.length === 0) {
     const q = encodeURIComponent(getLocationDisplay(located[0].location));
@@ -225,7 +243,7 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
   );
 };
 
-// ── Location chips list ───────────────────────────────────────────────────────
+// ── Location chips ────────────────────────────────────────────────────────────
 const LocationChips: React.FC<{
   shops: any[];
   activeId?: string | null;
@@ -249,7 +267,6 @@ const LocationChips: React.FC<{
             cursor: onSelect ? "pointer" : "default",
           }}
         >
-          {/* Number badge matching map marker */}
           <div style={{
             width: 32, height: 32, borderRadius: 8,
             background: isActive ? "#6c1c2c" : "#fff7ed",
@@ -469,7 +486,6 @@ const MobileShopList: React.FC<{
         <Button icon={<ReloadOutlined />} onClick={loadShops} loading={loading} style={{ borderRadius: 8, height: 36, width: 36, padding: 0 }} />
         <AddEditShopModal edit={false} actionRef={tableRef} />
       </div>
-
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="small"
         style={{ background: "#fff", borderRadius: 12, padding: "0 4px" }} />
     </div>
@@ -558,8 +574,12 @@ const ShopManagementTable: React.FC = () => {
       title: "Mode",
       dataIndex: "pos_mode",
       hideInSearch: false,
-      width: 130,
-      valueEnum: { restaurant: { text: "Restaurant" }, retail: { text: "Retail" } },
+      width: 150,
+      valueEnum: {
+        restaurant: { text: "Duka Services" },
+        retail: { text: "Retail" },
+        hospital: { text: "Hospital" },
+      },
       render: (_: any, record: any) =>
         record.pos_mode ? <PosModeTag mode={record.pos_mode} /> : <Text type="secondary">—</Text>,
     }] : []),
