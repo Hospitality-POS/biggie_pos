@@ -1,25 +1,28 @@
-import React, { useEffect, useRef, useState } from "react";
-import { ActionType, ProTable } from "@ant-design/pro-components";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-    Button,
     Card,
-    Dropdown,
     Empty,
-    message,
-    Popconfirm,
-    Skeleton,
+    Input,
+    Select,
     Space,
+    Table,
+    Tag,
+    Tooltip,
     Typography,
 } from "antd";
 import {
-    DeleteOutlined,
     KeyOutlined,
-    MoreOutlined,
-    ReloadOutlined,
+    SafetyCertificateOutlined,
+    SearchOutlined,
 } from "@ant-design/icons";
-import { useMutation } from "@tanstack/react-query";
-import { deletePermission, fetchAllPermissions } from "@services/permission";
-import PermissionModal from "@components/MODALS/pro/PermissionModal";
+import {
+    PERMISSIONS,
+    Permission,
+    ActionType,
+    ModuleScope,
+    getPermissionsGroupedByModuleForTenant,
+} from "@utils/accessControl";
+import { useTenantModules } from "@hooks/useTenantModules";
 
 const { Text } = Typography;
 
@@ -32,10 +35,25 @@ const C = {
     red: "#ef4444",
     blue: "#3b82f6",
     indigo: "#6366f1",
+    purple: "#8b5cf6",
     subText: "#64748b",
     darkText: "#0f172a",
     border: "#e2e8f0",
     bg: "#f8fafc",
+};
+
+const ACTION_CFG: Record<ActionType, { color: string; bg: string; label: string }> = {
+    create: { color: C.blue, bg: "#eff6ff", label: "CREATE" },
+    read: { color: C.green, bg: "#f0fdf4", label: "READ" },
+    update: { color: C.orange, bg: "#fffbeb", label: "UPDATE" },
+    delete: { color: C.red, bg: "#fef2f2", label: "DELETE" },
+    special: { color: C.purple, bg: "#faf5ff", label: "ACTION" },
+};
+
+const SCOPE_CFG: Record<ModuleScope, { color: string; bg: string; label: string; tagColor: string }> = {
+    core: { color: C.indigo, bg: "#eef2ff", label: "Core", tagColor: "default" },
+    hr: { color: C.blue, bg: "#eff6ff", label: "HR", tagColor: "blue" },
+    accounting: { color: C.purple, bg: "#faf5ff", label: "Accounting", tagColor: "purple" },
 };
 
 // ── Mobile hook ───────────────────────────────────────────────────────────────
@@ -49,531 +67,406 @@ const useIsMobile = () => {
     return v;
 };
 
-// ── HTTP method badge ─────────────────────────────────────────────────────────
-const METHOD_CFG: Record<string, { color: string; bg: string }> = {
-    GET: { color: C.green, bg: "#f0fdf4" },
-    POST: { color: C.blue, bg: "#eff6ff" },
-    PUT: { color: C.orange, bg: "#fffbeb" },
-    PATCH: { color: C.indigo, bg: "#eef2ff" },
-    DELETE: { color: C.red, bg: "#fef2f2" },
-};
-
-const MethodBadge: React.FC<{ method: string }> = ({ method }) => {
-    const m = method?.toUpperCase() || "GET";
-    const cfg = METHOD_CFG[m] || { color: C.subText, bg: C.bg };
+// ── Badge atoms ───────────────────────────────────────────────────────────────
+const ActionBadge: React.FC<{ action: ActionType }> = ({ action }) => {
+    const cfg = ACTION_CFG[action] ?? ACTION_CFG.special;
     return (
         <span
             style={{
-                background: cfg.bg,
-                color: cfg.color,
-                borderRadius: 5,
-                fontSize: 10,
-                fontWeight: 700,
-                padding: "2px 7px",
-                letterSpacing: "0.4px",
-                fontFamily: "monospace",
-                whiteSpace: "nowrap",
+                background: cfg.bg, color: cfg.color,
+                borderRadius: 4, fontSize: 10, fontWeight: 700,
+                padding: "2px 7px", fontFamily: "monospace",
+                whiteSpace: "nowrap", letterSpacing: "0.3px",
             }}
         >
-            {m}
+            {cfg.label}
         </span>
     );
 };
 
-// ── Group tag ─────────────────────────────────────────────────────────────────
-const GroupTag: React.FC<{ group: string }> = ({ group }) => (
-    <span
-        style={{
-            background: C.primaryLight,
-            color: C.primary,
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 600,
-            padding: "2px 9px",
-            whiteSpace: "nowrap",
-        }}
-    >
-        {group}
-    </span>
-);
-
-// ── Action cell ───────────────────────────────────────────────────────────────
-const ActionCell: React.FC<{
-    record: any;
-    actionRef: React.MutableRefObject<ActionType | undefined>;
-    onDelete: (id: string) => void;
-    deleteLoading: boolean;
-    isMobile?: boolean;
-}> = ({ record, actionRef, onDelete, deleteLoading, isMobile }) => {
-    const menuItems = [
-        {
-            key: "delete",
-            icon: <DeleteOutlined style={{ color: C.red }} />,
-            danger: true,
-            label: (
-                <Popconfirm
-                    title="Delete this permission?"
-                    description="This action cannot be undone."
-                    onConfirm={() => onDelete(record._id)}
-                    okText="Delete"
-                    cancelText="Cancel"
-                    okButtonProps={{ danger: true }}
-                >
-                    <span style={{ color: C.red }}>Delete</span>
-                </Popconfirm>
-            ),
-        },
-    ];
-
+const ScopeBadge: React.FC<{ scope: ModuleScope }> = ({ scope }) => {
+    const cfg = SCOPE_CFG[scope];
     return (
-        <Space size={4}>
-            <PermissionModal actionRef={actionRef} edit data={record} />
-            <Dropdown
-                menu={{ items: menuItems }}
-                trigger={["click"]}
-                placement={isMobile ? "topRight" : "bottomRight"}
-            >
-                <Button
-                    type="text"
-                    icon={<MoreOutlined />}
-                    loading={deleteLoading}
-                    style={{
-                        width: 30, height: 30, padding: 0, borderRadius: 7,
-                        border: `1px solid ${C.border}`,
-                        background: C.bg,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
-                />
-            </Dropdown>
-        </Space>
+        <span
+            style={{
+                background: cfg.bg, color: cfg.color,
+                borderRadius: 4, fontSize: 10, fontWeight: 600,
+                padding: "2px 7px", whiteSpace: "nowrap",
+            }}
+        >
+            {cfg.label}
+        </span>
     );
 };
 
-// ── Mobile permission card ────────────────────────────────────────────────────
-const PermissionCard: React.FC<{
-    record: any;
-    actionRef: React.MutableRefObject<ActionType | undefined>;
-    onDelete: (id: string) => void;
-    deleteLoading: boolean;
-}> = ({ record, actionRef, onDelete, deleteLoading }) => (
-    <Card
+const ModuleTag: React.FC<{ module: string }> = ({ module }) => (
+    <span
         style={{
-            borderRadius: 12,
-            marginBottom: 10,
-            border: `1px solid ${C.border}`,
-            boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+            background: C.primaryLight, color: C.primary,
+            borderRadius: 5, fontSize: 11, fontWeight: 600,
+            padding: "2px 8px", whiteSpace: "nowrap",
         }}
-        bodyStyle={{ padding: "12px 14px" }}
     >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-                <div
-                    style={{
-                        background: C.primaryLight,
-                        borderRadius: 8,
-                        width: 36,
-                        height: 36,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: C.primary,
-                        fontSize: 15,
-                        flexShrink: 0,
-                    }}
-                >
-                    <KeyOutlined />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                    <Text strong style={{ fontSize: 13, color: C.darkText, display: "block", lineHeight: 1.3 }}>
-                        {record.name}
-                    </Text>
-                    {record.group_name && <GroupTag group={record.group_name} />}
-                </div>
-            </div>
-            <ActionCell
-                record={record}
-                actionRef={actionRef}
-                onDelete={onDelete}
-                deleteLoading={deleteLoading}
-                isMobile
-            />
-        </div>
+        {module}
+    </span>
+);
 
-        {/* Route + method */}
-        <div
-            style={{
-                background: C.bg,
-                border: `1px solid ${C.border}`,
-                borderRadius: 8,
-                padding: "7px 10px",
-                marginBottom: 10,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                overflow: "hidden",
-            }}
-        >
-            <MethodBadge method={record.method} />
-            <Text
+// ── Stat card ─────────────────────────────────────────────────────────────────
+const StatCard: React.FC<{ label: string; value: number; color: string; bg: string; locked?: boolean }> = ({
+    label, value, color, bg, locked,
+}) => (
+    <div
+        style={{
+            background: locked ? C.bg : bg,
+            border: `1px solid ${C.border}`,
+            borderRadius: 10,
+            padding: "12px 16px",
+            flex: "1 1 90px",
+            minWidth: 80,
+            textAlign: "center",
+            opacity: locked ? 0.5 : 1,
+        }}
+    >
+        <Text style={{ fontSize: 22, fontWeight: 700, color: locked ? "#94a3b8" : color, display: "block", lineHeight: 1.2 }}>
+            {locked ? "—" : value}
+        </Text>
+        <Text style={{ fontSize: 11, color: "#94a3b8" }}>{label}</Text>
+        {locked && <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>not enabled</Text>}
+    </div>
+);
+
+// ── Mobile permission card ────────────────────────────────────────────────────
+const PermissionCard: React.FC<{ perm: Permission }> = ({ perm }) => (
+    <Card
+        style={{ borderRadius: 10, marginBottom: 8, border: `1px solid ${C.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+        bodyStyle={{ padding: "10px 12px" }}
+    >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
+            <div
                 style={{
-                    fontSize: 11,
-                    color: C.subText,
-                    fontFamily: "monospace",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    flex: 1,
+                    background: C.primaryLight, borderRadius: 7, width: 32, height: 32,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: C.primary, fontSize: 13, flexShrink: 0,
                 }}
             >
-                {record.route_url}
-            </Text>
+                <KeyOutlined />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <Text strong style={{ fontSize: 12, color: C.darkText, display: "block", lineHeight: 1.3 }}>{perm.label}</Text>
+                <Text style={{ fontSize: 10, color: C.subText, fontFamily: "monospace", display: "block", marginTop: 2 }}>{perm.key}</Text>
+            </div>
         </div>
-
-        {/* Dates */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {[
-                { label: "Created", value: new Date(record.createdAt).toLocaleDateString() },
-                { label: "Updated", value: new Date(record.updatedAt).toLocaleDateString() },
-            ].map(({ label, value }) => (
-                <div
-                    key={label}
-                    style={{
-                        background: C.bg,
-                        borderRadius: 8,
-                        padding: "6px 10px",
-                        border: `1px solid ${C.border}`,
-                    }}
-                >
-                    <Text style={{ fontSize: 10, color: "#94a3b8", display: "block", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4px" }}>
-                        {label}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: C.darkText, fontWeight: 500 }}>{value}</Text>
-                </div>
-            ))}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <ActionBadge action={perm.action} />
+            <ScopeBadge scope={perm.moduleScope} />
+            <ModuleTag module={perm.module} />
         </div>
     </Card>
 );
 
-// ── Mobile list ───────────────────────────────────────────────────────────────
-const MobilePermissionList: React.FC<{
-    actionRef: React.MutableRefObject<ActionType | undefined>;
-    onDelete: (id: string) => void;
-    deleteLoading: boolean;
-}> = ({ actionRef, onDelete, deleteLoading }) => {
-    const [permissions, setPermissions] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState("");
+// ── Grouped view ──────────────────────────────────────────────────────────────
+const GroupedView: React.FC<{ permissions: Permission[] }> = ({ permissions }) => {
+    const grouped = useMemo(() => {
+        return permissions.reduce<Record<string, Permission[]>>((acc, p) => {
+            if (!acc[p.module]) acc[p.module] = [];
+            acc[p.module].push(p);
+            return acc;
+        }, {});
+    }, [permissions]);
 
-    const load = async () => {
-        setLoading(true);
-        try {
-            const data = await fetchAllPermissions({});
-            setPermissions(Array.isArray(data) ? data : []);
-        } catch {
-            message.error("Failed to load permissions");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => { load(); }, []);
-
-    // expose reload to actionRef
-    useEffect(() => {
-        if (actionRef.current) {
-            (actionRef.current as any).reload = load;
-        }
-    }, [actionRef]);
-
-    const visible = search
-        ? permissions.filter(
-            (p) =>
-                p.name?.toLowerCase().includes(search.toLowerCase()) ||
-                p.group_name?.toLowerCase().includes(search.toLowerCase()) ||
-                p.route_url?.toLowerCase().includes(search.toLowerCase())
-        )
-        : permissions;
-
-    // Group counts by method for summary
-    const methodCounts = permissions.reduce((acc: Record<string, number>, p) => {
-        const m = p.method?.toUpperCase() || "OTHER";
-        acc[m] = (acc[m] || 0) + 1;
-        return acc;
-    }, {});
-
-    const topMethods = Object.entries(methodCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3);
+    if (!permissions.length)
+        return <Empty description="No permissions match your filter" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: "40px 0" }} />;
 
     return (
-        <div>
-            {/* Toolbar */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
-                <input
-                    placeholder="Search permissions…"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    style={{
-                        flex: 1, height: 36, borderRadius: 8,
-                        border: `1px solid ${C.border}`,
-                        padding: "0 12px", fontSize: 13, outline: "none",
-                        color: C.darkText, background: C.bg,
-                    }}
-                />
-                <Button
-                    icon={<ReloadOutlined />}
-                    onClick={load}
-                    loading={loading}
-                    style={{ borderRadius: 8, height: 36, width: 36, padding: 0, flexShrink: 0 }}
-                />
-                <PermissionModal actionRef={actionRef} />
-            </div>
-
-            {/* Summary strip */}
-            {!loading && permissions.length > 0 && (
-                <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(topMethods.length + 1, 4)}, 1fr)`, gap: 8, marginBottom: 14 }}>
-                    <div style={{ background: "#eef2ff", borderRadius: 8, padding: "8px 6px", textAlign: "center", border: `1px solid ${C.border}` }}>
-                        <Text style={{ fontSize: 16, fontWeight: 700, color: C.indigo, display: "block" }}>{permissions.length}</Text>
-                        <Text style={{ fontSize: 10, color: "#94a3b8" }}>Total</Text>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {Object.entries(grouped).map(([mod, perms]) => (
+                <div key={mod}>
+                    <div
+                        style={{
+                            display: "flex", alignItems: "center", gap: 10,
+                            marginBottom: 8, paddingBottom: 6,
+                            borderBottom: `2px solid ${C.border}`,
+                        }}
+                    >
+                        <Text strong style={{ fontSize: 13, color: C.darkText }}>{mod}</Text>
+                        <span
+                            style={{
+                                background: C.primaryLight, color: C.primary,
+                                borderRadius: 10, fontSize: 10, fontWeight: 700,
+                                padding: "1px 8px", border: `1px solid ${C.primary}30`,
+                            }}
+                        >
+                            {perms.length}
+                        </span>
+                        <ScopeBadge scope={perms[0].moduleScope} />
                     </div>
-                    {topMethods.map(([method, count]) => {
-                        const cfg = METHOD_CFG[method] || { color: C.subText, bg: C.bg };
-                        return (
-                            <div key={method} style={{ background: cfg.bg, borderRadius: 8, padding: "8px 6px", textAlign: "center", border: `1px solid ${C.border}` }}>
-                                <Text style={{ fontSize: 16, fontWeight: 700, color: cfg.color, display: "block" }}>{count}</Text>
-                                <Text style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace" }}>{method}</Text>
+                    <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+                        {perms.map((perm, idx) => (
+                            <div
+                                key={perm.key}
+                                style={{
+                                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                                    flexWrap: "wrap", gap: 8, padding: "8px 14px",
+                                    background: idx % 2 === 0 ? "#fff" : C.bg,
+                                    borderBottom: idx < perms.length - 1 ? `1px solid ${C.border}` : "none",
+                                }}
+                            >
+                                <div style={{ flex: 1, minWidth: 160 }}>
+                                    <Text style={{ fontSize: 12, color: C.darkText, fontWeight: 500 }}>{perm.label}</Text>
+                                    <Text style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace", display: "block", marginTop: 1 }}>{perm.key}</Text>
+                                </div>
+                                <ActionBadge action={perm.action} />
                             </div>
-                        );
-                    })}
+                        ))}
+                    </div>
                 </div>
-            )}
-
-            {/* Cards */}
-            {loading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                    <Card key={i} style={{ borderRadius: 12, marginBottom: 10, border: `1px solid ${C.border}` }} bodyStyle={{ padding: 14 }}>
-                        <Skeleton active paragraph={{ rows: 3 }} />
-                    </Card>
-                ))
-            ) : visible.length === 0 ? (
-                <Empty description="No permissions found" style={{ padding: "40px 0" }} />
-            ) : (
-                visible.map((record) => (
-                    <PermissionCard
-                        key={record._id}
-                        record={record}
-                        actionRef={actionRef}
-                        onDelete={onDelete}
-                        deleteLoading={deleteLoading}
-                    />
-                ))
-            )}
+            ))}
         </div>
+    );
+};
+
+// ── Table view ────────────────────────────────────────────────────────────────
+const TableView: React.FC<{ permissions: Permission[] }> = ({ permissions }) => {
+    const columns = [
+        {
+            title: "Permission",
+            key: "label",
+            render: (_: any, p: Permission) => (
+                <Space size={10} align="start">
+                    <div
+                        style={{
+                            background: C.primaryLight, borderRadius: 6, width: 26, height: 26,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            color: C.primary, fontSize: 11, flexShrink: 0,
+                        }}
+                    >
+                        <KeyOutlined />
+                    </div>
+                    <div>
+                        <Text strong style={{ fontSize: 12, color: C.darkText, display: "block" }}>{p.label}</Text>
+                        <Text style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace" }}>{p.key}</Text>
+                    </div>
+                </Space>
+            ),
+        },
+        {
+            title: "Module",
+            dataIndex: "module",
+            key: "module",
+            width: 220,
+            render: (v: string) => <ModuleTag module={v} />,
+        },
+        {
+            title: "Action",
+            dataIndex: "action",
+            key: "action",
+            width: 100,
+            render: (v: ActionType) => <ActionBadge action={v} />,
+        },
+        {
+            title: "Scope",
+            dataIndex: "moduleScope",
+            key: "scope",
+            width: 110,
+            render: (v: ModuleScope) => <ScopeBadge scope={v} />,
+        },
+    ];
+
+    return (
+        <Table
+            rowKey="key"
+            columns={columns}
+            dataSource={permissions}
+            pagination={{
+                pageSize: 20,
+                showSizeChanger: true,
+                showTotal: (total, range) => <Text style={{ fontSize: 12, color: C.subText }}>{range[0]}–{range[1]} of {total}</Text>,
+            }}
+            size="small"
+            scroll={{ x: 700 }}
+            locale={{ emptyText: <Empty description="No permissions match your filter" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+        />
     );
 };
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 function PermissionSettings() {
-    const actionRef = useRef<ActionType>();
     const isMobile = useIsMobile();
 
-    const deletePermissionMutation = useMutation(deletePermission, {
-        onSuccess: () => {
-            actionRef.current?.reload();
-            message.success("Permission deleted");
-        },
-        onError: () => message.error("Failed to delete permission"),
-    });
+    // ── Use the same robust tenant detection as RoleModal ──────────────────────
+    const { hasHR, hasAccounting } = useTenantModules();
 
-    const handleDelete = (id: string) => deletePermissionMutation.mutate(id);
+    const [search, setSearch] = useState("");
+    const [filterAction, setFilterAction] = useState<ActionType | "all">("all");
+    const [filterScope, setFilterScope] = useState<ModuleScope | "all">("all");
+    const [viewMode, setViewMode] = useState<"grouped" | "table">("grouped");
 
-    // ── Mobile ─────────────────────────────────────────────────────────────────
-    if (isMobile) {
-        return (
-            <MobilePermissionList
-                actionRef={actionRef as React.MutableRefObject<ActionType | undefined>}
-                onDelete={handleDelete}
-                deleteLoading={deletePermissionMutation.isLoading}
-            />
+    // All permissions scoped to this tenant's enabled modules
+    const tenantPerms = useMemo(
+        () =>
+            Object.values(PERMISSIONS).filter((p) => {
+                if (p.moduleScope === "core") return true;
+                if (p.moduleScope === "hr") return hasHR;
+                if (p.moduleScope === "accounting") return hasAccounting;
+                return false;
+            }),
+        [hasHR, hasAccounting]
+    );
+
+    // Filtered list
+    const filtered = useMemo(() => {
+        return tenantPerms.filter((p) => {
+            const matchSearch =
+                !search ||
+                p.label.toLowerCase().includes(search.toLowerCase()) ||
+                p.key.toLowerCase().includes(search.toLowerCase()) ||
+                p.module.toLowerCase().includes(search.toLowerCase());
+            const matchAction = filterAction === "all" || p.action === filterAction;
+            const matchScope = filterScope === "all" || p.moduleScope === filterScope;
+            return matchSearch && matchAction && matchScope;
+        });
+    }, [tenantPerms, search, filterAction, filterScope]);
+
+    // Stats — based on tenant-scoped perms
+    const stats = useMemo(() => {
+        return tenantPerms.reduce(
+            (acc, p) => {
+                acc.total++;
+                acc[p.moduleScope] = (acc[p.moduleScope] || 0) + 1;
+                return acc;
+            },
+            { total: 0, core: 0, hr: 0, accounting: 0 } as Record<string, number>
         );
-    }
+    }, [tenantPerms]);
 
-    // ── Desktop ────────────────────────────────────────────────────────────────
+    const moduleCount = useMemo(
+        () => new Set(tenantPerms.map((p) => p.module)).size,
+        [tenantPerms]
+    );
+
+    // Scope filter options — only show enabled modules
+    const scopeOptions = useMemo(() => {
+        const opts: { label: string; value: string }[] = [
+            { label: "All scopes", value: "all" },
+            { label: "Core (POS)", value: "core" },
+        ];
+        if (hasHR) opts.push({ label: "HR module", value: "hr" });
+        if (hasAccounting) opts.push({ label: "Accounting module", value: "accounting" });
+        return opts;
+    }, [hasHR, hasAccounting]);
+
     return (
-        <ProTable
-            columns={[
-                {
-                    title: "Name",
-                    dataIndex: "name",
-                    key: "name",
-                    fieldProps: { placeholder: "Search by name", allowClear: true },
-                    sorter: true,
-                    render: (_: any, record: any) => (
-                        <Space size={10}>
-                            <div
-                                style={{
-                                    background: C.primaryLight,
-                                    borderRadius: 7,
-                                    width: 28,
-                                    height: 28,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: C.primary,
-                                    fontSize: 12,
-                                    flexShrink: 0,
-                                }}
-                            >
-                                <KeyOutlined />
-                            </div>
-                            <Text strong style={{ fontSize: 13, color: C.darkText }}>
-                                {record.name}
-                            </Text>
-                        </Space>
-                    ),
-                },
-                {
-                    title: "Group",
-                    dataIndex: "group_name",
-                    key: "group_name",
-                    fieldProps: { placeholder: "Search by group", allowClear: true },
-                    sorter: true,
-                    width: 150,
-                    render: (value: string) => value ? <GroupTag group={value} /> : <Text style={{ color: "#94a3b8", fontSize: 12 }}>—</Text>,
-                },
-                {
-                    title: "Method",
-                    dataIndex: "method",
-                    key: "method",
-                    fieldProps: { placeholder: "Filter method", allowClear: true },
-                    sorter: true,
-                    width: 100,
-                    render: (value: string) => <MethodBadge method={value} />,
-                },
-                {
-                    title: "Route URL",
-                    dataIndex: "route_url",
-                    key: "route_url",
-                    fieldProps: { placeholder: "Search by route", allowClear: true },
-                    sorter: true,
-                    ellipsis: true,
-                    render: (value: string) => (
-                        <Text
-                            style={{
-                                fontSize: 12,
-                                color: C.subText,
-                                fontFamily: "monospace",
-                            }}
-                            ellipsis={{ tooltip: value }}
-                        >
-                            {value}
-                        </Text>
-                    ),
-                },
-                {
-                    title: "Created",
-                    dataIndex: "createdAt",
-                    key: "createdAt",
-                    search: false,
-                    sorter: true,
-                    width: 120,
-                    render: (value: string) => (
-                        <Text style={{ fontSize: 12, color: C.subText }}>
-                            {new Date(value).toLocaleDateString()}
-                        </Text>
-                    ),
-                },
-                {
-                    title: "Updated",
-                    dataIndex: "updatedAt",
-                    key: "updatedAt",
-                    search: false,
-                    sorter: true,
-                    width: 120,
-                    render: (value: string) => (
-                        <Text style={{ fontSize: 12, color: C.subText }}>
-                            {new Date(value).toLocaleDateString()}
-                        </Text>
-                    ),
-                },
-                {
-                    title: "Actions",
-                    key: "actions",
-                    search: false,
-                    width: 90,
-                    fixed: "right" as const,
-                    render: (_: any, record: any) => (
-                        <ActionCell
-                            record={record}
-                            actionRef={actionRef as React.MutableRefObject<ActionType | undefined>}
-                            onDelete={handleDelete}
-                            deleteLoading={deletePermissionMutation.isLoading}
-                        />
-                    ),
-                },
-            ]}
-            actionRef={actionRef}
-            rowKey="_id"
-            request={async (params) => {
-                try {
-                    const data = await fetchAllPermissions(params);
-                    return { data, success: true, total: data.length };
-                } catch {
-                    message.error("Failed to load permissions");
-                    return { data: [], success: false };
-                }
-            }}
-            headerTitle={
-                <Space size={8}>
-                    <div
-                        style={{
-                            background: C.primaryLight,
-                            borderRadius: 8,
-                            padding: "5px 6px",
-                            color: C.primary,
-                            fontSize: 15,
-                            lineHeight: 1,
-                        }}
-                    >
-                        <KeyOutlined />
+        <div>
+            {/* ── Header ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                <div style={{ background: C.primaryLight, borderRadius: 8, padding: "6px 7px", color: C.primary, fontSize: 16, lineHeight: 1 }}>
+                    <SafetyCertificateOutlined />
+                </div>
+                <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Text strong style={{ fontSize: 15, color: C.darkText }}>Permission Registry</Text>
+                        <Tag color="default" style={{ fontSize: 10 }}>Core</Tag>
+                        {hasHR && <Tag color="blue" style={{ fontSize: 10 }}>HR</Tag>}
+                        {hasAccounting && <Tag color="purple" style={{ fontSize: 10 }}>Accounting</Tag>}
+                        {!hasHR && <Tag style={{ fontSize: 10, color: "#94a3b8", borderColor: C.border }}>HR not enabled</Tag>}
+                        {!hasAccounting && <Tag style={{ fontSize: 10, color: "#94a3b8", borderColor: C.border }}>Accounting not enabled</Tag>}
                     </div>
-                    <Text strong style={{ fontSize: 14, color: C.darkText }}>
-                        Permission Settings
-                    </Text>
-                </Space>
-            }
-            pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showTotal: (total, range) => (
                     <Text style={{ fontSize: 12, color: C.subText }}>
-                        {range[0]}–{range[1]} of {total} permissions
+                        Showing permissions available for this tenant — read-only reference
                     </Text>
-                ),
-            }}
-            options={{
-                density: true,
-                fullScreen: true,
-                reload: () => actionRef.current?.reload(),
-                setting: true,
-            }}
-            tableAlertRender={({ selectedRowKeys }) =>
-                selectedRowKeys.length > 0
-                    ? <Text style={{ fontSize: 13 }}>{selectedRowKeys.length} selected</Text>
-                    : null
-            }
-            rowSelection={{ alwaysShowAlert: false, selections: true }}
-            search={{
-                searchText: "Search",
-                resetText: "Reset",
-                labelWidth: "auto",
-                filterType: "light",
-            }}
-            toolBarRender={() => [<PermissionModal key="addPermission" actionRef={actionRef} />]}
-            dateFormatter="string"
-            scroll={{ x: 900 }}
-        />
+                </div>
+            </div>
+
+            {/* ── Stats strip ── */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+                <StatCard label="Total" value={stats.total} color={C.indigo} bg="#eef2ff" />
+                <StatCard label="Modules" value={moduleCount} color={C.primary} bg={C.primaryLight} />
+                <StatCard label="Core" value={stats.core || 0} color={C.indigo} bg="#eef2ff" />
+                <StatCard label="HR" value={stats.hr || 0} color={C.blue} bg="#eff6ff" locked={!hasHR} />
+                <StatCard label="Accounting" value={stats.accounting || 0} color={C.purple} bg="#faf5ff" locked={!hasAccounting} />
+            </div>
+
+            {/* ── Filter bar ── */}
+            <div
+                style={{
+                    background: "#fff", border: `1px solid ${C.border}`,
+                    borderRadius: 10, padding: "12px 14px", marginBottom: 14,
+                    display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center",
+                }}
+            >
+                <Input
+                    prefix={<SearchOutlined style={{ color: "#94a3b8", fontSize: 13 }} />}
+                    placeholder="Search by name, key or module…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    allowClear
+                    style={{ flex: "1 1 220px", borderRadius: 8, height: 34, fontSize: 12 }}
+                />
+
+                <Select
+                    value={filterAction}
+                    onChange={(v) => setFilterAction(v)}
+                    style={{ width: 160, height: 34 }}
+                    options={[
+                        { label: "All actions", value: "all" },
+                        { label: "READ", value: "read" },
+                        { label: "CREATE", value: "create" },
+                        { label: "UPDATE", value: "update" },
+                        { label: "DELETE", value: "delete" },
+                        { label: "ACTION (Special)", value: "special" },
+                    ]}
+                />
+
+                <Select
+                    value={filterScope}
+                    onChange={(v) => setFilterScope(v as ModuleScope | "all")}
+                    style={{ width: 170, height: 34 }}
+                    options={scopeOptions}
+                />
+
+                {/* View toggle */}
+                <div
+                    style={{
+                        display: "flex", background: C.bg,
+                        border: `1px solid ${C.border}`, borderRadius: 8,
+                        overflow: "hidden", flexShrink: 0,
+                    }}
+                >
+                    {(["grouped", "table"] as const).map((mode) => (
+                        <button
+                            key={mode}
+                            onClick={() => setViewMode(mode)}
+                            style={{
+                                padding: "5px 12px", fontSize: 11, fontWeight: 600,
+                                border: "none", cursor: "pointer",
+                                background: viewMode === mode ? C.primary : "transparent",
+                                color: viewMode === mode ? "#fff" : C.subText,
+                                transition: "background 0.15s",
+                            }}
+                        >
+                            {mode === "grouped" ? "By Module" : "Flat List"}
+                        </button>
+                    ))}
+                </div>
+
+                <Text style={{ fontSize: 12, color: C.subText, flexShrink: 0 }}>
+                    {filtered.length} / {tenantPerms.length}
+                </Text>
+            </div>
+
+            {/* ── Content ── */}
+            {viewMode === "grouped" ? (
+                <GroupedView permissions={filtered} />
+            ) : isMobile ? (
+                filtered.length === 0 ? (
+                    <Empty description="No permissions match your filter" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: "40px 0" }} />
+                ) : (
+                    filtered.map((p) => <PermissionCard key={p.key} perm={p} />)
+                )
+            ) : (
+                <TableView permissions={filtered} />
+            )}
+        </div>
     );
 }
 

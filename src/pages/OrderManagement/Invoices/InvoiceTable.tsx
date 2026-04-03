@@ -18,6 +18,7 @@ import { convertQuoteToInvoice, recordInvoicePayment } from "@services/accountin
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import InvoiceReprintModal from "./InvoiceReprintModal";
+import ManualInvoiceModal from "./ManualInvoiceModal";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -510,12 +511,16 @@ const InvoicesTable = () => {
   const [mobileTotal, setMobileTotal] = useState(0);
   const [mobileFilters, setMobileFilters] = useState<any>({});
 
+  // ── ManualInvoiceModal state ───────────────────────────────────────────
+  const [manualModalOpen, setManualModalOpen] = useState(false);
+
   const [queryParams, setQueryParams] = useState({
     page: 1, limit: 10,
     start_date: dayjs().startOf("day").toISOString(),
     end_date: dayjs().endOf("day").toISOString(),
   });
 
+  // Reloads ProTable (desktop) and mobile list together
   const refreshTable = () => {
     actionRef.current?.reload();
     queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
@@ -658,10 +663,17 @@ const InvoicesTable = () => {
             padding: "12px 14px", background: C.bg, borderBottom: `1px solid ${C.border}`,
           }}>
             <Text strong style={{ fontSize: 14, color: C.darkText }}>Invoices & Quotes</Text>
-            <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
-              style={{ borderRadius: 8, borderColor: C.border }}>
-              Filter
-            </Button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button size="small" type="primary" icon={<FileDoneOutlined />}
+                onClick={() => setManualModalOpen(true)}
+                style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+                New Invoice
+              </Button>
+              <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
+                style={{ borderRadius: 8, borderColor: C.border }}>
+                Filter
+              </Button>
+            </div>
           </div>
 
           {/* Summary strip */}
@@ -713,6 +725,12 @@ const InvoicesTable = () => {
           <PaymentModal invoice={payTarget} open={!!payTarget}
             onClose={() => setPayTarget(null)} onSuccess={refreshTable} />
         )}
+
+        <ManualInvoiceModal
+          open={manualModalOpen}
+          onClose={() => setManualModalOpen(false)}
+          onSuccess={refreshTable}
+        />
       </>
     );
   }
@@ -738,6 +756,18 @@ const InvoicesTable = () => {
           searchText: "Search", resetText: "Reset",
           optionRender: (_, __, dom) => [...dom],
         }}
+        // "New Invoice" button in the ProTable toolbar
+        toolBarRender={() => [
+          <Button
+            key="new-invoice"
+            type="primary"
+            icon={<FileDoneOutlined />}
+            onClick={() => setManualModalOpen(true)}
+            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
+          >
+            New Invoice
+          </Button>,
+        ]}
         pagination={{
           pageSize: queryParams.limit, current: queryParams.page,
           showQuickJumper: true, showSizeChanger: true,
@@ -795,6 +825,13 @@ const InvoicesTable = () => {
         <PaymentModal invoice={payTarget} open={!!payTarget}
           onClose={() => setPayTarget(null)} onSuccess={refreshTable} />
       )}
+
+      {/* ManualInvoiceModal — onSuccess calls actionRef.reload() via refreshTable */}
+      <ManualInvoiceModal
+        open={manualModalOpen}
+        onClose={() => setManualModalOpen(false)}
+        onSuccess={refreshTable}
+      />
     </>
   );
 };

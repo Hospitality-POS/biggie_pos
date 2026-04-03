@@ -13,11 +13,11 @@ import {
   Image,
   Space,
   Drawer,
+  App,
 } from "antd";
 import {
   ArrowLeftOutlined,
   BellOutlined,
-  DashboardOutlined,
   DownOutlined,
   PoweroffOutlined,
   QuestionCircleOutlined,
@@ -26,6 +26,16 @@ import {
   MenuOutlined,
   CloseOutlined,
   RightOutlined,
+  PlusOutlined,
+  TeamOutlined,
+  ShopOutlined,
+  BankOutlined,
+  CreditCardOutlined,
+  FileTextOutlined,
+  FileExcelOutlined,
+  DollarOutlined,
+  RiseOutlined,
+  AuditOutlined,
 } from "@ant-design/icons";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
@@ -44,12 +54,20 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import useProLayoutNav from "./defaultprops";
 import React from "react";
+import { getCurrentTenantId } from "@services/tenants";
+
+import AddCustomerModal from "@pages/Customer/AddCustomerModal";
+import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
+import AddProPaymentMethodSettingsModal from "@components/MODALS/pro/AddProPaymentSettingsModal";
+import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import JournalEntryFormDrawer from "@pages/JournalEntry/JournalEntryFormDrawer";
+import ManualInvoiceModal from "@pages/OrderManagement/Invoices/ManualInvoiceModal";
+import ManualIncomeModal from "@pages/OrderManagement/Orders/ManualIncomeModal";
 
 dayjs.extend(relativeTime);
 
 const { Text, Title } = Typography;
 
-// ── Palette ────────────────────────────────────────────────────────────────
 const C = {
   primary: "#6c1c2c",
   primaryLight: "#f9f0f2",
@@ -63,7 +81,6 @@ const C = {
   bg: "#f8fafc",
 };
 
-// ── Mobile detection ───────────────────────────────────────────────────────
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
   useEffect(() => {
@@ -74,7 +91,6 @@ const useIsMobile = () => {
   return isMobile;
 };
 
-// ── Notification helpers ───────────────────────────────────────────────────
 const PRIORITY_COLORS: Record<string, string> = {
   low: "green", medium: "blue", high: "orange", urgent: "red",
 };
@@ -98,14 +114,22 @@ const renderTypeTag = (type: string) => {
   return <Tag color={config.color}>{config.label}</Tag>;
 };
 
-// ── Tenant type ────────────────────────────────────────────────────────────
 interface Tenant {
   tenant_code?: string;
   primary_color?: string;
   tenant_logo?: { url?: string };
 }
 
-// ── ProNavbar ──────────────────────────────────────────────────────────────
+type QuickCreateModal =
+  | "customer"
+  | "supplier"
+  | "coa"
+  | "journal"
+  | "payment-method"
+  | "invoice"
+  | "income-expense"
+  | null;
+
 const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -116,11 +140,14 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const primaryColor = usePrimaryColor();
   const isMobile = useIsMobile();
 
+  const shopId = getCurrentTenantId();
+
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
+  const [quickCreateModal, setQuickCreateModal] = useState<QuickCreateModal>(null);
 
   const isAdmin = user?.role === "admin";
 
@@ -133,7 +160,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     setMobileDrawerOpen(false);
   }, [location.pathname]);
 
-  // ── Notifications ─────────────────────────────────────────────────────
   const { data: notificationData, isLoading } = useQuery({
     queryKey: ["userNotifications", { limit: 10 }],
     queryFn: () => fetchMyNotifications({ pageSize: 10, current: 1 }),
@@ -181,7 +207,123 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
   const notificationsPath = isAdmin ? "/admin/notifications" : "/notifications";
 
-  // ── Notifications popover ────────────────────────────────────────────
+  const closeQuickCreate = () => setQuickCreateModal(null);
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["customers"] });
+    queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
+    queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+    queryClient.invalidateQueries({ queryKey: ["payment-methods"] });
+    queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+    queryClient.invalidateQueries({ queryKey: ["income-history"] });
+    queryClient.invalidateQueries({ queryKey: ["bank-imports"] });
+  };
+
+  const fakeActionRef = { current: { reload: invalidateAll, reset: invalidateAll } };
+
+  const quickCreateItems = [
+    {
+      type: "group" as const,
+      label: (
+        <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+          People
+        </Text>
+      ),
+      children: [
+        {
+          key: "customer",
+          icon: <TeamOutlined style={{ color: "#3b82f6" }} />,
+          label: <span style={{ fontSize: 13 }}>Customer</span>,
+          onClick: () => setQuickCreateModal("customer"),
+        },
+        {
+          key: "vendor",
+          icon: <ShopOutlined style={{ color: "#8b5cf6" }} />,
+          label: <span style={{ fontSize: 13 }}>Vendor / Supplier</span>,
+          onClick: () => setQuickCreateModal("supplier"),
+        },
+      ],
+    },
+    {
+      type: "group" as const,
+      label: (
+        <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+          Accounting
+        </Text>
+      ),
+      children: [
+        {
+          key: "coa",
+          icon: <BankOutlined style={{ color: "#0ea5e9" }} />,
+          label: <span style={{ fontSize: 13 }}>Chart of Account</span>,
+          onClick: () => setQuickCreateModal("coa"),
+        },
+        {
+          key: "journal",
+          icon: <AuditOutlined style={{ color: "#6366f1" }} />,
+          label: <span style={{ fontSize: 13 }}>Journal Entry</span>,
+          onClick: () => setQuickCreateModal("journal"),
+        },
+        {
+          key: "payment-method",
+          icon: <CreditCardOutlined style={{ color: "#f59e0b" }} />,
+          label: <span style={{ fontSize: 13 }}>Payment Method</span>,
+          onClick: () => setQuickCreateModal("payment-method"),
+        },
+        {
+          key: "bank-statement",
+          icon: <FileExcelOutlined style={{ color: "#16a34a" }} />,
+          label: <span style={{ fontSize: 13 }}>Bank Statement Import</span>,
+          onClick: () => navigate(isAdmin ? "/admin/accounting/bank-statements" : "/accounting/bank-statements"),
+        },
+      ],
+    },
+    {
+      type: "group" as const,
+      label: (
+        <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+          Transactions
+        </Text>
+      ),
+      children: [
+        {
+          key: "invoice",
+          icon: <FileTextOutlined style={{ color: "#10b981" }} />,
+          label: <span style={{ fontSize: 13 }}>Invoice / Quote</span>,
+          onClick: () => setQuickCreateModal("invoice"),
+        },
+        {
+          key: "income-expense",
+          icon: <RiseOutlined style={{ color: "#22c55e" }} />,
+          label: <span style={{ fontSize: 13 }}>Expense / Bill</span>,
+          onClick: () => setQuickCreateModal("income-expense"),
+        },
+      ],
+    },
+  ];
+
+  const QuickCreateButton = (
+    <Dropdown
+      menu={{ items: quickCreateItems }}
+      trigger={["click"]}
+      placement="bottomRight"
+      overlayStyle={{ minWidth: 220, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.14)" }}
+    >
+      <Button
+        icon={<PlusOutlined />}
+        shape="circle"
+        size="middle"
+        style={{
+          background: "rgba(255,255,255,0.15)",
+          border: "1px solid rgba(255,255,255,0.25)",
+          color: "white", width: 36, height: 36, fontSize: 16,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      />
+    </Dropdown>
+  );
+
   const notificationsContent = (
     <div style={{ width: 330, maxHeight: 460, overflow: "auto" }}>
       <div style={{
@@ -242,7 +384,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     </div>
   );
 
-  // ── Desktop user dropdown ────────────────────────────────────────────
   const userMenuItems = [
     {
       key: "profile",
@@ -277,24 +418,17 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       },
     },
     { type: "divider" as const },
-
-    // ── Back to Admin — top of list, prominent ──────────────────────
     ...(isAdmin ? [{
       key: "back-to-admin",
       icon: <ArrowLeftOutlined style={{ fontSize: 14, color: C.primary }} />,
-      label: (
-        <span style={{ fontWeight: 600, color: C.primary }}>Back to Admin Dashboard</span>
-      ),
+      label: <span style={{ fontWeight: 600, color: C.primary }}>Back to Admin Dashboard</span>,
       onClick: handleBackToAdmin,
       style: {
         padding: "8px 12px", margin: "2px 4px", borderRadius: 6,
-        background: C.primaryLight,
-        border: `1px solid ${C.primary}22`,
+        background: C.primaryLight, border: `1px solid ${C.primary}22`,
       },
     }] : []),
-
     ...(isAdmin ? [{ type: "divider" as const }] : []),
-
     {
       key: "notifications",
       icon: <BellOutlined style={{ fontSize: 15, color: "#52c41a" }} />,
@@ -340,9 +474,10 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     },
   ];
 
-  // ── Header action bar ────────────────────────────────────────────────
   const headerActions = (
     <Space size={isMobile ? 6 : "middle"} align="center">
+      {QuickCreateButton}
+
       <Popover
         content={notificationsContent}
         placement="bottomRight"
@@ -418,7 +553,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </Dropdown>
       )}
 
-      {/* Mobile avatar → opens drawer */}
       {isMobile && user && (
         <Badge dot color="green" offset={[-3, 26]}>
           <Avatar
@@ -433,7 +567,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
   const mobileNavItems = navRoutes?.route?.routes || [];
 
-  // ── Mobile drawer ────────────────────────────────────────────────────
   const MobileDrawer = (
     <Drawer
       open={mobileDrawerOpen}
@@ -446,7 +579,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         wrapper: { boxShadow: "4px 0 32px rgba(0,0,0,0.15)" },
       }}
     >
-      {/* Drawer header */}
       <div style={{
         background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}cc 100%)`,
         padding: "24px 20px 20px", position: "relative",
@@ -497,7 +629,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         )}
       </div>
 
-      {/* ── Back to Admin — prominent banner (admin only) ── */}
       {isAdmin && (
         <div
           onClick={handleBackToAdmin}
@@ -528,7 +659,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         </div>
       )}
 
-      {/* Nav routes */}
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
         {mobileNavItems.map((item: any) => {
           const isActive =
@@ -556,7 +686,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         })}
       </div>
 
-      {/* Bottom quick actions */}
       <div style={{ borderTop: `1px solid ${C.border}`, padding: "8px 0" }}>
         {[
           { icon: <BellOutlined />, label: "Notifications", path: notificationsPath, color: C.green, badge: unreadNotificationsCount },
@@ -591,9 +720,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     </Drawer>
   );
 
-  // ── ProLayout ────────────────────────────────────────────────────────
   return (
-    <>
+    <App>
       <style>{`
         .ant-pro-global-header svg,
         .ant-pro-global-header .anticon { color: white !important; }
@@ -607,6 +735,62 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       `}</style>
 
       {MobileDrawer}
+
+      {/* ── Quick-create modals ──────────────────────────────────────────── */}
+
+      {/* Customer */}
+      <AddCustomerModal
+        visible={quickCreateModal === "customer"}
+        onClose={closeQuickCreate}
+        onSuccess={() => { invalidateAll(); closeQuickCreate(); }}
+        mode="add"
+      />
+
+      {/* Supplier — externalOpen prop drives open state */}
+      <AddProSupplierModal
+        actionRef={fakeActionRef}
+        edit={false}
+        externalOpen={quickCreateModal === "supplier"}
+        onExternalClose={closeQuickCreate}
+      />
+
+      {/* Chart of Accounts */}
+      <AccountFormDrawer
+        open={quickCreateModal === "coa"}
+        onClose={closeQuickCreate}
+        onSuccess={() => { invalidateAll(); closeQuickCreate(); }}
+        editingAccount={null}
+        accounts={[]}
+        shopId={shopId}
+      />
+
+      {/* Journal Entry */}
+      <JournalEntryFormDrawer
+        open={quickCreateModal === "journal"}
+        onClose={closeQuickCreate}
+        onSuccess={() => { invalidateAll(); closeQuickCreate(); }}
+        shopId={shopId}
+      />
+
+      {/* Payment Method — externalOpen prop drives open state */}
+      <AddProPaymentMethodSettingsModal
+        actionRef={fakeActionRef}
+        edit={false}
+        externalOpen={quickCreateModal === "payment-method"}
+        onExternalClose={closeQuickCreate}
+      />
+
+      {/* Invoice / Quote */}
+      <ManualInvoiceModal
+        open={quickCreateModal === "invoice"}
+        onClose={closeQuickCreate}
+      />
+
+      {/* Income / Expense / Bill */}
+      <ManualIncomeModal
+        open={quickCreateModal === "income-expense"}
+        onClose={closeQuickCreate}
+      />
 
       <ProLayout
         style={{ maxWidth: "1920px" }}
@@ -707,7 +891,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       >
         {children}
 
-        {/* Notification details modal */}
         <Modal
           title="Notification Details"
           open={detailsModalVisible}
@@ -742,7 +925,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           )}
         </Modal>
       </ProLayout>
-    </>
+    </App>
   );
 };
 

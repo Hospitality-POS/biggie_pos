@@ -1,18 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Button,
-  Card,
   Checkbox,
   Drawer,
   Empty,
-  Form,
   Input,
   Modal,
-  Skeleton,
+  Select,
   Space,
   Steps,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import {
@@ -21,15 +20,22 @@ import {
   KeyOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
+  SearchOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { useEffect as useEffectAlias, useState as useStateAlias } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { createRole, updateRole } from "@services/Roles";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { fetchAllPermissions } from "@services/permission";
+import {
+  getPermissionsGroupedByModuleForTenant,
+  PERMISSIONS,
+  Permission,
+  ActionType,
+  ROLE_PRESETS,
+  ModuleScope,
+} from "@utils/accessControl";
+import { useTenantModules } from "@hooks/useTenantModules";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const C = {
@@ -40,10 +46,20 @@ const C = {
   red: "#ef4444",
   blue: "#3b82f6",
   indigo: "#6366f1",
+  purple: "#8b5cf6",
   subText: "#64748b",
   darkText: "#0f172a",
   border: "#e2e8f0",
   bg: "#f8fafc",
+};
+
+// ── Action badge config ───────────────────────────────────────────────────────
+const ACTION_CFG: Record<ActionType, { color: string; bg: string; label: string }> = {
+  create: { color: C.blue, bg: "#eff6ff", label: "CREATE" },
+  read: { color: C.green, bg: "#f0fdf4", label: "READ" },
+  update: { color: C.orange, bg: "#fffbeb", label: "UPDATE" },
+  delete: { color: C.red, bg: "#fef2f2", label: "DELETE" },
+  special: { color: C.purple, bg: "#faf5ff", label: "ACTION" },
 };
 
 // ── Mobile hook ───────────────────────────────────────────────────────────────
@@ -55,15 +71,6 @@ const useIsMobile = () => {
     return () => window.removeEventListener("resize", h);
   }, []);
   return v;
-};
-
-// ── HTTP method badge (for permission tooltips) ───────────────────────────────
-const METHOD_CFG: Record<string, { color: string; bg: string }> = {
-  GET: { color: C.green, bg: "#f0fdf4" },
-  POST: { color: C.blue, bg: "#eff6ff" },
-  PUT: { color: C.orange, bg: "#fffbeb" },
-  PATCH: { color: C.indigo, bg: "#eef2ff" },
-  DELETE: { color: C.red, bg: "#fef2f2" },
 };
 
 // ── Section label ─────────────────────────────────────────────────────────────
@@ -83,40 +90,42 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   </Text>
 );
 
-// ── Helper: group raw permissions by group_name ───────────────────────────────
-const groupPermissions = (permissions: any[]): Record<string, { id: string; name: string; method?: string }[]> =>
-  permissions.reduce((acc, p) => {
-    const key = p.group_name || "Other";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push({ id: p._id, name: p.name, method: p.method });
-    return acc;
-  }, {} as Record<string, { id: string; name: string; method?: string }[]>);
-
 // ── Permission group card ─────────────────────────────────────────────────────
 const PermissionGroupCard: React.FC<{
-  category: string;
-  permissions: { id: string; name: string; method?: string }[];
+  moduleName: string;
+  permissions: Permission[];
   selected: string[];
-  onToggle: (id: string, checked: boolean) => void;
-  onToggleAll: (category: string, checked: boolean) => void;
-}> = ({ category, permissions, selected, onToggle, onToggleAll }) => {
-  const selectedInGroup = permissions.filter((p) => selected.includes(p.id)).length;
-  const allChecked = selectedInGroup === permissions.length;
-  const indeterminate = selectedInGroup > 0 && !allChecked;
+  onToggle: (key: string, checked: boolean) => void;
+  onToggleAll: (keys: string[], checked: boolean) => void;
+}> = ({ moduleName, permissions, selected, onToggle, onToggleAll }) => {
+  const keys = permissions.map((p) => p.key);
+  const selectedCount = keys.filter((k) => selected.includes(k)).length;
+  const allChecked = selectedCount === keys.length && keys.length > 0;
+  const indeterminate = selectedCount > 0 && !allChecked;
+
+  // Colour the top border based on scope
+  const scopeColor =
+    permissions[0]?.moduleScope === "hr"
+      ? C.blue
+      : permissions[0]?.moduleScope === "accounting"
+        ? C.purple
+        : allChecked
+          ? C.primary
+          : C.border;
 
   return (
     <div
       style={{
         background: "#fff",
         border: `1px solid ${allChecked ? C.primary : C.border}`,
-        borderTop: `3px solid ${allChecked ? C.primary : C.border}`,
+        borderTop: `3px solid ${scopeColor}`,
         borderRadius: 10,
         overflow: "hidden",
-        flex: "1 0 200px",
-        minWidth: 180,
+        flex: "1 0 220px",
+        minWidth: 200,
       }}
     >
-      {/* Card header */}
+      {/* Header */}
       <div
         style={{
           background: allChecked ? C.primaryLight : C.bg,
@@ -131,43 +140,49 @@ const PermissionGroupCard: React.FC<{
         <Checkbox
           checked={allChecked}
           indeterminate={indeterminate}
-          onChange={(e) => onToggleAll(category, e.target.checked)}
+          onChange={(e) => onToggleAll(keys, e.target.checked)}
         >
-          <Text style={{ fontSize: 12, fontWeight: 600, color: allChecked ? C.primary : C.darkText }}>
-            {category}
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: allChecked ? C.primary : C.darkText,
+              lineHeight: 1.3,
+            }}
+          >
+            {moduleName}
           </Text>
         </Checkbox>
         <span
           style={{
-            background: selectedInGroup > 0 ? C.primaryLight : C.bg,
-            color: selectedInGroup > 0 ? C.primary : "#94a3b8",
+            background: selectedCount > 0 ? C.primaryLight : C.bg,
+            color: selectedCount > 0 ? C.primary : "#94a3b8",
             borderRadius: 10,
             fontSize: 10,
             fontWeight: 700,
             padding: "1px 7px",
-            border: `1px solid ${selectedInGroup > 0 ? C.primary : C.border}`,
+            border: `1px solid ${selectedCount > 0 ? C.primary : C.border}`,
             whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
-          {selectedInGroup}/{permissions.length}
+          {selectedCount}/{keys.length}
         </span>
       </div>
 
       {/* Permission rows */}
-      <div style={{ padding: "6px 0" }}>
-        {permissions.map((permission) => {
-          const checked = selected.includes(permission.id);
-          const methodCfg = permission.method
-            ? METHOD_CFG[permission.method?.toUpperCase()] || null
-            : null;
+      <div style={{ padding: "4px 0" }}>
+        {permissions.map((perm) => {
+          const checked = selected.includes(perm.key);
+          const cfg = ACTION_CFG[perm.action] ?? ACTION_CFG.special;
           return (
             <label
-              key={permission.id}
+              key={perm.key}
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                padding: "6px 12px",
+                padding: "5px 12px",
                 cursor: "pointer",
                 background: checked ? `${C.primary}08` : "transparent",
                 borderBottom: `1px solid ${C.border}`,
@@ -176,29 +191,36 @@ const PermissionGroupCard: React.FC<{
             >
               <Checkbox
                 checked={checked}
-                onChange={(e) => onToggle(permission.id, e.target.checked)}
-                style={{ flex: 1 }}
+                onChange={(e) => onToggle(perm.key, e.target.checked)}
+                style={{ flex: 1, minWidth: 0 }}
               >
-                <Text style={{ fontSize: 12, color: checked ? C.primary : C.darkText, fontWeight: checked ? 500 : 400 }}>
-                  {permission.name}
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: checked ? C.primary : C.darkText,
+                    fontWeight: checked ? 500 : 400,
+                  }}
+                >
+                  {perm.label}
                 </Text>
               </Checkbox>
-              {methodCfg && (
+              <Tooltip title={perm.key} placement="left">
                 <span
                   style={{
-                    background: methodCfg.bg,
-                    color: methodCfg.color,
+                    background: cfg.bg,
+                    color: cfg.color,
                     borderRadius: 4,
                     fontSize: 9,
                     fontWeight: 700,
                     padding: "1px 5px",
                     fontFamily: "monospace",
                     flexShrink: 0,
+                    cursor: "help",
                   }}
                 >
-                  {permission.method?.toUpperCase()}
+                  {cfg.label}
                 </span>
-              )}
+              </Tooltip>
             </label>
           );
         })}
@@ -207,129 +229,294 @@ const PermissionGroupCard: React.FC<{
   );
 };
 
-// ── Step 1: Basic info ────────────────────────────────────────────────────────
+// ── Step 1: Basic Info ────────────────────────────────────────────────────────
 const StepBasicInfo: React.FC<{
   roleType: string;
   onChange: (v: string) => void;
   error?: string;
-}> = ({ roleType, onChange, error }) => (
-  <div
-    style={{
-      background: C.bg,
-      border: `1px solid ${C.border}`,
-      borderRadius: 10,
-      padding: "16px 16px 10px",
-    }}
-  >
-    <SectionLabel>Role Details</SectionLabel>
-    <div style={{ marginBottom: 4 }}>
-      <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 6 }}>
-        Role Type <span style={{ color: C.red }}>*</span>
-      </Text>
-      <Input
-        value={roleType}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="e.g. cashier, supervisor"
-        style={{ borderRadius: 8, height: 38, fontSize: 13 }}
-        status={error ? "error" : undefined}
-      />
-      {error && (
-        <Text style={{ fontSize: 12, color: C.red, marginTop: 4, display: "block" }}>
-          {error}
+  onApplyPreset: (keys: string[]) => void;
+  hasHR: boolean;
+  hasAccounting: boolean;
+}> = ({ roleType, onChange, error, onApplyPreset, hasHR, hasAccounting }) => {
+  const presetOptions = Object.entries(ROLE_PRESETS)
+    .filter(([name]) => {
+      if ((name.startsWith("HR_") || name === "HR_MANAGER" || name === "HR_STAFF") && !hasHR)
+        return false;
+      if (
+        (name.startsWith("ACCOUNT") || name === "ACCOUNTANT" || name === "ACCOUNTING_VIEWER") &&
+        !hasAccounting
+      )
+        return false;
+      return true;
+    })
+    .map(([name, keys]) => ({
+      label: name
+        .replace(/_/g, " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+      value: name,
+      keys,
+    }));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Role type input */}
+      <div
+        style={{
+          background: C.bg,
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: "16px 16px 12px",
+        }}
+      >
+        <SectionLabel>Role Details</SectionLabel>
+        <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 6 }}>
+          Role Type <span style={{ color: C.red }}>*</span>
         </Text>
-      )}
+        <Input
+          value={roleType}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="e.g. cashier, supervisor, accountant"
+          style={{ borderRadius: 8, height: 38, fontSize: 13 }}
+          status={error ? "error" : undefined}
+          prefix={<UserOutlined style={{ color: "#94a3b8" }} />}
+        />
+        {error && (
+          <Text style={{ fontSize: 12, color: C.red, marginTop: 4, display: "block" }}>
+            {error}
+          </Text>
+        )}
+        <Text style={{ fontSize: 11, color: C.subText, marginTop: 8, display: "block", lineHeight: 1.5 }}>
+          Use lowercase. This identifies the role across the system.
+        </Text>
+      </div>
+
+      {/* Active modules indicator */}
+      <div
+        style={{
+          background: C.bg,
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: "12px 16px",
+        }}
+      >
+        <SectionLabel>Active Modules for this Tenant</SectionLabel>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Tag color="default" style={{ fontSize: 11 }}>✓ Core (POS)</Tag>
+          {hasHR ? (
+            <Tag color="blue" style={{ fontSize: 11 }}>✓ HR Module</Tag>
+          ) : (
+            <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ HR (not enabled)</Tag>
+          )}
+          {hasAccounting ? (
+            <Tag color="purple" style={{ fontSize: 11 }}>✓ Accounting Module</Tag>
+          ) : (
+            <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ Accounting (not enabled)</Tag>
+          )}
+        </div>
+        <Text style={{ fontSize: 11, color: C.subText, marginTop: 8, display: "block" }}>
+          Only permissions for active modules are shown on Step 2.
+        </Text>
+      </div>
+
+      {/* Preset selector */}
+      <div
+        style={{
+          background: C.bg,
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: "16px 16px 12px",
+        }}
+      >
+        <SectionLabel>Quick-load a Permission Preset</SectionLabel>
+        <Text style={{ fontSize: 12, color: C.subText, display: "block", marginBottom: 10 }}>
+          Start from a preset — you can customise on the next step.
+        </Text>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {presetOptions.map((p) => (
+            <button
+              key={p.value}
+              onClick={() => onApplyPreset(p.keys)}
+              style={{
+                background: "#fff",
+                border: `1.5px solid ${C.border}`,
+                borderRadius: 7,
+                padding: "5px 12px",
+                fontSize: 12,
+                fontWeight: 500,
+                color: C.darkText,
+                cursor: "pointer",
+                transition: "border-color 0.15s, color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = C.primary;
+                (e.currentTarget as HTMLButtonElement).style.color = C.primary;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = C.border;
+                (e.currentTarget as HTMLButtonElement).style.color = C.darkText;
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
-    <Text style={{ fontSize: 11, color: C.subText, marginTop: 8, display: "block" }}>
-      Role type is used to identify the staff role across the system. Use lowercase.
-    </Text>
-  </div>
-);
+  );
+};
 
 // ── Step 2: Permissions ───────────────────────────────────────────────────────
 const StepPermissions: React.FC<{
-  permissions: Record<string, { id: string; name: string; method?: string }[]>;
-  loading: boolean;
+  groupedPermissions: Record<string, Permission[]>;
+  hasHR: boolean;
+  hasAccounting: boolean;
   selected: string[];
-  onToggle: (id: string, checked: boolean) => void;
-  onToggleAll: (category: string, checked: boolean) => void;
-}> = ({ permissions, loading, selected, onToggle, onToggleAll }) => {
-  const totalCount = Object.values(permissions).flat().length;
+  onToggle: (key: string, checked: boolean) => void;
+  onToggleAll: (keys: string[], checked: boolean) => void;
+}> = ({ groupedPermissions, hasHR, hasAccounting, selected, onToggle, onToggleAll }) => {
+  const [search, setSearch] = useState("");
+  const [filterScope, setFilterScope] = useState<ModuleScope | "all">("all");
+
+  const totalCount = useMemo(
+    () => Object.values(groupedPermissions).flat().length,
+    [groupedPermissions]
+  );
   const selectedCount = selected.length;
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i} style={{ borderRadius: 10, border: `1px solid ${C.border}` }} bodyStyle={{ padding: 12 }}>
-            <Skeleton active paragraph={{ rows: 3 }} />
-          </Card>
-        ))}
-      </div>
+  const filteredGroups = useMemo(() => {
+    return Object.entries(groupedPermissions).reduce<Record<string, Permission[]>>(
+      (acc, [mod, perms]) => {
+        const filtered = perms.filter((p) => {
+          const matchSearch =
+            !search ||
+            p.label.toLowerCase().includes(search.toLowerCase()) ||
+            p.key.toLowerCase().includes(search.toLowerCase());
+          const matchScope = filterScope === "all" || p.moduleScope === filterScope;
+          return matchSearch && matchScope;
+        });
+        if (filtered.length) acc[mod] = filtered;
+        return acc;
+      },
+      {}
     );
-  }
+  }, [groupedPermissions, search, filterScope]);
 
-  if (!totalCount) {
-    return (
-      <Empty
-        description="No permissions found"
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        style={{ padding: "32px 0" }}
-      />
-    );
-  }
+  const allKeys = useMemo(
+    () => Object.values(groupedPermissions).flat().map((p) => p.key),
+    [groupedPermissions]
+  );
+
+  // Build scope filter options only for enabled modules
+  const scopeOptions = useMemo(() => {
+    const opts: { label: string; value: string }[] = [
+      { label: "All modules", value: "all" },
+      { label: "Core (POS)", value: "core" },
+    ];
+    if (hasHR) opts.push({ label: "HR module", value: "hr" });
+    if (hasAccounting) opts.push({ label: "Accounting module", value: "accounting" });
+    return opts;
+  }, [hasHR, hasAccounting]);
 
   return (
     <>
-      {/* Selection summary */}
+      {/* Controls bar */}
       <div
         style={{
-          background: selectedCount > 0 ? C.primaryLight : C.bg,
-          border: `1px solid ${selectedCount > 0 ? C.primary : C.border}`,
-          borderRadius: 8,
-          padding: "9px 14px",
-          marginBottom: 14,
           display: "flex",
-          alignItems: "center",
           gap: 8,
+          flexWrap: "wrap",
+          marginBottom: 12,
+          alignItems: "center",
         }}
       >
-        <KeyOutlined style={{ color: selectedCount > 0 ? C.primary : "#94a3b8", fontSize: 14 }} />
-        <Text style={{ fontSize: 13, color: selectedCount > 0 ? C.primary : C.subText, fontWeight: 600 }}>
-          {selectedCount} / {totalCount} permissions selected
-        </Text>
-        {selectedCount > 0 && (
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: 11,
-              color: C.subText,
-              cursor: "pointer",
-              textDecoration: "underline",
-            }}
-            onClick={() =>
-              Object.entries(permissions).forEach(([cat]) =>
-                onToggleAll(cat, false)
-              )
-            }
+        {/* Selection summary */}
+        <div
+          style={{
+            background: selectedCount > 0 ? C.primaryLight : C.bg,
+            border: `1px solid ${selectedCount > 0 ? C.primary : C.border}`,
+            borderRadius: 8,
+            padding: "6px 12px",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            flexShrink: 0,
+          }}
+        >
+          <KeyOutlined style={{ color: selectedCount > 0 ? C.primary : "#94a3b8", fontSize: 13 }} />
+          <Text style={{ fontSize: 12, color: selectedCount > 0 ? C.primary : C.subText, fontWeight: 600 }}>
+            {selectedCount} / {totalCount}
+          </Text>
+        </div>
+
+        {/* Search */}
+        <Input
+          prefix={<SearchOutlined style={{ color: "#94a3b8", fontSize: 12 }} />}
+          placeholder="Search permissions…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          allowClear
+          style={{ borderRadius: 8, height: 34, flex: "1 1 160px", fontSize: 12 }}
+        />
+
+        {/* Scope filter — only shows enabled modules */}
+        <Select
+          value={filterScope}
+          onChange={(v) => setFilterScope(v as ModuleScope | "all")}
+          style={{ width: 170, height: 34 }}
+          options={scopeOptions}
+        />
+
+        {/* Select / clear all */}
+        <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+          <Button
+            size="small"
+            style={{ borderRadius: 7, fontSize: 11 }}
+            onClick={() => onToggleAll(allKeys, true)}
+          >
+            Select all
+          </Button>
+          <Button
+            size="small"
+            style={{ borderRadius: 7, fontSize: 11 }}
+            disabled={selectedCount === 0}
+            onClick={() => onToggleAll(allKeys, false)}
           >
             Clear all
-          </span>
-        )}
+          </Button>
+        </div>
       </div>
 
-      {/* Permission groups — responsive flex wrap */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-        {Object.entries(permissions).map(([category, perms]) => (
-          <PermissionGroupCard
-            key={category}
-            category={category}
-            permissions={perms}
-            selected={selected}
-            onToggle={onToggle}
-            onToggleAll={onToggleAll}
-          />
-        ))}
-      </div>
+      {/* Module scope section headers */}
+      {(hasHR || hasAccounting) && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: C.subText }}>Showing permissions for:</span>
+          <Tag color="default" style={{ fontSize: 11, margin: 0 }}>Core</Tag>
+          {hasHR && <Tag color="blue" style={{ fontSize: 11, margin: 0 }}>HR</Tag>}
+          {hasAccounting && <Tag color="purple" style={{ fontSize: 11, margin: 0 }}>Accounting</Tag>}
+        </div>
+      )}
+
+      {Object.keys(filteredGroups).length === 0 ? (
+        <Empty
+          description="No permissions match your filter"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          style={{ padding: "32px 0" }}
+        />
+      ) : (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+          {Object.entries(filteredGroups).map(([mod, perms]) => (
+            <PermissionGroupCard
+              key={mod}
+              moduleName={mod}
+              permissions={perms}
+              selected={selected}
+              onToggle={onToggle}
+              onToggleAll={onToggleAll}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 };
@@ -338,9 +525,25 @@ const StepPermissions: React.FC<{
 const StepReview: React.FC<{
   roleType: string;
   selected: string[];
-  permissions: Record<string, { id: string; name: string }[]>;
-}> = ({ roleType, selected, permissions }) => {
-  const allPerms = Object.values(permissions).flat();
+}> = ({ roleType, selected }) => {
+  const grouped = useMemo(() => {
+    return selected.reduce<Record<string, Permission[]>>((acc, key) => {
+      const perm = PERMISSIONS[key];
+      if (!perm) return acc;
+      if (!acc[perm.module]) acc[perm.module] = [];
+      acc[perm.module].push(perm);
+      return acc;
+    }, {});
+  }, [selected]);
+
+  // Count by scope for summary
+  const scopeCounts = useMemo(() => {
+    return selected.reduce<Record<string, number>>((acc, key) => {
+      const scope = PERMISSIONS[key]?.moduleScope;
+      if (scope) acc[scope] = (acc[scope] || 0) + 1;
+      return acc;
+    }, {});
+  }, [selected]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -373,7 +576,50 @@ const StepReview: React.FC<{
         )}
       </div>
 
-      {/* Permissions */}
+      {/* Permission scope summary */}
+      {selected.length > 0 && (
+        <div
+          style={{
+            background: C.bg,
+            border: `1px solid ${C.border}`,
+            borderRadius: 10,
+            padding: "14px 16px",
+          }}
+        >
+          <SectionLabel>Module Coverage</SectionLabel>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {Object.entries(scopeCounts).map(([scope, count]) => {
+              const colors: Record<string, { color: string; bg: string }> = {
+                core: { color: C.indigo, bg: "#eef2ff" },
+                hr: { color: C.blue, bg: "#eff6ff" },
+                accounting: { color: C.purple, bg: "#faf5ff" },
+              };
+              const cfg = colors[scope] || { color: C.subText, bg: C.bg };
+              return (
+                <div
+                  key={scope}
+                  style={{
+                    background: cfg.bg,
+                    border: `1px solid ${cfg.color}30`,
+                    borderRadius: 8,
+                    padding: "8px 14px",
+                    textAlign: "center",
+                  }}
+                >
+                  <Text style={{ fontSize: 18, fontWeight: 700, color: cfg.color, display: "block" }}>
+                    {count}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: cfg.color, textTransform: "capitalize" }}>
+                    {scope}
+                  </Text>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Permissions by module */}
       <div
         style={{
           background: C.bg,
@@ -384,28 +630,47 @@ const StepReview: React.FC<{
       >
         <SectionLabel>Selected Permissions ({selected.length})</SectionLabel>
         {selected.length === 0 ? (
-          <Text style={{ color: "#94a3b8", fontSize: 13 }}>No permissions selected</Text>
+          <Text style={{ color: "#94a3b8", fontSize: 13 }}>No permissions selected.</Text>
         ) : (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {selected.map((permId) => {
-              const perm = allPerms.find((p) => p.id === permId);
-              return perm ? (
-                <span
-                  key={permId}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {Object.entries(grouped).map(([mod, perms]) => (
+              <div key={mod}>
+                <Text
                   style={{
-                    background: C.primaryLight,
-                    color: C.primary,
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 500,
-                    padding: "3px 9px",
-                    border: `1px solid ${C.primary}30`,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: C.subText,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.4px",
+                    display: "block",
+                    marginBottom: 5,
                   }}
                 >
-                  {perm.name}
-                </span>
-              ) : null;
-            })}
+                  {mod}
+                </Text>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {perms.map((p) => {
+                    const cfg = ACTION_CFG[p.action] ?? ACTION_CFG.special;
+                    return (
+                      <span
+                        key={p.key}
+                        style={{
+                          background: cfg.bg,
+                          color: cfg.color,
+                          borderRadius: 5,
+                          fontSize: 11,
+                          fontWeight: 500,
+                          padding: "2px 8px",
+                          border: `1px solid ${cfg.color}30`,
+                        }}
+                      >
+                        {p.label}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -414,7 +679,7 @@ const StepReview: React.FC<{
         <Alert
           type="warning"
           showIcon
-          message="Role type is required. Go back to Step 1 to enter a role type."
+          message="Role type is required. Go back to Step 1."
           style={{ borderRadius: 8 }}
         />
       )}
@@ -422,44 +687,45 @@ const StepReview: React.FC<{
   );
 };
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ══════════════════════════════════════════════════════════════════
 const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
   edit,
   data,
   actionRef,
 }) => {
+  const isMobile = useIsMobile();
+
+  // ── Tenant modules — robust multi-source detection ─────────────────────────
+  const { hasHR, hasAccounting } = useTenantModules();
+
+  // Rebuild whenever tenant module flags change
+  const groupedPermissions = useMemo(
+    () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting }),
+    [hasHR, hasAccounting]
+  );
+
   const [open, setOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [roleType, setRoleType] = useState("");
   const [roleTypeError, setRoleTypeError] = useState("");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const isMobile = useIsMobile();
 
-  // ── Permissions query ───────────────────────────────────────────────────────
-  const { data: PERMISSIONS = {}, isLoading: permLoading } = useQuery({
-    queryKey: ["permissions"],
-    queryFn: async () => {
-      const perms = await fetchAllPermissions({ someParam: "value" });
-      return groupPermissions(perms);
-    },
-    retry: 1,
-    networkMode: "always",
-  });
-
-  // ── Populate on open ────────────────────────────────────────────────────────
+  // ── Populate when editing ──────────────────────────────────────────────────
   useEffect(() => {
     if (open && edit && data) {
       setRoleType(data.role_type || "");
       setSelectedPermissions(
         (data.permissions || []).map((p: any) =>
-          typeof p === "string" ? p : p._id
-        )
+          typeof p === "string" ? p : p.key || p._id || ""
+        ).filter(Boolean)
       );
     }
   }, [open, edit, data]);
 
-  // ── Open / close ────────────────────────────────────────────────────────────
+  // ── Open / close ───────────────────────────────────────────────────────────
   const handleOpen = (next: boolean) => {
     setOpen(next);
     if (!next) {
@@ -471,21 +737,26 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
     }
   };
 
-  // ── Permission toggles ──────────────────────────────────────────────────────
-  const handleToggle = (id: string, checked: boolean) =>
+  // ── Permission toggles ─────────────────────────────────────────────────────
+  const handleToggle = (key: string, checked: boolean) =>
     setSelectedPermissions((prev) =>
-      checked ? [...prev, id] : prev.filter((x) => x !== id)
+      checked ? [...prev, key] : prev.filter((k) => k !== key)
     );
 
-  const handleToggleAll = (category: string, checked: boolean) => {
-    const catIds = (PERMISSIONS[category] || []).map((p) => p.id);
+  const handleToggleAll = (keys: string[], checked: boolean) =>
     setSelectedPermissions((prev) => {
-      const others = prev.filter((p) => !catIds.includes(p));
-      return checked ? [...others, ...catIds] : others;
+      const others = prev.filter((k) => !keys.includes(k));
+      return checked ? [...others, ...keys] : others;
     });
+
+  const handleApplyPreset = (keys: string[]) => {
+    const validKeys = new Set(
+      Object.values(groupedPermissions).flat().map((p) => p.key)
+    );
+    setSelectedPermissions(keys.filter((k) => validKeys.has(k)));
   };
 
-  // ── Step navigation ─────────────────────────────────────────────────────────
+  // ── Step navigation ────────────────────────────────────────────────────────
   const handleNext = () => {
     if (currentStep === 0) {
       if (!roleType.trim()) {
@@ -499,25 +770,23 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
 
   const handlePrev = () => setCurrentStep((s) => Math.max(s - 1, 0));
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!roleType.trim()) {
       setCurrentStep(0);
       setRoleTypeError("Role type is required");
       return;
     }
-
     const confirmed = await ShowConfirm({
       title: `${edit ? "Update" : "Create"} role "${roleType}"?`,
       position: true,
     });
     if (!confirmed) return;
-
     setSubmitting(true);
     try {
       const payload = {
-        role_type: roleType,
-        permissions: selectedPermissions.map((id) => ({ _id: id })),
+        role_type: roleType.trim().toLowerCase(),
+        permissions: selectedPermissions,
       };
       edit
         ? await updateRole({ values: payload, _id: data?._id })
@@ -525,13 +794,13 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
       actionRef?.current?.reload();
       handleOpen(false);
     } catch {
-      // errors handled by services
+      // service layer handles toasts
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ── Step definitions ────────────────────────────────────────────────────────
+  // ── Steps ──────────────────────────────────────────────────────────────────
   const STEPS = [
     { title: "Basic Info", icon: <UserOutlined /> },
     { title: "Permissions", icon: <SafetyCertificateOutlined /> },
@@ -544,11 +813,15 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
       roleType={roleType}
       onChange={(v) => { setRoleType(v); setRoleTypeError(""); }}
       error={roleTypeError}
+      onApplyPreset={handleApplyPreset}
+      hasHR={hasHR}
+      hasAccounting={hasAccounting}
     />,
     <StepPermissions
       key="perms"
-      permissions={PERMISSIONS}
-      loading={permLoading}
+      groupedPermissions={groupedPermissions}
+      hasHR={hasHR}
+      hasAccounting={hasAccounting}
       selected={selectedPermissions}
       onToggle={handleToggle}
       onToggleAll={handleToggleAll}
@@ -557,11 +830,10 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
       key="review"
       roleType={roleType}
       selected={selectedPermissions}
-      permissions={PERMISSIONS}
     />,
   ];
 
-  // ── Shared footer ───────────────────────────────────────────────────────────
+  // ── Shared footer ──────────────────────────────────────────────────────────
   const footer = (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
       <Button
@@ -572,11 +844,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
         ← Back
       </Button>
       <div style={{ display: "flex", gap: 10 }}>
-        <Button
-          onClick={() => handleOpen(false)}
-          disabled={submitting}
-          style={{ borderRadius: 8 }}
-        >
+        <Button onClick={() => handleOpen(false)} disabled={submitting} style={{ borderRadius: 8 }}>
           Cancel
         </Button>
         {currentStep < 2 ? (
@@ -601,7 +869,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
     </div>
   );
 
-  // ── Modal title ─────────────────────────────────────────────────────────────
+  // ── Modal title ────────────────────────────────────────────────────────────
   const modalTitle = (
     <Space size={8}>
       <div
@@ -617,12 +885,16 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
         {edit ? <EditOutlined /> : <PlusOutlined />}
       </div>
       <Text strong style={{ fontSize: 13, color: C.darkText }}>
-        {edit ? "Edit Role" : "New Role"}
+        {edit ? `Edit Role — ${data?.role_type || ""}` : "New Role"}
       </Text>
+      <div style={{ display: "flex", gap: 4 }}>
+        <Tag color="default" style={{ fontSize: 10, margin: 0 }}>Core</Tag>
+        {hasHR && <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>HR</Tag>}
+        {hasAccounting && <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>Accounting</Tag>}
+      </div>
     </Space>
   );
 
-  // ── Step indicator ──────────────────────────────────────────────────────────
   const stepIndicator = (
     <Steps
       current={currentStep}
@@ -632,7 +904,6 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
     />
   );
 
-  // ── Trigger ─────────────────────────────────────────────────────────────────
   const triggerButton = edit ? (
     <Button
       size="small"
@@ -646,19 +917,14 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
     <Button
       type="primary"
       icon={<PlusOutlined />}
-      style={{
-        background: C.primary,
-        borderColor: C.primary,
-        borderRadius: 7,
-        fontWeight: 500,
-      }}
+      style={{ background: C.primary, borderColor: C.primary, borderRadius: 7, fontWeight: 500 }}
       onClick={() => handleOpen(true)}
     >
       {isMobile ? "Add" : "New Role"}
     </Button>
   );
 
-  // ── Mobile: Drawer ──────────────────────────────────────────────────────────
+  // ── Mobile: Drawer ─────────────────────────────────────────────────────────
   if (isMobile) {
     return (
       <>
@@ -672,11 +938,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
           title={modalTitle}
           styles={{
             body: { padding: "14px 14px 110px", overflowY: "auto" },
-            footer: {
-              padding: "12px 14px",
-              borderTop: `1px solid ${C.border}`,
-              background: "#fff",
-            },
+            footer: { padding: "12px 14px", borderTop: `1px solid ${C.border}`, background: "#fff" },
           }}
           footer={footer}
         >
@@ -687,7 +949,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
     );
   }
 
-  // ── Desktop: Modal ──────────────────────────────────────────────────────────
+  // ── Desktop: Modal ─────────────────────────────────────────────────────────
   return (
     <>
       {triggerButton}
@@ -696,7 +958,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({
         onCancel={() => handleOpen(false)}
         destroyOnClose
         centered
-        width="min(860px, 96vw)"
+        width="min(940px, 96vw)"
         title={modalTitle}
         footer={footer}
         styles={{

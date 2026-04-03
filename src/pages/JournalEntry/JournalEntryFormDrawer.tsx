@@ -287,8 +287,8 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                 activeKey={activeTab}
                 onChange={(k) => setActiveTab(k as "manual" | "expense")}
                 items={[
-                    { key: "manual", label: "Manual Entry" },
-                    { key: "expense", label: "Quick Expense" },
+                    { key: "manual", label: "Journal Entry" },
+                    // { key: "expense", label: "Quick Expense" },
                 ]}
                 style={{ marginBottom: 16 }}
             />
@@ -309,6 +309,12 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                     layout="vertical"
                 >
                     <Space style={{ width: "100%" }} size={12}>
+                        <ProFormDatePicker
+                            name="entry_date"
+                            label="Entry Date"
+                            rules={[{ required: true, message: "Required" }]}
+                            fieldProps={{ style: { width: 160 } }}
+                        />
                         <ProFormText
                             name="description"
                             label="Description"
@@ -322,11 +328,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                             placeholder="e.g. INV-001"
                             fieldProps={{ style: { width: 160 } }}
                         />
-                        <ProFormDatePicker
-                            name="entry_date"
-                            label="Entry Date"
-                            fieldProps={{ style: { width: 160 } }}
-                        />
+
                     </Space>
 
                     <ProFormSwitch
@@ -399,7 +401,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
             )}
 
             {/* ── Quick Expense ── */}
-            {activeTab === "expense" && (
+            {/* {activeTab === "expense" && (
                 <>
                     <Alert
                         type="info"
@@ -486,7 +488,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                         </Space>
                     </ProForm>
                 </>
-            )}
+            )} */}
         </Drawer>
     );
 };

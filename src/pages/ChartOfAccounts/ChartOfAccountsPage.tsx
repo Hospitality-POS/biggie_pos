@@ -13,6 +13,7 @@ import {
     getAllAccounts, deleteAccount, toggleAccountActive,
     seedDefaultAccounts, ChartOfAccount, AccountType,
 } from "@services/accounting/accounts";
+import { getCurrentTenantId } from "@services/tenants";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import AccountFormDrawer from "./AccountFormDrawer";
 import AccountLedgerDrawer from "./AccountLedgerDrawer";
@@ -39,6 +40,8 @@ const ChartOfAccountsPage: React.FC = () => {
     const actionRef = useRef<ActionType>();
     const { modal } = App.useApp();
 
+    const shopId = getCurrentTenantId();
+
     const [activeType, setActiveType] = useState<AccountType | "ALL">("ALL");
     const [formOpen, setFormOpen] = useState(false);
     const [ledgerOpen, setLedgerOpen] = useState(false);
@@ -46,11 +49,10 @@ const ChartOfAccountsPage: React.FC = () => {
     const [ledgerAccount, setLedgerAccount] = useState<ChartOfAccount | null>(null);
     const [seeding, setSeeding] = useState(false);
 
-    // ── Fetch all accounts once, filter client-side ───────────────────────────
     const { data, isLoading, refetch } = useQuery({
-        queryKey: ["chart-of-accounts"],
-        queryFn: () => getAllAccounts({}),
-        enabled: true,
+        queryKey: ["chart-of-accounts", shopId],
+        queryFn: () => getAllAccounts({ shop_id: shopId }),
+        enabled: !!shopId,
     });
 
     const allAccounts = data?.accounts || [];
@@ -58,17 +60,15 @@ const ChartOfAccountsPage: React.FC = () => {
         ? allAccounts
         : allAccounts.filter((a) => a.account_type === activeType);
 
-    // ── Mutations ─────────────────────────────────────────────────────────────
     const toggleMutation = useMutation({
         mutationFn: (id: string) => toggleAccountActive(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chart-of-accounts", shopId] }),
     });
     const deleteMutation = useMutation({
         mutationFn: (id: string) => deleteAccount(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chart-of-accounts", shopId] }),
     });
 
-    // ── Seed ──────────────────────────────────────────────────────────────────
     const handleSeed = () => {
         modal.confirm({
             title: "Seed Default Chart of Accounts?",
@@ -77,8 +77,8 @@ const ChartOfAccountsPage: React.FC = () => {
             onOk: async () => {
                 setSeeding(true);
                 try {
-                    await seedDefaultAccounts();
-                    queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
+                    await seedDefaultAccounts(shopId);
+                    queryClient.invalidateQueries({ queryKey: ["chart-of-accounts", shopId] });
                 } finally {
                     setSeeding(false);
                 }
@@ -90,10 +90,9 @@ const ChartOfAccountsPage: React.FC = () => {
     const openEdit = (r: ChartOfAccount) => { setEditingAccount(r); setFormOpen(true); };
     const openLedger = (r: ChartOfAccount) => { setLedgerAccount(r); setLedgerOpen(true); };
     const onFormSuccess = useCallback(() => {
-        queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
-    }, [queryClient]);
+        queryClient.invalidateQueries({ queryKey: ["chart-of-accounts", shopId] });
+    }, [queryClient, shopId]);
 
-    // ── Columns ───────────────────────────────────────────────────────────────
     const columns = [
         {
             title: "Code", dataIndex: "account_code", key: "account_code", width: 90,
@@ -190,7 +189,6 @@ const ChartOfAccountsPage: React.FC = () => {
         },
     ];
 
-    // ── Tab items ─────────────────────────────────────────────────────────────
     const tabItems = ALL_TYPES.map((type) => {
         const count = type === "ALL"
             ? allAccounts.length
@@ -213,7 +211,6 @@ const ChartOfAccountsPage: React.FC = () => {
         };
     });
 
-    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <App>
             <Card
@@ -241,7 +238,6 @@ const ChartOfAccountsPage: React.FC = () => {
                     </Space>
                 }
             >
-                {/* Tabs live OUTSIDE ProTable so they don't swallow the table */}
                 <Tabs
                     activeKey={activeType}
                     onChange={(k) => setActiveType(k as AccountType | "ALL")}
@@ -250,7 +246,6 @@ const ChartOfAccountsPage: React.FC = () => {
                     tabBarStyle={{ marginBottom: 0 }}
                 />
 
-                {/* Table lives independently — always renders */}
                 <ProTable<ChartOfAccount>
                     rowKey="_id"
                     actionRef={actionRef}
