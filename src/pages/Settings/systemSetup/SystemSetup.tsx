@@ -10,9 +10,8 @@ import Profile from "./Profile";
 import PaymentDetailsSettings from "../paymentMethodLevel/PaymentDetailsSettings";
 
 const SystemSetup: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>("profile");
+  const [activeTab, setActiveTab] = useState<string>("payment-detail");
 
-  // Check which modules are enabled
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
@@ -22,57 +21,13 @@ const SystemSetup: React.FC = () => {
     tenant?.modules?.accounting
   );
 
-  // Accounting only = show only System Profile
-  const showOnlyProfile = hasAccounting && !hasPOS;
-
-  const handleTabChange = (key: string) => {
-    setActiveTab(key);
-  };
-
-  // If accounting only, show simple layout with only System Profile
-  if (showOnlyProfile) {
-    return (
-      <ProCard
-        bordered
-        title={
-          <Typography.Title
-            level={4}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              margin: 0,
-            }}
-          >
-            <SettingOutlined style={{ marginRight: 8 }} />
-            System Setup
-          </Typography.Title>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
-        >
-          <Profile />
-        </div>
-      </ProCard>
-    );
-  }
-
-  // POS enabled - show all tabs
   return (
     <ProCard
       bordered
       title={
         <Typography.Title
           level={4}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            margin: 0,
-          }}
+          style={{ display: "flex", alignItems: "center", margin: 0 }}
         >
           <SettingOutlined style={{ marginRight: 8 }} />
           System Setup
@@ -82,7 +37,7 @@ const SystemSetup: React.FC = () => {
         type: "card",
         activeKey: activeTab,
         size: "large",
-        onChange: handleTabChange,
+        onChange: setActiveTab,
       }}
     >
       <ProCard.TabPane
@@ -90,17 +45,11 @@ const SystemSetup: React.FC = () => {
         tab={
           <Space>
             <DollarCircleOutlined />
-            <Typography.Text>Payment Details</Typography.Text>
+            <Typography.Text>Payment Methods</Typography.Text>
           </Space>
         }
       >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
-        >
+        <div style={{ padding: "0", backgroundColor: "#fafafa", borderRadius: "8px" }}>
           <PaymentDetailsSettings />
         </div>
       </ProCard.TabPane>
@@ -114,13 +63,7 @@ const SystemSetup: React.FC = () => {
           </Space>
         }
       >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
-        >
+        <div style={{ padding: "0", backgroundColor: "#fafafa", borderRadius: "8px" }}>
           <Profile />
         </div>
       </ProCard.TabPane>

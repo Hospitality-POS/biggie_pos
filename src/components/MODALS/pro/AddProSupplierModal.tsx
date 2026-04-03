@@ -1,10 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Form, Space, Tag } from "antd";
+import { Button, Form, Space } from "antd";
 import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
-import {
-  EditOutlined,
-  SisternodeOutlined,
-} from "@ant-design/icons";
+import { EditOutlined, SisternodeOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewSupplier, editSupplier } from "@services/supplier";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
@@ -15,17 +12,27 @@ interface AddSupplierDialogProps {
   data?: any;
   edit?: boolean;
   actionRef?: any;
+  externalOpen?: boolean;
+  onExternalClose?: () => void;
 }
 
 const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
   data,
   actionRef,
   edit,
+  externalOpen,
+  onExternalClose,
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
-
   const [open, setOpen] = useState(false);
+
+  // Sync external open state into internal state
+  useEffect(() => {
+    if (externalOpen !== undefined) {
+      setOpen(externalOpen);
+    }
+  }, [externalOpen]);
 
   useEffect(() => {
     if (open && data) {
@@ -40,6 +47,7 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
     setOpen(newOpen);
     if (!newOpen) {
       form.resetFields();
+      onExternalClose?.();
     }
   };
 
@@ -49,10 +57,7 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
       open={open}
       formRef={formRef}
       onOpenChange={handleOpenChange}
-      modalProps={{
-        destroyOnClose: true,
-        centered: true,
-      }}
+      modalProps={{ destroyOnClose: true, centered: true }}
       title={
         <Space>
           <SisternodeOutlined />
@@ -60,40 +65,38 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
         </Space>
       }
       trigger={
-        edit ? (
-          <Button
-            size="small"
-            key="button"
-            icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
-            onClick={() => form.setFieldsValue(data)}
-          >
-            Edit
-          </Button>
-        ) : (
-          <Button type="primary" key="button" icon={<SisternodeOutlined />}>
-            New Supplier
-          </Button>
+        externalOpen !== undefined ? undefined : (
+          edit ? (
+            <Button
+              size="small"
+              key="button"
+              icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
+              onClick={() => form.setFieldsValue(data)}
+            >
+              Edit
+            </Button>
+          ) : (
+            <Button type="primary" key="button" icon={<SisternodeOutlined />}>
+              New Supplier
+            </Button>
+          )
         )
       }
-      initialValues={edit ? {
-        ...data,
-        phoneNumber: reversePhoneNumber(data?.phone),
-      } : {}}
+      initialValues={edit ? { ...data, phoneNumber: reversePhoneNumber(data?.phone) } : {}}
       onFinish={async (values) => {
         const phoneNumber = getPhoneNumber(values?.phoneNumber);
         const value = { ...values, phone: phoneNumber };
         const confirmed = await ShowConfirm({
-          title: `Are you sure you want to ${
-            edit ? "update this" : "add new"
-          } Supplier?`,
+          title: `Are you sure you want to ${edit ? "update this" : "add new"} Supplier?`,
           position: true,
         });
         if (confirmed) {
           edit
             ? await editSupplier({ value, _id: data?._id })
             : await addNewSupplier(value);
-          actionRef.current.reload();
+          actionRef?.current?.reload?.();
           setOpen(false);
+          onExternalClose?.();
           return true;
         }
       }}
@@ -113,21 +116,13 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
           rules={[{ required: true, message: "Name is required" }]}
           placeholder="Enter supplier name"
         />
-
         <ProFormText
           width="md"
           name="email"
           label="Email"
-          rules={[
-            {
-              required: true,
-              pattern: /^\S+@\S+\.\S+$/,
-              message: "Invalid email format",
-            },
-          ]}
+          rules={[{ required: true, pattern: /^\S+@\S+\.\S+$/, message: "Invalid email format" }]}
           placeholder="Enter supplier email"
         />
-
         <PhoneInput label="Phone" owner="phoneNumber" />
       </ProForm.Group>
     </ModalForm>

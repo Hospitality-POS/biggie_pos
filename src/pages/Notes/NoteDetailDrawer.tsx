@@ -1,644 +1,589 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import {
+    ProForm,
+    ProFormSelect,
+    ProFormDatePicker,
+    ProFormTextArea,
+} from "@ant-design/pro-components";
 import {
     Drawer,
-    Descriptions,
-    Table,
-    Tag,
-    Space,
     Button,
-    Typography,
-    Divider,
-    Modal,
+    Space,
+    Select,
+    InputNumber,
     Input,
-    Badge,
-    Alert,
-    Spin,
+    Table,
+    Typography,
     Row,
     Col,
-    Card,
-    Tooltip,
+    Divider,
+    Segmented,
+    Tag,
 } from "antd";
+import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
 import {
-    CheckOutlined,
-    LinkOutlined,
-    StopOutlined,
-    FileTextOutlined,
-    ArrowRightOutlined,
-    DollarOutlined,
-    ClockCircleOutlined,
-    CheckCircleOutlined,
-    ExclamationCircleOutlined,
-} from "@ant-design/icons";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import {
-    getNoteById,
-    approveNote,
-    applyNote,
-    voidNote,
+    createNote,
+    updateNote,
     Note,
-    NoteLine,
-    NoteStatus,
+    NoteType,
+    NoteDirection,
+    VatType,
+    CreateNoteParams,
+    UpdateNoteParams,
 } from "@services/accounting/notes";
-import dayjs from "dayjs";
+import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
+import { fetchAllCustomers } from "@services/customers";
+import { fetchAllSuppliers } from "@services/supplier";
+import { getAllInvoices } from "@services/accounting/invoice";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<NoteStatus, { badge: "success" | "processing" | "warning" | "error" | "default"; color: string }> = {
-    Draft: { badge: "default", color: "default" },
-    Approved: { badge: "processing", color: "blue" },
-    Applied: { badge: "success", color: "green" },
-    Voided: { badge: "error", color: "red" },
-};
-
-const INVOICE_STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode }> = {
-    Paid: { color: "#52c41a", icon: <CheckCircleOutlined /> },
-    Partially_Paid: { color: "#faad14", icon: <ExclamationCircleOutlined /> },
-    Pending: { color: "#1890ff", icon: <ClockCircleOutlined /> },
-    Overdue: { color: "#ff4d4f", icon: <ExclamationCircleOutlined /> },
-    Draft: { color: "#8c8c8c", icon: <FileTextOutlined /> },
-    Voided: { color: "#ff4d4f", icon: <StopOutlined /> },
-    Cancelled: { color: "#ff4d4f", icon: <StopOutlined /> },
-};
-
-const VAT_TYPE_COLORS: Record<string, string> = {
-    STANDARD: "blue",
-    ZERO: "cyan",
-    EXEMPT: "orange",
-    NONE: "default",
-};
+interface LineItem {
+    key: string;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    discount: number;
+    vat_type: VatType;
+    account_id: string;
+}
 
 interface Props {
     open: boolean;
     onClose: () => void;
-    noteId: string | null;
     onSuccess: () => void;
+    editingNote?: Note | null;
+    shopId: string;
+    noteType: NoteType;
 }
 
-const NoteDetailDrawer: React.FC<Props> = ({ open, onClose, noteId, onSuccess }) => {
-    const queryClient = useQueryClient();
-    const navigate = useNavigate();
-    const [voidModalOpen, setVoidModalOpen] = useState(false);
-    const [voidReason, setVoidReason] = useState("");
+const emptyLine = (): LineItem => ({
+    key: crypto.randomUUID(),
+    description: "",
+    quantity: 1,
+    unit_price: 0,
+    discount: 0,
+    vat_type: "NONE",
+    account_id: "",
+});
 
-    // ── Fetch ──────────────────────────────────────────────────────────────────
+const calcLineTotal = (l: LineItem, vatMode: "INCLUSIVE" | "EXCLUSIVE") => {
+    const gross = l.quantity * l.unit_price;
+    const disc = gross * ((l.discount || 0) / 100);
+    const after = gross - disc;
+    const vatRate = l.vat_type === "STANDARD" ? 0.16 : 0;
+    if (vatMode === "INCLUSIVE" && vatRate > 0) {
+        const net = after / (1 + vatRate);
+        return { net, vat: after - net, lineTotal: after, disc };
+    }
+    const vat = after * vatRate;
+    return { net: after, vat, lineTotal: after + vat, disc };
+};
 
-    const { data, isLoading } = useQuery({
-        queryKey: ["note-detail", noteId],
-        queryFn: () => getNoteById(noteId!),
-        enabled: open && !!noteId,
+const NoteFormDrawer: React.FC<Props> = ({
+    open, onClose, onSuccess, editingNote, shopId, noteType,
+}) => {
+    const [form] = ProForm.useForm();
+    const isEdit = !!editingNote;
+    const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
+    const [direction, setDirection] = useState<NoteDirection>("customer");
+    const [vatMode, setVatMode] = useState<"INCLUSIVE" | "EXCLUSIVE">("EXCLUSIVE");
+    const [submitting, setSubmitting] = useState(false);
+    const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+    const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+    const [customerSearch, setCustomerSearch] = useState("");
+    const [supplierSearch, setSupplierSearch] = useState("");
+
+    const isCredit = noteType === "CREDIT_NOTE";
+
+    const { data: accountsData } = useQuery({
+        queryKey: ["accounts-posting", shopId],
+        queryFn: () => getAllAccounts({ is_active: true }),
     });
+    const accounts: ChartOfAccount[] = accountsData?.accounts || [];
 
-    const note: Note | undefined = data?.note;
-
-    const invalidate = () => {
-        queryClient.invalidateQueries({ queryKey: ["notes"] });
-        queryClient.invalidateQueries({ queryKey: ["note-detail", noteId] });
-        onSuccess();
-    };
-
-    // ── Mutations ──────────────────────────────────────────────────────────────
-
-    const approveMutation = useMutation({
-        mutationFn: (id: string) => approveNote(id),
-        onSuccess: invalidate,
+    const { data: customersRaw, isFetching: customersFetching } = useQuery({
+        queryKey: ["customers-select", customerSearch],
+        queryFn: () => fetchAllCustomers({ shop_id: shopId, customer_name: customerSearch }),
+        enabled: open && direction === "customer",
+        select: (res: any) => Array.isArray(res) ? res : (res?.customers || res?.data || []),
+        staleTime: 30_000,
     });
+    const customers = customersRaw || [];
 
-    const applyMutation = useMutation({
-        mutationFn: (id: string) => applyNote(id),
-        onSuccess: invalidate,
+    const { data: suppliersRaw, isFetching: suppliersFetching } = useQuery({
+        queryKey: ["suppliers-select", supplierSearch],
+        queryFn: () => fetchAllSuppliers({ name: supplierSearch }),
+        enabled: open && direction === "supplier",
+        select: (res: any) => Array.isArray(res) ? res : (res?.suppliers || res?.data || []),
+        staleTime: 30_000,
     });
+    const suppliers = suppliersRaw || [];
 
-    const voidMutation = useMutation({
-        mutationFn: ({ id, reason }: { id: string; reason: string }) => voidNote(id, reason),
-        onSuccess: () => {
-            invalidate();
-            setVoidModalOpen(false);
-            setVoidReason("");
-        },
+    const { data: customerInvoicesRaw } = useQuery({
+        queryKey: ["invoices-for-customer", selectedCustomerId],
+        queryFn: () => getAllInvoices({ direction: "customer", customer_id: selectedCustomerId }),
+        enabled: !!selectedCustomerId,
+        select: (res: any) => res?.invoices || [],
     });
+    const customerInvoices = customerInvoicesRaw || [];
 
-    // ── Derived helpers ────────────────────────────────────────────────────────
+    const { data: supplierInvoicesRaw } = useQuery({
+        queryKey: ["invoices-for-supplier", selectedSupplierId],
+        queryFn: () => getAllInvoices({ direction: "supplier", supplier_id: selectedSupplierId }),
+        enabled: !!selectedSupplierId,
+        select: (res: any) => res?.invoices || [],
+    });
+    const supplierInvoices = supplierInvoicesRaw || [];
 
-    const status = note?.status;
-    const statusCfg = status ? STATUS_CONFIG[status] : STATUS_CONFIG.Draft;
+    const invoiceOptions = direction === "customer"
+        ? customerInvoices.map((inv: any) => ({
+            label: `${inv.order_no} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
+            value: inv.order_no,
+        }))
+        : supplierInvoices.map((inv: any) => ({
+            label: `${inv.order_no} — ${inv.counterparty_name || "Supplier"} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
+            value: inv.order_no,
+        }));
 
-    const getUser = (field: any) =>
-        typeof field === "object" ? field?.username : field;
+    useEffect(() => {
+        if (!open) return;
+        if (isEdit && editingNote) {
+            const dir = editingNote.direction;
+            setDirection(dir);
+            setVatMode(editingNote.vat_pricing_mode || "EXCLUSIVE");
 
-    const getJENo = () => {
-        if (!note?.journal_entry_id) return null;
-        if (typeof note.journal_entry_id === "object") return note.journal_entry_id.entry_no;
-        return note.journal_entry_id;
-    };
+            const custId = typeof editingNote.customer_id === "object"
+                ? (editingNote.customer_id as any)?._id
+                : editingNote.customer_id;
+            const suppId = typeof editingNote.supplier_id === "object"
+                ? (editingNote.supplier_id as any)?._id
+                : editingNote.supplier_id;
 
-    // ── Invoice helpers ────────────────────────────────────────────────────────
+            setSelectedCustomerId(custId || null);
+            setSelectedSupplierId(suppId || null);
 
-    // Returns the populated invoice object if available
-    const linkedInvoice = () => {
-        if (!note) return null;
-        if (note.original_invoice_id && typeof note.original_invoice_id === "object") {
-            return note.original_invoice_id as any;
+            form.setFieldsValue({
+                direction: dir,
+                reason: editingNote.reason,
+                notes: editingNote.notes,
+                internal_notes: editingNote.internal_notes,
+                issue_date: editingNote.issue_date,
+                expiry_date: editingNote.expiry_date,
+                original_invoice_no: editingNote.original_invoice_no,
+                customer_id: custId,
+                supplier_id: suppId,
+            });
+            setLines(
+                editingNote.lines.map((l) => ({
+                    key: crypto.randomUUID(),
+                    description: l.description,
+                    quantity: l.quantity,
+                    unit_price: l.unit_price,
+                    discount: l.discount || 0,
+                    vat_type: l.vat_type || "NONE",
+                    account_id: typeof l.account_id === "object"
+                        ? (l.account_id as any)?._id
+                        : (l.account_id as string),
+                }))
+            );
+        } else {
+            form.resetFields();
+            setLines([emptyLine()]);
+            setDirection("customer");
+            setVatMode("EXCLUSIVE");
+            setSelectedCustomerId(null);
+            setSelectedSupplierId(null);
         }
-        return null;
+    }, [open, editingNote, isEdit, form]);
+
+    const addLine = () => setLines((p) => [...p, emptyLine()]);
+    const removeLine = (key: string) =>
+        setLines((p) => p.length > 1 ? p.filter((l) => l.key !== key) : p);
+    const updateLine = (key: string, field: keyof LineItem, value: any) =>
+        setLines((p) => p.map((l) => l.key === key ? { ...l, [field]: value } : l));
+
+    const totals = lines.reduce(
+        (acc, l) => {
+            const c = calcLineTotal(l, vatMode);
+            return {
+                subtotal: acc.subtotal + c.net,
+                totalVat: acc.totalVat + c.vat,
+                grandTotal: acc.grandTotal + c.lineTotal,
+                totalDisc: acc.totalDisc + c.disc,
+            };
+        },
+        { subtotal: 0, totalVat: 0, grandTotal: 0, totalDisc: 0 }
+    );
+
+    const handleSubmit = async (values: any) => {
+        const validLines = lines.filter((l) => l.description && l.account_id && l.unit_price > 0);
+        if (!validLines.length) return;
+        setSubmitting(true);
+        try {
+            const linePayload = validLines.map((l) => ({
+                description: l.description,
+                quantity: l.quantity,
+                unit_price: l.unit_price,
+                discount: l.discount || undefined,
+                vat_type: l.vat_type,
+                account_id: l.account_id,
+            }));
+
+            if (isEdit && editingNote) {
+                await updateNote(editingNote._id, {
+                    reason: values.reason,
+                    notes: values.notes,
+                    internal_notes: values.internal_notes,
+                    issue_date: values.issue_date,
+                    expiry_date: values.expiry_date,
+                    vat_pricing_mode: vatMode,
+                    original_invoice_no: values.original_invoice_no,
+                    lines: linePayload,
+                } as UpdateNoteParams);
+            } else {
+                await createNote({
+                    shop_id: shopId,
+                    note_type: noteType,
+                    direction: values.direction,
+                    reason: values.reason,
+                    notes: values.notes,
+                    internal_notes: values.internal_notes,
+                    issue_date: values.issue_date,
+                    expiry_date: values.expiry_date,
+                    vat_pricing_mode: vatMode,
+                    original_invoice_no: values.original_invoice_no,
+                    customer_id: direction === "customer" ? values.customer_id : undefined,
+                    supplier_id: direction === "supplier" ? values.supplier_id : undefined,
+                    lines: linePayload,
+                } as CreateNoteParams);
+            }
+            onSuccess();
+            onClose();
+        } finally {
+            setSubmitting(false);
+        }
     };
 
-    const invoiceDisplayNo = () => {
-        const inv = linkedInvoice();
-        if (inv) return inv.invoice_no || inv.order_no || note?.original_invoice_no;
-        return note?.original_invoice_no || null;
-    };
-
-    // Navigate to /orders page with invoice highlighted via query param
-    const handleViewInvoice = () => {
-        const inv = linkedInvoice();
-        const invoiceNo = inv?.invoice_no || inv?.order_no || note?.original_invoice_no;
-        const invoiceId = inv?._id || (
-            typeof note?.original_invoice_id === "string" ? note.original_invoice_id : null
-        );
-
-        // Build query: prefer _id, fall back to invoice_no
-        const params = new URLSearchParams();
-        if (invoiceId) params.set("invoice_id", invoiceId);
-        else if (invoiceNo) params.set("invoice_no", invoiceNo);
-
-        navigate(`/orders?${params.toString()}`);
-        onClose();
-    };
-
-    // ── Line columns ───────────────────────────────────────────────────────────
+    const accountOptions = accounts
+        .filter((a) => a.allows_direct_posting !== false && a.is_active)
+        .map((a) => ({ label: `${a.account_code} — ${a.account_name}`, value: a._id }));
 
     const lineColumns = [
         {
-            title: "Description",
-            dataIndex: "description",
-            key: "description",
+            title: "Description", key: "description",
+            render: (_: any, r: LineItem) => (
+                <Input placeholder="Item description" value={r.description} size="small"
+                    onChange={(e) => updateLine(r.key, "description", e.target.value)} />
+            ),
         },
         {
-            title: "Account",
-            key: "account",
-            width: 200,
-            render: (_: any, l: NoteLine) => {
-                const acc = typeof l.account_id === "object" ? l.account_id : null;
-                return acc ? (
-                    <Space size={4}>
-                        <Text code style={{ fontSize: 11 }}>{acc.account_code}</Text>
-                        <Text style={{ fontSize: 12 }}>{acc.account_name}</Text>
-                    </Space>
-                ) : (
-                    <Text type="secondary" style={{ fontSize: 12 }}>{l.account_code} {l.account_name}</Text>
+            title: "Qty", key: "quantity", width: 70,
+            render: (_: any, r: LineItem) => (
+                <InputNumber min={0.01} precision={2} value={r.quantity} size="small"
+                    onChange={(v) => updateLine(r.key, "quantity", v || 1)}
+                    style={{ width: "100%" }} />
+            ),
+        },
+        {
+            title: "Unit Price", key: "unit_price", width: 110,
+            render: (_: any, r: LineItem) => (
+                <InputNumber min={0} precision={2} value={r.unit_price} size="small"
+                    onChange={(v) => updateLine(r.key, "unit_price", v || 0)}
+                    style={{ width: "100%" }} />
+            ),
+        },
+        {
+            title: "Disc %", key: "discount", width: 72,
+            render: (_: any, r: LineItem) => (
+                <InputNumber min={0} max={100} precision={1} value={r.discount} size="small"
+                    onChange={(v) => updateLine(r.key, "discount", v || 0)}
+                    style={{ width: "100%" }} />
+            ),
+        },
+        {
+            title: "VAT", key: "vat_type", width: 95,
+            render: (_: any, r: LineItem) => (
+                <Select size="small" value={r.vat_type} style={{ width: "100%" }}
+                    onChange={(v) => updateLine(r.key, "vat_type", v)}
+                    options={[
+                        { label: "None", value: "NONE" },
+                        { label: "16%", value: "STANDARD" },
+                        { label: "Zero", value: "ZERO" },
+                        { label: "Exempt", value: "EXEMPT" },
+                    ]}
+                />
+            ),
+        },
+        {
+            title: "Account", key: "account_id", width: 200,
+            render: (_: any, r: LineItem) => (
+                <Select showSearch size="small" placeholder="Account…"
+                    value={r.account_id || undefined} style={{ width: "100%" }}
+                    onChange={(v) => updateLine(r.key, "account_id", v)}
+                    optionFilterProp="label" options={accountOptions}
+                />
+            ),
+        },
+        {
+            title: "Line Total", key: "total", width: 105, align: "right" as const,
+            render: (_: any, r: LineItem) => {
+                const { lineTotal } = calcLineTotal(r, vatMode);
+                return (
+                    <Text style={{ fontSize: 12 }}>
+                        {lineTotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                    </Text>
                 );
             },
         },
         {
-            title: "Qty",
-            dataIndex: "quantity",
-            key: "quantity",
-            width: 65,
-            align: "right" as const,
-        },
-        {
-            title: "Unit Price",
-            dataIndex: "unit_price",
-            key: "unit_price",
-            width: 100,
-            align: "right" as const,
-            render: (v: number) => v.toLocaleString("en-KE", { minimumFractionDigits: 2 }),
-        },
-        {
-            title: "Discount",
-            dataIndex: "discount",
-            key: "discount",
-            width: 80,
-            align: "right" as const,
-            render: (v: number) => v > 0 ? `${v}%` : "—",
-        },
-        {
-            title: "VAT",
-            dataIndex: "vat_type",
-            key: "vat_type",
-            width: 80,
-            render: (v: string) => (
-                <Tag color={VAT_TYPE_COLORS[v] || "default"} style={{ fontSize: 10, padding: "0 4px" }}>
-                    {v === "STANDARD" ? "16%" : v}
-                </Tag>
-            ),
-        },
-        {
-            title: "VAT Amt",
-            dataIndex: "vat_amount",
-            key: "vat_amount",
-            width: 90,
-            align: "right" as const,
-            render: (v: number) =>
-                v > 0 ? (
-                    <Text style={{ color: "#1890ff", fontSize: 12 }}>
-                        {v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                    </Text>
-                ) : "—",
-        },
-        {
-            title: "Line Total",
-            dataIndex: "line_total",
-            key: "line_total",
-            width: 110,
-            align: "right" as const,
-            render: (v: number) => (
-                <Text strong style={{ fontSize: 12 }}>
-                    {(v || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                </Text>
+            title: "", key: "remove", width: 36,
+            render: (_: any, r: LineItem) => (
+                <Button icon={<DeleteOutlined />} size="small" danger type="text"
+                    onClick={() => removeLine(r.key)} disabled={lines.length <= 1} />
             ),
         },
     ];
 
-    // ── Customer / Supplier display ────────────────────────────────────────────
-
-    const contactDisplay = () => {
-        if (note?.direction === "customer" && note.customer_id) {
-            const c = note.customer_id;
-            if (typeof c === "object") return `${c.customer_name} (${c.phone || c.email || ""})`;
-            return c;
-        }
-        if (note?.direction === "supplier" && note.supplier_id) {
-            const s = note.supplier_id;
-            if (typeof s === "object") return `${s.name} (${s.phone || s.email || ""})`;
-            return s;
-        }
-        return "—";
-    };
-
-    // ── Linked Invoice Card ────────────────────────────────────────────────────
-
-    const LinkedInvoiceCard = () => {
-        const inv = linkedInvoice();
-        const displayNo = invoiceDisplayNo();
-
-        // Don't render if there's no invoice reference at all
-        if (!displayNo && !inv) return null;
-
-        const invStatus = inv?.status || null;
-        const statusStyle = invStatus ? INVOICE_STATUS_CONFIG[invStatus] : null;
-
-        const fmt = (n: number) =>
-            (n || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 });
-
-        return (
-            <Card
-                size="small"
-                style={{
-                    marginBottom: 20,
-                    borderRadius: 8,
-                    border: "1px solid #e6f4ff",
-                    background: "linear-gradient(135deg, #f0f7ff 0%, #fafcff 100%)",
-                }}
-                bodyStyle={{ padding: "12px 16px" }}
-            >
-                <Row align="middle" justify="space-between" wrap={false}>
-                    {/* Left: icon + invoice info */}
-                    <Col flex="auto">
-                        <Space size={12} align="start">
-                            <div style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 8,
-                                background: "#1890ff18",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                flexShrink: 0,
-                            }}>
-                                <FileTextOutlined style={{ color: "#1890ff", fontSize: 16 }} />
-                            </div>
-
-                            <div>
-                                <Space size={6} align="center" wrap>
-                                    <Text strong style={{ fontSize: 13 }}>
-                                        {displayNo || "Invoice"}
-                                    </Text>
-                                    {invStatus && statusStyle && (
-                                        <Tag
-                                            icon={statusStyle.icon}
-                                            color={invStatus === "Paid" ? "success"
-                                                : invStatus === "Partially_Paid" ? "warning"
-                                                    : invStatus === "Overdue" ? "error"
-                                                        : invStatus === "Pending" ? "processing"
-                                                            : "default"}
-                                            style={{ fontSize: 11, margin: 0 }}
-                                        >
-                                            {invStatus.replace("_", " ")}
-                                        </Tag>
-                                    )}
-                                </Space>
-
-                                {/* Invoice financials — only if we have the populated object */}
-                                {inv && (
-                                    <Space size={16} style={{ marginTop: 6 }} wrap>
-                                        <Space size={4}>
-                                            <DollarOutlined style={{ color: "#8c8c8c", fontSize: 11 }} />
-                                            <Text type="secondary" style={{ fontSize: 11 }}>Total:</Text>
-                                            <Text style={{ fontSize: 12, fontWeight: 500 }}>
-                                                KES {fmt(inv.grand_total)}
-                                            </Text>
-                                        </Space>
-                                        <Space size={4}>
-                                            <CheckCircleOutlined style={{ color: "#52c41a", fontSize: 11 }} />
-                                            <Text type="secondary" style={{ fontSize: 11 }}>Paid:</Text>
-                                            <Text style={{ fontSize: 12, color: "#52c41a", fontWeight: 500 }}>
-                                                KES {fmt(inv.amount_paid)}
-                                            </Text>
-                                        </Space>
-                                        <Space size={4}>
-                                            <ExclamationCircleOutlined style={{
-                                                color: inv.amount_due > 0 ? "#faad14" : "#52c41a",
-                                                fontSize: 11
-                                            }} />
-                                            <Text type="secondary" style={{ fontSize: 11 }}>Due:</Text>
-                                            <Text style={{
-                                                fontSize: 12,
-                                                fontWeight: 500,
-                                                color: inv.amount_due > 0 ? "#faad14" : "#52c41a",
-                                            }}>
-                                                KES {fmt(inv.amount_due)}
-                                            </Text>
-                                        </Space>
-                                        {inv.due_date && (
-                                            <Space size={4}>
-                                                <ClockCircleOutlined style={{ color: "#8c8c8c", fontSize: 11 }} />
-                                                <Text type="secondary" style={{ fontSize: 11 }}>Due date:</Text>
-                                                <Text style={{ fontSize: 12 }}>
-                                                    {dayjs(inv.due_date).format("DD MMM YYYY")}
-                                                </Text>
-                                            </Space>
-                                        )}
-                                    </Space>
-                                )}
-
-                                {/* Fallback when invoice_id is not populated — just the ref number */}
-                                {!inv && displayNo && (
-                                    <Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 2 }}>
-                                        Invoice reference only — open orders to view full details
-                                    </Text>
-                                )}
-                            </div>
-                        </Space>
-                    </Col>
-
-                    {/* Right: navigate button */}
-                    <Col flex="none">
-                        <Tooltip title="Open in Orders">
-                            <Button
-                                type="primary"
-                                ghost
-                                size="small"
-                                icon={<ArrowRightOutlined />}
-                                onClick={handleViewInvoice}
-                                style={{ borderRadius: 6, fontSize: 12 }}
-                            >
-                                View Invoice
-                            </Button>
-                        </Tooltip>
-                    </Col>
-                </Row>
-            </Card>
-        );
-    };
+    const drawerTitle = isEdit
+        ? `Edit ${isCredit ? "Credit" : "Debit"} Note — ${editingNote?.note_no}`
+        : `Create ${isCredit ? "Credit" : "Debit"} Note`;
 
     return (
-        <>
-            <Drawer
-                title={
-                    <Space>
-                        <Text strong>
-                            {note?.note_type === "CREDIT_NOTE" ? "Credit Note" : "Debit Note"}
-                        </Text>
-                        {note && <Text code style={{ fontSize: 13 }}>{note.note_no}</Text>}
-                        {status && <Badge status={statusCfg.badge} text={status} />}
-                    </Space>
-                }
-                open={open}
-                onClose={onClose}
-                width={820}
-                destroyOnClose
-                extra={
-                    note && (
-                        <Space>
-                            {status === "Draft" && (
-                                <Button
-                                    type="primary"
-                                    icon={<CheckOutlined />}
-                                    loading={approveMutation.isPending}
-                                    onClick={() => approveMutation.mutate(note._id)}
-                                >
-                                    Approve
-                                </Button>
-                            )}
-                            {status === "Approved" && (
-                                <Button
-                                    icon={<LinkOutlined />}
-                                    loading={applyMutation.isPending}
-                                    onClick={() => applyMutation.mutate(note._id)}
-                                >
-                                    Apply
-                                </Button>
-                            )}
-                            {(status === "Draft" || status === "Approved") && (
-                                <Button
-                                    danger
-                                    icon={<StopOutlined />}
-                                    onClick={() => setVoidModalOpen(true)}
-                                >
-                                    Void
-                                </Button>
-                            )}
-                        </Space>
-                    )
-                }
+        <Drawer
+            title={
+                <Space>
+                    {drawerTitle}
+                    <Tag color={isCredit ? "green" : "orange"}>
+                        {isCredit ? "Credit Note" : "Debit Note"}
+                    </Tag>
+                </Space>
+            }
+            open={open}
+            onClose={onClose}
+            width={920}
+            destroyOnClose
+            footer={null}
+        >
+            <ProForm
+                form={form}
+                onFinish={handleSubmit}
+                submitter={{
+                    searchConfig: {
+                        submitText: isEdit ? "Save Changes" : `Create ${isCredit ? "Credit" : "Debit"} Note`,
+                        resetText: "Cancel",
+                    },
+                    onReset: onClose,
+                    submitButtonProps: { loading: submitting },
+                }}
+                layout="vertical"
             >
-                {isLoading ? (
-                    <div style={{ textAlign: "center", padding: 60 }}>
-                        <Spin size="large" />
-                    </div>
-                ) : !note ? (
-                    <Alert type="error" message="Note not found" />
-                ) : (
-                    <>
-                        {/* ── Linked Invoice Card — shown whenever any invoice ref exists ── */}
-                        <LinkedInvoiceCard />
-
-                        {/* ── Meta ── */}
-                        <Descriptions bordered size="small" column={2} style={{ marginBottom: 20 }}>
-                            <Descriptions.Item label="Note No.">
-                                <Text code>{note.note_no}</Text>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Status">
-                                <Badge status={statusCfg.badge} text={status} />
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label="Type">
-                                <Tag color={note.note_type === "CREDIT_NOTE" ? "green" : "orange"}>
-                                    {note.note_type === "CREDIT_NOTE" ? "Credit Note" : "Debit Note"}
-                                </Tag>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Direction">
-                                <Tag color={note.direction === "customer" ? "blue" : "purple"}>
-                                    {note.direction.toUpperCase()}
-                                </Tag>
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label={note.direction === "customer" ? "Customer" : "Supplier"} span={2}>
-                                {contactDisplay()}
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label="Issue Date">
-                                {dayjs(note.issue_date).format("DD MMM YYYY")}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Expiry Date">
-                                {note.expiry_date ? dayjs(note.expiry_date).format("DD MMM YYYY") : "—"}
-                            </Descriptions.Item>
-
-                            <Descriptions.Item label="Reason" span={2}>
-                                {note.reason}
-                            </Descriptions.Item>
-
-                            {note.notes && (
-                                <Descriptions.Item label="Notes" span={2}>{note.notes}</Descriptions.Item>
-                            )}
-
-                            <Descriptions.Item label="VAT Mode">
-                                {note.vat_pricing_mode || "EXCLUSIVE"}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Created By">
-                                {getUser(note.created_by) || "—"}
-                            </Descriptions.Item>
-
-                            {status === "Approved" && note.approved_at && (
-                                <>
-                                    <Descriptions.Item label="Approved At">
-                                        {dayjs(note.approved_at).format("DD MMM YYYY HH:mm")}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Approved By">
-                                        {getUser(note.approved_by) || "—"}
-                                    </Descriptions.Item>
-                                </>
-                            )}
-
-                            {status === "Applied" && note.applied_at && (
-                                <Descriptions.Item label="Applied At" span={2}>
-                                    {dayjs(note.applied_at).format("DD MMM YYYY HH:mm")}
-                                </Descriptions.Item>
-                            )}
-
-                            {status === "Voided" && note.voided_at && (
-                                <>
-                                    <Descriptions.Item label="Voided At">
-                                        {dayjs(note.voided_at).format("DD MMM YYYY HH:mm")}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Voided By">
-                                        {getUser(note.voided_by) || "—"}
-                                    </Descriptions.Item>
-                                    <Descriptions.Item label="Void Reason" span={2}>
-                                        <Text type="danger">{note.void_reason}</Text>
-                                    </Descriptions.Item>
-                                </>
-                            )}
-
-                            {getJENo() && (
-                                <Descriptions.Item label="Journal Entry" span={2}>
-                                    <Text code>{getJENo()}</Text>
-                                </Descriptions.Item>
-                            )}
-                        </Descriptions>
-
-                        {/* ── Lines ── */}
-                        <Divider orientation="left" plain>
-                            <Text type="secondary" style={{ fontSize: 12 }}>Line Items</Text>
-                        </Divider>
-
-                        <Table
-                            rowKey={(r, i) => r._id || String(i)}
-                            columns={lineColumns}
-                            dataSource={note.lines}
-                            pagination={false}
-                            size="small"
-                            scroll={{ x: 800 }}
+                {/* ── Header ── */}
+                <Row gutter={12}>
+                    <Col span={8}>
+                        <ProFormSelect
+                            name="direction"
+                            label="Direction"
+                            disabled={isEdit}
+                            initialValue="customer"
+                            rules={[{ required: true, message: "Required" }]}
+                            options={[
+                                { label: "Customer", value: "customer" },
+                                { label: "Supplier", value: "supplier" },
+                            ]}
+                            fieldProps={{
+                                onChange: (v: NoteDirection) => {
+                                    setDirection(v);
+                                    setSelectedCustomerId(null);
+                                    setSelectedSupplierId(null);
+                                    form.setFieldsValue({
+                                        customer_id: undefined,
+                                        supplier_id: undefined,
+                                        original_invoice_no: undefined,
+                                    });
+                                },
+                            }}
                         />
+                    </Col>
+                    <Col span={8}>
+                        <ProFormDatePicker
+                            name="issue_date"
+                            label="Issue Date"
+                            fieldProps={{ style: { width: "100%" } }}
+                        />
+                    </Col>
+                    <Col span={8}>
+                        <ProFormDatePicker
+                            name="expiry_date"
+                            label="Expiry Date"
+                            fieldProps={{ style: { width: "100%" } }}
+                        />
+                    </Col>
+                </Row>
 
-                        {/* ── Totals ── */}
-                        <Row gutter={16} justify="end" style={{ marginTop: 16 }}>
-                            <Col>
-                                <Space direction="vertical" size={4} style={{ textAlign: "right" }}>
-                                    <Space>
-                                        <Text type="secondary">Subtotal:</Text>
-                                        <Text>KES {(note.subtotal || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
-                                    </Space>
-                                    {(note.total_discount || 0) > 0 && (
-                                        <Space>
-                                            <Text type="secondary">Discount:</Text>
-                                            <Text type="warning">
-                                                -KES {note.total_discount.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                {/* ── Contact + Invoice ── */}
+                <Row gutter={12}>
+                    {direction === "customer" && (
+                        <Col span={12}>
+                            <ProFormSelect
+                                name="customer_id"
+                                label="Customer"
+                                showSearch
+                                placeholder="Search customer…"
+                                fieldProps={{
+                                    filterOption: false,
+                                    onSearch: setCustomerSearch,
+                                    loading: customersFetching,
+                                    allowClear: true,
+                                    onChange: (val: string) => {
+                                        setSelectedCustomerId(val || null);
+                                        form.setFieldValue("original_invoice_no", undefined);
+                                    },
+                                    notFoundContent: customersFetching ? "Searching..." : "No customers found",
+                                }}
+                                options={customers.map((c: any) => ({
+                                    label: `${c.customer_name}${c.customer_phone ? ` — ${c.customer_phone}` : ""}`,
+                                    value: c._id,
+                                }))}
+                            />
+                        </Col>
+                    )}
+
+                    {direction === "supplier" && (
+                        <Col span={12}>
+                            <ProFormSelect
+                                name="supplier_id"
+                                label="Supplier"
+                                showSearch
+                                placeholder="Search supplier…"
+                                fieldProps={{
+                                    filterOption: false,
+                                    onSearch: setSupplierSearch,
+                                    loading: suppliersFetching,
+                                    allowClear: true,
+                                    onChange: (val: string) => {
+                                        setSelectedSupplierId(val || null);
+                                        form.setFieldValue("original_invoice_no", undefined);
+                                    },
+                                    notFoundContent: suppliersFetching ? "Searching..." : "No suppliers found",
+                                }}
+                                options={suppliers.map((s: any) => ({
+                                    label: `${s.name}${s.phone ? ` — ${s.phone}` : ""}`,
+                                    value: s._id,
+                                }))}
+                            />
+                        </Col>
+                    )}
+
+                    <Col span={12}>
+                        <ProFormSelect
+                            name="original_invoice_no"
+                            label="Original Invoice / Reference No."
+                            showSearch
+                            placeholder={
+                                direction === "customer" && !selectedCustomerId
+                                    ? "Select a customer first"
+                                    : direction === "supplier" && !selectedSupplierId
+                                        ? "Select a supplier first"
+                                        : "Select invoice…"
+                            }
+                            fieldProps={{
+                                disabled:
+                                    (direction === "customer" && !selectedCustomerId) ||
+                                    (direction === "supplier" && !selectedSupplierId),
+                                optionFilterProp: "label",
+                                allowClear: true,
+                            }}
+                            options={invoiceOptions}
+                        />
+                    </Col>
+                </Row>
+
+                <ProFormTextArea
+                    name="reason"
+                    label="Reason"
+                    placeholder="Reason for this note (required)"
+                    rules={[{ required: true, message: "Required" }]}
+                    fieldProps={{ rows: 2 }}
+                />
+
+                <Row gutter={12}>
+                    <Col span={12}>
+                        <ProFormTextArea
+                            name="notes"
+                            label="Notes (visible to customer/supplier)"
+                            fieldProps={{ rows: 2 }}
+                        />
+                    </Col>
+                    <Col span={12}>
+                        <ProFormTextArea
+                            name="internal_notes"
+                            label="Internal Notes"
+                            fieldProps={{ rows: 2 }}
+                        />
+                    </Col>
+                </Row>
+
+                {/* ── VAT Mode + Lines ── */}
+                <Divider orientation="left" plain>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Lines</Text>
+                </Divider>
+
+                <Space style={{ marginBottom: 12 }} align="center">
+                    <Text type="secondary" style={{ fontSize: 12 }}>VAT pricing:</Text>
+                    <Segmented
+                        size="small"
+                        value={vatMode}
+                        onChange={(v) => setVatMode(v as "INCLUSIVE" | "EXCLUSIVE")}
+                        options={[
+                            { label: "Tax Exclusive", value: "EXCLUSIVE" },
+                            { label: "Tax Inclusive", value: "INCLUSIVE" },
+                        ]}
+                    />
+                </Space>
+
+                <Table
+                    rowKey="key"
+                    dataSource={lines}
+                    columns={lineColumns}
+                    pagination={false}
+                    size="small"
+                    scroll={{ x: 800 }}
+                    summary={() => (
+                        <Table.Summary fixed>
+                            <Table.Summary.Row>
+                                <Table.Summary.Cell index={0} colSpan={5}>
+                                    <Button type="dashed" icon={<PlusOutlined />} size="small" onClick={addLine}>
+                                        Add Line
+                                    </Button>
+                                </Table.Summary.Cell>
+                                <Table.Summary.Cell index={5} />
+                                <Table.Summary.Cell index={6} align="right">
+                                    <Space direction="vertical" size={2} style={{ textAlign: "right" }}>
+                                        {totals.totalDisc > 0 && (
+                                            <Text type="secondary" style={{ fontSize: 11 }}>
+                                                Disc: -{totals.totalDisc.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                             </Text>
-                                        </Space>
-                                    )}
-                                    {(note.total_vat || 0) > 0 && (
-                                        <Space>
-                                            <Text type="secondary">VAT:</Text>
-                                            <Text style={{ color: "#1890ff" }}>
-                                                KES {note.total_vat.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                        )}
+                                        {totals.totalVat > 0 && (
+                                            <Text style={{ fontSize: 11, color: "#1890ff" }}>
+                                                VAT: {totals.totalVat.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                             </Text>
-                                        </Space>
-                                    )}
-                                    <Divider style={{ margin: "4px 0" }} />
-                                    <Space>
-                                        <Text strong>Grand Total:</Text>
-                                        <Text strong style={{ fontSize: 16, color: "#1d39c4" }}>
-                                            KES {(note.grand_total || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                        )}
+                                        <Text strong style={{ fontSize: 13 }}>
+                                            KES {totals.grandTotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                         </Text>
                                     </Space>
-                                </Space>
-                            </Col>
-                        </Row>
-                    </>
-                )}
-            </Drawer>
-
-            {/* ── Void Modal ── */}
-            <Modal
-                title="Void Note"
-                open={voidModalOpen}
-                onCancel={() => { setVoidModalOpen(false); setVoidReason(""); }}
-                onOk={() => noteId && voidMutation.mutate({ id: noteId, reason: voidReason })}
-                okText="Void Note"
-                okButtonProps={{
-                    danger: true,
-                    disabled: !voidReason.trim(),
-                    loading: voidMutation.isPending,
-                }}
-            >
-                <Alert
-                    type="warning"
-                    showIcon
-                    message={
-                        note?.status === "Approved"
-                            ? "This note has been approved — voiding will automatically create a reversal journal entry."
-                            : "This will void the draft note permanently."
-                    }
-                    style={{ marginBottom: 16 }}
+                                </Table.Summary.Cell>
+                                <Table.Summary.Cell index={7} />
+                            </Table.Summary.Row>
+                        </Table.Summary>
+                    )}
                 />
-                <Text>Void Reason <Text type="danger">*</Text></Text>
-                <Input.TextArea
-                    rows={3}
-                    value={voidReason}
-                    onChange={(e) => setVoidReason(e.target.value)}
-                    placeholder="Explain why this note is being voided…"
-                    style={{ marginTop: 8 }}
-                    maxLength={300}
-                    showCount
-                />
-            </Modal>
-        </>
+            </ProForm>
+        </Drawer>
     );
 };
 
-export default NoteDetailDrawer;
+export default NoteFormDrawer;

@@ -18,6 +18,7 @@ import {
     Col,
     Divider,
     Segmented,
+    Tag,
 } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
@@ -54,6 +55,7 @@ interface Props {
     onSuccess: () => void;
     editingNote?: Note | null;
     shopId: string;
+    noteType: NoteType;
 }
 
 const emptyLine = (): LineItem => ({
@@ -80,16 +82,16 @@ const calcLineTotal = (l: LineItem, vatMode: "INCLUSIVE" | "EXCLUSIVE") => {
 };
 
 const NoteFormDrawer: React.FC<Props> = ({
-    open, onClose, onSuccess, editingNote, shopId,
+    open, onClose, onSuccess, editingNote, shopId, noteType,
 }) => {
     const [form] = ProForm.useForm();
     const isEdit = !!editingNote;
+    const isCredit = noteType === "CREDIT_NOTE";
+
     const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
     const [direction, setDirection] = useState<NoteDirection>("customer");
     const [vatMode, setVatMode] = useState<"INCLUSIVE" | "EXCLUSIVE">("EXCLUSIVE");
     const [submitting, setSubmitting] = useState(false);
-
-    // Track selected customer/supplier to filter their invoices
     const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
     const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
     const [customerSearch, setCustomerSearch] = useState("");
@@ -99,7 +101,6 @@ const NoteFormDrawer: React.FC<Props> = ({
     const { data: accountsData } = useQuery({
         queryKey: ["accounts-posting", shopId],
         queryFn: () => getAllAccounts({ is_active: true }),
-        // enabled: open && !!shopId,
     });
     const accounts: ChartOfAccount[] = accountsData?.accounts || [];
 
@@ -121,7 +122,6 @@ const NoteFormDrawer: React.FC<Props> = ({
     });
     const suppliers = suppliersRaw || [];
 
-    // Fetch invoices for selected customer — for Original Invoice dropdown
     const { data: customerInvoicesRaw } = useQuery({
         queryKey: ["invoices-for-customer", selectedCustomerId],
         queryFn: () => getAllInvoices({ direction: "customer", customer_id: selectedCustomerId }),
@@ -130,7 +130,6 @@ const NoteFormDrawer: React.FC<Props> = ({
     });
     const customerInvoices = customerInvoicesRaw || [];
 
-    // Fetch invoices for selected supplier — for Original Invoice dropdown
     const { data: supplierInvoicesRaw } = useQuery({
         queryKey: ["invoices-for-supplier", selectedSupplierId],
         queryFn: () => getAllInvoices({ direction: "supplier", supplier_id: selectedSupplierId }),
@@ -168,14 +167,12 @@ const NoteFormDrawer: React.FC<Props> = ({
             setSelectedSupplierId(suppId || null);
 
             form.setFieldsValue({
-                note_type: editingNote.note_type,
                 direction: dir,
                 reason: editingNote.reason,
                 notes: editingNote.notes,
                 internal_notes: editingNote.internal_notes,
                 issue_date: editingNote.issue_date,
                 expiry_date: editingNote.expiry_date,
-                vat_pricing_mode: editingNote.vat_pricing_mode || "EXCLUSIVE",
                 original_invoice_no: editingNote.original_invoice_no,
                 customer_id: custId,
                 supplier_id: suppId,
@@ -255,7 +252,7 @@ const NoteFormDrawer: React.FC<Props> = ({
             } else {
                 await createNote({
                     shop_id: shopId,
-                    note_type: values.note_type,
+                    note_type: noteType,
                     direction: values.direction,
                     reason: values.reason,
                     notes: values.notes,
@@ -360,7 +357,18 @@ const NoteFormDrawer: React.FC<Props> = ({
 
     return (
         <Drawer
-            title={isEdit ? `Edit Note — ${editingNote?.note_no}` : "Create Note"}
+            title={
+                <Space>
+                    <Text strong>
+                        {isEdit
+                            ? `Edit ${isCredit ? "Credit" : "Debit"} Note — ${editingNote?.note_no}`
+                            : `Create ${isCredit ? "Credit" : "Debit"} Note`}
+                    </Text>
+                    <Tag color={isCredit ? "green" : "orange"}>
+                        {isCredit ? "Credit Note" : "Debit Note"}
+                    </Tag>
+                </Space>
+            }
             open={open}
             onClose={onClose}
             width={920}
@@ -372,7 +380,9 @@ const NoteFormDrawer: React.FC<Props> = ({
                 onFinish={handleSubmit}
                 submitter={{
                     searchConfig: {
-                        submitText: isEdit ? "Save Changes" : "Create Note",
+                        submitText: isEdit
+                            ? "Save Changes"
+                            : `Create ${isCredit ? "Credit" : "Debit"} Note`,
                         resetText: "Cancel",
                     },
                     onReset: onClose,
@@ -382,23 +392,12 @@ const NoteFormDrawer: React.FC<Props> = ({
             >
                 {/* ── Header ── */}
                 <Row gutter={12}>
-                    <Col span={6}>
-                        <ProFormSelect
-                            name="note_type"
-                            label="Note Type"
-                            disabled={isEdit}
-                            rules={[{ required: true, message: "Required" }]}
-                            options={[
-                                { label: "Credit Note", value: "CREDIT_NOTE" },
-                                { label: "Debit Note", value: "DEBIT_NOTE" },
-                            ]}
-                        />
-                    </Col>
-                    <Col span={6}>
+                    <Col span={8}>
                         <ProFormSelect
                             name="direction"
                             label="Direction"
                             disabled={isEdit}
+                            initialValue="customer"
                             rules={[{ required: true, message: "Required" }]}
                             options={[
                                 { label: "Customer", value: "customer" },
@@ -407,7 +406,6 @@ const NoteFormDrawer: React.FC<Props> = ({
                             fieldProps={{
                                 onChange: (v: NoteDirection) => {
                                     setDirection(v);
-                                    // Reset contact + invoice when direction changes
                                     setSelectedCustomerId(null);
                                     setSelectedSupplierId(null);
                                     form.setFieldsValue({
@@ -419,14 +417,14 @@ const NoteFormDrawer: React.FC<Props> = ({
                             }}
                         />
                     </Col>
-                    <Col span={6}>
+                    <Col span={8}>
                         <ProFormDatePicker
                             name="issue_date"
                             label="Issue Date"
                             fieldProps={{ style: { width: "100%" } }}
                         />
                     </Col>
-                    <Col span={6}>
+                    <Col span={8}>
                         <ProFormDatePicker
                             name="expiry_date"
                             label="Expiry Date"
@@ -437,7 +435,6 @@ const NoteFormDrawer: React.FC<Props> = ({
 
                 {/* ── Contact + Invoice ── */}
                 <Row gutter={12}>
-                    {/* Customer selector */}
                     {direction === "customer" && (
                         <Col span={12}>
                             <ProFormSelect
@@ -450,10 +447,8 @@ const NoteFormDrawer: React.FC<Props> = ({
                                     onSearch: setCustomerSearch,
                                     loading: customersFetching,
                                     allowClear: true,
-                                    optionFilterProp: "label",
                                     onChange: (val: string) => {
                                         setSelectedCustomerId(val || null);
-                                        // Clear invoice when customer changes
                                         form.setFieldValue("original_invoice_no", undefined);
                                     },
                                     notFoundContent: customersFetching ? "Searching..." : "No customers found",
@@ -466,7 +461,6 @@ const NoteFormDrawer: React.FC<Props> = ({
                         </Col>
                     )}
 
-                    {/* Supplier selector */}
                     {direction === "supplier" && (
                         <Col span={12}>
                             <ProFormSelect
@@ -479,7 +473,6 @@ const NoteFormDrawer: React.FC<Props> = ({
                                     onSearch: setSupplierSearch,
                                     loading: suppliersFetching,
                                     allowClear: true,
-                                    optionFilterProp: "label",
                                     onChange: (val: string) => {
                                         setSelectedSupplierId(val || null);
                                         form.setFieldValue("original_invoice_no", undefined);
@@ -494,7 +487,6 @@ const NoteFormDrawer: React.FC<Props> = ({
                         </Col>
                     )}
 
-                    {/* Original Invoice — populated from contact's invoices */}
                     <Col span={12}>
                         <ProFormSelect
                             name="original_invoice_no"
@@ -513,7 +505,6 @@ const NoteFormDrawer: React.FC<Props> = ({
                                     (direction === "supplier" && !selectedSupplierId),
                                 optionFilterProp: "label",
                                 allowClear: true,
-                                showSearch: true,
                             }}
                             options={invoiceOptions}
                         />
@@ -545,7 +536,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                     </Col>
                 </Row>
 
-                {/* ── VAT Mode ── */}
+                {/* ── VAT Mode + Lines ── */}
                 <Divider orientation="left" plain>
                     <Text type="secondary" style={{ fontSize: 12 }}>Lines</Text>
                 </Divider>
@@ -563,7 +554,6 @@ const NoteFormDrawer: React.FC<Props> = ({
                     />
                 </Space>
 
-                {/* ── Line Table ── */}
                 <Table
                     rowKey="key"
                     dataSource={lines}

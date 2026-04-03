@@ -1,20 +1,21 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Modal, Form, Input, InputNumber, Select, DatePicker,
     Button, Space, Table, Divider, App, Row, Col, Tag,
-    Typography, Alert, Segmented, Steps, Card, Statistic,
+    Typography, Alert, Segmented, Steps, Card, Statistic, Tooltip,
 } from "antd";
 import {
     PlusOutlined, DeleteOutlined,
     FileDoneOutlined, FileTextOutlined, DollarOutlined,
-    CheckCircleOutlined, ArrowRightOutlined,
+    CheckCircleOutlined, ArrowRightOutlined, InfoCircleOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { createInvoice, convertQuoteToInvoice, recordInvoicePayment } from "@services/accounting/invoice";
 import { fetchAllCustomers } from "@services/customers";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
-import dayjs from "dayjs";
+import { fetchTenantDetails, getCurrentTenantId } from "@services/tenants";
+import dayjs, { Dayjs } from "dayjs";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -30,9 +31,29 @@ const PAYMENT_TERMS = [
     { label: "Cash on Delivery", value: "Cash on Delivery" },
 ];
 
+// Maps a payment term string to days added to the issue date.
+// null = no automatic due date (e.g. COD, 50% Upfront).
+const TERM_DAYS: Record<string, number | null> = {
+    "Due on Receipt": 0,
+    "Net 7": 7,
+    "Net 14": 14,
+    "Net 30": 30,
+    "Net 60": 60,
+    "Net 90": 90,
+    "50% Upfront": null,
+    "Cash on Delivery": null,
+};
+
+const calcDueDate = (issueDate: Dayjs, terms: string): Dayjs | null => {
+    const days = TERM_DAYS[terms];
+    if (days == null) return null;
+    return issueDate.add(days, "day");
+};
+
 interface Props {
     open: boolean;
     onClose: () => void;
+    onSuccess?: () => void;
 }
 
 interface LineItem {
@@ -44,24 +65,19 @@ interface LineItem {
     account_id: string;
 }
 
-const VAT_RATES = [
-    { label: "0%", value: 0 },
-    { label: "16%", value: 0.16 },
-    { label: "8%", value: 0.08 },
-];
+type DocType = "quote" | "invoice";
 
-const newLine = (): LineItem => ({
+const newLine = (defaultVatRate = 0): LineItem => ({
     key: `${Date.now()}-${Math.random()}`,
     description: "",
     quantity: 1,
     unit_price: 0,
-    vat_rate: 0,
+    vat_rate: defaultVatRate,
     account_id: "",
 });
 
-type DocType = "quote" | "invoice";
-
-const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
+// ─────────────────────────────────────────────────────────────────────────────
+const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     const [form] = Form.useForm();
     const [payForm] = Form.useForm();
     const { message } = App.useApp();
@@ -73,25 +89,63 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
     const [savedInvoice, setSavedInvoice] = useState<any>(null);
     const [customerSearch, setCustomerSearch] = useState("");
 
-    // Resolve shopId once — used in every API payload
     const shopId = localStorage.getItem("shopId");
+    const tenantId = getCurrentTenantId();
 
-    // ── Data ──────────────────────────────────────────────────────────────────
+    // ── Tenant VAT config ─────────────────────────────────────────────────────
+    const { data: tenantData } = useQuery({
+        queryKey: ["tenant", tenantId],
+        queryFn: () => fetchTenantDetails(tenantId),
+        enabled: !!tenantId && open,
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const tenant = tenantData?.data;
+    const vatEnabled = tenant?.is_vat_enabled ?? true;
+    const standardVatRate = tenant?.vat_standard_rate ?? 0.16;
+    const vatPricingMode = tenant?.vat_pricing_mode ?? "EXCLUSIVE";
+
+    const vatRateOptions = [
+        { label: "Exempt (0%)", value: 0 },
+        { label: `Standard (${(standardVatRate * 100).toFixed(0)}%)`, value: standardVatRate },
+    ];
+
+    useEffect(() => {
+        if (!vatEnabled) {
+            setLines((prev) => prev.map((l) => ({ ...l, vat_rate: 0 })));
+        }
+    }, [vatEnabled]);
+
+    // ── All accounts (revenue + asset) ───────────────────────────────────────
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts"],
         queryFn: () => getAllAccounts({}),
         enabled: open,
     });
     const allAccounts = accountsData?.accounts || [];
-    const revenueAccounts = allAccounts.filter((a: any) => a.account_type === "REVENUE" && a.is_active);
-    const arAccounts = allAccounts.filter((a: any) => a.account_subtype === "Accounts Receivable" && a.is_active);
-    const vatLiabilityAccts = allAccounts.filter((a: any) => a.account_subtype?.toLowerCase().includes("vat") && a.is_active);
 
+    // Revenue accounts — for line-item labelling only
+    const revenueAccounts = allAccounts.filter(
+        (a: any) => a.account_type === "REVENUE" && a.is_active
+    );
+
+    // Asset accounts — shown in the payment step so the user picks
+    // where the cash/bank receipt is deposited (e.g. 1010 Cash, 1020 Bank, 1030 M-Pesa Float)
+    const assetAccounts = allAccounts.filter(
+        (a: any) => a.account_type === "ASSET" && a.is_active
+    );
+    const assetAccountOptions = assetAccounts.map((a: any) => ({
+        label: `${a.account_code} — ${a.account_name}`,
+        value: a._id,
+    }));
+
+    // ── Customers ─────────────────────────────────────────────────────────────
     const { data: customersData, isFetching: customersFetching } = useQuery({
         queryKey: ["customers-dropdown", customerSearch],
         queryFn: () => fetchAllCustomers({ customer_name: customerSearch }),
         enabled: open,
-        select: (res: any) => Array.isArray(res) ? res : (res?.customers || res?.data || []),
+        select: (res: any) =>
+            Array.isArray(res) ? res : (res?.customers || res?.data || []),
         staleTime: 30_000,
     });
     const customerOptions = (customersData || []).map((c: any) => ({
@@ -99,6 +153,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         value: c._id,
     }));
 
+    // ── Payment methods ───────────────────────────────────────────────────────
     const { data: methodsData } = useQuery({
         queryKey: ["payment-methods"],
         queryFn: () => fetchAllPaymentMethods({}),
@@ -111,17 +166,45 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
 
     // ── Line helpers ──────────────────────────────────────────────────────────
     const updateLine = (key: string, field: keyof LineItem, val: any) =>
-        setLines((prev) => prev.map((l) => l.key === key ? { ...l, [field]: val } : l));
-    const addLine = () => setLines((prev) => [...prev, newLine()]);
-    const removeLine = (key: string) => setLines((prev) => prev.filter((l) => l.key !== key));
+        setLines((prev) =>
+            prev.map((l) => (l.key === key ? { ...l, [field]: val } : l))
+        );
 
-    const lineNet = (l: LineItem) => l.quantity * l.unit_price;
-    const lineVAT = (l: LineItem) => lineNet(l) * l.vat_rate;
-    const lineGross = (l: LineItem) => lineNet(l) + lineVAT(l);
+    const addLine = () =>
+        setLines((prev) => [
+            ...prev,
+            newLine(vatEnabled ? standardVatRate : 0),
+        ]);
+
+    const removeLine = (key: string) =>
+        setLines((prev) => prev.filter((l) => l.key !== key));
+
+    // ── Totals ────────────────────────────────────────────────────────────────
+    const lineNet = (l: LineItem) => {
+        if (vatPricingMode === "INCLUSIVE" && l.vat_rate > 0) {
+            return (l.quantity * l.unit_price) / (1 + l.vat_rate);
+        }
+        return l.quantity * l.unit_price;
+    };
+    const lineVAT = (l: LineItem) => {
+        if (!vatEnabled || l.vat_rate === 0) return 0;
+        if (vatPricingMode === "INCLUSIVE") {
+            const gross = l.quantity * l.unit_price;
+            return gross - gross / (1 + l.vat_rate);
+        }
+        return lineNet(l) * l.vat_rate;
+    };
+    const lineGross = (l: LineItem) =>
+        vatPricingMode === "INCLUSIVE"
+            ? l.quantity * l.unit_price
+            : lineNet(l) + lineVAT(l);
 
     const subtotal = lines.reduce((s, l) => s + lineNet(l), 0);
     const totalVAT = lines.reduce((s, l) => s + lineVAT(l), 0);
     const grandTotal = subtotal + totalVAT;
+
+    const fmt = (n: number) =>
+        n.toLocaleString("en-KE", { minimumFractionDigits: 2 });
 
     // ── Mutations ─────────────────────────────────────────────────────────────
     const saveMutation = useMutation({
@@ -130,15 +213,10 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
             setSavedInvoice(data?.invoice);
             queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
-            if (docType === "quote") {
-                setStep(1);
-            } else {
-                setStep(2);
-            }
+            setStep(docType === "quote" ? 1 : 2);
         },
-        onError: (err: any) => {
-            message.error(err?.response?.data?.message || "Failed to save");
-        },
+        onError: (err: any) =>
+            message.error(err?.response?.data?.message || "Failed to save"),
     });
 
     const convertMutation = useMutation({
@@ -150,9 +228,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
             setStep(2);
         },
-        onError: (err: any) => {
-            message.error(err?.response?.data?.message || "Failed to convert");
-        },
+        onError: (err: any) =>
+            message.error(err?.response?.data?.message || "Failed to convert"),
     });
 
     const payMutation = useMutation({
@@ -162,25 +239,24 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
             message.success("Payment recorded — invoice settled");
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
             queryClient.invalidateQueries({ queryKey: ["income-history"] });
+            onSuccess?.();
             handleClose();
         },
-        onError: (err: any) => {
-            message.error(err?.response?.data?.message || "Failed to record payment");
-        },
+        onError: (err: any) =>
+            message.error(err?.response?.data?.message || "Failed to record payment"),
     });
 
     // ── Handlers ──────────────────────────────────────────────────────────────
     const handleClose = () => {
         form.resetFields();
         payForm.resetFields();
-        setLines([newLine()]);
+        setLines([newLine(vatEnabled ? standardVatRate : 0)]);
         setStep(0);
         setDocType("invoice");
         setSavedInvoice(null);
         onClose();
     };
 
-    // FIX: always include shop_id from localStorage in every payload
     const buildPayload = (values: any, status: "Draft" | "Pending") => ({
         direction: "customer" as const,
         shop_id: shopId,
@@ -195,7 +271,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
             account_id: l.account_id,
             quantity: l.quantity,
             price: l.unit_price,
-            vat_rate: l.vat_rate,
+            vat_rate: vatEnabled ? l.vat_rate : 0,
             vat_amount: parseFloat(lineVAT(l).toFixed(2)),
         })),
     } as any);
@@ -206,12 +282,13 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
             return;
         }
         const values = await form.validateFields();
-        if (lines.some((l) => !l.description || !l.account_id || l.unit_price <= 0)) {
-            message.warning("Fill in all line items — description, account, and price required");
+        if (lines.some((l) => !l.description || l.unit_price <= 0)) {
+            message.warning("Fill in all line items — description and price are required");
             return;
         }
-        const status = docType === "quote" ? "Draft" : "Pending";
-        saveMutation.mutate(buildPayload(values, status));
+        saveMutation.mutate(
+            buildPayload(values, docType === "quote" ? "Draft" : "Pending")
+        );
     };
 
     const handleConvert = () => {
@@ -233,72 +310,111 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
             data: {
                 amount: v.amount,
                 method_id: v.method_id,
+                // account_id tells the backend which COA asset account to debit
+                // e.g. 1010 Cash on Hand, 1020 Bank, 1030 M-Pesa Float
+                account_id: v.account_id,
                 reference: v.reference,
                 notes: v.notes,
             },
         });
     };
 
-    // ── Line items table ──────────────────────────────────────────────────────
+    // ── Line items columns ────────────────────────────────────────────────────
     const lineColumns = [
         {
             title: "Description",
             dataIndex: "description",
             render: (_: any, r: LineItem) => (
-                <Input size="small" placeholder="Item / service"
+                <Input
+                    size="small" placeholder="Item / service"
                     value={r.description}
-                    onChange={(e) => updateLine(r.key, "description", e.target.value)} />
+                    onChange={(e) => updateLine(r.key, "description", e.target.value)}
+                />
             ),
         },
         {
             title: "Revenue Account",
             dataIndex: "account_id",
-            width: 185,
+            width: 180,
             render: (_: any, r: LineItem) => (
-                <Select size="small" style={{ width: "100%" }} placeholder="Account"
+                <Select
+                    size="small" style={{ width: "100%" }}
+                    placeholder="Account (display only)"
                     value={r.account_id || undefined}
-                    showSearch optionFilterProp="label"
-                    onChange={(v) => updateLine(r.key, "account_id", v)}
+                    showSearch optionFilterProp="label" allowClear
+                    onChange={(v) => updateLine(r.key, "account_id", v ?? "")}
                     options={revenueAccounts.map((a: any) => ({
                         label: `${a.account_code} ${a.account_name}`,
                         value: a._id,
-                    }))} />
+                    }))}
+                />
             ),
         },
         {
-            title: "Qty", dataIndex: "quantity", width: 65,
+            title: "Qty",
+            dataIndex: "quantity",
+            width: 65,
             render: (_: any, r: LineItem) => (
-                <InputNumber size="small" min={1} value={r.quantity} style={{ width: "100%" }}
-                    onChange={(v) => updateLine(r.key, "quantity", v || 1)} />
+                <InputNumber
+                    size="small" min={1} value={r.quantity} style={{ width: "100%" }}
+                    onChange={(v) => updateLine(r.key, "quantity", v || 1)}
+                />
             ),
         },
         {
-            title: "Unit Price", dataIndex: "unit_price", width: 105,
+            title: vatPricingMode === "INCLUSIVE" ? "Unit Price (incl. VAT)" : "Unit Price",
+            dataIndex: "unit_price",
+            width: 125,
             render: (_: any, r: LineItem) => (
-                <InputNumber size="small" min={0} precision={2} value={r.unit_price} style={{ width: "100%" }}
-                    onChange={(v) => updateLine(r.key, "unit_price", v || 0)} />
+                <InputNumber
+                    size="small" min={0} precision={2} value={r.unit_price}
+                    style={{ width: "100%" }}
+                    onChange={(v) => updateLine(r.key, "unit_price", v || 0)}
+                />
+            ),
+        },
+        ...(vatEnabled
+            ? [{
+                title: (
+                    <Space size={4}>
+                        VAT
+                        <Tooltip title={`Pricing mode: ${vatPricingMode}`}>
+                            <InfoCircleOutlined style={{ fontSize: 11, color: "#8c8c8c" }} />
+                        </Tooltip>
+                    </Space>
+                ),
+                dataIndex: "vat_rate",
+                width: 120,
+                render: (_: any, r: LineItem) => (
+                    <Select
+                        size="small" style={{ width: "100%" }}
+                        value={r.vat_rate}
+                        onChange={(v) => updateLine(r.key, "vat_rate", v)}
+                        options={vatRateOptions}
+                    />
+                ),
+            }]
+            : []
+        ),
+        {
+            title: "Total",
+            key: "gross",
+            width: 110,
+            align: "right" as const,
+            render: (_: any, r: LineItem) => (
+                <Text strong>{fmt(lineGross(r))}</Text>
             ),
         },
         {
-            title: "VAT", dataIndex: "vat_rate", width: 90,
+            title: "",
+            key: "del",
+            width: 36,
             render: (_: any, r: LineItem) => (
-                <Select size="small" style={{ width: "100%" }} value={r.vat_rate}
-                    onChange={(v) => updateLine(r.key, "vat_rate", v)}
-                    options={VAT_RATES} />
-            ),
-        },
-        {
-            title: "Total", key: "gross", width: 110, align: "right" as const,
-            render: (_: any, r: LineItem) => (
-                <Text strong>{lineGross(r).toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
-            ),
-        },
-        {
-            title: "", key: "del", width: 36,
-            render: (_: any, r: LineItem) => (
-                <Button type="text" danger size="small" icon={<DeleteOutlined />}
+                <Button
+                    type="text" danger size="small" icon={<DeleteOutlined />}
                     disabled={lines.length === 1}
-                    onClick={() => removeLine(r.key)} />
+                    onClick={() => removeLine(r.key)}
+                />
             ),
         },
     ];
@@ -307,20 +423,26 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
     const TotalsCard = () => (
         <Row justify="end">
             <Col span={10}>
-                <div style={{ background: "#fafafa", padding: "12px 16px", borderRadius: 8, border: "1px solid #f0f0f0" }}>
+                <div style={{
+                    background: "#fafafa", padding: "12px 16px",
+                    borderRadius: 8, border: "1px solid #f0f0f0",
+                }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                        <Text type="secondary">Subtotal</Text>
-                        <Text>KES {subtotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
+                        <Text type="secondary">Subtotal (excl. VAT)</Text>
+                        <Text>KES {fmt(subtotal)}</Text>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                         <Text type="secondary">VAT</Text>
-                        <Tag color="blue">KES {totalVAT.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Tag>
+                        {vatEnabled
+                            ? <Tag color="blue">KES {fmt(totalVAT)}</Tag>
+                            : <Tag color="default">Exempt</Tag>
+                        }
                     </div>
                     <Divider style={{ margin: "8px 0" }} />
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                         <Text strong>Grand Total</Text>
                         <Text strong style={{ fontSize: 16, color: "#1d39c4" }}>
-                            KES {grandTotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                            KES {fmt(grandTotal)}
                         </Text>
                     </div>
                 </div>
@@ -328,7 +450,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         </Row>
     );
 
-    // ── Step renders ──────────────────────────────────────────────────────────
+    // ── Step 0 — create quote / invoice ───────────────────────────────────────
     const renderStep0 = () => (
         <>
             <Row justify="center" style={{ marginBottom: 16 }}>
@@ -343,89 +465,144 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
                 />
             </Row>
 
+            {!vatEnabled ? (
+                <Alert
+                    type="warning" showIcon
+                    style={{ marginBottom: 12 }}
+                    message="VAT is disabled for this business"
+                    description={
+                        <>
+                            All line items will be VAT-exempt (0%). To enable VAT go to{" "}
+                            <strong>Tenant Settings → VAT Config</strong>.
+                        </>
+                    }
+                />
+            ) : (
+                <Alert
+                    type="info" showIcon icon={<InfoCircleOutlined />}
+                    style={{ marginBottom: 12 }}
+                    message={
+                        <Space>
+                            VAT active — standard rate{" "}
+                            <strong>{(standardVatRate * 100).toFixed(0)}%</strong>
+                            <Tag color="blue" style={{ fontSize: 11, margin: 0 }}>
+                                {vatPricingMode === "INCLUSIVE" ? "Tax Inclusive" : "Tax Exclusive"}
+                            </Tag>
+                        </Space>
+                    }
+                    description="Standard rate is pre-applied to new lines. You can set individual lines to Exempt."
+                />
+            )}
+
             <Alert
                 type={docType === "quote" ? "warning" : "info"}
-                showIcon
-                style={{ marginBottom: 16 }}
+                showIcon style={{ marginBottom: 16 }}
                 message={docType === "quote" ? "Saving as Quote (Draft)" : "Creating Invoice (A/R)"}
                 description={
                     docType === "quote"
                         ? "No journal entry or AR impact until you convert it to an invoice."
-                        : "Posts to books immediately — DR Accounts Receivable, CR Revenue."
+                        : "Posts to books immediately — DR Accounts Receivable (1200), CR Sales Revenue (4100)."
                 }
             />
 
             <Form form={form} layout="vertical" initialValues={{ issue_date: dayjs() }}>
+                {/* Row 1: Customer, Issue Date, Payment Terms */}
                 <Row gutter={16}>
                     <Col span={8}>
-                        <Form.Item name="customer_id" label="Customer / Billed To"
-                            rules={[{ required: true, message: "Select a customer" }]}>
-                            <Select showSearch allowClear placeholder="Search customer..."
+                        <Form.Item
+                            name="customer_id" label="Customer / Billed To"
+                            rules={[{ required: true, message: "Select a customer" }]}
+                        >
+                            <Select
+                                showSearch allowClear placeholder="Search customer..."
                                 filterOption={false}
                                 onSearch={setCustomerSearch}
                                 loading={customersFetching}
                                 options={customerOptions}
-                                notFoundContent={customersFetching ? "Searching..." : "No customers found"} />
+                                notFoundContent={customersFetching ? "Searching..." : "No customers found"}
+                            />
                         </Form.Item>
                     </Col>
                     <Col span={8}>
-                        <Form.Item name="issue_date"
+                        <Form.Item
+                            name="issue_date"
                             label={docType === "quote" ? "Quote Date" : "Invoice Date"}
-                            rules={[{ required: true }]}>
-                            <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
+                            rules={[{ required: true }]}
+                        >
+                            <DatePicker
+                                style={{ width: "100%" }}
+                                format="DD MMM YYYY"
+                                onChange={(date) => {
+                                    const terms = form.getFieldValue("terms");
+                                    if (date && terms) {
+                                        const due = calcDueDate(date, terms);
+                                        form.setFieldValue("due_date", due ?? null);
+                                    }
+                                }}
+                            />
                         </Form.Item>
                     </Col>
                     <Col span={8}>
-                        <Form.Item name="due_date" label="Due Date"
-                            rules={docType === "invoice" ? [{ required: true, message: "Required for invoices" }] : []}
-                            tooltip={docType === "quote" ? "Optional for quotes" : "Required"}>
+                        <Form.Item name="terms" label="Payment Terms">
+                            <Select
+                                placeholder="Select payment terms"
+                                allowClear
+                                options={PAYMENT_TERMS}
+                                onChange={(terms) => {
+                                    const issueDate = form.getFieldValue("issue_date");
+                                    if (issueDate && terms) {
+                                        const due = calcDueDate(issueDate, terms);
+                                        form.setFieldValue("due_date", due ?? null);
+                                    } else if (!terms) {
+                                        form.setFieldValue("due_date", null);
+                                    }
+                                }}
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                {/* Row 2: Due Date (auto-set by terms, manually overridable) */}
+                <Row gutter={16}>
+                    <Col span={8}>
+                        <Form.Item
+                            name="due_date"
+                            label="Due Date"
+                            rules={docType === "invoice"
+                                ? [{ required: true, message: "Required for invoices" }]
+                                : []}
+                            tooltip={
+                                docType === "quote"
+                                    ? "Optional for quotes — auto-set when payment terms are selected"
+                                    : "Auto-set by payment terms — you can override manually"
+                            }
+                        >
                             <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
                         </Form.Item>
                     </Col>
                 </Row>
 
-                {docType === "invoice" && (
-                    <Row gutter={16}>
-                        <Col span={12}>
-                            <Form.Item name="ar_account" label="Accounts Receivable (DR)"
-                                rules={[{ required: true }]}
-                                tooltip="Money owed to your business">
-                                <Select showSearch placeholder="Select AR account" optionFilterProp="label"
-                                    options={[...arAccounts,
-                                    ...allAccounts.filter((a: any) => a.account_type === "ASSET" && a.is_active)]
-                                        .map((a: any) => ({ label: `${a.account_code} — ${a.account_name}`, value: a._id }))} />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item name="vat_account" label="VAT Liability (CR)" tooltip="Only if lines have VAT">
-                                <Select showSearch placeholder="Optional" optionFilterProp="label" allowClear
-                                    options={[...vatLiabilityAccts,
-                                    ...allAccounts.filter((a: any) => a.account_type === "LIABILITY" && a.is_active)]
-                                        .map((a: any) => ({ label: `${a.account_code} — ${a.account_name}`, value: a._id }))} />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                )}
+                <Divider orientation="left" plain style={{ fontSize: 13, fontWeight: 600 }}>
+                    Line Items
+                </Divider>
 
-                <Divider orientation="left" plain style={{ fontSize: 13, fontWeight: 600 }}>Line Items</Divider>
+                <Table
+                    dataSource={lines} columns={lineColumns}
+                    rowKey="key" pagination={false} size="small"
+                    style={{ marginBottom: 12 }}
+                />
 
-                <Table dataSource={lines} columns={lineColumns} rowKey="key"
-                    pagination={false} size="small" style={{ marginBottom: 12 }} />
-
-                <Button type="dashed" icon={<PlusOutlined />} onClick={addLine}
-                    style={{ width: "100%", marginBottom: 16 }}>
+                <Button
+                    type="dashed" icon={<PlusOutlined />} onClick={addLine}
+                    style={{ width: "100%", marginBottom: 16 }}
+                >
                     Add Line Item
                 </Button>
 
                 <TotalsCard />
 
                 <Row gutter={16} style={{ marginTop: 16 }}>
-                    <Col span={12}>
-                        <Form.Item name="terms" label="Payment Terms">
-                            <Select placeholder="Select payment terms" allowClear options={PAYMENT_TERMS} />
-                        </Form.Item>
-                    </Col>
-                    <Col span={12}>
+                    <Col span={24}>
                         <Form.Item name="notes" label="Notes">
                             <TextArea rows={2} placeholder="Notes printed on document..." />
                         </Form.Item>
@@ -435,45 +612,51 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         </>
     );
 
+    // ── Step 1 — review quote before converting ───────────────────────────────
     const renderStep1 = () => (
         <Space direction="vertical" style={{ width: "100%" }} size="large">
-            <Alert type="success" showIcon
+            <Alert
+                type="success" showIcon
                 message={`Quote saved — ${savedInvoice?.order_no || ""}`}
-                description="Review the quote below. When the customer accepts it, click Convert to Invoice to post it to your books." />
-
+                description="Review the quote below. When the customer accepts it, click Convert to Invoice."
+            />
             <Card size="small" title="Quote Summary">
                 <Row gutter={24}>
                     <Col span={8}>
                         <Statistic title="Customer"
-                            value={savedInvoice?.counterparty_name || "—"} valueStyle={{ fontSize: 14 }} />
+                            value={savedInvoice?.counterparty_name || "—"}
+                            valueStyle={{ fontSize: 14 }} />
                     </Col>
                     <Col span={8}>
                         <Statistic title="Issue Date"
-                            value={savedInvoice?.issue_date ? dayjs(savedInvoice.issue_date).format("DD MMM YYYY") : "—"}
+                            value={savedInvoice?.issue_date
+                                ? dayjs(savedInvoice.issue_date).format("DD MMM YYYY") : "—"}
                             valueStyle={{ fontSize: 14 }} />
                     </Col>
                     <Col span={8}>
                         <Statistic title="Grand Total (KES)"
-                            value={savedInvoice?.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 }) || "—"}
+                            value={savedInvoice?.grand_total != null ? fmt(savedInvoice.grand_total) : "—"}
                             valueStyle={{ fontSize: 14, color: "#1d39c4" }} />
                     </Col>
                 </Row>
             </Card>
-
             <TotalsCard />
-
-            <Alert type="info" showIcon
+            <Alert
+                type="info" showIcon
                 message="Converting to Invoice"
-                description="This will post a journal entry (DR Accounts Receivable, CR Revenue) and change the status from Draft to Pending." />
+                description="Posts DR Accounts Receivable (1200) / CR Sales Revenue (4100) and changes status from Draft to Pending."
+            />
         </Space>
     );
 
+    // ── Step 2 — record payment ───────────────────────────────────────────────
     const renderStep2 = () => (
         <Space direction="vertical" style={{ width: "100%" }} size="large">
-            <Alert type="success" showIcon icon={<CheckCircleOutlined />}
+            <Alert
+                type="success" showIcon icon={<CheckCircleOutlined />}
                 message={`Invoice posted — ${savedInvoice?.order_no || ""}`}
-                description="Journal entry created. You can record payment now or do it later from the Invoices tab." />
-
+                description="Journal entry created. You can record payment now or do it later from the Invoices tab."
+            />
             <Card size="small" title="Invoice Summary">
                 <Row gutter={24}>
                     <Col span={6}>
@@ -486,12 +669,13 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
                     </Col>
                     <Col span={6}>
                         <Statistic title="Due Date"
-                            value={savedInvoice?.due_date ? dayjs(savedInvoice.due_date).format("DD MMM YYYY") : "—"}
+                            value={savedInvoice?.due_date
+                                ? dayjs(savedInvoice.due_date).format("DD MMM YYYY") : "—"}
                             valueStyle={{ fontSize: 13 }} />
                     </Col>
                     <Col span={6}>
                         <Statistic title="Amount Due (KES)"
-                            value={savedInvoice?.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 }) || "—"}
+                            value={savedInvoice?.grand_total != null ? fmt(savedInvoice.grand_total) : "—"}
                             valueStyle={{ fontSize: 13, color: "#fa8c16" }} />
                     </Col>
                 </Row>
@@ -511,23 +695,50 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        <Form.Item name="amount" label="Amount Received (KES)"
-                            initialValue={savedInvoice?.grand_total}
-                            rules={[{ required: true }, { type: "number", min: 0.01 }]}>
-                            <InputNumber style={{ width: "100%" }} min={0.01} precision={2}
-                                max={savedInvoice?.grand_total}
-                                formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                                parser={(v) => v!.replace(/,/g, "") as any} />
+                        {/*
+                         * Deposit Account — which COA asset account receives the cash.
+                         * Filtered to ASSET accounts (cash, bank, mobile money float, etc.).
+                         * The backend uses this to post:
+                         *   DR  <account_id>  (e.g. 1020 Bank / 1030 M-Pesa Float)
+                         *   CR  1200 Accounts Receivable
+                         */}
+                        <Form.Item
+                            name="account_id"
+                            label="Deposit Account"
+                            rules={[{ required: true, message: "Select the account receiving payment" }]}
+                            tooltip="Choose the cash or bank account where this payment is deposited (e.g. Cash on Hand, Bank, M-Pesa Float). This determines the debit side of the journal entry."
+                        >
+                            <Select
+                                showSearch
+                                placeholder="e.g. Cash on Hand, Bank, M-Pesa Float"
+                                optionFilterProp="label"
+                                options={assetAccountOptions}
+                                notFoundContent="No asset accounts found — add them in Chart of Accounts"
+                            />
                         </Form.Item>
                     </Col>
                 </Row>
                 <Row gutter={16}>
                     <Col span={12}>
+                        <Form.Item name="amount" label="Amount Received (KES)"
+                            initialValue={savedInvoice?.grand_total}
+                            rules={[{ required: true }, { type: "number", min: 0.01 }]}>
+                            <InputNumber
+                                style={{ width: "100%" }} min={0.01} precision={2}
+                                max={savedInvoice?.grand_total}
+                                formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                parser={(v) => v!.replace(/,/g, "") as any}
+                            />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
                         <Form.Item name="reference" label="Reference / Transaction Code">
                             <Input placeholder="M-Pesa code, cheque no..." />
                         </Form.Item>
                     </Col>
-                    <Col span={12}>
+                </Row>
+                <Row gutter={16}>
+                    <Col span={24}>
                         <Form.Item name="notes" label="Notes">
                             <Input placeholder="Optional" />
                         </Form.Item>
@@ -537,7 +748,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
         </Space>
     );
 
-    // ── Footer ────────────────────────────────────────────────────────────────
+    // ── Footer buttons ────────────────────────────────────────────────────────
     const renderFooter = () => {
         if (step === 0) return [
             <Button key="cancel" onClick={handleClose}>Cancel</Button>,
@@ -549,7 +760,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
                 {docType === "quote" ? "Save Quote" : "Post Invoice"}
             </Button>,
         ];
-
         if (step === 1) return [
             <Button key="close" onClick={handleClose}>Close (save as quote)</Button>,
             <Button key="convert" type="primary"
@@ -559,7 +769,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
                 Convert to Invoice
             </Button>,
         ];
-
         if (step === 2) return [
             <Button key="skip" onClick={handleClose}>Skip — pay later</Button>,
             <Button key="pay" type="primary"
@@ -570,10 +779,10 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
                 Record Payment
             </Button>,
         ];
-
         return [];
     };
 
+    // ── Steps config ──────────────────────────────────────────────────────────
     const stepsConfig = docType === "quote"
         ? [
             { title: "Details", icon: <FileTextOutlined /> },
@@ -587,6 +796,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
 
     const stepsIndex = docType === "quote" ? step : step === 0 ? 0 : 1;
 
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <Modal
             open={open}
@@ -613,7 +823,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose }) => {
                 items={stepsConfig}
                 style={{ marginBottom: 24 }}
             />
-
             {step === 0 && renderStep0()}
             {step === 1 && renderStep1()}
             {step === 2 && renderStep2()}

@@ -14,7 +14,6 @@ import GiftCardModal from "../../components/MODALS/pro/GiftCardModal";
 
 const { Text } = Typography;
 
-// ── Palette ────────────────────────────────────────────────────────────────
 const C = {
     primary: "#6c1c2c",
     primaryLight: "#f9f0f2",
@@ -30,7 +29,6 @@ const C = {
     bg: "#f8fafc",
 };
 
-// ── useIsMobile ────────────────────────────────────────────────────────────
 const useIsMobile = () => {
     const [v, setV] = useState(window.innerWidth < 768);
     useEffect(() => {
@@ -41,7 +39,6 @@ const useIsMobile = () => {
     return v;
 };
 
-// ── CSS-only pills ─────────────────────────────────────────────────────────
 const pill = (bg: string, color: string, border: string): React.CSSProperties => ({
     display: "inline-flex", alignItems: "center", gap: 4,
     borderRadius: 5, padding: "2px 8px",
@@ -49,7 +46,6 @@ const pill = (bg: string, color: string, border: string): React.CSSProperties =>
     background: bg, color, border: `1px solid ${border}`,
 });
 
-// ── Shared atoms ───────────────────────────────────────────────────────────
 const ModalTitle = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{
@@ -74,7 +70,6 @@ const MetaRow = ({ label, children, last }: {
     </div>
 );
 
-// ── KPI card ───────────────────────────────────────────────────────────────
 const KpiCard = ({ icon, label, value, sub, color, bg }: {
     icon: React.ReactNode; label: string; value: string | number;
     sub?: string; color: string; bg: string;
@@ -94,7 +89,6 @@ const KpiCard = ({ icon, label, value, sub, color, bg }: {
     </div>
 );
 
-// ── Top customer row ───────────────────────────────────────────────────────
 const TopCustomerRow = ({ rank, name, visits, sub, last }: {
     rank: number; name: string; visits: number; sub?: string; last?: boolean;
 }) => {
@@ -123,7 +117,6 @@ const TopCustomerRow = ({ rank, name, visits, sub, last }: {
     );
 };
 
-// ── ProgressRow helper ─────────────────────────────────────────────────────
 const ProgressRow = ({ label, count, total, color, last }: {
     label: string; count: number; total: number; color: string; last?: boolean;
 }) => {
@@ -141,7 +134,6 @@ const ProgressRow = ({ label, count, total, color, last }: {
     );
 };
 
-// ── Analytics builder ──────────────────────────────────────────────────────
 const buildStats = (customers: any[]) => {
     const now = Date.now();
     let recent = 0, overdue = 0, never = 0;
@@ -174,35 +166,28 @@ const buildStats = (customers: any[]) => {
     };
 };
 
-// ── Analytics panel ────────────────────────────────────────────────────────
 const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
     if (!customers.length) return null;
     const s = buildStats(customers);
 
     return (
         <div style={{ marginBottom: 16 }}>
-            {/* KPI strip */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
                 <KpiCard icon={<TeamOutlined />} label="Total Customers" value={s.total}
-                    sub={`${s.withPhone} with phone`}
-                    color={C.blue} bg="#eff6ff" />
+                    sub={`${s.withPhone} with phone`} color={C.blue} bg="#eff6ff" />
                 <KpiCard icon={<CheckCircleOutlined />} label="Recent Visitors" value={s.recent}
                     sub={`${s.total ? Math.round((s.recent / s.total) * 100) : 0}% visited in 14d`}
                     color={C.green} bg="#f0fdf4" />
                 <KpiCard icon={<AlertOutlined />} label="Overdue" value={s.overdue}
-                    sub="last visit > 14 days"
-                    color={C.orange} bg="#fffbeb" />
+                    sub="last visit > 14 days" color={C.orange} bg="#fffbeb" />
                 <KpiCard icon={<UserOutlined />} label="Never Visited" value={s.never}
-                    sub="no visit recorded"
-                    color={C.red} bg="#fef2f2" />
+                    sub="no visit recorded" color={C.red} bg="#fef2f2" />
                 <KpiCard icon={<MailOutlined />} label="With Email" value={s.withEmail}
                     sub={`${s.total ? Math.round((s.withEmail / s.total) * 100) : 0}% reachable`}
                     color={C.purple} bg="#faf5ff" />
             </div>
 
-            {/* Bottom row */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {/* Top visitors */}
                 <div style={{
                     flex: "1 1 240px", background: "#fff",
                     border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px",
@@ -221,7 +206,6 @@ const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
                     }
                 </div>
 
-                {/* By location */}
                 <div style={{
                     flex: "1 1 220px", background: "#fff",
                     border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px",
@@ -240,7 +224,6 @@ const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
                     }
                 </div>
 
-                {/* Visit health */}
                 <div style={{
                     flex: "1 1 200px", background: "#fff",
                     border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px",
@@ -258,7 +241,6 @@ const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
     );
 };
 
-// ── Visit badge ────────────────────────────────────────────────────────────
 const VisitBadge = ({ visits }: { visits: any[] }) => {
     const lastVisitDate = visits?.[0]?.createdAt ? new Date(visits[0].createdAt) : null;
     if (!lastVisitDate)
@@ -269,7 +251,6 @@ const VisitBadge = ({ visits }: { visits: any[] }) => {
         : <span style={pill("#f0fdf4", C.green, "#bbf7d0")}><CheckCircleOutlined />Recent</span>;
 };
 
-// ── Gift status badge ──────────────────────────────────────────────────────
 const GiftStatusBadge = ({ active }: { active: boolean }) => (
     <span style={active
         ? pill("#f0fdf4", C.green, "#bbf7d0")
@@ -278,7 +259,6 @@ const GiftStatusBadge = ({ active }: { active: boolean }) => (
     </span>
 );
 
-// ── TabNav ─────────────────────────────────────────────────────────────────
 type GiftTab = "all" | "nonCustomers" | "customers";
 const GIFT_TABS: { key: GiftTab; label: string }[] = [
     { key: "all", label: "All" },
@@ -307,10 +287,10 @@ const TabNav = ({ active, onChange }: { active: GiftTab; onChange: (k: GiftTab) 
     </div>
 );
 
-// ── Mobile customer card ───────────────────────────────────────────────────
-const MobileCustomerCard = ({ record, onEdit, onIssueGiftCard, onViewGiftCards }: {
+const MobileCustomerCard = ({ record, onEdit, onIssueGiftCard, onViewGiftCards, showGiftCards }: {
     record: any; onEdit?: () => void;
     onIssueGiftCard: () => void; onViewGiftCards: () => void;
+    showGiftCards: boolean;
 }) => {
     const lv = (() => {
         const visits = record.visits || [];
@@ -374,20 +354,23 @@ const MobileCustomerCard = ({ record, onEdit, onIssueGiftCard, onViewGiftCards }
                         Edit
                     </Button>
                 )}
-                <Button size="small" icon={<GiftOutlined />} onClick={onIssueGiftCard}
-                    style={{ flex: 1, borderRadius: 7, height: 32, fontSize: 11 }}>
-                    Gift Card
-                </Button>
-                <Button size="small" icon={<HistoryOutlined />} onClick={onViewGiftCards}
-                    style={{ flex: 1, borderRadius: 7, height: 32, fontSize: 11, color: C.subText }}>
-                    History
-                </Button>
+                {showGiftCards && (
+                    <>
+                        <Button size="small" icon={<GiftOutlined />} onClick={onIssueGiftCard}
+                            style={{ flex: 1, borderRadius: 7, height: 32, fontSize: 11 }}>
+                            Gift Card
+                        </Button>
+                        <Button size="small" icon={<HistoryOutlined />} onClick={onViewGiftCards}
+                            style={{ flex: 1, borderRadius: 7, height: 32, fontSize: 11, color: C.subText }}>
+                            History
+                        </Button>
+                    </>
+                )}
             </div>
         </div>
     );
 };
 
-// ── Mobile gift card card ──────────────────────────────────────────────────
 const GiftCardMobileCard = ({ card, onPreview, onShare }: {
     card: any; onPreview: () => void; onShare: () => void;
 }) => (
@@ -436,20 +419,35 @@ const GiftCardMobileCard = ({ card, onPreview, onShare }: {
     </div>
 );
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ── Module helper ──────────────────────────────────────────────────────────
+const getModules = () => {
+    try {
+        const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
+        return {
+            hasPOS: tenant?.pos_integration?.enabled === true,
+            hasAccounting: tenant?.modules?.accounting === true,
+        };
+    } catch {
+        return { hasPOS: false, hasAccounting: false };
+    }
+};
+
 interface CustomerTableProps {
     nonCustomerEnabled?: boolean;
     onEditCustomer?: (customer: any) => void;
 }
 interface CustomerTableHandle { reload: () => void }
 
-// ── Main ───────────────────────────────────────────────────────────────────
 const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
     ({ nonCustomerEnabled = false, onEditCustomer }, ref) => {
         const isMobile = useIsMobile();
         const actionRef = useRef<ActionType>();
         const formRef = useRef<ProFormInstance>();
         const [searchForm] = Form.useForm();
+
+        // ── Gift cards are a POS feature — hide when accounting-only ──────────
+        const { hasPOS } = getModules();
+        const giftCardsEnabled = nonCustomerEnabled && hasPOS;
 
         const [giftCardOpen, setGiftCardOpen] = useState(false);
         const [newRecipientOpen, setNewRecipientOpen] = useState(false);
@@ -467,10 +465,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         const [loadingAllGiftCards, setLoadingAllGiftCards] = useState(false);
         const [clientName, setClientName] = useState("Relia Pos");
 
-        // Analytics
         const [allCustomers, setAllCustomers] = useState<any[]>([]);
-
-        // Mobile
         const [mobileData, setMobileData] = useState<any[]>([]);
         const [mobileTotal, setMobileTotal] = useState(0);
         const [mobilePage, setMobilePage] = useState(1);
@@ -493,7 +488,6 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             setClientName(tenant?.name || "Relia Pos");
         }, []);
 
-        // ── Load all for stats ────────────────────────────────────────────────
         const loadAllForStats = async () => {
             try {
                 const res = await fetchAllCustomers({ current: 1, pageSize: 500 });
@@ -503,7 +497,6 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
 
         useEffect(() => { loadAllForStats(); }, []);
 
-        // ── Mobile fetch ──────────────────────────────────────────────────────
         const loadMobileData = async (page: number, search?: string) => {
             setMobileLoading(true);
             try {
@@ -530,7 +523,6 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             loadMobileData(1, search);
         };
 
-        // ── Handlers ──────────────────────────────────────────────────────────
         const getLastVisit = (visits: any[]) => {
             if (!visits?.length) return null;
             return visits.reduce((p: any, c: any) =>
@@ -559,7 +551,6 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             if (allGiftCards.length > 0) setAllGiftCards(prev => [...prev, card]);
         };
 
-        // ── Gift card columns ─────────────────────────────────────────────────
         const giftCardColumns = [
             {
                 title: "Amount", dataIndex: "amount", key: "amount",
@@ -616,7 +607,6 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             },
         ];
 
-        // ── Customer columns ──────────────────────────────────────────────────
         const columns = [
             {
                 title: "Code", dataIndex: "code", copyable: true,
@@ -683,8 +673,11 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                                 key: "edit", icon: <EditOutlined />, label: "Edit Customer",
                                 onClick: () => onEditCustomer(record),
                             }] : []),
-                            { key: "issue", icon: <GiftOutlined />, label: "Issue Gift Card", onClick: () => openGiftCardModal(record) },
-                            { key: "history", icon: <HistoryOutlined />, label: "View Gift Cards", onClick: () => openGiftCardsHistory(record) },
+                            // ── Gift card actions — only when POS is enabled ──
+                            ...(giftCardsEnabled ? [
+                                { key: "issue", icon: <GiftOutlined />, label: "Issue Gift Card", onClick: () => openGiftCardModal(record) },
+                                { key: "history", icon: <HistoryOutlined />, label: "View Gift Cards", onClick: () => openGiftCardsHistory(record) },
+                            ] : []),
                         ],
                     }}>
                         <Button type="text" icon={<MoreOutlined />} style={{ borderRadius: 6 }} />
@@ -699,7 +692,6 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             customers: allGiftCards.filter(c => c.customer_id),
         };
 
-        // ── Gift cards content ────────────────────────────────────────────────
         const GiftCardsContent = ({ cards, loading, emptyText }: {
             cards: any[]; loading: boolean; emptyText: string;
         }) => {
@@ -739,102 +731,106 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             );
         };
 
-        // ── Overlays ──────────────────────────────────────────────────────────
+        // ── Gift card overlays — only rendered when POS is enabled ────────────
         const Overlays = (
             <>
-                <GiftCardModal
-                    currentCustomer={currentCustomer}
-                    isGiftCardModalVisible={giftCardOpen}
-                    setIsGiftCardModalVisible={setGiftCardOpen}
-                    isNewRecipientModalVisible={newRecipientOpen}
-                    setIsNewRecipientModalVisible={setNewRecipientOpen}
-                    isPreviewModalVisible={previewOpen}
-                    setIsPreviewModalVisible={setPreviewOpen}
-                    isSendEmailModalVisible={sendEmailOpen}
-                    setIsSendEmailModalVisible={setSendEmailOpen}
-                    currentGiftCard={currentGiftCard}
-                    setCurrentGiftCard={setCurrentGiftCard}
-                    onGiftCardCreated={handleGiftCardCreated}
-                    clientName={clientName}
-                    primaryColor={C.primary}
-                />
+                {giftCardsEnabled && (
+                    <>
+                        <GiftCardModal
+                            currentCustomer={currentCustomer}
+                            isGiftCardModalVisible={giftCardOpen}
+                            setIsGiftCardModalVisible={setGiftCardOpen}
+                            isNewRecipientModalVisible={newRecipientOpen}
+                            setIsNewRecipientModalVisible={setNewRecipientOpen}
+                            isPreviewModalVisible={previewOpen}
+                            setIsPreviewModalVisible={setPreviewOpen}
+                            isSendEmailModalVisible={sendEmailOpen}
+                            setIsSendEmailModalVisible={setSendEmailOpen}
+                            currentGiftCard={currentGiftCard}
+                            setCurrentGiftCard={setCurrentGiftCard}
+                            onGiftCardCreated={handleGiftCardCreated}
+                            clientName={clientName}
+                            primaryColor={C.primary}
+                        />
 
-                {isMobile ? (
-                    <Drawer open={viewGiftCardsOpen} onClose={() => setViewGiftCardsOpen(false)}
-                        placement="bottom" height="auto" destroyOnClose
-                        styles={{ body: { padding: "16px 16px 0" }, footer: { padding: "12px 16px" } }}
-                        title={<ModalTitle icon={<GiftOutlined />} label={`Gift Cards — ${currentCustomer?.customer_name || ""}`} />}
-                        footer={
-                            <div style={{ display: "flex", gap: 10 }}>
-                                <Button block onClick={() => setViewGiftCardsOpen(false)} style={{ borderRadius: 8, height: 44 }}>Close</Button>
-                                <Button block type="primary" icon={<GiftOutlined />}
-                                    onClick={() => { setViewGiftCardsOpen(false); openGiftCardModal(currentCustomer); }}
-                                    style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 44 }}>
-                                    Issue Gift Card
-                                </Button>
-                            </div>
-                        }>
-                        <div style={{ maxHeight: "55vh", overflow: "auto", paddingBottom: 16 }}>
-                            <GiftCardsContent cards={customerGiftCards} loading={loadingGiftCards}
-                                emptyText="No gift cards for this customer" />
-                        </div>
-                    </Drawer>
-                ) : (
-                    <Modal open={viewGiftCardsOpen} onCancel={() => setViewGiftCardsOpen(false)}
-                        destroyOnClose style={{ top: 20 }} width="min(900px, 96vw)"
-                        styles={{ body: { padding: "16px 20px", maxHeight: "70vh", overflow: "auto" } }}
-                        title={<ModalTitle icon={<GiftOutlined />} label={`Gift Cards — ${currentCustomer?.customer_name || ""}`} />}
-                        footer={[
-                            <Button key="close" onClick={() => setViewGiftCardsOpen(false)} style={{ borderRadius: 8 }}>Close</Button>,
-                            <Button key="new" type="primary" icon={<GiftOutlined />}
-                                onClick={() => { setViewGiftCardsOpen(false); openGiftCardModal(currentCustomer); }}
-                                style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
-                                Issue New Gift Card
-                            </Button>,
-                        ]}>
-                        <GiftCardsContent cards={customerGiftCards} loading={loadingGiftCards}
-                            emptyText="No gift cards for this customer" />
-                    </Modal>
-                )}
+                        {isMobile ? (
+                            <Drawer open={viewGiftCardsOpen} onClose={() => setViewGiftCardsOpen(false)}
+                                placement="bottom" height="auto" destroyOnClose
+                                styles={{ body: { padding: "16px 16px 0" }, footer: { padding: "12px 16px" } }}
+                                title={<ModalTitle icon={<GiftOutlined />} label={`Gift Cards — ${currentCustomer?.customer_name || ""}`} />}
+                                footer={
+                                    <div style={{ display: "flex", gap: 10 }}>
+                                        <Button block onClick={() => setViewGiftCardsOpen(false)} style={{ borderRadius: 8, height: 44 }}>Close</Button>
+                                        <Button block type="primary" icon={<GiftOutlined />}
+                                            onClick={() => { setViewGiftCardsOpen(false); openGiftCardModal(currentCustomer); }}
+                                            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 44 }}>
+                                            Issue Gift Card
+                                        </Button>
+                                    </div>
+                                }>
+                                <div style={{ maxHeight: "55vh", overflow: "auto", paddingBottom: 16 }}>
+                                    <GiftCardsContent cards={customerGiftCards} loading={loadingGiftCards}
+                                        emptyText="No gift cards for this customer" />
+                                </div>
+                            </Drawer>
+                        ) : (
+                            <Modal open={viewGiftCardsOpen} onCancel={() => setViewGiftCardsOpen(false)}
+                                destroyOnClose style={{ top: 20 }} width="min(900px, 96vw)"
+                                styles={{ body: { padding: "16px 20px", maxHeight: "70vh", overflow: "auto" } }}
+                                title={<ModalTitle icon={<GiftOutlined />} label={`Gift Cards — ${currentCustomer?.customer_name || ""}`} />}
+                                footer={[
+                                    <Button key="close" onClick={() => setViewGiftCardsOpen(false)} style={{ borderRadius: 8 }}>Close</Button>,
+                                    <Button key="new" type="primary" icon={<GiftOutlined />}
+                                        onClick={() => { setViewGiftCardsOpen(false); openGiftCardModal(currentCustomer); }}
+                                        style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+                                        Issue New Gift Card
+                                    </Button>,
+                                ]}>
+                                <GiftCardsContent cards={customerGiftCards} loading={loadingGiftCards}
+                                    emptyText="No gift cards for this customer" />
+                            </Modal>
+                        )}
 
-                {isMobile ? (
-                    <Drawer open={allGiftCardsOpen} onClose={() => setAllGiftCardsOpen(false)}
-                        placement="bottom" height="auto" destroyOnClose
-                        styles={{ body: { padding: "16px 16px 0" }, footer: { padding: "12px 16px" } }}
-                        title={<ModalTitle icon={<BarsOutlined />} label="All Gift Certificates" />}
-                        footer={
-                            <div style={{ display: "flex", gap: 10 }}>
-                                <Button block onClick={() => setAllGiftCardsOpen(false)} style={{ borderRadius: 8, height: 44 }}>Close</Button>
-                                <Button block type="primary" icon={<UserAddOutlined />}
-                                    onClick={() => { setAllGiftCardsOpen(false); setNewRecipientOpen(true); }}
-                                    style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 44 }}>
-                                    Non-Customer Card
-                                </Button>
-                            </div>
-                        }>
-                        <div style={{ maxHeight: "60vh", overflow: "auto", paddingBottom: 16 }}>
-                            <TabNav active={activeGiftTab} onChange={setActiveGiftTab} />
-                            <GiftCardsContent cards={tabData[activeGiftTab]} loading={loadingAllGiftCards}
-                                emptyText="No gift cards found" />
-                        </div>
-                    </Drawer>
-                ) : (
-                    <Modal open={allGiftCardsOpen} onCancel={() => setAllGiftCardsOpen(false)}
-                        destroyOnClose style={{ top: 20 }} width="min(960px, 96vw)"
-                        styles={{ body: { padding: "16px 20px", maxHeight: "70vh", overflow: "auto" } }}
-                        title={<ModalTitle icon={<BarsOutlined />} label="All Gift Certificates" />}
-                        footer={[
-                            <Button key="close" onClick={() => setAllGiftCardsOpen(false)} style={{ borderRadius: 8 }}>Close</Button>,
-                            <Button key="new" type="primary" icon={<UserAddOutlined />}
-                                onClick={() => { setAllGiftCardsOpen(false); setNewRecipientOpen(true); }}
-                                style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
-                                New Non-Customer Gift Card
-                            </Button>,
-                        ]}>
-                        <TabNav active={activeGiftTab} onChange={setActiveGiftTab} />
-                        <GiftCardsContent cards={tabData[activeGiftTab]} loading={loadingAllGiftCards}
-                            emptyText="No gift cards found" />
-                    </Modal>
+                        {isMobile ? (
+                            <Drawer open={allGiftCardsOpen} onClose={() => setAllGiftCardsOpen(false)}
+                                placement="bottom" height="auto" destroyOnClose
+                                styles={{ body: { padding: "16px 16px 0" }, footer: { padding: "12px 16px" } }}
+                                title={<ModalTitle icon={<BarsOutlined />} label="All Gift Certificates" />}
+                                footer={
+                                    <div style={{ display: "flex", gap: 10 }}>
+                                        <Button block onClick={() => setAllGiftCardsOpen(false)} style={{ borderRadius: 8, height: 44 }}>Close</Button>
+                                        <Button block type="primary" icon={<UserAddOutlined />}
+                                            onClick={() => { setAllGiftCardsOpen(false); setNewRecipientOpen(true); }}
+                                            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 44 }}>
+                                            Non-Customer Card
+                                        </Button>
+                                    </div>
+                                }>
+                                <div style={{ maxHeight: "60vh", overflow: "auto", paddingBottom: 16 }}>
+                                    <TabNav active={activeGiftTab} onChange={setActiveGiftTab} />
+                                    <GiftCardsContent cards={tabData[activeGiftTab]} loading={loadingAllGiftCards}
+                                        emptyText="No gift cards found" />
+                                </div>
+                            </Drawer>
+                        ) : (
+                            <Modal open={allGiftCardsOpen} onCancel={() => setAllGiftCardsOpen(false)}
+                                destroyOnClose style={{ top: 20 }} width="min(960px, 96vw)"
+                                styles={{ body: { padding: "16px 20px", maxHeight: "70vh", overflow: "auto" } }}
+                                title={<ModalTitle icon={<BarsOutlined />} label="All Gift Certificates" />}
+                                footer={[
+                                    <Button key="close" onClick={() => setAllGiftCardsOpen(false)} style={{ borderRadius: 8 }}>Close</Button>,
+                                    <Button key="new" type="primary" icon={<UserAddOutlined />}
+                                        onClick={() => { setAllGiftCardsOpen(false); setNewRecipientOpen(true); }}
+                                        style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+                                        New Non-Customer Gift Card
+                                    </Button>,
+                                ]}>
+                                <TabNav active={activeGiftTab} onChange={setActiveGiftTab} />
+                                <GiftCardsContent cards={tabData[activeGiftTab]} loading={loadingAllGiftCards}
+                                    emptyText="No gift cards found" />
+                            </Modal>
+                        )}
+                    </>
                 )}
             </>
         );
@@ -845,7 +841,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                 <App>
                     <AnalyticsPanel customers={allCustomers} />
 
-                    {nonCustomerEnabled && (
+                    {giftCardsEnabled && (
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
                             <Button icon={<BarsOutlined />} onClick={openAllGiftCards}
                                 style={{ flex: "1 1 160px", borderRadius: 8, height: 38 }}>
@@ -895,6 +891,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                             onEdit={onEditCustomer ? () => onEditCustomer(record) : undefined}
                             onIssueGiftCard={() => openGiftCardModal(record)}
                             onViewGiftCards={() => openGiftCardsHistory(record)}
+                            showGiftCards={giftCardsEnabled}
                         />
                     ))}
 
@@ -916,7 +913,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             <App>
                 <AnalyticsPanel customers={allCustomers} />
 
-                {nonCustomerEnabled && (
+                {giftCardsEnabled && (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
                         <Button icon={<BarsOutlined />} onClick={openAllGiftCards} style={{ borderRadius: 8 }}>
                             View All Gift Certificates

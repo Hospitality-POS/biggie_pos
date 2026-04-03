@@ -7,6 +7,7 @@ const roleUrl = `${BASE_URL}/users`;
 
 interface Role {
   role_type: string;
+  permissions: string;
   _id: string;
 }
 
@@ -34,6 +35,7 @@ export const createRole = async (roleData: Role) => {
 
 export const updateRole = async (roleData: Role) => {
   try {
+    console.log('my data', roleData);
     const response = await axiosInstance.put(`${roleUrl}/update-role-type/${roleData._id}`, roleData);
     message.success("Role updated successfully");
     return response.data;

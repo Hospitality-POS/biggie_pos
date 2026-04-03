@@ -28,6 +28,7 @@ import TenantSettings from "src/AdminDashboard/Settings/TenantSettings";
 import DiscoverPage from "src/AdminDashboard/DiscoverPage";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import { getPrimaryColor } from "@utils/getPrimaryColor";
+import PermissionRoute from "@components/PermissionRoute";
 
 // ─── Wages Module ─────────────────────────────────────────────────────────────
 const WagesList = lazy(() => import("src/AdminDashboard/Wages/WageList"));
@@ -59,8 +60,14 @@ const AccountingDashboardPage = lazy(() => import("src/pages/AccountingDashboard
 const ChartOfAccountsPage = lazy(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
 const JournalEntriesPage = lazy(() => import("src/pages/JournalEntry/JournalEntriesPage"));
 const NotesPage = lazy(() => import("src/pages/Notes/NotesPage"));
+const BankStatementPage = lazy(() => import("src/pages/Banking/BankStatementPage"));
 const BankReconciliationPage = lazy(() => import("src/pages/Reconciliation/BankReconciliationPage"));
 const AccountingReportsPage = lazy(() => import("src/pages/Report/AccountingReportsPage"));
+
+// ─── Expenses / Bills / Income ────────────────────────────────────────────────
+const ExpensesPage = lazy(() => import("@pages/OrderManagement/ExpensesPage"));
+const BillsPage = lazy(() => import("@pages/OrderManagement/BillsPage"));
+const IncomePage = lazy(() => import("@pages/OrderManagement/IncomePage"));
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = (
@@ -83,29 +90,38 @@ const privatePage = (Component: React.ComponentType) => (
   </Suspense>
 );
 
+/**
+ * Wraps privatePage with a PermissionRoute gate.
+ * If the user lacks the permission, renders <AccessDenied /> instead of the page.
+ * If they have it, renders the page inside the normal Private wrapper.
+ */
+const guardedPage = (Component: React.ComponentType, permission: string) => (
+  <PermissionRoute permission={permission}>
+    {privatePage(Component)}
+  </PermissionRoute>
+);
+
+const guardedAdminPage = (Component: React.ComponentType, permission: string) => (
+  <PermissionRoute permission={permission}>
+    {adminPage(Component)}
+  </PermissionRoute>
+);
+
 // ─── Smart Shop Router (for "/" path) ────────────────────────────────────────
 const SmartShopRouter = () => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
-  // Check which modules are enabled
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const hasAccounting = !!(
     tenant?.accounting_database?.enabled ||
     tenant?.modules?.accounting
   );
 
-  console.log('[SmartShopRouter] Module check:', { hasPOS, hasAccounting });
-
-  // Redirect based on enabled modules
   if (hasAccounting && !hasPOS) {
-    // Accounting ONLY → go to Accounting Dashboard
-    console.log('[SmartShopRouter] Redirecting to /accounting (Accounting only)');
     return <Navigate to="/accounting" replace />;
   }
 
-  // POS enabled or both enabled → go to Tables (POS default)
-  console.log('[SmartShopRouter] Showing Tables (POS enabled)');
   return privatePage(Table);
 };
 
@@ -117,35 +133,20 @@ const SmartDashboardRouter = () => {
   const user = storedUser ? JSON.parse(storedUser) : null;
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
-  // Check if user is logged in
   if (!user?.role) {
     return <Navigate to="/login" replace />;
   }
 
-  // Check which modules are enabled
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const hasAccounting = !!(
     tenant?.accounting_database?.enabled ||
     tenant?.modules?.accounting
   );
 
-  console.log('[SmartDashboardRouter] Module check:', { hasPOS, hasAccounting });
-
-  // Redirect based on enabled modules
   if (hasAccounting && !hasPOS) {
-    // Accounting ONLY → go to Accounting Dashboard
-    console.log('[SmartDashboardRouter] Redirecting to /admin/accounting (Accounting only)');
     return <Navigate to="/admin/accounting" replace />;
   }
 
-  if (hasPOS && !hasAccounting) {
-    // POS ONLY → go to POS Dashboard
-    console.log('[SmartDashboardRouter] Showing POS Dashboard (POS only)');
-    return adminPage(DashboardAdminPage);
-  }
-
-  // Both enabled → go to POS Dashboard (default)
-  console.log('[SmartDashboardRouter] Showing POS Dashboard (Both enabled)');
   return adminPage(DashboardAdminPage);
 };
 
@@ -159,7 +160,7 @@ const routes = createBrowserRouter(
           element={<SmartShopRouter />} />
 
         <Route path="tables" errorElement={<NotFound />}
-          element={privatePage(Table)} />
+          element={guardedPage(Table, "CART_VIEW_ITEMS")} />
 
         <Route path="login" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><StaffLoginPage /></Suspense>} />
@@ -168,89 +169,117 @@ const routes = createBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
 
         <Route path="main-category" errorElement={<NotFound />}
-          element={privatePage(MainCategory)} />
+          element={guardedPage(MainCategory, "CATEGORIES_VIEW")} />
 
         <Route path="dashboard/:id" errorElement={<NotFound />}
-          element={privatePage(RestaurantPage)} />
+          element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="store" errorElement={<NotFound />}
-          element={privatePage(MainStore)} />
+          element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
 
         <Route path="store/:id" errorElement={<NotFound />}
-          element={privatePage(MainStore)} />
+          element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
 
         <Route path="payment/callback" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><PaymentCallback /></Suspense>} />
 
         <Route path="payment-settings" errorElement={<NotFound />}
-          element={privatePage(PaymentMainSettings)} />
+          element={guardedPage(PaymentMainSettings, "PAYMENT_METHODS_VIEW")} />
 
         <Route path="payment-methods" errorElement={<NotFound />}
-          element={privatePage(PaymentMainSettings)} />
+          element={guardedPage(PaymentMainSettings, "PAYMENT_METHODS_VIEW")} />
 
         <Route path="system-setup" errorElement={<NotFound />}
-          element={privatePage(SystemSetup)} />
+          element={guardedPage(SystemSetup, "SYSTEM_SETUP_VIEW")} />
 
         <Route path="users-settings" errorElement={<NotFound />}
-          element={privatePage(UsersMainSettings)} />
+          element={guardedPage(UsersMainSettings, "USERS_VIEW")} />
 
         <Route path="supplier-settings" errorElement={<NotFound />}
-          element={privatePage(SupplierMainSettings)} />
+          element={guardedPage(SupplierMainSettings, "SUPPLIERS_VIEW")} />
 
         <Route path="suppliers" errorElement={<NotFound />}
-          element={privatePage(SupplierMainSettings)} />
+          element={guardedPage(SupplierMainSettings, "SUPPLIERS_VIEW")} />
 
         <Route path="table-settings" errorElement={<NotFound />}
-          element={privatePage(TableMainSettings)} />
+          element={guardedPage(TableMainSettings, "TABLES_VIEW")} />
 
         <Route path="category-settings" errorElement={<NotFound />}
-          element={privatePage(CategoryMainSettings)} />
+          element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="reports" errorElement={<NotFound />}
-          element={privatePage(Reports)} />
+          element={guardedPage(Reports, "REPORTS_ITEM_SALES")} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
-          element={privatePage(InventoryMainSettings)} />
+          element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="inventory" errorElement={<NotFound />}
-          element={privatePage(InventoryMainSettings)} />
+          element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
 
         <Route path="profile/:id" errorElement={<NotFound />}
           element={privatePage(Profile)} />
 
         <Route path="orders" errorElement={<NotFound />}
-          element={privatePage(MainOrders)} />
+          element={guardedPage(MainOrders, "ORDERS_VIEW")} />
+
+        {/* ── Expenses / Bills / Income ──────────────────────────────────── */}
+        <Route path="accounting/expenses" errorElement={<NotFound />}
+          element={guardedPage(ExpensesPage, "ACCOUNTING_INCOME_POST_EXPENSE")} />
+
+        <Route path="accounting/bills" errorElement={<NotFound />}
+          element={guardedPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
+
+        <Route path="accounting/income" errorElement={<NotFound />}
+          element={guardedPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
 
         <Route path="customers" errorElement={<NotFound />}
-          element={privatePage(Customer)} />
+          element={guardedPage(Customer, "CUSTOMERS_VIEW")} />
 
         <Route path="fss-faqs"
-          element={privatePage(Faqs)} />
+          element={guardedPage(Faqs, "FAQ_VIEW")} />
 
         <Route path="website-builder"
-          element={privatePage(Website)} />
+          element={guardedPage(Website, "GALLERY_VIEW")} />
 
         <Route path="employee-shift" errorElement={<NotFound />}
-          element={<Suspense fallback={<NubaLoader />}><Private><EmployeeShift /></Private></Suspense>} />
+          element={
+            <PermissionRoute permission="SHIFTS_VIEW">
+              <Suspense fallback={<NubaLoader />}>
+                <Private><EmployeeShift /></Private>
+              </Suspense>
+            </PermissionRoute>
+          } />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
-          element={<Suspense fallback={<NubaLoader />}><Private><Dashboard /></Private></Suspense>} />
+          element={
+            <PermissionRoute permission="ORDERS_VIEW_DASHBOARD">
+              <Suspense fallback={<NubaLoader />}>
+                <Private><Dashboard /></Private>
+              </Suspense>
+            </PermissionRoute>
+          } />
 
         {/* ── Accounting routes — shop level (/accounting/...) ────────────── */}
         <Route path="accounting" errorElement={<NotFound />}
-          element={privatePage(AccountingDashboardPage)} />
+          element={guardedPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
+
+        <Route path="accounting/accounts" errorElement={<NotFound />}
+          element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
 
         <Route path="accounting/journals" errorElement={<NotFound />}
-          element={privatePage(JournalEntriesPage)} />
+          element={guardedPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
 
         <Route path="accounting/notes" errorElement={<NotFound />}
-          element={privatePage(NotesPage)} />
+          element={guardedPage(NotesPage, "ACCOUNTING_NOTES_VIEW")} />
+
+        <Route path="accounting/bank-statements" errorElement={<NotFound />}
+          element={guardedPage(BankStatementPage, "ACCOUNTING_BANK_STMT_VIEW")} />
 
         <Route path="accounting/reconciliation" errorElement={<NotFound />}
-          element={privatePage(BankReconciliationPage)} />
+          element={guardedPage(BankReconciliationPage, "ACCOUNTING_RECON_VIEW")} />
 
         <Route path="accounting/reports" errorElement={<NotFound />}
-          element={privatePage(AccountingReportsPage)} />
+          element={guardedPage(AccountingReportsPage, "ACCOUNTING_REPORT_PROFIT_LOSS")} />
 
         <Route path="*" element={<NotFound />} />
       </Route>
@@ -269,26 +298,48 @@ const routes = createBrowserRouter(
           element={adminPage(WagesList)} />
 
         <Route path="shop-management" errorElement={<NotFound />}
-          element={adminPage(ShopManagement)} />
+          element={guardedAdminPage(ShopManagement, "SHOPS_VIEW")} />
 
         <Route path="staff-management" errorElement={<NotFound />}
-          element={<Suspense fallback={fullscreenSpin}><AdminRoute><UsersMainSettings /></AdminRoute></Suspense>} />
+          element={
+            <PermissionRoute permission="USERS_VIEW">
+              <Suspense fallback={fullscreenSpin}>
+                <AdminRoute><UsersMainSettings /></AdminRoute>
+              </Suspense>
+            </PermissionRoute>
+          } />
 
         <Route path="customer-list" errorElement={<NotFound />}
-          element={<Suspense fallback={fullscreenSpin}><AdminRoute><AdminCustomersList /></AdminRoute></Suspense>} />
+          element={
+            <PermissionRoute permission="CUSTOMERS_VIEW">
+              <Suspense fallback={fullscreenSpin}>
+                <AdminRoute><AdminCustomersList /></AdminRoute>
+              </Suspense>
+            </PermissionRoute>
+          } />
 
         <Route path="customers"
           element={<Suspense fallback={fullscreenSpin}><CustomerRegistration /></Suspense>} />
 
         <Route path="reports"
-          element={<Suspense fallback={fullscreenSpin}><AdminRoute><AdminReports /></AdminRoute></Suspense>} />
+          element={
+            <PermissionRoute permission="REPORTS_ITEM_SALES">
+              <Suspense fallback={fullscreenSpin}>
+                <AdminRoute><AdminReports /></AdminRoute>
+              </Suspense>
+            </PermissionRoute>
+          } />
 
         {/* ── System & Settings ───────────────────────────────────────────── */}
         <Route path="billing" errorElement={<NotFound />}
           element={adminPage(PaymentSubscriptionPage)} />
 
         <Route path="profile/:id" errorElement={<NotFound />}
-          element={<Suspense fallback={fullscreenSpin}><AdminRoute><AdminProfile /></AdminRoute></Suspense>} />
+          element={
+            <Suspense fallback={fullscreenSpin}>
+              <AdminRoute><AdminProfile /></AdminRoute>
+            </Suspense>
+          } />
 
         <Route path="staff-clock-in"
           element={<Suspense fallback={fullscreenSpin}><StaffClockTracker /></Suspense>} />
@@ -303,28 +354,39 @@ const routes = createBrowserRouter(
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><TenantSettings /></AdminRoute></Suspense>} />
 
         {/* ── Accounting — admin level (/admin/accounting/...) ────────────── */}
-        {/* Dashboard + COA + Reports live here (tenant-wide, admin access)   */}
         <Route path="accounting" errorElement={<NotFound />}
-          element={adminPage(AccountingDashboardPage)} />
+          element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
 
         <Route path="accounting/dashboard" errorElement={<NotFound />}
-          element={adminPage(AccountingDashboardPage)} />
+          element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
 
         <Route path="accounting/accounts" errorElement={<NotFound />}
-          element={adminPage(ChartOfAccountsPage)} />
+          element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
 
-        <Route path="accounting/reports" errorElement={<NotFound />}
-          element={adminPage(AccountingReportsPage)} />
-
-        {/* ── Accounting — operational (also accessible from admin layout) ── */}
         <Route path="accounting/journals" errorElement={<NotFound />}
-          element={adminPage(JournalEntriesPage)} />
+          element={guardedAdminPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
 
         <Route path="accounting/notes" errorElement={<NotFound />}
-          element={adminPage(NotesPage)} />
+          element={guardedAdminPage(NotesPage, "ACCOUNTING_NOTES_VIEW")} />
+
+        <Route path="accounting/bank-statements" errorElement={<NotFound />}
+          element={guardedAdminPage(BankStatementPage, "ACCOUNTING_BANK_STMT_VIEW")} />
 
         <Route path="accounting/reconciliation" errorElement={<NotFound />}
-          element={adminPage(BankReconciliationPage)} />
+          element={guardedAdminPage(BankReconciliationPage, "ACCOUNTING_RECON_VIEW")} />
+
+        <Route path="accounting/reports" errorElement={<NotFound />}
+          element={guardedAdminPage(AccountingReportsPage, "ACCOUNTING_REPORT_PROFIT_LOSS")} />
+
+        {/* ── Expenses / Bills / Income — admin level ──────────────────────── */}
+        <Route path="accounting/expenses" errorElement={<NotFound />}
+          element={guardedAdminPage(ExpensesPage, "ACCOUNTING_INCOME_POST_EXPENSE")} />
+
+        <Route path="accounting/bills" errorElement={<NotFound />}
+          element={guardedAdminPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
+
+        <Route path="accounting/income" errorElement={<NotFound />}
+          element={guardedAdminPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
 
         <Route path="*" element={<NotFound />} />
       </Route>
