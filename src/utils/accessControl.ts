@@ -1,35 +1,3 @@
-/**
- * accessControl.ts
- *
- * Central registry of every action available in the system.
- *
- * Each permission has:
- *   - key         : unique machine-readable identifier
- *   - label       : human-readable name
- *   - module      : the feature area it belongs to (used for UI grouping)
- *   - action      : CRUD verb — create | read | update | delete | special
- *   - moduleScope : which product module must be activated for this permission
- *                   to be visible / assignable.
- *                   "core"       → always available (all tenants)
- *                   "hr"         → only when tenant.modules.hr === true
- *                   "accounting" → only when tenant.modules.accounting === true
- *
- * ─── Admin rule ───────────────────────────────────────────────────────────────
- * Users with role === "admin" bypass ALL permission checks automatically.
- * They have full access to every feature that is enabled for their tenant.
- * Use `makePermissionChecker()` at component level to enforce this in one place:
- *
- *   const can = makePermissionChecker(role.permissions, user.role === "admin");
- *   if (can("ACCOUNTING_JOURNAL_POST")) { ... }
- *
- * ─── Building the role-assignment UI ─────────────────────────────────────────
- * Use `getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting })` to get
- * only the permissions that are relevant for the current tenant. This ensures
- * HR/Accounting checkboxes are not shown to tenants who haven't enabled them.
- */
-
-// ─── Module scope tags ────────────────────────────────────────────────────────
-
 export type ModuleScope = "core" | "hr" | "accounting";
 
 // ─── Feature module names (UI grouping labels) ────────────────────────────────
@@ -41,6 +9,7 @@ export const MODULES = {
     CONSULTATIONS: "Consultations",
     CUSTOMERS: "Customers",
     DELIVERY: "Delivery",
+    DOCUMENTS: "Documents",
     FAQ: "FAQ",
     FEEDBACK: "Feedback",
     GALLERY: "Gallery",
@@ -166,6 +135,18 @@ export const PERMISSIONS: Record<string, Permission> = {
     DELIVERY_DELETE: { key: "DELIVERY_DELETE", label: "Delete Delivery", module: MODULES.DELIVERY, action: "delete", moduleScope: "core" },
     DELIVERY_VIEW_BY_DATE_RANGE: { key: "DELIVERY_VIEW_BY_DATE_RANGE", label: "View Delivery Items by Date Range", module: MODULES.DELIVERY, action: "read", moduleScope: "core" },
     DELIVERY_PRINT_NOTE: { key: "DELIVERY_PRINT_NOTE", label: "Print Delivery Note", module: MODULES.DELIVERY, action: "special", moduleScope: "core" },
+
+    // ── DOCUMENTS ─────────────────────────────────────────────────────────────
+
+    DOCUMENTS_VIEW: { key: "DOCUMENTS_VIEW", label: "View Documents", module: MODULES.DOCUMENTS, action: "read", moduleScope: "core" },
+    DOCUMENTS_VIEW_ONE: { key: "DOCUMENTS_VIEW_ONE", label: "View Document Details", module: MODULES.DOCUMENTS, action: "read", moduleScope: "core" },
+    DOCUMENTS_CREATE: { key: "DOCUMENTS_CREATE", label: "Create Document", module: MODULES.DOCUMENTS, action: "create", moduleScope: "core" },
+    DOCUMENTS_UPDATE: { key: "DOCUMENTS_UPDATE", label: "Update Document", module: MODULES.DOCUMENTS, action: "update", moduleScope: "core" },
+    DOCUMENTS_DELETE: { key: "DOCUMENTS_DELETE", label: "Delete Document", module: MODULES.DOCUMENTS, action: "delete", moduleScope: "core" },
+    DOCUMENTS_MANAGE_FOLDERS: { key: "DOCUMENTS_MANAGE_FOLDERS", label: "Create / Update / Delete Folders", module: MODULES.DOCUMENTS, action: "special", moduleScope: "core" },
+    DOCUMENTS_UPLOAD_ATTACHMENTS: { key: "DOCUMENTS_UPLOAD_ATTACHMENTS", label: "Upload Attachments", module: MODULES.DOCUMENTS, action: "create", moduleScope: "core" },
+    DOCUMENTS_UPDATE_STATUS: { key: "DOCUMENTS_UPDATE_STATUS", label: "Update Document Status", module: MODULES.DOCUMENTS, action: "update", moduleScope: "core" },
+    DOCUMENTS_SEARCH: { key: "DOCUMENTS_SEARCH", label: "Search Documents", module: MODULES.DOCUMENTS, action: "read", moduleScope: "core" },
 
     // ── FAQ ───────────────────────────────────────────────────────────────────
 
@@ -563,10 +544,6 @@ export const ACCOUNTING_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
 
 // ─── Tenant-aware helpers ─────────────────────────────────────────────────────
 
-/**
- * Returns all permissions applicable for a tenant's activated modules.
- * Use this to filter what appears in the role-assignment UI.
- */
 export const getPermissionsForTenant = (options: {
     hasHR?: boolean;
     hasAccounting?: boolean;
@@ -578,14 +555,6 @@ export const getPermissionsForTenant = (options: {
         return false;
     });
 
-/**
- * Returns permissions grouped by module, filtered for the tenant's active modules.
- * Perfect for rendering a grouped checkbox grid in the role-assignment UI.
- *
- * @example
- * const groups = getPermissionsGroupedByModuleForTenant({ hasHR: true, hasAccounting: true });
- * Object.entries(groups).map(([moduleName, perms]) => <Section title={moduleName} perms={perms} />)
- */
 export const getPermissionsGroupedByModuleForTenant = (options: {
     hasHR?: boolean;
     hasAccounting?: boolean;
@@ -613,12 +582,6 @@ export const getPermissionsByAction = (action: ActionType): Permission[] =>
 
 // ─── Runtime permission checks ────────────────────────────────────────────────
 
-/**
- * Check a single permission.
- * NOTE: Always check `isAdmin` before calling this — admins bypass all checks.
- *
- *   if (isAdmin || hasPermission(rolePermissions, "CART_VOID")) { ... }
- */
 export const hasPermission = (rolePermissions: string[], permissionKey: string): boolean =>
     rolePermissions.includes(permissionKey);
 
@@ -628,14 +591,6 @@ export const hasAllPermissions = (rolePermissions: string[], keys: string[]): bo
 export const hasAnyPermission = (rolePermissions: string[], keys: string[]): boolean =>
     keys.some((k) => rolePermissions.includes(k));
 
-/**
- * Creates a bound checker that automatically applies the admin bypass.
- * Use this at the top of any component that renders permission-gated UI.
- *
- * @example
- * const can = makePermissionChecker(currentUser.role.permissions, currentUser.role.name === "admin");
- * if (can("ACCOUNTING_COA_DELETE")) { ... }
- */
 export const makePermissionChecker =
     (rolePermissions: string[], isAdmin: boolean) =>
         (permissionKey: string): boolean =>
@@ -645,15 +600,10 @@ export const makePermissionChecker =
 
 export const ROLE_PRESETS: Record<string, string[]> = {
 
-    /**
-     * ADMIN — owns everything that is enabled for the tenant.
-     * role === "admin" bypasses all checks at runtime; this preset is for DB seeding.
-     */
+    /** ADMIN — owns everything */
     ADMIN: ALL_PERMISSION_KEYS,
 
-    /**
-     * MANAGER — everything except subscription management and initial seeding.
-     */
+    /** MANAGER — everything except subscription management and initial seeding */
     MANAGER: ALL_PERMISSION_KEYS.filter((k) => ![
         "USERS_UPDATE_SUBSCRIPTION",
         "USERS_VERIFY_COMPANY_CODE",
@@ -707,10 +657,11 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "REPORTS_ITEM_SALES", "REPORTS_PURCHASE_SUMMARY", "REPORTS_VAT_SUMMARY",
         "INVENTORY_VIEW", "INVENTORY_VIEW_USAGE_BY_DATE",
         "PRODUCTS_VIEW", "CUSTOMERS_VIEW",
+        "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_SEARCH",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
-    /** HR_MANAGER — full HR module (requires HR enabled) */
+    /** HR_MANAGER — full HR module */
     HR_MANAGER: [
         ...HR_PERMISSION_KEYS,
         "USERS_VIEW", "USERS_VIEW_ONE",
@@ -719,7 +670,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
-    /** HR_STAFF — self-service only (apply/cancel leave, clock in/out) */
+    /** HR_STAFF — self-service only */
     HR_STAFF: [
         "HR_LEAVE_APPLY", "HR_LEAVE_VIEW", "HR_LEAVE_VIEW_ONE", "HR_LEAVE_CANCEL", "HR_LEAVE_VIEW_BALANCE",
         "HR_ATTENDANCE_CLOCK_IN", "HR_ATTENDANCE_CLOCK_OUT",
@@ -727,7 +678,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
-    /** ACCOUNTANT — full accounting operations (requires Accounting enabled) */
+    /** ACCOUNTANT — full accounting operations */
     ACCOUNTANT: [
         "ACCOUNTING_DASHBOARD_VIEW",
         "ACCOUNTING_COA_VIEW", "ACCOUNTING_COA_VIEW_ONE", "ACCOUNTING_COA_VIEW_TREE",
@@ -761,6 +712,11 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "ACCOUNTING_REPORT_CUSTOMER_STATEMENT", "ACCOUNTING_REPORT_SUPPLIER_STATEMENT",
         "ACCOUNTING_REPORT_AR_AGING", "ACCOUNTING_REPORT_AP_AGING",
         "SUPPLIERS_VIEW", "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "PAYMENT_METHODS_VIEW",
+        // ── Documents ─────────────────────────────────────────────────────────
+        "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
+        "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
+        "DOCUMENTS_UPDATE_STATUS", "DOCUMENTS_SEARCH",
+        // ─────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
@@ -783,6 +739,9 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "ACCOUNTING_REPORT_VAT", "ACCOUNTING_REPORT_CASH_FLOW",
         "ACCOUNTING_REPORT_CUSTOMER_STATEMENT", "ACCOUNTING_REPORT_SUPPLIER_STATEMENT",
         "ACCOUNTING_REPORT_AR_AGING", "ACCOUNTING_REPORT_AP_AGING",
+        // ── Documents (read-only) ──────────────────────────────────────────────
+        "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_SEARCH",
+        // ─────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 };

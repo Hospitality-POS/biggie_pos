@@ -2,11 +2,11 @@ import { KeyOutlined, SearchOutlined, UserOutlined } from "@ant-design/icons";
 import ProForm, { ModalForm, ProFormText } from "@ant-design/pro-form";
 import { updateCart } from "@features/Cart/CartActions";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { Button, Form, Input, Select, Space, Typography, Divider, Radio } from "antd";
+import { Button, Form, Input, Select, Space, Typography, Divider, Radio, message } from "antd";
 import { CartDetailsInterface } from "src/interfaces/CartDetailsTypes";
 import { useAppDispatch } from "src/store";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
-import { fetchAllCustomers } from "@services/customers";
+import { fetchAllCustomers, addNewCustomer } from "@services/customers";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -20,6 +20,7 @@ function ClientPin({ cart }: ClientPinProps) {
   const primaryColor = usePrimaryColor();
   const [inputMode, setInputMode] = useState<"select" | "manual">("select");
   const [customerSearch, setCustomerSearch] = useState("");
+  const [savingCustomer, setSavingCustomer] = useState(false);
 
   const { data: customers = [], isLoading: loadingCustomers } = useQuery({
     queryKey: ["customers"],
@@ -34,7 +35,8 @@ function ClientPin({ cart }: ClientPinProps) {
       form.setFieldsValue({
         customer_id: customer._id,
         client_name: customer.customer_name,
-        client_pin: customer.phone?.toString(),
+        client_phone: customer.phone?.toString(),
+        client_pin: customer.pin?.toString() ?? "",
         client_email: customer.email,
       });
     }
@@ -54,7 +56,8 @@ function ClientPin({ cart }: ClientPinProps) {
     <ModalForm
       initialValues={{
         ...cart,
-        client_pin: cart?.clientPin,
+        client_phone: cart?.clientPhone ?? cart?.client_phone ?? null,
+        client_pin: cart?.clientPin ?? cart?.client_pin ?? null,
         input_mode: "select",
         customer_id: cart?.customer_id || null,
       }}
@@ -83,19 +86,51 @@ function ClientPin({ cart }: ClientPinProps) {
           title: "Confirm if the client details are correct?",
           position: true,
         });
-        if (confirmed) {
-          const { input_mode, customer_select, ...rest } = values;
+        if (!confirmed) return false;
 
-          const cartData = {
-            client_name: rest.client_name || null,
-            client_pin: rest.client_pin || null,
-            client_email: rest.client_email || null,
-            customer_id: rest.customer_id || null,
-          };
+        const { input_mode, customer_select, ...rest } = values;
 
-          dispatch(updateCart({ cart, data: cartData }));
-          return true;
+        let resolvedCustomerId = rest.customer_id || null;
+
+        // ── Manual entry: create a new customer record if name or phone provided ──
+        if (input_mode === "manual" && (rest.client_name || rest.client_phone)) {
+          setSavingCustomer(true);
+          try {
+            const response = await addNewCustomer({
+              customer_name: rest.client_name,
+              phone: rest.client_phone,
+              pin: rest.client_pin,
+              email: rest.client_email || undefined,
+            });
+
+            const newCustomer = response?.data;
+            if (newCustomer?._id) {
+              resolvedCustomerId = newCustomer._id;
+              message.success(`Customer "${rest.client_name || rest.client_phone}" saved`);
+            }
+          } catch (err) {
+            console.error("Could not save new customer:", err);
+          } finally {
+            setSavingCustomer(false);
+          }
         }
+
+        const cartData = {
+          client_name: rest.client_name || null,
+          client_phone: rest.client_phone || null,
+          client_pin: rest.client_pin || null,
+          client_email: rest.client_email || null,
+          customer_id: resolvedCustomerId,
+        };
+
+        dispatch(updateCart({ cart, data: cartData }));
+        return true;
+      }}
+      submitter={{
+        submitButtonProps: {
+          loading: savingCustomer,
+          children: savingCustomer ? "Saving customer…" : "Confirm",
+        },
       }}
     >
       <Form.Item name="input_mode" label="Input Method">
@@ -106,6 +141,7 @@ function ClientPin({ cart }: ClientPinProps) {
               "customer_select",
               "customer_id",
               "client_name",
+              "client_phone",
               "client_pin",
               "client_email",
             ]);
@@ -151,7 +187,6 @@ function ClientPin({ cart }: ClientPinProps) {
 
           <Divider style={{ margin: "12px 0" }} />
 
-          {/* Fixed: use antd Input so Form context registers the value */}
           <Form.Item name="customer_id" hidden>
             <Input type="hidden" />
           </Form.Item>
@@ -161,17 +196,24 @@ function ClientPin({ cart }: ClientPinProps) {
               width="md"
               name="client_name"
               label="Client Name"
-              placeholder="Auto-filled on selection"
-              fieldProps={{ readOnly: true }}
+              placeholder="Auto-filled or type to override"
+            />
+          </ProForm.Group>
+          <ProForm.Group>
+            <ProFormText
+              width="md"
+              name="client_phone"
+              label="Phone Number"
+              placeholder="Auto-filled or type to override"
+              fieldProps={{ type: "tel" }}
             />
           </ProForm.Group>
           <ProForm.Group>
             <ProFormText
               width="md"
               name="client_pin"
-              label="Client Pin / Phone"
-              placeholder="Auto-filled on selection"
-              fieldProps={{ readOnly: true }}
+              label="Client PIN"
+              placeholder="Auto-filled or type to override"
             />
           </ProForm.Group>
           <ProForm.Group>
@@ -179,17 +221,22 @@ function ClientPin({ cart }: ClientPinProps) {
               width="md"
               name="client_email"
               label="Client Email"
-              placeholder="Auto-filled on selection"
-              fieldProps={{ readOnly: true }}
+              placeholder="Auto-filled or type to override"
             />
           </ProForm.Group>
         </>
       ) : (
         <>
-          {/* Also include hidden customer_id in manual mode - cleared on mode switch */}
           <Form.Item name="customer_id" hidden>
             <Input type="hidden" />
           </Form.Item>
+
+          <Typography.Text
+            type="secondary"
+            style={{ display: "block", marginBottom: 12, fontSize: 12 }}
+          >
+            A new customer record will be created automatically on save.
+          </Typography.Text>
 
           <ProForm.Group>
             <ProFormText
@@ -202,9 +249,18 @@ function ClientPin({ cart }: ClientPinProps) {
           <ProForm.Group>
             <ProFormText
               width="md"
+              name="client_phone"
+              label="Phone Number"
+              placeholder="e.g. 0712345678"
+              fieldProps={{ type: "tel" }}
+            />
+          </ProForm.Group>
+          <ProForm.Group>
+            <ProFormText
+              width="md"
               name="client_pin"
-              label="Client Pin / Phone"
-              placeholder="A**********"
+              label="Client PIN"
+              placeholder="e.g. A123456789Z"
             />
           </ProForm.Group>
           <ProForm.Group>

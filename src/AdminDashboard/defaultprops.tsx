@@ -5,6 +5,7 @@ import {
   CompassOutlined,
   DashboardOutlined,
   FileTextOutlined,
+  FileDoneOutlined,
   ReconciliationOutlined,
   ShopOutlined,
   TeamOutlined,
@@ -16,9 +17,11 @@ import {
  * AdminDefaultprops.tsx — Admin Layout (path="/admin")
  *
  * Module rules:
- *  - POS only        → Dashboard, Branch, Staff, Wages, POS Reports, Help
- *  - Accounting only → Accounting Dashboard, Branch, Staff, Chart of Accounts, Financial Reports, Help
- *  - Both active     → Dashboard, Branch, Staff, Wages, POS Reports, Accounting Dashboard, Chart of Accounts, Financial Reports, Help
+ *  - POS only        → Dashboard, Branch, Staff, Wages, POS Reports, Document Center, Help
+ *  - Accounting only → Accounting Dashboard, Branch, Staff, Chart of Accounts,
+ *                      Financial Reports, Document Center, Help
+ *  - Both active     → Dashboard, Branch, Staff, Wages, POS Reports, Accounting Dashboard,
+ *                      Chart of Accounts, Financial Reports, Document Center, Help
  */
 const useProLayoutNav = () => {
   const storedTenant = localStorage.getItem("tenant");
@@ -29,7 +32,6 @@ const useProLayoutNav = () => {
   const userRole = user?.role?.toLowerCase();
 
   // ── Module flags ────────────────────────────────────────────────────────────
-  // ✅ ONLY check modules.pos and modules.accounting (nothing else!)
   const hasPOS = tenant?.pos_integration?.enabled === true;
   const hasAccounting = tenant?.modules?.accounting === true;
 
@@ -44,6 +46,8 @@ const useProLayoutNav = () => {
   const commonRoutes = [
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
     { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
+    // ── Document Center — accessible at admin level regardless of module ──────
+    { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
   // ── POS-specific routes ─────────────────────────────────────────────────────
@@ -51,7 +55,6 @@ const useProLayoutNav = () => {
     { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
     ...(userRole === "admin"
       ? [
-        // { path: "/admin/wages", name: "Wage Management", icon: <WalletOutlined /> },
         { path: "/admin/reports", name: "Business Reports", icon: <ReconciliationOutlined /> },
       ]
       : []),
@@ -76,7 +79,7 @@ const useProLayoutNav = () => {
         routes: [
           ...accountingOnlyRoutes,
           ...commonRoutes,
-          helpRoute
+          helpRoute,
         ],
       },
     };
@@ -91,7 +94,7 @@ const useProLayoutNav = () => {
         routes: [
           ...posOnlyRoutes,
           ...commonRoutes,
-          helpRoute
+          helpRoute,
         ],
       },
     };
@@ -107,7 +110,7 @@ const useProLayoutNav = () => {
           ...posOnlyRoutes,
           ...commonRoutes,
           ...accountingOnlyRoutes,
-          helpRoute
+          helpRoute,
         ],
       },
     };
@@ -120,7 +123,7 @@ const useProLayoutNav = () => {
       path: "/admin",
       routes: [
         ...commonRoutes,
-        helpRoute
+        helpRoute,
       ],
     },
   };

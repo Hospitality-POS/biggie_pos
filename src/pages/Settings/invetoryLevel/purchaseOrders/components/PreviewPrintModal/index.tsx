@@ -1,13 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Drawer, Modal, Space, Switch, Typography } from "antd";
+import { Button, Drawer, Form, Input, Modal, Space, Switch, Typography } from "antd";
 import {
     CloseOutlined,
     FilePdfOutlined,
+    MailOutlined,
     PrinterOutlined,
+    PlusOutlined,
+    SendOutlined,
+    UserOutlined,
 } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { COOP_NAME } from "@utils/config";
+import { sendPurchaseOrderEmail, refToHtmlString } from "@services/emailReports";
 
 const { Text } = Typography;
 
@@ -22,6 +27,8 @@ const C = {
     green: "#10b981",
     orange: "#f59e0b",
     red: "#ef4444",
+    blue: "#3b82f6",
+    white: "#ffffff",
 };
 
 // ── Mobile detection ──────────────────────────────────────────────────────────
@@ -77,22 +84,33 @@ interface PrintPreviewModalProps {
     title?: string;
 }
 
+interface SendEmailValues {
+    to: string;
+    recipientName?: string;
+    cc?: string;
+    intro?: string;
+}
+
 // ── Style helpers ─────────────────────────────────────────────────────────────
 const cell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
     border: `1px solid ${C.tableBorder}`,
     padding: "7px 10px",
+    verticalAlign: "middle",
     ...extra,
 });
 
 const th = (extra: React.CSSProperties = {}): React.CSSProperties =>
     cell({
-        background: C.tableHeader,
+        background: C.primary,
         fontWeight: 700,
-        fontSize: 12,
-        color: C.darkText,
+        fontSize: 11,
+        color: C.white,
         whiteSpace: "nowrap",
+        letterSpacing: "0.3px",
+        printColorAdjust: "exact",
+        WebkitPrintColorAdjust: "exact",
         ...extra,
-    });
+    } as React.CSSProperties);
 
 const td = (extra: React.CSSProperties = {}): React.CSSProperties =>
     cell({ fontSize: 12, color: "#374151", ...extra });
@@ -106,60 +124,37 @@ const itemDeliveryStatus = (item: POItem) => {
 };
 
 // ── Doc Header ────────────────────────────────────────────────────────────────
-const DocHeader: React.FC<{ brand: string; docTitle: string }> = ({
-    brand,
-    docTitle,
-}) => (
-    <div
-        style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderBottom: `3px solid ${C.primary}`,
-            paddingBottom: 16,
-            marginBottom: 20,
-        }}
-    >
+const DocHeader: React.FC<{ brand: string; docTitle: string }> = ({ brand, docTitle }) => (
+    <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        borderBottom: `3px solid ${C.primary}`,
+        paddingBottom: 16,
+        marginBottom: 20,
+    }}>
         <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: C.darkText, lineHeight: 1.2 }}>
-                {brand}
-            </div>
-            <div style={{ fontSize: 11, color: C.subText, marginTop: 3 }}>
-                Powered by {COOP_NAME}
-            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: C.darkText, lineHeight: 1.2 }}>{brand}</div>
+            <div style={{ fontSize: 11, color: C.subText, marginTop: 3 }}>Powered by {COOP_NAME}</div>
         </div>
-        <div
-            style={{
-                background: C.primary,
-                color: "#fff",
-                padding: "8px 18px",
-                borderRadius: 7,
-                fontWeight: 700,
-                fontSize: 14,
-                letterSpacing: "0.5px",
-            }}
-        >
+        <div style={{
+            background: C.primary, color: C.white,
+            padding: "8px 18px", borderRadius: 7,
+            fontWeight: 700, fontSize: 14, letterSpacing: "0.5px",
+            printColorAdjust: "exact", WebkitPrintColorAdjust: "exact",
+        } as React.CSSProperties}>
             {docTitle}
         </div>
     </div>
 );
 
 // ── Info Grid ─────────────────────────────────────────────────────────────────
-const InfoGrid: React.FC<{ left: [string, string][]; right: [string, string][] }> = ({
-    left, right,
-}) => (
-    <div
-        style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 12,
-            marginBottom: 20,
-            background: "#f8fafc",
-            border: `1px solid ${C.tableBorder}`,
-            borderRadius: 8,
-            padding: 12,
-        }}
-    >
+const InfoGrid: React.FC<{ left: [string, string][]; right: [string, string][] }> = ({ left, right }) => (
+    <div style={{
+        display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20,
+        background: "#f8fafc", border: `1px solid ${C.tableBorder}`,
+        borderRadius: 8, padding: 12,
+    }}>
         {[left, right].map((col, ci) => (
             <div key={ci} style={{ flex: "1 1 140px", minWidth: 0 }}>
                 {col.map(([label, value]) => (
@@ -173,12 +168,12 @@ const InfoGrid: React.FC<{ left: [string, string][]; right: [string, string][] }
     </div>
 );
 
-// ── Status Badge (print-safe colored text) ────────────────────────────────────
+// ── Status Badge ──────────────────────────────────────────────────────────────
 const StatusText: React.FC<{ status: string }> = ({ status }) => {
     const colors: Record<string, string> = {
         pending: C.orange,
         approved: C.green,
-        partially_delivered: "#3b82f6",
+        partially_delivered: C.blue,
         fully_delivered: C.green,
         cancelled: C.red,
     };
@@ -191,15 +186,10 @@ const StatusText: React.FC<{ status: string }> = ({ status }) => {
 
 // ── Summary Box ───────────────────────────────────────────────────────────────
 const SummaryBox: React.FC<{ items: [string, string | number][] }> = ({ items }) => (
-    <div
-        style={{
-            background: "#f0f9ff",
-            border: "1px solid #bae6fd",
-            borderRadius: 8,
-            padding: 14,
-            marginTop: 16,
-        }}
-    >
+    <div style={{
+        background: "#f0f9ff", border: "1px solid #bae6fd",
+        borderRadius: 8, padding: 14, marginTop: 16,
+    }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 24px" }}>
             {items.map(([label, value]) => (
                 <div key={label} style={{ fontSize: 12 }}>
@@ -214,53 +204,34 @@ const SummaryBox: React.FC<{ items: [string, string | number][] }> = ({ items })
 // ── Notes block ───────────────────────────────────────────────────────────────
 const NotesBlock: React.FC<{ notes?: string }> = ({ notes }) =>
     notes ? (
-        <div
-            style={{
-                marginTop: 14,
-                fontSize: 12,
-                padding: "10px 12px",
-                background: "#fffbeb",
-                border: "1px solid #fde68a",
-                borderRadius: 6,
-                color: "#374151",
-            }}
-        >
+        <div style={{
+            marginTop: 14, fontSize: 12, padding: "10px 12px",
+            background: "#fffbeb", border: "1px solid #fde68a",
+            borderRadius: 6, color: "#374151",
+        }}>
             <strong>Notes: </strong>{notes}
         </div>
     ) : null;
 
-// ── Footer line ───────────────────────────────────────────────────────────────
+// ── Footer ────────────────────────────────────────────────────────────────────
 const PrintFooter: React.FC<{ label?: string }> = ({ label }) => (
-    <div
-        style={{
-            marginTop: 24,
-            paddingTop: 10,
-            borderTop: `1px solid ${C.tableBorder}`,
-            textAlign: "center",
-            fontSize: 11,
-            color: "#94a3b8",
-        }}
-    >
+    <div style={{
+        marginTop: 24, paddingTop: 10,
+        borderTop: `1px solid ${C.tableBorder}`,
+        textAlign: "center", fontSize: 11, color: "#94a3b8",
+    }}>
         {label || "Generated on"} {new Date().toLocaleString()}
     </div>
 );
 
-// ── PO number banner ──────────────────────────────────────────────────────────
+// ── PO Banner ─────────────────────────────────────────────────────────────────
 const POBanner: React.FC<{ po: PO; showMeta?: boolean }> = ({ po, showMeta }) => (
-    <div
-        style={{
-            background: C.primaryLight,
-            border: `1px solid #f3c6cd`,
-            borderRadius: 7,
-            padding: "10px 14px",
-            marginBottom: 16,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 8,
-        }}
-    >
+    <div style={{
+        background: C.primaryLight, border: `1px solid #f3c6cd`,
+        borderRadius: 7, padding: "10px 14px", marginBottom: 16,
+        display: "flex", justifyContent: "space-between",
+        alignItems: "center", flexWrap: "wrap", gap: 8,
+    }}>
         <div style={{ fontSize: 16, fontWeight: 800, color: C.primary }}>{po.po_number}</div>
         {showMeta && (
             <div style={{ fontSize: 12, color: C.subText }}>
@@ -272,22 +243,18 @@ const POBanner: React.FC<{ po: PO; showMeta?: boolean }> = ({ po, showMeta }) =>
     </div>
 );
 
-// ── Mobile item card (replaces table row on small screens) ───────────────────
+// ── Mobile item card ──────────────────────────────────────────────────────────
 const MobileItemCard: React.FC<{ item: POItem; index: number; showDeliveryStatus?: boolean }> = ({
     item, index, showDeliveryStatus,
 }) => {
     const { label, color } = itemDeliveryStatus(item);
     const lineTotal = (item.quantity_ordered || 0) * (item.unit_price || 0);
     return (
-        <div
-            style={{
-                background: index % 2 === 0 ? "#fff" : "#f8fafc",
-                border: `1px solid ${C.tableBorder}`,
-                borderRadius: 7,
-                padding: "10px 12px",
-                marginBottom: 8,
-            }}
-        >
+        <div style={{
+            background: index % 2 === 0 ? "#fff" : "#f8fafc",
+            border: `1px solid ${C.tableBorder}`,
+            borderRadius: 7, padding: "10px 12px", marginBottom: 8,
+        }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.darkText, flex: 1, marginRight: 8 }}>
                     {item.inventory_id?.name || "N/A"}
@@ -311,11 +278,10 @@ const MobileItemCard: React.FC<{ item: POItem; index: number; showDeliveryStatus
     );
 };
 
-// ── Items table (shared) — scrollable on mobile, table on desktop ─────────────
-const POItemsTable: React.FC<{ po: PO; showDeliveryStatus?: boolean; showSKU?: boolean; isMobile?: boolean }> = ({
-    po, showDeliveryStatus, showSKU, isMobile,
-}) => {
-    // On mobile, render stacked cards instead of a wide table
+// ── Items table ───────────────────────────────────────────────────────────────
+const POItemsTable: React.FC<{
+    po: PO; showDeliveryStatus?: boolean; showSKU?: boolean; isMobile?: boolean;
+}> = ({ po, showDeliveryStatus, showSKU, isMobile }) => {
     if (isMobile) {
         return (
             <div style={{ marginBottom: 14 }}>
@@ -327,18 +293,11 @@ const POItemsTable: React.FC<{ po: PO; showDeliveryStatus?: boolean; showSKU?: b
                         {po.po_items.map((item, i) => (
                             <MobileItemCard key={i} item={item} index={i} showDeliveryStatus={showDeliveryStatus} />
                         ))}
-                        <div
-                            style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "10px 12px",
-                                background: "#f1f5f9",
-                                borderRadius: 7,
-                                border: `1px solid ${C.tableBorder}`,
-                                marginTop: 4,
-                            }}
-                        >
+                        <div style={{
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            padding: "10px 12px", background: "#f1f5f9",
+                            borderRadius: 7, border: `1px solid ${C.tableBorder}`, marginTop: 4,
+                        }}>
                             <span style={{ fontSize: 13, fontWeight: 700, color: C.darkText }}>TOTAL AMOUNT</span>
                             <span style={{ fontSize: 14, fontWeight: 800, color: C.primary }}>{fmt(po.total_amount)}</span>
                         </div>
@@ -350,27 +309,33 @@ const POItemsTable: React.FC<{ po: PO; showDeliveryStatus?: boolean; showSKU?: b
         );
     }
 
-    const headers: [string, string][] = [
-        ["Item", "left"],
-        ...(showSKU ? [["SKU", "left"] as [string, string]] : []),
-        ["Unit", "left"],
-        ["Ordered", "right"],
-        ["Received", "right"],
-        ["Pending", "right"],
-        ["Unit Price", "right"],
-        ["Total", "right"],
-        ...(showDeliveryStatus ? [["Status", "center"] as [string, string]] : []),
+    // Build column definitions — drives both headers and cells
+    const cols: { label: string; align: "left" | "right" | "center"; width?: string }[] = [
+        { label: "Item", align: "left" },
+        ...(showSKU ? [{ label: "SKU", align: "left" as const }] : []),
+        { label: "Unit", align: "left", width: "60px" },
+        { label: "Ordered", align: "right", width: "72px" },
+        { label: "Received", align: "right", width: "80px" },
+        { label: "Pending", align: "right", width: "72px" },
+        { label: "Unit Price", align: "right", width: "100px" },
+        { label: "Total", align: "right", width: "110px" },
+        ...(showDeliveryStatus ? [{ label: "Status", align: "center" as const, width: "80px" }] : []),
     ];
 
-    const colSpanForTotal = headers.length - 1;
+    const totalColSpan = cols.length - 1;
 
     return (
         <div style={{ overflowX: "auto", marginBottom: 14 }}>
-            <table style={{ width: "100%", minWidth: 520, borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", minWidth: 520, borderCollapse: "collapse", tableLayout: "fixed" }}>
+                <colgroup>
+                    {cols.map((col, i) => (
+                        <col key={i} style={col.width ? { width: col.width } : {}} />
+                    ))}
+                </colgroup>
                 <thead>
                     <tr>
-                        {headers.map(([h, align]) => (
-                            <th key={h} style={th({ textAlign: align as any })}>{h}</th>
+                        {cols.map((col) => (
+                            <th key={col.label} style={th({ textAlign: col.align })}>{col.label}</th>
                         ))}
                     </tr>
                 </thead>
@@ -395,8 +360,12 @@ const POItemsTable: React.FC<{ po: PO; showDeliveryStatus?: boolean; showSKU?: b
                                     </tr>
                                 );
                             })}
-                            <tr style={{ background: "#f1f5f9" }}>
-                                <td colSpan={colSpanForTotal} style={td({ fontWeight: 700, textAlign: "right", color: C.darkText })}>
+                            {/* Total row */}
+                            <tr style={{ background: C.primaryLight }}>
+                                <td
+                                    colSpan={totalColSpan}
+                                    style={td({ fontWeight: 700, textAlign: "right", color: C.primary, borderLeft: `3px solid ${C.primary}` })}
+                                >
                                     TOTAL AMOUNT
                                 </td>
                                 <td style={td({ textAlign: "right", fontWeight: 800, color: C.primary, fontSize: 13 })}>
@@ -406,7 +375,7 @@ const POItemsTable: React.FC<{ po: PO; showDeliveryStatus?: boolean; showSKU?: b
                         </>
                     ) : (
                         <tr>
-                            <td colSpan={headers.length} style={td({ textAlign: "center", color: "#94a3b8" })}>
+                            <td colSpan={cols.length} style={td({ textAlign: "center", color: "#94a3b8" })}>
                                 No items
                             </td>
                         </tr>
@@ -485,18 +454,14 @@ const renderBulkPOs = (pos: PO[], brand: string, isMobile?: boolean) => (
         <div style={{ textAlign: "center", marginBottom: 20, fontSize: 13, color: C.subText }}>
             {pos.length} Purchase Order{pos.length !== 1 ? "s" : ""} &nbsp;·&nbsp; Generated {new Date().toLocaleString()}
         </div>
-
         {pos.map((po, index) => (
-            <div
-                key={po._id}
-                style={{
-                    marginBottom: 40,
-                    border: `1px solid ${C.tableBorder}`,
-                    borderRadius: 8,
-                    padding: isMobile ? 12 : 20,
-                    pageBreakBefore: index > 0 ? "always" : "auto",
-                }}
-            >
+            <div key={po._id} style={{
+                marginBottom: 40,
+                border: `1px solid ${C.tableBorder}`,
+                borderRadius: 8,
+                padding: isMobile ? 12 : 20,
+                pageBreakBefore: index > 0 ? "always" : "auto",
+            }}>
                 <POBanner po={po} showMeta />
                 <InfoGrid
                     left={[
@@ -516,21 +481,98 @@ const renderBulkPOs = (pos: PO[], brand: string, isMobile?: boolean) => (
                 <SummaryBox items={deliverySummaryItems(po)} />
             </div>
         ))}
-
         <PrintFooter label="End of Report —" />
     </div>
 );
 
-// ── Main modal ────────────────────────────────────────────────────────────────
+// ── Derive email meta from PO data ────────────────────────────────────────────
+const getPoEmailMeta = (type: string, data: PO | PO[] | null) => {
+    if (!data) return { poMeta: { totalAmount: 0 } };
+    if (type === "bulk") {
+        const pos = data as PO[];
+        return {
+            poMeta: {
+                isBulk: true,
+                count: pos.length,
+                totalAmount: pos.reduce((s, po) => s + (po.total_amount || 0), 0),
+            },
+        };
+    }
+    const po = data as PO;
+    return {
+        poMeta: {
+            poNumber: po.po_number,
+            supplierName: po.supplier_id?.name,
+            totalAmount: po.total_amount || 0,
+            deliveryPercentage: po.delivery_percentage || 0,
+        },
+    };
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SEND EMAIL SUB-MODAL
+// ══════════════════════════════════════════════════════════════════════════════
+const SendEmailModal: React.FC<{
+    open: boolean;
+    onClose: () => void;
+    onSend: (values: SendEmailValues) => Promise<void>;
+    sending: boolean;
+}> = ({ open, onClose, onSend, sending }) => {
+    const [form] = Form.useForm();
+
+    const handleOk = async () => {
+        const values = await form.validateFields();
+        await onSend(values);
+        form.resetFields();
+    };
+
+    return (
+        <Modal
+            open={open}
+            onCancel={() => { form.resetFields(); onClose(); }}
+            onOk={handleOk}
+            confirmLoading={sending}
+            okText={<Space><SendOutlined />Send Report</Space>}
+            okButtonProps={{ style: { background: C.primary, borderColor: C.primary } }}
+            title={<Space><MailOutlined style={{ color: C.primary }} /><span>Send Report via Email</span></Space>}
+            width={480}
+            destroyOnClose
+        >
+            <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
+                <Form.Item
+                    name="to"
+                    label="Recipient Email"
+                    rules={[
+                        { required: true, message: "Recipient email is required" },
+                        { type: "email", message: "Enter a valid email address" },
+                    ]}
+                >
+                    <Input prefix={<MailOutlined style={{ color: C.subText }} />} placeholder="manager@company.com" />
+                </Form.Item>
+                <Form.Item name="recipientName" label="Recipient Name">
+                    <Input prefix={<UserOutlined style={{ color: C.subText }} />} placeholder="e.g. Alice" />
+                </Form.Item>
+                <Form.Item name="cc" label="CC (optional)" extra="Separate multiple addresses with commas">
+                    <Input prefix={<PlusOutlined style={{ color: C.subText }} />} placeholder="cfo@company.com, accounts@company.com" />
+                </Form.Item>
+                <Form.Item name="intro" label="Personal Message (optional)">
+                    <Input.TextArea rows={3} placeholder="Please find the attached purchase order report." />
+                </Form.Item>
+            </Form>
+        </Modal>
+    );
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MAIN MODAL
+// ══════════════════════════════════════════════════════════════════════════════
 const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
-    visible,
-    onClose,
-    data,
-    type,
-    title,
+    visible, onClose, data, type, title,
 }) => {
     const componentRef = useRef<HTMLDivElement>(null);
     const [isPdf, setIsPdf] = useState(true);
+    const [emailModalOpen, setEmailModalOpen] = useState(false);
+    const [sending, setSending] = useState(false);
     const { BRAND_NAME1 } = useSystemDetails();
     const isMobile = useIsMobile();
 
@@ -538,14 +580,12 @@ const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
         content: () => componentRef.current,
         pageStyle: isPdf
             ? `@page { size: A4; margin: 18mm; }
-         @media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }`
-            : `@media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-         .ant-modal-mask, .ant-modal-wrap, .ant-modal-header, .ant-modal-footer { display: none !important; } }`,
+               @media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }`
+            : `@media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }`,
     });
 
     const renderContent = () => {
         if (!data) return null;
-        // Always print with desktop table (isMobile=false) so PDF is never empty/card-based
         switch (type) {
             case "single": return renderSinglePO(data as PO, BRAND_NAME1, isMobile);
             case "bulk": return renderBulkPOs(data as PO[], BRAND_NAME1, isMobile);
@@ -554,7 +594,29 @@ const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
         }
     };
 
-    // ── Shared: toggle pill ───────────────────────────────────────────────────────
+    // ── Email send ────────────────────────────────────────────────────────────
+    const handleSendEmail = async (values: SendEmailValues) => {
+        setSending(true);
+        try {
+            const htmlTable = refToHtmlString(componentRef);
+            const { poMeta } = getPoEmailMeta(type, data);
+
+            const ok = await sendPurchaseOrderEmail({
+                to: values.to,
+                recipientName: values.recipientName,
+                intro: values.intro,
+                cc: values.cc,
+                poMeta,
+                htmlTable,
+            });
+
+            if (ok) setEmailModalOpen(false);
+        } finally {
+            setSending(false);
+        }
+    };
+
+    // ── Toggle pill ───────────────────────────────────────────────────────────
     const PrintToggle = (
         <Space size={6} align="center">
             <PrinterOutlined style={{ color: C.subText, fontSize: 14 }} />
@@ -571,9 +633,17 @@ const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
         </Space>
     );
 
-    // ── Shared: action buttons ────────────────────────────────────────────────────
+    // ── Action buttons ────────────────────────────────────────────────────────
     const ActionButtons = (
         <Space size={8}>
+            <Button
+                icon={<MailOutlined />}
+                disabled={!data}
+                onClick={() => setEmailModalOpen(true)}
+                style={{ borderColor: C.primary, color: C.primary, borderRadius: 7, height: isMobile ? 38 : 32 }}
+            >
+                Send via Email
+            </Button>
             <Button
                 icon={<CloseOutlined />}
                 onClick={onClose}
@@ -585,53 +655,36 @@ const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
                 type="primary"
                 icon={isPdf ? <FilePdfOutlined /> : <PrinterOutlined />}
                 onClick={handlePrint}
-                style={{
-                    background: C.primary,
-                    borderColor: C.primary,
-                    borderRadius: 7,
-                    fontWeight: 500,
-                    height: isMobile ? 38 : 32,
-                }}
+                style={{ background: C.primary, borderColor: C.primary, borderRadius: 7, fontWeight: 500, height: isMobile ? 38 : 32 }}
             >
                 {isPdf ? "Save as PDF" : "Print"}
             </Button>
         </Space>
     );
 
-    // ── Inner layout (reused in both Drawer and Modal) ────────────────────────────
+    // ── Inner layout ──────────────────────────────────────────────────────────
     const InnerLayout = (
         <>
             {/* Toggle bar */}
-            <div
-                style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: isMobile ? "10px 14px" : "8px 12px",
-                    background: "#f8fafc",
-                    borderBottom: `1px solid ${C.tableBorder}`,
-                    flexShrink: 0,
-                }}
-            >
+            <div style={{
+                display: "flex", justifyContent: "center", alignItems: "center", gap: 10,
+                padding: isMobile ? "10px 14px" : "8px 12px",
+                background: "#f8fafc", borderBottom: `1px solid ${C.tableBorder}`, flexShrink: 0,
+            }}>
                 {PrintToggle}
             </div>
 
-            {/* Scrollable preview — ref lives HERE directly in JSX, never in a variable */}
-            <div
-                style={{
-                    flex: 1,
-                    overflowY: "auto",
-                    overflowX: "auto",
-                    background: isMobile ? "#f1f5f9" : "#fff",
-                    padding: isMobile ? "12px 8px" : 0,
-                    WebkitOverflowScrolling: "touch",
-                }}
-            >
+            {/* Scrollable preview */}
+            <div style={{
+                flex: 1, overflowY: "auto", overflowX: "auto",
+                background: isMobile ? "#f1f5f9" : "#fff",
+                padding: isMobile ? "12px 8px" : 0,
+                WebkitOverflowScrolling: "touch",
+            }}>
                 <div
                     ref={componentRef}
                     style={{
-                        fontFamily: isPdf ? "'Segoe UI', Roboto, sans-serif" : "'Courier New', monospace",
+                        fontFamily: isPdf ? "'Segoe UI', system-ui, Arial, sans-serif" : "'Courier New', Courier, monospace",
                         padding: isMobile ? 12 : isPdf ? 28 : 16,
                         background: "#fff",
                         minHeight: 200,
@@ -649,18 +702,11 @@ const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
 
             {/* Mobile pinned action bar */}
             {isMobile && (
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "12px 16px",
-                        borderTop: `1px solid ${C.tableBorder}`,
-                        background: "#fff",
-                        flexShrink: 0,
-                        gap: 8,
-                    }}
-                >
+                <div style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    padding: "12px 16px", borderTop: `1px solid ${C.tableBorder}`,
+                    background: "#fff", flexShrink: 0, gap: 8,
+                }}>
                     <Text style={{ fontSize: 12, color: C.subText }}>
                         {isPdf ? "A4 format ready" : "Thermal format ready"}
                     </Text>
@@ -670,82 +716,88 @@ const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
         </>
     );
 
-    // ── Mobile: full-screen bottom Drawer ─────────────────────────────────────────
+    // ── Mobile: Drawer ────────────────────────────────────────────────────────
     if (isMobile) {
         return (
-            <Drawer
-                open={visible}
-                onClose={onClose}
-                placement="bottom"
-                height="94vh"
+            <>
+                <Drawer
+                    open={visible}
+                    onClose={onClose}
+                    placement="bottom"
+                    height="94vh"
+                    title={
+                        <Space size={8}>
+                            <div style={{
+                                background: C.primaryLight, borderRadius: 7,
+                                padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1,
+                            }}>
+                                <PrinterOutlined />
+                            </div>
+                            <Text strong style={{ fontSize: 13, color: C.darkText }}>
+                                {title || "Print Preview"}
+                            </Text>
+                        </Space>
+                    }
+                    styles={{
+                        body: { padding: 0, display: "flex", flexDirection: "column", overflow: "hidden", height: "100%" },
+                        header: { padding: "12px 16px", borderBottom: `1px solid ${C.tableBorder}` },
+                    }}
+                    closeIcon={<CloseOutlined style={{ fontSize: 13 }} />}
+                >
+                    {InnerLayout}
+                </Drawer>
+
+                <SendEmailModal
+                    open={emailModalOpen}
+                    onClose={() => setEmailModalOpen(false)}
+                    onSend={handleSendEmail}
+                    sending={sending}
+                />
+            </>
+        );
+    }
+
+    // ── Desktop: Modal ────────────────────────────────────────────────────────
+    return (
+        <>
+            <Modal
                 title={
-                    <Space size={8}>
-                        <div
-                            style={{
-                                background: C.primaryLight,
-                                borderRadius: 7,
-                                padding: "4px 6px",
-                                color: C.primary,
-                                fontSize: 14,
-                                lineHeight: 1,
-                            }}
-                        >
+                    <Space size={10}>
+                        <div style={{
+                            background: C.primaryLight, borderRadius: 8,
+                            padding: "5px 7px", color: C.primary, fontSize: 15, lineHeight: 1,
+                        }}>
                             <PrinterOutlined />
                         </div>
-                        <Text strong style={{ fontSize: 13, color: C.darkText }}>
+                        <Text strong style={{ fontSize: 14, color: C.darkText }}>
                             {title || "Print Preview"}
                         </Text>
                     </Space>
                 }
-                styles={{
-                    body: { padding: 0, display: "flex", flexDirection: "column", overflow: "hidden", height: "100%" },
-                    header: { padding: "12px 16px", borderBottom: `1px solid ${C.tableBorder}` },
-                }}
-                closeIcon={<CloseOutlined style={{ fontSize: 13 }} />}
+                open={visible}
+                onCancel={onClose}
+                width="88%"
+                style={{ top: 16 }}
+                styles={{ body: { padding: 0 } }}
+                footer={
+                    <Space style={{ width: "100%", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                        {PrintToggle}
+                        {ActionButtons}
+                    </Space>
+                }
             >
-                {InnerLayout}
-            </Drawer>
-        );
-    }
+                <div style={{ maxHeight: "72vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                    {InnerLayout}
+                </div>
+            </Modal>
 
-    // ── Desktop: Modal ────────────────────────────────────────────────────────────
-    return (
-        <Modal
-            title={
-                <Space size={10}>
-                    <div
-                        style={{
-                            background: C.primaryLight,
-                            borderRadius: 8,
-                            padding: "5px 7px",
-                            color: C.primary,
-                            fontSize: 15,
-                            lineHeight: 1,
-                        }}
-                    >
-                        <PrinterOutlined />
-                    </div>
-                    <Text strong style={{ fontSize: 14, color: C.darkText }}>
-                        {title || "Print Preview"}
-                    </Text>
-                </Space>
-            }
-            open={visible}
-            onCancel={onClose}
-            width="88%"
-            style={{ top: 16 }}
-            styles={{ body: { padding: 0 } }}
-            footer={
-                <Space style={{ width: "100%", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-                    {PrintToggle}
-                    {ActionButtons}
-                </Space>
-            }
-        >
-            <div style={{ maxHeight: "72vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                {InnerLayout}
-            </div>
-        </Modal>
+            <SendEmailModal
+                open={emailModalOpen}
+                onClose={() => setEmailModalOpen(false)}
+                onSend={handleSendEmail}
+                sending={sending}
+            />
+        </>
     );
 };
 
