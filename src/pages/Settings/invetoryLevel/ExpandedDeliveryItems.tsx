@@ -1,18 +1,22 @@
 import React, { useRef } from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { Button, Modal, Space, Typography } from "antd";
+import { Button, Form, Input, Modal, Space, Typography } from "antd";
 import {
   CalendarOutlined,
   DollarOutlined,
   InboxOutlined,
+  MailOutlined,
   NumberOutlined,
+  PlusOutlined,
   PrinterOutlined,
+  SendOutlined,
   TruckOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { ENTITY_NAME } from "@utils/config";
+import { sendDeliveryNoteEmail, refToHtmlString } from "@services/emailReports";
 
 const { Text } = Typography;
 
@@ -27,12 +31,21 @@ const C = {
   subText: "#64748b",
   darkText: "#0f172a",
   border: "#e2e8f0",
+  white: "#ffffff",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtK = (v: number) => v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
+const fmtK = (v: number) => (v || 0).toLocaleString("en-KE", { minimumFractionDigits: 0 });
 const fmtDate = (d?: string) =>
   d ? new Date(d).toLocaleDateString("en-KE", { dateStyle: "medium" }) : "—";
+
+// ── Interfaces ────────────────────────────────────────────────────────────────
+interface SendEmailValues {
+  to: string;
+  recipientName?: string;
+  cc?: string;
+  intro?: string;
+}
 
 // ── Delivery Note print content ───────────────────────────────────────────────
 const DeliveryNoteContent = React.forwardRef<
@@ -55,52 +68,49 @@ const DeliveryNoteContent = React.forwardRef<
     ...(record.supplier_id?.phone ? [{ label: "Supplier Phone", value: record.supplier_id.phone }] : []),
   ];
 
+  const thStyle: React.CSSProperties = {
+    padding: "7px 9px",
+    fontSize: 10,
+    fontWeight: 700,
+    color: C.white,
+    background: C.primary,
+    letterSpacing: "0.4px",
+    textTransform: "uppercase",
+    whiteSpace: "nowrap",
+    printColorAdjust: "exact",
+    WebkitPrintColorAdjust: "exact",
+  } as React.CSSProperties;
+
   return (
     <div
       ref={ref}
       style={{
-        fontFamily: "'Segoe UI', Roboto, Arial, sans-serif",
+        fontFamily: "'Segoe UI', system-ui, Arial, sans-serif",
         padding: 28,
-        background: "#fff",
+        background: C.white,
         color: C.darkText,
         maxWidth: 480,
         margin: "0 auto",
         fontSize: 13,
       }}
     >
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          paddingBottom: 14,
-          borderBottom: `3px solid ${C.primary}`,
-          marginBottom: 18,
-          gap: 12,
-        }}
-      >
+      {/* Header */}
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+        paddingBottom: 14, borderBottom: `3px solid ${C.primary}`, marginBottom: 18, gap: 12,
+      }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 800, color: C.darkText, letterSpacing: "-0.3px", lineHeight: 1.2 }}>
             {brand}
           </div>
-          {ENTITY_NAME && (
-            <div style={{ fontSize: 11, color: C.subText, marginTop: 2 }}>{ENTITY_NAME}</div>
-          )}
-          {phone && (
-            <div style={{ fontSize: 11, color: C.subText, marginTop: 1 }}>{phone}</div>
-          )}
+          {ENTITY_NAME && <div style={{ fontSize: 11, color: C.subText, marginTop: 2 }}>{ENTITY_NAME}</div>}
+          {phone && <div style={{ fontSize: 11, color: C.subText, marginTop: 1 }}>{phone}</div>}
         </div>
-        <div
-          style={{
-            background: C.primary,
-            color: "#fff",
-            padding: "8px 14px",
-            borderRadius: 8,
-            textAlign: "center",
-            flexShrink: 0,
-          }}
-        >
+        <div style={{
+          background: C.primary, color: C.white,
+          padding: "8px 14px", borderRadius: 8, textAlign: "center", flexShrink: 0,
+          printColorAdjust: "exact", WebkitPrintColorAdjust: "exact",
+        } as React.CSSProperties}>
           <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "1px", opacity: 0.8, textTransform: "uppercase" }}>
             Delivery Note
           </div>
@@ -110,19 +120,12 @@ const DeliveryNoteContent = React.forwardRef<
         </div>
       </div>
 
-      {/* ── Meta grid ──────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "8px 20px",
-          background: "#f8fafc",
-          border: `1px solid ${C.border}`,
-          borderRadius: 9,
-          padding: "12px 16px",
-          marginBottom: 20,
-        }}
-      >
+      {/* Meta grid */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 20px",
+        background: "#f8fafc", border: `1px solid ${C.border}`,
+        borderRadius: 9, padding: "12px 16px", marginBottom: 20,
+      }}>
         {metaRows.map(({ label, value }) => (
           <div key={label}>
             <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 2 }}>
@@ -133,42 +136,35 @@ const DeliveryNoteContent = React.forwardRef<
         ))}
       </div>
 
-      {/* ── Items label ────────────────────────────────────────────────────── */}
+      {/* Items label */}
       <div style={{ fontSize: 9, fontWeight: 700, color: C.subText, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 8 }}>
         Items ({items.length})
       </div>
 
-      {/* ── Items table ────────────────────────────────────────────────────── */}
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12, fontSize: 12 }}>
+      {/* Items table — fixed layout for alignment */}
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 12, tableLayout: "fixed" }}>
+        <colgroup>
+          <col style={{ width: "28px" }} />
+          <col />
+          <col style={{ width: "64px" }} />
+          <col style={{ width: "80px" }} />
+          <col style={{ width: "80px" }} />
+        </colgroup>
         <thead>
           <tr>
-            {["#", "Item", "Qty", "Unit Price", "Total"].map((h, i) => (
-              <th
-                key={h}
-                style={{
-                  padding: "7px 8px",
-                  textAlign: i < 2 ? "left" : "right",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: C.subText,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.4px",
-                  borderBottom: `2px solid ${C.border}`,
-                  background: "#f8fafc",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {h}
-              </th>
-            ))}
+            <th style={{ ...thStyle, textAlign: "center" }}>#</th>
+            <th style={{ ...thStyle, textAlign: "left" }}>Item</th>
+            <th style={{ ...thStyle, textAlign: "right" }}>Qty</th>
+            <th style={{ ...thStyle, textAlign: "right" }}>Unit Price</th>
+            <th style={{ ...thStyle, textAlign: "right" }}>Total</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item: any, i: number) => {
             const lineTotal = (item.supplier_price || 0) * (item.quantity || 0);
             return (
-              <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                <td style={{ padding: "7px 8px", color: C.subText, fontSize: 11, borderBottom: `1px solid ${C.border}`, width: 22 }}>
+              <tr key={i} style={{ background: i % 2 === 0 ? C.white : "#fafafa" }}>
+                <td style={{ padding: "7px 8px", textAlign: "center", color: C.subText, fontSize: 11, borderBottom: `1px solid ${C.border}` }}>
                   {i + 1}
                 </td>
                 <td style={{ padding: "7px 8px", fontWeight: 600, color: C.darkText, borderBottom: `1px solid ${C.border}` }}>
@@ -187,65 +183,47 @@ const DeliveryNoteContent = React.forwardRef<
               </tr>
             );
           })}
+          {/* Total row inline with table */}
+          <tr style={{ background: C.primaryLight }}>
+            <td
+              colSpan={4}
+              style={{
+                padding: "9px 8px", textAlign: "right",
+                fontWeight: 700, fontSize: 11,
+                color: C.primary, borderLeft: `3px solid ${C.primary}`,
+                textTransform: "uppercase", letterSpacing: "0.4px",
+              }}
+            >
+              Total Amount
+            </td>
+            <td style={{ padding: "9px 8px", textAlign: "right", fontWeight: 800, fontSize: 14, color: C.primary }}>
+              Ksh {fmtK(totalAmount)}
+            </td>
+          </tr>
         </tbody>
       </table>
 
-      {/* ── Total ──────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background: C.primaryLight,
-          border: "1px solid #f3c6cd",
-          borderRadius: 9,
-          padding: "11px 16px",
-          marginBottom: 20,
-        }}
-      >
-        <span style={{ fontSize: 11, fontWeight: 700, color: C.subText, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-          Total Amount
-        </span>
-        <span style={{ fontSize: 17, fontWeight: 800, color: C.primary }}>
-          Ksh {fmtK(totalAmount)}
-        </span>
-      </div>
-
-      {/* ── Notes ──────────────────────────────────────────────────────────── */}
+      {/* Notes */}
       {record.notes && (
-        <div
-          style={{
-            background: "#fffbeb",
-            border: "1px solid #fde68a",
-            borderRadius: 8,
-            padding: "9px 12px",
-            marginBottom: 20,
-            fontSize: 11,
-            color: "#374151",
-          }}
-        >
+        <div style={{
+          background: "#fffbeb", border: "1px solid #fde68a",
+          borderRadius: 8, padding: "9px 12px", marginBottom: 20,
+          fontSize: 11, color: "#374151",
+        }}>
           <span style={{ fontWeight: 700, color: "#92400e" }}>Notes: </span>
           {record.notes}
         </div>
       )}
 
-      {/* ── Signatures + QR ────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-          paddingTop: 16,
-          borderTop: `1px solid ${C.border}`,
-          gap: 16,
-        }}
-      >
+      {/* Signatures + QR */}
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "flex-end",
+        paddingTop: 16, borderTop: `1px solid ${C.border}`, gap: 16,
+      }}>
         <div>
           <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 16 }}>
             <div>Generated: {new Date().toLocaleString("en-KE")}</div>
-            <div style={{ marginTop: 2 }}>
-              Ref: <span style={{ fontWeight: 600 }}>{deliveryCode}</span>
-            </div>
+            <div style={{ marginTop: 2 }}>Ref: <span style={{ fontWeight: 600 }}>{deliveryCode}</span></div>
           </div>
           <div style={{ display: "flex", gap: 24 }}>
             {["Received By", "Authorized By"].map((label) => (
@@ -266,15 +244,63 @@ const DeliveryNoteContent = React.forwardRef<
 });
 DeliveryNoteContent.displayName = "DeliveryNoteContent";
 
+// ── Send Email Sub-Modal ───────────────────────────────────────────────────────
+const SendEmailModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onSend: (values: SendEmailValues) => Promise<void>;
+  sending: boolean;
+}> = ({ open, onClose, onSend, sending }) => {
+  const [form] = Form.useForm();
+
+  const handleOk = async () => {
+    const values = await form.validateFields();
+    await onSend(values);
+    form.resetFields();
+  };
+
+  return (
+    <Modal
+      open={open}
+      onCancel={() => { form.resetFields(); onClose(); }}
+      onOk={handleOk}
+      confirmLoading={sending}
+      okText={<Space><SendOutlined />Send Note</Space>}
+      okButtonProps={{ style: { background: C.primary, borderColor: C.primary } }}
+      title={<Space><MailOutlined style={{ color: C.primary }} /><span>Send Delivery Note via Email</span></Space>}
+      width={480}
+      destroyOnClose
+    >
+      <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
+        <Form.Item
+          name="to"
+          label="Recipient Email"
+          rules={[
+            { required: true, message: "Recipient email is required" },
+            { type: "email", message: "Enter a valid email address" },
+          ]}
+        >
+          <Input prefix={<MailOutlined style={{ color: C.subText }} />} placeholder="supplier@company.com" />
+        </Form.Item>
+        <Form.Item name="recipientName" label="Recipient Name">
+          <Input prefix={<UserOutlined style={{ color: C.subText }} />} placeholder="e.g. John Kamau" />
+        </Form.Item>
+        <Form.Item name="cc" label="CC (optional)" extra="Separate multiple addresses with commas">
+          <Input prefix={<PlusOutlined style={{ color: C.subText }} />} placeholder="manager@company.com" />
+        </Form.Item>
+        <Form.Item name="intro" label="Personal Message (optional)">
+          <Input.TextArea rows={3} placeholder="Please find the delivery note attached." />
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+};
+
 // ── Print modal ───────────────────────────────────────────────────────────────
-const PrintDeliveryModal = ({
-  record,
-  trigger,
-}: {
-  record: any;
-  trigger: React.ReactNode;
-}) => {
+const PrintDeliveryModal = ({ record, trigger }: { record: any; trigger: React.ReactNode }) => {
   const [open, setOpen] = React.useState(false);
+  const [emailModalOpen, setEmailModalOpen] = React.useState(false);
+  const [sending, setSending] = React.useState(false);
   const componentRef = useRef<HTMLDivElement>(null);
   const { BRAND_NAME1, PHONE_NO, QR_Code } = useSystemDetails();
 
@@ -288,6 +314,36 @@ const PrintDeliveryModal = ({
     `,
   });
 
+  const handleSendEmail = async (values: SendEmailValues) => {
+    setSending(true);
+    try {
+      const items = record.delivery_items || [];
+      const totalItems = items.length;
+      const deliveredItems = items.filter((i: any) => (i.quantity || 0) > 0).length;
+      const pendingItems = totalItems - deliveredItems;
+      const htmlTable = refToHtmlString(componentRef);
+
+      const ok = await sendDeliveryNoteEmail({
+        to: values.to,
+        recipientName: values.recipientName,
+        intro: values.intro,
+        cc: values.cc,
+        noteMeta: {
+          noteNumber: record.code || `DN-${record._id?.slice(-6).toUpperCase()}`,
+          supplierName: record.supplier_id?.name,
+          totalItems,
+          deliveredItems,
+          pendingItems,
+        },
+        htmlTable,
+      });
+
+      if (ok) setEmailModalOpen(false);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <>
       <span onClick={() => setOpen(true)}>{trigger}</span>
@@ -296,16 +352,7 @@ const PrintDeliveryModal = ({
         onCancel={() => setOpen(false)}
         title={
           <Space size={8}>
-            <div
-              style={{
-                background: C.primaryLight,
-                borderRadius: 7,
-                padding: "4px 6px",
-                color: C.primary,
-                fontSize: 14,
-                lineHeight: 1,
-              }}
-            >
+            <div style={{ background: C.primaryLight, borderRadius: 7, padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1 }}>
               <PrinterOutlined />
             </div>
             <Text strong style={{ fontSize: 13, color: C.darkText }}>
@@ -317,34 +364,28 @@ const PrintDeliveryModal = ({
         destroyOnClose
         width="min(520px, 96vw)"
         styles={{
-          body: {
-            padding: 0,
-            maxHeight: "72vh",
-            overflowY: "auto",
-            background: "#f1f5f9",
-          },
+          body: { padding: 0, maxHeight: "72vh", overflowY: "auto", background: "#f1f5f9" },
         }}
         footer={
-          <Space style={{ width: "100%", justifyContent: "flex-end" }} size={8}>
+          <Space style={{ width: "100%", justifyContent: "space-between" }} size={8}>
             <Button
-              onClick={() => setOpen(false)}
-              style={{ borderRadius: 7 }}
+              icon={<MailOutlined />}
+              onClick={() => setEmailModalOpen(true)}
+              style={{ borderColor: C.primary, color: C.primary, borderRadius: 7 }}
             >
-              Close
+              Send via Email
             </Button>
-            <Button
-              type="primary"
-              icon={<PrinterOutlined />}
-              onClick={handlePrint}
-              style={{
-                background: C.primary,
-                borderColor: C.primary,
-                borderRadius: 7,
-                fontWeight: 500,
-              }}
-            >
-              Print / Save PDF
-            </Button>
+            <Space size={8}>
+              <Button onClick={() => setOpen(false)} style={{ borderRadius: 7 }}>Close</Button>
+              <Button
+                type="primary"
+                icon={<PrinterOutlined />}
+                onClick={handlePrint}
+                style={{ background: C.primary, borderColor: C.primary, borderRadius: 7, fontWeight: 500 }}
+              >
+                Print / Save PDF
+              </Button>
+            </Space>
           </Space>
         }
       >
@@ -358,39 +399,31 @@ const PrintDeliveryModal = ({
           />
         </div>
       </Modal>
+
+      <SendEmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        onSend={handleSendEmail}
+        sending={sending}
+      />
     </>
   );
 };
 
-// ── Item row ──────────────────────────────────────────────────────────────────
+// ── Item row (expanded view) ──────────────────────────────────────────────────
 const DeliveryItemRow: React.FC<{ item: any; index: number }> = ({ item, index }) => {
   const lineTotal = (item.supplier_price || 0) * (item.quantity || 0);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 12,
-        padding: "12px 0",
-        borderBottom: `1px solid ${C.border}`,
-      }}
-    >
-      <div
-        style={{
-          background: "#eff6ff",
-          borderRadius: 8,
-          width: 32,
-          height: 32,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: C.blue,
-          fontSize: 13,
-          fontWeight: 700,
-          flexShrink: 0,
-        }}
-      >
+    <div style={{
+      display: "flex", alignItems: "flex-start", gap: 12,
+      padding: "12px 0", borderBottom: `1px solid ${C.border}`,
+    }}>
+      <div style={{
+        background: "#eff6ff", borderRadius: 8, width: 32, height: 32,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: C.blue, fontSize: 13, fontWeight: 700, flexShrink: 0,
+      }}>
         {index + 1}
       </div>
 
@@ -428,7 +461,7 @@ const DeliveryItemRow: React.FC<{ item: any; index: number }> = ({ item, index }
   );
 };
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Main export ───────────────────────────────────────────────────────────────
 const ExpandedDeliveryItems = ({ record }: { record: any }) => {
   const totalAmount =
     record.delivery_items?.reduce(
@@ -439,16 +472,10 @@ const ExpandedDeliveryItems = ({ record }: { record: any }) => {
   return (
     <div style={{ padding: "12px 16px", background: "#f8fafc", borderTop: `1px solid ${C.border}` }}>
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 14,
-          flexWrap: "wrap",
-          gap: 8,
-        }}
-      >
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 14, flexWrap: "wrap", gap: 8,
+      }}>
         <Space size={10}>
           <div style={{ background: "#eff6ff", borderRadius: 8, padding: "5px 6px", color: C.blue, fontSize: 14, lineHeight: 1 }}>
             <InboxOutlined />
@@ -462,17 +489,11 @@ const ExpandedDeliveryItems = ({ record }: { record: any }) => {
         </Space>
 
         <Space size={10}>
-          <div
-            style={{
-              background: "#f0fdf4",
-              border: "1px solid #bbf7d0",
-              borderRadius: 8,
-              padding: "5px 12px",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
+          <div style={{
+            background: "#f0fdf4", border: "1px solid #bbf7d0",
+            borderRadius: 8, padding: "5px 12px",
+            display: "flex", alignItems: "center", gap: 6,
+          }}>
             <DollarOutlined style={{ color: C.green, fontSize: 13 }} />
             <Text strong style={{ fontSize: 13, color: C.green }}>Ksh {fmtK(totalAmount)}</Text>
           </div>
@@ -482,13 +503,9 @@ const ExpandedDeliveryItems = ({ record }: { record: any }) => {
               <Button
                 icon={<PrinterOutlined />}
                 style={{
-                  borderRadius: 8,
-                  fontWeight: 500,
-                  fontSize: 13,
-                  background: C.primary,
-                  borderColor: C.primary,
-                  color: "#fff",
-                  height: 34,
+                  borderRadius: 8, fontWeight: 500, fontSize: 13,
+                  background: C.primary, borderColor: C.primary,
+                  color: C.white, height: 34,
                 }}
               >
                 Print Note
@@ -516,7 +533,7 @@ const ExpandedDeliveryItems = ({ record }: { record: any }) => {
       </div>
 
       {/* Items list */}
-      <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${C.border}`, padding: "0 14px" }}>
+      <div style={{ background: C.white, borderRadius: 10, border: `1px solid ${C.border}`, padding: "0 14px" }}>
         {record.delivery_items?.length > 0 ? (
           record.delivery_items.map((item: any, index: number) => (
             <DeliveryItemRow key={item._id || index} item={item} index={index} />

@@ -19,6 +19,7 @@ import {
   UsergroupAddOutlined,
   MedicineBoxOutlined,
   ExperimentOutlined,
+  FileDoneOutlined,
 } from "@ant-design/icons";
 import { PeopleOutlined } from "@mui/icons-material";
 import { useAppSelector } from "src/store";
@@ -60,13 +61,11 @@ const ICONS = {
   expense: 'M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM20 7H4L2 12v3h1v6h4v-6h5v6h4v-6h1v-3l-2-5zm-1 4l1 2.5H4L5 11h14z',
   bill: 'M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm-7 6H7V8h6v2zm4 4H7v-2h10v2zm0-4h-2V8h2v2z',
   income: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z',
+  // ── Document Center icon path ──────────────────────────────────────────────
+  documents: 'M20 6h-2.18c.07-.44.18-.88.18-1.38 0-2.57-2.04-4.62-4.5-4.62S9 2.05 9 4.62c0 .5.11.94.18 1.38H7C5.9 6 5 6.9 5 8v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 0H10V4.62C10 3.17 11.12 2 12.5 2S15 3.17 15 4.62V6h-1zm1 5H9v-2h6v2zm4 4H9v-2h10v2z',
 };
 
 // ─── Route → permission gate map ─────────────────────────────────────────────
-//
-// Every nav entry and app tile is mapped to ONE permission key.
-// If the user holds that permission (or is admin) the item is shown.
-// Unmapped paths are shown to everyone.
 
 const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/tables": "CART_VIEW_ITEMS",
@@ -77,6 +76,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/employee-shift": "SHIFTS_VIEW",
   "/customers": "CUSTOMERS_VIEW",
   "/reports": "REPORTS_ITEM_SALES",
+  "/documents": "DOCUMENTS_VIEW",
 };
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -96,6 +96,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/suppliers": "SUPPLIERS_VIEW",
   "/payment-methods": "PAYMENT_METHODS_VIEW",
   "/system-setup": "SYSTEM_SETUP_VIEW",
+  "/documents": "DOCUMENTS_VIEW",
 };
 
 const POS_APP_PERMISSIONS: Record<string, string> = {
@@ -107,6 +108,7 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
   "/system-setup": "SYSTEM_SETUP_VIEW",
   "/fss-faqs": "FAQ_VIEW",
   "/website-builder": "GALLERY_VIEW",
+  "/documents": "DOCUMENTS_VIEW",
 };
 
 const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
@@ -126,6 +128,7 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/suppliers": "SUPPLIERS_VIEW",
   "/payment-methods": "PAYMENT_METHODS_VIEW",
   "/system-setup": "SYSTEM_SETUP_VIEW",
+  "/documents": "DOCUMENTS_VIEW",
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -136,15 +139,13 @@ const useProLayoutNav = () => {
   const isAdminOrCashier = !!(user?.role === "admin" || user?.role === "cashier");
   const isAdmin = user?.role === "admin";
 
-  // Build the permission checker once — admin bypasses all gates automatically
   const rolePermissions: string[] =
     (user as any)?.rolePermissions ?? (user as any)?.permissions ?? [];
   const can = makePermissionChecker(rolePermissions, isAdmin);
 
-  // Helper: returns true when the user may see a route/tile path
   const canSee = (path: string, permMap: Record<string, string>): boolean => {
     const gate = permMap[path];
-    if (!gate) return true; // no gate = always visible
+    if (!gate) return true;
     return can(gate);
   };
 
@@ -172,6 +173,9 @@ const useProLayoutNav = () => {
     ? { path: "/inventory", name: "Pharmacy", icon: <MedicineBoxOutlined /> }
     : { path: "/inventory", name: "Inventory", icon: <AppstoreOutlined /> };
 
+  // ── Document Center route (shared across POS & Accounting) ────────────────
+  const documentRoute = { path: "/documents", name: "Documents", icon: <FileDoneOutlined /> };
+
   // ── POS routes ────────────────────────────────────────────────────────────
 
   const posRoutesFullAccess = [
@@ -185,6 +189,7 @@ const useProLayoutNav = () => {
     { path: "/employee-shift", name: "Crew", icon: <UsergroupAddOutlined /> },
     { path: "/customers", name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined /> },
     { path: "/reports", name: "Business Reports", icon: <ApiFilled /> },
+    documentRoute,
   ].filter((r) => canSee(r.path, POS_ROUTE_PERMISSIONS));
 
   const posRoutesStaff = [
@@ -197,6 +202,7 @@ const useProLayoutNav = () => {
     inventoryRoute,
     { path: "/employee-shift", name: "Crew", icon: <UsergroupAddOutlined /> },
     { path: "/customers", name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined /> },
+    documentRoute,
   ].filter((r) => canSee(r.path, POS_ROUTE_PERMISSIONS));
 
   // ── Accounting routes ─────────────────────────────────────────────────────
@@ -209,17 +215,16 @@ const useProLayoutNav = () => {
     { path: "/accounting/bank-statements", name: "Banking", icon: <FileExcelOutlined /> },
     { path: "/accounting/reconciliation", name: "Bank Reconciliation", icon: <BankOutlined /> },
     { path: "/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
-    // ── Separated expense/bill/income pages ──────────────────────────────
     { path: "/accounting/expenses", name: "Expenses", icon: <ArrowUpOutlined /> },
     { path: "/accounting/bills", name: "Supplier Bills", icon: <FileTextOutlined style={{ color: "#8b5cf6" }} /> },
     { path: "/accounting/income", name: "Income", icon: <DollarOutlined /> },
-    // ─────────────────────────────────────────────────────────────────────
     { path: "/accounting/reports", name: "Reports", icon: <ReconciliationOutlined /> },
     inventoryRoute,
     { path: "/customers", name: "Customers", icon: <PeopleOutlined /> },
     { path: "/suppliers", name: "Suppliers", icon: <FolderFilled /> },
     { path: "/payment-methods", name: "Payment Methods", icon: <CalculatorFilled /> },
     { path: "/system-setup", name: "System Setup", icon: <SettingOutlined /> },
+    documentRoute,
   ].filter((r) => canSee(r.path, ACCOUNTING_ROUTE_PERMISSIONS));
 
   const accountingRoutesStaff = [
@@ -230,17 +235,16 @@ const useProLayoutNav = () => {
     { path: "/accounting/bank-statements", name: "Banking", icon: <FileExcelOutlined /> },
     { path: "/accounting/reconciliation", name: "Bank Reconciliation", icon: <BankOutlined /> },
     { path: "/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
-    // ── Separated expense/bill/income pages ──────────────────────────────
     { path: "/accounting/expenses", name: "Expenses", icon: <ArrowUpOutlined /> },
     { path: "/accounting/bills", name: "Supplier Bills", icon: <FileTextOutlined style={{ color: "#8b5cf6" }} /> },
     { path: "/accounting/income", name: "Income", icon: <DollarOutlined /> },
-    // ─────────────────────────────────────────────────────────────────────
-    // NOTE: /accounting/reports intentionally excluded for staff (original behaviour preserved)
+    // NOTE: /accounting/reports intentionally excluded for staff
     inventoryRoute,
     { path: "/customers", name: "Customers", icon: <PeopleOutlined /> },
     { path: "/suppliers", name: "Suppliers", icon: <FolderFilled /> },
     { path: "/payment-methods", name: "Payment Methods", icon: <CalculatorFilled /> },
     { path: "/system-setup", name: "System Setup", icon: <SettingOutlined /> },
+    documentRoute,
   ].filter((r) => canSee(r.path, ACCOUNTING_ROUTE_PERMISSIONS));
 
   // ── App tiles ─────────────────────────────────────────────────────────────
@@ -254,6 +258,7 @@ const useProLayoutNav = () => {
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: "/system-setup" },
     { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Get answers to your most common questions.", url: "/fss-faqs" },
     { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store your store images.", url: "/website-builder" },
+    { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: "/documents" },
   ].filter((t) => canSee(t.url, POS_APP_PERMISSIONS));
 
   const accountingAppList = [
@@ -264,20 +269,19 @@ const useProLayoutNav = () => {
     { icon: makeTile("#16a34a", ICONS.bankStatement), title: "Bank Statements", desc: "Import and categorize bank statement transactions.", url: "/accounting/bank-statements" },
     { icon: makeTile("#0ea5e9", ICONS.bank), title: "Reconciliation", desc: "Reconcile bank statements with your books.", url: "/accounting/reconciliation" },
     { icon: makeTile("#534AB7", ICONS.coa), title: "Chart of Accounts", desc: "Manage your account structure and codes.", url: "/accounting/accounts" },
-    // ── New separated pages ───────────────────────────────────────────────
     { icon: makeTile("#ef4444", ICONS.expense), title: "Expenses", desc: "Track and post direct business expenses.", url: "/accounting/expenses" },
     { icon: makeTile("#8b5cf6", ICONS.bill), title: "Supplier Bills", desc: "Manage outstanding bills owed to suppliers.", url: "/accounting/bills" },
     { icon: makeTile("#10b981", ICONS.income), title: "Income", desc: "View all inbound and outbound payments.", url: "/accounting/income" },
-    // ─────────────────────────────────────────────────────────────────────
     { icon: makeTile("#10b981", ICONS.reports), title: "Financial Reports", desc: "P&L, Balance Sheet, VAT, Aging and more.", url: "/accounting/reports" },
     { icon: makeTile("#10b981", ICONS.inventory), title: "Inventory", desc: "Track and manage your stock levels.", url: "/inventory" },
     { icon: makeTile("#06b6d4", ICONS.customers), title: "Customers", desc: "Manage your customer relationships.", url: "/customers" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: "/suppliers" },
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: "/payment-methods" },
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: "/system-setup" },
+    { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: "/documents" },
   ].filter((t) => canSee(t.url, ACCOUNTING_APP_PERMISSIONS));
 
-  // ── Compose final nav (original structure fully preserved) ────────────────
+  // ── Compose final nav ─────────────────────────────────────────────────────
 
   const posRoutes = isAdminOrCashier ? posRoutesFullAccess : posRoutesStaff;
 

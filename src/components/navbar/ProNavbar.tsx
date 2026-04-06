@@ -36,6 +36,7 @@ import {
   DollarOutlined,
   RiseOutlined,
   AuditOutlined,
+  FileDoneOutlined,
 } from "@ant-design/icons";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
@@ -218,6 +219,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
     queryClient.invalidateQueries({ queryKey: ["income-history"] });
     queryClient.invalidateQueries({ queryKey: ["bank-imports"] });
+    queryClient.invalidateQueries({ queryKey: ["documents"] });
+    queryClient.invalidateQueries({ queryKey: ["folders"] });
   };
 
   const fakeActionRef = { current: { reload: invalidateAll, reset: invalidateAll } };
@@ -298,6 +301,22 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           icon: <RiseOutlined style={{ color: "#22c55e" }} />,
           label: <span style={{ fontSize: 13 }}>Expense / Bill</span>,
           onClick: () => setQuickCreateModal("income-expense"),
+        },
+      ],
+    },
+    {
+      type: "group" as const,
+      label: (
+        <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+          Documents
+        </Text>
+      ),
+      children: [
+        {
+          key: "document-center",
+          icon: <FileDoneOutlined style={{ color: "#2f54eb" }} />,
+          label: <span style={{ fontSize: 13 }}>Document Center</span>,
+          onClick: () => navigate(isAdmin ? "/admin/documents" : "/documents"),
         },
       ],
     },
@@ -738,7 +757,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
       {/* ── Quick-create modals ──────────────────────────────────────────── */}
 
-      {/* Customer */}
       <AddCustomerModal
         visible={quickCreateModal === "customer"}
         onClose={closeQuickCreate}
@@ -746,7 +764,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         mode="add"
       />
 
-      {/* Supplier — externalOpen prop drives open state */}
       <AddProSupplierModal
         actionRef={fakeActionRef}
         edit={false}
@@ -754,7 +771,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         onExternalClose={closeQuickCreate}
       />
 
-      {/* Chart of Accounts */}
       <AccountFormDrawer
         open={quickCreateModal === "coa"}
         onClose={closeQuickCreate}
@@ -764,7 +780,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         shopId={shopId}
       />
 
-      {/* Journal Entry */}
       <JournalEntryFormDrawer
         open={quickCreateModal === "journal"}
         onClose={closeQuickCreate}
@@ -772,7 +787,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         shopId={shopId}
       />
 
-      {/* Payment Method — externalOpen prop drives open state */}
       <AddProPaymentMethodSettingsModal
         actionRef={fakeActionRef}
         edit={false}
@@ -780,13 +794,11 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         onExternalClose={closeQuickCreate}
       />
 
-      {/* Invoice / Quote */}
       <ManualInvoiceModal
         open={quickCreateModal === "invoice"}
         onClose={closeQuickCreate}
       />
 
-      {/* Income / Expense / Bill */}
       <ManualIncomeModal
         open={quickCreateModal === "income-expense"}
         onClose={closeQuickCreate}

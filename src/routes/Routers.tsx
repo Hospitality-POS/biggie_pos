@@ -55,6 +55,9 @@ const AdminProfile = lazy(() => import("src/AdminDashboard/Profile/AdminProfile"
 const EmployeeShift = lazy(() => import("@pages/EmployeeShift/Employee"));
 const Notification = lazy(() => import("@pages/Notification/NotificationPage"));
 
+// ─── Document Center ──────────────────────────────────────────────────────────
+const DocumentCenter = lazy(() => import("@pages/Documents/DocumentCenter"));
+
 // ─── Accounting Module ────────────────────────────────────────────────────────
 const AccountingDashboardPage = lazy(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
 const ChartOfAccountsPage = lazy(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
@@ -92,8 +95,6 @@ const privatePage = (Component: React.ComponentType) => (
 
 /**
  * Wraps privatePage with a PermissionRoute gate.
- * If the user lacks the permission, renders <AccessDenied /> instead of the page.
- * If they have it, renders the page inside the normal Private wrapper.
  */
 const guardedPage = (Component: React.ComponentType, permission: string) => (
   <PermissionRoute permission={permission}>
@@ -259,6 +260,10 @@ const routes = createBrowserRouter(
             </PermissionRoute>
           } />
 
+        {/* ── Document Center — shop level (/documents) ────────────────────── */}
+        <Route path="documents" errorElement={<NotFound />}
+          element={guardedPage(DocumentCenter, "DOCUMENTS_VIEW")} />
+
         {/* ── Accounting routes — shop level (/accounting/...) ────────────── */}
         <Route path="accounting" errorElement={<NotFound />}
           element={guardedPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
@@ -352,6 +357,10 @@ const routes = createBrowserRouter(
 
         <Route path="settings"
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><TenantSettings /></AdminRoute></Suspense>} />
+
+        {/* ── Document Center — admin level (/admin/documents) ─────────────── */}
+        <Route path="documents" errorElement={<NotFound />}
+          element={guardedAdminPage(DocumentCenter, "DOCUMENTS_VIEW")} />
 
         {/* ── Accounting — admin level (/admin/accounting/...) ────────────── */}
         <Route path="accounting" errorElement={<NotFound />}
