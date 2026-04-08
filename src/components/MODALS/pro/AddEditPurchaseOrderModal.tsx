@@ -218,7 +218,7 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
             title={
                 <Space>
                     <FileTextOutlined />
-                    {edit ? "Edit Purchase Order" : "Create Purchase Order"}
+                    {edit ? "Edit Purchase Order" : "Create Purchase Order "}
                 </Space>
             }
             form={form}
@@ -347,7 +347,7 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                     }
                 >
                     <Alert
-                        message="Purchase Order Information"
+                        message="Purchase Order Information "
                         description="Enter the basic details for your purchase order. Select the supplier and expected delivery date."
                         type="info"
                         showIcon

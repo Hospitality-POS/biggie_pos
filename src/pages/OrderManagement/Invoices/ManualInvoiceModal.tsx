@@ -15,6 +15,8 @@ import { createInvoice, convertQuoteToInvoice, recordInvoicePayment } from "@ser
 import { fetchAllCustomers } from "@services/customers";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchTenantDetails, getCurrentTenantId } from "@services/tenants";
+import AddCustomerModal from "@pages/Customer/AddCustomerModal";
+import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import dayjs, { Dayjs } from "dayjs";
 
 const { TextArea } = Input;
@@ -31,8 +33,6 @@ const PAYMENT_TERMS = [
     { label: "Cash on Delivery", value: "Cash on Delivery" },
 ];
 
-// Maps a payment term string to days added to the issue date.
-// null = no automatic due date (e.g. COD, 50% Upfront).
 const TERM_DAYS: Record<string, number | null> = {
     "Due on Receipt": 0,
     "Net 7": 7,
@@ -89,7 +89,12 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     const [savedInvoice, setSavedInvoice] = useState<any>(null);
     const [customerSearch, setCustomerSearch] = useState("");
 
-    const shopId = localStorage.getItem("shopId");
+    // ── Inline add modals ─────────────────────────────────────────────────────
+    const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+    const [addAccountOpen, setAddAccountOpen] = useState(false);
+    const [addDepositAccountOpen, setAddDepositAccountOpen] = useState(false);
+
+    const shopId = localStorage.getItem("shopId") || "";
     const tenantId = getCurrentTenantId();
 
     // ── Tenant VAT config ─────────────────────────────────────────────────────
@@ -116,7 +121,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         }
     }, [vatEnabled]);
 
-    // ── All accounts (revenue + asset) ───────────────────────────────────────
+    // ── Accounts ──────────────────────────────────────────────────────────────
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts"],
         queryFn: () => getAllAccounts({}),
@@ -124,13 +129,9 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     });
     const allAccounts = accountsData?.accounts || [];
 
-    // Revenue accounts — for line-item labelling only
     const revenueAccounts = allAccounts.filter(
         (a: any) => a.account_type === "REVENUE" && a.is_active
     );
-
-    // Asset accounts — shown in the payment step so the user picks
-    // where the cash/bank receipt is deposited (e.g. 1010 Cash, 1020 Bank, 1030 M-Pesa Float)
     const assetAccounts = allAccounts.filter(
         (a: any) => a.account_type === "ASSET" && a.is_active
     );
@@ -163,6 +164,32 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         label: m.name,
         value: m._id,
     }));
+
+    // ── Shared: refetch helpers called after inline creates ───────────────────
+    const handleCustomerAdded = () => {
+        queryClient.invalidateQueries({ queryKey: ["customers-dropdown"] });
+    };
+    const handleAccountAdded = () => {
+        queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
+    };
+
+    // ── Shared: dropdown footer factory ──────────────────────────────────────
+    const dropdownFooter = (label: string, onAdd: () => void) => (
+        <>
+            <Divider style={{ margin: "4px 0" }} />
+            <Button
+                type="link"
+                icon={<PlusOutlined />}
+                style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
+                onMouseDown={(e) => {
+                    e.preventDefault();
+                    onAdd();
+                }}
+            >
+                {label}
+            </Button>
+        </>
+    );
 
     // ── Line helpers ──────────────────────────────────────────────────────────
     const updateLine = (key: string, field: keyof LineItem, val: any) =>
@@ -310,8 +337,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             data: {
                 amount: v.amount,
                 method_id: v.method_id,
-                // account_id tells the backend which COA asset account to debit
-                // e.g. 1010 Cash on Hand, 1020 Bank, 1030 M-Pesa Float
                 account_id: v.account_id,
                 reference: v.reference,
                 notes: v.notes,
@@ -335,7 +360,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         {
             title: "Revenue Account",
             dataIndex: "account_id",
-            width: 180,
+            width: 200,
             render: (_: any, r: LineItem) => (
                 <Select
                     size="small" style={{ width: "100%" }}
@@ -347,6 +372,12 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                         label: `${a.account_code} ${a.account_name}`,
                         value: a._id,
                     }))}
+                    dropdownRender={(menu) => (
+                        <>
+                            {menu}
+                            {dropdownFooter("Add Revenue Account", () => setAddAccountOpen(true))}
+                        </>
+                    )}
                 />
             ),
         },
@@ -506,7 +537,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             />
 
             <Form form={form} layout="vertical" initialValues={{ issue_date: dayjs() }}>
-                {/* Row 1: Customer, Issue Date, Payment Terms */}
                 <Row gutter={16}>
                     <Col span={8}>
                         <Form.Item
@@ -520,6 +550,12 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                                 loading={customersFetching}
                                 options={customerOptions}
                                 notFoundContent={customersFetching ? "Searching..." : "No customers found"}
+                                dropdownRender={(menu) => (
+                                    <>
+                                        {menu}
+                                        {dropdownFooter("Add New Customer", () => setAddCustomerOpen(true))}
+                                    </>
+                                )}
                             />
                         </Form.Item>
                     </Col>
@@ -562,7 +598,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                     </Col>
                 </Row>
 
-                {/* Row 2: Due Date (auto-set by terms, manually overridable) */}
                 <Row gutter={16}>
                     <Col span={8}>
                         <Form.Item
@@ -695,18 +730,11 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                         </Form.Item>
                     </Col>
                     <Col span={12}>
-                        {/*
-                         * Deposit Account — which COA asset account receives the cash.
-                         * Filtered to ASSET accounts (cash, bank, mobile money float, etc.).
-                         * The backend uses this to post:
-                         *   DR  <account_id>  (e.g. 1020 Bank / 1030 M-Pesa Float)
-                         *   CR  1200 Accounts Receivable
-                         */}
                         <Form.Item
                             name="account_id"
                             label="Deposit Account"
                             rules={[{ required: true, message: "Select the account receiving payment" }]}
-                            tooltip="Choose the cash or bank account where this payment is deposited (e.g. Cash on Hand, Bank, M-Pesa Float). This determines the debit side of the journal entry."
+                            tooltip="Choose the cash or bank account where this payment is deposited. This determines the debit side of the journal entry."
                         >
                             <Select
                                 showSearch
@@ -714,6 +742,12 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                                 optionFilterProp="label"
                                 options={assetAccountOptions}
                                 notFoundContent="No asset accounts found — add them in Chart of Accounts"
+                                dropdownRender={(menu) => (
+                                    <>
+                                        {menu}
+                                        {dropdownFooter("Add Asset Account", () => setAddDepositAccountOpen(true))}
+                                    </>
+                                )}
                             />
                         </Form.Item>
                     </Col>
@@ -737,7 +771,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                         </Form.Item>
                     </Col>
                 </Row>
-                <Row gutter={16}>
+                <Row>
                     <Col span={24}>
                         <Form.Item name="notes" label="Notes">
                             <Input placeholder="Optional" />
@@ -798,35 +832,69 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
-        <Modal
-            open={open}
-            onCancel={handleClose}
-            title={
-                <Space>
-                    {step === 0 && (docType === "quote"
-                        ? <FileTextOutlined style={{ color: "#faad14" }} />
-                        : <FileDoneOutlined style={{ color: "#1890ff" }} />)}
-                    {step === 1 && <FileTextOutlined style={{ color: "#faad14" }} />}
-                    {step === 2 && <DollarOutlined style={{ color: "#52c41a" }} />}
-                    {step === 0 && (docType === "quote" ? "Create Quote" : "Create Invoice")}
-                    {step === 1 && "Review & Convert Quote"}
-                    {step === 2 && "Record Payment"}
-                </Space>
-            }
-            width={940}
-            footer={renderFooter()}
-            destroyOnClose
-        >
-            <Steps
-                current={stepsIndex}
-                size="small"
-                items={stepsConfig}
-                style={{ marginBottom: 24 }}
+        <>
+            <Modal
+                open={open}
+                onCancel={handleClose}
+                title={
+                    <Space>
+                        {step === 0 && (docType === "quote"
+                            ? <FileTextOutlined style={{ color: "#faad14" }} />
+                            : <FileDoneOutlined style={{ color: "#1890ff" }} />)}
+                        {step === 1 && <FileTextOutlined style={{ color: "#faad14" }} />}
+                        {step === 2 && <DollarOutlined style={{ color: "#52c41a" }} />}
+                        {step === 0 && (docType === "quote" ? "Create Quote" : "Create Invoice")}
+                        {step === 1 && "Review & Convert Quote"}
+                        {step === 2 && "Record Payment"}
+                    </Space>
+                }
+                width={940}
+                footer={renderFooter()}
+                destroyOnClose
+            >
+                <Steps
+                    current={stepsIndex}
+                    size="small"
+                    items={stepsConfig}
+                    style={{ marginBottom: 24 }}
+                />
+                {step === 0 && renderStep0()}
+                {step === 1 && renderStep1()}
+                {step === 2 && renderStep2()}
+            </Modal>
+
+            {/* ── Add Customer — triggered from customer dropdown ── */}
+            <AddCustomerModal
+                visible={addCustomerOpen}
+                onClose={() => setAddCustomerOpen(false)}
+                onSuccess={handleCustomerAdded}
+                mode="add"
             />
-            {step === 0 && renderStep0()}
-            {step === 1 && renderStep1()}
-            {step === 2 && renderStep2()}
-        </Modal>
+
+            {/* ── Add Revenue Account — triggered from line item account dropdown ── */}
+            <AccountFormDrawer
+                open={addAccountOpen}
+                onClose={() => setAddAccountOpen(false)}
+                onSuccess={() => {
+                    setAddAccountOpen(false);
+                    handleAccountAdded();
+                }}
+                accounts={allAccounts}
+                shopId={shopId}
+            />
+
+            {/* ── Add Asset Account — triggered from deposit account dropdown (step 2) ── */}
+            <AccountFormDrawer
+                open={addDepositAccountOpen}
+                onClose={() => setAddDepositAccountOpen(false)}
+                onSuccess={() => {
+                    setAddDepositAccountOpen(false);
+                    handleAccountAdded();
+                }}
+                accounts={allAccounts}
+                shopId={shopId}
+            />
+        </>
     );
 };
 

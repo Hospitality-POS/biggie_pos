@@ -10,24 +10,33 @@ interface MainCategoryModalProps {
   actionRef: any;
   edit?: boolean;
   data?: any;
+  // External open control
+  externalOpen?: boolean;
+  onExternalClose?: () => void;
 }
 
 const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
   actionRef,
   edit,
   data,
+  externalOpen,
+  onExternalClose,
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef();
   const [open, setOpen] = useState(false);
+
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
 
+  // Sync external open state
+  useEffect(() => {
+    if (externalOpen !== undefined) setOpen(externalOpen);
+  }, [externalOpen]);
+
   useEffect(() => {
     if (open && data) {
-      form.setFieldsValue({
-        ...data,
-      });
+      form.setFieldsValue({ ...data });
     }
   }, [open, data, form]);
 
@@ -35,6 +44,7 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
     setOpen(newOpen);
     if (!newOpen) {
       form.resetFields();
+      onExternalClose?.();
     }
   };
 
@@ -51,18 +61,11 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
       }
       initialValues={edit ? { ...data } : {}}
       trigger={
-        edit ? (
-          <Button
-            disabled={!isAdmin}
-            size="small"
-            key="button"
-            icon={
-              <EditOutlined
-                style={{ color: "#6c1c2c" }}
-                onClick={() => form.setFieldsValue(data)}
-              />
-            }
-          >Edit</Button>
+        externalOpen !== undefined ? undefined : edit ? (
+          <Button disabled={!isAdmin} size="small" key="button"
+            icon={<EditOutlined style={{ color: "#6c1c2c" }} onClick={() => form.setFieldsValue(data)} />}>
+            Edit
+          </Button>
         ) : (
           <Button disabled={!isAdmin} type="primary" key="button" icon={<CrownOutlined />}>
             New Main Category
@@ -70,21 +73,19 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
         )
       }
       autoFocusFirstInput
-      modalProps={{
-        destroyOnClose: true,
-        centered: true,
-      }}
+      modalProps={{ destroyOnClose: true, centered: true }}
       onFinish={async (values) => {
         const confirmed = await ShowConfirm({
-          title: `Are you sure you want to ${edit ? "update this" : "add new"
-            } main category?`,
+          title: `Are you sure you want to ${edit ? "update this" : "add new"} main category?`,
           position: true,
         });
         if (confirmed) {
           edit
             ? await editMainCategory({ values, _id: data?._id })
             : await addNewMainCategory(values);
-          actionRef.current.reset();
+          actionRef?.current?.reset?.();
+          setOpen(false);
+          onExternalClose?.();
           return true;
         }
       }}
@@ -100,9 +101,7 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
       <ProFormText
         name="name"
         label="Create New Main Category"
-        rules={[
-          { required: true, message: "Main Category Name is required" },
-        ]}
+        rules={[{ required: true, message: "Main Category Name is required" }]}
         placeholder="Enter Main Category Name"
       />
     </ModalForm>

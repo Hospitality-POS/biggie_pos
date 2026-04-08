@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button, DatePicker, Form, InputNumber, Select, Typography } from "antd";
 import {
   BarChartOutlined,
@@ -7,12 +7,12 @@ import {
   FileExclamationOutlined,
   FileTextOutlined,
   HddOutlined,
+  LockOutlined,
   PrinterOutlined,
   ShoppingOutlined,
-  ShopOutlined,
+  TagOutlined,
   UserOutlined,
   EnvironmentOutlined,
-  TagOutlined,
 } from "@ant-design/icons";
 import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import VoidReportModal from "@components/Reports/VoidReport";
@@ -25,6 +25,7 @@ import { getTableLocation } from "@services/tables";
 import DeliveryReportModal from "@components/Reports/DeliveryReport";
 import InventoryUsageReportModal from "@components/Reports/InventoryUsageReport";
 import { useReport } from "../hooks/useReport";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
@@ -55,28 +56,65 @@ const useIsMobile = () => {
   return v;
 };
 
-// ── SectionLabel ──────────────────────────────────────────────────────────────
-const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span style={{
-    display: "block", fontSize: 10, fontWeight: 700, color: C.subText,
-    textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 10,
-  }}>
-    {children}
-  </span>
-);
-
-// ── Tab config ────────────────────────────────────────────────────────────────
+// ── Tab config — each tab declares its required permission ────────────────────
 const TAB_CFG = [
-  { key: "sale", icon: <FileTextOutlined />, iconColor: C.green, label: "Item Sales" },
-  { key: "purchase", icon: <ShoppingOutlined />, iconColor: C.orange, label: "Sales" },
-  { key: "voided", icon: <FileExclamationOutlined />, iconColor: C.red, label: "Voided Bills" },
-  { key: "delivery", icon: <CarOutlined />, iconColor: C.blue, label: "Delivery" },
-  { key: "inventory_usage", icon: <BarChartOutlined />, iconColor: C.purple, label: "Inventory Usage" },
+  {
+    key: "sale",
+    icon: <FileTextOutlined />,
+    iconColor: C.green,
+    label: "Item Sales",
+    permissionKey: "REPORTS_ITEM_SALES",
+  },
+  {
+    key: "purchase",
+    icon: <ShoppingOutlined />,
+    iconColor: C.orange,
+    label: "Sales",
+    permissionKey: "REPORTS_PURCHASE_SUMMARY",
+  },
+  {
+    key: "voided",
+    icon: <FileExclamationOutlined />,
+    iconColor: C.red,
+    label: "Voided Bills",
+    permissionKey: "REPORTS_PURCHASE_SUMMARY",
+  },
+  {
+    key: "delivery",
+    icon: <CarOutlined />,
+    iconColor: C.blue,
+    label: "Delivery",
+    permissionKey: "DELIVERY_VIEW",
+  },
+  {
+    key: "inventory_usage",
+    icon: <BarChartOutlined />,
+    iconColor: C.purple,
+    label: "Inventory Usage",
+    permissionKey: "INVENTORY_VIEW_USAGE_BY_DATE",
+  },
 ];
+
+// ── Locked placeholder ────────────────────────────────────────────────────────
+const LockedTab: React.FC<{ label: string }> = ({ label }) => (
+  <div style={{
+    display: "flex", flexDirection: "column", alignItems: "center",
+    justifyContent: "center", padding: "60px 24px", gap: 12,
+    color: "#94a3b8", textAlign: "center",
+  }}>
+    <LockOutlined style={{ fontSize: 32, color: "#cbd5e1" }} />
+    <Text style={{ fontSize: 14, color: "#94a3b8" }}>
+      You don't have permission to generate the <strong>{label}</strong> report.
+    </Text>
+    <Text style={{ fontSize: 12, color: "#cbd5e1" }}>
+      Contact your administrator to request access.
+    </Text>
+  </div>
+);
 
 // ── Custom tab nav ────────────────────────────────────────────────────────────
 const TabNav: React.FC<{
-  tabs: typeof TAB_CFG;
+  tabs: (typeof TAB_CFG[number] & { allowed: boolean })[];
   active: string;
   onChange: (k: string) => void;
 }> = ({ tabs, active, onChange }) => (
@@ -87,21 +125,40 @@ const TabNav: React.FC<{
     {tabs.map((t) => {
       const on = t.key === active;
       return (
-        <button key={t.key} onClick={() => onChange(t.key)} style={{
-          background: on ? C.primary : C.bg,
-          color: on ? "#fff" : C.subText,
-          border: `1px solid ${on ? C.primary : C.border}`,
-          borderRadius: 8, padding: "7px 13px", fontSize: 12,
-          fontWeight: on ? 700 : 500, cursor: "pointer",
-          display: "flex", alignItems: "center", gap: 6,
-          transition: "all 0.15s", whiteSpace: "nowrap",
-        }}>
-          <span style={{ color: on ? "#fff" : t.iconColor, fontSize: 13 }}>{t.icon}</span>
+        <button
+          key={t.key}
+          onClick={() => t.allowed && onChange(t.key)}
+          title={!t.allowed ? "You don't have permission to access this report" : undefined}
+          style={{
+            background: on ? C.primary : C.bg,
+            color: on ? "#fff" : t.allowed ? C.subText : "#cbd5e1",
+            border: `1px solid ${on ? C.primary : C.border}`,
+            borderRadius: 8, padding: "7px 13px", fontSize: 12,
+            fontWeight: on ? 700 : 500,
+            cursor: t.allowed ? "pointer" : "not-allowed",
+            display: "flex", alignItems: "center", gap: 6,
+            transition: "all 0.15s", whiteSpace: "nowrap",
+            opacity: t.allowed ? 1 : 0.5,
+          }}
+        >
+          <span style={{ color: on ? "#fff" : t.allowed ? t.iconColor : "#cbd5e1", fontSize: 13 }}>
+            {t.allowed ? t.icon : <LockOutlined />}
+          </span>
           {t.label}
         </button>
       );
     })}
   </div>
+);
+
+// ── SectionLabel ──────────────────────────────────────────────────────────────
+const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span style={{
+    display: "block", fontSize: 10, fontWeight: 700, color: C.subText,
+    textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 10,
+  }}>
+    {children}
+  </span>
 );
 
 // ── Shared select fetchers ────────────────────────────────────────────────────
@@ -186,7 +243,22 @@ const GenerateButton: React.FC<{
 
 // ── Main component ────────────────────────────────────────────────────────────
 const Reports: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>("sale");
+  // Admin bypass via makePermissionChecker(isAdmin=true)
+  const can = useMemo(() => getPermissionChecker(), []);
+
+  // Attach allowed flag to every tab
+  const tabsWithAccess = useMemo(
+    () => TAB_CFG.map((t) => ({ ...t, allowed: can(t.permissionKey) })),
+    [can]
+  );
+
+  // Default to first tab the user can actually access
+  const defaultTab = useMemo(
+    () => tabsWithAccess.find((t) => t.allowed)?.key ?? TAB_CFG[0].key,
+    [tabsWithAccess]
+  );
+
+  const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const [form] = Form.useForm();
   const [queryKey, setQueryKey] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -205,7 +277,8 @@ const Reports: React.FC = () => {
     setOpenSalesModal, setOpenPurchaseModal,
     openVoidedModal, setVoidedDateTimeRange, setOpenVoidedModal, onCloseVoidedModal, voidedDateTimeRange,
     setDeliveryDateTimeRange, onCloseDeliveryModal, deliveryDateTimeRange, openDeliveryModal,
-    openInventoryUsageModal, setOpenInventoryUsageModal, setInventoryUsageDateTimeRange, onCloseInventoryUsageModal, inventoryUsageDateTimeRange,
+    openInventoryUsageModal, setOpenInventoryUsageModal, setInventoryUsageDateTimeRange,
+    onCloseInventoryUsageModal, inventoryUsageDateTimeRange,
   } = useReport(activeTab);
 
   const handleTabChange = (key: string) => {
@@ -220,7 +293,6 @@ const Reports: React.FC = () => {
     form.resetFields();
   };
 
-  // ── Customer data raw (for name lookup) ───────────────────────────────────
   const { data: customersRaw } = useQuery({
     queryKey: ["reports-customers"],
     queryFn: () => fetchAllCustomers(),
@@ -262,8 +334,14 @@ const Reports: React.FC = () => {
   const { data: itemSalesData, isLoading: salesLoading } = useQuery(
     ["itemsales", queryKey],
     () => fetchItemSalesReport(queryKey),
-    { enabled: !!queryKey, networkMode: "always", retry: 2, initialData: { success: true, data: [] } }
+    { enabled: !!queryKey, networkMode: "always" }
   );
+
+  // const { data: itemSalesData, isLoading: salesLoading } = useQuery(
+  //   ["itemsales", queryKey],
+  //   () => fetchItemSalesReport(queryKey),
+  //   { enabled: !!queryKey, networkMode: "always", retry: 2, initialData: { success: true, data: [] } }
+  // );
 
   const salesReportData = React.useMemo(() => {
     if (!itemSalesData) return [];
@@ -273,10 +351,17 @@ const Reports: React.FC = () => {
     return [];
   }, [itemSalesData]);
 
+  // ── Active tab config (with allowed flag) ─────────────────────────────────
+  const activeTabCfg = tabsWithAccess.find((t) => t.key === activeTab);
+
   // ── Per-tab content ───────────────────────────────────────────────────────
   const renderTabContent = () => {
-    switch (activeTab) {
+    // Block rendering if user lacks permission — even if they somehow land here
+    if (!activeTabCfg?.allowed) {
+      return <LockedTab label={activeTabCfg?.label ?? activeTab} />;
+    }
 
+    switch (activeTab) {
       case "sale":
         return (
           <Form form={form} layout="vertical" onFinish={async (values) => { await onFinish(values); setModalOpen(true); }}>
@@ -290,7 +375,8 @@ const Reports: React.FC = () => {
                   label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Served By</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All users" options={userOptions} style={{ width: "100%", borderRadius: 8 }}
+                  <Select showSearch allowClear placeholder="All users" options={userOptions}
+                    style={{ width: "100%", borderRadius: 8 }}
                     filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
                 </Form.Item>
               </div>
@@ -300,7 +386,8 @@ const Reports: React.FC = () => {
                   label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><EnvironmentOutlined /> Service Location</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All locations" options={locationOptions} style={{ width: "100%", borderRadius: 8 }}
+                  <Select showSearch allowClear placeholder="All locations" options={locationOptions}
+                    style={{ width: "100%", borderRadius: 8 }}
                     filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
                 </Form.Item>
               </div>
@@ -310,7 +397,8 @@ const Reports: React.FC = () => {
                   label={<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}><UserOutlined /> Customer</span>}
                   style={{ marginBottom: 14 }}
                 >
-                  <Select showSearch allowClear placeholder="All customers" options={customerOptions} style={{ width: "100%", borderRadius: 8 }}
+                  <Select showSearch allowClear placeholder="All customers" options={customerOptions}
+                    style={{ width: "100%", borderRadius: 8 }}
                     filterOption={(i, o) => (o?.label ?? "").toLowerCase().includes(i.toLowerCase())} />
                 </Form.Item>
               </div>
@@ -425,8 +513,6 @@ const Reports: React.FC = () => {
     }
   };
 
-  const activeCfg = TAB_CFG.find((t) => t.key === activeTab);
-
   return (
     <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
 
@@ -444,10 +530,10 @@ const Reports: React.FC = () => {
         </div>
         <div>
           <Text strong style={{ fontSize: 14, color: C.darkText, display: "block" }}>Generate Reports</Text>
-          {activeCfg && (
+          {activeTabCfg && (
             <Text style={{ fontSize: 11, color: C.subText }}>
-              <span style={{ color: activeCfg.iconColor }}>{activeCfg.icon}</span>
-              {" "}{activeCfg.label}
+              <span style={{ color: activeTabCfg.iconColor }}>{activeTabCfg.icon}</span>
+              {" "}{activeTabCfg.label}
             </Text>
           )}
         </div>
@@ -455,10 +541,12 @@ const Reports: React.FC = () => {
 
       {/* ── Body ───────────────────────────────────────────────────────── */}
       <div style={{ padding: "18px 18px 20px" }}>
-        <TabNav tabs={TAB_CFG} active={activeTab} onChange={handleTabChange} />
+        <TabNav tabs={tabsWithAccess} active={activeTab} onChange={handleTabChange} />
 
         <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px 16px 10px" }}>
-          <SectionLabel>Report Filters</SectionLabel>
+          <SectionLabel>
+            {activeTabCfg?.allowed ? "Report Filters" : "Access Restricted"}
+          </SectionLabel>
           {renderTabContent()}
         </div>
       </div>

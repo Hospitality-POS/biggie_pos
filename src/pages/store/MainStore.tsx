@@ -1,6 +1,6 @@
 import { FolderAddOutlined, HolderOutlined, SearchOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Empty, Input, Skeleton, Typography } from "antd";
+import { Button, Empty, Input, Skeleton, Switch, Typography } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { getAllProducts } from "@services/products";
 import StoreProductCard from "@components/store/StoreProductCard";
@@ -169,6 +169,8 @@ export default function MainStore() {
   const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  // false = show active only (default), true = show disabled only
+  const [showDisabled, setShowDisabled] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["products"],
@@ -182,9 +184,16 @@ export default function MainStore() {
   }, [data, activeTabId]);
 
   const activeCategory = data?.find((c: any) => c._id === activeTabId);
-  const filteredProducts = (activeCategory?.products ?? []).filter((p: any) =>
-    p?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+
+  // First filter by active/disabled, then by search term
+  const filteredProducts = (activeCategory?.products ?? [])
+    .filter((p: any) => (showDisabled ? p?.is_disabled === true : !p?.is_disabled))
+    .filter((p: any) => p?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // Counts for the toggle label
+  const allCategoryProducts = activeCategory?.products ?? [];
+  const activeCount = allCategoryProducts.filter((p: any) => !p?.is_disabled).length;
+  const disabledCount = allCategoryProducts.filter((p: any) => p?.is_disabled === true).length;
 
   // ── Loading ──────────────────────────────────────────────────────────
   if (isLoading) return (
@@ -286,7 +295,7 @@ export default function MainStore() {
           onChange={(k) => { setActiveTabId(k); setSearchTerm(""); }}
         />
 
-        {/* Count strip */}
+        {/* Count strip + disabled toggle */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <Text style={{ fontSize: 12, color: C.subText }}>
             {activeCategory?.name && (
@@ -295,20 +304,63 @@ export default function MainStore() {
             {filteredProducts.length} {filteredProducts.length === 1 ? "product" : "products"}
             {searchTerm && ` matching "${searchTerm}"`}
           </Text>
-          {searchTerm && (
-            <button onClick={() => setSearchTerm("")} style={{
-              background: "none", border: "none", color: C.subText,
-              cursor: "pointer", fontSize: 11, padding: 0,
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {searchTerm && (
+              <button onClick={() => setSearchTerm("")} style={{
+                background: "none", border: "none", color: C.subText,
+                cursor: "pointer", fontSize: 11, padding: 0,
+              }}>
+                Clear search
+              </button>
+            )}
+
+            {/* Active / Disabled toggle */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              background: C.bg, border: `1px solid ${C.border}`,
+              borderRadius: 8, padding: "4px 10px",
             }}>
-              Clear search
-            </button>
-          )}
+              <Text style={{ fontSize: 11, color: showDisabled ? C.subText : C.primary, fontWeight: showDisabled ? 400 : 600 }}>
+                Active
+                <span style={{
+                  marginLeft: 4, background: showDisabled ? C.bg : C.primaryLight,
+                  color: showDisabled ? C.subText : C.primary,
+                  borderRadius: 10, padding: "0 5px", fontSize: 10, fontWeight: 700,
+                }}>
+                  {activeCount}
+                </span>
+              </Text>
+              <Switch
+                size="small"
+                checked={showDisabled}
+                onChange={(val) => { setShowDisabled(val); setSearchTerm(""); }}
+                style={{ backgroundColor: showDisabled ? "#ef4444" : "#d1d5db" }}
+              />
+              <Text style={{ fontSize: 11, color: showDisabled ? "#ef4444" : C.subText, fontWeight: showDisabled ? 600 : 400 }}>
+                Disabled
+                <span style={{
+                  marginLeft: 4, background: showDisabled ? "#fef2f2" : C.bg,
+                  color: showDisabled ? "#ef4444" : C.subText,
+                  borderRadius: 10, padding: "0 5px", fontSize: 10, fontWeight: 700,
+                }}>
+                  {disabledCount}
+                </span>
+              </Text>
+            </div>
+          </div>
         </div>
 
         {/* Grid */}
         {filteredProducts.length === 0 ? (
           <Empty
-            description={searchTerm ? `No products matching "${searchTerm}"` : "No products in this category"}
+            description={
+              searchTerm
+                ? `No ${showDisabled ? "disabled" : "active"} products matching "${searchTerm}"`
+                : showDisabled
+                  ? "No disabled products in this category"
+                  : "No active products in this category"
+            }
             style={{ padding: "40px 0" }}
           />
         ) : (
@@ -329,6 +381,7 @@ export default function MainStore() {
                 img={prod?.image}
                 product={prod}
                 productId={prod?._id}
+                activateInventory={prod?.activateInventory}
               />
             ))}
           </div>

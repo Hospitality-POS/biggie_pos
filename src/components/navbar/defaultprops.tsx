@@ -61,11 +61,11 @@ const ICONS = {
   expense: 'M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM20 7H4L2 12v3h1v6h4v-6h5v6h4v-6h1v-3l-2-5zm-1 4l1 2.5H4L5 11h14z',
   bill: 'M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm-7 6H7V8h6v2zm4 4H7v-2h10v2zm0-4h-2V8h2v2z',
   income: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z',
-  // ── Document Center icon path ──────────────────────────────────────────────
   documents: 'M20 6h-2.18c.07-.44.18-.88.18-1.38 0-2.57-2.04-4.62-4.5-4.62S9 2.05 9 4.62c0 .5.11.94.18 1.38H7C5.9 6 5 6.9 5 8v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 0H10V4.62C10 3.17 11.12 2 12.5 2S15 3.17 15 4.62V6h-1zm1 5H9v-2h6v2zm4 4H9v-2h10v2z',
 };
 
 // ─── Route → permission gate map ─────────────────────────────────────────────
+// Keys are the bare path segments — prefix (/admin or /) is added at call-site.
 
 const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/tables": "CART_VIEW_ITEMS",
@@ -143,8 +143,26 @@ const useProLayoutNav = () => {
     (user as any)?.rolePermissions ?? (user as any)?.permissions ?? [];
   const can = makePermissionChecker(rolePermissions, isAdmin);
 
-  const canSee = (path: string, permMap: Record<string, string>): boolean => {
-    const gate = permMap[path];
+  // ── Detect which layout prefix is active ─────────────────────────────────
+  // ProLayout resolves nav paths relative to the current basename.
+  // Under <Route path="/admin">, all links must start with /admin/...
+  // Under <Route path="/">,      all links must start with /...
+  const isAdminLayout = window.location.pathname.startsWith("/admin");
+  const prefix = isAdminLayout ? "/admin" : "";
+
+  /**
+   * Given a bare route path (e.g. "/inventory"), build the full path
+   * with the correct prefix (e.g. "/admin/inventory" or "/inventory").
+   */
+  const p = (bare: string) => `${prefix}${bare}`;
+
+  /**
+   * Check whether a route should be visible.
+   * @param bare   bare path — the key in the permission map (no prefix)
+   * @param permMap  the relevant permission map
+   */
+  const canSee = (bare: string, permMap: Record<string, string>): boolean => {
+    const gate = permMap[bare];
     if (!gate) return true;
     return can(gate);
   };
@@ -157,147 +175,134 @@ const useProLayoutNav = () => {
   const posMode = (localStorage.getItem("posMode") ?? "restaurant") as string;
   const isHospitalMode = posMode === "hospital";
 
-  const homeRouteName = isHospitalMode
-    ? "POS"
-    : tenant?.business_type?.name === "Electronics" ||
-      tenant?.business_type?.name === "massage_parlour"
-      ? "POS"
-      : "POS";
-
+  const homeRouteName = "POS";
   const homeRouteIcon = isHospitalMode ? <MedicineBoxOutlined /> : <HomeFilled />;
 
   const hasPOS = tenant?.pos_integration?.enabled === true;
   const hasAccounting = tenant?.modules?.accounting === true;
 
-  const inventoryRoute = isHospitalMode
-    ? { path: "/inventory", name: "Pharmacy", icon: <MedicineBoxOutlined /> }
-    : { path: "/inventory", name: "Inventory", icon: <AppstoreOutlined /> };
+  const inventoryBarePath = "/inventory";
+  const inventoryRoute = {
+    path: p(inventoryBarePath),
+    name: isHospitalMode ? "Pharmacy" : "Inventory",
+    icon: isHospitalMode ? <MedicineBoxOutlined /> : <AppstoreOutlined />,
+  };
 
-  // ── Document Center route (shared across POS & Accounting) ────────────────
-  const documentRoute = { path: "/documents", name: "Documents", icon: <FileDoneOutlined /> };
+  const documentRoute = {
+    path: p("/documents"),
+    name: "Documents",
+    icon: <FileDoneOutlined />,
+  };
 
   // ── POS routes ────────────────────────────────────────────────────────────
 
   const posRoutesFullAccess = [
-    { path: "/tables", name: homeRouteName, icon: homeRouteIcon },
-    { path: "/home-dashboard", name: "Dashboard", icon: <BarChartOutlined /> },
-    { path: "/orders", name: "Orders", icon: <CalculatorFilled /> },
+    { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
+    { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
+    { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
     ...(posMode !== "retail"
-      ? [{ path: "/store", name: isHospitalMode ? "Services" : "Services", icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled /> }]
+      ? [{ path: p("/store"), name: isHospitalMode ? "Services" : "Services", icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled />, _bare: "/store" }]
       : []),
-    inventoryRoute,
-    { path: "/employee-shift", name: "Crew", icon: <UsergroupAddOutlined /> },
-    { path: "/customers", name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined /> },
-    { path: "/reports", name: "Business Reports", icon: <ApiFilled /> },
-    documentRoute,
-  ].filter((r) => canSee(r.path, POS_ROUTE_PERMISSIONS));
+    { ...inventoryRoute, _bare: inventoryBarePath },
+    { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
+    { path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" },
+    { path: p("/reports"), name: "Business Reports", icon: <ApiFilled />, _bare: "/reports" },
+    { ...documentRoute, _bare: "/documents" },
+  ].filter((r) => canSee(r._bare, POS_ROUTE_PERMISSIONS))
+    .map(({ _bare: _b, ...rest }) => rest);
 
   const posRoutesStaff = [
-    { path: "/tables", name: homeRouteName, icon: homeRouteIcon },
-    { path: "/home-dashboard", name: "Dashboard", icon: <BarChartOutlined /> },
-    { path: "/orders", name: "Orders", icon: <CalculatorFilled /> },
+    { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
+    { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
+    { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
     ...(posMode !== "retail"
-      ? [{ path: "/store", name: isHospitalMode ? "Services" : "Services", icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled /> }]
+      ? [{ path: p("/store"), name: isHospitalMode ? "Services" : "Services", icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled />, _bare: "/store" }]
       : []),
-    inventoryRoute,
-    { path: "/employee-shift", name: "Crew", icon: <UsergroupAddOutlined /> },
-    { path: "/customers", name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined /> },
-    documentRoute,
-  ].filter((r) => canSee(r.path, POS_ROUTE_PERMISSIONS));
+    { ...inventoryRoute, _bare: inventoryBarePath },
+    { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
+    { path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" },
+    { ...documentRoute, _bare: "/documents" },
+  ].filter((r) => canSee(r._bare, POS_ROUTE_PERMISSIONS))
+    .map(({ _bare: _b, ...rest }) => rest);
 
   // ── Accounting routes ─────────────────────────────────────────────────────
 
-  const accountingRoutes = [
-    { path: "/accounting", name: "Overview", icon: <DashboardOutlined /> },
-    { path: "/orders", name: "Invoices & Bills", icon: <FileTextOutlined /> },
-    { path: "/accounting/notes", name: "Debit/Credit Notes", icon: <FileSearchOutlined /> },
-    { path: "/accounting/journals", name: "Journal Entries", icon: <AuditOutlined /> },
-    { path: "/accounting/bank-statements", name: "Banking", icon: <FileExcelOutlined /> },
-    { path: "/accounting/reconciliation", name: "Bank Reconciliation", icon: <BankOutlined /> },
-    { path: "/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
-    { path: "/accounting/expenses", name: "Expenses", icon: <ArrowUpOutlined /> },
-    { path: "/accounting/bills", name: "Supplier Bills", icon: <FileTextOutlined style={{ color: "#8b5cf6" }} /> },
-    { path: "/accounting/income", name: "Income", icon: <DollarOutlined /> },
-    { path: "/accounting/reports", name: "Reports", icon: <ReconciliationOutlined /> },
-    inventoryRoute,
-    { path: "/customers", name: "Customers", icon: <PeopleOutlined /> },
-    { path: "/suppliers", name: "Suppliers", icon: <FolderFilled /> },
-    { path: "/payment-methods", name: "Payment Methods", icon: <CalculatorFilled /> },
-    { path: "/system-setup", name: "System Setup", icon: <SettingOutlined /> },
-    documentRoute,
-  ].filter((r) => canSee(r.path, ACCOUNTING_ROUTE_PERMISSIONS));
+  const buildAccountingRoutes = (includeReports: boolean) => [
+    { path: p("/accounting"), name: "Overview", icon: <DashboardOutlined />, _bare: "/accounting" },
+    { path: p("/orders"), name: "Invoices", icon: <FileTextOutlined />, _bare: "/orders" },
+    { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
+    { path: p("/accounting/bills"), name: "Bills", icon: <FileTextOutlined />, _bare: "/accounting/bills" },
+    { path: p("/accounting/notes"), name: "Debit/Credit Notes", icon: <FileSearchOutlined />, _bare: "/accounting/notes" },
+    { path: p("/accounting/journals"), name: "Journal Entries", icon: <AuditOutlined />, _bare: "/accounting/journals" },
+    { path: p("/accounting/bank-statements"), name: "Banking", icon: <FileExcelOutlined />, _bare: "/accounting/bank-statements" },
+    { path: p("/accounting/reconciliation"), name: "Bank Reconciliation", icon: <BankOutlined />, _bare: "/accounting/reconciliation" },
+    { path: p("/accounting/accounts"), name: "Chart of Accounts", icon: <AuditOutlined />, _bare: "/accounting/accounts" },
 
-  const accountingRoutesStaff = [
-    { path: "/accounting", name: "Overview", icon: <DashboardOutlined /> },
-    { path: "/orders", name: "Invoices & Bills", icon: <FileTextOutlined /> },
-    { path: "/accounting/notes", name: "Debit/Credit Notes", icon: <FileSearchOutlined /> },
-    { path: "/accounting/journals", name: "Journal Entries", icon: <AuditOutlined /> },
-    { path: "/accounting/bank-statements", name: "Banking", icon: <FileExcelOutlined /> },
-    { path: "/accounting/reconciliation", name: "Bank Reconciliation", icon: <BankOutlined /> },
-    { path: "/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
-    { path: "/accounting/expenses", name: "Expenses", icon: <ArrowUpOutlined /> },
-    { path: "/accounting/bills", name: "Supplier Bills", icon: <FileTextOutlined style={{ color: "#8b5cf6" }} /> },
-    { path: "/accounting/income", name: "Income", icon: <DollarOutlined /> },
-    // NOTE: /accounting/reports intentionally excluded for staff
-    inventoryRoute,
-    { path: "/customers", name: "Customers", icon: <PeopleOutlined /> },
-    { path: "/suppliers", name: "Suppliers", icon: <FolderFilled /> },
-    { path: "/payment-methods", name: "Payment Methods", icon: <CalculatorFilled /> },
-    { path: "/system-setup", name: "System Setup", icon: <SettingOutlined /> },
-    documentRoute,
-  ].filter((r) => canSee(r.path, ACCOUNTING_ROUTE_PERMISSIONS));
+    // { path: p("/accounting/income"), name: "Income", icon: <DollarOutlined />, _bare: "/accounting/income" },
+    ...(includeReports
+      ? [{ path: p("/accounting/reports"), name: "Reports", icon: <ReconciliationOutlined />, _bare: "/accounting/reports" }]
+      : []),
+    { ...inventoryRoute, _bare: inventoryBarePath },
+    { path: p("/customers"), name: "Customers", icon: <PeopleOutlined />, _bare: "/customers" },
+    { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
+    { path: p("/payment-methods"), name: "Payment Methods", icon: <CalculatorFilled />, _bare: "/payment-methods" },
+    { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
+    { ...documentRoute, _bare: "/documents" },
+  ].filter((r) => canSee(r._bare, ACCOUNTING_ROUTE_PERMISSIONS))
+    .map(({ _bare: _b, ...rest }) => rest);
+
+  const accountingRoutes = buildAccountingRoutes(true);
+  const accountingRoutesStaff = buildAccountingRoutes(false);
 
   // ── App tiles ─────────────────────────────────────────────────────────────
+  // App tiles always use the full prefixed URLs so clicking them navigates
+  // to the correct path regardless of current layout.
 
   const posAppList = [
-    { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize your products with clear categories.", url: "/Category-settings" },
-    { icon: makeTile("#0ea5e9", ICONS.table), title: homeRouteName, desc: isHospitalMode ? "Manage wards, beds and patient locations." : "Manage Tables location and naming.", url: "/table-settings" },
-    { icon: makeTile("#10b981", ICONS.inventory), title: isHospitalMode ? "Pharmacy" : "Inventory", desc: isHospitalMode ? "Manage medicines and medical supplies." : "Track and manage your stock levels.", url: "/inventory" },
-    { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: "/payment-methods" },
-    { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: "/suppliers" },
-    { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: "/system-setup" },
-    { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Get answers to your most common questions.", url: "/fss-faqs" },
-    { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store your store images.", url: "/website-builder" },
-    { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: "/documents" },
-  ].filter((t) => canSee(t.url, POS_APP_PERMISSIONS));
+    { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize your products with clear categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
+    { icon: makeTile("#0ea5e9", ICONS.table), title: homeRouteName, desc: isHospitalMode ? "Manage wards, beds and patient locations." : "Manage Tables location and naming.", url: p("/table-settings"), _bare: "/table-settings" },
+    { icon: makeTile("#10b981", ICONS.inventory), title: isHospitalMode ? "Pharmacy" : "Inventory", desc: isHospitalMode ? "Manage medicines and medical supplies." : "Track and manage your stock levels.", url: p("/inventory"), _bare: "/inventory" },
+    { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: p("/payment-methods"), _bare: "/payment-methods" },
+    { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: p("/suppliers"), _bare: "/suppliers" },
+    { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: p("/system-setup"), _bare: "/system-setup" },
+    { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Get answers to your most common questions.", url: p("/fss-faqs"), _bare: "/fss-faqs" },
+    { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store your store images.", url: p("/website-builder"), _bare: "/website-builder" },
+    { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
+  ].filter((t) => canSee(t._bare, POS_APP_PERMISSIONS))
+    .map(({ _bare: _b, ...rest }) => rest);
 
   const accountingAppList = [
-    { icon: makeTile("#6c1c2c", ICONS.accounting), title: "Accounting", desc: "View your financial overview and KPIs.", url: "/accounting" },
-    { icon: makeTile("#3b82f6", ICONS.invoice), title: "Invoices & Bills", desc: "Manage customer invoices and supplier bills.", url: "/orders" },
-    { icon: makeTile("#f59e0b", ICONS.debit), title: "Debit/Credit Notes", desc: "Create and manage debit and credit notes.", url: "/accounting/notes" },
-    { icon: makeTile("#8b5cf6", ICONS.journal), title: "Journal Entries", desc: "Record and post journal entries.", url: "/accounting/journals" },
-    { icon: makeTile("#16a34a", ICONS.bankStatement), title: "Bank Statements", desc: "Import and categorize bank statement transactions.", url: "/accounting/bank-statements" },
-    { icon: makeTile("#0ea5e9", ICONS.bank), title: "Reconciliation", desc: "Reconcile bank statements with your books.", url: "/accounting/reconciliation" },
-    { icon: makeTile("#534AB7", ICONS.coa), title: "Chart of Accounts", desc: "Manage your account structure and codes.", url: "/accounting/accounts" },
-    { icon: makeTile("#ef4444", ICONS.expense), title: "Expenses", desc: "Track and post direct business expenses.", url: "/accounting/expenses" },
-    { icon: makeTile("#8b5cf6", ICONS.bill), title: "Supplier Bills", desc: "Manage outstanding bills owed to suppliers.", url: "/accounting/bills" },
-    { icon: makeTile("#10b981", ICONS.income), title: "Income", desc: "View all inbound and outbound payments.", url: "/accounting/income" },
-    { icon: makeTile("#10b981", ICONS.reports), title: "Financial Reports", desc: "P&L, Balance Sheet, VAT, Aging and more.", url: "/accounting/reports" },
-    { icon: makeTile("#10b981", ICONS.inventory), title: "Inventory", desc: "Track and manage your stock levels.", url: "/inventory" },
-    { icon: makeTile("#06b6d4", ICONS.customers), title: "Customers", desc: "Manage your customer relationships.", url: "/customers" },
-    { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: "/suppliers" },
-    { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: "/payment-methods" },
-    { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: "/system-setup" },
-    { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: "/documents" },
-  ].filter((t) => canSee(t.url, ACCOUNTING_APP_PERMISSIONS));
+    { icon: makeTile("#6c1c2c", ICONS.accounting), title: "Accounting", desc: "View your financial overview and KPIs.", url: p("/accounting"), _bare: "/accounting" },
+    { icon: makeTile("#3b82f6", ICONS.invoice), title: "Invoices & Bills", desc: "Manage customer invoices and supplier bills.", url: p("/orders"), _bare: "/orders" },
+    { icon: makeTile("#f59e0b", ICONS.debit), title: "Debit/Credit Notes", desc: "Create and manage debit and credit notes.", url: p("/accounting/notes"), _bare: "/accounting/notes" },
+    { icon: makeTile("#8b5cf6", ICONS.journal), title: "Journal Entries", desc: "Record and post journal entries.", url: p("/accounting/journals"), _bare: "/accounting/journals" },
+    { icon: makeTile("#16a34a", ICONS.bankStatement), title: "Bank Statements", desc: "Import and categorize bank statement transactions.", url: p("/accounting/bank-statements"), _bare: "/accounting/bank-statements" },
+    { icon: makeTile("#0ea5e9", ICONS.bank), title: "Reconciliation", desc: "Reconcile bank statements with your books.", url: p("/accounting/reconciliation"), _bare: "/accounting/reconciliation" },
+    { icon: makeTile("#534AB7", ICONS.coa), title: "Chart of Accounts", desc: "Manage your account structure and codes.", url: p("/accounting/accounts"), _bare: "/accounting/accounts" },
+    { icon: makeTile("#ef4444", ICONS.expense), title: "Expenses", desc: "Track and post direct business expenses.", url: p("/accounting/expenses"), _bare: "/accounting/expenses" },
+    { icon: makeTile("#8b5cf6", ICONS.bill), title: "Supplier Bills", desc: "Manage outstanding bills owed to suppliers.", url: p("/accounting/bills"), _bare: "/accounting/bills" },
+    { icon: makeTile("#10b981", ICONS.income), title: "Income", desc: "View all inbound and outbound payments.", url: p("/accounting/income"), _bare: "/accounting/income" },
+    { icon: makeTile("#10b981", ICONS.reports), title: "Financial Reports", desc: "P&L, Balance Sheet, VAT, Aging and more.", url: p("/accounting/reports"), _bare: "/accounting/reports" },
+    { icon: makeTile("#10b981", ICONS.inventory), title: "Inventory", desc: "Track and manage your stock levels.", url: p("/inventory"), _bare: "/inventory" },
+    { icon: makeTile("#06b6d4", ICONS.customers), title: "Customers", desc: "Manage your customer relationships.", url: p("/customers"), _bare: "/customers" },
+    { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: p("/suppliers"), _bare: "/suppliers" },
+    { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: p("/payment-methods"), _bare: "/payment-methods" },
+    { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: p("/system-setup"), _bare: "/system-setup" },
+    { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
+  ].filter((t) => canSee(t._bare, ACCOUNTING_APP_PERMISSIONS))
+    .map(({ _bare: _b, ...rest }) => rest);
 
   // ── Compose final nav ─────────────────────────────────────────────────────
 
   const posRoutes = isAdminOrCashier ? posRoutesFullAccess : posRoutesStaff;
 
   if (hasAccounting && !hasPOS) {
-    const routes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
-    return {
-      route: { path: "/", routes },
-      appList: accountingAppList,
-    };
+    const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
+    return { route: { path: "/", routes: accRoutes }, appList: accountingAppList };
   }
 
   if (hasPOS && !hasAccounting) {
-    return {
-      route: { path: "/", routes: posRoutes },
-      appList: posAppList,
-    };
+    return { route: { path: "/", routes: posRoutes }, appList: posAppList };
   }
 
   if (hasPOS && hasAccounting) {
@@ -308,7 +313,7 @@ const useProLayoutNav = () => {
         routes: [
           ...posRoutes,
           {
-            path: "/accounting",
+            path: p("/accounting"),
             name: "Accounting",
             icon: <AccountBookOutlined />,
             routes: accRoutes,
@@ -319,10 +324,7 @@ const useProLayoutNav = () => {
     };
   }
 
-  return {
-    route: { path: "/", routes: posRoutes },
-    appList: posAppList,
-  };
+  return { route: { path: "/", routes: posRoutes }, appList: posAppList };
 };
 
 export default useProLayoutNav;

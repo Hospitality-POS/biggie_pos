@@ -186,14 +186,19 @@ const RestaurantPage: React.FC = () => {
   // ── Effects ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    // Always exclude disabled products/services from the POS sale view
+    const enabledProducts = (products || []).filter((p) => !p?.is_disabled);
+    const enabledServices = (services || []).filter((s) => !s?.is_disabled);
+
     if (!searchTerm.trim()) {
-      setFilteredProducts(products || []);
-      setFilteredServices(services || []);
+      setFilteredProducts(enabledProducts);
+      setFilteredServices(enabledServices);
       return;
     }
+
     const term = searchTerm.toLowerCase();
-    setFilteredProducts((products || []).filter((p) => p.name.toLowerCase().includes(term)));
-    setFilteredServices((services || []).filter((s) => s.name.toLowerCase().includes(term)));
+    setFilteredProducts(enabledProducts.filter((p) => p.name.toLowerCase().includes(term)));
+    setFilteredServices(enabledServices.filter((s) => s.name.toLowerCase().includes(term)));
   }, [searchTerm, products, services]);
 
   useEffect(() => {

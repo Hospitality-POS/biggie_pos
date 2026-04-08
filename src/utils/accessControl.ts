@@ -10,6 +10,7 @@ export const MODULES = {
     CUSTOMERS: "Customers",
     DELIVERY: "Delivery",
     DOCUMENTS: "Documents",
+    EMAIL_REPORTS: "Email Reports",
     FAQ: "FAQ",
     FEEDBACK: "Feedback",
     GALLERY: "Gallery",
@@ -147,6 +148,36 @@ export const PERMISSIONS: Record<string, Permission> = {
     DOCUMENTS_UPLOAD_ATTACHMENTS: { key: "DOCUMENTS_UPLOAD_ATTACHMENTS", label: "Upload Attachments", module: MODULES.DOCUMENTS, action: "create", moduleScope: "core" },
     DOCUMENTS_UPDATE_STATUS: { key: "DOCUMENTS_UPDATE_STATUS", label: "Update Document Status", module: MODULES.DOCUMENTS, action: "update", moduleScope: "core" },
     DOCUMENTS_SEARCH: { key: "DOCUMENTS_SEARCH", label: "Search Documents", module: MODULES.DOCUMENTS, action: "read", moduleScope: "core" },
+    DOCUMENTS_EMBED: { key: "DOCUMENTS_EMBED", label: "Generate AI Embeddings (Single & Batch)", module: MODULES.DOCUMENTS, action: "special", moduleScope: "core" },
+
+    // ── EMAIL REPORTS ─────────────────────────────────────────────────────────
+    // Maps 1-to-1 with every sendXxxEmail() function in email.ts.
+    // All are "special" actions — they trigger outbound email delivery.
+
+    /** sendSalesReportEmail() */
+    EMAIL_SEND_SALES_REPORT: { key: "EMAIL_SEND_SALES_REPORT", label: "Send Sales Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
+    /** sendPurchaseReportEmail() */
+    EMAIL_SEND_PURCHASE_REPORT: { key: "EMAIL_SEND_PURCHASE_REPORT", label: "Send Purchase Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
+    /** sendPurchaseOrderEmail() — single PO */
+    EMAIL_SEND_PURCHASE_ORDER: { key: "EMAIL_SEND_PURCHASE_ORDER", label: "Send Purchase Order Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
+    /** sendPurchaseOrderEmail() — isBulk=true */
+    EMAIL_SEND_PURCHASE_ORDER_BULK: { key: "EMAIL_SEND_PURCHASE_ORDER_BULK", label: "Send Bulk Purchase Order Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
+    /** sendDeliveryNoteEmail() */
+    EMAIL_SEND_DELIVERY_NOTE: { key: "EMAIL_SEND_DELIVERY_NOTE", label: "Send Delivery Note Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
+    /** sendInventoryReportEmail() */
+    EMAIL_SEND_INVENTORY_REPORT: { key: "EMAIL_SEND_INVENTORY_REPORT", label: "Send Inventory Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
+    /** sendFinancialReportEmail() — lives in core scope; accounting scope has its own reports */
+    EMAIL_SEND_FINANCIAL_REPORT: { key: "EMAIL_SEND_FINANCIAL_REPORT", label: "Send Financial Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
+    /** sendAttendanceReportEmail() */
+    EMAIL_SEND_ATTENDANCE_REPORT: { key: "EMAIL_SEND_ATTENDANCE_REPORT", label: "Send Attendance Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "hr" },
+    /** sendLeaveApplicationEmail() — staff self-service confirmation */
+    EMAIL_SEND_LEAVE_APPLICATION: { key: "EMAIL_SEND_LEAVE_APPLICATION", label: "Send Leave Application Confirmation Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "hr" },
+    /** sendLeaveHrNotificationEmail() — HR receives new leave alert */
+    EMAIL_SEND_LEAVE_HR_NOTIFICATION: { key: "EMAIL_SEND_LEAVE_HR_NOTIFICATION", label: "Send Leave HR Notification Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "hr" },
+    /** sendLeaveApprovalEmail() */
+    EMAIL_SEND_LEAVE_APPROVAL: { key: "EMAIL_SEND_LEAVE_APPROVAL", label: "Send Leave Approval Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "hr" },
+    /** sendLeaveRejectionEmail() */
+    EMAIL_SEND_LEAVE_REJECTION: { key: "EMAIL_SEND_LEAVE_REJECTION", label: "Send Leave Rejection Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "hr" },
 
     // ── FAQ ───────────────────────────────────────────────────────────────────
 
@@ -645,12 +676,15 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "SUPPLIERS_VIEW",
         "PURCHASE_ORDERS_VIEW", "PURCHASE_ORDERS_VIEW_ONE", "PURCHASE_ORDERS_CREATE",
         "PURCHASE_ORDERS_UPDATE", "PURCHASE_ORDERS_VIEW_PENDING_ITEMS", "PURCHASE_ORDERS_VIEW_DELIVERIES",
+        // ── Email: delivery notes and POs ──────────────────────────────────────
+        "EMAIL_SEND_DELIVERY_NOTE", "EMAIL_SEND_PURCHASE_ORDER", "EMAIL_SEND_PURCHASE_ORDER_BULK",
+        // ──────────────────────────────────────────────────────────────────────
         "TRANSFERS_VIEW", "TRANSFERS_VIEW_ONE", "TRANSFERS_CREATE", "TRANSFERS_VIEW_PENDING",
         "UOM_VIEW",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
-    /** ANALYST — read-only POS reporting */
+    /** ANALYST — read-only POS reporting + report emails */
     ANALYST: [
         "ORDERS_VIEW", "ORDERS_VIEW_DASHBOARD", "ORDERS_VIEW_ADMIN_DASHBOARD",
         "ORDERS_VIEW_BEST_SELLERS", "ORDERS_VIEW_SALES_CHART",
@@ -658,27 +692,38 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "INVENTORY_VIEW", "INVENTORY_VIEW_USAGE_BY_DATE",
         "PRODUCTS_VIEW", "CUSTOMERS_VIEW",
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_SEARCH",
+        // ── Email: sales and inventory reports ────────────────────────────────
+        "EMAIL_SEND_SALES_REPORT", "EMAIL_SEND_PURCHASE_REPORT", "EMAIL_SEND_INVENTORY_REPORT",
+        // ──────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
-    /** HR_MANAGER — full HR module */
+    /** HR_MANAGER — full HR module including all HR-scoped emails */
     HR_MANAGER: [
         ...HR_PERMISSION_KEYS,
         "USERS_VIEW", "USERS_VIEW_ONE",
         "SHIFTS_VIEW", "SHIFTS_CREATE", "SHIFTS_UPDATE",
         "SCHEDULES_VIEW", "SCHEDULES_CREATE", "SCHEDULES_UPDATE",
+        // ── Email: all HR-scoped emails ────────────────────────────────────────
+        "EMAIL_SEND_ATTENDANCE_REPORT",
+        "EMAIL_SEND_LEAVE_APPLICATION", "EMAIL_SEND_LEAVE_HR_NOTIFICATION",
+        "EMAIL_SEND_LEAVE_APPROVAL", "EMAIL_SEND_LEAVE_REJECTION",
+        // ──────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
-    /** HR_STAFF — self-service only */
+    /** HR_STAFF — self-service only; can trigger their own leave confirmation email */
     HR_STAFF: [
         "HR_LEAVE_APPLY", "HR_LEAVE_VIEW", "HR_LEAVE_VIEW_ONE", "HR_LEAVE_CANCEL", "HR_LEAVE_VIEW_BALANCE",
         "HR_ATTENDANCE_CLOCK_IN", "HR_ATTENDANCE_CLOCK_OUT",
         "HR_ATTENDANCE_VIEW_STATUS", "HR_ATTENDANCE_VIEW_MY",
+        // ── Email: staff-facing leave email only ──────────────────────────────
+        "EMAIL_SEND_LEAVE_APPLICATION",
+        // ──────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
-    /** ACCOUNTANT — full accounting operations */
+    /** ACCOUNTANT — full accounting operations including AI document search + financial report emails */
     ACCOUNTANT: [
         "ACCOUNTING_DASHBOARD_VIEW",
         "ACCOUNTING_COA_VIEW", "ACCOUNTING_COA_VIEW_ONE", "ACCOUNTING_COA_VIEW_TREE",
@@ -712,15 +757,17 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "ACCOUNTING_REPORT_CUSTOMER_STATEMENT", "ACCOUNTING_REPORT_SUPPLIER_STATEMENT",
         "ACCOUNTING_REPORT_AR_AGING", "ACCOUNTING_REPORT_AP_AGING",
         "SUPPLIERS_VIEW", "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "PAYMENT_METHODS_VIEW",
-        // ── Documents ─────────────────────────────────────────────────────────
+        // ── Documents (full access + AI embedding) ────────────────────────────
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
         "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
-        "DOCUMENTS_UPDATE_STATUS", "DOCUMENTS_SEARCH",
-        // ─────────────────────────────────────────────────────────────────────
+        "DOCUMENTS_UPDATE_STATUS", "DOCUMENTS_SEARCH", "DOCUMENTS_EMBED",
+        // ── Email: financial report only ──────────────────────────────────────
+        "EMAIL_SEND_FINANCIAL_REPORT",
+        // ──────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
-    /** ACCOUNTING_VIEWER — read-only (auditor / board member) */
+    /** ACCOUNTING_VIEWER — read-only (auditor / board member); no embedding, no email send */
     ACCOUNTING_VIEWER: [
         "ACCOUNTING_DASHBOARD_VIEW",
         "ACCOUNTING_COA_VIEW", "ACCOUNTING_COA_VIEW_ONE", "ACCOUNTING_COA_VIEW_TREE",
@@ -739,9 +786,9 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "ACCOUNTING_REPORT_VAT", "ACCOUNTING_REPORT_CASH_FLOW",
         "ACCOUNTING_REPORT_CUSTOMER_STATEMENT", "ACCOUNTING_REPORT_SUPPLIER_STATEMENT",
         "ACCOUNTING_REPORT_AR_AGING", "ACCOUNTING_REPORT_AP_AGING",
-        // ── Documents (read-only) ──────────────────────────────────────────────
+        // ── Documents (read-only, no embedding) ───────────────────────────────
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_SEARCH",
-        // ─────────────────────────────────────────────────────────────────────
+        // ── No email send permissions for read-only role ──────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 };

@@ -10,6 +10,7 @@ import {
   MenuOutlined,
   RightOutlined,
   MedicineBoxOutlined,
+  LockOutlined,
 } from "@ant-design/icons";
 import InventorySettings from "./InventorySettings";
 import DeliverySettings from "./DeliverySettings";
@@ -19,6 +20,7 @@ import MaterialTransferSettings from "./MaterialTransferSettings";
 import { useSearchParams } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
 import React from "react";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { Text, Title } = Typography;
 
@@ -47,6 +49,7 @@ const getTabConfig = (hospital: boolean) => [
     color: "#6366f1",
     bg: "#eef2ff",
     component: <UomSettings />,
+    permissionKey: "UOM_VIEW",
   },
   {
     key: "inventory",
@@ -56,6 +59,7 @@ const getTabConfig = (hospital: boolean) => [
     color: "#10b981",
     bg: "#f0fdf4",
     component: <InventorySettings />,
+    permissionKey: "INVENTORY_VIEW",
   },
   {
     key: "purchase-orders",
@@ -65,6 +69,7 @@ const getTabConfig = (hospital: boolean) => [
     color: "#6366f1",
     bg: "#eef2ff",
     component: <PurchaseOrderSettings />,
+    permissionKey: "PURCHASE_ORDERS_VIEW",
   },
   {
     key: "delivery",
@@ -74,6 +79,7 @@ const getTabConfig = (hospital: boolean) => [
     color: "#3b82f6",
     bg: "#eff6ff",
     component: <DeliverySettings />,
+    permissionKey: "DELIVERY_VIEW",
   },
   {
     key: "material-transfers",
@@ -83,8 +89,26 @@ const getTabConfig = (hospital: boolean) => [
     color: "#f97316",
     bg: "#fff7ed",
     component: <MaterialTransferSettings />,
+    permissionKey: "TRANSFERS_VIEW",
   },
 ];
+
+// ── Locked tab placeholder ────────────────────────────────────────────────────
+const LockedTab = ({ label }: { label: string }) => (
+  <div style={{
+    display: "flex", flexDirection: "column", alignItems: "center",
+    justifyContent: "center", padding: "60px 24px", gap: 12,
+    color: "#94a3b8", textAlign: "center",
+  }}>
+    <LockOutlined style={{ fontSize: 32, color: "#cbd5e1" }} />
+    <Text style={{ fontSize: 14, color: "#94a3b8" }}>
+      You don't have permission to access <strong>{label}</strong>.
+    </Text>
+    <Text style={{ fontSize: 12, color: "#cbd5e1" }}>
+      Contact your administrator to request access.
+    </Text>
+  </div>
+);
 
 // ── Main component ────────────────────────────────────────────────────────────
 function InventoryMainSettings() {
@@ -93,9 +117,17 @@ function InventoryMainSettings() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const hospital = isHospitalMode();
 
+  // Admin users get can() === true for every key via makePermissionChecker
+  const can = useMemo(() => getPermissionChecker(), []);
   const TAB_CONFIG = useMemo(() => getTabConfig(hospital), [hospital]);
 
-  const activeTab = searchParams.get("tab") || "uom";
+  const rawTab = searchParams.get("tab") || "uom";
+  const activeTab = useMemo(() => {
+    const requested = TAB_CONFIG.find((t) => t.key === rawTab);
+    if (requested && can(requested.permissionKey)) return rawTab;
+    const first = TAB_CONFIG.find((t) => can(t.permissionKey));
+    return first?.key ?? rawTab;
+  }, [rawTab, TAB_CONFIG, can]);
 
   const handleTabChange = (key: string) => {
     const next = new URLSearchParams(searchParams);
@@ -111,28 +143,33 @@ function InventoryMainSettings() {
     ? "Manage medicines, orders, deliveries & transfers"
     : "Manage stock, orders, deliveries & transfers";
 
-  // ── Desktop tab items ─────────────────────────────────────────────────────
   const tabItems = useMemo(
     () =>
-      TAB_CONFIG.map((tab) => ({
-        key: tab.key,
-        label: (
-          <Space size={6} align="center">
-            <span style={{
-              color: activeTab === tab.key ? tab.color : "#64748b",
-              fontSize: 14, display: "flex", alignItems: "center",
-            }}>
-              {tab.icon}
-            </span>
-            <span style={{ fontSize: 13 }}>{tab.label}</span>
-          </Space>
-        ),
-        children: tab.component,
-      })),
-    [activeTab, TAB_CONFIG]
+      TAB_CONFIG.map((tab) => {
+        const allowed = can(tab.permissionKey);
+        return {
+          key: tab.key,
+          label: (
+            <Space size={6} align="center">
+              <span style={{
+                color: activeTab === tab.key
+                  ? allowed ? tab.color : "#cbd5e1"
+                  : "#64748b",
+                fontSize: 14, display: "flex", alignItems: "center",
+              }}>
+                {allowed ? tab.icon : <LockOutlined />}
+              </span>
+              <span style={{ fontSize: 13, color: allowed ? undefined : "#94a3b8" }}>
+                {tab.label}
+              </span>
+            </Space>
+          ),
+          children: allowed ? tab.component : <LockedTab label={tab.label} />,
+        };
+      }),
+    [activeTab, TAB_CONFIG, can]
   );
 
-  // ── Mobile tab picker drawer ──────────────────────────────────────────────
   const MobileTabDrawer = (
     <Drawer
       title={
@@ -166,16 +203,19 @@ function InventoryMainSettings() {
     >
       {TAB_CONFIG.map((tab) => {
         const isActive = activeTab === tab.key;
+        const allowed = can(tab.permissionKey);
         return (
           <div
             key={tab.key}
-            onClick={() => handleTabChange(tab.key)}
+            onClick={() => allowed && handleTabChange(tab.key)}
             style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               padding: "12px 16px", margin: "0 8px 4px", borderRadius: 10,
               background: isActive ? tab.bg : "transparent",
               border: isActive ? `1px solid ${tab.color}30` : "1px solid transparent",
-              cursor: "pointer", transition: "all 0.15s ease",
+              cursor: allowed ? "pointer" : "not-allowed",
+              opacity: allowed ? 1 : 0.45,
+              transition: "all 0.15s ease",
             }}
           >
             <Space size={12}>
@@ -185,14 +225,21 @@ function InventoryMainSettings() {
                 color: isActive ? tab.color : "#64748b",
                 fontSize: 15, lineHeight: 1,
               }}>
-                {tab.icon}
+                {allowed ? tab.icon : <LockOutlined />}
               </div>
-              <Text strong={isActive} style={{ fontSize: 14, color: isActive ? tab.color : "#374151" }}>
-                {tab.label}
-              </Text>
+              <div>
+                <Text strong={isActive} style={{ fontSize: 14, color: isActive ? tab.color : "#374151" }}>
+                  {tab.label}
+                </Text>
+                {!allowed && (
+                  <Text style={{ fontSize: 11, color: "#94a3b8", display: "block" }}>
+                    No access
+                  </Text>
+                )}
+              </div>
             </Space>
             <Space size={8}>
-              {isActive && (
+              {isActive && allowed && (
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: tab.color }} />
               )}
               <RightOutlined style={{ fontSize: 10, color: "#94a3b8" }} />
@@ -203,7 +250,6 @@ function InventoryMainSettings() {
     </Drawer>
   );
 
-  // ── Mobile layout ─────────────────────────────────────────────────────────
   if (isMobile) {
     return (
       <div>
@@ -257,13 +303,16 @@ function InventoryMainSettings() {
           </Button>
         </div>
 
-        <div>{activeConfig.component}</div>
+        <div>
+          {can(activeConfig.permissionKey)
+            ? activeConfig.component
+            : <LockedTab label={activeConfig.label} />}
+        </div>
         {MobileTabDrawer}
       </div>
     );
   }
 
-  // ── Desktop layout ────────────────────────────────────────────────────────
   return (
     <ProCard
       bordered

@@ -13,6 +13,7 @@ import {
   AttendanceSummary, LeaveBalance, LeaveType,
 } from "@services/hr/leave";
 import dayjs from "dayjs";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { Text } = Typography;
 
@@ -57,14 +58,18 @@ const useWindowWidth = () => {
 // ── Tab label ─────────────────────────────────────────────────────────────────
 const TabLabel: React.FC<{
   icon: React.ReactNode; label: string; color: string;
-  comingSoon?: boolean; isMobile: boolean;
-}> = ({ icon, label, color, comingSoon, isMobile }) => (
+  comingSoon?: boolean; isMobile: boolean; locked?: boolean;
+}> = ({ icon, label, color, comingSoon, isMobile, locked }) => (
   <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-    <span style={{ color, fontSize: 14, lineHeight: 1, display: "flex" }}>{icon}</span>
+    <span style={{ color: locked ? "#cbd5e1" : color, fontSize: 14, lineHeight: 1, display: "flex" }}>
+      {locked ? <LockOutlined /> : icon}
+    </span>
     {!isMobile && (
-      <Text style={{ fontSize: 13, fontWeight: 500, color: C.darkText }}>{label}</Text>
+      <Text style={{ fontSize: 13, fontWeight: 500, color: locked ? "#94a3b8" : C.darkText }}>
+        {label}
+      </Text>
     )}
-    {comingSoon && !isMobile && (
+    {comingSoon && !isMobile && !locked && (
       <Tag style={{
         background: "#f0f9ff", color: C.blue, border: "none",
         borderRadius: 4, fontSize: 9, fontWeight: 700,
@@ -95,6 +100,29 @@ const BanduLockedTab: React.FC = () => (
     <Text style={{ fontSize: 13, color: C.subText, maxWidth: 360, lineHeight: 1.6 }}>
       Enable Bandu by Base from the <strong>Discover</strong> page to unlock
       Leave, Attendance, and Payroll features.
+    </Text>
+  </div>
+);
+
+// ── Permission locked placeholder ─────────────────────────────────────────────
+const PermissionLockedTab: React.FC<{ label: string }> = ({ label }) => (
+  <div style={{
+    display: "flex", flexDirection: "column", alignItems: "center",
+    justifyContent: "center", padding: "60px 24px", textAlign: "center",
+  }}>
+    <div style={{
+      width: 64, height: 64, borderRadius: 16, background: "#f8fafc",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: 28, color: "#cbd5e1", marginBottom: 20,
+    }}>
+      <LockOutlined />
+    </div>
+    <Text strong style={{ fontSize: 16, color: C.darkText, display: "block", marginBottom: 8 }}>
+      Access restricted
+    </Text>
+    <Text style={{ fontSize: 13, color: C.subText, maxWidth: 360, lineHeight: 1.6 }}>
+      You don't have permission to access <strong>{label}</strong>.
+      Contact your administrator to request access.
     </Text>
   </div>
 );
@@ -186,11 +214,7 @@ const BalancePills: React.FC<{ balances: LeaveBalance[]; cols: number }> = ({ ba
       }}>
         Leave Balance
       </Text>
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gap: 10,
-      }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 10 }}>
         {balances.map((b) => {
           const pct = b.entitled > 0 ? Math.round((b.remaining / b.entitled) * 100) : 0;
           const barColor = pct > 50 ? C.green : pct > 20 ? C.orange : C.red;
@@ -253,8 +277,7 @@ const AttendanceList: React.FC<{ records: AttendanceSummary[]; isMobile: boolean
             background: C.white, border: `1px solid ${C.border}`,
             borderLeft: `3px solid ${cfg.color}`,
             borderRadius: 8, padding: "10px 14px",
-            display: "flex", alignItems: "center",
-            justifyContent: "space-between",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
             gap: 8, flexWrap: "wrap",
           }}>
             <div style={{ minWidth: 0 }}>
@@ -386,8 +409,7 @@ const MyAnalyticsPanel: React.FC<{ width: number }> = ({ width }) => {
         <SkeletonCards count={6} cols={statCols} />
       ) : (
         <div style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${statCols}, 1fr)`,
+          display: "grid", gridTemplateColumns: `repeat(${statCols}, 1fr)`,
           gap: 10, marginBottom: 18,
         }}>
           {cards.map((c) => <StatCard key={c.label} {...c} />)}
@@ -428,9 +450,8 @@ const PayrollComingSoon: React.FC = () => (
     padding: "56px 24px", textAlign: "center",
   }}>
     <div style={{
-      width: 64, height: 64, borderRadius: 16,
-      background: "#f0fdf4", display: "flex",
-      alignItems: "center", justifyContent: "center",
+      width: 64, height: 64, borderRadius: 16, background: "#f0fdf4",
+      display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: 28, color: C.green, marginBottom: 18,
     }}>
       <DollarOutlined />
@@ -456,11 +477,28 @@ const PayrollComingSoon: React.FC = () => (
   </div>
 );
 
+// ─── Tab permission map ───────────────────────────────────────────────────────
+//  Shifts   → SHIFTS_VIEW              (core, always mounted)
+//  Leave    → HR_LEAVE_VIEW_BALANCE    (staff see own balance) +  HR_LEAVE_VIEW (managers see all)
+//  Attendance → HR_ATTENDANCE_VIEW_MY  (self) — HR_ATTENDANCE_VIEW_ALL for managers
+//  Payroll  → no specific perm yet (coming soon placeholder, gated by Bandu only)
+//
+// Strategy: use the least-restrictive HR perm so regular staff can still see their own tab.
+
+const TAB_PERMISSIONS: Record<string, string> = {
+  shifts: "SHIFTS_VIEW",
+  leave: "HR_LEAVE_VIEW_BALANCE",      // staff self-service minimum
+  attendance: "HR_ATTENDANCE_VIEW_MY", // staff self-service minimum
+};
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 const EmployeePage: React.FC = () => {
   const width = useWindowWidth();
   const isMobile = width < 768;
   const banduEnabled = isBanduEnabled();
+
+  // Admin users bypass all checks via makePermissionChecker(isAdmin=true)
+  const can = useMemo(() => getPermissionChecker(), []);
 
   return (
     <div style={{ width: "100%", boxSizing: "border-box" }}>
@@ -480,41 +518,76 @@ const EmployeePage: React.FC = () => {
           tabBarGutter: isMobile ? 2 : 8,
         }}
       >
-        {/* Shifts — always visible */}
+        {/* ── Shifts — always visible, permission: SHIFTS_VIEW ──────────── */}
         <ProCard.TabPane
           key="shifts"
-          tab={<TabLabel icon={<ClockCircleOutlined />} label="Shifts" color={C.blue} isMobile={isMobile} />}
+          tab={
+            <TabLabel
+              icon={<ClockCircleOutlined />}
+              label="Shifts"
+              color={C.blue}
+              isMobile={isMobile}
+              locked={!can(TAB_PERMISSIONS.shifts)}
+            />
+          }
         >
-          <RestaurantShiftSchedule />
+          {can(TAB_PERMISSIONS.shifts)
+            ? <RestaurantShiftSchedule />
+            : <PermissionLockedTab label="Shifts" />}
         </ProCard.TabPane>
 
-        {/* My Leave — Bandu only */}
+        {/* ── My Leave — Bandu + HR_LEAVE_VIEW_BALANCE ─────────────────── */}
         {banduEnabled && (
           <ProCard.TabPane
             key="leave"
-            tab={<TabLabel icon={<CalendarOutlined />} label="My Leave" color={C.orange} isMobile={isMobile} />}
+            tab={
+              <TabLabel
+                icon={<CalendarOutlined />}
+                label="My Leave"
+                color={C.orange}
+                isMobile={isMobile}
+                locked={!can(TAB_PERMISSIONS.leave)}
+              />
+            }
           >
-            <StaffLeavePortal />
+            {can(TAB_PERMISSIONS.leave)
+              ? <StaffLeavePortal />
+              : <PermissionLockedTab label="My Leave" />}
           </ProCard.TabPane>
         )}
 
-        {/* Attendance — Bandu only */}
+        {/* ── Attendance — Bandu + HR_ATTENDANCE_VIEW_MY ───────────────── */}
         {banduEnabled && (
           <ProCard.TabPane
             key="attendance"
-            tab={<TabLabel icon={<RiseOutlined />} label="Attendance" color={C.purple} isMobile={isMobile} />}
+            tab={
+              <TabLabel
+                icon={<RiseOutlined />}
+                label="Attendance"
+                color={C.purple}
+                isMobile={isMobile}
+                locked={!can(TAB_PERMISSIONS.attendance)}
+              />
+            }
           >
-            <MyAnalyticsPanel width={width} />
+            {can(TAB_PERMISSIONS.attendance)
+              ? <MyAnalyticsPanel width={width} />
+              : <PermissionLockedTab label="Attendance" />}
           </ProCard.TabPane>
         )}
 
-        {/* Payroll — Bandu only */}
+        {/* ── Payroll — Bandu only, coming soon (no perm gate yet) ─────── */}
         {banduEnabled && (
           <ProCard.TabPane
             key="payroll"
             tab={
-              <TabLabel icon={<DollarOutlined />} label="Payroll"
-                color={C.green} comingSoon isMobile={isMobile} />
+              <TabLabel
+                icon={<DollarOutlined />}
+                label="Payroll"
+                color={C.green}
+                comingSoon
+                isMobile={isMobile}
+              />
             }
           >
             <PayrollComingSoon />
