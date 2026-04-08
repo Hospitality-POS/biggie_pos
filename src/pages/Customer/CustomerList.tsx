@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Button, Typography } from "antd";
 import {
     CalendarOutlined, CreditCardOutlined, GiftOutlined,
-    MessageOutlined, StarOutlined, UserAddOutlined,
+    LockOutlined, MessageOutlined, StarOutlined, UserAddOutlined,
     UserOutlined, WalletOutlined,
 } from "@ant-design/icons";
 import CustomerTable from "./CustomerTable";
@@ -13,10 +13,10 @@ import ConsultationTable from "./ConsultationTable";
 import SubscriptionPackagesTable from "./SubscriptionPackagesTable";
 import CustomerSubscriptionsTable from "./CustomerSubscriptionsTable";
 import AddCustomerModal from "./AddCustomerModal";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { Text } = Typography;
 
-// ── Palette ────────────────────────────────────────────────────────────────
 const C = {
     primary: "#6c1c2c",
     primaryLight: "#f9f0f2",
@@ -53,37 +53,57 @@ const getTenantFlags = () => {
     }
 };
 
-const getPosMode = (): string =>
-    localStorage.getItem("posMode") ?? "service";
+const getPosMode = (): string => localStorage.getItem("posMode") ?? "service";
 
 // ── Tab config ─────────────────────────────────────────────────────────────
-type TabItem = { key: string; label: string; icon: React.ReactNode };
+type TabItem = {
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+    /** Permission required to view this tab. Admins always pass. */
+    permissionKey: string;
+};
 
 const getTabConfig = (): TabItem[] => {
-    const posMode = getPosMode();
-    const isHospital = posMode === "hospital";
+    const isHospital = getPosMode() === "hospital";
 
     if (isHospital) {
-        // Hospital: patients, appointments, consultations, packages — no gift cards / feedback
         return [
-            { key: "customers", label: "Patients", icon: <UserOutlined /> },
-            { key: "schedule", label: "Appointments", icon: <CalendarOutlined /> },
-            { key: "consultations", label: "Consultations", icon: <StarOutlined /> },
-            { key: "packages", label: "Packages", icon: <CreditCardOutlined /> },
-            { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined /> },
+            { key: "customers", label: "Patients", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
+            { key: "schedule", label: "Appointments", icon: <CalendarOutlined />, permissionKey: "CONSULTATIONS_VIEW_SLOTS" },
+            { key: "consultations", label: "Consultations", icon: <StarOutlined />, permissionKey: "CONSULTATIONS_VIEW" },
+            { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
+            { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
         ];
     }
 
     return [
-        { key: "customers", label: "Customers", icon: <UserOutlined /> },
-        { key: "packages", label: "Packages", icon: <CreditCardOutlined /> },
-        { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined /> },
-        { key: "schedule", label: "Bookings", icon: <CalendarOutlined /> },
-        { key: "consultations", label: "Consultations", icon: <StarOutlined /> },
-        { key: "feedback", label: "Feedback", icon: <MessageOutlined /> },
-        { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined /> },
+        { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
+        { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
+        { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
+        { key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" },
+        { key: "consultations", label: "Consultations", icon: <StarOutlined />, permissionKey: "CONSULTATIONS_VIEW" },
+        { key: "feedback", label: "Feedback", icon: <MessageOutlined />, permissionKey: "FEEDBACK_VIEW" },
+        { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
     ];
 };
+
+// ── Locked tab placeholder ─────────────────────────────────────────────────
+const LockedTab = ({ label }: { label: string }) => (
+    <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", padding: "60px 24px", gap: 12,
+        color: "#94a3b8", textAlign: "center",
+    }}>
+        <LockOutlined style={{ fontSize: 32, color: "#cbd5e1" }} />
+        <Text style={{ fontSize: 14, color: "#94a3b8" }}>
+            You don't have permission to access <strong>{label}</strong>.
+        </Text>
+        <Text style={{ fontSize: 12, color: "#cbd5e1" }}>
+            Contact your administrator to request access.
+        </Text>
+    </div>
+);
 
 // ── TabNav ─────────────────────────────────────────────────────────────────
 const TabNav = ({
@@ -91,7 +111,7 @@ const TabNav = ({
     active,
     onChange,
 }: {
-    tabs: TabItem[];
+    tabs: (TabItem & { allowed: boolean })[];
     active: string;
     onChange: (key: string) => void;
 }) => (
@@ -105,19 +125,24 @@ const TabNav = ({
             return (
                 <button
                     key={tab.key}
-                    onClick={() => onChange(tab.key)}
+                    onClick={() => tab.allowed && onChange(tab.key)}
+                    title={!tab.allowed ? "You don't have permission to access this section" : undefined}
                     style={{
                         display: "inline-flex", alignItems: "center", gap: 6,
-                        padding: "6px 14px", borderRadius: 20, cursor: "pointer",
+                        padding: "6px 14px", borderRadius: 20,
+                        cursor: tab.allowed ? "pointer" : "not-allowed",
                         fontSize: 13, fontWeight: isActive ? 600 : 400,
                         border: isActive ? `1.5px solid ${C.primary}` : `1px solid ${C.border}`,
                         background: isActive ? C.primary : "#fff",
-                        color: isActive ? "#fff" : C.subText,
+                        color: isActive ? "#fff" : tab.allowed ? C.subText : "#cbd5e1",
                         transition: "all 0.15s",
                         outline: "none",
+                        opacity: tab.allowed ? 1 : 0.5,
                     }}
                 >
-                    <span style={{ fontSize: 13, lineHeight: 1 }}>{tab.icon}</span>
+                    <span style={{ fontSize: 13, lineHeight: 1 }}>
+                        {tab.allowed ? tab.icon : <LockOutlined />}
+                    </span>
                     {tab.label}
                 </button>
             );
@@ -130,17 +155,31 @@ function Customers() {
     const isMobile = useIsMobile();
     const { hasPOS, hasAccounting, hasMteja } = getTenantFlags();
 
+    // Admin users bypass all checks via makePermissionChecker(isAdmin=true)
+    const can = useMemo(() => getPermissionChecker(), []);
+
+    const ALL_TABS = useMemo(() => getTabConfig(), []);
+
+    // Attach allowed flag to each tab
+    const tabsWithAccess = useMemo(
+        () => ALL_TABS.map((t) => ({ ...t, allowed: can(t.permissionKey) })),
+        [ALL_TABS, can]
+    );
+
+    const isHospital = getPosMode() === "hospital";
+    const showOnlyCustomers = !isHospital && ((hasAccounting && !hasPOS) || !hasMteja);
+
+    // Default to first tab the user can actually access
+    const defaultTab = useMemo(() => {
+        const first = tabsWithAccess.find((t) => t.allowed);
+        return first?.key ?? "customers";
+    }, [tabsWithAccess]);
+
     const [addCustomerModalVisible, setAddCustomerModalVisible] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<any>(null);
     const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-    const [activeTab, setActiveTab] = useState("customers");
+    const [activeTab, setActiveTab] = useState(defaultTab);
     const customerTableRef = useRef<any>(null);
-
-    const ALL_TABS = getTabConfig();
-    const isHospital = getPosMode() === "hospital";
-    // Hospital always shows full tabs (appointments are core, not Mteja-gated)
-    // Other modes: hide tabs if Mteja not enabled or accounting-only
-    const showOnlyCustomers = !isHospital && ((hasAccounting && !hasPOS) || !hasMteja);
 
     const handleCustomerAdded = () => customerTableRef.current?.reload();
 
@@ -162,7 +201,13 @@ function Customers() {
         setModalMode("add");
     };
 
+    const activeTabCfg = tabsWithAccess.find((t) => t.key === activeTab);
+
     const renderTab = () => {
+        // Permission check before rendering content
+        if (!activeTabCfg?.allowed) {
+            return <LockedTab label={activeTabCfg?.label ?? activeTab} />;
+        }
         switch (activeTab) {
             case "customers": return <CustomerTable ref={customerTableRef} onEditCustomer={handleEditCustomer} />;
             case "packages": return <SubscriptionPackagesTable />;
@@ -189,13 +234,14 @@ function Customers() {
                 </Text>
                 <Text style={{ fontSize: 11, color: C.subText, lineHeight: 1.3 }}>
                     {showOnlyCustomers
-                        ? `Manage your ${getPosMode() === "hospital" ? "patients" : "customers"}`
-                        : getPosMode() === "hospital"
+                        ? `Manage your ${isHospital ? "patients" : "customers"}`
+                        : isHospital
                             ? "Patients, appointments, services & more"
                             : "Customers, subscriptions, bookings & more"}
                 </Text>
             </div>
-            {showAdd && (
+            {/* Add button: only shown if user can create customers */}
+            {showAdd && can("CUSTOMERS_CREATE") && (
                 <Button
                     type="primary" icon={<UserAddOutlined />} onClick={handleAddCustomer}
                     style={{
@@ -224,12 +270,14 @@ function Customers() {
         </div>
     );
 
-    // ── Customers only (no Mteja, or accounting-only) ────────────────────
+    // ── Customers only view ──────────────────────────────────────────────
     if (showOnlyCustomers) {
         return (
             <>
                 {wrap(
-                    <CustomerTable ref={customerTableRef} onEditCustomer={handleEditCustomer} />,
+                    can("CUSTOMERS_VIEW")
+                        ? <CustomerTable ref={customerTableRef} onEditCustomer={handleEditCustomer} />
+                        : <LockedTab label="Customers" />,
                 )}
                 <AddCustomerModal
                     visible={addCustomerModalVisible}
@@ -247,7 +295,7 @@ function Customers() {
         <>
             {wrap(
                 <>
-                    <TabNav tabs={ALL_TABS} active={activeTab} onChange={setActiveTab} />
+                    <TabNav tabs={tabsWithAccess} active={activeTab} onChange={setActiveTab} />
                     {renderTab()}
                 </>,
                 activeTab === "customers",

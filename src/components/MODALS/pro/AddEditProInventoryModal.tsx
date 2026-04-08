@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { Button, Form, Space, Upload, message, Card, Divider, Tag, Alert, Steps, Tooltip, Modal } from "antd";
+import { Button, Form, Space, Upload, message, Divider, Tag, Alert, Steps, Tooltip, Modal, Select } from "antd";
 import {
   ModalForm,
   ProFormText,
@@ -25,17 +25,22 @@ import {
   RightOutlined,
   BarcodeOutlined,
   CameraOutlined,
+  PlusOutlined,
 } from "@ant-design/icons";
 import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import { fetchSubCategories as fetchAllCategories, fetchAllCategories as fetchSubCategories } from "@services/categories";
 import { fetchAllSuppliers } from "@services/supplier";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllUnits } from "@services/products";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewInventory, editInventory } from "@services/inventory";
 import { RcFile } from "antd/lib/upload";
 import { UploadFile, UploadProps } from "antd/lib";
 import { ProCard } from "@ant-design/pro-components";
+import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
+import SubCategoryModal from "@components/MODALS/pro/SubCategoryModal";
+import AddProCategoryModal from "@components/MODALS/pro/AddProCategoryModal";
+import UomModal from "@components/MODALS/pro/UomModal";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CAMERA BARCODE SCANNER MODAL
@@ -68,23 +73,16 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
   useEffect(() => {
     if (!open) return;
     setScanned(null); setError(null); setLoading(true);
-
     if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
-      setError("Camera access requires HTTPS. Open the app via https:// on your network.");
-      console.error("[BarcodeScanner] Camera blocked: must be served over HTTPS. Run: npm install -D vite-plugin-mkcert and add mkcert() to vite.config.ts.");
+      setError("Camera access requires HTTPS.");
       setLoading(false);
       return;
     }
-
     navigator.mediaDevices.enumerateDevices()
       .then(devices => {
         const videoDevices = devices.filter(d => d.kind === "videoinput");
         setCameras(videoDevices);
-        const back = videoDevices.find(d =>
-          d.label.toLowerCase().includes("back") ||
-          d.label.toLowerCase().includes("rear") ||
-          d.label.toLowerCase().includes("environment")
-        );
+        const back = videoDevices.find(d => d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("rear") || d.label.toLowerCase().includes("environment"));
         setSelectedCamera(back?.deviceId || videoDevices[0]?.deviceId || "");
         setLoading(false);
       })
@@ -94,20 +92,12 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
           .then(devices => {
             const videoDevices = devices.filter(d => d.kind === "videoinput");
             setCameras(videoDevices);
-            const back = videoDevices.find(d =>
-              d.label.toLowerCase().includes("back") ||
-              d.label.toLowerCase().includes("rear") ||
-              d.label.toLowerCase().includes("environment")
-            );
+            const back = videoDevices.find(d => d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("rear") || d.label.toLowerCase().includes("environment"));
             setSelectedCamera(back?.deviceId || videoDevices[0]?.deviceId || "");
             setLoading(false);
           })
-          .catch(() => {
-            setError("Could not access camera. Allow camera permissions and try again.");
-            setLoading(false);
-          });
+          .catch(() => { setError("Could not access camera. Allow camera permissions and try again."); setLoading(false); });
       });
-
     return () => { stopScanner(); };
   }, [open, stopScanner]);
 
@@ -130,17 +120,13 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
   const handleClose = () => { stopScanner(); setScanned(null); setError(null); onClose(); };
   const handleRescan = () => {
     setScanned(null); setError(null);
-    const cam = selectedCamera;
-    setSelectedCamera("");
-    setTimeout(() => setSelectedCamera(cam), 50);
+    const cam = selectedCamera; setSelectedCamera(""); setTimeout(() => setSelectedCamera(cam), 50);
   };
 
   return (
-    <Modal
-      open={open} onCancel={handleClose} footer={null} width={420} centered destroyOnClose
+    <Modal open={open} onCancel={handleClose} footer={null} width={420} centered destroyOnClose
       title={<Space><BarcodeOutlined style={{ color: "#6366f1", fontSize: 18 }} /><span style={{ fontWeight: 600, fontSize: 15 }}>Scan Barcode</span></Space>}
-      styles={{ body: { padding: "14px 20px 20px" } }}
-    >
+      styles={{ body: { padding: "14px 20px 20px" } }}>
       {cameras.length > 1 && (
         <div style={{ marginBottom: 10 }}>
           <select value={selectedCamera} onChange={e => setSelectedCamera(e.target.value)}
@@ -149,55 +135,22 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
           </select>
         </div>
       )}
-
       <div style={{ position: "relative", width: "100%", aspectRatio: "4/3", borderRadius: 10, overflow: "hidden", background: "#0f172a", marginBottom: 12 }}>
         <video ref={videoRef} style={{ width: "100%", height: "100%", objectFit: "cover", display: scanned ? "none" : "block" }} muted playsInline />
-        {loading && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-            <div style={{ width: 32, height: 32, border: "3px solid #6366f1", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-            <span style={{ color: "#94a3b8", fontSize: 13 }}>Starting camera…</span>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          </div>
-        )}
+        {loading && (<div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}><div style={{ width: 32, height: 32, border: "3px solid #6366f1", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /><span style={{ color: "#94a3b8", fontSize: 13 }}>Starting camera…</span><style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style></div>)}
         {scanning && !scanned && !loading && (
           <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-            {[
-              { top: "20%", left: "15%", borderTop: "3px solid #6366f1", borderLeft: "3px solid #6366f1" },
-              { top: "20%", right: "15%", borderTop: "3px solid #6366f1", borderRight: "3px solid #6366f1" },
-              { bottom: "20%", left: "15%", borderBottom: "3px solid #6366f1", borderLeft: "3px solid #6366f1" },
-              { bottom: "20%", right: "15%", borderBottom: "3px solid #6366f1", borderRight: "3px solid #6366f1" },
-            ].map((s, i) => <div key={i} style={{ position: "absolute", width: 20, height: 20, ...s as React.CSSProperties }} />)}
+            {[{ top: "20%", left: "15%", borderTop: "3px solid #6366f1", borderLeft: "3px solid #6366f1" }, { top: "20%", right: "15%", borderTop: "3px solid #6366f1", borderRight: "3px solid #6366f1" }, { bottom: "20%", left: "15%", borderBottom: "3px solid #6366f1", borderLeft: "3px solid #6366f1" }, { bottom: "20%", right: "15%", borderBottom: "3px solid #6366f1", borderRight: "3px solid #6366f1" }].map((s, i) => <div key={i} style={{ position: "absolute", width: 20, height: 20, ...s as React.CSSProperties }} />)}
             <div style={{ position: "absolute", left: "15%", right: "15%", top: "20%", height: 2, background: "linear-gradient(90deg, transparent, #6366f1, transparent)", animation: "scanline 2s ease-in-out infinite" }} />
             <style>{`@keyframes scanline { 0%,100% { transform: translateY(0); } 50% { transform: translateY(120px); } }`}</style>
-            <div style={{ position: "absolute", bottom: 10, left: 0, right: 0, textAlign: "center" }}>
-              <span style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Point camera at barcode</span>
-            </div>
+            <div style={{ position: "absolute", bottom: 10, left: 0, right: 0, textAlign: "center" }}><span style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Point camera at barcode</span></div>
           </div>
         )}
-        {scanned && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(5,150,105,0.95)", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontSize: 44, color: "#fff" }}>✓</div>
-            <span style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>Barcode detected!</span>
-            <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 8, padding: "6px 16px" }}>
-              <code style={{ color: "#fff", fontSize: 14 }}>{scanned}</code>
-            </div>
-          </div>
-        )}
+        {scanned && (<div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(5,150,105,0.95)", flexDirection: "column", gap: 8 }}><div style={{ fontSize: 44, color: "#fff" }}>✓</div><span style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>Barcode detected!</span><div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 8, padding: "6px 16px" }}><code style={{ color: "#fff", fontSize: 14 }}>{scanned}</code></div></div>)}
       </div>
-
-      {error && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#dc2626" }}>{error}</div>
-      )}
-
+      {error && (<div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#dc2626" }}>{error}</div>)}
       <div style={{ display: "flex", gap: 8 }}>
-        {scanned ? (
-          <>
-            <Button onClick={handleRescan} style={{ flex: 1, borderRadius: 8, height: 38 }}>Scan Again</Button>
-            <Button type="primary" onClick={handleConfirm} style={{ flex: 2, borderRadius: 8, height: 38, background: "#059669", border: "none", fontWeight: 600 }}>Use This Barcode</Button>
-          </>
-        ) : (
-          <Button onClick={handleClose} style={{ flex: 1, borderRadius: 8, height: 38 }}>Cancel</Button>
-        )}
+        {scanned ? (<><Button onClick={handleRescan} style={{ flex: 1, borderRadius: 8, height: 38 }}>Scan Again</Button><Button type="primary" onClick={handleConfirm} style={{ flex: 2, borderRadius: 8, height: 38, background: "#059669", border: "none", fontWeight: 600 }}>Use This Barcode</Button></>) : (<Button onClick={handleClose} style={{ flex: 1, borderRadius: 8, height: 38 }}>Cancel</Button>)}
       </div>
     </Modal>
   );
@@ -206,21 +159,10 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose
 // ─────────────────────────────────────────────────────────────────────────────
 // USB / BLUETOOTH SCANNER HOOK
 // ─────────────────────────────────────────────────────────────────────────────
-const useBarcodeScanner = ({
-  onScan,
-  minLength = 3,
-  maxKeystrokeGap = 50,
-  enabled = true,
-}: {
-  onScan: (barcode: string) => void;
-  minLength?: number;
-  maxKeystrokeGap?: number;
-  enabled?: boolean;
-}) => {
+const useBarcodeScanner = ({ onScan, minLength = 3, maxKeystrokeGap = 50, enabled = true }: { onScan: (barcode: string) => void; minLength?: number; maxKeystrokeGap?: number; enabled?: boolean; }) => {
   const bufferRef = useRef<string>("");
   const lastKeyTime = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   useEffect(() => {
     if (!enabled) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -232,84 +174,97 @@ const useBarcodeScanner = ({
       const gap = now - lastKeyTime.current;
       lastKeyTime.current = now;
       if (gap > maxKeystrokeGap && bufferRef.current.length > 0) bufferRef.current = "";
-      if (e.key === "Enter") {
-        const code = bufferRef.current.trim();
-        if (code.length >= minLength) onScan(code);
-        bufferRef.current = "";
-        return;
-      }
+      if (e.key === "Enter") { const code = bufferRef.current.trim(); if (code.length >= minLength) onScan(code); bufferRef.current = ""; return; }
       if (e.key.length === 1) bufferRef.current += e.key;
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        const code = bufferRef.current.trim();
-        if (code.length >= minLength) onScan(code);
-        bufferRef.current = "";
-      }, maxKeystrokeGap * 3);
+      timerRef.current = setTimeout(() => { const code = bufferRef.current.trim(); if (code.length >= minLength) onScan(code); bufferRef.current = ""; }, maxKeystrokeGap * 3);
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+    return () => { window.removeEventListener("keydown", handleKeyDown); if (timerRef.current) clearTimeout(timerRef.current); };
   }, [enabled, minLength, maxKeystrokeGap, onScan]);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INTERFACES
 // ─────────────────────────────────────────────────────────────────────────────
-interface inventory {
-  name: string;
-  quantity: number;
-  supplier_price: number;
-  price: number;
-  min_viable_quantity: number;
-  category: string;
-  subcategory_id: string;
-  supplier_id: string;
-  unit_id: string;
-  desc: string;
-  usage_type: 'selling' | 'internal' | 'both';
-  barcode?: string;
-  location?: string;
-  manufacturer?: string;
-  status: 'active' | 'inactive' | 'discontinued';
-  dimensions?: { length: number; width: number; height: number; unit: string; };
-  weight?: { value: number; unit: string; };
-  vat_type: 'STANDARD' | 'ZERO' | 'EXEMPT';
-}
+interface inventory { name: string; quantity: number; supplier_price: number; price: number; min_viable_quantity: number; category: string; subcategory_id: string; supplier_id: string; unit_id: string; desc: string; usage_type: 'selling' | 'internal' | 'both'; barcode?: string; location?: string; manufacturer?: string; status: 'active' | 'inactive' | 'discontinued'; dimensions?: { length: number; width: number; height: number; unit: string; }; weight?: { value: number; unit: string; }; vat_type: 'STANDARD' | 'ZERO' | 'EXEMPT'; }
 
 interface AddInventoryDialogProps {
   data?: any;
   actionRef?: any;
   edit?: boolean;
+  externalOpen?: boolean;
+  onExternalClose?: () => void;
 }
 
 interface unitType { name: string; _id: string; }
 interface CategoryType { name: string; _id: string; sub_category?: string; }
-interface SubCategoryType {
-  name: string; _id: string;
-  sub_category: string | { _id: string; name: string };
-  category: string | { _id: string; name: string };
-  main_category: string | { _id: string; name: string };
-}
+interface SubCategoryType { name: string; _id: string; sub_category: string | { _id: string; name: string }; category: string | { _id: string; name: string }; main_category: string | { _id: string; name: string }; }
 
 const { Step } = Steps;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SHARED DROPDOWN FOOTER HELPER
+// ─────────────────────────────────────────────────────────────────────────────
+const dropdownAddButton = (label: string, onAdd: () => void) => (
+  <>
+    <Divider style={{ margin: "4px 0" }} />
+    <Button
+      type="link"
+      icon={<PlusOutlined />}
+      style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
+      onMouseDown={(e) => { e.preventDefault(); onAdd(); }}
+    >
+      {label}
+    </Button>
+  </>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER — extract a plain string _id from either a raw string or a
+// {value, label} LabeledValue object that antd Select can produce.
+// ─────────────────────────────────────────────────────────────────────────────
+const extractId = (v: any): string | undefined => {
+  if (!v) return undefined;
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object' && v.value) return v.value;
+  return undefined;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, actionRef, edit }) => {
+const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
+  data,
+  actionRef,
+  edit,
+  externalOpen,
+  onExternalClose,
+}) => {
   const [form] = Form.useForm();
+  const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [scannerOpen, setScannerOpen] = useState(false);
+  // Always a plain _id string — never a LabeledValue object
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [usageType, setUsageType] = useState<string>('internal');
   const [stepData, setStepData] = useState<{ [key: number]: any }>({ 0: {}, 1: {}, 2: {}, 3: {}, 4: {} });
+
+  // ── Inline add modal state ────────────────────────────────────────────────
+  const [addSupplierOpen, setAddSupplierOpen] = useState(false);
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+  const [addSubCategoryOpen, setAddSubCategoryOpen] = useState(false);
+  const [addUomOpen, setAddUomOpen] = useState(false);
+
+  // ── Sync external open prop ───────────────────────────────────────────────
+  useEffect(() => {
+    if (externalOpen !== undefined) setOpen(externalOpen);
+  }, [externalOpen]);
 
   const steps = useMemo(() => [
     { title: 'Basic Info', icon: <InfoCircleOutlined />, description: 'Product details' },
@@ -319,48 +274,73 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
     { title: 'Image', icon: <PictureOutlined />, description: 'Product image' },
   ], []);
 
-  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: () => fetchAllCategories({}), retry: 3, refetchInterval: 5000, networkMode: "always" });
-  const { data: allSubCategories } = useQuery({ queryKey: ["subCategories"], queryFn: () => fetchSubCategories({}), retry: 3, refetchInterval: 5000, networkMode: "always" });
-  const { data: units } = useQuery({ queryKey: ["units"], queryFn: fetchAllUnits, retry: 3, refetchInterval: 5000, networkMode: "always" });
-  const { data: suppliers } = useQuery({ queryKey: ["suppliers"], queryFn: fetchAllSuppliers, retry: 3, refetchInterval: 5000, networkMode: "always" });
+  // ── Live queries — staleTime:0 ensures fresh data after invalidation ──────
+  const { data: categories, isLoading: categoriesLoading } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => fetchAllCategories({}),
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
 
-  // USB/Bluetooth scanner — active when modal is open, populates the form field directly
+  const { data: allSubCategories, isLoading: subCategoriesLoading } = useQuery({
+    queryKey: ["subCategories"],
+    queryFn: () => fetchSubCategories({}),
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  const { data: units, isLoading: unitsLoading } = useQuery({
+    queryKey: ["units"],
+    queryFn: fetchAllUnits,
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  const { data: suppliers, isLoading: suppliersLoading } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: fetchAllSuppliers,
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  // ── Invalidation helpers ──────────────────────────────────────────────────
+  const refetchSuppliers = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+  }, [queryClient]);
+
+  const refetchCategories = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["categories"] });
+    queryClient.invalidateQueries({ queryKey: ["subCategories"] });
+    queryClient.invalidateQueries({ queryKey: ["mainCategories"] });
+  }, [queryClient]);
+
+  const refetchUnits = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["units"] });
+  }, [queryClient]);
+
   useBarcodeScanner({
     enabled: open && !scannerOpen,
     onScan: useCallback((code: string) => {
       form.setFieldValue("barcode", code);
-      if (currentStep !== 2) {
-        message.info(`Barcode scanned: ${code} — navigate to Supplier step to confirm`);
-      } else {
-        message.success(`Barcode scanned: ${code}`);
-      }
+      if (currentStep !== 2) message.info(`Barcode scanned: ${code} — navigate to Supplier step to confirm`);
+      else message.success(`Barcode scanned: ${code}`);
     }, [form, currentStep]),
   });
 
+  // Always extract a plain _id before storing in state
   const handleCategoryChange = useCallback((categoryId: string) => {
-    setSelectedCategory(categoryId);
+    const id = extractId(categoryId) ?? categoryId;
+    setSelectedCategory(id);
     form.setFieldValue('subcategory_id', undefined);
   }, [form]);
-
-  const CategoriesRequest = useCallback(async () =>
-    categories?.map((c: CategoryType) => ({ label: c.name, value: c._id })) || [], [categories]);
-
-  const SubCategoriesRequest = useCallback(async () => {
-    if (!selectedCategory || !allSubCategories) return [];
-    return allSubCategories
-      .filter((s: SubCategoryType) => {
-        if (typeof s.sub_category === 'string') return s.sub_category === selectedCategory;
-        if (typeof s.sub_category === 'object' && s.sub_category?._id) return s.sub_category._id === selectedCategory;
-        return false;
-      })
-      .map((s: SubCategoryType) => ({ label: s.name, value: s._id }));
-  }, [selectedCategory, allSubCategories]);
-
-  const UnitsRequest = useCallback(async () =>
-    units?.map((u: unitType) => ({ label: u.name, value: u._id })) || [], [units]);
-
-  const SuppliersRequest = useCallback(async () =>
-    suppliers?.map((s: { name: string; _id: string }) => ({ label: s.name, value: s._id })) || [], [suppliers]);
 
   const saveCurrentStepData = useCallback(() => {
     try {
@@ -370,7 +350,6 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
         switch (currentStep) {
           case 0: next[0] = { name: v.name, usage_type: v.usage_type, category: v.category, subcategory_id: v.subcategory_id, unit_id: v.unit_id, desc: v.desc, vat_type: v.vat_type }; break;
           case 1: next[1] = { quantity: v.quantity, min_viable_quantity: v.min_viable_quantity, supplier_price: v.supplier_price, price: v.price }; break;
-          // ── barcode is now a proper ProFormText field — form.getFieldsValue() includes it ──
           case 2: next[2] = { supplier_id: v.supplier_id, manufacturer: v.manufacturer, barcode: v.barcode, location: v.location }; break;
           case 3: next[3] = { status: v.status, dimensions: v.dimensions, weight: v.weight }; break;
           case 4: next[4] = { image: uploadedFile }; break;
@@ -393,31 +372,24 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
 
   const calculateProfitMargin = useCallback(() => {
     const v = form.getFieldsValue();
-    if (v.supplier_price > 0 && v.price > 0) {
-      return `${(((v.price - v.supplier_price) / v.price) * 100).toFixed(1)}%`;
-    }
+    if (v.supplier_price > 0 && v.price > 0) return `${(((v.price - v.supplier_price) / v.price) * 100).toFixed(1)}%`;
     return 'N/A';
   }, [form]);
 
   const handleFormSubmit = async (values: any) => {
     try {
       saveCurrentStepData();
-      // Merge stepData + final form values so barcode from step 2 is always included
       const finalValues = { ...getAllFormData(), ...form.getFieldsValue(true), ...values };
       await form.validateFields();
-
-      const confirmed = await ShowConfirm({
-        title: `Are you sure you want to ${edit ? "update this" : "add new"} Inventory?`,
-        position: true,
-      });
-
+      const confirmed = await ShowConfirm({ title: `Are you sure you want to ${edit ? "update this" : "add new"} Inventory?`, position: true });
       if (confirmed) {
         const tv = {
           ...finalValues,
-          category: finalValues.category?.value || finalValues.category,
-          subcategory_id: finalValues.subcategory_id?.value || finalValues.subcategory_id,
-          unit_id: finalValues.unit_id?.value || finalValues.unit_id,
-          supplier_id: finalValues.supplier_id?.value || finalValues.supplier_id,
+          // Always resolve to plain _id strings before sending to API
+          category: extractId(finalValues.category),
+          subcategory_id: extractId(finalValues.subcategory_id),
+          unit_id: extractId(finalValues.unit_id),
+          supplier_id: extractId(finalValues.supplier_id),
           quantity: Number(finalValues.quantity) || 0,
           supplier_price: finalValues.supplier_price ? Number(finalValues.supplier_price) : undefined,
           price: finalValues.price ? Number(finalValues.price) : undefined,
@@ -425,22 +397,15 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
         };
         Object.keys(tv).forEach(k => { if (tv[k] === undefined || tv[k] === '') delete tv[k]; });
         if (uploadedFile) tv.imageFile = uploadedFile;
-
-        edit
-          ? await editInventory({ values: tv, _id: data?._id })
-          : await addNewInventory(tv);
-
-        actionRef?.current?.reload();
+        edit ? await editInventory({ values: tv, _id: data?._id }) : await addNewInventory(tv);
+        actionRef?.current?.reload?.();
         setOpen(false);
+        onExternalClose?.();
         message.success(`Inventory ${edit ? 'updated' : 'added'} successfully`);
         return true;
       }
       return false;
-    } catch (e) {
-      console.error('Form submit error:', e);
-      message.error("Please fill in all required fields");
-      return false;
-    }
+    } catch (e) { console.error('Form submit error:', e); message.error("Please fill in all required fields"); return false; }
   };
 
   const handleOpenChange = useCallback((newOpen: boolean) => {
@@ -448,10 +413,10 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
     if (!newOpen) {
       form.resetFields(); setFileList([]); setPreviewImage(null); setUploadedFile(null);
       setUsageType('internal'); setCurrentStep(0); setSelectedCategory(null);
-      setScannerOpen(false);
-      setStepData({ 0: {}, 1: {}, 2: {}, 3: {}, 4: {} });
+      setScannerOpen(false); setStepData({ 0: {}, 1: {}, 2: {}, 3: {}, 4: {} });
+      onExternalClose?.();
     }
-  }, [form]);
+  }, [form, onExternalClose]);
 
   const getFieldsForStep = useCallback((stepIndex: number) => {
     switch (stepIndex) {
@@ -477,10 +442,9 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
   const isStepValid = useCallback((idx: number) => {
     try {
       const d = getAllFormData();
-      const get = (v: any) => (v && typeof v === 'object' && v.value) ? v.value : v;
       const ut = d.usage_type || usageType;
       switch (idx) {
-        case 0: return !!(d.name?.trim() && get(d.category) && get(d.subcategory_id) && get(d.unit_id) && ut);
+        case 0: return !!(d.name?.trim() && extractId(d.category) && extractId(d.subcategory_id) && extractId(d.unit_id) && ut);
         case 1: return !!(d.quantity >= 0 && (!(ut === 'selling' || ut === 'both') || d.price > 0));
         default: return true;
       }
@@ -490,27 +454,54 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
   const canSubmit = useCallback(() => {
     try {
       const d = getAllFormData();
-      const get = (v: any) => (v && typeof v === 'object' && v.value) ? v.value : v;
       const ut = d.usage_type || usageType;
-      return !!(d.name?.trim() && get(d.category) && get(d.subcategory_id) && get(d.unit_id) && ut && d.quantity >= 0 && (!(ut === 'selling' || ut === 'both') || d.price > 0));
+      return !!(d.name?.trim() && extractId(d.category) && extractId(d.subcategory_id) && extractId(d.unit_id) && ut && d.quantity >= 0 && (!(ut === 'selling' || ut === 'both') || d.price > 0));
     } catch { return false; }
   }, [getAllFormData, usageType]);
 
+  // ── Prefill on edit — all relation fields set as plain _id strings ─────────
   useEffect(() => {
-    if (open && edit && data) {
+    if (!open) return;
+
+    if (edit && data) {
+      // Resolve each relation field to a plain _id string.
+      // "category" form field maps to subcategories (inverted alias in this codebase).
+      const categoryId =
+        typeof data.subcategory_id === 'object' ? data.subcategory_id?._id :
+          typeof data.subcategory_id === 'string' ? data.subcategory_id : undefined;
+
+      // "subcategory_id" form field maps to categories (inverted alias).
+      const subcategoryId =
+        typeof data.category_id === 'object' ? data.category_id?._id :
+          typeof data.category_id === 'string' ? data.category_id :
+            typeof data.category === 'object' ? data.category?._id :
+              typeof data.category === 'string' ? data.category : undefined;
+
+      const unitId =
+        typeof data.unit_id === 'object' ? data.unit_id?._id :
+          typeof data.unit_id === 'string' ? data.unit_id : undefined;
+
+      const supplierId =
+        typeof data.supplier_id === 'object' ? data.supplier_id?._id :
+          typeof data.supplier_id === 'string' ? data.supplier_id : undefined;
+
       const fv = {
         ...data,
-        category: data?.subcategory_id?._id ? { value: data.subcategory_id._id, label: data.subcategory_id.name } : data?.subcategory_id,
-        subcategory_id: data?.category_id?._id ? { value: data.category_id._id, label: data.category_id.name } : data?.category,
-        unit_id: data?.unit_id?._id ? { value: data.unit_id._id, label: data.unit_id.name } : data?.unit_id,
-        supplier_id: data?.supplier_id?._id ? { value: data.supplier_id._id, label: data.supplier_id.name } : data?.supplier_id,
+        category: categoryId,
+        subcategory_id: subcategoryId,
+        unit_id: unitId,
+        supplier_id: supplierId,
         usage_type: data?.usage_type || 'internal',
         status: data?.status || 'active',
         barcode: data?.barcode || '',
       };
+
       form.setFieldsValue(fv);
       setUsageType(data?.usage_type || 'internal');
-      if (data?.category_id?._id) setSelectedCategory(data.category_id._id);
+
+      // Trigger subcategory filter by setting selectedCategory to the resolved _id
+      if (categoryId) setSelectedCategory(categoryId);
+
       setStepData({
         0: { name: fv.name, usage_type: fv.usage_type, category: fv.category, subcategory_id: fv.subcategory_id, unit_id: fv.unit_id, desc: fv.desc, vat_type: fv.vat_type },
         1: { quantity: fv.quantity, min_viable_quantity: fv.min_viable_quantity, supplier_price: fv.supplier_price, price: fv.price },
@@ -518,11 +509,12 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
         3: { status: fv.status, dimensions: fv.dimensions, weight: fv.weight },
         4: {},
       });
+
       if (data?.thumbnail) {
         setPreviewImage(data.thumbnail);
         setFileList([{ uid: '-1', name: 'image.png', status: 'done', url: data.thumbnail }]);
       }
-    } else if (open && !edit) {
+    } else if (!edit) {
       form.setFieldsValue({ usage_type: 'internal' });
       setUsageType('internal');
       setStepData({ 0: { usage_type: 'internal' }, 1: {}, 2: {}, 3: {}, 4: {} });
@@ -538,19 +530,27 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
   const beforeUpload = useCallback((file: RcFile) => {
     if (!file.type.startsWith('image/')) { message.error('Images only!'); return false; }
     if (file.size / 1024 / 1024 > 5) { message.error('Max 5MB!'); return false; }
-    setUploadedFile(file);
-    return false;
+    setUploadedFile(file); return false;
   }, []);
 
   const handleChange: UploadProps['onChange'] = useCallback(({ fileList: nl }) => {
-    if (nl.length > 0 && nl[0].originFileObj) {
-      setUploadedFile(nl[0].originFileObj); setPreviewImage(URL.createObjectURL(nl[0].originFileObj));
-    } else if (nl.length > 0 && nl[0].url) { setPreviewImage(nl[0].url); }
+    if (nl.length > 0 && nl[0].originFileObj) { setUploadedFile(nl[0].originFileObj); setPreviewImage(URL.createObjectURL(nl[0].originFileObj)); }
+    else if (nl.length > 0 && nl[0].url) { setPreviewImage(nl[0].url); }
     else { setPreviewImage(null); setUploadedFile(null); }
     setFileList(nl);
   }, []);
 
   const customRequest = useCallback(({ onSuccess }: any) => { setTimeout(() => onSuccess?.("ok"), 0); }, []);
+
+  // ── Subcategory options filtered by selectedCategory ──────────────────────
+  // Memoized so it reacts to both selectedCategory and allSubCategories (after refetch).
+  const filteredSubCategories = useMemo(() => {
+    if (!selectedCategory || !allSubCategories) return [];
+    return allSubCategories.filter((s: SubCategoryType) => {
+      const parentId = typeof s.sub_category === 'object' ? s.sub_category?._id : s.sub_category;
+      return parentId === selectedCategory;
+    });
+  }, [allSubCategories, selectedCategory]);
 
   const renderStepContent = useCallback(() => {
     const values = form.getFieldsValue();
@@ -563,12 +563,85 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
               <ProFormText width="lg" name="name" label="Product Name" rules={[{ required: true, message: "Product name is required" }]} placeholder="Enter product name" fieldProps={{ onChange: handleFieldChange }} />
               <ProFormSelect width="lg" name="usage_type" label="Usage Type" rules={[{ required: true, message: "Usage type is required" }]} options={UsageTypeOptions}
                 fieldProps={{ onChange: (v) => { setUsageType(v); if (v === 'internal') form.setFieldValue('price', undefined); handleFieldChange(); } }} />
-              <ProFormSelect width="lg" name="category" label="Category" rules={[{ required: true, message: "Category is required" }]} showSearch placeholder="Select category" request={CategoriesRequest}
-                fieldProps={{ onChange: (v) => { handleCategoryChange(v); handleFieldChange(); } }} />
-              <ProFormSelect width="lg" name="subcategory_id" label="Sub Category" key={selectedCategory} rules={[{ required: true, message: "Sub category is required" }]} showSearch
-                placeholder={selectedCategory ? "Select sub category" : "Select category first"} request={SubCategoriesRequest} disabled={!selectedCategory}
-                fieldProps={{ onChange: handleFieldChange }} />
-              <ProFormSelect name="unit_id" showSearch label="Unit of Measure" placeholder="Select unit" rules={[{ required: true, message: "Unit is required" }]} request={UnitsRequest} width="lg" fieldProps={{ onChange: handleFieldChange }} />
+            </ProForm.Group>
+
+            {/*
+             * DATA NOTE — import aliases are inverted in this codebase:
+             *   "category" field      → fetchSubCategories (aliased as fetchAllCategories) → loads SUBCATEGORIES
+             *   "subcategory_id" field → fetchAllCategories (aliased as fetchSubCategories) → loads CATEGORIES
+             * Both fields store plain _id strings so antd Select can match options by value.
+             */}
+            <Form.Item
+              name="category"
+              label="Category"
+              rules={[{ required: true, message: "Category is required" }]}
+              style={{ width: "100%" }}
+            >
+              <Select
+                showSearch
+                placeholder="Select category"
+                optionFilterProp="label"
+                loading={categoriesLoading}
+                options={categories?.map((c: CategoryType) => ({ label: c.name, value: c._id })) || []}
+                onChange={(v) => { handleCategoryChange(v); handleFieldChange(); }}
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    {dropdownAddButton("Add New Category", () => setAddSubCategoryOpen(true))}
+                  </>
+                )}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="subcategory_id"
+              // key forces remount when selectedCategory changes, clearing stale displayed value
+              key={selectedCategory ?? 'no-cat'}
+              label="Sub Category"
+              rules={[{ required: true, message: "Sub category is required" }]}
+              style={{ width: "100%" }}
+            >
+              <Select
+                showSearch
+                placeholder={selectedCategory ? "Select sub category" : "Select category first"}
+                optionFilterProp="label"
+                disabled={!selectedCategory}
+                loading={subCategoriesLoading}
+                onChange={handleFieldChange}
+                // filteredSubCategories updates automatically when allSubCategories refetches
+                options={filteredSubCategories.map((s: SubCategoryType) => ({ label: s.name, value: s._id }))}
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    {dropdownAddButton("Add New Sub Category", () => setAddCategoryOpen(true))}
+                  </>
+                )}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="unit_id"
+              label="Unit of Measure"
+              rules={[{ required: true, message: "Unit is required" }]}
+              style={{ width: "100%" }}
+            >
+              <Select
+                showSearch
+                placeholder="Select unit"
+                optionFilterProp="label"
+                loading={unitsLoading}
+                onChange={handleFieldChange}
+                options={units?.map((u: unitType) => ({ label: u.name, value: u._id })) || []}
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    {dropdownAddButton("Add New Unit", () => setAddUomOpen(true))}
+                  </>
+                )}
+              />
+            </Form.Item>
+
+            <ProForm.Group>
               <ProFormSelect name="vat_type" showSearch width="lg" tooltip="VAT Type: Standard(16%), Zero Rated(0%) or Exempt(0%)" label="VAT Type" rules={[{ required: true, message: "VAT type is required" }]} placeholder="Select VAT type"
                 options={[{ label: "Standard", value: "STANDARD" }, { label: "Zero Rated", value: "ZERO" }, { label: "Exempt", value: "EXEMPT" }]} />
               <ProFormTextArea width="lg" name="desc" label="Description" placeholder="Enter product description" fieldProps={{ rows: 3 }} />
@@ -598,44 +671,42 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
         return (
           <ProCard title="Supplier Information" size="small">
             <ProForm.Group>
-              <ProFormSelect width="xl" name="supplier_id" label="Supplier (Optional)" showSearch placeholder="Select supplier (optional)" request={SuppliersRequest} />
+              <Form.Item
+                name="supplier_id"
+                label="Supplier (Optional)"
+                style={{ width: "100%", maxWidth: 480 }}
+              >
+                <Select
+                  showSearch
+                  allowClear
+                  placeholder="Select supplier (optional)"
+                  optionFilterProp="label"
+                  loading={suppliersLoading}
+                  options={suppliers?.map((s: { name: string; _id: string }) => ({ label: s.name, value: s._id })) || []}
+                  dropdownRender={(menu) => (
+                    <>
+                      {menu}
+                      {dropdownAddButton("Add New Supplier", () => setAddSupplierOpen(true))}
+                    </>
+                  )}
+                />
+              </Form.Item>
+
               <ProFormText width="md" name="manufacturer" label="Manufacturer" placeholder="Enter manufacturer (optional)" />
 
-              {/* ── BARCODE FIELD — ProFormText keeps value in form store ── */}
-              <Form.Item
-                label={
-                  <Space size={6}>
-                    <BarcodeOutlined style={{ color: "#6366f1" }} />
-                    <span>Barcode</span>
-                  </Space>
-                }
-                style={{ width: "100%", maxWidth: 420 }}
-              >
+              <Form.Item label={<Space size={6}><BarcodeOutlined style={{ color: "#6366f1" }} /><span>Barcode</span></Space>} style={{ width: "100%", maxWidth: 420 }}>
                 <Space.Compact style={{ width: "100%" }}>
                   <Form.Item name="barcode" noStyle>
-                    <ProFormText
-                      name="barcode"
-                      noStyle
-                      placeholder="Scan or type barcode"
-                      fieldProps={{
-                        style: { borderRadius: "6px 0 0 6px" },
-                        autoComplete: "off",
-                      }}
-                    />
+                    <ProFormText name="barcode" noStyle placeholder="Scan or type barcode" fieldProps={{ style: { borderRadius: "6px 0 0 6px" }, autoComplete: "off" }} />
                   </Form.Item>
                   <Tooltip title="Scan with camera">
-                    <Button
-                      icon={<CameraOutlined />}
-                      onClick={() => setScannerOpen(true)}
-                      style={{ height: 32, borderRadius: "0 6px 6px 0", background: "#eef2ff", border: "1px solid #d9d9d9", color: "#6366f1", fontWeight: 500, padding: "0 12px" }}
-                    >
+                    <Button icon={<CameraOutlined />} onClick={() => setScannerOpen(true)}
+                      style={{ height: 32, borderRadius: "0 6px 6px 0", background: "#eef2ff", border: "1px solid #d9d9d9", color: "#6366f1", fontWeight: 500, padding: "0 12px" }}>
                       Scan
                     </Button>
                   </Tooltip>
                 </Space.Compact>
-                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
-                  Or plug in a USB/Bluetooth barcode scanner and scan directly
-                </div>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>Or plug in a USB/Bluetooth barcode scanner and scan directly</div>
               </Form.Item>
 
               <ProFormText width="xl" name="location" label="Storage Location" placeholder="e.g., Warehouse A, Shelf 3" />
@@ -672,87 +743,109 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({ data, act
               <p className="ant-upload-text">Click or drag file to upload</p>
               <p className="ant-upload-hint">Single image file, max 5MB. (Optional)</p>
             </Upload.Dragger>
-            {previewImage && (
-              <div style={{ marginTop: 16, textAlign: 'center' }}>
-                <img src={previewImage} alt="Preview" style={{ maxHeight: 300, maxWidth: '100%', objectFit: 'contain' }} />
-              </div>
-            )}
+            {previewImage && (<div style={{ marginTop: 16, textAlign: 'center' }}><img src={previewImage} alt="Preview" style={{ maxHeight: 300, maxWidth: '100%', objectFit: 'contain' }} /></div>)}
           </ProCard>
         );
 
       default: return null;
     }
-  }, [currentStep, form, handleFieldChange, UsageTypeOptions, CategoriesRequest, SubCategoriesRequest, UnitsRequest, usageType, calculateProfitMargin, SuppliersRequest, fileList, beforeUpload, handleChange, customRequest, previewImage, selectedCategory, handleCategoryChange]);
+  }, [
+    currentStep, form, handleFieldChange, UsageTypeOptions,
+    categories, categoriesLoading,
+    filteredSubCategories, subCategoriesLoading,
+    units, unitsLoading,
+    suppliers, suppliersLoading,
+    usageType, calculateProfitMargin,
+    fileList, beforeUpload, handleChange, customRequest, previewImage,
+    selectedCategory, handleCategoryChange,
+  ]);
 
   return (
-    <Space align="center" direction="vertical" size="small">
-      <ModalForm
-        width={1000}
-        open={open}
-        onOpenChange={handleOpenChange}
-        title={<Space><ReconciliationOutlined />{edit ? "Edit Inventory Item" : "Add New Inventory Item"}</Space>}
-        trigger={
-          edit ? (
-            <Button key="button" size="small" icon={<EditOutlined style={{ color: "#6c1c2c" }} />}>Edit</Button>
-          ) : (
-            <Button type="primary" key="button" icon={<ReconciliationOutlined />}>Add New</Button>
-          )
-        }
-        onFinish={handleFormSubmit}
-        form={form}
-        autoFocusFirstInput={false}
-        modalProps={{ destroyOnClose: true, centered: true }}
-        submitter={{
-          render: () => [
-            <div key="footer" style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                {currentStep > 0 && <Button icon={<LeftOutlined />} onClick={prevStep}>Previous</Button>}
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Button onClick={() => handleOpenChange(false)}>Cancel</Button>
-                {currentStep < steps.length - 1 ? (
-                  <Button type="primary" icon={<RightOutlined />} onClick={nextStep} disabled={!isStepValid(currentStep)}>Next</Button>
-                ) : (
-                  <Button type="primary" onClick={() => form.submit()} disabled={!canSubmit()}>
-                    {edit ? "Update Inventory" : "Add Inventory"}
-                  </Button>
-                )}
-              </div>
-            </div>
-          ],
-        }}
-      >
-        <div style={{ marginBottom: 24, padding: 18 }}>
-          <Steps current={currentStep} size="small">
-            {steps.map((step, index) => (
-              <Step key={index} title={step.title} description={step.description} icon={step.icon}
-                status={index === currentStep ? 'process' : isStepValid(index) ? 'finish' : 'wait'} />
-            ))}
-          </Steps>
-        </div>
-
-        <div style={{ minHeight: 400 }}>{renderStepContent()}</div>
-
-        <div style={{ marginTop: 16, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 6 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#666' }}>Step {currentStep + 1} of {steps.length}: {steps[currentStep].title}</span>
-            <span style={{ color: isStepValid(currentStep) ? '#52c41a' : '#ff4d4f' }}>
-              {isStepValid(currentStep) ? '✓ Complete' : '○ Incomplete'}
-            </span>
-          </div>
-        </div>
-
-        <BarcodeScannerModal
-          open={scannerOpen}
-          onClose={() => setScannerOpen(false)}
-          onScan={(code) => {
-            form.setFieldValue("barcode", code);
-            message.success(`Barcode scanned: ${code}`);
-            setScannerOpen(false);
+    <>
+      <Space align="center" direction="vertical" size="small">
+        <ModalForm
+          width={1000}
+          open={open}
+          onOpenChange={handleOpenChange}
+          title={<Space><ReconciliationOutlined />{edit ? "Edit Inventory Item" : "Add New Inventory Item"}</Space>}
+          trigger={
+            externalOpen !== undefined ? undefined : edit ? (
+              <Button key="button" size="small" icon={<EditOutlined style={{ color: "#6c1c2c" }} />}>Edit</Button>
+            ) : (
+              <Button type="primary" key="button" icon={<ReconciliationOutlined />}>Add New</Button>
+            )
+          }
+          onFinish={handleFormSubmit}
+          form={form}
+          autoFocusFirstInput={false}
+          modalProps={{
+            destroyOnClose: false,
+            centered: true,
           }}
-        />
-      </ModalForm>
-    </Space>
+          submitter={{
+            render: () => [
+              <div key="footer" style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>{currentStep > 0 && <Button icon={<LeftOutlined />} onClick={prevStep}>Previous</Button>}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button onClick={() => handleOpenChange(false)}>Cancel</Button>
+                  {currentStep < steps.length - 1 ? (
+                    <Button type="primary" icon={<RightOutlined />} onClick={nextStep} disabled={!isStepValid(currentStep)}>Next</Button>
+                  ) : (
+                    <Button type="primary" onClick={() => form.submit()} disabled={!canSubmit()}>{edit ? "Update Inventory" : "Add Inventory"}</Button>
+                  )}
+                </div>
+              </div>
+            ],
+          }}
+        >
+          <div style={{ marginBottom: 24, padding: 18 }}>
+            <Steps current={currentStep} size="small">
+              {steps.map((step, index) => (
+                <Step key={index} title={step.title} description={step.description} icon={step.icon}
+                  status={index === currentStep ? 'process' : isStepValid(index) ? 'finish' : 'wait'} />
+              ))}
+            </Steps>
+          </div>
+
+          <div style={{ minHeight: 400 }}>{renderStepContent()}</div>
+
+          <div style={{ marginTop: 16, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: '#666' }}>Step {currentStep + 1} of {steps.length}: {steps[currentStep].title}</span>
+              <span style={{ color: isStepValid(currentStep) ? '#52c41a' : '#ff4d4f' }}>{isStepValid(currentStep) ? '✓ Complete' : '○ Incomplete'}</span>
+            </div>
+          </div>
+
+          <BarcodeScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)}
+            onScan={(code) => { form.setFieldValue("barcode", code); message.success(`Barcode scanned: ${code}`); setScannerOpen(false); }} />
+        </ModalForm>
+      </Space>
+
+      {/* ── Inline add modals — outside ModalForm so destroyOnClose doesn't kill them ── */}
+
+      <AddProSupplierModal
+        externalOpen={addSupplierOpen}
+        onExternalClose={() => { setAddSupplierOpen(false); refetchSuppliers(); }}
+      />
+
+      <SubCategoryModal
+        actionRef={{ current: { reload: refetchCategories, reset: refetchCategories } }}
+        externalOpen={addSubCategoryOpen}
+        onExternalClose={() => { setAddSubCategoryOpen(false); refetchCategories(); }}
+      />
+
+      <AddProCategoryModal
+        actionRef={{ current: { reload: refetchCategories, reset: refetchCategories } }}
+        externalOpen={addCategoryOpen}
+        onExternalClose={() => { setAddCategoryOpen(false); refetchCategories(); }}
+      />
+
+      <UomModal
+        actionRef={{ current: { reload: refetchUnits, reset: refetchUnits } }}
+        externalOpen={addUomOpen}
+        onExternalClose={() => { setAddUomOpen(false); refetchUnits(); }}
+      />
+    </>
   );
 };
 

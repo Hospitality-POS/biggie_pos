@@ -1,14 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   FileDoneOutlined,
   OrderedListOutlined,
   ShoppingCartOutlined,
   FileAddOutlined,
+  LockOutlined,
 } from "@ant-design/icons";
 import { Button, Typography } from "antd";
 import OrdersTable from "./Orders/OrdersTable";
 import InvoiceTable from "./Invoices/InvoiceTable";
 import ManualInvoiceModal from "./Invoices/ManualInvoiceModal";
+import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { Text } = Typography;
 
@@ -24,12 +26,24 @@ const C = {
 };
 
 const TAB_CFG = [
-  { key: "orders", icon: <ShoppingCartOutlined />, iconColor: C.blue, label: "Orders" },
-  { key: "invoices", icon: <FileDoneOutlined />, iconColor: C.green, label: "Invoices" },
+  {
+    key: "orders",
+    icon: <ShoppingCartOutlined />,
+    iconColor: C.blue,
+    label: "Orders",
+    permissionKey: "ORDERS_VIEW",
+  },
+  {
+    key: "invoices",
+    icon: <FileDoneOutlined />,
+    iconColor: C.green,
+    label: "Invoices",
+    permissionKey: "ACCOUNTING_INVOICE_VIEW",
+  },
 ];
 
 const TabNav: React.FC<{
-  tabs: { key: string; icon: React.ReactNode; iconColor: string; label: string }[];
+  tabs: { key: string; icon: React.ReactNode; iconColor: string; label: string; allowed: boolean }[];
   active: string;
   onChange: (k: string) => void;
 }> = ({ tabs, active, onChange }) => (
@@ -37,20 +51,45 @@ const TabNav: React.FC<{
     {tabs.map((t) => {
       const on = t.key === active;
       return (
-        <button key={t.key} onClick={() => onChange(t.key)} style={{
-          background: on ? C.primary : C.bg,
-          color: on ? "#fff" : C.subText,
-          border: `1px solid ${on ? C.primary : C.border}`,
-          borderRadius: 8, padding: "7px 13px", fontSize: 12,
-          fontWeight: on ? 700 : 500, cursor: "pointer",
-          display: "flex", alignItems: "center", gap: 6,
-          transition: "all 0.15s",
-        }}>
-          <span style={{ color: on ? "#fff" : t.iconColor, fontSize: 13 }}>{t.icon}</span>
+        <button
+          key={t.key}
+          onClick={() => t.allowed && onChange(t.key)}
+          title={!t.allowed ? "You don't have permission to access this section" : undefined}
+          style={{
+            background: on ? C.primary : C.bg,
+            color: on ? "#fff" : t.allowed ? C.subText : "#cbd5e1",
+            border: `1px solid ${on ? C.primary : C.border}`,
+            borderRadius: 8, padding: "7px 13px", fontSize: 12,
+            fontWeight: on ? 700 : 500,
+            cursor: t.allowed ? "pointer" : "not-allowed",
+            display: "flex", alignItems: "center", gap: 6,
+            transition: "all 0.15s",
+            opacity: t.allowed ? 1 : 0.5,
+          }}
+        >
+          <span style={{ color: on ? "#fff" : t.allowed ? t.iconColor : "#cbd5e1", fontSize: 13 }}>
+            {t.allowed ? t.icon : <LockOutlined />}
+          </span>
           {t.label}
         </button>
       );
     })}
+  </div>
+);
+
+const LockedTab = ({ label }: { label: string }) => (
+  <div style={{
+    display: "flex", flexDirection: "column", alignItems: "center",
+    justifyContent: "center", padding: "60px 24px", gap: 12,
+    color: "#94a3b8", textAlign: "center",
+  }}>
+    <LockOutlined style={{ fontSize: 32, color: "#cbd5e1" }} />
+    <Text style={{ fontSize: 14, color: "#94a3b8" }}>
+      You don't have permission to access <strong>{label}</strong>.
+    </Text>
+    <Text style={{ fontSize: 12, color: "#cbd5e1" }}>
+      Contact your administrator to request access.
+    </Text>
   </div>
 );
 
@@ -70,8 +109,12 @@ const AccountingInvoicesTab: React.FC<{ onNew: () => void; showNewButton: boolea
   <div>
     {showNewButton && (
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-        <Button type="primary" icon={<FileAddOutlined />} onClick={onNew}
-          style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}>
+        <Button
+          type="primary"
+          icon={<FileAddOutlined />}
+          onClick={onNew}
+          style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}
+        >
           New Invoice
         </Button>
       </div>
@@ -83,25 +126,49 @@ const AccountingInvoicesTab: React.FC<{ onNew: () => void; showNewButton: boolea
 function MainOrders() {
   const { hasPOS, hasAccounting } = getModules();
 
+  // Admin users get can() === true for every key via makePermissionChecker
+  const can = useMemo(() => getPermissionChecker(), []);
+
+  const visibleTabs = useMemo(
+    () =>
+      TAB_CFG
+        .filter((t) => {
+          if (t.key === "orders") return hasPOS;
+          return true;
+        })
+        .map((t) => ({ ...t, allowed: can(t.permissionKey) })),
+    [hasPOS, can]
+  );
+
   const getDefaultTab = () => {
+    const firstAllowed = visibleTabs.find((t) => t.allowed);
+    if (firstAllowed) return firstAllowed.key;
     if (hasPOS && !hasAccounting) return "orders";
     if (!hasPOS && hasAccounting) return "invoices";
     return "orders";
   };
 
-  const [activeTab, setActiveTab] = useState(getDefaultTab());
+  const [activeTab, setActiveTab] = useState(getDefaultTab);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 
-  const visibleTabs = TAB_CFG.filter((t) => {
-    if (t.key === "orders") return hasPOS;
-    return true;
-  });
+  const activeTabCfg = visibleTabs.find((t) => t.key === activeTab);
 
   const renderTab = () => {
+    if (!activeTabCfg?.allowed) {
+      return <LockedTab label={activeTabCfg?.label ?? activeTab} />;
+    }
     switch (activeTab) {
-      case "orders": return <OrdersTable />;
-      case "invoices": return <AccountingInvoicesTab onNew={() => setInvoiceModalOpen(true)} showNewButton={hasAccounting} />;
-      default: return null;
+      case "orders":
+        return <OrdersTable />;
+      case "invoices":
+        return (
+          <AccountingInvoicesTab
+            onNew={() => setInvoiceModalOpen(true)}
+            showNewButton={hasAccounting && can("ACCOUNTING_INVOICE_CREATE")}
+          />
+        );
+      default:
+        return null;
     }
   };
 
@@ -130,7 +197,10 @@ function MainOrders() {
         </div>
       </div>
 
-      <ManualInvoiceModal open={invoiceModalOpen} onClose={() => setInvoiceModalOpen(false)} />
+      <ManualInvoiceModal
+        open={invoiceModalOpen}
+        onClose={() => setInvoiceModalOpen(false)}
+      />
     </>
   );
 }

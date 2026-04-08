@@ -53,7 +53,7 @@ export const addNewProduct = async (params: ParamsType) => {
     let response;
     const tenant = getTenant();
     const companyCode = localStorage.getItem("companyCode");
-    const shopId = localStorage.getItem("shopId"); 
+    const shopId = localStorage.getItem("shopId");
 
     const thumbnailFile = params.thumbnailFile;
     const hasFile = thumbnailFile instanceof File;
@@ -85,7 +85,7 @@ export const addNewProduct = async (params: ParamsType) => {
       }
 
       if (shopId && shopId !== "undefined") {
-        formData.append("shop_id", shopId); 
+        formData.append("shop_id", shopId);
       }
 
       const { thumbnailFile: _, ...otherParams } = params;
@@ -140,7 +140,7 @@ export const addNewProduct = async (params: ParamsType) => {
         tenant,
         companyCode,
         tenant_code: companyCode || (tenant ? tenant.tenant_code : null),
-        shop_id: shopId 
+        shop_id: shopId
       };
 
       console.log("Sending JSON request with body:", requestBody);

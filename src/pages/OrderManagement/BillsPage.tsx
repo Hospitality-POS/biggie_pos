@@ -6,7 +6,7 @@ import { FileTextOutlined, PlusOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import ManualIncomeModal from "./Orders/ManualIncomeModal";
-import { getIncomeHistory } from "@services/accounting/income";
+import { getAllBills, getBillSummary, type Bill, type BillStatus } from "@services/accounting/bill";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
@@ -46,86 +46,143 @@ const SummaryCard: React.FC<{
     </div>
 );
 
-const statusColor: Record<string, string> = {
+const statusColors: Record<BillStatus, string> = {
+    Draft: "default",
     Pending: "orange",
+    Partially_Paid: "blue",
     Paid: "green",
     Overdue: "red",
-    Partial: "blue",
+    Voided: "default",
+    Cancelled: "default",
 };
 
 function BillsPage() {
     const [page, setPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<"expense" | "bill">("bill");
     const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
         dayjs().startOf("month"),
         dayjs().endOf("month"),
     ]);
 
     const { data, isLoading } = useQuery({
-        queryKey: ["income-history-bills", page, dateRange],
-        queryFn: () => getIncomeHistory({
-            page, limit: 10,
-            payment_type: "supplier_bill",
+        queryKey: ["bills", page, dateRange],
+        queryFn: () => getAllBills({
+            page,
+            limit: 10,
             from: dateRange[0].toISOString(),
             to: dateRange[1].toISOString(),
         }),
     });
 
-    const bills = (data?.payments || []).filter((p: any) => p.payment_type === "supplier_bill");
+    const { data: summaryData } = useQuery({
+        queryKey: ["bill-summary", dateRange],
+        queryFn: () => getBillSummary({
+            from: dateRange[0].toISOString(),
+            to: dateRange[1].toISOString(),
+        }),
+    });
+
+    const bills: Bill[] = data?.bills || [];
     const total = data?.total || 0;
-    const totalBills = bills.reduce((s: number, p: any) => s + p.amount, 0);
-    const totalPaid = bills.filter((p: any) => p.status === "Paid").reduce((s: number, p: any) => s + p.amount, 0);
-    const totalPending = bills.filter((p: any) => p.status !== "Paid").reduce((s: number, p: any) => s + p.amount, 0);
+    const overdueCount = summaryData?.overdue_count || 0;
+
+    // Derive totals from summary (accurate across all pages, not just current page)
+    const summaryRows = summaryData?.summary || [];
+    const totalBills = summaryRows.reduce((s, r) => s + r.total_value, 0);
+    const totalPaid = summaryRows
+        .filter((r) => r._id === "Paid")
+        .reduce((s, r) => s + r.total_paid, 0);
+    const totalOutstanding = summaryRows.reduce((s, r) => s + r.total_due, 0);
 
     const columns = [
         {
-            title: "Bill Date", dataIndex: "payment_date", width: 130,
+            title: "Bill Date", dataIndex: "bill_date", width: 130,
             render: (v: string) => (
                 <Text style={{ fontSize: 12, color: C.subText }}>{dayjs(v).format("DD MMM YYYY")}</Text>
             ),
         },
         {
-            title: "Supplier", dataIndex: "supplier_id", width: 160,
-            render: (s: any) => s?.name
-                ? <Text style={{ fontSize: 12, fontWeight: 500 }}>{s.name}</Text>
-                : <Text style={{ color: C.subText }}>—</Text>,
+            title: "Bill No", dataIndex: "bill_no", width: 140,
+            render: (v: string) => (
+                <Text style={{ fontSize: 11, fontFamily: "monospace", color: C.subText }}>{v}</Text>
+            ),
         },
         {
-            title: "Description", dataIndex: "description",
+            title: "Supplier", dataIndex: "supplier_id",
+            render: (s: any, row: Bill) => {
+                const name = (s as any)?.name || row.supplier_name;
+                return name
+                    ? <Text style={{ fontSize: 12, fontWeight: 500 }}>{name}</Text>
+                    : <Text style={{ color: C.subText }}>—</Text>;
+            },
+        },
+        {
+            title: "Description",
+            render: (_: any, row: Bill) => {
+                const desc = row.bill_lines?.[0]?.description || row.notes;
+                return desc
+                    ? <Text style={{ fontSize: 12 }}>{desc}</Text>
+                    : <Text style={{ color: C.subText }}>—</Text>;
+            },
+        },
+        {
+            title: "Supplier Ref", dataIndex: "supplier_ref", width: 120,
             render: (v: string) => v
                 ? <Text style={{ fontSize: 12 }}>{v}</Text>
                 : <Text style={{ color: C.subText }}>—</Text>,
         },
         {
             title: "Due Date", dataIndex: "due_date", width: 120,
-            render: (v: string) => v
-                ? <Text style={{ fontSize: 12, color: dayjs(v).isBefore(dayjs()) ? C.red : C.subText }}>{dayjs(v).format("DD MMM YYYY")}</Text>
-                : <Text style={{ color: C.subText }}>—</Text>,
-        },
-        {
-            title: "Status", dataIndex: "status", width: 100,
-            render: (s: string) => (
-                <Tag color={statusColor[s] || "default"} style={{ fontSize: 11, fontWeight: 600 }}>{s || "Pending"}</Tag>
-            ),
-        },
-        {
-            title: "Account", dataIndex: "account_id",
-            render: (a: any) => a ? (
-                <span style={{
-                    fontFamily: "monospace", fontSize: 11,
-                    background: C.bg, border: `1px solid ${C.border}`,
-                    borderRadius: 4, padding: "1px 6px", color: C.darkText,
+            render: (v: string) => v ? (
+                <Text style={{
+                    fontSize: 12,
+                    color: dayjs(v).isBefore(dayjs()) ? C.red : C.subText,
+                    fontWeight: dayjs(v).isBefore(dayjs()) ? 600 : 400,
                 }}>
-                    {a.account_code} {a.account_name}
-                </span>
+                    {dayjs(v).format("DD MMM YYYY")}
+                </Text>
             ) : <Text style={{ color: C.subText }}>—</Text>,
         },
         {
-            title: "Amount (KES)", dataIndex: "amount", align: "right" as const, width: 130,
+            title: "Status", dataIndex: "status", width: 120,
+            render: (s: BillStatus) => (
+                <Tag color={statusColors[s] || "default"} style={{ fontSize: 11, fontWeight: 600 }}>
+                    {s?.replace("_", " ") || "Pending"}
+                </Tag>
+            ),
+        },
+        {
+            title: "Expense Account (DR)",
+            render: (_: any, row: Bill) => {
+                const acct = row.bill_lines?.[0]?.account_id as any;
+                return acct?.account_code ? (
+                    <span style={{
+                        fontFamily: "monospace", fontSize: 11,
+                        background: C.bg, border: `1px solid ${C.border}`,
+                        borderRadius: 4, padding: "1px 6px", color: C.darkText,
+                    }}>
+                        {acct.account_code} {acct.account_name}
+                    </span>
+                ) : <Text style={{ color: C.subText }}>—</Text>;
+            },
+        },
+        {
+            title: "Amount (KES)", dataIndex: "grand_total", align: "right" as const, width: 130,
             render: (v: number) => (
                 <Text strong style={{ color: C.purple, fontSize: 13 }}>KES {fmt(v)}</Text>
             ),
+        },
+        {
+            title: "Paid (KES)", dataIndex: "amount_paid", align: "right" as const, width: 120,
+            render: (v: number) => v
+                ? <Text style={{ fontSize: 12, color: C.green }}>{fmt(v)}</Text>
+                : <Text style={{ color: C.subText }}>—</Text>,
+        },
+        {
+            title: "Due (KES)", dataIndex: "amount_due", align: "right" as const, width: 120,
+            render: (v: number) => v
+                ? <Text strong style={{ color: C.red, fontSize: 12 }}>{fmt(v)}</Text>
+                : <Text style={{ color: C.subText }}>—</Text>,
         },
         {
             title: "JE", dataIndex: "journal_entry_id", width: 110,
@@ -141,11 +198,6 @@ function BillsPage() {
             ) : <span style={{ color: C.subText, fontSize: 12 }}>—</span>,
         },
     ];
-
-    const handleOpen = () => {
-        setActiveTab("bill");
-        setModalOpen(true);
-    };
 
     return (
         <>
@@ -163,6 +215,11 @@ function BillsPage() {
                             <FileTextOutlined />
                         </div>
                         <Text strong style={{ fontSize: 14, color: C.darkText }}>Supplier Bills</Text>
+                        {overdueCount > 0 && (
+                            <Tag color="red" style={{ fontSize: 11, fontWeight: 600 }}>
+                                {overdueCount} Overdue
+                            </Tag>
+                        )}
                     </div>
                 </div>
 
@@ -173,7 +230,7 @@ function BillsPage() {
                     }}>
                         <RangePicker
                             value={dateRange}
-                            onChange={(v) => v && setDateRange(v as [dayjs.Dayjs, dayjs.Dayjs])}
+                            onChange={(v) => { if (v) { setPage(1); setDateRange(v as [dayjs.Dayjs, dayjs.Dayjs]); } }}
                             style={{ borderRadius: 8 }}
                             presets={[
                                 { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
@@ -185,7 +242,7 @@ function BillsPage() {
                         <Button
                             type="primary"
                             icon={<PlusOutlined />}
-                            onClick={handleOpen}
+                            onClick={() => setModalOpen(true)}
                             style={{ background: C.purple, borderColor: C.purple, borderRadius: 8, fontWeight: 600 }}
                         >
                             Create Supplier Bill
@@ -195,7 +252,7 @@ function BillsPage() {
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                         <SummaryCard label="Total Bills" value={`KES ${fmt(totalBills)}`} color={C.purple} bg="#f5f3ff" />
                         <SummaryCard label="Paid" value={`KES ${fmt(totalPaid)}`} color={C.green} bg="#f0fdf4" />
-                        <SummaryCard label="Outstanding" value={`KES ${fmt(totalPending)}`} color={C.red} bg="#fef2f2" />
+                        <SummaryCard label="Outstanding" value={`KES ${fmt(totalOutstanding)}`} color={C.red} bg="#fef2f2" />
                     </div>
 
                     <Spin spinning={isLoading}>
@@ -209,7 +266,7 @@ function BillsPage() {
                                 showTotal: (t) => `${t} entries`,
                                 style: { marginBottom: 0 },
                             }}
-                            scroll={{ x: 950 }}
+                            scroll={{ x: 1200 }}
                             style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}
                         />
                     </Spin>
@@ -219,7 +276,7 @@ function BillsPage() {
             <ManualIncomeModal
                 open={modalOpen}
                 onClose={() => setModalOpen(false)}
-                defaultTab={activeTab}
+                defaultTab="bill"
             />
         </>
     );

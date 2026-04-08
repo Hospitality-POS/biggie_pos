@@ -338,6 +338,7 @@ const AdminReports: React.FC = () => {
               loading={salesLoading && !!queryKey}
               startDate={salesDateTimeRange[0]}
               endDate={salesDateTimeRange[1]}
+
             />
           </Form>
         );

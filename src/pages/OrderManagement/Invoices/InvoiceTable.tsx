@@ -758,15 +758,7 @@ const InvoicesTable = () => {
         }}
         // "New Invoice" button in the ProTable toolbar
         toolBarRender={() => [
-          <Button
-            key="new-invoice"
-            type="primary"
-            icon={<FileDoneOutlined />}
-            onClick={() => setManualModalOpen(true)}
-            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
-          >
-            New Invoice
-          </Button>,
+
         ]}
         pagination={{
           pageSize: queryParams.limit, current: queryParams.page,

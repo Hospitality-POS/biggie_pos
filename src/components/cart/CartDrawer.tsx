@@ -18,6 +18,7 @@ import {
   ClearOutlined, CloseCircleOutlined, OrderedListOutlined,
   PlusCircleOutlined, RestOutlined, SmileFilled,
   SwitcherOutlined, UserOutlined, EditOutlined,
+  CalendarOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
@@ -30,6 +31,31 @@ const { Text, Title } = Typography;
 // ── helpers ───────────────────────────────────────────────────────────────────
 const fmtKsh = (v: number) =>
   `KSH ${v?.toLocaleString("en-KE", { minimumFractionDigits: 0 }) ?? "0"}`;
+
+// Format date nicely
+const formatCartDate = (dateString: string) => {
+  if (!dateString) return null;
+  const date = new Date(dateString);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const cartDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (cartDate.getTime() === today.getTime()) {
+    return `Today at ${date.toLocaleTimeString("en-KE", { hour: '2-digit', minute: '2-digit' })}`;
+  } else if (cartDate.getTime() === yesterday.getTime()) {
+    return `Yesterday at ${date.toLocaleTimeString("en-KE", { hour: '2-digit', minute: '2-digit' })}`;
+  } else {
+    return date.toLocaleDateString("en-KE", {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+};
 
 // ── Summary row ───────────────────────────────────────────────────────────────
 const SummaryRow: React.FC<{
@@ -106,7 +132,8 @@ const CartDrawer: React.FC = () => {
 
   const CartItemCardMemo = React.memo(CartItemCard);
   const memoizedData = useMemo(() => data, [data]);
-
+  console.log('nice uno', cartDetails);
+  // FIXED: Proper discount calculation with VAT recalculation
   const discountAmount = useMemo(() => {
     if (!cartDetails?.discount) return 0;
     return cartDetails.discount_type === "percentage"
@@ -114,7 +141,40 @@ const CartDrawer: React.FC = () => {
       : cartDetails.discount;
   }, [subtotal, cartDetails?.discount, cartDetails?.discount_type]);
 
+  // Calculate discounted subtotal
+  const discountedSubtotal = useMemo(() => {
+    return Math.max(0, subtotal - discountAmount);
+  }, [subtotal, discountAmount]);
+
+  // FIXED: Recalculate VAT based on discounted subtotal
+  const recalculatedVat = useMemo(() => {
+    if (discountedSubtotal === 0) return 0;
+    // Calculate VAT rate from original values if available
+    if (subtotal > 0 && totalVatAmount > 0) {
+      const vatRate = totalVatAmount / subtotal;
+      return discountedSubtotal * vatRate;
+    }
+    // If no VAT info, assume standard rate or return 0
+    return 0;
+  }, [subtotal, totalVatAmount, discountedSubtotal]);
+
+  // FIXED: Recalculate grand total with proper VAT
+  const recalculatedGrandTotal = useMemo(() => {
+    return discountedSubtotal + recalculatedVat;
+  }, [discountedSubtotal, recalculatedVat]);
+
+  // Use recalculated values if discount is applied, otherwise use original
+  const displayVat = discountAmount > 0 ? recalculatedVat : totalVatAmount;
+  const displayGrandTotal = discountAmount > 0 ? recalculatedGrandTotal : grandTotal;
+
   const orderNumber = useMemo(() => cartDetails?.order_no, [cartDetails?.order_no]);
+
+  // Format cart creation date
+  const cartCreatedDate = useMemo(() => {
+    const createdAt = cartDetails?.createdAt || cartDetails?.created_at;
+    if (!createdAt) return null;
+    return formatCartDate(createdAt);
+  }, [cartDetails?.createdAt, cartDetails?.created_at]);
 
   const customerDetails = useMemo(() => {
     if (cartDetails?.customer_id) {
@@ -332,6 +392,27 @@ const CartDrawer: React.FC = () => {
           </Flex>
         </Flex>
 
+        {/* ── Cart creation date badge ──────────────────────────────────────── */}
+        {cartCreatedDate && (
+          <div
+            style={{
+              background: "#fefce8",
+              border: "1px solid #fde047",
+              borderRadius: 8,
+              padding: "6px 10px",
+              marginBottom: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <CalendarOutlined style={{ color: "#eab308", fontSize: 14 }} />
+            <Text style={{ fontSize: 12, color: "#854d0e" }}>
+              Cart created: {cartCreatedDate}
+            </Text>
+          </div>
+        )}
+
         {/* ── Customer banner ──────────────────────────────────────────── */}
         {customerDetails && (
           <Flex
@@ -450,9 +531,24 @@ const CartDrawer: React.FC = () => {
               />
             )}
 
-            <SummaryRow label="VAT" value={`KSH ${totalVatAmount}`} muted />
+            <SummaryRow label="VAT" value={fmtKsh(displayVat)} muted />
+
+            {discountAmount > 0 && discountedSubtotal !== subtotal && (
+              <SummaryRow
+                label="Discounted Subtotal"
+                value={fmtKsh(discountedSubtotal)}
+                muted
+                accent="#64748b"
+              />
+            )}
+
             <Divider style={{ margin: "8px 0" }} />
-            <SummaryRow label="Amount Due" value={fmtKsh(grandTotal)} strong accent={primaryColor} />
+            <SummaryRow
+              label="Amount Due"
+              value={fmtKsh(displayGrandTotal)}
+              strong
+              accent={primaryColor}
+            />
 
             {/* ── Served by ──────────────────────────────────────────────── */}
             <Divider style={{ margin: "8px 0" }} />

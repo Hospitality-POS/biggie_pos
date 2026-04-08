@@ -4,7 +4,6 @@ import {
     ProFormText,
     ProFormDatePicker,
     ProFormSwitch,
-    ProFormTextArea,
 } from "@ant-design/pro-components";
 import {
     Drawer,
@@ -18,17 +17,15 @@ import {
     Tag,
     Divider,
     Alert,
-    Tabs,
 } from "antd";
 import { PlusOutlined, DeleteOutlined, InfoCircleOutlined } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     createManualEntry,
-    createExpenseEntry,
     CreateManualEntryParams,
-    CreateExpenseEntryParams,
 } from "@services/accounting/journals";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
+import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -50,6 +47,14 @@ interface Props {
     shopId: string;
 }
 
+const TYPE_COLORS: Record<string, string> = {
+    ASSET: "blue",
+    LIABILITY: "red",
+    EQUITY: "purple",
+    REVENUE: "green",
+    EXPENSE: "orange",
+};
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const emptyLine = (): LineItem => ({
@@ -64,48 +69,54 @@ const emptyLine = (): LineItem => ({
 
 const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shopId }) => {
     const [form] = ProForm.useForm();
-    const [expenseForm] = ProForm.useForm();
-    const [activeTab, setActiveTab] = useState<"manual" | "expense">("manual");
+    const queryClient = useQueryClient();
     const [lines, setLines] = useState<LineItem[]>([emptyLine(), emptyLine()]);
     const [submitting, setSubmitting] = useState(false);
+    const [addAccountOpen, setAddAccountOpen] = useState(false);
 
-    // ── Accounts for select ────────────────────────────────────────────────────
-
-    const { data: accountsData } = useQuery({
-        queryKey: ["chart-of-accounts-all", shopId],
-        queryFn: () => getAllAccounts({ shop_id: shopId, is_active: true, allows_direct_posting: true }),
-        enabled: open && !!shopId,
+    // ── Accounts ───────────────────────────────────────────────────────────────
+    // Fetch ALL active accounts — filter allows_direct_posting client-side.
+    // Passing it as a query param only works if the backend supports it;
+    // doing it here guarantees the dropdown is never empty.
+    const { data: accountsData, isLoading: accountsLoading } = useQuery({
+        queryKey: ["chart-of-accounts-je", shopId],
+        queryFn: () => getAllAccounts({ is_active: true }),
+        enabled: open,
+        staleTime: 60_000,
     });
 
-    const accounts: ChartOfAccount[] = accountsData?.accounts || [];
+    const allAccounts: ChartOfAccount[] = accountsData?.accounts || [];
 
-    const accountOptions = accounts.map((a) => ({
-        label: (
-            <Space size={4}>
-                <Text code style={{ fontSize: 11 }}>{a.account_code}</Text>
-                <Text style={{ fontSize: 12 }}>{a.account_name}</Text>
-                <Tag color={TYPE_COLORS[a.account_type]} style={{ fontSize: 10, padding: "0 4px", lineHeight: "16px" }}>
-                    {a.account_type}
-                </Tag>
-            </Space>
-        ),
+    // Only show accounts that allow direct posting (exclude header/parent accounts)
+    const postableAccounts = allAccounts.filter(
+        (a) => a.is_active && a.allows_direct_posting !== false
+    );
+
+    // Plain string label so optionFilterProp="label" works correctly.
+    // The tag is rendered via tagRender / optionRender instead.
+    const accountOptions = postableAccounts.map((a) => ({
+        label: `${a.account_code} — ${a.account_name} (${a.account_type})`,
         value: a._id,
-        text: `${a.account_code} ${a.account_name}`,
+        account_code: a.account_code,
+        account_name: a.account_name,
+        account_type: a.account_type,
     }));
-
-    const bankAccounts = accounts.filter((a) => a.is_bank_account);
-    const expenseAccounts = accounts.filter((a) => a.account_type === "EXPENSE");
 
     // ── Reset on open ──────────────────────────────────────────────────────────
 
     useEffect(() => {
         if (open) {
             form.resetFields();
-            expenseForm.resetFields();
             setLines([emptyLine(), emptyLine()]);
-            setActiveTab("manual");
         }
-    }, [open]);
+    }, [open, form]);
+
+    // ── Account added callback ─────────────────────────────────────────────────
+    const handleAccountAdded = () => {
+        queryClient.invalidateQueries({ queryKey: ["chart-of-accounts-je", shopId] });
+        // Also invalidate the global COA query so AccountFormDrawer's parent lists refresh
+        queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
+    };
 
     // ── Balance calculation ────────────────────────────────────────────────────
 
@@ -160,31 +171,26 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
         }
     };
 
-    // ── Submit: Expense Entry ──────────────────────────────────────────────────
-
-    const handleExpenseSubmit = async (values: any) => {
-        setSubmitting(true);
-        try {
-            const payload: CreateExpenseEntryParams = {
-                shop_id: shopId,
-                description: values.description,
-                amount: values.amount,
-                expense_account_id: values.expense_account_id,
-                payment_account_id: values.payment_account_id,
-                reference: values.reference,
-                entry_date: values.entry_date
-                    ? dayjs(values.entry_date).toISOString()
-                    : undefined,
-                vat_amount: values.vat_amount || undefined,
-            };
-
-            await createExpenseEntry(payload);
-            onSuccess();
-            onClose();
-        } finally {
-            setSubmitting(false);
-        }
-    };
+    // ── Account dropdown with "+ Add Account" footer ──────────────────────────
+    // Uses plain string labels so search works correctly.
+    // The type tag is rendered via optionRender for visual clarity.
+    const accountDropdownRender = (menu: React.ReactNode) => (
+        <>
+            {menu}
+            <Divider style={{ margin: "4px 0" }} />
+            <Button
+                type="link"
+                icon={<PlusOutlined />}
+                style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
+                onMouseDown={(e) => {
+                    e.preventDefault(); // prevent Select blur before state fires
+                    setAddAccountOpen(true);
+                }}
+            >
+                Add New Account
+            </Button>
+        </>
+    );
 
     // ── Line table columns ─────────────────────────────────────────────────────
 
@@ -192,56 +198,82 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
         {
             title: "Account",
             key: "account_id",
-            width: 260,
+            width: 280,
             render: (_: any, record: LineItem) => (
                 <Select
                     showSearch
-                    placeholder="Search account…"
+                    placeholder={accountsLoading ? "Loading accounts…" : "Search account…"}
                     style={{ width: "100%" }}
                     value={record.account_id || undefined}
                     onChange={(v) => updateLine(record.key, "account_id", v)}
                     options={accountOptions}
-                    optionFilterProp="text"
+                    optionFilterProp="label"
                     size="small"
-                    filterOption={(input, option) =>
-                        (option?.text as string)?.toLowerCase().includes(input.toLowerCase())
+                    loading={accountsLoading}
+                    notFoundContent={
+                        accountsLoading
+                            ? "Loading..."
+                            : postableAccounts.length === 0
+                                ? "No accounts found — add accounts in Chart of Accounts"
+                                : "No match"
                     }
+                    optionRender={(option) => (
+                        <Space size={6}>
+                            <Text code style={{ fontSize: 11 }}>
+                                {option.data.account_code}
+                            </Text>
+                            <Text style={{ fontSize: 12 }}>{option.data.account_name}</Text>
+                            <Tag
+                                color={TYPE_COLORS[option.data.account_type] || "default"}
+                                style={{ fontSize: 10, padding: "0 4px", lineHeight: "16px", margin: 0 }}
+                            >
+                                {option.data.account_type}
+                            </Tag>
+                        </Space>
+                    )}
+                    dropdownRender={accountDropdownRender}
                 />
             ),
         },
         {
             title: "Debit",
             key: "debit",
-            width: 120,
+            width: 115,
             render: (_: any, record: LineItem) => (
                 <InputNumber
                     min={0}
                     precision={2}
-                    value={record.debit}
+                    value={record.debit || undefined}
+                    placeholder="0.00"
                     onChange={(v) => {
                         updateLine(record.key, "debit", v || 0);
                         if (v && v > 0) updateLine(record.key, "credit", 0);
                     }}
                     style={{ width: "100%" }}
                     size="small"
+                    formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                    parser={(v) => v!.replace(/,/g, "") as any}
                 />
             ),
         },
         {
             title: "Credit",
             key: "credit",
-            width: 120,
+            width: 115,
             render: (_: any, record: LineItem) => (
                 <InputNumber
                     min={0}
                     precision={2}
-                    value={record.credit}
+                    value={record.credit || undefined}
+                    placeholder="0.00"
                     onChange={(v) => {
                         updateLine(record.key, "credit", v || 0);
                         if (v && v > 0) updateLine(record.key, "debit", 0);
                     }}
                     style={{ width: "100%" }}
                     size="small"
+                    formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                    parser={(v) => v!.replace(/,/g, "") as any}
                 />
             ),
         },
@@ -260,7 +292,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
         {
             title: "",
             key: "remove",
-            width: 40,
+            width: 36,
             render: (_: any, record: LineItem) => (
                 <Button
                     icon={<DeleteOutlined />}
@@ -275,26 +307,15 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
     ];
 
     return (
-        <Drawer
-            title="New Journal Entry"
-            open={open}
-            onClose={onClose}
-            width={700}
-            destroyOnClose
-            footer={null}
-        >
-            <Tabs
-                activeKey={activeTab}
-                onChange={(k) => setActiveTab(k as "manual" | "expense")}
-                items={[
-                    { key: "manual", label: "Journal Entry" },
-                    // { key: "expense", label: "Quick Expense" },
-                ]}
-                style={{ marginBottom: 16 }}
-            />
-
-            {/* ── Manual Entry ── */}
-            {activeTab === "manual" && (
+        <>
+            <Drawer
+                title="New Journal Entry"
+                open={open}
+                onClose={onClose}
+                width={760}
+                destroyOnClose
+                footer={null}
+            >
                 <ProForm
                     form={form}
                     onFinish={handleManualSubmit}
@@ -304,11 +325,12 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                         submitButtonProps: {
                             disabled: !isBalanced,
                             loading: submitting,
+                            title: !isBalanced ? "Entry must be balanced before saving" : undefined,
                         },
                     }}
                     layout="vertical"
                 >
-                    <Space style={{ width: "100%" }} size={12}>
+                    <Space style={{ width: "100%", flexWrap: "wrap" }} size={12}>
                         <ProFormDatePicker
                             name="entry_date"
                             label="Entry Date"
@@ -320,15 +342,14 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                             label="Description"
                             placeholder="e.g. Monthly rent payment"
                             rules={[{ required: true, message: "Required" }]}
-                            fieldProps={{ style: { width: 300 } }}
+                            fieldProps={{ style: { width: 280 } }}
                         />
                         <ProFormText
                             name="reference"
                             label="Reference"
                             placeholder="e.g. INV-001"
-                            fieldProps={{ style: { width: 160 } }}
+                            fieldProps={{ style: { width: 150 } }}
                         />
-
                     </Space>
 
                     <ProFormSwitch
@@ -348,7 +369,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                         columns={lineColumns}
                         pagination={false}
                         size="small"
-                        scroll={{ x: 600 }}
+                        scroll={{ x: 620 }}
                         summary={() => (
                             <Table.Summary fixed>
                                 <Table.Summary.Row style={{ background: "#fafafa" }}>
@@ -398,103 +419,21 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                         )}
                     </div>
                 </ProForm>
-            )}
+            </Drawer>
 
-            {/* ── Quick Expense ── */}
-            {/* {activeTab === "expense" && (
-                <>
-                    <Alert
-                        type="info"
-                        showIcon
-                        message="Quick shortcut — automatically debits the expense account and credits the payment account."
-                        style={{ marginBottom: 16, padding: "6px 12px" }}
-                    />
-                    <ProForm
-                        form={expenseForm}
-                        onFinish={handleExpenseSubmit}
-                        submitter={{
-                            searchConfig: { submitText: "Record Expense", resetText: "Cancel" },
-                            onReset: onClose,
-                            submitButtonProps: { loading: submitting },
-                        }}
-                        layout="vertical"
-                    >
-                        <ProFormText
-                            name="description"
-                            label="Expense Description"
-                            placeholder="e.g. Office supplies"
-                            rules={[{ required: true, message: "Required" }]}
-                        />
-
-                        <Space style={{ width: "100%" }} size={12}>
-                            <ProFormText
-                                name="reference"
-                                label="Reference / Receipt No."
-                                placeholder="e.g. REC-001"
-                                fieldProps={{ style: { width: 200 } }}
-                            />
-                            <ProFormDatePicker
-                                name="entry_date"
-                                label="Date"
-                                fieldProps={{ style: { width: 180 } }}
-                            />
-                        </Space>
-
-                        <ProForm.Item
-                            name="expense_account_id"
-                            label="Expense Account"
-                            rules={[{ required: true, message: "Required" }]}
-                        >
-                            <Select
-                                showSearch
-                                placeholder="Select expense account…"
-                                options={expenseAccounts.map((a) => ({
-                                    label: `${a.account_code} — ${a.account_name}`,
-                                    value: a._id,
-                                }))}
-                                optionFilterProp="label"
-                                style={{ width: "100%" }}
-                            />
-                        </ProForm.Item>
-
-                        <ProForm.Item
-                            name="payment_account_id"
-                            label="Paid From (Bank / Cash Account)"
-                            rules={[{ required: true, message: "Required" }]}
-                        >
-                            <Select
-                                showSearch
-                                placeholder="Select bank or cash account…"
-                                options={bankAccounts.map((a) => ({
-                                    label: `${a.account_code} — ${a.account_name}`,
-                                    value: a._id,
-                                }))}
-                                optionFilterProp="label"
-                                style={{ width: "100%" }}
-                            />
-                        </ProForm.Item>
-
-                        <Space size={12}>
-                            <ProForm.Item
-                                name="amount"
-                                label="Amount (KES)"
-                                rules={[{ required: true, message: "Required" }]}
-                            >
-                                <InputNumber min={0} precision={2} style={{ width: 200 }} prefix="KES" />
-                            </ProForm.Item>
-                            <ProForm.Item name="vat_amount" label="VAT Amount (optional)">
-                                <InputNumber min={0} precision={2} style={{ width: 200 }} prefix="KES" />
-                            </ProForm.Item>
-                        </Space>
-                    </ProForm>
-                </>
-            )} */}
-        </Drawer>
+            {/* Add Account — triggered from the account dropdown in any line */}
+            <AccountFormDrawer
+                open={addAccountOpen}
+                onClose={() => setAddAccountOpen(false)}
+                onSuccess={() => {
+                    setAddAccountOpen(false);
+                    handleAccountAdded();
+                }}
+                accounts={allAccounts}
+                shopId={shopId}
+            />
+        </>
     );
-};
-
-const TYPE_COLORS: Record<string, string> = {
-    ASSET: "blue", LIABILITY: "red", EQUITY: "purple", REVENUE: "green", EXPENSE: "orange",
 };
 
 export default JournalEntryFormDrawer;

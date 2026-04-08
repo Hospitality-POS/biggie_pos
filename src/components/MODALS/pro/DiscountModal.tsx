@@ -141,13 +141,13 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
           {"Offer Discount"}
         </Space>
       }
-      trigger={
-        (user?.role === "admin" || user?.role === "cashier") && (
-          <Button type="primary" icon={<PercentageOutlined />} block>
-            Offer Discount
-          </Button>
-        )
-      }
+      // trigger={
+      //   (user?.role === "admin" || user?.role === "cashier") && (
+      //     <Button type="primary" icon={<PercentageOutlined />} block>
+      //       Offer Discount
+      //     </Button>
+      //   )
+      // }
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,

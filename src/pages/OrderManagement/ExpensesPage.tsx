@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import {
-    Button, DatePicker, Spin, Table, Typography,
+    Button, DatePicker, Spin, Table, Typography, Tag,
 } from "antd";
 import { ArrowUpOutlined, PlusOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import ManualIncomeModal from "./Orders/ManualIncomeModal";
-import { getIncomeHistory } from "@services/accounting/income";
+import { getAllExpenses, getExpenseSummary, type Expense, type ExpenseStatus } from "@services/accounting/expense";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
@@ -45,6 +45,13 @@ const SummaryCard: React.FC<{
     </div>
 );
 
+const statusColors: Record<ExpenseStatus, string> = {
+    Draft: "default",
+    Pending: "orange",
+    Approved: "green",
+    Voided: "red",
+};
+
 function ExpensesPage() {
     const [page, setPage] = useState(1);
     const [modalOpen, setModalOpen] = useState(false);
@@ -54,34 +61,55 @@ function ExpensesPage() {
     ]);
 
     const { data, isLoading } = useQuery({
-        queryKey: ["income-history-expenses", page, dateRange],
-        queryFn: () => getIncomeHistory({
-            page, limit: 10,
-            direction: "outbound",
+        queryKey: ["expenses", page, dateRange],
+        queryFn: () => getAllExpenses({
+            page,
+            limit: 10,
             from: dateRange[0].toISOString(),
             to: dateRange[1].toISOString(),
         }),
     });
 
-    const expenses = (data?.payments || []).filter(
-        (p: any) => p.direction === "outbound" && p.payment_type !== "supplier_bill"
-    );
+    const { data: summaryData } = useQuery({
+        queryKey: ["expense-summary", dateRange],
+        queryFn: () => getExpenseSummary({
+            from: dateRange[0].toISOString(),
+            to: dateRange[1].toISOString(),
+        }),
+    });
+
+    const expenses: Expense[] = data?.expenses || [];
     const total = data?.total || 0;
-    const totalExpenses = expenses.reduce((s: number, p: any) => s + p.amount, 0);
-    const totalVat = expenses.reduce((s: number, p: any) => s + (p.vat_amount || 0), 0);
+
+    // Derive totals from summary for accuracy (avoids summing only current page)
+    const summaryRows = summaryData?.summary || [];
+    const totalExpenses = summaryRows.reduce((s, r) => s + r.total_amount, 0);
+    const totalVat = summaryRows.reduce((s, r) => s + r.total_vat, 0);
+    const approvedTotal = summaryRows
+        .filter((r) => r._id === "Approved")
+        .reduce((s, r) => s + r.total_amount, 0);
 
     const columns = [
         {
-            title: "Date", dataIndex: "payment_date", width: 150,
+            title: "Date", dataIndex: "expense_date", width: 150,
             render: (v: string) => (
                 <Text style={{ fontSize: 12, color: C.subText }}>{dayjs(v).format("DD MMM YYYY HH:mm")}</Text>
             ),
         },
         {
-            title: "Description", dataIndex: "description",
-            render: (v: string) => v
-                ? <Text style={{ fontSize: 12 }}>{v}</Text>
-                : <Text style={{ color: C.subText }}>—</Text>,
+            title: "Ref", dataIndex: "expense_no", width: 130,
+            render: (v: string) => (
+                <Text style={{ fontSize: 11, fontFamily: "monospace", color: C.subText }}>{v}</Text>
+            ),
+        },
+        {
+            title: "Description",
+            render: (_: any, row: Expense) => {
+                const desc = row.expense_lines?.[0]?.description || row.notes;
+                return desc
+                    ? <Text style={{ fontSize: 12 }}>{desc}</Text>
+                    : <Text style={{ color: C.subText }}>—</Text>;
+            },
         },
         {
             title: "Supplier", dataIndex: "supplier_id",
@@ -96,31 +124,43 @@ function ExpensesPage() {
                 : <Text style={{ color: C.subText }}>—</Text>,
         },
         {
-            title: "Paid From", dataIndex: "method_id", width: 110,
-            render: (m: any) => m?.name
-                ? <Text style={{ fontSize: 12 }}>{m.name}</Text>
+            title: "Payment Method", dataIndex: "payment_method", width: 130,
+            render: (v: string) => v
+                ? <Text style={{ fontSize: 12 }}>{v.replace("_", " ")}</Text>
                 : <Text style={{ color: C.subText }}>—</Text>,
         },
         {
-            title: "Expense Account", dataIndex: "account_id",
-            render: (a: any) => a ? (
-                <span style={{
-                    fontFamily: "monospace", fontSize: 11,
-                    background: C.bg, border: `1px solid ${C.border}`,
-                    borderRadius: 4, padding: "1px 6px", color: C.darkText,
-                }}>
-                    {a.account_code} {a.account_name}
-                </span>
-            ) : <Text style={{ color: C.subText }}>—</Text>,
+            title: "Expense Account (DR)",
+            render: (_: any, row: Expense) => {
+                const line = row.expense_lines?.[0];
+                const acct = line?.account_id as any;
+                return acct?.account_code ? (
+                    <span style={{
+                        fontFamily: "monospace", fontSize: 11,
+                        background: C.bg, border: `1px solid ${C.border}`,
+                        borderRadius: 4, padding: "1px 6px", color: C.darkText,
+                    }}>
+                        {acct.account_code} {acct.account_name}
+                    </span>
+                ) : <Text style={{ color: C.subText }}>—</Text>;
+            },
         },
         {
-            title: "VAT (KES)", dataIndex: "vat_amount", align: "right" as const, width: 110,
+            title: "Status", dataIndex: "status", width: 100,
+            render: (s: ExpenseStatus) => (
+                <Tag color={statusColors[s] || "default"} style={{ fontSize: 11, fontWeight: 600 }}>
+                    {s}
+                </Tag>
+            ),
+        },
+        {
+            title: "VAT (KES)", dataIndex: "total_vat_amount", align: "right" as const, width: 110,
             render: (v: number) => v
                 ? <Text style={{ fontSize: 12, color: C.orange }}>+{fmt(v)}</Text>
                 : <Text style={{ color: C.subText }}>—</Text>,
         },
         {
-            title: "Net Amount (KES)", dataIndex: "amount", align: "right" as const, width: 140,
+            title: "Amount (KES)", dataIndex: "grand_total", align: "right" as const, width: 140,
             render: (v: number) => (
                 <Text strong style={{ color: C.red, fontSize: 13 }}>−{fmt(v)}</Text>
             ),
@@ -166,7 +206,7 @@ function ExpensesPage() {
                     }}>
                         <RangePicker
                             value={dateRange}
-                            onChange={(v) => v && setDateRange(v as [dayjs.Dayjs, dayjs.Dayjs])}
+                            onChange={(v) => { if (v) { setPage(1); setDateRange(v as [dayjs.Dayjs, dayjs.Dayjs]); } }}
                             style={{ borderRadius: 8 }}
                             presets={[
                                 { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
@@ -189,6 +229,7 @@ function ExpensesPage() {
                         <SummaryCard label="Total Expenses" value={`KES ${fmt(totalExpenses)}`} color={C.red} bg="#fef2f2" />
                         <SummaryCard label="Input VAT" value={`KES ${fmt(totalVat)}`} color={C.orange} bg="#fffbeb" />
                         <SummaryCard label="Gross Total" value={`KES ${fmt(totalExpenses + totalVat)}`} color={C.subText} bg={C.bg} />
+                        <SummaryCard label="Approved" value={`KES ${fmt(approvedTotal)}`} color={C.green} bg="#f0fdf4" />
                     </div>
 
                     <Spin spinning={isLoading}>
@@ -202,7 +243,7 @@ function ExpensesPage() {
                                 showTotal: (t) => `${t} entries`,
                                 style: { marginBottom: 0 },
                             }}
-                            scroll={{ x: 1000 }}
+                            scroll={{ x: 1100 }}
                             style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}
                         />
                     </Spin>

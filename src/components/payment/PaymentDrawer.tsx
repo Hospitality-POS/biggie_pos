@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createOrder } from "@features/Order/OrderActions";
 import { cartVoid, createCart, updateCart } from "@features/Cart/CartActions";
@@ -173,6 +173,38 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const [stkPaymentStatus, setStkPaymentStatus] = useState<STKPaymentStatus>("idle");
   const [stkTrackingId, setStkTrackingId] = useState<string>("");
   const [countdown, setCountdown] = useState(0);
+
+  // FIXED: Calculate discount amount properly
+  const discountAmount = useMemo(() => {
+    if (!cartDetails?.discount) return 0;
+    return cartDetails.discount_type === "percentage"
+      ? subtotal * (cartDetails.discount / 100)
+      : cartDetails.discount;
+  }, [subtotal, cartDetails?.discount, cartDetails?.discount_type]);
+
+  // Calculate discounted subtotal
+  const discountedSubtotal = useMemo(() => {
+    return Math.max(0, subtotal - discountAmount);
+  }, [subtotal, discountAmount]);
+
+  // FIXED: Recalculate VAT based on discounted subtotal
+  const recalculatedVat = useMemo(() => {
+    if (discountedSubtotal === 0) return 0;
+    if (subtotal > 0 && totalVatAmount > 0) {
+      const vatRate = totalVatAmount / subtotal;
+      return discountedSubtotal * vatRate;
+    }
+    return 0;
+  }, [subtotal, totalVatAmount, discountedSubtotal]);
+
+  // FIXED: Recalculate grand total with proper VAT
+  const recalculatedGrandTotal = useMemo(() => {
+    return discountedSubtotal + recalculatedVat;
+  }, [discountedSubtotal, recalculatedVat]);
+
+  // Use recalculated values if discount is applied, otherwise use original
+  const displayVat = discountAmount > 0 ? recalculatedVat : totalVatAmount;
+  const displayGrandTotal = discountAmount > 0 ? recalculatedGrandTotal : grandTotal;
 
   const { data: packagesData, isLoading: packagesLoading } = useQuery({
     queryKey: ["packages", localStorage.getItem("shopId")],
@@ -360,7 +392,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const handleModalClose = () => { setOpenModal(false); setSecondMethod(null); setAmount1(0); setAmount2(0); };
 
   const handleSplitConfirm = async () => {
-    if (!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || amount1 + amount2 !== grandTotal) {
+    if (!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || amount1 + amount2 !== displayGrandTotal) {
       message.error("Split amounts must equal the total."); return;
     }
     if (!id) { message.error("No active table or slot."); return; }
@@ -403,7 +435,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     if (secondMethod) { setOpenModal(true); return; }
     try {
       const result = await dispatch(createOrder({
-        cart_id: cartDetails?._id, order_amount: grandTotal, table_id: id,
+        cart_id: cartDetails?._id, order_amount: displayGrandTotal, table_id: id,
         updated_by: user?.id, order_no: cartDetails?.order_no, cart_items: cartDetails.items,
         method_id: selectedMethod, customer_id: resolveCustomerId(),
         customer_name: resolveCustomerName(), customer_phone: resolveCustomerPhone(), customer_email: resolveCustomerEmail(),
@@ -432,7 +464,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       setStkPaymentStatus("sending");
       setCountdown(300);
       const result = await dispatch(createOrder({
-        cart_id: cartDetails?._id, order_amount: grandTotal, table_id: id,
+        cart_id: cartDetails?._id, order_amount: displayGrandTotal, table_id: id,
         updated_by: user?.id, order_no: cartDetails?.order_no, cart_items: cartDetails.items,
         method_id: selectedMethod, payment_type: "stk_push",
         customer_phone: customerInfo.phone, customer_name: customerInfo.name || "Customer",
@@ -557,27 +589,38 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                 <Text style={{ color: "#64748b", fontSize: 13 }}>Subtotal</Text>
                 <Text style={{ fontSize: 13 }}>{fmtKsh(subtotal)}</Text>
               </Flex>
-              <Flex justify="space-between" align="center">
-                <Text style={{ color: "#64748b", fontSize: 13 }}>Discount</Text>
-                <Flex align="center" gap={6}>
-                  <Text type="danger" style={{ fontSize: 13 }}>
-                    - {fmtKsh((subtotal * (cartDetails?.discount || 0)) / 100)}
-                  </Text>
-                  {cartDetails?.discount > 0 && (
+
+              {/* FIXED: Show discount correctly */}
+              {discountAmount > 0 && (
+                <Flex justify="space-between" align="center">
+                  <Text style={{ color: "#64748b", fontSize: 13 }}>Discount</Text>
+                  <Flex align="center" gap={6}>
+                    <Text type="danger" style={{ fontSize: 13 }}>
+                      - {fmtKsh(discountAmount)}
+                    </Text>
                     <Button type="text" danger size="small" onClick={handleRemoveDiscount}
                       icon={<CloseCircleOutlined />} style={{ padding: 0, height: "auto", lineHeight: 1 }} />
-                  )}
+                  </Flex>
                 </Flex>
-              </Flex>
+              )}
+
+              {/* FIXED: Show discounted subtotal if discount applied */}
+              {discountAmount > 0 && (
+                <Flex justify="space-between">
+                  <Text style={{ color: "#64748b", fontSize: 13 }}>After Discount</Text>
+                  <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmtKsh(discountedSubtotal)}</Text>
+                </Flex>
+              )}
+
               <Flex justify="space-between">
                 <Text style={{ color: "#64748b", fontSize: 13 }}>VAT</Text>
-                <Text style={{ fontSize: 13 }}>{fmtKsh(totalVatAmount)}</Text>
+                <Text style={{ fontSize: 13 }}>{fmtKsh(displayVat)}</Text>
               </Flex>
               <Divider style={{ margin: "8px 0" }} />
               <Flex justify="space-between" align="center">
                 <Text strong style={{ fontSize: 15 }}>Amount Due</Text>
                 <Text strong style={{ fontSize: 17, color: "#6c1c2c" }}>
-                  {fmtKsh(useSubscription ? 0 : grandTotal)}
+                  {fmtKsh(useSubscription ? 0 : displayGrandTotal)}
                 </Text>
               </Flex>
             </Space>
@@ -686,7 +729,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   customerId={selectedCustomerId}
                   onSubscriptionSelect={handleSubscriptionSelect}
                   selectedSubscription={selectedSubscription}
-                  orderAmount={grandTotal}
+                  orderAmount={displayGrandTotal}
                 />
               )}
             </>
@@ -776,7 +819,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         {selectedMethod !== secondMethod && (
           <SplitBillDialog
             open={openModal} handleModalClose={handleModalClose} data={paymentMethods}
-            selectedMethod={selectedMethod} secondMethod={secondMethod} totalAmount={grandTotal}
+            selectedMethod={selectedMethod} secondMethod={secondMethod} totalAmount={displayGrandTotal}
             amount1={amount1} amount2={amount2}
             setSelectedMethod={setSelectedMethod} setSecondMethod={setSecondMethod}
             setAmount1={setAmount1} setAmount2={setAmount2} handleSplitConfirm={handleSplitConfirm}
@@ -879,7 +922,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           <div style={{ background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0", padding: "12px 14px" }}>
             <Row gutter={16}>
               <Col span={12}>
-                <Statistic title="Amount" value={grandTotal} prefix="KSh." precision={0} valueStyle={{ fontSize: 18 }} />
+                <Statistic title="Amount" value={displayGrandTotal} prefix="KSh." precision={0} valueStyle={{ fontSize: 18 }} />
               </Col>
               <Col span={12}>
                 <Statistic title="Method" value="STK Push" prefix={<MobileOutlined />} valueStyle={{ fontSize: 16 }} />
@@ -952,7 +995,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
             <CheckCircleOutlined style={{ fontSize: 36, color: "#10b981" }} />
           </div>
           <Title level={3} style={{ color: "#10b981", margin: 0 }}>Payment Successful!</Title>
-          <Text style={{ fontSize: 14 }}>{fmtKsh(grandTotal)} confirmed</Text>
+          <Text style={{ fontSize: 14 }}>{fmtKsh(displayGrandTotal)} confirmed</Text>
           <Text type="secondary" style={{ fontSize: 13 }}>Redirecting…</Text>
         </Space>
       </Modal>

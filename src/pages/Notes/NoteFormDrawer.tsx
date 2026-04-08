@@ -21,7 +21,7 @@ import {
     Tag,
 } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     createNote,
     updateNote,
@@ -36,6 +36,9 @@ import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import { fetchAllCustomers } from "@services/customers";
 import { fetchAllSuppliers } from "@services/supplier";
 import { getAllInvoices } from "@services/accounting/invoice";
+import AddCustomerModal from "@pages/Customer/AddCustomerModal";
+import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
+import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 
 const { Text } = Typography;
 
@@ -85,6 +88,7 @@ const NoteFormDrawer: React.FC<Props> = ({
     open, onClose, onSuccess, editingNote, shopId, noteType,
 }) => {
     const [form] = ProForm.useForm();
+    const queryClient = useQueryClient();
     const isEdit = !!editingNote;
     const isCredit = noteType === "CREDIT_NOTE";
 
@@ -96,6 +100,11 @@ const NoteFormDrawer: React.FC<Props> = ({
     const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
     const [customerSearch, setCustomerSearch] = useState("");
     const [supplierSearch, setSupplierSearch] = useState("");
+
+    // ── Inline add modal state ────────────────────────────────────────────────
+    const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+    const [addSupplierOpen, setAddSupplierOpen] = useState(false);
+    const [addAccountOpen, setAddAccountOpen] = useState(false);
 
     // ── Queries ────────────────────────────────────────────────────────────────
     const { data: accountsData } = useQuery({
@@ -199,6 +208,35 @@ const NoteFormDrawer: React.FC<Props> = ({
             setSelectedSupplierId(null);
         }
     }, [open, editingNote, isEdit, form]);
+
+    // ── Refetch helpers after inline creates ──────────────────────────────────
+    const handleCustomerAdded = () => {
+        queryClient.invalidateQueries({ queryKey: ["customers-select"] });
+    };
+    const handleSupplierAdded = () => {
+        queryClient.invalidateQueries({ queryKey: ["suppliers-select"] });
+    };
+    const handleAccountAdded = () => {
+        queryClient.invalidateQueries({ queryKey: ["accounts-posting", shopId] });
+    };
+
+    // ── Shared dropdown footer ────────────────────────────────────────────────
+    const dropdownFooter = (label: string, onAdd: () => void) => (
+        <>
+            <Divider style={{ margin: "4px 0" }} />
+            <Button
+                type="link"
+                icon={<PlusOutlined />}
+                style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
+                onMouseDown={(e) => {
+                    e.preventDefault(); // prevent Select blur before state update fires
+                    onAdd();
+                }}
+            >
+                {label}
+            </Button>
+        </>
+    );
 
     // ── Line helpers ───────────────────────────────────────────────────────────
     const addLine = () => setLines((p) => [...p, emptyLine()]);
@@ -326,12 +364,19 @@ const NoteFormDrawer: React.FC<Props> = ({
             ),
         },
         {
-            title: "Account", key: "account_id", width: 200,
+            title: "Account", key: "account_id", width: 210,
             render: (_: any, r: LineItem) => (
-                <Select showSearch size="small" placeholder="Account…"
+                <Select
+                    showSearch size="small" placeholder="Account…"
                     value={r.account_id || undefined} style={{ width: "100%" }}
                     onChange={(v) => updateLine(r.key, "account_id", v)}
                     optionFilterProp="label" options={accountOptions}
+                    dropdownRender={(menu) => (
+                        <>
+                            {menu}
+                            {dropdownFooter("Add Account", () => setAddAccountOpen(true))}
+                        </>
+                    )}
                 />
             ),
         },
@@ -355,245 +400,298 @@ const NoteFormDrawer: React.FC<Props> = ({
         },
     ];
 
+    // ── Customer options with dropdown footer ─────────────────────────────────
+    const customerSelectOptions = customers.map((c: any) => ({
+        label: `${c.customer_name}${c.customer_phone ? ` — ${c.customer_phone}` : ""}`,
+        value: c._id,
+    }));
+
+    // ── Supplier options with dropdown footer ─────────────────────────────────
+    const supplierSelectOptions = suppliers.map((s: any) => ({
+        label: `${s.name}${s.phone ? ` — ${s.phone}` : ""}`,
+        value: s._id,
+    }));
+
     return (
-        <Drawer
-            title={
-                <Space>
-                    <Text strong>
-                        {isEdit
-                            ? `Edit ${isCredit ? "Credit" : "Debit"} Note — ${editingNote?.note_no}`
-                            : `Create ${isCredit ? "Credit" : "Debit"} Note`}
-                    </Text>
-                    <Tag color={isCredit ? "green" : "orange"}>
-                        {isCredit ? "Credit Note" : "Debit Note"}
-                    </Tag>
-                </Space>
-            }
-            open={open}
-            onClose={onClose}
-            width={920}
-            destroyOnClose
-            footer={null}
-        >
-            <ProForm
-                form={form}
-                onFinish={handleSubmit}
-                submitter={{
-                    searchConfig: {
-                        submitText: isEdit
-                            ? "Save Changes"
-                            : `Create ${isCredit ? "Credit" : "Debit"} Note`,
-                        resetText: "Cancel",
-                    },
-                    onReset: onClose,
-                    submitButtonProps: { loading: submitting },
-                }}
-                layout="vertical"
+        <>
+            <Drawer
+                title={
+                    <Space>
+                        <Text strong>
+                            {isEdit
+                                ? `Edit ${isCredit ? "Credit" : "Debit"} Note — ${editingNote?.note_no}`
+                                : `Create ${isCredit ? "Credit" : "Debit"} Note`}
+                        </Text>
+                        <Tag color={isCredit ? "green" : "orange"}>
+                            {isCredit ? "Credit Note" : "Debit Note"}
+                        </Tag>
+                    </Space>
+                }
+                open={open}
+                onClose={onClose}
+                width={920}
+                destroyOnClose
+                footer={null}
             >
-                {/* ── Header ── */}
-                <Row gutter={12}>
-                    <Col span={8}>
-                        <ProFormSelect
-                            name="direction"
-                            label="Direction"
-                            disabled={isEdit}
-                            initialValue="customer"
-                            rules={[{ required: true, message: "Required" }]}
-                            options={[
-                                { label: "Customer", value: "customer" },
-                                { label: "Supplier", value: "supplier" },
-                            ]}
-                            fieldProps={{
-                                onChange: (v: NoteDirection) => {
-                                    setDirection(v);
-                                    setSelectedCustomerId(null);
-                                    setSelectedSupplierId(null);
-                                    form.setFieldsValue({
-                                        customer_id: undefined,
-                                        supplier_id: undefined,
-                                        original_invoice_no: undefined,
-                                    });
-                                },
-                            }}
-                        />
-                    </Col>
-                    <Col span={8}>
-                        <ProFormDatePicker
-                            name="issue_date"
-                            label="Issue Date"
-                            fieldProps={{ style: { width: "100%" } }}
-                        />
-                    </Col>
-                    <Col span={8}>
-                        <ProFormDatePicker
-                            name="expiry_date"
-                            label="Expiry Date"
-                            fieldProps={{ style: { width: "100%" } }}
-                        />
-                    </Col>
-                </Row>
-
-                {/* ── Contact + Invoice ── */}
-                <Row gutter={12}>
-                    {direction === "customer" && (
-                        <Col span={12}>
+                <ProForm
+                    form={form}
+                    onFinish={handleSubmit}
+                    submitter={{
+                        searchConfig: {
+                            submitText: isEdit
+                                ? "Save Changes"
+                                : `Create ${isCredit ? "Credit" : "Debit"} Note`,
+                            resetText: "Cancel",
+                        },
+                        onReset: onClose,
+                        submitButtonProps: { loading: submitting },
+                    }}
+                    layout="vertical"
+                >
+                    {/* ── Header ── */}
+                    <Row gutter={12}>
+                        <Col span={8}>
                             <ProFormSelect
-                                name="customer_id"
-                                label="Customer"
-                                showSearch
-                                placeholder="Search customer…"
+                                name="direction"
+                                label="Direction"
+                                disabled={isEdit}
+                                initialValue="customer"
+                                rules={[{ required: true, message: "Required" }]}
+                                options={[
+                                    { label: "Customer", value: "customer" },
+                                    { label: "Supplier", value: "supplier" },
+                                ]}
                                 fieldProps={{
-                                    filterOption: false,
-                                    onSearch: setCustomerSearch,
-                                    loading: customersFetching,
-                                    allowClear: true,
-                                    onChange: (val: string) => {
-                                        setSelectedCustomerId(val || null);
-                                        form.setFieldValue("original_invoice_no", undefined);
+                                    onChange: (v: NoteDirection) => {
+                                        setDirection(v);
+                                        setSelectedCustomerId(null);
+                                        setSelectedSupplierId(null);
+                                        form.setFieldsValue({
+                                            customer_id: undefined,
+                                            supplier_id: undefined,
+                                            original_invoice_no: undefined,
+                                        });
                                     },
-                                    notFoundContent: customersFetching ? "Searching..." : "No customers found",
                                 }}
-                                options={customers.map((c: any) => ({
-                                    label: `${c.customer_name}${c.customer_phone ? ` — ${c.customer_phone}` : ""}`,
-                                    value: c._id,
-                                }))}
                             />
                         </Col>
-                    )}
-
-                    {direction === "supplier" && (
-                        <Col span={12}>
-                            <ProFormSelect
-                                name="supplier_id"
-                                label="Supplier"
-                                showSearch
-                                placeholder="Search supplier…"
-                                fieldProps={{
-                                    filterOption: false,
-                                    onSearch: setSupplierSearch,
-                                    loading: suppliersFetching,
-                                    allowClear: true,
-                                    onChange: (val: string) => {
-                                        setSelectedSupplierId(val || null);
-                                        form.setFieldValue("original_invoice_no", undefined);
-                                    },
-                                    notFoundContent: suppliersFetching ? "Searching..." : "No suppliers found",
-                                }}
-                                options={suppliers.map((s: any) => ({
-                                    label: `${s.name}${s.phone ? ` — ${s.phone}` : ""}`,
-                                    value: s._id,
-                                }))}
+                        <Col span={8}>
+                            <ProFormDatePicker
+                                name="issue_date"
+                                label="Issue Date"
+                                fieldProps={{ style: { width: "100%" } }}
                             />
                         </Col>
-                    )}
+                        <Col span={8}>
+                            <ProFormDatePicker
+                                name="expiry_date"
+                                label="Expiry Date"
+                                fieldProps={{ style: { width: "100%" } }}
+                            />
+                        </Col>
+                    </Row>
 
-                    <Col span={12}>
-                        <ProFormSelect
-                            name="original_invoice_no"
-                            label="Original Invoice / Reference No."
-                            showSearch
-                            placeholder={
-                                direction === "customer" && !selectedCustomerId
-                                    ? "Select a customer first"
-                                    : direction === "supplier" && !selectedSupplierId
-                                        ? "Select a supplier first"
-                                        : "Select invoice…"
-                            }
-                            fieldProps={{
-                                disabled:
-                                    (direction === "customer" && !selectedCustomerId) ||
-                                    (direction === "supplier" && !selectedSupplierId),
-                                optionFilterProp: "label",
-                                allowClear: true,
-                            }}
-                            options={invoiceOptions}
-                        />
-                    </Col>
-                </Row>
+                    {/* ── Contact + Invoice ── */}
+                    <Row gutter={12}>
+                        {direction === "customer" && (
+                            <Col span={12}>
+                                {/*
+                                 * ProFormSelect doesn't support dropdownRender directly,
+                                 * so we use fieldProps.dropdownRender to inject the footer.
+                                 */}
+                                <ProFormSelect
+                                    name="customer_id"
+                                    label="Customer"
+                                    showSearch
+                                    placeholder="Search customer…"
+                                    fieldProps={{
+                                        filterOption: false,
+                                        onSearch: setCustomerSearch,
+                                        loading: customersFetching,
+                                        allowClear: true,
+                                        onChange: (val: string) => {
+                                            setSelectedCustomerId(val || null);
+                                            form.setFieldValue("original_invoice_no", undefined);
+                                        },
+                                        notFoundContent: customersFetching ? "Searching..." : "No customers found",
+                                        dropdownRender: (menu: React.ReactNode) => (
+                                            <>
+                                                {menu}
+                                                {dropdownFooter("Add New Customer", () => setAddCustomerOpen(true))}
+                                            </>
+                                        ),
+                                    }}
+                                    options={customerSelectOptions}
+                                />
+                            </Col>
+                        )}
 
-                <ProFormTextArea
-                    name="reason"
-                    label="Reason"
-                    placeholder="Reason for this note (required)"
-                    rules={[{ required: true, message: "Required" }]}
-                    fieldProps={{ rows: 2 }}
-                />
+                        {direction === "supplier" && (
+                            <Col span={12}>
+                                <ProFormSelect
+                                    name="supplier_id"
+                                    label="Supplier"
+                                    showSearch
+                                    placeholder="Search supplier…"
+                                    fieldProps={{
+                                        filterOption: false,
+                                        onSearch: setSupplierSearch,
+                                        loading: suppliersFetching,
+                                        allowClear: true,
+                                        onChange: (val: string) => {
+                                            setSelectedSupplierId(val || null);
+                                            form.setFieldValue("original_invoice_no", undefined);
+                                        },
+                                        notFoundContent: suppliersFetching ? "Searching..." : "No suppliers found",
+                                        dropdownRender: (menu: React.ReactNode) => (
+                                            <>
+                                                {menu}
+                                                {dropdownFooter("Add New Supplier", () => setAddSupplierOpen(true))}
+                                            </>
+                                        ),
+                                    }}
+                                    options={supplierSelectOptions}
+                                />
+                            </Col>
+                        )}
 
-                <Row gutter={12}>
-                    <Col span={12}>
-                        <ProFormTextArea
-                            name="notes"
-                            label="Notes (visible to customer/supplier)"
-                            fieldProps={{ rows: 2 }}
-                        />
-                    </Col>
-                    <Col span={12}>
-                        <ProFormTextArea
-                            name="internal_notes"
-                            label="Internal Notes"
-                            fieldProps={{ rows: 2 }}
-                        />
-                    </Col>
-                </Row>
+                        <Col span={12}>
+                            <ProFormSelect
+                                name="original_invoice_no"
+                                label="Original Invoice / Reference No."
+                                showSearch
+                                placeholder={
+                                    direction === "customer" && !selectedCustomerId
+                                        ? "Select a customer first"
+                                        : direction === "supplier" && !selectedSupplierId
+                                            ? "Select a supplier first"
+                                            : "Select invoice…"
+                                }
+                                fieldProps={{
+                                    disabled:
+                                        (direction === "customer" && !selectedCustomerId) ||
+                                        (direction === "supplier" && !selectedSupplierId),
+                                    optionFilterProp: "label",
+                                    allowClear: true,
+                                }}
+                                options={invoiceOptions}
+                            />
+                        </Col>
+                    </Row>
 
-                {/* ── VAT Mode + Lines ── */}
-                <Divider orientation="left" plain>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Lines</Text>
-                </Divider>
-
-                <Space style={{ marginBottom: 12 }} align="center">
-                    <Text type="secondary" style={{ fontSize: 12 }}>VAT pricing:</Text>
-                    <Segmented
-                        size="small"
-                        value={vatMode}
-                        onChange={(v) => setVatMode(v as "INCLUSIVE" | "EXCLUSIVE")}
-                        options={[
-                            { label: "Tax Exclusive", value: "EXCLUSIVE" },
-                            { label: "Tax Inclusive", value: "INCLUSIVE" },
-                        ]}
+                    <ProFormTextArea
+                        name="reason"
+                        label="Reason"
+                        placeholder="Reason for this note (required)"
+                        rules={[{ required: true, message: "Required" }]}
+                        fieldProps={{ rows: 2 }}
                     />
-                </Space>
 
-                <Table
-                    rowKey="key"
-                    dataSource={lines}
-                    columns={lineColumns}
-                    pagination={false}
-                    size="small"
-                    scroll={{ x: 800 }}
-                    summary={() => (
-                        <Table.Summary fixed>
-                            <Table.Summary.Row>
-                                <Table.Summary.Cell index={0} colSpan={5}>
-                                    <Button type="dashed" icon={<PlusOutlined />} size="small" onClick={addLine}>
-                                        Add Line
-                                    </Button>
-                                </Table.Summary.Cell>
-                                <Table.Summary.Cell index={5} />
-                                <Table.Summary.Cell index={6} align="right">
-                                    <Space direction="vertical" size={2} style={{ textAlign: "right" }}>
-                                        {totals.totalDisc > 0 && (
-                                            <Text type="secondary" style={{ fontSize: 11 }}>
-                                                Disc: -{totals.totalDisc.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                    <Row gutter={12}>
+                        <Col span={12}>
+                            <ProFormTextArea
+                                name="notes"
+                                label="Notes (visible to customer/supplier)"
+                                fieldProps={{ rows: 2 }}
+                            />
+                        </Col>
+                        <Col span={12}>
+                            <ProFormTextArea
+                                name="internal_notes"
+                                label="Internal Notes"
+                                fieldProps={{ rows: 2 }}
+                            />
+                        </Col>
+                    </Row>
+
+                    {/* ── VAT Mode + Lines ── */}
+                    <Divider orientation="left" plain>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Lines</Text>
+                    </Divider>
+
+                    <Space style={{ marginBottom: 12 }} align="center">
+                        <Text type="secondary" style={{ fontSize: 12 }}>VAT pricing:</Text>
+                        <Segmented
+                            size="small"
+                            value={vatMode}
+                            onChange={(v) => setVatMode(v as "INCLUSIVE" | "EXCLUSIVE")}
+                            options={[
+                                { label: "Tax Exclusive", value: "EXCLUSIVE" },
+                                { label: "Tax Inclusive", value: "INCLUSIVE" },
+                            ]}
+                        />
+                    </Space>
+
+                    <Table
+                        rowKey="key"
+                        dataSource={lines}
+                        columns={lineColumns}
+                        pagination={false}
+                        size="small"
+                        scroll={{ x: 800 }}
+                        summary={() => (
+                            <Table.Summary fixed>
+                                <Table.Summary.Row>
+                                    <Table.Summary.Cell index={0} colSpan={5}>
+                                        <Button type="dashed" icon={<PlusOutlined />} size="small" onClick={addLine}>
+                                            Add Line
+                                        </Button>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={5} />
+                                    <Table.Summary.Cell index={6} align="right">
+                                        <Space direction="vertical" size={2} style={{ textAlign: "right" }}>
+                                            {totals.totalDisc > 0 && (
+                                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                                    Disc: -{totals.totalDisc.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                                </Text>
+                                            )}
+                                            {totals.totalVat > 0 && (
+                                                <Text style={{ fontSize: 11, color: "#1890ff" }}>
+                                                    VAT: {totals.totalVat.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                                </Text>
+                                            )}
+                                            <Text strong style={{ fontSize: 13 }}>
+                                                KES {totals.grandTotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                                             </Text>
-                                        )}
-                                        {totals.totalVat > 0 && (
-                                            <Text style={{ fontSize: 11, color: "#1890ff" }}>
-                                                VAT: {totals.totalVat.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                                            </Text>
-                                        )}
-                                        <Text strong style={{ fontSize: 13 }}>
-                                            KES {totals.grandTotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                                        </Text>
-                                    </Space>
-                                </Table.Summary.Cell>
-                                <Table.Summary.Cell index={7} />
-                            </Table.Summary.Row>
-                        </Table.Summary>
-                    )}
-                />
-            </ProForm>
-        </Drawer>
+                                        </Space>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={7} />
+                                </Table.Summary.Row>
+                            </Table.Summary>
+                        )}
+                    />
+                </ProForm>
+            </Drawer>
+
+            {/* ── Add Customer — triggered from customer dropdown ── */}
+            <AddCustomerModal
+                visible={addCustomerOpen}
+                onClose={() => setAddCustomerOpen(false)}
+                onSuccess={handleCustomerAdded}
+                mode="add"
+            />
+
+            {/* ── Add Supplier — triggered from supplier dropdown ── */}
+            <AddProSupplierModal
+                externalOpen={addSupplierOpen}
+                onExternalClose={() => {
+                    setAddSupplierOpen(false);
+                    handleSupplierAdded();
+                }}
+            />
+
+            {/* ── Add Account — triggered from line item account dropdown ── */}
+            <AccountFormDrawer
+                open={addAccountOpen}
+                onClose={() => setAddAccountOpen(false)}
+                onSuccess={() => {
+                    setAddAccountOpen(false);
+                    handleAccountAdded();
+                }}
+                accounts={accounts}
+                shopId={shopId}
+            />
+        </>
     );
 };
 
