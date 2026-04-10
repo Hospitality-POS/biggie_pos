@@ -6,17 +6,17 @@ import SplitBillDialog from "../MODALS/Dialogs/SplitBillDialog";
 import { useAppDispatch, useAppSelector } from "../../store";
 import {
   Alert, Button, Col, Form, Modal, Row, Space, Spin, Statistic,
-  Typography, message, Input, Select, Card, Divider, Tag, Flex,
-  Badge, Empty, Avatar,
+  Typography, message, Input, Select, Divider, Tag, Flex,
+  Empty, Avatar,
 } from "antd";
 import {
   CloseCircleOutlined, CreditCardOutlined, DollarOutlined,
   FileAddOutlined, FileOutlined, MobileOutlined, StopOutlined,
   WalletOutlined, PhoneOutlined, SendOutlined, CheckCircleOutlined,
   LoadingOutlined, UserOutlined, SearchOutlined, GiftOutlined,
-  InfoCircleOutlined, MailOutlined,
+  MailOutlined,
 } from "@ant-design/icons";
-import { DrawerForm, ProCard } from "@ant-design/pro-components";
+import { DrawerForm } from "@ant-design/pro-components";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import DiscountModal from "@components/MODALS/pro/DiscountModal";
 import pesapalApi from "@services/pesapalApi";
@@ -48,7 +48,6 @@ const useDebounce = (callback: (...args: any[]) => void, delay: number) => {
 const fmtKsh = (v: number) =>
   `KSH ${v?.toLocaleString("en-KE", { minimumFractionDigits: 0 }) ?? "0"}`;
 
-// ── Payment method icon map ───────────────────────────────────────────────────
 const getMethodIcon = (name: string, size = 26) => {
   const n = name.toLowerCase();
   const style = { fontSize: size };
@@ -66,7 +65,6 @@ const getMethodLabel = (name: string) => {
   return name.charAt(0).toUpperCase() + name.slice(1);
 };
 
-// ── STK status card ───────────────────────────────────────────────────────────
 const STKStatusCard: React.FC<{
   status: STKPaymentStatus;
   phone: string;
@@ -104,13 +102,7 @@ const STKStatusCard: React.FC<{
   if (status === "idle") return null;
   const c = configs[status];
   return (
-    <div
-      style={{
-        background: c.bg, border: `1px solid ${c.border}`,
-        borderRadius: 12, padding: "20px 16px",
-        textAlign: "center", marginBottom: 12,
-      }}
-    >
+    <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 12, padding: "20px 16px", textAlign: "center", marginBottom: 12 }}>
       <div style={{ marginBottom: 10 }}>{c.icon}</div>
       <Text strong style={{ fontSize: 15, color: c.color, display: "block", marginBottom: 4 }}>{c.title}</Text>
       <Text style={{ fontSize: 13, color: "#64748b", display: "block" }}>{c.sub}</Text>
@@ -143,13 +135,35 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const { isRetailMode, isHospitalMode } = usePOSMode();
   const { activeTable } = useRetailQueue();
 
-  // Hospital and retail both use the active slot/ward/bed as the table ID
   const isSlotMode = isRetailMode || isHospitalMode;
   const id = isSlotMode ? activeTable?._id : (rawId && rawId !== "tables" ? rawId : undefined);
 
+  // ── Single source of truth from store ────────────────────────────────────
   const { cartDetails, subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
   const { loading } = useAppSelector((s) => s.order);
   const { user } = useAppSelector((s) => s.auth);
+
+  // ── Discount display math — never affects order_amount sent to backend ────
+  const discountAmount = useMemo(() => {
+    if (!cartDetails?.discount || cartDetails.discount <= 0) return 0;
+    if (cartDetails.discount_type === "percentage") {
+      return parseFloat((subtotal * cartDetails.discount / 100).toFixed(2));
+    }
+    return cartDetails.discount;
+  }, [cartDetails?.discount, cartDetails?.discount_type, subtotal]);
+
+  const grossBeforeDiscount = useMemo(
+    () => parseFloat((grandTotal + discountAmount).toFixed(2)),
+    [grandTotal, discountAmount]
+  );
+
+  const displayVat = useMemo(() => {
+    if (!totalVatAmount || !subtotal) return totalVatAmount;
+    if (discountAmount <= 0) return totalVatAmount;
+    const vatRate = totalVatAmount / subtotal;
+    const discountedNet = subtotal - discountAmount;
+    return parseFloat((discountedNet * vatRate).toFixed(2));
+  }, [subtotal, totalVatAmount, discountAmount]);
 
   const [selectedMethod, setSelectedMethod] = useState<null | string>(null);
   const [secondMethod, setSecondMethod] = useState<null | string>(null);
@@ -173,46 +187,6 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const [stkPaymentStatus, setStkPaymentStatus] = useState<STKPaymentStatus>("idle");
   const [stkTrackingId, setStkTrackingId] = useState<string>("");
   const [countdown, setCountdown] = useState(0);
-
-  // FIXED: Calculate discount amount properly
-  const discountAmount = useMemo(() => {
-    if (!cartDetails?.discount) return 0;
-    return cartDetails.discount_type === "percentage"
-      ? subtotal * (cartDetails.discount / 100)
-      : cartDetails.discount;
-  }, [subtotal, cartDetails?.discount, cartDetails?.discount_type]);
-
-  // Calculate discounted subtotal
-  const discountedSubtotal = useMemo(() => {
-    return Math.max(0, subtotal - discountAmount);
-  }, [subtotal, discountAmount]);
-
-  // FIXED: Recalculate VAT based on discounted subtotal
-  const recalculatedVat = useMemo(() => {
-    if (discountedSubtotal === 0) return 0;
-    if (subtotal > 0 && totalVatAmount > 0) {
-      const vatRate = totalVatAmount / subtotal;
-      return discountedSubtotal * vatRate;
-    }
-    return 0;
-  }, [subtotal, totalVatAmount, discountedSubtotal]);
-
-  // FIXED: Recalculate grand total with proper VAT
-  const recalculatedGrandTotal = useMemo(() => {
-    return discountedSubtotal + recalculatedVat;
-  }, [discountedSubtotal, recalculatedVat]);
-
-  // Use recalculated values if discount is applied, otherwise use original
-  const displayVat = discountAmount > 0 ? recalculatedVat : totalVatAmount;
-  const displayGrandTotal = discountAmount > 0 ? recalculatedGrandTotal : grandTotal;
-
-  const { data: packagesData, isLoading: packagesLoading } = useQuery({
-    queryKey: ["packages", localStorage.getItem("shopId")],
-    queryFn: () => fetchAllPackages({ is_active: true }),
-    networkMode: "always",
-  });
-  const activePackages = packagesData?.packages || [];
-  const hasActivePackages = activePackages.length > 0;
 
   useEffect(() => {
     if (drawerVisible && customerDetails) {
@@ -287,7 +261,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     if (customer) {
       setSelectedCustomer(customer);
       setSelectedCustomerId(customer._id);
-      setCustomerInfo({ phone: customer.phone ? String(customer.phone) : "", name: customer.customer_name || "", email: customer.email || "" });
+      setCustomerInfo({
+        phone: customer.phone ? String(customer.phone) : "",
+        name: customer.customer_name || "",
+        email: customer.email || "",
+      });
       setIsNewCustomer(false);
       setSearchTerm("");
       setCustomers([]);
@@ -339,7 +317,12 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           if (data.success && data.payment_status === "COMPLETED") {
             setStkPaymentStatus("success");
             message.success("Payment completed!");
-            setTimeout(() => { resetPesapalModal(); setDrawerVisible(false); dispatch(createCart(id)); navigate("/tables"); }, 2000);
+            setTimeout(() => {
+              resetPesapalModal();
+              setDrawerVisible(false);
+              dispatch(createCart(id));
+              navigate("/tables");
+            }, 2000);
           } else if (data.payment_status === "FAILED") {
             setStkPaymentStatus("failed");
             message.error("Payment failed. Please try again.");
@@ -352,7 +335,8 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
 
   useEffect(() => {
     const check = async () => {
-      try { setPesapalEnabled(await pesapalApi.isConfiguredForCurrentTenant()); } catch { setPesapalEnabled(false); }
+      try { setPesapalEnabled(await pesapalApi.isConfiguredForCurrentTenant()); }
+      catch { setPesapalEnabled(false); }
     };
     check();
   }, []);
@@ -375,6 +359,14 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     networkMode: "always",
   });
 
+  const { data: packagesData, isLoading: packagesLoading } = useQuery({
+    queryKey: ["packages", localStorage.getItem("shopId")],
+    queryFn: () => fetchAllPackages({ is_active: true }),
+    networkMode: "always",
+  });
+  const activePackages = packagesData?.packages || [];
+  const hasActivePackages = activePackages.length > 0;
+
   const isPesapalMethod = (methodId: string) => {
     const m = paymentMethods?.find((m) => m._id === methodId);
     return m?.name.toLowerCase().includes("pal") || m?.name.toLowerCase().includes("gateway");
@@ -392,7 +384,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const handleModalClose = () => { setOpenModal(false); setSecondMethod(null); setAmount1(0); setAmount2(0); };
 
   const handleSplitConfirm = async () => {
-    if (!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || amount1 + amount2 !== displayGrandTotal) {
+    if (!amount1 || amount1 < 1 || !amount2 || amount2 < 1 || amount1 + amount2 !== grandTotal) {
       message.error("Split amounts must equal the total."); return;
     }
     if (!id) { message.error("No active table or slot."); return; }
@@ -401,7 +393,8 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         cart_id: cartDetails?._id, order_amount: [amount1, amount2], table_id: id,
         updated_by: user?.id, order_no: cartDetails?.order_no, cart_items: cartDetails.items,
         method_id: [selectedMethod, secondMethod], customer_id: resolveCustomerId(),
-        customer_name: resolveCustomerName(), customer_phone: resolveCustomerPhone(), customer_email: resolveCustomerEmail(),
+        customer_name: resolveCustomerName(), customer_phone: resolveCustomerPhone(),
+        customer_email: resolveCustomerEmail(),
       }));
       if (result.type.endsWith("/fulfilled")) {
         setDrawerVisible(false); setSelectedCustomerId(null);
@@ -435,10 +428,13 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
     if (secondMethod) { setOpenModal(true); return; }
     try {
       const result = await dispatch(createOrder({
-        cart_id: cartDetails?._id, order_amount: displayGrandTotal, table_id: id,
+        cart_id: cartDetails?._id,
+        order_amount: grandTotal,
+        table_id: id,
         updated_by: user?.id, order_no: cartDetails?.order_no, cart_items: cartDetails.items,
         method_id: selectedMethod, customer_id: resolveCustomerId(),
-        customer_name: resolveCustomerName(), customer_phone: resolveCustomerPhone(), customer_email: resolveCustomerEmail(),
+        customer_name: resolveCustomerName(), customer_phone: resolveCustomerPhone(),
+        customer_email: resolveCustomerEmail(),
       }));
       if (result.type.endsWith("/fulfilled")) {
         setDrawerVisible(false); setSelectedCustomerId(null);
@@ -464,12 +460,15 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       setStkPaymentStatus("sending");
       setCountdown(300);
       const result = await dispatch(createOrder({
-        cart_id: cartDetails?._id, order_amount: displayGrandTotal, table_id: id,
+        cart_id: cartDetails?._id,
+        order_amount: grandTotal,
+        table_id: id,
         updated_by: user?.id, order_no: cartDetails?.order_no, cart_items: cartDetails.items,
         method_id: selectedMethod, payment_type: "stk_push",
         customer_phone: customerInfo.phone, customer_name: customerInfo.name || "Customer",
         customer_email: customerInfo.email || `${customerInfo.phone}@customer.local`,
-        enable_stk_push: true, stk_phone_number: customerInfo.phone, customer_id: resolveCustomerId(),
+        enable_stk_push: true, stk_phone_number: customerInfo.phone,
+        customer_id: resolveCustomerId(),
       }));
       if (result?.payload?.payment?.stk_push) {
         setStkPaymentStatus("waiting");
@@ -573,42 +572,36 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
       >
         <Space direction="vertical" style={{ width: "100%" }} size={16}>
 
-          {/* ── Order summary ──────────────────────────────────────────── */}
-          <div
-            style={{
-              background: "#f8fafc", borderRadius: 12,
-              padding: "14px 16px", border: "1px solid #e2e8f0",
-            }}
-          >
+          {/* ── Order summary ────────────────────────────────────────────── */}
+          <div style={{ background: "#f8fafc", borderRadius: 12, padding: "14px 16px", border: "1px solid #e2e8f0" }}>
             <Text strong style={{ fontSize: 13, color: "#64748b", letterSpacing: 0.5, textTransform: "uppercase" }}>
               Order Summary
             </Text>
             <Divider style={{ margin: "10px 0 8px" }} />
             <Space direction="vertical" style={{ width: "100%" }} size={4}>
-              <Flex justify="space-between">
-                <Text style={{ color: "#64748b", fontSize: 13 }}>Subtotal</Text>
-                <Text style={{ fontSize: 13 }}>{fmtKsh(subtotal)}</Text>
-              </Flex>
 
-              {/* FIXED: Show discount correctly */}
-              {discountAmount > 0 && (
-                <Flex justify="space-between" align="center">
-                  <Text style={{ color: "#64748b", fontSize: 13 }}>Discount</Text>
-                  <Flex align="center" gap={6}>
-                    <Text type="danger" style={{ fontSize: 13 }}>
-                      - {fmtKsh(discountAmount)}
-                    </Text>
-                    <Button type="text" danger size="small" onClick={handleRemoveDiscount}
-                      icon={<CloseCircleOutlined />} style={{ padding: 0, height: "auto", lineHeight: 1 }} />
+              {discountAmount > 0 ? (
+                <>
+                  <Flex justify="space-between">
+                    <Text style={{ color: "#64748b", fontSize: 13 }}>Subtotal</Text>
+                    <Text style={{ fontSize: 13 }}>{fmtKsh(grossBeforeDiscount)}</Text>
                   </Flex>
-                </Flex>
-              )}
-
-              {/* FIXED: Show discounted subtotal if discount applied */}
-              {discountAmount > 0 && (
+                  <Flex justify="space-between" align="center">
+                    <Text style={{ color: "#64748b", fontSize: 13 }}>Discount</Text>
+                    <Flex align="center" gap={6}>
+                      <Text type="danger" style={{ fontSize: 13 }}>- {fmtKsh(discountAmount)}</Text>
+                      <Button
+                        type="text" danger size="small" onClick={handleRemoveDiscount}
+                        icon={<CloseCircleOutlined />}
+                        style={{ padding: 0, height: "auto", lineHeight: 1 }}
+                      />
+                    </Flex>
+                  </Flex>
+                </>
+              ) : (
                 <Flex justify="space-between">
-                  <Text style={{ color: "#64748b", fontSize: 13 }}>After Discount</Text>
-                  <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmtKsh(discountedSubtotal)}</Text>
+                  <Text style={{ color: "#64748b", fontSize: 13 }}>Subtotal</Text>
+                  <Text style={{ fontSize: 13 }}>{fmtKsh(grandTotal)}</Text>
                 </Flex>
               )}
 
@@ -616,34 +609,36 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                 <Text style={{ color: "#64748b", fontSize: 13 }}>VAT</Text>
                 <Text style={{ fontSize: 13 }}>{fmtKsh(displayVat)}</Text>
               </Flex>
+
               <Divider style={{ margin: "8px 0" }} />
+
               <Flex justify="space-between" align="center">
                 <Text strong style={{ fontSize: 15 }}>Amount Due</Text>
                 <Text strong style={{ fontSize: 17, color: "#6c1c2c" }}>
-                  {fmtKsh(useSubscription ? 0 : displayGrandTotal)}
+                  {fmtKsh(useSubscription ? 0 : grandTotal)}
                 </Text>
               </Flex>
+
             </Space>
           </div>
 
           {useSubscription && (
             <Alert
-              message={<Flex gap={6} align="center"><GiftOutlined /><Text strong>Using Subscription — Order Total: KSH 0</Text></Flex>}
+              message={
+                <Flex gap={6} align="center">
+                  <GiftOutlined />
+                  <Text strong>Using Subscription — Order Total: KSH 0</Text>
+                </Flex>
+              }
               description="One visit will be deducted from the selected package"
               type="success" showIcon={false} style={{ borderRadius: 8 }}
             />
           )}
 
-          {/* ── Customer search ─────────────────────────────────────────── */}
+          {/* ── Customer search ──────────────────────────────────────────── */}
           {hasActivePackages && (
             <>
-              <div
-                style={{
-                  borderRadius: 12,
-                  border: selectedCustomerId ? "2px solid #10b981" : "1px solid #e2e8f0",
-                  overflow: "hidden", transition: "border-color 0.2s",
-                }}
-              >
+              <div style={{ borderRadius: 12, border: selectedCustomerId ? "2px solid #10b981" : "1px solid #e2e8f0", overflow: "hidden", transition: "border-color 0.2s" }}>
                 <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
                   <Flex align="center" gap={8}>
                     <UserOutlined style={{ color: "#6c1c2c", fontSize: 13 }} />
@@ -656,7 +651,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                 <div style={{ padding: "10px 14px" }}>
                   <Select
                     style={{ width: "100%" }} size="large"
-                    placeholder={<Flex gap={6} align="center"><SearchOutlined /><span>Search by phone, name or email…</span></Flex>}
+                    placeholder={
+                      <Flex gap={6} align="center">
+                        <SearchOutlined /><span>Search by phone, name or email…</span>
+                      </Flex>
+                    }
                     showSearch allowClear
                     value={selectedCustomerId}
                     onChange={handleCustomerSelect}
@@ -674,11 +673,12 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                           <Text type="secondary" style={{ fontSize: 13 }}>Searching…</Text>
                         </Flex>
                       ) : searchTerm.length >= 2 && customers.length === 0 ? (
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        <Empty
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
                           description={<Text type="secondary" style={{ fontSize: 13 }}>No customers found for "{searchTerm}"</Text>}
                         />
                       ) : (
-                        <Flex justify="center" direction="vertical" align="center" style={{ padding: 20 }}>
+                        <Flex justify="center" align="center" style={{ padding: 20, flexDirection: "column" }}>
                           <SearchOutlined style={{ fontSize: 20, color: "#cbd5e1", marginBottom: 6 }} />
                           <Text type="secondary" style={{ fontSize: 12 }}>Type 2+ characters to search</Text>
                         </Flex>
@@ -704,7 +704,8 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   </Select>
 
                   {selectedCustomerId && (
-                    <Flex align="center" gap={8}
+                    <Flex
+                      align="center" gap={8}
                       style={{ marginTop: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 10px" }}
                     >
                       <CheckCircleOutlined style={{ color: "#10b981", fontSize: 14 }} />
@@ -729,13 +730,13 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   customerId={selectedCustomerId}
                   onSubscriptionSelect={handleSubscriptionSelect}
                   selectedSubscription={selectedSubscription}
-                  orderAmount={displayGrandTotal}
+                  orderAmount={grandTotal}
                 />
               )}
             </>
           )}
 
-          {/* ── Payment methods ─────────────────────────────────────────── */}
+          {/* ── Payment methods ──────────────────────────────────────────── */}
           {!useSubscription && (
             <div style={{ borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden" }}>
               <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
@@ -749,7 +750,6 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   )}
                 </Flex>
               </div>
-
               <div style={{ padding: "12px 14px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 10 }}>
                   {paymentMethods?.map((method: PaymentMethod) => {
@@ -762,16 +762,14 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                         onClick={() => !isDisabled && handleSelectMethod(method._id)}
                         disabled={isDisabled}
                         style={{
-                          display: "flex", flexDirection: "column",
-                          alignItems: "center", justifyContent: "center",
-                          gap: 6, padding: "14px 8px", borderRadius: 10,
+                          display: "flex", flexDirection: "column", alignItems: "center",
+                          justifyContent: "center", gap: 6, padding: "14px 8px", borderRadius: 10,
                           border: isSelected ? "2px solid #6c1c2c" : "1.5px solid #e2e8f0",
                           background: isSelected ? "#6c1c2c" : "#fff",
                           color: isSelected ? "white" : "#374151",
                           cursor: isDisabled ? "not-allowed" : "pointer",
                           opacity: isDisabled ? 0.45 : 1,
-                          transition: "all 0.18s ease",
-                          outline: "none",
+                          transition: "all 0.18s ease", outline: "none",
                           boxShadow: isSelected ? "0 2px 10px rgba(108,28,44,0.25)" : "none",
                         }}
                         onMouseEnter={(e) => {
@@ -795,7 +793,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   })}
                 </div>
 
-                {(selectedMethod || (user?.role === "admin" || user?.role === "Cashier")) && (
+                {(selectedMethod || user?.role === "admin" || user?.role === "cashier") && (
                   <Flex gap={8} style={{ marginTop: 12 }} wrap="wrap">
                     {selectedMethod && (user?.role === "admin" || user?.role === "cashier") && (
                       <Button size="small" danger onClick={() => setSelectedMethod(null)}
@@ -803,7 +801,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                         Clear
                       </Button>
                     )}
-                    {(user?.role === "admin" || user?.role === "Cashier") && (
+                    {(user?.role === "admin" || user?.role === "cashier") && (
                       <Button size="small" onClick={handleVoidBill} icon={<StopOutlined />}
                         style={{ color: "#6c1c2c", borderColor: "#6c1c2c", borderRadius: 6 }}>
                         Void Bill
@@ -819,15 +817,16 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         {selectedMethod !== secondMethod && (
           <SplitBillDialog
             open={openModal} handleModalClose={handleModalClose} data={paymentMethods}
-            selectedMethod={selectedMethod} secondMethod={secondMethod} totalAmount={displayGrandTotal}
+            selectedMethod={selectedMethod} secondMethod={secondMethod} totalAmount={grandTotal}
             amount1={amount1} amount2={amount2}
             setSelectedMethod={setSelectedMethod} setSecondMethod={setSecondMethod}
-            setAmount1={setAmount1} setAmount2={setAmount2} handleSplitConfirm={handleSplitConfirm}
+            setAmount1={setAmount1} setAmount2={setAmount2}
+            handleSplitConfirm={handleSplitConfirm}
           />
         )}
       </DrawerForm>
 
-      {/* ── STK Push Modal ──────────────────────────────────────────────── */}
+      {/* ── STK Push Modal ───────────────────────────────────────────────── */}
       <Modal
         title={<Flex align="center" gap={8}><MobileOutlined style={{ color: "#10b981" }} /><span>STK Push Payment</span></Flex>}
         open={pesapalModalVisible} onCancel={resetPesapalModal}
@@ -887,15 +886,18 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                   <>
                     <div>
                       <Text strong style={{ fontSize: 13 }}>Customer Name</Text>
-                      <Input value={customerInfo.name}
+                      <Input
+                        value={customerInfo.name}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
-                        placeholder="Full name" style={{ marginTop: 6, borderRadius: 8 }} />
+                        placeholder="Full name" style={{ marginTop: 6, borderRadius: 8 }}
+                      />
                     </div>
                     <div>
                       <Text strong style={{ fontSize: 13 }}>
                         Email <Text type="secondary" style={{ fontWeight: 400 }}>(optional)</Text>
                       </Text>
-                      <Input type="email" value={customerInfo.email}
+                      <Input
+                        type="email" value={customerInfo.email}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
                         placeholder="customer@email.com"
                         style={{ marginTop: 6, borderRadius: 8 }}
@@ -906,7 +908,8 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                 )}
 
                 {selectedCustomer && (
-                  <Flex align="center" gap={8}
+                  <Flex
+                    align="center" gap={8}
                     style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 10px" }}
                   >
                     <CheckCircleOutlined style={{ color: "#10b981" }} />
@@ -922,7 +925,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           <div style={{ background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0", padding: "12px 14px" }}>
             <Row gutter={16}>
               <Col span={12}>
-                <Statistic title="Amount" value={displayGrandTotal} prefix="KSh." precision={0} valueStyle={{ fontSize: 18 }} />
+                <Statistic title="Amount" value={grandTotal} prefix="KSh." precision={0} valueStyle={{ fontSize: 18 }} />
               </Col>
               <Col span={12}>
                 <Statistic title="Method" value="STK Push" prefix={<MobileOutlined />} valueStyle={{ fontSize: 16 }} />
@@ -959,11 +962,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         closable={false} width={360} centered zIndex={1400} getContainer={() => document.body}
       >
         <Space direction="vertical" style={{ width: "100%", textAlign: "center", padding: "8px 0" }} size={14}>
-          <div style={{
-            width: 64, height: 64, borderRadius: "50%",
-            background: "#f0fdf4", border: "2px solid #bbf7d0",
-            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto",
-          }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#f0fdf4", border: "2px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
             <MobileOutlined style={{ fontSize: 28, color: "#10b981" }} />
           </div>
           <Title level={4} style={{ margin: 0 }}>Waiting for Payment</Title>
@@ -983,29 +982,20 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         </Space>
       </Modal>
 
-      {/* ── Success modal ────────────────────────────────────────────────── */}
-      <Modal title={null} open={stkPaymentStatus === "success"} footer={null}
-        closable={false} width={300} centered zIndex={1400} getContainer={() => document.body}>
+      {/* ── Success modal ─────────────────────────────────────────────────── */}
+      <Modal
+        title={null} open={stkPaymentStatus === "success"} footer={null}
+        closable={false} width={300} centered zIndex={1400} getContainer={() => document.body}
+      >
         <Space direction="vertical" style={{ width: "100%", textAlign: "center", padding: "16px 0" }} size={12}>
-          <div style={{
-            width: 72, height: 72, borderRadius: "50%",
-            background: "#f0fdf4", border: "2px solid #bbf7d0",
-            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto",
-          }}>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#f0fdf4", border: "2px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
             <CheckCircleOutlined style={{ fontSize: 36, color: "#10b981" }} />
           </div>
           <Title level={3} style={{ color: "#10b981", margin: 0 }}>Payment Successful!</Title>
-          <Text style={{ fontSize: 14 }}>{fmtKsh(displayGrandTotal)} confirmed</Text>
+          <Text style={{ fontSize: 14 }}>{fmtKsh(grandTotal)} confirmed</Text>
           <Text type="secondary" style={{ fontSize: 13 }}>Redirecting…</Text>
         </Space>
       </Modal>
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.1); opacity: 0.75; }
-        }
-      `}</style>
     </>
   );
 };

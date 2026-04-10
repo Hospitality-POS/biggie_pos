@@ -77,9 +77,9 @@ interface ReportProps {
   endDate: string;
   brandName: string;
   tableData: { index: number; name: string; amount: number }[];
-  totalCost: number;
-  totalDiscount: number;
-  totalInclusiveDiscount: number;
+  totalCost: number;              // net amount actually paid  e.g. 300
+  totalDiscount: number;          // discount amount           e.g. 100
+  totalInclusiveDiscount: number; // gross = net + discount    e.g. 400
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -142,7 +142,11 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(({
           ))}
         </div>
 
-        {/* Totals */}
+        {/* Totals
+            Overall Total      = totalCost              = 300 (net paid)
+            Overall Discount   = totalDiscount           = 100
+            Inclusive Discount = totalInclusiveDiscount  = 400 (gross = net + discount)
+        */}
         {divider({ borderStyle: "solid", borderColor: "#555" })}
         {[
           { label: "Overall Total", value: totalCost, bold: true },
@@ -237,7 +241,11 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({
           </div>
         </div>
 
-        {/* KPI strip */}
+        {/* KPI strip
+            Total Sales        = totalCost              = 300 (net paid)
+            Total Discount     = totalDiscount           = 100
+            Inclusive Discount = totalInclusiveDiscount  = 400 (gross)
+        */}
         <div style={{
           display: "flex",
           background: C.bg,
@@ -266,8 +274,6 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({
 
         {/* Body */}
         <div style={{ padding: "20px 24px" }}>
-
-          {/* Payment methods table */}
           <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: "8%" }} />
@@ -426,8 +432,6 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, s
       amount: Number(item.amount || 0),
     }));
 
-    // Normalise: lowercase + strip hyphens/spaces/dots
-    // "M-Pesa" / "Mpesa" / "mpesa" → "mpesa", "Cash" / "cash" → "cash"
     const normalise = (s: string) => s.toLowerCase().replace(/[-\s.]/g, "");
     const map = new Map<string, { name: string; amount: number }>();
     for (const row of raw) {
@@ -440,13 +444,18 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, s
     }
 
     return Array.from(map.values())
-      .filter((r) => r.amount > 0)          // hide zero-balance methods
+      .filter((r) => r.amount > 0)
       .map((r, i) => ({ index: i + 1, ...r }));
   }, [data]);
 
+  // ✅ Correct value mapping:
+  //   totalCost              = net paid (from backend)           e.g. 300
+  //   totalDiscount          = discount deducted                 e.g. 100
+  //   totalInclusiveDiscount = gross = net + discount            e.g. 400
   const totalCost = Number(data?.totalCost || 0);
   const totalDiscount = Number(data?.totalDiscountAmount || 0);
-  const totalInclusiveDiscount = Number(data?.totalInclusiveDiscount || 0);
+  const totalInclusiveDiscount = totalCost + totalDiscount;
+
   const hasData = tableData.length > 0;
 
   const sharedProps: ReportProps = {
@@ -543,7 +552,11 @@ const PurchaseReportModal: React.FC<PurchaseReportProps> = ({ openM, onCloseM, s
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-              {/* Summary cards */}
+              {/* Summary cards
+                  Total Sales        = totalCost              = 300 (net paid)
+                  Discount           = totalDiscount           = 100
+                  Inclusive Discount = totalInclusiveDiscount  = 400 (gross)
+              */}
               {hasData && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                   <SummaryCard label="Total Sales" value={`KES ${fmt(totalCost)}`} color={C.primary} bg={C.primaryLight} icon={<BarChartOutlined />} />

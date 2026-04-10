@@ -1,9 +1,10 @@
+// SystemSetup.tsx (updated - removed print settings tab)
 import React, { useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
   UserOutlined,
   SettingOutlined,
-  DollarCircleOutlined
+  DollarCircleOutlined,
 } from "@ant-design/icons";
 import { Space, Typography } from "antd";
 import Profile from "./Profile";
