@@ -31,7 +31,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
   const discountOptions = [
     { value: "amount", label: "Amount" },
     { value: "percentage", label: "Percentage" },
-    { value: "code", label: "Gift Card" },
+    // { value: "code", label: "Gift Card" },
   ];
 
   // Reset form values when discount type changes
@@ -141,13 +141,13 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
           {"Offer Discount"}
         </Space>
       }
-      // trigger={
-      //   (user?.role === "admin" || user?.role === "cashier") && (
-      //     <Button type="primary" icon={<PercentageOutlined />} block>
-      //       Offer Discount
-      //     </Button>
-      //   )
-      // }
+      trigger={
+        (user?.role === "admin" || user?.role === "cashier") && (
+          <Button type="primary" icon={<PercentageOutlined />} block>
+            Offer Discount
+          </Button>
+        )
+      }
       autoFocusFirstInput
       modalProps={{
         destroyOnClose: true,
@@ -243,14 +243,14 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ data: cartItem }) => {
           />
         ) : null}
       </ProForm.Group>
-      {discountType === "code" && giftCardAmount !== null && (
+      {/* {discountType === "code" && giftCardAmount !== null && (
         <ProFormDigit
           name="discount"
           label="Gift Card Amount"
           width={"sm"}
           disabled
         />
-      )}
+      )} */}
     </ModalForm>
   );
 };

@@ -12,27 +12,27 @@ import CartLoader from "../spinner/cartLoader";
 import { fetchAllUsersByShopId } from "../../services/users";
 import {
   Button, Space, Typography, Tag, Empty, Divider,
-  Flex, Avatar, Tooltip, Select, Popconfirm, Badge,
+  Flex, Avatar, Tooltip, Select, Popconfirm,
 } from "antd";
 import {
   ClearOutlined, CloseCircleOutlined, OrderedListOutlined,
   PlusCircleOutlined, RestOutlined, SmileFilled,
   SwitcherOutlined, UserOutlined, EditOutlined,
-  CalendarOutlined,
+  CalendarOutlined, PrinterOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
+import DiscountModal from "@components/MODALS/pro/DiscountModal";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
+import { usePrintDocument, DocumentType } from "../MODALS/Hooks/usePrintDocument";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
-// ── helpers ───────────────────────────────────────────────────────────────────
 const fmtKsh = (v: number) =>
   `KSH ${v?.toLocaleString("en-KE", { minimumFractionDigits: 0 }) ?? "0"}`;
 
-// Format date nicely
 const formatCartDate = (dateString: string) => {
   if (!dateString) return null;
   const date = new Date(dateString);
@@ -43,59 +43,91 @@ const formatCartDate = (dateString: string) => {
   const cartDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
   if (cartDate.getTime() === today.getTime()) {
-    return `Today at ${date.toLocaleTimeString("en-KE", { hour: '2-digit', minute: '2-digit' })}`;
+    return `Today at ${date.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" })}`;
   } else if (cartDate.getTime() === yesterday.getTime()) {
-    return `Yesterday at ${date.toLocaleTimeString("en-KE", { hour: '2-digit', minute: '2-digit' })}`;
-  } else {
-    return date.toLocaleDateString("en-KE", {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return `Yesterday at ${date.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" })}`;
   }
+  return date.toLocaleDateString("en-KE", {
+    year: "numeric", month: "short", day: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 };
 
-// ── Summary row ───────────────────────────────────────────────────────────────
 const SummaryRow: React.FC<{
   label: React.ReactNode;
   value: React.ReactNode;
   strong?: boolean;
   accent?: string;
-  strike?: boolean;
   muted?: boolean;
-}> = ({ label, value, strong, accent, strike, muted }) => (
+}> = ({ label, value, strong, accent, muted }) => (
   <Flex align="center" justify="space-between" style={{ padding: "3px 0" }}>
-    <Text
-      style={{
-        fontSize: strong ? 15 : 13,
-        fontWeight: strong ? 700 : 400,
-        color: muted ? "#94a3b8" : "#374151",
-      }}
-    >
+    <Text style={{
+      fontSize: strong ? 15 : 13,
+      fontWeight: strong ? 700 : 400,
+      color: muted ? "#94a3b8" : "#374151",
+    }}>
       {label}
     </Text>
-    <Text
-      delete={strike}
-      style={{
-        fontSize: strong ? 15 : 13,
-        fontWeight: strong ? 700 : 400,
-        color: accent || (muted ? "#94a3b8" : "#374151"),
-      }}
-    >
+    <Text style={{
+      fontSize: strong ? 15 : 13,
+      fontWeight: strong ? 700 : 400,
+      color: accent || (muted ? "#94a3b8" : "#374151"),
+    }}>
       {value}
     </Text>
   </Flex>
 );
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Print status badge shown in the cart summary ───────────────────────────
+const PrintStatusBadge: React.FC<{
+  isReprint: boolean;
+  printsRemaining: number | null;
+  statusLoading: boolean;
+  primaryColor: string;
+}> = ({ isReprint, printsRemaining, statusLoading, primaryColor }) => {
+  if (statusLoading) return null;
+  if (!isReprint) return null;
+
+  return (
+    <Flex
+      align="center"
+      gap={6}
+      style={{
+        background: "#fff7ed",
+        border: "1px solid #fed7aa",
+        borderRadius: 8,
+        padding: "6px 10px",
+        marginBottom: 8,
+      }}
+    >
+      <PrinterOutlined style={{ color: "#f97316", fontSize: 13 }} />
+      <Text style={{ fontSize: 12, color: "#c2410c", flex: 1 }}>
+        Reprint — previously printed
+      </Text>
+      {printsRemaining !== null && (
+        <Tag
+          color={printsRemaining === 0 ? "error" : "warning"}
+          style={{ fontSize: 10, borderRadius: 4, margin: 0 }}
+        >
+          {printsRemaining === 0
+            ? "Limit reached"
+            : `${printsRemaining} left`}
+        </Tag>
+      )}
+    </Flex>
+  );
+};
+
 const CartDrawer: React.FC = () => {
   const [loadingData, setLoadingData] = useState(false);
   const [staffList, setStaffList] = useState<{ value: string; label: string }[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [editingServedBy, setEditingServedBy] = useState(false);
   const [updatingServedBy, setUpdatingServedBy] = useState(false);
+
+  // Document type driving which print status to check.
+  // Adjust this if your cart can switch between bill / receipt / invoice / quotation.
+  const documentType: DocumentType = "bill";
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -117,7 +149,6 @@ const CartDrawer: React.FC = () => {
     setActiveTable, openNewOrder, removeActiveSlot,
   } = useRetailQueue();
 
-  // Hospital and retail both resolve tableId from activeTable (slot/ward/bed)
   const isSlotMode = isRetailMode || isHospitalMode;
 
   const tableId = useMemo(() => {
@@ -132,44 +163,50 @@ const CartDrawer: React.FC = () => {
 
   const CartItemCardMemo = React.memo(CartItemCard);
   const memoizedData = useMemo(() => data, [data]);
-  console.log('nice uno', cartDetails);
-  // FIXED: Proper discount calculation with VAT recalculation
+
+  // ── usePrintDocument ──────────────────────────────────────────────────────
+  const orderNo = useMemo(() => cartDetails?.order_no, [cartDetails?.order_no]);
+
+  const {
+    canPrint,
+    isReprint,
+    printsRemaining,
+    printStatus,
+    statusLoading,
+    recordPrint,
+    refreshStatus,
+  } = usePrintDocument({
+    orderNo,
+    documentType,
+    cartDetails,
+    data: data ?? [],
+    autoCheck: true,
+  });
+
+  // ── Discount display math ─────────────────────────────────────────────────
   const discountAmount = useMemo(() => {
-    if (!cartDetails?.discount) return 0;
-    return cartDetails.discount_type === "percentage"
-      ? subtotal * (cartDetails.discount / 100)
-      : cartDetails.discount;
-  }, [subtotal, cartDetails?.discount, cartDetails?.discount_type]);
-
-  // Calculate discounted subtotal
-  const discountedSubtotal = useMemo(() => {
-    return Math.max(0, subtotal - discountAmount);
-  }, [subtotal, discountAmount]);
-
-  // FIXED: Recalculate VAT based on discounted subtotal
-  const recalculatedVat = useMemo(() => {
-    if (discountedSubtotal === 0) return 0;
-    // Calculate VAT rate from original values if available
-    if (subtotal > 0 && totalVatAmount > 0) {
-      const vatRate = totalVatAmount / subtotal;
-      return discountedSubtotal * vatRate;
+    if (!cartDetails?.discount || cartDetails.discount <= 0) return 0;
+    if (cartDetails.discount_type === "percentage") {
+      return parseFloat((subtotal * cartDetails.discount / 100).toFixed(2));
     }
-    // If no VAT info, assume standard rate or return 0
-    return 0;
-  }, [subtotal, totalVatAmount, discountedSubtotal]);
+    return cartDetails.discount;
+  }, [cartDetails?.discount, cartDetails?.discount_type, subtotal]);
 
-  // FIXED: Recalculate grand total with proper VAT
-  const recalculatedGrandTotal = useMemo(() => {
-    return discountedSubtotal + recalculatedVat;
-  }, [discountedSubtotal, recalculatedVat]);
+  const grossBeforeDiscount = useMemo(
+    () => parseFloat((grandTotal + discountAmount).toFixed(2)),
+    [grandTotal, discountAmount]
+  );
 
-  // Use recalculated values if discount is applied, otherwise use original
-  const displayVat = discountAmount > 0 ? recalculatedVat : totalVatAmount;
-  const displayGrandTotal = discountAmount > 0 ? recalculatedGrandTotal : grandTotal;
+  const displayVat = useMemo(() => {
+    if (!totalVatAmount || !subtotal) return totalVatAmount;
+    if (discountAmount <= 0) return totalVatAmount;
+    const vatRate = totalVatAmount / subtotal;
+    const discountedNet = subtotal - discountAmount;
+    return parseFloat((discountedNet * vatRate).toFixed(2));
+  }, [subtotal, totalVatAmount, discountAmount]);
 
   const orderNumber = useMemo(() => cartDetails?.order_no, [cartDetails?.order_no]);
 
-  // Format cart creation date
   const cartCreatedDate = useMemo(() => {
     const createdAt = cartDetails?.createdAt || cartDetails?.created_at;
     if (!createdAt) return null;
@@ -204,7 +241,6 @@ const CartDrawer: React.FC = () => {
     return undefined;
   }, [cartDetails?.served_by, cartDetails?.created_by]);
 
-  // ── Slot label (context-aware) ─────────────────────────────────────────────
   const slotLabel = useMemo(() => {
     if (isHospitalMode) return activeTable?.name || "No Ward/Bed";
     if (isRetailMode) return activeTable?.name || "No Slot";
@@ -217,7 +253,6 @@ const CartDrawer: React.FC = () => {
     ? `Clear "${activeTable?.name}"? This will empty the cart and free this bed/ward.`
     : `Clear "${activeTable?.name}"? This will empty the cart and free up this slot.`;
 
-  // ── Fetch staff list ───────────────────────────────────────────────────────
   useEffect(() => {
     const loadStaff = async () => {
       setLoadingStaff(true);
@@ -245,6 +280,8 @@ const CartDrawer: React.FC = () => {
       setLoadingData(true);
       try {
         await dispatch(getCart(tableId));
+        // Refresh print status whenever the cart changes
+        await refreshStatus();
         if (!isSlotMode && !data && !cartDetails) navigate("/tables");
       } catch (e) {
         console.error("cart error", e);
@@ -255,8 +292,8 @@ const CartDrawer: React.FC = () => {
     fetch();
   }, [dispatch, tableId, td?._id, isSlotMode, navigate]);
 
-  const allSlots = useMemo(() =>
-    (allLocations || []).flatMap((loc: any) =>
+  const allSlots = useMemo(
+    () => (allLocations || []).flatMap((loc: any) =>
       (loc.tables || []).map((t: any) => ({
         value: t._id,
         label: `${loc.name} · ${t.name}`,
@@ -270,7 +307,6 @@ const CartDrawer: React.FC = () => {
   const isSpa = tenant?.business_type?.name === "massage_parlour";
   const canCheckout = (user?.role === "admin" || user?.role === "cashier") && (data?.length ?? 0) > 0;
 
-  // ── Handle served-by update ───────────────────────────────────────────────
   const handleServedByChange = async (newUserId: string) => {
     const cartId = cartDetails?._id ?? cartDetails?.id;
     if (!cartId) return;
@@ -286,72 +322,40 @@ const CartDrawer: React.FC = () => {
     }
   };
 
+  // Shared print props passed to both modal variants
+  const printProps = {
+    canPrint,
+    isReprint,
+    printsRemaining,
+    printStatus,
+    statusLoading,
+    recordPrint,
+  };
+
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        background: "#fff",
-        overflow: "hidden",
-      }}
-    >
-      {/* ── Scrollable body ──────────────────────────────────────────────── */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "12px 14px",
-          scrollbarWidth: "thin",
-          scrollbarColor: "#e2e8f0 transparent",
-        }}
-      >
-        {/* ── Slot/ward switcher (retail + hospital) ────────────────────── */}
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#fff", overflow: "hidden" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px", scrollbarWidth: "thin", scrollbarColor: "#e2e8f0 transparent" }}>
+
+        {/* ── Slot switcher ─────────────────────────────────────────────── */}
         {isSlotMode && (
-          <div
-            style={{
-              background: `${primaryColor}0f`,
-              border: `1px solid ${primaryColor}30`,
-              borderRadius: 10,
-              padding: "10px 12px",
-              marginBottom: 12,
-            }}
-          >
-            <Text
-              strong
-              style={{
-                fontSize: 11, color: primaryColor, letterSpacing: 0.8,
-                textTransform: "uppercase", display: "block", marginBottom: 6,
-              }}
-            >
+          <div style={{ background: `${primaryColor}0f`, border: `1px solid ${primaryColor}30`, borderRadius: 10, padding: "10px 12px", marginBottom: 12 }}>
+            <Text strong style={{ fontSize: 11, color: primaryColor, letterSpacing: 0.8, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
               {slotSectionLabel}
             </Text>
             <Flex align="center" gap={6}>
               <Select
-                size="small"
-                style={{ flex: 1, minWidth: 0 }}
-                value={activeTable?._id}
-                loading={isLoadingSlots}
-                onChange={(v) => {
-                  const slot = allSlots.find((s) => s.value === v);
-                  if (slot) setActiveTable(slot.table);
-                }}
-                options={allSlots}
-                placeholder="Select slot"
+                size="small" style={{ flex: 1, minWidth: 0 }}
+                value={activeTable?._id} loading={isLoadingSlots}
+                onChange={(v) => { const slot = allSlots.find((s) => s.value === v); if (slot) setActiveTable(slot.table); }}
+                options={allSlots} placeholder="Select slot"
               />
               <Popconfirm
-                title={clearSlotTitle}
-                onConfirm={() => removeActiveSlot()}
-                okText="Clear"
-                okButtonProps={{ danger: true }}
-                cancelText="Cancel"
+                title={clearSlotTitle} onConfirm={() => removeActiveSlot()}
+                okText="Clear" okButtonProps={{ danger: true }} cancelText="Cancel"
                 disabled={!activeTable || isOnlySlot}
               >
                 <Tooltip title={isOnlySlot ? "Cannot remove the only slot" : "Clear slot"}>
-                  <Button
-                    size="small" danger type="text" icon={<ClearOutlined />}
-                    disabled={!activeTable || isLoadingSlots || isOnlySlot}
-                  />
+                  <Button size="small" danger type="text" icon={<ClearOutlined />} disabled={!activeTable || isLoadingSlots || isOnlySlot} />
                 </Tooltip>
               </Popconfirm>
             </Flex>
@@ -366,21 +370,14 @@ const CartDrawer: React.FC = () => {
           </div>
         )}
 
-        {/* ── Header row ───────────────────────────────────────────────── */}
+        {/* ── Header ────────────────────────────────────────────────────── */}
         <Flex align="center" justify="space-between" wrap="wrap" gap={6} style={{ marginBottom: 10 }}>
-          <div
-            style={{
-              background: "#f8fafc", border: "1px solid #e2e8f0",
-              borderRadius: 8, padding: "5px 10px",
-              display: "flex", alignItems: "center", gap: 6,
-            }}
-          >
+          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "5px 10px", display: "flex", alignItems: "center", gap: 6 }}>
             <OrderedListOutlined style={{ color: primaryColor, fontSize: 13 }} />
             <Text strong style={{ fontSize: 12, color: primaryColor }}>
               {orderNumber?.toLocaleUpperCase() || "NO ORDER"}
             </Text>
           </div>
-
           <Flex gap={6} align="center">
             <TransferBillModal data={data} />
             <Button
@@ -392,38 +389,21 @@ const CartDrawer: React.FC = () => {
           </Flex>
         </Flex>
 
-        {/* ── Cart creation date badge ──────────────────────────────────────── */}
+        {/* ── Cart date ─────────────────────────────────────────────────── */}
         {cartCreatedDate && (
-          <div
-            style={{
-              background: "#fefce8",
-              border: "1px solid #fde047",
-              borderRadius: 8,
-              padding: "6px 10px",
-              marginBottom: 10,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+          <div style={{ background: "#fefce8", border: "1px solid #fde047", borderRadius: 8, padding: "6px 10px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
             <CalendarOutlined style={{ color: "#eab308", fontSize: 14 }} />
-            <Text style={{ fontSize: 12, color: "#854d0e" }}>
-              Cart created: {cartCreatedDate}
-            </Text>
+            <Text style={{ fontSize: 12, color: "#854d0e" }}>Cart created: {cartCreatedDate}</Text>
           </div>
         )}
 
-        {/* ── Customer banner ──────────────────────────────────────────── */}
+        {/* ── Customer banner ───────────────────────────────────────────── */}
         {customerDetails && (
           <Flex
             align="center" gap={8}
-            style={{
-              background: "#f0fdf4", border: "1px solid #bbf7d0",
-              borderRadius: 8, padding: "8px 10px", marginBottom: 10,
-            }}
+            style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}
           >
-            <Avatar size={28} icon={<UserOutlined />}
-              style={{ background: primaryColor, flexShrink: 0 }} />
+            <Avatar size={28} icon={<UserOutlined />} style={{ background: primaryColor, flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <Text strong style={{ fontSize: 13, display: "block", lineHeight: 1.3 }}>
                 {customerDetails.customer_name || "Customer"}
@@ -436,36 +416,21 @@ const CartDrawer: React.FC = () => {
               )}
             </div>
             {customerDetails.customer_id && (
-              <Tag color="success" style={{ fontSize: 10, borderRadius: 4, flexShrink: 0, margin: 0 }}>
-                Linked
-              </Tag>
+              <Tag color="success" style={{ fontSize: 10, borderRadius: 4, flexShrink: 0, margin: 0 }}>Linked</Tag>
             )}
           </Flex>
         )}
 
-        {/* ── Column headers ───────────────────────────────────────────── */}
-        <div
-          style={{
-            display: "grid", gridTemplateColumns: "1fr 52px 80px 32px",
-            gap: 4, padding: "4px 6px",
-            background: "#f8fafc", borderRadius: 6, marginBottom: 6,
-          }}
-        >
+        {/* ── Column headers ────────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 52px 80px 32px", gap: 4, padding: "4px 6px", background: "#f8fafc", borderRadius: 6, marginBottom: 6 }}>
           {["Item", "Qty", "Price", ""].map((h, i) => (
-            <Text
-              key={i}
-              style={{
-                fontSize: 11, fontWeight: 600, color: "#94a3b8",
-                letterSpacing: 0.5, textTransform: "uppercase",
-                textAlign: i > 0 ? "center" : "left",
-              }}
-            >
+            <Text key={i} style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", letterSpacing: 0.5, textTransform: "uppercase", textAlign: i > 0 ? "center" : "left" }}>
               {h}
             </Text>
           ))}
         </div>
 
-        {/* ── Cart items ───────────────────────────────────────────────── */}
+        {/* ── Cart items ────────────────────────────────────────────────── */}
         <div style={{ marginBottom: 8 }}>
           {loading
             ? Array.from({ length: data?.length || 3 }, (_, i) => <SkeletonCartItemCard key={i} />)
@@ -475,91 +440,77 @@ const CartDrawer: React.FC = () => {
           {loadingData && loading && <CartLoader />}
         </div>
 
-        {/* ── Empty state ──────────────────────────────────────────────── */}
+        {/* ── Empty state ───────────────────────────────────────────────── */}
         {!memoizedData?.length && !loading && (
           <div style={{ padding: "20px 0", textAlign: "center" }}>
             <Empty
               image="/basket.png"
               imageStyle={{ height: 64, opacity: 0.5 }}
-              description={
-                <Text style={{ fontSize: 13, color: "#94a3b8" }}>Add items to get started</Text>
-              }
+              description={<Text style={{ fontSize: 13, color: "#94a3b8" }}>Add items to get started</Text>}
             />
           </div>
         )}
 
         {/* ── Order summary ─────────────────────────────────────────────── */}
         {memoizedData?.length > 0 && (
-          <div
-            style={{
-              background: "#f8fafc", borderRadius: 10,
-              padding: "10px 12px", marginBottom: 10,
-              border: "1px solid #e2e8f0",
-            }}
-          >
+          <div style={{ background: "#f8fafc", borderRadius: 10, padding: "10px 12px", marginBottom: 10, border: "1px solid #e2e8f0" }}>
+
             {cartDetails?.tip_amount && (
               <>
                 <SummaryRow
                   label={<><RestOutlined style={{ marginRight: 4 }} />Tip</>}
-                  value={
-                    cartDetails.tip_type === "amount"
-                      ? fmtKsh(cartDetails.tip_amount)
-                      : `${cartDetails.tip_amount}%`
-                  }
+                  value={cartDetails.tip_type === "amount" ? fmtKsh(cartDetails.tip_amount) : `${cartDetails.tip_amount}%`}
                 />
                 <Divider style={{ margin: "6px 0" }} />
               </>
             )}
 
-            <SummaryRow label="Subtotal" value={fmtKsh(subtotal)} muted />
-
-            {discountAmount > 0 && (
-              <SummaryRow
-                label={
-                  <Flex align="center" gap={6}>
-                    Discount
-                    <Tag color="success" style={{ fontSize: 10, margin: 0, borderRadius: 4 }}>
-                      {cartDetails.discount_type === "percentage"
-                        ? `${cartDetails.discount}% off`
-                        : fmtKsh(cartDetails.discount)}
-                    </Tag>
-                  </Flex>
-                }
-                value={`- ${fmtKsh(discountAmount)}`}
-                accent="#10b981"
-                muted
-              />
+            {discountAmount > 0 ? (
+              <>
+                <SummaryRow label="Subtotal" value={fmtKsh(grossBeforeDiscount)} muted />
+                <SummaryRow
+                  label={
+                    <Flex align="center" gap={6}>
+                      Discount
+                      <Tag color="success" style={{ fontSize: 10, margin: 0, borderRadius: 4 }}>
+                        {cartDetails.discount_type === "percentage"
+                          ? `${cartDetails.discount}% off`
+                          : fmtKsh(cartDetails.discount)}
+                      </Tag>
+                    </Flex>
+                  }
+                  value={`- ${fmtKsh(discountAmount)}`}
+                  accent="#10b981"
+                  muted
+                />
+              </>
+            ) : (
+              <SummaryRow label="Subtotal" value={fmtKsh(grandTotal)} muted />
             )}
 
             <SummaryRow label="VAT" value={fmtKsh(displayVat)} muted />
 
-            {discountAmount > 0 && discountedSubtotal !== subtotal && (
-              <SummaryRow
-                label="Discounted Subtotal"
-                value={fmtKsh(discountedSubtotal)}
-                muted
-                accent="#64748b"
-              />
-            )}
-
             <Divider style={{ margin: "8px 0" }} />
+
             <SummaryRow
               label="Amount Due"
-              value={fmtKsh(displayGrandTotal)}
+              value={fmtKsh(grandTotal)}
               strong
               accent={primaryColor}
             />
 
-            {/* ── Served by ──────────────────────────────────────────────── */}
+            {/* ── Print status badge ────────────────────────────────────── */}
             <Divider style={{ margin: "8px 0" }} />
+            <PrintStatusBadge
+              isReprint={isReprint}
+              printsRemaining={printsRemaining}
+              statusLoading={statusLoading}
+              primaryColor={primaryColor}
+            />
+
+            {/* ── Served by ─────────────────────────────────────────────── */}
             {editingServedBy ? (
-              <div
-                style={{
-                  background: `${primaryColor}08`,
-                  border: `1px solid ${primaryColor}40`,
-                  borderRadius: 8, padding: "8px 10px",
-                }}
-              >
+              <div style={{ background: `${primaryColor}08`, border: `1px solid ${primaryColor}40`, borderRadius: 8, padding: "8px 10px" }}>
                 <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginBottom: 6 }}>
                   <SmileFilled style={{ color: "#fbbf24", marginRight: 4 }} />
                   Change staff member
@@ -575,25 +526,18 @@ const CartDrawer: React.FC = () => {
                     onChange={handleServedByChange}
                     autoFocus
                   />
-                  <Button size="middle" onClick={() => setEditingServedBy(false)}
-                    disabled={updatingServedBy} style={{ borderRadius: 6 }}>
+                  <Button size="middle" onClick={() => setEditingServedBy(false)} disabled={updatingServedBy} style={{ borderRadius: 6 }}>
                     Cancel
                   </Button>
                 </Flex>
               </div>
             ) : (
               <div
-                onClick={() =>
-                  (user?.role === "admin" || user?.role === "cashier") &&
-                  cartDetails?._id &&
-                  setEditingServedBy(true)
-                }
+                onClick={() => (user?.role === "admin" || user?.role === "cashier") && cartDetails?._id && setEditingServedBy(true)}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
-                  background: "#fff", border: "1px solid #e2e8f0",
-                  borderRadius: 8, padding: "8px 10px",
-                  cursor: (user?.role === "admin" || user?.role === "cashier") && cartDetails?._id
-                    ? "pointer" : "default",
+                  background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px",
+                  cursor: (user?.role === "admin" || user?.role === "cashier") && cartDetails?._id ? "pointer" : "default",
                   transition: "border-color 0.2s, background 0.2s",
                 }}
                 onMouseEnter={(e) => {
@@ -610,9 +554,7 @@ const CartDrawer: React.FC = () => {
                 <Flex align="center" gap={6}>
                   <SmileFilled style={{ color: "#fbbf24", fontSize: 14 }} />
                   <div>
-                    <Text style={{ fontSize: 10, color: "#94a3b8", display: "block", lineHeight: 1.2 }}>
-                      Served by
-                    </Text>
+                    <Text style={{ fontSize: 10, color: "#94a3b8", display: "block", lineHeight: 1.2 }}>Served by</Text>
                     <Text style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
                       {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}
                     </Text>
@@ -621,12 +563,7 @@ const CartDrawer: React.FC = () => {
                 {(user?.role === "admin" || user?.role === "cashier") && cartDetails?._id && (
                   <Flex
                     align="center" gap={4}
-                    style={{
-                      background: `${primaryColor}15`, border: `1px solid ${primaryColor}40`,
-                      borderRadius: 6, padding: "3px 8px",
-                      color: primaryColor, fontSize: 11, fontWeight: 600,
-                      pointerEvents: "none",
-                    }}
+                    style={{ background: `${primaryColor}15`, border: `1px solid ${primaryColor}40`, borderRadius: 6, padding: "3px 8px", color: primaryColor, fontSize: 11, fontWeight: 600, pointerEvents: "none" }}
                   >
                     <EditOutlined style={{ fontSize: 11 }} />
                     Change
@@ -637,15 +574,26 @@ const CartDrawer: React.FC = () => {
           </div>
         )}
 
-        {/* ── Action buttons ───────────────────────────────────────────── */}
+        {/* ── Action buttons ────────────────────────────────────────────── */}
         {memoizedData?.length > 0 && (
           <Space direction="vertical" style={{ width: "100%" }} size={8}>
             <Flex gap={8} wrap="wrap">
               <ClientPin cart={cartDetails} />
               {isSpa ? (
-                <PrintBillSpaModal cartDetails={cartDetails} data={data} />
+                <PrintBillSpaModal
+                  cartDetails={cartDetails}
+                  data={data}
+                  {...printProps}
+                />
               ) : (
-                <PrintBillModal cartDetails={cartDetails} data={data} />
+                <PrintBillModal
+                  cartDetails={cartDetails}
+                  data={data}
+                  {...printProps}
+                />
+              )}
+              {(user?.role === "admin" || user?.role === "cashier") && (
+                <DiscountModal data={cartDetails} />
               )}
             </Flex>
             {user?.role === "admin" && (
@@ -664,15 +612,9 @@ const CartDrawer: React.FC = () => {
         )}
       </div>
 
-      {/* ── Sticky checkout footer ───────────────────────────────────────── */}
+      {/* ── Sticky checkout footer ────────────────────────────────────────── */}
       {canCheckout && (
-        <div
-          style={{
-            flexShrink: 0, padding: "10px 14px",
-            borderTop: "1px solid #e2e8f0",
-            background: "#fff", boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
-          }}
-        >
+        <div style={{ flexShrink: 0, padding: "10px 14px", borderTop: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 -2px 8px rgba(0,0,0,0.04)" }}>
           <PaymentDrawer customerDetails={customerDetails} />
         </div>
       )}

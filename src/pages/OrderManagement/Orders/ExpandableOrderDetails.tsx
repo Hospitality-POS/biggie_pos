@@ -15,7 +15,6 @@ import { repostOrderPayment } from "@services/orders";
 
 const { Text } = Typography;
 
-// ── Palette ────────────────────────────────────────────────────────────────
 const C = {
   primary: "#6c1c2c",
   primaryLight: "#f9f0f2",
@@ -30,7 +29,6 @@ const C = {
   bg: "#f8fafc",
 };
 
-// ── Mobile hook ────────────────────────────────────────────────────────────
 const useIsMobile = () => {
   const [v, setV] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -41,7 +39,6 @@ const useIsMobile = () => {
   return v;
 };
 
-// ── CSS-only tags ──────────────────────────────────────────────────────────
 const pill = (bg: string, color: string, border: string): React.CSSProperties => ({
   display: "inline-block", borderRadius: 5, padding: "2px 8px",
   fontSize: 10, fontWeight: 700, letterSpacing: "0.3px",
@@ -72,7 +69,6 @@ const PaymentStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
-// ── Interfaces ─────────────────────────────────────────────────────────────
 interface ProductReference { _id: string; name: string; price: number }
 interface CategoryReference { _id: string; name: string }
 interface OrderItem {
@@ -88,12 +84,12 @@ interface VATDetail { rate: number; amount: number; net: number }
 interface OrderDetailsInterface {
   _id: string; order_no: string; order_type: string; createdAt: string;
   served_by?: UserReference; order_items?: OrderItem[]; order_payments?: OrderPayment[];
-  discount?: number; discount_type?: string; subtotal: number;
+  discount?: number; discount_type?: string; discount_amount?: number;
+  subtotal: number; total_cart_amount?: number;
   total_vat_amount: number; vat_breakdown?: Record<string, VATDetail>; order_amount: number;
 }
 interface EditingItem { itemId: string; quantity: number; createdAt: string }
 
-// ── Shared sub-components ──────────────────────────────────────────────────
 const SectionLabel: React.FC<{ children: React.ReactNode; right?: React.ReactNode }> = ({ children, right }) => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
     <Text style={{ fontSize: 10, color: C.subText, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 700 }}>
@@ -113,7 +109,6 @@ const MetaRow = ({ label, children }: { label: string; children: React.ReactNode
   </div>
 );
 
-// ── Mobile item card ───────────────────────────────────────────────────────
 const MobileItemCard: React.FC<{
   item: OrderItem;
   isEditing: boolean;
@@ -129,15 +124,12 @@ const MobileItemCard: React.FC<{
     background: "#fff", border: `1px solid ${C.border}`,
     borderRadius: 8, padding: "10px 12px", marginBottom: 8,
   }}>
-    {/* Product name + type */}
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
       <Text strong style={{ fontSize: 13, color: C.darkText, flex: 1, marginRight: 8 }}>
         {item.product_id?.name}
       </Text>
       <ItemTypeTag isSubscription={item.is_subscription_item} />
     </div>
-
-    {/* Fields */}
     <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
       <MetaRow label="Category">
         <Text style={{ fontSize: 12 }}>{item.category_id?.name || "—"}</Text>
@@ -173,8 +165,6 @@ const MobileItemCard: React.FC<{
         )}
       </MetaRow>
     </div>
-
-    {/* Actions */}
     <div style={{ display: "flex", gap: 6, paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
       {isEditing ? (
         <>
@@ -211,7 +201,6 @@ const MobileItemCard: React.FC<{
   </div>
 );
 
-// ── Main component ─────────────────────────────────────────────────────────
 const ExpandedRowContent = ({
   record,
   onRefresh,
@@ -224,7 +213,8 @@ const ExpandedRowContent = ({
   const {
     _id: orderId, order_no, order_type, createdAt,
     served_by, order_items = [], order_payments = [],
-    discount = 0, discount_type, subtotal,
+    discount = 0, discount_type, discount_amount,
+    subtotal, total_cart_amount,
     total_vat_amount, vat_breakdown, order_amount,
   } = record;
 
@@ -242,6 +232,31 @@ const ExpandedRowContent = ({
   const needsPayment = isRegularOrder && !hasPayments;
   const orderItemsTotal = order_items.reduce((s, i) => s + i.price * i.quantity, 0);
 
+  // ── Discount display ────────────────────────────────────────────────────
+  // Use stored discount_amount if available (backend-calculated).
+  // Fall back to computing from discount + discount_type on total_cart_amount.
+  const computedDiscountAmount = (() => {
+    if (discount_amount !== undefined && discount_amount !== null) {
+      return Number(discount_amount);
+    }
+    if (!discount || discount <= 0) return 0;
+    const base = total_cart_amount || subtotal;
+    if (discount_type === "percentage") {
+      return (discount / 100) * base;
+    }
+    return Number(discount);
+  })();
+
+  // grossBeforeDiscount = what the order would have cost with no discount
+  // = order_amount + discountAmount
+  const grossBeforeDiscount = order_amount + computedDiscountAmount;
+
+  const discountLabel = (() => {
+    if (!discount || discount <= 0) return null;
+    if (discount_type === "percentage") return `Discount (${discount}% off)`;
+    return `Discount (KES ${Number(discount).toFixed(2)} off)`;
+  })();
+
   const vatBreakdownItems = vat_breakdown
     ? Object.entries(vat_breakdown).map(([type, d]) => ({
       label: `VAT (${type})`,
@@ -249,7 +264,7 @@ const ExpandedRowContent = ({
     }))
     : [];
 
-  // ── Handlers ───────────────────────────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────────────────────
   const handleEditOrderTimestamp = () => {
     setEditingOrderTs(true);
     orderTimestampForm.setFieldsValue({ createdAt: dayjs(createdAt) });
@@ -327,7 +342,6 @@ const ExpandedRowContent = ({
     }
   };
 
-  // ── Payment list ───────────────────────────────────────────────────────
   const PaymentList = () => (
     order_payments.length === 1 ? (
       <span style={{ fontSize: 12 }}>
@@ -346,7 +360,6 @@ const ExpandedRowContent = ({
     )
   );
 
-  // ── Desktop items table columns ────────────────────────────────────────
   const orderItemsColumns = [
     {
       title: "Product", dataIndex: ["product_id", "name"], key: "product_name",
@@ -425,7 +438,6 @@ const ExpandedRowContent = ({
     },
   ];
 
-  // ── Shared: missing payment alert + repost controls ────────────────────
   const MissingPaymentAlert = () =>
     isRegularOrder && needsPayment ? (
       <Alert
@@ -517,7 +529,62 @@ const ExpandedRowContent = ({
       </div>
     );
 
-  // ── MOBILE layout ──────────────────────────────────────────────────────
+  // ── Summary section — shared between mobile and desktop ─────────────────
+  // Shows: Subtotal (gross before discount) → Discount → VAT (info) → Amount Due
+  const SummarySection = () => (
+    <>
+      {/* Gross before discount */}
+      <MetaRow label="Subtotal">
+        <Text strong style={{ fontSize: 12 }}>
+          KES {computedDiscountAmount > 0 ? grossBeforeDiscount.toFixed(2) : order_amount.toFixed(2)}
+        </Text>
+      </MetaRow>
+
+      {/* Discount line — only shown when a discount was actually applied */}
+      {computedDiscountAmount > 0 && discountLabel && (
+        <MetaRow label={discountLabel}>
+          <span style={pill("#fef2f2", C.red, "#fecaca")}>
+            − KES {computedDiscountAmount.toFixed(2)}
+          </span>
+        </MetaRow>
+      )}
+
+      {/* VAT breakdown — informational only, already included in order_amount */}
+      {vatBreakdownItems.map((item, i) => (
+        <MetaRow key={i} label={`${item.label} (incl.)`}>
+          <Text style={{ fontSize: 12, color: C.subText }}>{item.value}</Text>
+        </MetaRow>
+      ))}
+
+      {total_vat_amount > 0 && vatBreakdownItems.length === 0 && (
+        <MetaRow label="VAT (incl.)">
+          <span style={pill("#eff6ff", C.blue, "#bfdbfe")}>KES {total_vat_amount?.toFixed(2)}</span>
+        </MetaRow>
+      )}
+
+      {/* Payments */}
+      {order_payments.length > 0 && (
+        <MetaRow label="Total Paid">
+          <Text strong style={{ fontSize: 12, color: C.green }}>
+            KES {order_payments.reduce((s, p) => s + p.amount, 0).toFixed(2)}
+          </Text>
+        </MetaRow>
+      )}
+
+      {/* Amount Due — always the prominent final line */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 10 }}>
+        <Text style={{ fontSize: 12, color: C.subText }}>Amount Due</Text>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Text strong style={{ fontSize: 15, color: C.primary }}>KES {order_amount?.toFixed(2)}</Text>
+          {order_type === "Subscription_Visit" && order_amount === 0 && (
+            <span style={pill("#faf5ff", C.purple, "#e9d5ff")}>Pre-paid</span>
+          )}
+        </div>
+      </div>
+    </>
+  );
+
+  // ── MOBILE layout ────────────────────────────────────────────────────────
   if (isMobile) {
     const card = (content: React.ReactNode) => (
       <div style={{
@@ -532,7 +599,6 @@ const ExpandedRowContent = ({
       <div style={{ padding: "8px 0" }}>
         <MissingPaymentAlert />
 
-        {/* Order info card */}
         {card(
           <>
             <SectionLabel>Order Info</SectionLabel>
@@ -557,7 +623,6 @@ const ExpandedRowContent = ({
           </>,
         )}
 
-        {/* Items */}
         {order_items.length > 0 && (
           <>
             <div style={{ marginBottom: 6, paddingLeft: 2 }}>
@@ -570,78 +635,32 @@ const ExpandedRowContent = ({
             <Form form={form} component={false}>
               {order_items.map((item) => (
                 <MobileItemCard
-                  key={item._id}
-                  item={item}
+                  key={item._id} item={item}
                   isEditing={editingItem?.itemId === item._id}
-                  loading={loading}
-                  deletingItemId={deletingItemId}
-                  form={form}
-                  onEdit={handleEdit}
-                  onSave={handleSave}
-                  onCancel={handleCancel}
+                  loading={loading} deletingItemId={deletingItemId} form={form}
+                  onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel}
                   onDelete={handleDeleteItem}
                 />
               ))}
             </Form>
-            {/* Items total */}
-            <div style={{
-              display: "flex", justifyContent: "flex-end",
-              padding: "8px 14px", marginBottom: 10,
-              background: C.primaryLight, borderRadius: 8,
-              border: `1px solid ${C.border}`,
-            }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 14px", marginBottom: 10, background: C.primaryLight, borderRadius: 8, border: `1px solid ${C.border}` }}>
               <Text style={{ fontSize: 12, color: C.subText, marginRight: 12 }}>Items Total</Text>
               <Text strong style={{ fontSize: 13, color: C.primary }}>KES {orderItemsTotal.toFixed(2)}</Text>
             </div>
           </>
         )}
 
-        {/* Totals card */}
         {card(
           <>
             <SectionLabel>Summary</SectionLabel>
-            <MetaRow label="Subtotal">
-              <Text strong style={{ fontSize: 12 }}>KES {subtotal?.toFixed(2)}</Text>
-            </MetaRow>
-            {vatBreakdownItems.map((item, i) => (
-              <MetaRow key={i} label={item.label}>
-                <Text style={{ fontSize: 12 }}>{item.value}</Text>
-              </MetaRow>
-            ))}
-            {total_vat_amount > 0 && (
-              <MetaRow label="Total VAT">
-                <span style={pill("#eff6ff", C.blue, "#bfdbfe")}>KES {total_vat_amount?.toFixed(2)}</span>
-              </MetaRow>
-            )}
-            {discount > 0 && (
-              <MetaRow label={`Discount (${discount_type || "fixed"})`}>
-                <span style={pill("#fffbeb", C.orange, "#fde68a")}>−KES {discount?.toFixed(2)}</span>
-              </MetaRow>
-            )}
-            {order_payments.length > 0 && (
-              <MetaRow label="Total Paid">
-                <Text strong style={{ fontSize: 12, color: C.green }}>
-                  KES {order_payments.reduce((s, p) => s + p.amount, 0).toFixed(2)}
-                </Text>
-              </MetaRow>
-            )}
-            {/* Order amount — prominent */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 10 }}>
-              <Text style={{ fontSize: 12, color: C.subText }}>Order Amount</Text>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Text strong style={{ fontSize: 15, color: C.primary }}>KES {order_amount?.toFixed(2)}</Text>
-                {order_type === "Subscription_Visit" && order_amount === 0 && (
-                  <span style={pill("#faf5ff", C.purple, "#e9d5ff")}>Pre-paid</span>
-                )}
-              </div>
-            </div>
+            <SummarySection />
           </>,
         )}
       </div>
     );
   }
 
-  // ── DESKTOP layout ─────────────────────────────────────────────────────
+  // ── DESKTOP layout ────────────────────────────────────────────────────────
   return (
     <div style={{ padding: 16, background: C.bg }}>
       <MissingPaymentAlert />
@@ -703,29 +722,37 @@ const ExpandedRowContent = ({
             <PaymentMethodSection />
           </ProDescriptions.Item>
 
+          {/* Subtotal = gross before discount */}
           <ProDescriptions.Item label="Subtotal" span={2}>
-            <Text strong style={{ fontSize: 12 }}>KES {subtotal?.toFixed(2)}</Text>
+            <Text strong style={{ fontSize: 12 }}>
+              KES {computedDiscountAmount > 0 ? grossBeforeDiscount.toFixed(2) : order_amount.toFixed(2)}
+            </Text>
           </ProDescriptions.Item>
 
+          {/* Discount — only shown when applied */}
+          {computedDiscountAmount > 0 && discountLabel && (
+            <ProDescriptions.Item label={discountLabel} span={2}>
+              <span style={pill("#fef2f2", C.red, "#fecaca")}>
+                − KES {computedDiscountAmount.toFixed(2)}
+              </span>
+            </ProDescriptions.Item>
+          )}
+
+          {/* VAT breakdown — informational */}
           {vatBreakdownItems.map((item, i) => (
-            <ProDescriptions.Item key={i} label={item.label}>
+            <ProDescriptions.Item key={i} label={`${item.label} (incl.)`}>
               <Text style={{ fontSize: 12 }}>{item.value}</Text>
             </ProDescriptions.Item>
           ))}
 
-          {total_vat_amount > 0 && (
-            <ProDescriptions.Item label="Total VAT" span={2}>
+          {total_vat_amount > 0 && vatBreakdownItems.length === 0 && (
+            <ProDescriptions.Item label="VAT (incl.)" span={2}>
               <span style={pill("#eff6ff", C.blue, "#bfdbfe")}>KES {total_vat_amount?.toFixed(2)}</span>
             </ProDescriptions.Item>
           )}
 
-          {discount > 0 && (
-            <ProDescriptions.Item label={`Discount (${discount_type || "fixed"})`} span={2}>
-              <span style={pill("#fffbeb", C.orange, "#fde68a")}>−KES {discount?.toFixed(2)}</span>
-            </ProDescriptions.Item>
-          )}
-
-          <ProDescriptions.Item label="Order Amount" span={2}>
+          {/* Amount Due — prominent */}
+          <ProDescriptions.Item label="Amount Due" span={2}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Text strong style={{ fontSize: 13, color: C.primary }}>KES {order_amount?.toFixed(2)}</Text>
               {order_type === "Subscription_Visit" && order_amount === 0 && (

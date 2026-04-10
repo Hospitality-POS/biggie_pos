@@ -18,6 +18,21 @@ export interface ShopLocation {
   maps_url?: string | null;
 }
 
+export interface ShopPrintSettings {
+  enabled?: boolean;
+  global_print_limit?: number | null;
+  per_document_type_limits?: {
+    bill?: number | null;
+    receipt?: number | null;
+    invoice?: number | null;
+    quotation?: number | null;
+  };
+  allow_reprint?: boolean;
+  reprint_requires_admin?: boolean;
+  reprint_requires_reason?: boolean;
+  save_on_print?: boolean;
+}
+
 export const locationFromGooglePlace = (place: google.maps.places.PlaceResult): ShopLocation => {
   const getComponent = (type: string) =>
     place.address_components?.find(c => c.types.includes(type))?.long_name ?? null;
@@ -34,7 +49,6 @@ export const locationFromGooglePlace = (place: google.maps.places.PlaceResult): 
   };
 };
 
-// Display string — works for legacy string and new location object
 export const locationDisplay = (location: string | ShopLocation | null | undefined): string => {
   if (!location) return "";
   if (typeof location === "string") return location;
@@ -86,6 +100,25 @@ export const updatePosMode = async (shopId: string, posMode: "restaurant" | "ret
       message.error("Error updating POS mode");
     }
     throw error;
+  }
+};
+
+export const updateShopPrintSettings = async (
+  shopId: string,
+  settings: ShopPrintSettings
+): Promise<boolean> => {
+  try {
+    await axiosInstance.put(
+      `${BASE_URL}/printed-documents/shop-settings/${shopId}`,
+      settings
+    );
+    message.success("Print settings saved");
+    return true;
+  } catch (error: any) {
+    if (error?.response?.status !== 403) {
+      message.error(error?.response?.data?.message || "Error saving print settings");
+    }
+    return false;
   }
 };
 

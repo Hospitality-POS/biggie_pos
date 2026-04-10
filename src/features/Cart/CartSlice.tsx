@@ -91,58 +91,91 @@ const calculateTotals = (state: CartState) => {
 
   const VAT_ENABLED = tenant?.is_vat_enabled ?? true;
   const VAT_MODE = tenant?.vat_pricing_mode || "EXCLUSIVE";
-  const VAT_RATE = VAT_ENABLED ? tenant?.vat_standard_rate || 0.16 : 0;
+  const VAT_RATE = VAT_ENABLED ? (tenant?.vat_standard_rate || 0.16) : 0;
 
   let subtotal = 0;
   let totalVatAmount = 0;
-  let grandTotal = 0;
+  let grossTotal = 0;
 
   state.cartItems.forEach((item) => {
-    const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
+    const unitPrice = typeof item.price === "string" ? parseFloat(item.price) : item.price;
+    const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : (item.quantity || 1);
 
-    let lineNet = price;
-    let lineVat = 0;
-    let lineGross = price;
+    // line value = unit price × quantity
+    const linePrice = unitPrice * quantity;
 
     const isVatApplicable = VAT_ENABLED && item.vat_type === "STANDARD";
 
+    let lineNet = linePrice;
+    let lineVat = 0;
+    let lineGross = linePrice;
+
     if (isVatApplicable) {
-      if (VAT_MODE === "EXCLUSIVE") {
-        lineNet = price;
+      if (VAT_MODE === "INCLUSIVE") {
+        // price already contains VAT — extract net and VAT
+        lineNet = linePrice / (1 + VAT_RATE);
+        lineVat = linePrice - lineNet;
+        lineGross = linePrice;
+      } else {
+        // EXCLUSIVE — price is net, VAT added on top
+        lineNet = linePrice;
         lineVat = lineNet * VAT_RATE;
         lineGross = lineNet + lineVat;
-      } else {
-        lineGross = price;
-        lineVat = (lineGross * VAT_RATE) / (1 + VAT_RATE);
-        lineNet = lineGross - lineVat;
       }
     }
 
     subtotal += lineNet;
     totalVatAmount += lineVat;
-    grandTotal += lineGross;
+    grossTotal += lineGross;
   });
 
+  // ── Discount ──────────────────────────────────────────────────────────────
+  // INCLUSIVE: discount base is grossTotal (prices already contain VAT)
+  // EXCLUSIVE: discount base is subtotal (net), VAT recalculated after
   let discountAmount = 0;
-  if (state.cartDetails.discount) {
+  if (state.cartDetails.discount && state.cartDetails.discount > 0) {
+    const discountBase = VAT_MODE === "INCLUSIVE" ? grossTotal : subtotal;
     discountAmount =
       state.cartDetails.discount_type === "percentage"
-        ? (grandTotal * state.cartDetails.discount) / 100
+        ? discountBase * (state.cartDetails.discount / 100)
         : state.cartDetails.discount;
+    discountAmount = Math.min(discountAmount, discountBase);
   }
 
-  let tipAmount = 0;
-  if (state.cartDetails.tip_amount) {
-    const baseForTip = grandTotal - discountAmount;
-    tipAmount =
+  let grandTotal = 0;
+  let displayVat = 0;
+
+  if (VAT_MODE === "INCLUSIVE") {
+    // grandTotal = grossTotal - discount (VAT already inside prices)
+    grandTotal = grossTotal - discountAmount;
+    // VAT extracted from ORIGINAL grossTotal before discount — informational only
+    // Never subtracted from grandTotal
+    displayVat = grossTotal * (VAT_RATE / (1 + VAT_RATE));
+  } else {
+    // grandTotal = (subtotal - discount) + recalculated VAT on discounted base
+    const discountedNet = subtotal - discountAmount;
+    const vatRatio = subtotal > 0 ? discountedNet / subtotal : 1;
+    displayVat = totalVatAmount * vatRatio;
+    grandTotal = discountedNet + displayVat;
+  }
+
+  // ── Tip applied on grandTotal after discount ──────────────────────────────
+  if (state.cartDetails.tip_amount && state.cartDetails.tip_amount > 0) {
+    const tipAmount =
       state.cartDetails.tip_type === "percentage"
-        ? (baseForTip * state.cartDetails.tip_amount) / 100
+        ? grandTotal * (state.cartDetails.tip_amount / 100)
         : state.cartDetails.tip_amount;
+    grandTotal += tipAmount;
   }
 
-  state.subtotal = parseFloat(subtotal.toFixed(2));
-  state.totalVatAmount = parseFloat(totalVatAmount.toFixed(2));
-  state.grandTotal = parseFloat((grandTotal - discountAmount + tipAmount).toFixed(2));
+  // subtotal shown to user:
+  //   INCLUSIVE → grossTotal (full price tag total before discount)
+  //   EXCLUSIVE → net subtotal (pre-VAT sum)
+  state.subtotal = parseFloat(
+    (VAT_MODE === "INCLUSIVE" ? grossTotal : subtotal).toFixed(2)
+  );
+  state.totalVatAmount = parseFloat(displayVat.toFixed(2));
+  state.grandTotal = parseFloat(grandTotal.toFixed(2));
 };
 
 const cartSlice = createSlice({
@@ -195,14 +228,12 @@ const cartSlice = createSlice({
       .addCase(createCart.fulfilled, (state) => { state.loading = false; })
       .addCase(createCart.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; })
 
-      // ── getCart: single source of truth — recalculates ALL totals ───────
       .addCase(getCart.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(getCart.fulfilled, (state, action) => {
         state.loading = false;
         state.cartDetails = action.payload;
         state.cartDetails.clientPin = action.payload.client_pin;
         state.cartDetails.clientName = action.payload.client_name;
-        // Preserve served_by from API response
         state.cartDetails.served_by = action.payload.served_by ?? undefined;
         state.cartItems = action.payload.items.map((item: any) => ({
           ...item,
@@ -240,7 +271,6 @@ const cartSlice = createSlice({
         state.cartDetails = {
           ...state.cartDetails,
           ...action.payload,
-          // Always re-map served_by so the display updates immediately
           served_by: action.payload.served_by ?? state.cartDetails.served_by,
         };
         calculateTotals(state);
@@ -282,10 +312,6 @@ const cartSlice = createSlice({
         state.transferState = false;
       })
 
-      // ── addQtyCart / removeQtyCart / updateCartItemQty ──────────────────
-      // Each thunk: (1) calls PUT /cart-item/:id, then (2) dispatches getCart.
-      // getCart.fulfilled above handles all state + recalculates totals.
-      // These cases ONLY manage the loading flag — no patching needed here.
       .addCase(addQtyCart.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(addQtyCart.fulfilled, (state) => { state.loading = false; })
       .addCase(addQtyCart.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; })

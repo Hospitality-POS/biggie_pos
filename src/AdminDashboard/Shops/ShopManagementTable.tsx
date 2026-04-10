@@ -1,3 +1,4 @@
+// ShopManagementTable.tsx (updated - added print settings tab)
 import React, { useRef, useMemo, useEffect, useState, useCallback } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
@@ -8,7 +9,7 @@ import {
   DeleteOutlined, ShopOutlined, ArrowRightOutlined,
   BranchesOutlined, DollarOutlined, TeamOutlined,
   EnvironmentOutlined, ReloadOutlined, MedicineBoxOutlined,
-  GlobalOutlined, LinkOutlined, SolutionOutlined,
+  GlobalOutlined, LinkOutlined, SolutionOutlined, PrinterOutlined,
 } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -17,6 +18,7 @@ import {
 } from "@services/shops";
 import AddEditShopModal from "@components/MODALS/pro/AddEditShopModal";
 import { useNavigate } from "react-router-dom";
+import PrintSettingsTab from "../../pages/Settings/systemSetup/PrintSettingsTab"; // Import the print settings component
 
 const { Text } = Typography;
 
@@ -687,6 +689,20 @@ const ShopManagementTable: React.FC = () => {
       children: (
         <div style={{ padding: 16 }}>
           <MapView shops={shopsWithLocation} height={500} />
+        </div>
+      ),
+    },
+    {
+      key: "print-settings",
+      label: (
+        <Space size={4}>
+          <PrinterOutlined style={{ color: "#6c1c2c" }} />
+          Print Settings
+        </Space>
+      ),
+      children: (
+        <div style={{ padding: 16, backgroundColor: "#fafafa", borderRadius: "8px" }}>
+          <PrintSettingsTab />
         </div>
       ),
     },
