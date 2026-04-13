@@ -114,7 +114,7 @@ const triggerAppRefresh = (queryClient: any, label = "Changes applied") => {
     }, 1000);
 };
 
-// ── Integrations ───────────────────────────────────────────────────────────────
+// ── Integrations (Conversations removed — it lives inside the Mteja card) ─────
 const INTEGRATIONS = [
     {
         id: "relia_pos",
@@ -173,25 +173,6 @@ const INTEGRATIONS = [
         icon: CustomerServiceOutlined,
         color: C.primary,
         tags: ["Base Suite", "CRM", "Loyalty"],
-    },
-    // ── Conversations — sub-feature of Mteja ──────────────────────────────────
-    {
-        id: "conversations",
-        name: "Conversations",
-        category: "Omnichannel Messaging",
-        description: "Unified inbox for WhatsApp, SMS, and web chat — managed directly inside Mteja by Base.",
-        longDescription: "Conversations brings all your customer messages into one place. Connect WhatsApp Business, SMS, and web chat channels, assign conversations to staff, send template messages, and respond instantly — all from within the Mteja by Base CRM suite.",
-        features: ["Unified Inbox", "WhatsApp Business Integration", "SMS Channel", "Web Chat Widget", "Conversation Assignment", "Staff Collaboration", "Message Templates"],
-        comingSoonFeatures: ["AI Auto-Reply", "Chatbot Builder", "Broadcast Campaigns"],
-        benefits: ["Never miss a customer message", "Faster response times", "Full conversation history", "Team inbox visibility", "Seamless CRM integration"],
-        setupTime: "5 minutes",
-        status: "available",
-        icon: CommentOutlined,
-        color: C.teal,
-        tags: ["Base Suite", "Mteja", "WhatsApp", "Omnichannel"],
-        // Conversations requires Mteja to be enabled first
-        requiresModule: "mteja",
-        requiresLabel: "Mteja by Base",
     },
     {
         id: "etims",
@@ -353,21 +334,113 @@ const PricingPill: React.FC<{ status: string }> = ({ status }) => {
     );
 };
 
+// ── Conversations sub-feature panel (rendered inside the Mteja card) ───────────
+const ConversationsSubFeature: React.FC<{
+    isConversationsEnabled: boolean;
+    isMtejaEnabled: boolean;
+    enableLoading: boolean;
+    disableLoading: boolean;
+    onEnable: () => void;
+    onDisable: () => void;
+}> = ({ isConversationsEnabled, isMtejaEnabled, enableLoading, disableLoading, onEnable, onDisable }) => (
+    <div style={{
+        border: `1px solid ${isConversationsEnabled ? C.teal + "60" : C.border}`,
+        borderRadius: 10,
+        padding: "10px 12px",
+        marginTop: 10,
+        background: isConversationsEnabled ? `${C.teal}06` : C.bg,
+        transition: "all 0.2s",
+    }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <div style={{
+                    width: 28, height: 28, borderRadius: 7,
+                    background: isConversationsEnabled ? `${C.teal}18` : "#f1f5f9",
+                    color: isConversationsEnabled ? C.teal : C.subText,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, flexShrink: 0,
+                }}>
+                    <CommentOutlined />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <Text strong style={{ fontSize: 12, color: C.darkText }}>Conversations</Text>
+                        {isConversationsEnabled && (
+                            <span style={{
+                                background: "#f0fdf4", color: C.green,
+                                borderRadius: 5, fontSize: 9, fontWeight: 700,
+                                padding: "1px 6px", display: "flex", alignItems: "center", gap: 3,
+                            }}>
+                                <CheckCircleOutlined style={{ fontSize: 9 }} /> On
+                            </span>
+                        )}
+                    </div>
+                    <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>
+                        Omnichannel inbox — WhatsApp, SMS & web chat
+                    </Text>
+                </div>
+            </div>
+
+            {isMtejaEnabled ? (
+                isConversationsEnabled ? (
+                    <Button
+                        size="small"
+                        danger
+                        icon={<PoweroffOutlined />}
+                        loading={disableLoading}
+                        onClick={onDisable}
+                        style={{ borderRadius: 7, fontSize: 11, flexShrink: 0 }}
+                    >
+                        Disable
+                    </Button>
+                ) : (
+                    <Button
+                        size="small"
+                        icon={<PlusOutlined />}
+                        loading={enableLoading}
+                        onClick={onEnable}
+                        style={{
+                            borderRadius: 7, fontSize: 11, flexShrink: 0,
+                            background: C.teal, borderColor: C.teal, color: "#fff",
+                        }}
+                    >
+                        Enable
+                    </Button>
+                )
+            ) : (
+                <span style={{
+                    background: "#fff8ed", color: C.orange,
+                    borderRadius: 6, fontSize: 10, fontWeight: 600,
+                    padding: "3px 8px", border: `1px solid ${C.orange}30`,
+                    display: "flex", alignItems: "center", gap: 3, flexShrink: 0,
+                }}>
+                    <LockOutlined style={{ fontSize: 9 }} /> Enable Mteja first
+                </span>
+            )}
+        </div>
+    </div>
+);
+
 // ── Integration card ───────────────────────────────────────────────────────────
 const IntegrationCard: React.FC<{
     integration: (typeof INTEGRATIONS)[0];
     isEnabled: boolean;
-    requirementMet: boolean;        // false when a required parent module isn't enabled
     onEnable: () => void;
     onDisable: () => void;
     onLearnMore: () => void;
     enableLoading?: boolean;
     disableLoading?: boolean;
-}> = ({ integration, isEnabled, requirementMet, onEnable, onDisable, onLearnMore, enableLoading, disableLoading }) => {
+    // Conversations sub-feature props (only used for Mteja card)
+    conversationsProps?: {
+        isEnabled: boolean;
+        enableLoading: boolean;
+        disableLoading: boolean;
+        onEnable: () => void;
+        onDisable: () => void;
+    };
+}> = ({ integration, isEnabled, onEnable, onDisable, onLearnMore, enableLoading, disableLoading, conversationsProps }) => {
     const Icon = integration.icon;
     const isComingSoon = integration.status === "coming_soon";
-    const isLocked = !requirementMet && !isEnabled;
-    const req = (integration as any).requiresLabel as string | undefined;
 
     return (
         <Card
@@ -375,13 +448,10 @@ const IntegrationCard: React.FC<{
                 height: "100%", borderRadius: 14,
                 border: isEnabled
                     ? `1.5px solid ${integration.color}`
-                    : isLocked
-                        ? `1px dashed ${C.border}`
-                        : `1px solid ${C.border}`,
+                    : `1px solid ${C.border}`,
                 boxShadow: isEnabled ? `0 4px 20px ${integration.color}20` : "0 1px 4px rgba(0,0,0,0.04)",
-                background: isEnabled ? `${integration.color}03` : isLocked ? "#fafafa" : "#fff",
+                background: isEnabled ? `${integration.color}03` : "#fff",
                 transition: "box-shadow 0.2s, border-color 0.2s",
-                opacity: isLocked ? 0.75 : 1,
             }}
             bodyStyle={{ padding: "18px 20px", height: "100%", display: "flex", flexDirection: "column" }}
         >
@@ -399,11 +469,6 @@ const IntegrationCard: React.FC<{
                     {isComingSoon && (
                         <span style={{ background: C.bg, color: C.subText, borderRadius: 6, fontSize: 10, fontWeight: 600, padding: "3px 8px" }}>Coming Soon</span>
                     )}
-                    {isLocked && (
-                        <span style={{ background: "#fff8ed", color: C.orange, borderRadius: 6, fontSize: 10, fontWeight: 600, padding: "3px 8px", border: `1px solid ${C.orange}30`, display: "flex", alignItems: "center", gap: 3 }}>
-                            <LockOutlined style={{ fontSize: 9 }} /> Requires {req}
-                        </span>
-                    )}
                 </div>
             </div>
 
@@ -412,26 +477,25 @@ const IntegrationCard: React.FC<{
                 <Text style={{ fontSize: 11, color: C.subText }}>{integration.category}</Text>
             </div>
 
-            <Text style={{ fontSize: 12, color: C.subText, lineHeight: 1.6, display: "block", marginBottom: 14, flex: 1 }}>
+            <Text style={{ fontSize: 12, color: C.subText, lineHeight: 1.6, display: "block", marginBottom: 14, flex: conversationsProps ? 0 : 1 }}>
                 {integration.description}
             </Text>
 
-            {/* Parent module banner */}
-            {req && (
-                <div style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    background: isEnabled ? `${integration.color}10` : isLocked ? "#fff8ed" : `${integration.color}10`,
-                    border: `1px solid ${isLocked ? C.orange + "30" : integration.color + "30"}`,
-                    borderRadius: 7, padding: "5px 10px", marginBottom: 10,
-                }}>
-                    <CustomerServiceOutlined style={{ color: isLocked ? C.orange : integration.color, fontSize: 11, flexShrink: 0 }} />
-                    <Text style={{ fontSize: 11, color: isLocked ? C.orange : integration.color }}>
-                        Part of <strong>{req}</strong>
-                    </Text>
+            {/* Conversations sub-feature — only shown on the Mteja card */}
+            {conversationsProps && (
+                <div style={{ flex: 1 }}>
+                    <ConversationsSubFeature
+                        isConversationsEnabled={conversationsProps.isEnabled}
+                        isMtejaEnabled={isEnabled}
+                        enableLoading={conversationsProps.enableLoading}
+                        disableLoading={conversationsProps.disableLoading}
+                        onEnable={conversationsProps.onEnable}
+                        onDisable={conversationsProps.onDisable}
+                    />
                 </div>
             )}
 
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14, marginTop: 14 }}>
                 {integration.tags.map((tag, i) => (
                     <span key={i} style={{ background: i === 0 ? integration.color + "14" : C.bg, color: i === 0 ? integration.color : C.subText, borderRadius: 5, fontSize: 10, fontWeight: 600, padding: "2px 7px", border: `1px solid ${i === 0 ? integration.color + "30" : C.border}` }}>
                         {tag}
@@ -457,17 +521,17 @@ const IntegrationCard: React.FC<{
                     <Button
                         type="primary"
                         block
-                        icon={isComingSoon || isLocked ? <LockOutlined /> : <PlusOutlined />}
-                        disabled={isComingSoon || isLocked}
+                        icon={isComingSoon ? <LockOutlined /> : <PlusOutlined />}
+                        disabled={isComingSoon}
                         loading={enableLoading}
                         onClick={onEnable}
                         style={{
                             borderRadius: 8,
-                            background: (isComingSoon || isLocked) ? undefined : integration.color,
-                            borderColor: (isComingSoon || isLocked) ? undefined : integration.color,
+                            background: isComingSoon ? undefined : integration.color,
+                            borderColor: isComingSoon ? undefined : integration.color,
                         }}
                     >
-                        {isComingSoon ? "Coming Soon" : isLocked ? `Enable ${req} first` : "Enable"}
+                        {isComingSoon ? "Coming Soon" : "Enable"}
                     </Button>
                 )}
                 <Button block icon={<InfoCircleOutlined />} onClick={onLearnMore} style={{ borderRadius: 8, borderColor: C.border }}>
@@ -487,7 +551,7 @@ const LearnMoreModal: React.FC<{
     if (!integration) return null;
     const Icon = integration.icon;
     const isComingSoon = integration.status === "coming_soon";
-    const req = (integration as any).requiresLabel as string | undefined;
+    const isMteja = integration.id === "mteja";
 
     return (
         <Modal open={open} onCancel={onClose} footer={null} style={{ top: 20 }} width="min(660px, 96vw)" destroyOnClose
@@ -495,15 +559,6 @@ const LearnMoreModal: React.FC<{
         >
             <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 4 }}>
                 {isComingSoon && <Alert message="Coming Soon" description="This integration is under development. Stay tuned for updates!" type="warning" showIcon />}
-                {req && (
-                    <Alert
-                        message={`Requires ${req}`}
-                        description={`This feature is part of the ${req} suite. You must enable ${req} before activating Conversations.`}
-                        type="info"
-                        showIcon
-                        icon={<CustomerServiceOutlined />}
-                    />
-                )}
                 <FormSection>
                     <SectionLabel>About</SectionLabel>
                     <Text style={{ fontSize: 13, color: C.darkText, lineHeight: 1.7 }}>{integration.longDescription}</Text>
@@ -522,6 +577,24 @@ const LearnMoreModal: React.FC<{
                         </FormSection>
                     </Col>
                 </Row>
+
+                {/* Conversations callout inside Mteja learn-more */}
+                {isMteja && (
+                    <div style={{
+                        display: "flex", alignItems: "flex-start", gap: 10,
+                        background: `${C.teal}08`, border: `1px solid ${C.teal}30`,
+                        borderRadius: 10, padding: "12px 14px",
+                    }}>
+                        <CommentOutlined style={{ color: C.teal, fontSize: 16, flexShrink: 0, marginTop: 1 }} />
+                        <div>
+                            <Text strong style={{ fontSize: 13, color: C.teal, display: "block" }}>Includes Conversations</Text>
+                            <Text style={{ fontSize: 12, color: C.subText }}>
+                                Once Mteja is enabled, you can activate the Conversations omnichannel inbox (WhatsApp, SMS, web chat) directly from the Mteja card on this page.
+                            </Text>
+                        </div>
+                    </div>
+                )}
+
                 <div style={{
                     display: "flex", alignItems: "center", gap: 12,
                     background: C.primaryLight, border: `1px solid ${C.primary}20`,
@@ -587,17 +660,9 @@ const DiscoverPage: React.FC = () => {
         if (id === "relia_accounting") return t.modules?.accounting === true ? "enabled" : "not_enabled";
         if (id === "relia_payroll") return t.modules?.payroll === true ? "enabled" : "not_enabled";
         if (id === "mteja") return t.modules?.crm === true ? "enabled" : "not_enabled";
-        // Conversations is enabled when the omnichannel module flag is set
         if (id === "conversations") return t.modules?.omnichannel === true ? "enabled" : "not_enabled";
         if (id === "pesapal") return t.use_pesapal === true || pesapalConfig?.data?.enabled === true ? "enabled" : "not_enabled";
         return "not_enabled";
-    };
-
-    // Whether a card's prerequisite is satisfied
-    const isRequirementMet = (integration: (typeof INTEGRATIONS)[0]): boolean => {
-        const req = (integration as any).requiresModule as string | undefined;
-        if (!req) return true;
-        return getStatus(req) === "enabled";
     };
 
     const enabledCount = INTEGRATIONS.filter(i => getStatus(i.id) === "enabled").length;
@@ -679,7 +744,6 @@ const DiscoverPage: React.FC = () => {
         onError: (e: any) => notification.error({ message: "Failed to disable Mteja by Base", description: e.message, style: { borderRadius: 12 } }),
     });
 
-    // ── Conversations mutations (calls enableMteja / disableMteja with omnichannel flag) ──
     const enableConversationsMutation = useMutation({
         mutationFn: (values: any) => enableMteja(tenantId, { ...values, enable_omnichannel: true }),
         onSuccess: () => {
@@ -705,20 +769,10 @@ const DiscoverPage: React.FC = () => {
             notification.info({ message: `${integration.name} is already enabled`, style: { borderRadius: 12 } });
             return;
         }
-        if (!isRequirementMet(integration)) {
-            const req = (integration as any).requiresLabel as string;
-            notification.warning({
-                message: `${req} required`,
-                description: `Please enable ${req} before activating ${integration.name}.`,
-                style: { borderRadius: 12 },
-            });
-            return;
-        }
         if (integration.id === "relia_pos") { setPosModalOpen(true); return; }
         if (integration.id === "relia_accounting") { setAccountingModalOpen(true); return; }
         if (integration.id === "relia_payroll") { setBanduModalOpen(true); return; }
         if (integration.id === "mteja") { setMtejaModalOpen(true); return; }
-        if (integration.id === "conversations") { setConversationsModalOpen(true); return; }
         if (integration.id === "pesapal") { setPesapalModalOpen(true); setIsUpdatingPesapal(false); return; }
         notification.info({ message: "Coming soon", description: "This integration will be available soon.", style: { borderRadius: 12 } });
     };
@@ -745,11 +799,6 @@ const DiscoverPage: React.FC = () => {
                 content: "This will stop CRM, loyalty, and SMS features. If Conversations is active, it will also be disabled. Your customer data will be preserved.",
                 onOk: () => disableMtejaMutation.mutateAsync(),
             },
-            conversations: {
-                title: "Disable Conversations?",
-                content: "This will hide the omnichannel inbox. Your conversation history will be preserved and can be re-enabled at any time.",
-                onOk: () => disableConversationsMutation.mutateAsync(),
-            },
             pesapal: {
                 title: "Disable Pesapal?",
                 content: "This will stop payment processing through Pesapal. Are you sure?",
@@ -767,6 +816,17 @@ const DiscoverPage: React.FC = () => {
             title: c.title, content: c.content,
             okText: "Disable", okType: "danger",
             onOk: c.onOk,
+            style: { borderRadius: 12 },
+        });
+    };
+
+    const handleDisableConversations = () => {
+        Modal.confirm({
+            title: "Disable Conversations?",
+            content: "This will hide the omnichannel inbox. Your conversation history will be preserved and can be re-enabled at any time.",
+            okText: "Disable",
+            okType: "danger",
+            onOk: () => disableConversationsMutation.mutateAsync(),
             style: { borderRadius: 12 },
         });
     };
@@ -805,13 +865,11 @@ const DiscoverPage: React.FC = () => {
             <Row gutter={[16, 16]}>
                 {INTEGRATIONS.map((integration) => {
                     const isEnabled = getStatus(integration.id) === "enabled";
-                    const requirementMet = isRequirementMet(integration);
                     return (
                         <Col xs={24} sm={24} md={12} lg={8} key={integration.id}>
                             <IntegrationCard
                                 integration={integration}
                                 isEnabled={isEnabled}
-                                requirementMet={requirementMet}
                                 onEnable={() => handleEnable(integration)}
                                 onDisable={() => handleDisable(integration.id)}
                                 onLearnMore={() => { setSelectedIntegration(integration); setLearnMoreOpen(true); }}
@@ -819,9 +877,16 @@ const DiscoverPage: React.FC = () => {
                                     (integration.id === "relia_accounting" && disableAccountingMutation.isPending) ||
                                     (integration.id === "relia_pos" && disablePosMutation.isPending) ||
                                     (integration.id === "relia_payroll" && disableBanduMutation.isPending) ||
-                                    (integration.id === "mteja" && disableMtejaMutation.isPending) ||
-                                    (integration.id === "conversations" && disableConversationsMutation.isPending)
+                                    (integration.id === "mteja" && disableMtejaMutation.isPending)
                                 }
+                                // Inject Conversations controls only into the Mteja card
+                                conversationsProps={integration.id === "mteja" ? {
+                                    isEnabled: getStatus("conversations") === "enabled",
+                                    enableLoading: enableConversationsMutation.isPending,
+                                    disableLoading: disableConversationsMutation.isPending,
+                                    onEnable: () => setConversationsModalOpen(true),
+                                    onDisable: handleDisableConversations,
+                                } : undefined}
                             />
                         </Col>
                     );
@@ -988,7 +1053,7 @@ const DiscoverPage: React.FC = () => {
                         <SectionLabel>What's Included</SectionLabel>
                         <FeatureList
                             items={["Customer relationship management", "Order & payment alerts", "Referral programmes", "Customer analytics"]}
-                            comingSoonFeatures={["Loyalty points & rewards", "Tiered membership levels", "Automated SMS notifications", "Bulk SMS campaigns", "Birthday & anniversary rewards"]}
+                            comingSoonItems={["Loyalty points & rewards", "Tiered membership levels", "Automated SMS notifications", "Bulk SMS campaigns", "Birthday & anniversary rewards"]}
                             color={C.primary}
                         />
                     </FormSection>
@@ -1002,7 +1067,7 @@ const DiscoverPage: React.FC = () => {
                         <div>
                             <Text strong style={{ fontSize: 13, color: C.teal, display: "block" }}>Includes Conversations</Text>
                             <Text style={{ fontSize: 12, color: C.subText }}>
-                                Once Mteja is enabled, you can activate the Conversations (omnichannel inbox) module separately from the integrations page.
+                                Once Mteja is enabled, you can activate the Conversations omnichannel inbox directly from the Mteja card.
                             </Text>
                         </div>
                     </div>
@@ -1034,7 +1099,7 @@ const DiscoverPage: React.FC = () => {
                 </Form>
             </Modal>
 
-            {/* ── Conversations Modal ── */}
+            {/* Conversations Modal (triggered from within the Mteja card) */}
             <Modal open={conversationsModalOpen}
                 onCancel={() => { setConversationsModalOpen(false); conversationsForm.resetFields(); }}
                 footer={null} style={{ top: 20 }} width="min(520px, 96vw)" destroyOnClose
