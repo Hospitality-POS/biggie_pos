@@ -1,10 +1,11 @@
 import { FolderAddOutlined, HolderOutlined, SearchOutlined } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
-import { Button, Empty, Input, Skeleton, Switch, Typography } from "antd";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button, Empty, Input, Skeleton, Switch, Typography, Popconfirm, notification } from "antd";
 import { useEffect, useRef, useState } from "react";
-import { getAllProducts } from "@services/products";
+import { getAllProducts, editProduct } from "@services/products";
 import StoreProductCard from "@components/store/StoreProductCard";
 import StoreModal from "@components/MODALS/pro/StoreModal";
+import { useAppSelector } from "../../store";
 
 const { Text } = Typography;
 const { Search } = Input;
@@ -30,7 +31,56 @@ const useIsMobile = () => {
   return v;
 };
 
-// ── Category nav — search + single-row horizontal scroll strip ────────────
+// ── Bulk action button ─────────────────────────────────────────────────────
+const BulkToggleButton: React.FC<{
+  label: string;
+  count: number;
+  disable: boolean;
+  loading: boolean;
+  onConfirm: () => void;
+  isAdmin: boolean;
+}> = ({ label, count, disable, loading, onConfirm, isAdmin }) => {
+  if (count === 0 || !isAdmin) return null;
+
+  const color = disable ? "#ef4444" : "#10b981";
+  const bg = disable ? "#fef2f2" : "#f0fdf4";
+  const border = disable ? "#fecaca" : "#bbf7d0";
+
+  return (
+    <Popconfirm
+      title={disable ? `Disable all ${count} ${label}?` : `Enable all ${count} ${label}?`}
+      description={
+        disable
+          ? "They will be hidden from the POS until re-enabled."
+          : "They will become visible at the POS immediately."
+      }
+      onConfirm={onConfirm}
+      okText={disable ? "Disable all" : "Enable all"}
+      okButtonProps={{ danger: disable, loading }}
+      cancelText="Cancel"
+      placement="bottomRight"
+    >
+      <button
+        disabled={loading}
+        style={{
+          display: "flex", alignItems: "center", gap: 5,
+          background: bg, border: `1px solid ${border}`,
+          borderRadius: 7, padding: "4px 10px",
+          fontSize: 11, fontWeight: 600, color,
+          cursor: loading ? "wait" : "pointer",
+          opacity: loading ? 0.65 : 1,
+          transition: "all 0.15s",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {loading ? "⏳" : disable ? "⏸" : "▶"}
+        {disable ? "Disable" : "Enable"} all ({count})
+      </button>
+    </Popconfirm>
+  );
+};
+
+// ── Category nav ───────────────────────────────────────────────────────────
 const CategoryNav: React.FC<{
   categories: any[];
   active: string;
@@ -43,7 +93,6 @@ const CategoryNav: React.FC<{
     c.name?.toLowerCase().includes(catSearch.toLowerCase())
   );
 
-  // Auto-scroll active pill into view
   useEffect(() => {
     const el = scrollRef.current?.querySelector<HTMLButtonElement>("[data-active='true']");
     el?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
@@ -56,9 +105,7 @@ const CategoryNav: React.FC<{
         .cat-nav-scroll { scrollbar-width: none; -ms-overflow-style: none; }
       `}</style>
 
-      {/* Search + scroll row */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 0 }}>
-        {/* Category search input */}
         <div style={{
           display: "flex", alignItems: "center", gap: 6,
           background: C.bg, border: `1px solid ${C.border}`,
@@ -82,7 +129,6 @@ const CategoryNav: React.FC<{
           )}
         </div>
 
-        {/* Scrollable pills */}
         <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
           <div style={{
             position: "absolute", left: 0, top: 0, bottom: 10, width: 24, zIndex: 1,
@@ -145,7 +191,6 @@ const CategoryNav: React.FC<{
         </div>
       </div>
 
-      {/* Bottom border sits under both search and pills */}
       <div style={{ borderBottom: `1px solid ${C.border}`, marginTop: 0 }} />
     </div>
   );
@@ -167,10 +212,16 @@ const ProductsSkeleton: React.FC<{ isMobile: boolean }> = ({ isMobile }) => (
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function MainStore() {
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
+  const isAdmin = user?.role === "admin";
+
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
-  // false = show active only (default), true = show disabled only
   const [showDisabled, setShowDisabled] = useState(false);
+
+  // Tracks which bulk operation is running: null | "all-disable" | "all-enable" | "cat-disable" | "cat-enable"
+  const [bulkLoading, setBulkLoading] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["products"],
@@ -185,15 +236,58 @@ export default function MainStore() {
 
   const activeCategory = data?.find((c: any) => c._id === activeTabId);
 
-  // First filter by active/disabled, then by search term
   const filteredProducts = (activeCategory?.products ?? [])
     .filter((p: any) => (showDisabled ? p?.is_disabled === true : !p?.is_disabled))
     .filter((p: any) => p?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  // Counts for the toggle label
-  const allCategoryProducts = activeCategory?.products ?? [];
-  const activeCount = allCategoryProducts.filter((p: any) => !p?.is_disabled).length;
-  const disabledCount = allCategoryProducts.filter((p: any) => p?.is_disabled === true).length;
+  const allCategoryProducts: any[] = activeCategory?.products ?? [];
+  const activeCount = allCategoryProducts.filter((p) => !p?.is_disabled).length;
+  const disabledCount = allCategoryProducts.filter((p) => p?.is_disabled === true).length;
+
+  // Flat list of every product across all categories
+  const allProducts: any[] = (data ?? []).flatMap((c: any) => c.products ?? []);
+  const allActiveCount = allProducts.filter((p) => !p?.is_disabled).length;
+  const allDisabledCount = allProducts.filter((p) => p?.is_disabled === true).length;
+
+  // ── Core bulk helper — calls the same editProduct API in a loop ───────────
+  const bulkToggle = async (products: any[], disable: boolean, key: string) => {
+    if (!isAdmin || products.length === 0) return;
+    setBulkLoading(key);
+
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const product of products) {
+      try {
+        await editProduct({ ...product, is_disabled: disable }, true);
+        succeeded++;
+      } catch {
+        failed++;
+      }
+    }
+
+    // Refresh the full product list once all calls are done
+    await queryClient.invalidateQueries({ queryKey: ["products"] });
+    setBulkLoading(null);
+
+    notification.destroy("bulk-toggle");
+    if (failed === 0) {
+      notification.success({
+        key: "bulk-toggle",
+        message: `${disable ? "Disabled" : "Enabled"} ${succeeded} service${succeeded !== 1 ? "s" : ""}`,
+        placement: "bottomLeft",
+        duration: 3,
+      });
+    } else {
+      notification.warning({
+        key: "bulk-toggle",
+        message: `${succeeded} updated, ${failed} failed`,
+        description: "Some services could not be updated. Please try again.",
+        placement: "bottomLeft",
+        duration: 4,
+      });
+    }
+  };
 
   // ── Loading ──────────────────────────────────────────────────────────
   if (isLoading) return (
@@ -254,7 +348,7 @@ export default function MainStore() {
   return (
     <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         flexWrap: "wrap", gap: 10,
@@ -273,7 +367,8 @@ export default function MainStore() {
             </Text>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <Search
             placeholder="Search products…"
             value={searchTerm}
@@ -282,11 +377,46 @@ export default function MainStore() {
             style={{ width: isMobile ? 150 : 220, borderRadius: 8 }}
             prefix={<SearchOutlined style={{ color: C.subText }} />}
           />
+
+          {/* ── Disable ALL / Enable ALL (across every category) ── */}
+          {isAdmin && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <BulkToggleButton
+                label="services"
+                count={allActiveCount}
+                disable={true}
+                loading={bulkLoading === "all-disable"}
+                isAdmin={isAdmin}
+                onConfirm={() =>
+                  bulkToggle(
+                    allProducts.filter((p) => !p?.is_disabled),
+                    true,
+                    "all-disable"
+                  )
+                }
+              />
+              <BulkToggleButton
+                label="services"
+                count={allDisabledCount}
+                disable={false}
+                loading={bulkLoading === "all-enable"}
+                isAdmin={isAdmin}
+                onConfirm={() =>
+                  bulkToggle(
+                    allProducts.filter((p) => p?.is_disabled === true),
+                    false,
+                    "all-enable"
+                  )
+                }
+              />
+            </div>
+          )}
+
           <StoreModal edit={false} />
         </div>
       </div>
 
-      {/* Body */}
+      {/* ── Body ── */}
       <div style={{ padding: isMobile ? "12px" : "16px 18px" }}>
 
         <CategoryNav
@@ -295,8 +425,11 @@ export default function MainStore() {
           onChange={(k) => { setActiveTabId(k); setSearchTerm(""); }}
         />
 
-        {/* Count strip + disabled toggle */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        {/* Count strip + per-category bulk actions + view toggle */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          flexWrap: "wrap", gap: 8, marginBottom: 14,
+        }}>
           <Text style={{ fontSize: 12, color: C.subText }}>
             {activeCategory?.name && (
               <><span style={{ color: C.primary, fontWeight: 600 }}>{activeCategory.name}</span> · </>
@@ -305,7 +438,7 @@ export default function MainStore() {
             {searchTerm && ` matching "${searchTerm}"`}
           </Text>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {searchTerm && (
               <button onClick={() => setSearchTerm("")} style={{
                 background: "none", border: "none", color: C.subText,
@@ -315,7 +448,41 @@ export default function MainStore() {
               </button>
             )}
 
-            {/* Active / Disabled toggle */}
+            {/* ── Per-category disable / enable ── */}
+            {isAdmin && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <BulkToggleButton
+                  label={`in ${activeCategory?.name ?? "category"}`}
+                  count={activeCount}
+                  disable={true}
+                  loading={bulkLoading === "cat-disable"}
+                  isAdmin={isAdmin}
+                  onConfirm={() =>
+                    bulkToggle(
+                      allCategoryProducts.filter((p) => !p?.is_disabled),
+                      true,
+                      "cat-disable"
+                    )
+                  }
+                />
+                <BulkToggleButton
+                  label={`in ${activeCategory?.name ?? "category"}`}
+                  count={disabledCount}
+                  disable={false}
+                  loading={bulkLoading === "cat-enable"}
+                  isAdmin={isAdmin}
+                  onConfirm={() =>
+                    bulkToggle(
+                      allCategoryProducts.filter((p) => p?.is_disabled === true),
+                      false,
+                      "cat-enable"
+                    )
+                  }
+                />
+              </div>
+            )}
+
+            {/* Active / Disabled view toggle */}
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
               background: C.bg, border: `1px solid ${C.border}`,

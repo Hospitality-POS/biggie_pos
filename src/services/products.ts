@@ -9,7 +9,6 @@ const unitsUrl = `${BASE_URL}/uom`;
 
 const { headers } = SetBearerHeaderToken();
 
-// Define ParamsType interface
 interface ParamsType {
   _id?: string;
   name: string;
@@ -25,13 +24,10 @@ interface ParamsType {
   [key: string]: any;
 }
 
-// Get tenant from localStorage
 const getTenant = () => {
   try {
     const tenantStr = localStorage.getItem('tenant');
-    if (tenantStr) {
-      return JSON.parse(tenantStr);
-    }
+    if (tenantStr) return JSON.parse(tenantStr);
     return null;
   } catch (error) {
     console.error("Error getting tenant:", error);
@@ -59,37 +55,21 @@ export const addNewProduct = async (params: ParamsType) => {
     const hasFile = thumbnailFile instanceof File;
 
     if (hasFile) {
-      console.log("File details:", {
-        name: thumbnailFile.name,
-        type: thumbnailFile.type,
-        size: thumbnailFile.size,
-        lastModified: thumbnailFile.lastModified
-      });
-
-      console.log("Thumbnail File Check:", thumbnailFile instanceof File, thumbnailFile);
-
       const formData = new FormData();
       const rawFile = new File([thumbnailFile], thumbnailFile.name, { type: thumbnailFile.type });
       formData.append("thumbnail", rawFile);
 
       if (tenant) {
         formData.append('tenant', JSON.stringify(tenant));
-        if (tenant.tenant_code) {
-          formData.append('tenant_code', tenant.tenant_code);
-        }
+        if (tenant.tenant_code) formData.append('tenant_code', tenant.tenant_code);
       }
-
       if (companyCode) {
         formData.append('companyCode', companyCode);
         formData.append('tenant_code', companyCode);
       }
-
-      if (shopId && shopId !== "undefined") {
-        formData.append("shop_id", shopId);
-      }
+      if (shopId && shopId !== "undefined") formData.append("shop_id", shopId);
 
       const { thumbnailFile: _, ...otherParams } = params;
-
       Object.keys(otherParams).forEach(key => {
         if (otherParams[key] !== null && otherParams[key] !== undefined) {
           if (typeof otherParams[key] === 'object' && !(otherParams[key] instanceof File)) {
@@ -100,55 +80,33 @@ export const addNewProduct = async (params: ParamsType) => {
         }
       });
 
-      console.log("FormData entries:");
-      for (const pair of formData.entries()) {
-        console.log(`${pair[0]}: ${typeof pair[1] === 'object' ? 'File object' : pair[1]}`);
-      }
-
       const token = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")).Token : '';
-
-      const headers: HeadersInit = {
-        'Authorization': `Bearer ${token}`,
-      };
-
-      if (companyCode) {
-        headers['companyCode'] = companyCode;
-      }
-
-      console.log("Request headers:", headers);
+      const fetchHeaders: HeadersInit = { 'Authorization': `Bearer ${token}` };
+      if (companyCode) fetchHeaders['companyCode'] = companyCode;
 
       const fetchResponse = await fetch(`${BASE_URL}/product/products`, {
         method: 'POST',
-        headers: headers,
-        body: formData
+        headers: fetchHeaders,
+        body: formData,
       });
 
       const data = await fetchResponse.json();
-      console.log("Response from server:", data);
-
-      if (!fetchResponse.ok) {
-        throw new Error(data.message || "Failed to create product");
-      }
+      if (!fetchResponse.ok) throw new Error(data.message || "Failed to create product");
 
       message.success("Product added successfully");
       return data;
     } else {
       const { thumbnailFile: _, ...cleanParams } = params;
-
       const requestBody = {
         ...cleanParams,
         tenant,
         companyCode,
         tenant_code: companyCode || (tenant ? tenant.tenant_code : null),
-        shop_id: shopId
+        shop_id: shopId,
       };
 
-      console.log("Sending JSON request with body:", requestBody);
-
       response = await axiosInstance.post(`${BASE_URL}/product/products`, requestBody, {
-        headers: {
-          ...(companyCode ? { 'companyCode': companyCode } : {}),
-        }
+        headers: { ...(companyCode ? { 'companyCode': companyCode } : {}) },
       });
 
       message.success("Product added successfully");
@@ -156,47 +114,36 @@ export const addNewProduct = async (params: ParamsType) => {
     }
   } catch (error) {
     console.error("Error adding product:", error);
-    if (error?.response?.status !== 403) {
-      message.error("Failed to add a new product");
-    }
+    if (error?.response?.status !== 403) message.error("Failed to add a new product");
     throw new Error("Failed to add a new product");
   }
 };
 
-export const editProduct = async (data) => {
+// silent = true suppresses the success toast (used during bulk operations)
+export const editProduct = async (data: any, silent = false) => {
   try {
     let response;
     const tenant = getTenant();
     const thumbnailFile = data.thumbnailFile;
     const hasFile = thumbnailFile instanceof File;
 
-    // Normalize category to a single value:
     let category;
     if (Array.isArray(data.category)) {
-      // If it's an array, choose the first element (or adjust as needed)
       category = data.category[0];
     } else if (data.category && typeof data.category === 'object' && data.category.value) {
-      // If it's an object with a value property, use that
       category = data.category.value;
     } else {
       category = data.category;
     }
 
     if (hasFile) {
-      // Prepare FormData for multipart upload
       const formData = new FormData();
-
-      // Append the file as usual
       formData.append("thumbnail", thumbnailFile, thumbnailFile.name);
-
-      // Append category as a string (do not JSON.stringify if it's just an ID)
       formData.append("category", category.toString());
 
-      // Append other product data (ensure that the keys match what your server expects)
       const { thumbnailFile: _, _id, ...otherData } = data;
       Object.keys(otherData).forEach((key) => {
         if (otherData[key] !== null && otherData[key] !== undefined) {
-          // For non-file objects, you can check if it's an object and stringify if necessary
           if (typeof otherData[key] === "object" && !(otherData[key] instanceof File)) {
             formData.append(key, JSON.stringify(otherData[key]));
           } else {
@@ -205,26 +152,23 @@ export const editProduct = async (data) => {
         }
       });
 
-      // Make request with FormData
       response = await axiosInstance.put(`${productUrl}/${data._id}`, formData, {
-        headers: {
-          // Do not manually set "Content-Type", let Axios set it with the proper boundary
-          ...headers,
-        },
+        headers: { ...headers },
       });
     } else {
-      // Send JSON request if no file is included
       const { thumbnailFile: _, ...cleanData } = data;
-      const requestBody = {
+      response = await axiosInstance.put(`${productUrl}/${data._id}`, {
         ...cleanData,
         category,
         tenant,
-      };
-
-      response = await axiosInstance.put(`${productUrl}/${data._id}`, requestBody, { headers });
+      }, { headers });
     }
 
-    message.success("Product updated successfully");
+    // Only show the toast when NOT in a bulk operation
+    if (!silent) {
+      message.success("Product updated successfully");
+    }
+
     return response.data;
   } catch (error) {
     console.error("Error editing product:", error);
@@ -235,24 +179,17 @@ export const editProduct = async (data) => {
   }
 };
 
-
-
 export const deleteProduct = async (productId: string) => {
   try {
-    // Get tenant info
     const tenant = getTenant();
-
     await axiosInstance.delete(`${productUrl}/${productId}`, {
       headers,
-      data: { tenant } // Include tenant in the delete request body
+      data: { tenant },
     });
-
     message.success("Product deleted successfully");
     return productId;
   } catch (error) {
-    if (error?.response?.status !== 403) {
-      message.error("Failed to delete product");
-    }
+    if (error?.response?.status !== 403) message.error("Failed to delete product");
     throw new Error("Failed to delete product");
   }
 };

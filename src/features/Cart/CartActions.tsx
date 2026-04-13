@@ -44,6 +44,7 @@ export const createCart = createAsyncThunk(
     }
   }
 );
+
 export const addToCartByBarcode = createAsyncThunk(
   "cart/addByBarcode",
   async ({ barcode, tableId }: { barcode: string; tableId: string }, { rejectWithValue }) => {
@@ -57,6 +58,7 @@ export const addToCartByBarcode = createAsyncThunk(
     }
   }
 );
+
 export const getCart = createAsyncThunk(
   "cart/getCart",
   async (tableId: string, { rejectWithValue }) => {
@@ -122,12 +124,12 @@ export const updateCartItems = createAsyncThunk(
   }
 );
 
-// KEY INSIGHT: price in cart items = unit_price * quantity (line total).
-// So unit_price = cartItem.price / cartItem.quantity.
-// When changing qty, we must send the new line total: unit_price * newQty.
-// This matches exactly what ProductCard does: it sends price=menu.price (unit)
-// and the backend does cartItem.price += unitPrice to build the line total.
-// But updateCartItem just sets price directly, so we must compute the new total.
+// ── DATA MODEL (single source of truth) ───────────────────────────────────────
+// cartItem.price  = UNIT price (price of one unit of the product)
+// cartItem.quantity = number of units
+// The slice's calculateTotals computes the line total as: price * quantity
+// So we NEVER modify price when changing quantity — only quantity changes.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const addQtyCart = createAsyncThunk(
   "cart/addQtyCart",
@@ -136,16 +138,12 @@ export const addQtyCart = createAsyncThunk(
       const state: any = getState();
       const tableId = state.cart.cartDetails?.table_id?._id || state.cart.cartDetails?.table_id;
 
-      const currentQty = cartItem.quantity || 1;
-      const currentLineTotal = cartItem.price || 0;
-      // Derive unit price from current line total
-      const unitPrice = currentLineTotal / currentQty;
-      const newQty = currentQty + 1;
-      const newLineTotal = unitPrice * newQty;
+      const newQty = (cartItem.quantity || 1) + 1;
 
+      // Send only the new quantity; price stays as unit price — unchanged
       const response = await axiosInstance.put(
         `${baseUrl}/cart-item/${cartItem._id}`,
-        { ...cartItem, quantity: newQty, price: newLineTotal }
+        { ...cartItem, quantity: newQty }
       );
 
       if (tableId) dispatch(getCart(tableId));
@@ -166,14 +164,12 @@ export const removeQtyCart = createAsyncThunk(
       const currentQty = cartItem.quantity || 1;
       if (currentQty <= 1) return cartItem; // Safety guard
 
-      const currentLineTotal = cartItem.price || 0;
-      const unitPrice = currentLineTotal / currentQty;
       const newQty = currentQty - 1;
-      const newLineTotal = unitPrice * newQty;
 
+      // Send only the new quantity; price stays as unit price — unchanged
       const response = await axiosInstance.put(
         `${baseUrl}/cart-item/${cartItem._id}`,
-        { ...cartItem, quantity: newQty, price: newLineTotal }
+        { ...cartItem, quantity: newQty }
       );
 
       if (tableId) dispatch(getCart(tableId));
@@ -194,14 +190,10 @@ export const updateCartItemQty = createAsyncThunk(
       const state: any = getState();
       const tableId = state.cart.cartDetails?.table_id?._id || state.cart.cartDetails?.table_id;
 
-      const currentQty = cartItem.quantity || 1;
-      const currentLineTotal = cartItem.price || 0;
-      const unitPrice = currentLineTotal / currentQty;
-      const newLineTotal = unitPrice * quantity;
-
+      // Send only the new quantity; price stays as unit price — unchanged
       const response = await axiosInstance.put(
         `${baseUrl}/cart-item/${cartItem._id}`,
-        { ...cartItem, quantity, price: newLineTotal }
+        { ...cartItem, quantity }
       );
 
       if (tableId) dispatch(getCart(tableId));
@@ -230,7 +222,6 @@ export const deleteAllCartItems = createAsyncThunk(
     try {
       const response = await axiosInstance.delete(`${baseUrl}/cart/${cartId}`);
 
-      // Mark the table as unoccupied after clearing cart
       const state: any = getState();
       const tableId = state.cart.cartDetails?.table_id?._id || state.cart.cartDetails?.table_id;
       if (tableId) {

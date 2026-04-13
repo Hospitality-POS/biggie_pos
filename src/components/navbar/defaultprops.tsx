@@ -20,6 +20,7 @@ import {
   MedicineBoxOutlined,
   ExperimentOutlined,
   FileDoneOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
 import { PeopleOutlined } from "@mui/icons-material";
 import { useAppSelector } from "src/store";
@@ -62,10 +63,10 @@ const ICONS = {
   bill: 'M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm-7 6H7V8h6v2zm4 4H7v-2h10v2zm0-4h-2V8h2v2z',
   income: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z',
   documents: 'M20 6h-2.18c.07-.44.18-.88.18-1.38 0-2.57-2.04-4.62-4.5-4.62S9 2.05 9 4.62c0 .5.11.94.18 1.38H7C5.9 6 5 6.9 5 8v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 0H10V4.62C10 3.17 11.12 2 12.5 2S15 3.17 15 4.62V6h-1zm1 5H9v-2h6v2zm4 4H9v-2h10v2z',
+  omnichannel: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z',
 };
 
 // ─── Route → permission gate map ─────────────────────────────────────────────
-// Keys are the bare path segments — prefix (/admin or /) is added at call-site.
 
 const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/tables": "CART_VIEW_ITEMS",
@@ -77,6 +78,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/customers": "CUSTOMERS_VIEW",
   "/reports": "REPORTS_ITEM_SALES",
   "/documents": "DOCUMENTS_VIEW",
+  "/omnichannel": "OMNICHANNEL_VIEW",
 };
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -97,6 +99,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/payment-methods": "PAYMENT_METHODS_VIEW",
   "/system-setup": "SYSTEM_SETUP_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/omnichannel": "OMNICHANNEL_VIEW",
 };
 
 const POS_APP_PERMISSIONS: Record<string, string> = {
@@ -109,6 +112,7 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
   "/fss-faqs": "FAQ_VIEW",
   "/website-builder": "GALLERY_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/omnichannel": "OMNICHANNEL_VIEW",
 };
 
 const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
@@ -129,6 +133,7 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/payment-methods": "PAYMENT_METHODS_VIEW",
   "/system-setup": "SYSTEM_SETUP_VIEW",
   "/documents": "DOCUMENTS_VIEW",
+  "/omnichannel": "OMNICHANNEL_VIEW",
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -143,24 +148,11 @@ const useProLayoutNav = () => {
     (user as any)?.rolePermissions ?? (user as any)?.permissions ?? [];
   const can = makePermissionChecker(rolePermissions, isAdmin);
 
-  // ── Detect which layout prefix is active ─────────────────────────────────
-  // ProLayout resolves nav paths relative to the current basename.
-  // Under <Route path="/admin">, all links must start with /admin/...
-  // Under <Route path="/">,      all links must start with /...
   const isAdminLayout = window.location.pathname.startsWith("/admin");
   const prefix = isAdminLayout ? "/admin" : "";
 
-  /**
-   * Given a bare route path (e.g. "/inventory"), build the full path
-   * with the correct prefix (e.g. "/admin/inventory" or "/inventory").
-   */
   const p = (bare: string) => `${prefix}${bare}`;
 
-  /**
-   * Check whether a route should be visible.
-   * @param bare   bare path — the key in the permission map (no prefix)
-   * @param permMap  the relevant permission map
-   */
   const canSee = (bare: string, permMap: Record<string, string>): boolean => {
     const gate = permMap[bare];
     if (!gate) return true;
@@ -194,6 +186,14 @@ const useProLayoutNav = () => {
     icon: <FileDoneOutlined />,
   };
 
+  // ─── Conversations route (shared across POS and Accounting nav) ──────────
+  // Display name: "Conversations"  |  internal path/key: "omnichannel"
+  const conversationsRoute = {
+    path: p("/omnichannel"),
+    name: "Conversations",
+    icon: <MessageOutlined />,
+  };
+
   // ── POS routes ────────────────────────────────────────────────────────────
 
   const posRoutesFullAccess = [
@@ -208,6 +208,7 @@ const useProLayoutNav = () => {
     { path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" },
     { path: p("/reports"), name: "Business Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
+    { ...conversationsRoute, _bare: "/omnichannel" },
   ].filter((r) => canSee(r._bare, POS_ROUTE_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
@@ -222,6 +223,7 @@ const useProLayoutNav = () => {
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
     { path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" },
     { ...documentRoute, _bare: "/documents" },
+    { ...conversationsRoute, _bare: "/omnichannel" },
   ].filter((r) => canSee(r._bare, POS_ROUTE_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
@@ -237,8 +239,6 @@ const useProLayoutNav = () => {
     { path: p("/accounting/bank-statements"), name: "Banking", icon: <FileExcelOutlined />, _bare: "/accounting/bank-statements" },
     { path: p("/accounting/reconciliation"), name: "Bank Reconciliation", icon: <BankOutlined />, _bare: "/accounting/reconciliation" },
     { path: p("/accounting/accounts"), name: "Chart of Accounts", icon: <AuditOutlined />, _bare: "/accounting/accounts" },
-
-    // { path: p("/accounting/income"), name: "Income", icon: <DollarOutlined />, _bare: "/accounting/income" },
     ...(includeReports
       ? [{ path: p("/accounting/reports"), name: "Reports", icon: <ReconciliationOutlined />, _bare: "/accounting/reports" }]
       : []),
@@ -248,6 +248,7 @@ const useProLayoutNav = () => {
     { path: p("/payment-methods"), name: "Payment Methods", icon: <CalculatorFilled />, _bare: "/payment-methods" },
     { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
     { ...documentRoute, _bare: "/documents" },
+    { ...conversationsRoute, _bare: "/omnichannel" },
   ].filter((r) => canSee(r._bare, ACCOUNTING_ROUTE_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
@@ -255,8 +256,6 @@ const useProLayoutNav = () => {
   const accountingRoutesStaff = buildAccountingRoutes(false);
 
   // ── App tiles ─────────────────────────────────────────────────────────────
-  // App tiles always use the full prefixed URLs so clicking them navigates
-  // to the correct path regardless of current layout.
 
   const posAppList = [
     { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize your products with clear categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
@@ -268,6 +267,7 @@ const useProLayoutNav = () => {
     { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Get answers to your most common questions.", url: p("/fss-faqs"), _bare: "/fss-faqs" },
     { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store your store images.", url: p("/website-builder"), _bare: "/website-builder" },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
+    { icon: makeTile("#7c3aed", ICONS.omnichannel), title: "Conversations", desc: "Manage WhatsApp, Messenger and Instagram conversations.", url: p("/omnichannel"), _bare: "/omnichannel" },
   ].filter((t) => canSee(t._bare, POS_APP_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
@@ -289,6 +289,7 @@ const useProLayoutNav = () => {
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: p("/payment-methods"), _bare: "/payment-methods" },
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: p("/system-setup"), _bare: "/system-setup" },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
+    { icon: makeTile("#7c3aed", ICONS.omnichannel), title: "Conversations", desc: "Manage WhatsApp, Messenger and Instagram conversations.", url: p("/omnichannel"), _bare: "/omnichannel" },
   ].filter((t) => canSee(t._bare, ACCOUNTING_APP_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
