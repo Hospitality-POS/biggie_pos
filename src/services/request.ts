@@ -49,11 +49,23 @@ const NON_CACHEABLE_ROUTES = [
     '/invoices',
 ];
 
+// Routes that should NOT trigger logout on 401 (Meta/Webhook APIs)
+const NON_AUTH_401_ROUTES = [
+    '/omnichannel',
+    '/webhook',
+    '/messages',
+    '/conversations',
+    '/channels',
+];
+
 const isExcludedRoute = (url: string = ''): boolean =>
     EXCLUDED_ROUTES.some(route => url.includes(route));
 
 const isNonCacheableRoute = (url: string = ''): boolean =>
     NON_CACHEABLE_ROUTES.some(route => url.includes(route));
+
+const isNonAuth401Route = (url: string = ''): boolean =>
+    NON_AUTH_401_ROUTES.some(route => url.includes(route));
 
 const formDataHasKey = (formData: FormData, key: string): boolean => {
     try {
@@ -70,11 +82,6 @@ const buildCacheKey = (url: string, params: Record<string, unknown> = {}, shopId
 
 // ─── Permission resolution ────────────────────────────────────────────────────
 
-/**
- * HTTP method → ActionType mapping used when scanning PERMISSIONS for a match.
- * "special" actions are never inferred from the HTTP verb alone — they require
- * an explicit `x-permission` header set by the caller.
- */
 const METHOD_TO_ACTION: Record<string, string> = {
     get: "read",
     post: "create",
@@ -83,35 +90,16 @@ const METHOD_TO_ACTION: Record<string, string> = {
     delete: "delete",
 };
 
-/**
- * Given a URL path and HTTP method, find the best-matching permission key from
- * the PERMISSIONS registry.
- *
- * Strategy (most-specific wins):
- *   1. Caller passed an explicit `x-permission` header → use it directly.
- *   2. Walk every Permission in the registry; score each one by how many URL
- *      segments from its key match the request URL, then filter to the right
- *      action.  Highest score wins.
- *   3. No match → return null (request is allowed through; the server is the
- *      final authority).
- *
- * Segment-matching keeps things simple without needing a route table:
- *   Permission key  : "ACCOUNTING_BANK_STMT_IMPORT"   action: create
- *   URL             : "/accounting/bank-statements/import"
- *   Matched tokens  : ["accounting", "bank", "import"]  → score 3
- */
 const resolvePermissionKey = (
     url: string = '',
     method: string = 'get',
     explicitKey?: string,
 ): string | null => {
-    // 1. Explicit override from caller
     if (explicitKey) return explicitKey;
 
     const action = METHOD_TO_ACTION[method.toLowerCase()];
     if (!action) return null;
 
-    // Normalise URL: strip base, query string, trailing slash, leading slash
     const cleanUrl = url
         .replace(BASE_URL, '')
         .split('?')[0]
@@ -126,10 +114,8 @@ const resolvePermissionKey = (
     for (const perm of Object.values(PERMISSIONS)) {
         if (perm.action !== action) continue;
 
-        // Tokenise the permission key (e.g. "ACCOUNTING_BANK_STMT_IMPORT" → ["accounting","bank","stmt","import"])
         const keyTokens = perm.key.toLowerCase().split('_');
 
-        // Count how many key-tokens appear anywhere in the URL tokens
         const score = keyTokens.filter(kt => urlTokens.some(ut => ut.includes(kt) || kt.includes(ut))).length;
 
         if (score > bestScore) {
@@ -138,7 +124,6 @@ const resolvePermissionKey = (
         }
     }
 
-    // Require at least 2 matching tokens to avoid spurious matches on short URLs
     return bestScore >= 2 ? bestKey : null;
 };
 
@@ -166,19 +151,14 @@ axiosInstance.interceptors.request.use(
                 config.headers['currentUser'] = userObject._id || userObject.id;
             }
 
-            // ── Permission gate ───────────────────────────────────────────────
             const isAdmin = userObject?.role === "admin";
             const rolePermissions: string[] =
                 userObject?.rolePermissions ?? userObject?.permissions ?? [];
 
             const can = makePermissionChecker(rolePermissions, isAdmin);
 
-            // Callers may pass an explicit permission key via a custom header:
-            //   axiosInstance.get(url, { headers: { 'x-permission': 'CART_VOID' } })
-            // This is the recommended approach for "special" action endpoints.
             const explicitKey = config.headers?.['x-permission'] as string | undefined;
 
-            // Always strip the internal header before the request leaves the browser
             if (explicitKey) delete config.headers['x-permission'];
 
             const permKey = resolvePermissionKey(config.url, config.method, explicitKey);
@@ -193,7 +173,6 @@ axiosInstance.interceptors.request.use(
                     })
                 );
             }
-            // ─────────────────────────────────────────────────────────────────
 
             if (shopId && !isExcludedRoute(config.url)) {
                 if (config.method === 'get' || config.method === 'delete') {
@@ -244,6 +223,16 @@ axiosInstance.interceptors.response.use(
         if (response) {
             switch (response.status) {
                 case 401:
+                    // Check if this is a Meta API endpoint (should NOT logout)
+                    const url = response.config?.url || '';
+                    if (isNonAuth401Route(url)) {
+                        // For Meta API 401s, just show a channel-specific error
+                        console.warn('Meta API 401 error - channel token may be expired:', url);
+                        message.error('Channel connection expired. Please reconnect the channel in settings.');
+                        // Don't logout - just reject the error
+                        return Promise.reject(error);
+                    }
+                    // For auth endpoints, logout
                     handleError("Session expired. Logging out...");
                     logoutUser();
                     break;

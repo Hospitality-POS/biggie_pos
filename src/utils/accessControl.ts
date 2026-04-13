@@ -18,6 +18,7 @@ export const MODULES = {
     INVENTORY: "Inventory",
     MODIFIERS_ADDONS: "Modifiers & Addons",
     NOTIFICATIONS: "Notifications",
+    OMNICHANNEL: "Conversations",
     ORDERS: "Orders",
     PAYMENT_METHODS: "Payment Methods",
     PERMISSIONS: "Permissions",
@@ -266,6 +267,17 @@ export const PERMISSIONS: Record<string, Permission> = {
     NOTIFICATIONS_MARK_ALL_READ: { key: "NOTIFICATIONS_MARK_ALL_READ", label: "Mark All Notifications as Read", module: MODULES.NOTIFICATIONS, action: "special", moduleScope: "core" },
     NOTIFICATIONS_DELETE_EXPIRED: { key: "NOTIFICATIONS_DELETE_EXPIRED", label: "Delete Expired Notifications", module: MODULES.NOTIFICATIONS, action: "delete", moduleScope: "core" },
     NOTIFICATIONS_VIEW_ANALYTICS: { key: "NOTIFICATIONS_VIEW_ANALYTICS", label: "View Notification Analytics", module: MODULES.NOTIFICATIONS, action: "read", moduleScope: "core" },
+
+    // ── OMNICHANNEL (Conversations) ───────────────────────────────────────────
+    // Accessible only to tenants with the Conversations (omnichannel) feature.
+    // The internal permission key prefix stays OMNICHANNEL_ for backward
+    // compatibility with existing role assignments and API guards.
+
+    OMNICHANNEL_VIEW: { key: "OMNICHANNEL_VIEW", label: "View Conversations", module: MODULES.OMNICHANNEL, action: "read", moduleScope: "core" },
+    OMNICHANNEL_SEND_MESSAGE: { key: "OMNICHANNEL_SEND_MESSAGE", label: "Send Message", module: MODULES.OMNICHANNEL, action: "create", moduleScope: "core" },
+    OMNICHANNEL_MANAGE_CONVERSATIONS: { key: "OMNICHANNEL_MANAGE_CONVERSATIONS", label: "Manage Conversations (Assign / Status)", module: MODULES.OMNICHANNEL, action: "update", moduleScope: "core" },
+    OMNICHANNEL_MANAGE_CHANNELS: { key: "OMNICHANNEL_MANAGE_CHANNELS", label: "Manage Channels (Connect / Disconnect)", module: MODULES.OMNICHANNEL, action: "special", moduleScope: "core" },
+    OMNICHANNEL_SEND_TEMPLATE: { key: "OMNICHANNEL_SEND_TEMPLATE", label: "Send Template Message", module: MODULES.OMNICHANNEL, action: "special", moduleScope: "core" },
 
     // ── ORDERS ────────────────────────────────────────────────────────────────
 
@@ -659,6 +671,8 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "PAYMENT_METHODS_VIEW", "MODIFIERS_VIEW", "ADDONS_VIEW",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ", "NOTIFICATIONS_MARK_ALL_READ",
         "GIFT_CARDS_VIEW_ONE",
+        // ── Conversations: read-only for cashiers ─────────────────────────────
+        "OMNICHANNEL_VIEW",
     ],
 
     /** KITCHEN_STAFF — order visibility only */
@@ -763,6 +777,8 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "DOCUMENTS_UPDATE_STATUS", "DOCUMENTS_SEARCH", "DOCUMENTS_EMBED",
         // ── Email: financial report only ──────────────────────────────────────
         "EMAIL_SEND_FINANCIAL_REPORT",
+        // ── Conversations: read + send for accountants ────────────────────────
+        "OMNICHANNEL_VIEW", "OMNICHANNEL_SEND_MESSAGE", "OMNICHANNEL_MANAGE_CONVERSATIONS",
         // ──────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
@@ -788,6 +804,8 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "ACCOUNTING_REPORT_AR_AGING", "ACCOUNTING_REPORT_AP_AGING",
         // ── Documents (read-only, no embedding) ───────────────────────────────
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_SEARCH",
+        // ── Conversations: read-only for viewers ──────────────────────────────
+        "OMNICHANNEL_VIEW",
         // ── No email send permissions for read-only role ──────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],

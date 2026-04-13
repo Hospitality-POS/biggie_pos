@@ -42,7 +42,7 @@ interface CartItem {
   productId: string;
   product_id: string;
   quantity: number;
-  price: number;
+  price: number;        // ← UNIT price (price of one unit)
   vat_type: "STANDARD" | "ZERO" | "EXEMPT";
 }
 
@@ -85,6 +85,11 @@ const initialState: CartState = {
   transferState: false,
 };
 
+// ── DATA MODEL ────────────────────────────────────────────────────────────────
+// item.price    = UNIT price (cost of a single unit of the product)
+// item.quantity = number of units ordered
+// line total    = item.price * item.quantity   ← computed here, never stored
+// ─────────────────────────────────────────────────────────────────────────────
 const calculateTotals = (state: CartState) => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -98,11 +103,11 @@ const calculateTotals = (state: CartState) => {
   let grossTotal = 0;
 
   state.cartItems.forEach((item) => {
-    const unitPrice = typeof item.price === "string" ? parseFloat(item.price) : item.price;
+    // item.price is the UNIT price — multiply by quantity to get line total
+    const unitPrice = typeof item.price === "string" ? parseFloat(item.price) : (item.price || 0);
     const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : (item.quantity || 1);
 
-    // line value = unit price × quantity
-    const linePrice = unitPrice * quantity;
+    const linePrice = unitPrice * quantity;   // ← line total
 
     const isVatApplicable = VAT_ENABLED && item.vat_type === "STANDARD";
 
@@ -130,8 +135,6 @@ const calculateTotals = (state: CartState) => {
   });
 
   // ── Discount ──────────────────────────────────────────────────────────────
-  // INCLUSIVE: discount base is grossTotal (prices already contain VAT)
-  // EXCLUSIVE: discount base is subtotal (net), VAT recalculated after
   let discountAmount = 0;
   if (state.cartDetails.discount && state.cartDetails.discount > 0) {
     const discountBase = VAT_MODE === "INCLUSIVE" ? grossTotal : subtotal;
@@ -146,13 +149,9 @@ const calculateTotals = (state: CartState) => {
   let displayVat = 0;
 
   if (VAT_MODE === "INCLUSIVE") {
-    // grandTotal = grossTotal - discount (VAT already inside prices)
     grandTotal = grossTotal - discountAmount;
-    // VAT extracted from ORIGINAL grossTotal before discount — informational only
-    // Never subtracted from grandTotal
     displayVat = grossTotal * (VAT_RATE / (1 + VAT_RATE));
   } else {
-    // grandTotal = (subtotal - discount) + recalculated VAT on discounted base
     const discountedNet = subtotal - discountAmount;
     const vatRatio = subtotal > 0 ? discountedNet / subtotal : 1;
     displayVat = totalVatAmount * vatRatio;
@@ -168,9 +167,6 @@ const calculateTotals = (state: CartState) => {
     grandTotal += tipAmount;
   }
 
-  // subtotal shown to user:
-  //   INCLUSIVE → grossTotal (full price tag total before discount)
-  //   EXCLUSIVE → net subtotal (pre-VAT sum)
   state.subtotal = parseFloat(
     (VAT_MODE === "INCLUSIVE" ? grossTotal : subtotal).toFixed(2)
   );
@@ -300,7 +296,7 @@ const cartSlice = createSlice({
       .addCase(transferCartitemsAction.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(transferCartitemsAction.fulfilled, (state, action) => {
         state.loading = false;
-        const allExist = action.payload.products?.every((itemId) =>
+        const allExist = action.payload.products?.every((itemId: string) =>
           state.cartItems?.some((cartItem) => cartItem?._id === itemId)
         );
         if (allExist) { state.cartItems = []; state.transferState = true; }
