@@ -463,7 +463,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         const [allGiftCards, setAllGiftCards] = useState<any[]>([]);
         const [loadingGiftCards, setLoadingGiftCards] = useState(false);
         const [loadingAllGiftCards, setLoadingAllGiftCards] = useState(false);
-        const [clientName, setClientName] = useState("Relia Pos");
+        const [clientName, setClientName] = useState("BasePoint Cloud");
 
         const [allCustomers, setAllCustomers] = useState<any[]>([]);
         const [mobileData, setMobileData] = useState<any[]>([]);
@@ -485,7 +485,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         useEffect(() => {
             const stored = localStorage.getItem("tenant");
             const tenant = stored ? JSON.parse(stored) : null;
-            setClientName(tenant?.name || "Relia Pos");
+            setClientName(tenant?.name || "BasePoint Cloud");
         }, []);
 
         const loadAllForStats = async () => {

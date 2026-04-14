@@ -1,12 +1,14 @@
 {
-  "name": "Relia Pos",
+  "name": "BasePoint Cloud",
   "short_name": "",
   "description": "ReliaPos is a POS system that is easy to use and has a modern design. It is designed to be a reliable solution for small and medium-sized businesses. It is also designed to be scalable, so it can be used by larger businesses as well.",
   "start_url": "/",
   "display": "minimal-ui",
   "background_color": "#b43838",
   "theme_color": "#b62e2e",
-  "display-override": ["window-controls-overlay"],
+  "display-override": [
+    "window-controls-overlay"
+  ],
   "icons": [
     {
       "src": "icons/icon-48x48.png",
@@ -85,7 +87,6 @@
   "scope": "/",
   "lang": "en",
   "screenshots": [
-    
     {
       "src": "screenshots/image.png",
       "sizes": "1601x872",
