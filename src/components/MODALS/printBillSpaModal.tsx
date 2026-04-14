@@ -639,8 +639,8 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     <TableRow key={item._id || index}>
                       <TableCell sx={pdfTD}>{item.quantity}</TableCell>
                       <TableCell sx={pdfTD}>{item?.product_id?.name}</TableCell>
-                      <TableCell sx={{ ...pdfTD, textAlign: "right" }}>Ksh. {(item?.price / item.quantity).toFixed(2)}</TableCell>
                       <TableCell sx={{ ...pdfTD, textAlign: "right" }}>Ksh. {item?.price?.toFixed(2)}</TableCell>
+                      <TableCell sx={{ ...pdfTD, textAlign: "right" }}>Ksh. {(item?.price * item.quantity).toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
