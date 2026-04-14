@@ -48,7 +48,7 @@ const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
   const [allGiftCards, setAllGiftCards] = useState([]);
   const [loadingGiftCards, setLoadingGiftCards] = useState(false);
   const [loadingAllGiftCards, setLoadingAllGiftCards] = useState(false);
-  const [clientName, setClientName] = useState("Relia Pos");
+  const [clientName, setClientName] = useState("BasePoint Cloud");
 
   const [activeTabKey, setActiveTabKey] = useState("customers");
 
@@ -59,7 +59,7 @@ const AdminCustomersTable = ({ nonCustomerEnabled = false }) => {
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-    const name = tenant ? tenant.name : "Relia Pos";
+    const name = tenant ? tenant.name : "BasePoint Cloud";
     setClientName(name);
   }, []);
 

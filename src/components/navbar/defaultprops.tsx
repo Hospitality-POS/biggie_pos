@@ -136,6 +136,20 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/omnichannel": "OMNICHANNEL_VIEW",
 };
 
+// ─── Helper to check if Mteja (omnichannel) is enabled ──────────────────────
+
+const hasMtejaEnabled = (): boolean => {
+  try {
+    const storedTenant = localStorage.getItem("tenant");
+    if (!storedTenant) return false;
+    const tenant = JSON.parse(storedTenant);
+    // Check both possible keys for Mteja/omnichannel module
+    return !!(tenant?.modules?.crm === true || tenant?.modules?.omnichannel === true);
+  } catch {
+    return false;
+  }
+};
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 const useProLayoutNav = () => {
@@ -172,6 +186,7 @@ const useProLayoutNav = () => {
 
   const hasPOS = tenant?.pos_integration?.enabled === true;
   const hasAccounting = tenant?.modules?.accounting === true;
+  const mtejaEnabled = hasMtejaEnabled();
 
   const inventoryBarePath = "/inventory";
   const inventoryRoute = {
@@ -187,16 +202,17 @@ const useProLayoutNav = () => {
   };
 
   // ─── Conversations route (shared across POS and Accounting nav) ──────────
-  // Display name: "Conversations"  |  internal path/key: "omnichannel"
-  const conversationsRoute = {
+  // Only include if Mteja is enabled AND user has permission
+  const conversationsRoute = mtejaEnabled && can("OMNICHANNEL_VIEW") ? {
     path: p("/omnichannel"),
     name: "Conversations",
     icon: <MessageOutlined />,
-  };
+    _bare: "/omnichannel",
+  } : null;
 
   // ── POS routes ────────────────────────────────────────────────────────────
 
-  const posRoutesFullAccess = [
+  const posRoutesFullAccessBase = [
     { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
@@ -208,11 +224,18 @@ const useProLayoutNav = () => {
     { path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" },
     { path: p("/reports"), name: "Business Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
-    { ...conversationsRoute, _bare: "/omnichannel" },
-  ].filter((r) => canSee(r._bare, POS_ROUTE_PERMISSIONS))
+  ];
+
+  // Add conversations route only if available
+  if (conversationsRoute) {
+    posRoutesFullAccessBase.push(conversationsRoute);
+  }
+
+  const posRoutesFullAccess = posRoutesFullAccessBase
+    .filter((r) => canSee(r._bare, POS_ROUTE_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
-  const posRoutesStaff = [
+  const posRoutesStaffBase = [
     { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
@@ -223,41 +246,57 @@ const useProLayoutNav = () => {
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
     { path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" },
     { ...documentRoute, _bare: "/documents" },
-    { ...conversationsRoute, _bare: "/omnichannel" },
-  ].filter((r) => canSee(r._bare, POS_ROUTE_PERMISSIONS))
+  ];
+
+  // Add conversations route only if available
+  if (conversationsRoute) {
+    posRoutesStaffBase.push(conversationsRoute);
+  }
+
+  const posRoutesStaff = posRoutesStaffBase
+    .filter((r) => canSee(r._bare, POS_ROUTE_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
   // ── Accounting routes ─────────────────────────────────────────────────────
 
-  const buildAccountingRoutes = (includeReports: boolean) => [
-    { path: p("/accounting"), name: "Overview", icon: <DashboardOutlined />, _bare: "/accounting" },
-    { path: p("/orders"), name: "Invoices", icon: <FileTextOutlined />, _bare: "/orders" },
-    { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
-    { path: p("/accounting/bills"), name: "Bills", icon: <FileTextOutlined />, _bare: "/accounting/bills" },
-    { path: p("/accounting/notes"), name: "Debit/Credit Notes", icon: <FileSearchOutlined />, _bare: "/accounting/notes" },
-    { path: p("/accounting/journals"), name: "Journal Entries", icon: <AuditOutlined />, _bare: "/accounting/journals" },
-    { path: p("/accounting/bank-statements"), name: "Banking", icon: <FileExcelOutlined />, _bare: "/accounting/bank-statements" },
-    { path: p("/accounting/reconciliation"), name: "Bank Reconciliation", icon: <BankOutlined />, _bare: "/accounting/reconciliation" },
-    { path: p("/accounting/accounts"), name: "Chart of Accounts", icon: <AuditOutlined />, _bare: "/accounting/accounts" },
-    ...(includeReports
-      ? [{ path: p("/accounting/reports"), name: "Reports", icon: <ReconciliationOutlined />, _bare: "/accounting/reports" }]
-      : []),
-    { ...inventoryRoute, _bare: inventoryBarePath },
-    { path: p("/customers"), name: "Customers", icon: <PeopleOutlined />, _bare: "/customers" },
-    { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
-    { path: p("/payment-methods"), name: "Payment Methods", icon: <CalculatorFilled />, _bare: "/payment-methods" },
-    { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
-    { ...documentRoute, _bare: "/documents" },
-    { ...conversationsRoute, _bare: "/omnichannel" },
-  ].filter((r) => canSee(r._bare, ACCOUNTING_ROUTE_PERMISSIONS))
-    .map(({ _bare: _b, ...rest }) => rest);
+  const buildAccountingRoutes = (includeReports: boolean) => {
+    const routesBase = [
+      { path: p("/accounting"), name: "Overview", icon: <DashboardOutlined />, _bare: "/accounting" },
+      { path: p("/orders"), name: "Invoices", icon: <FileTextOutlined />, _bare: "/orders" },
+      { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
+      { path: p("/accounting/bills"), name: "Bills", icon: <FileTextOutlined />, _bare: "/accounting/bills" },
+      { path: p("/accounting/notes"), name: "Debit/Credit Notes", icon: <FileSearchOutlined />, _bare: "/accounting/notes" },
+      { path: p("/accounting/journals"), name: "Journal Entries", icon: <AuditOutlined />, _bare: "/accounting/journals" },
+      { path: p("/accounting/bank-statements"), name: "Banking", icon: <FileExcelOutlined />, _bare: "/accounting/bank-statements" },
+      { path: p("/accounting/reconciliation"), name: "Bank Reconciliation", icon: <BankOutlined />, _bare: "/accounting/reconciliation" },
+      { path: p("/accounting/accounts"), name: "Chart of Accounts", icon: <AuditOutlined />, _bare: "/accounting/accounts" },
+      ...(includeReports
+        ? [{ path: p("/accounting/reports"), name: "Reports", icon: <ReconciliationOutlined />, _bare: "/accounting/reports" }]
+        : []),
+      { ...inventoryRoute, _bare: inventoryBarePath },
+      { path: p("/customers"), name: "Customers", icon: <PeopleOutlined />, _bare: "/customers" },
+      { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
+      { path: p("/payment-methods"), name: "Payment Methods", icon: <CalculatorFilled />, _bare: "/payment-methods" },
+      { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
+      { ...documentRoute, _bare: "/documents" },
+    ];
+
+    // Add conversations route only if available
+    if (conversationsRoute) {
+      routesBase.push(conversationsRoute);
+    }
+
+    return routesBase
+      .filter((r) => canSee(r._bare, ACCOUNTING_ROUTE_PERMISSIONS))
+      .map(({ _bare: _b, ...rest }) => rest);
+  };
 
   const accountingRoutes = buildAccountingRoutes(true);
   const accountingRoutesStaff = buildAccountingRoutes(false);
 
   // ── App tiles ─────────────────────────────────────────────────────────────
 
-  const posAppList = [
+  const posAppListBase = [
     { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize your products with clear categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
     { icon: makeTile("#0ea5e9", ICONS.table), title: homeRouteName, desc: isHospitalMode ? "Manage wards, beds and patient locations." : "Manage Tables location and naming.", url: p("/table-settings"), _bare: "/table-settings" },
     { icon: makeTile("#10b981", ICONS.inventory), title: isHospitalMode ? "Pharmacy" : "Inventory", desc: isHospitalMode ? "Manage medicines and medical supplies." : "Track and manage your stock levels.", url: p("/inventory"), _bare: "/inventory" },
@@ -267,11 +306,24 @@ const useProLayoutNav = () => {
     { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Get answers to your most common questions.", url: p("/fss-faqs"), _bare: "/fss-faqs" },
     { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store your store images.", url: p("/website-builder"), _bare: "/website-builder" },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
-    { icon: makeTile("#7c3aed", ICONS.omnichannel), title: "Conversations", desc: "Manage WhatsApp, Messenger and Instagram conversations.", url: p("/omnichannel"), _bare: "/omnichannel" },
-  ].filter((t) => canSee(t._bare, POS_APP_PERMISSIONS))
+  ];
+
+  // Add conversations tile only if Mteja is enabled AND user has permission
+  if (mtejaEnabled && can("OMNICHANNEL_VIEW")) {
+    posAppListBase.push({
+      icon: makeTile("#7c3aed", ICONS.omnichannel),
+      title: "Conversations",
+      desc: "Manage WhatsApp, Messenger and Instagram conversations.",
+      url: p("/omnichannel"),
+      _bare: "/omnichannel"
+    });
+  }
+
+  const posAppList = posAppListBase
+    .filter((t) => canSee(t._bare, POS_APP_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
-  const accountingAppList = [
+  const accountingAppListBase = [
     { icon: makeTile("#6c1c2c", ICONS.accounting), title: "Accounting", desc: "View your financial overview and KPIs.", url: p("/accounting"), _bare: "/accounting" },
     { icon: makeTile("#3b82f6", ICONS.invoice), title: "Invoices & Bills", desc: "Manage customer invoices and supplier bills.", url: p("/orders"), _bare: "/orders" },
     { icon: makeTile("#f59e0b", ICONS.debit), title: "Debit/Credit Notes", desc: "Create and manage debit and credit notes.", url: p("/accounting/notes"), _bare: "/accounting/notes" },
@@ -289,8 +341,21 @@ const useProLayoutNav = () => {
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: p("/payment-methods"), _bare: "/payment-methods" },
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: p("/system-setup"), _bare: "/system-setup" },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
-    { icon: makeTile("#7c3aed", ICONS.omnichannel), title: "Conversations", desc: "Manage WhatsApp, Messenger and Instagram conversations.", url: p("/omnichannel"), _bare: "/omnichannel" },
-  ].filter((t) => canSee(t._bare, ACCOUNTING_APP_PERMISSIONS))
+  ];
+
+  // Add conversations tile only if Mteja is enabled AND user has permission
+  if (mtejaEnabled && can("OMNICHANNEL_VIEW")) {
+    accountingAppListBase.push({
+      icon: makeTile("#7c3aed", ICONS.omnichannel),
+      title: "Conversations",
+      desc: "Manage WhatsApp, Messenger and Instagram conversations.",
+      url: p("/omnichannel"),
+      _bare: "/omnichannel"
+    });
+  }
+
+  const accountingAppList = accountingAppListBase
+    .filter((t) => canSee(t._bare, ACCOUNTING_APP_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
   // ── Compose final nav ─────────────────────────────────────────────────────

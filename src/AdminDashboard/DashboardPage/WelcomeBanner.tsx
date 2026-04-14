@@ -66,7 +66,7 @@ const WelcomeBanner = () => {
   };
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const clientName = tenant ? tenant.name : "Relia Pos";
+  const clientName = tenant ? tenant.name : "BasePoint Cloud";
 
   return (
     <div style={bannerStyle}>
@@ -78,7 +78,7 @@ const WelcomeBanner = () => {
         </p>
         <Button
           type="primary"
-          onClick={()=> navigate("/admin/shop-management")}
+          onClick={() => navigate("/admin/shop-management")}
           style={{
             width: "fit-content",
             border: "none",

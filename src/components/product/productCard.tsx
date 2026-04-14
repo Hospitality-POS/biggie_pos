@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback } from "react";
 import Paper from "@mui/material/Paper";
 import { addItemToCart } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
-import { addItem, subtractItem } from "../../features/Cart/CartSlice";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { Typography } from "antd";
 import useCartItemsData from "@hooks/cartItemsData";
@@ -50,7 +49,6 @@ function formatDuration(duration: number) {
 const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const { user } = useAppSelector((state) => state.auth);
   const { cartDetails, loading } = useAppSelector((state) => state.cart);
-  const [quantity, setQuantity] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -87,10 +85,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
     setIsProcessing(true);
     try {
-      dispatch(addItem(menu._id));
+      // ── No optimistic addItem dispatch here ───────────────────────────
+      // Dispatching addItem(menu._id) was pushing a bare string into
+      // cartItems[], causing calculateTotals() to read item.price as
+      // undefined → NaN → corrupted subtotal/VAT/grandTotal.
+      // addItemToCart already dispatches getCart() on success, so the
+      // cart updates correctly once the server responds.
       await dispatch(
         addItemToCart({
-          cart_id: cartDetails?._id || undefined,  // undefined not "" so backend creates cart if needed
+          cart_id: cartDetails?._id || undefined,
           product_id: menu._id,
           product_type: menu.type === 'product' ? 'Product_Inventory' : 'Product',
           price: menu.price,
@@ -98,12 +101,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
           quantity: formattedQuantity,
           desc: menu.desc,
           table_id: tableId,
-          ...(menu.type === 'service' && menu.duration && { duration: menu.duration })
+          ...(menu.type === 'service' && menu.duration && { duration: menu.duration }),
         })
       );
       invalidate();
     } catch (error) {
-      dispatch(subtractItem(menu._id));
       console.error('Failed to add item to cart:', error);
     } finally {
       setIsProcessing(false);
@@ -124,14 +126,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
     invalidate,
   ]);
 
-  const handleDecrement = useCallback(() => {
-    if (quantity > 0) {
-      setQuantity(quantity - 1);
-      dispatch(subtractItem(menu._id));
-      invalidate();
-    }
-  }, [quantity, dispatch, menu._id, invalidate]);
-
   const formattedPrice = useMemo(() => formatPrice(menu.price), [menu.price]);
 
   const defaultImagePath = "/download.png";
@@ -141,13 +135,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
       return {
         color: '#2196F3',
         icon: <Build style={{ fontSize: '12px', marginRight: '4px' }} />,
-        text: 'SERVICE'
+        text: 'SERVICE',
       };
     }
     return {
       color: '#4CAF50',
       icon: <ShoppingCart style={{ fontSize: '12px', marginRight: '4px' }} />,
-      text: 'PRODUCT'
+      text: 'PRODUCT',
     };
   };
 

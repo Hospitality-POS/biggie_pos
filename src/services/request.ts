@@ -240,7 +240,7 @@ axiosInstance.interceptors.response.use(
                     handleError(response.data.message);
                     break;
                 case 409:
-                    handleError("Company does not exist kindly contact support");
+                    handleError(response.data.message || "Company does not exist kindly contact support");
                     break;
                 case 404:
                     handleError(response.data.message || "Resource not found");

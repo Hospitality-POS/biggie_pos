@@ -30,6 +30,8 @@ import {
   UserOutlined,
   LockOutlined,
   WarningOutlined,
+  FontColorsOutlined,
+  PercentageOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -42,6 +44,8 @@ import {
   Tag,
   Alert,
   message,
+  Tooltip,
+  Segmented,
 } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
 import { useAppSelector } from "src/store";
@@ -148,39 +152,53 @@ const ReprintReasonModal: React.FC<{
   );
 };
 
-// ── savePrintedDocument wrapper that distinguishes block vs network errors ─
-// Returns:
-//   { saved: true }           — backend accepted, proceed to print
-//   { saved: false, blocked: true }  — 403/limit error, DO NOT print
-//   { saved: false, blocked: false } — network/500 error, still allow print
+// ── attemptSave ────────────────────────────────────────────────────────────
 async function attemptSave(
   recordPrint: (...args: any[]) => Promise<SavePrintResult | null>,
   opts: { print_format: PrintFormat; reason?: string }
 ): Promise<{ saved: boolean; blocked: boolean }> {
   try {
     const result = await recordPrint(opts);
-
-    if (result) {
-      // Backend returned a success body — saved OK
-      return { saved: true, blocked: false };
-    }
-
-    // recordPrint returned null — savePrintedDocument already showed a toast.
-    // We need to decide: was this a hard block (403/limit) or a soft failure
-    // (network, 500)?  savePrintedDocument swallows the error and returns null
-    // for ALL failure cases, so we re-check canPrint (already false if backend
-    // said 403 and the status was refreshed by the hook after a prior attempt).
-    // As a safe fallback we treat null-result as a BLOCKING failure so that a
-    // limit error can never silently slip through to the printer.
+    if (result) return { saved: true, blocked: false };
     return { saved: false, blocked: true };
   } catch {
-    // Unexpected throw — treat as non-blocking (network failure)
     return { saved: false, blocked: false };
   }
 }
 
-// ── Main component ─────────────────────────────────────────────────────────
+// ── Receipt styles helper — switches between bold and normal ───────────────
+const makeReceiptStyles = (bold: boolean) => {
+  const weight = bold ? 700 : 400;
+  const headerWeight = bold ? 900 : 600;
+  const base = { fontFamily: "'Courier New', Courier, monospace", color: "#000000" };
+  return {
+    shopName: { ...base, fontSize: "1.35em", fontWeight: headerWeight, letterSpacing: "0.5px" },
+    docType: { ...base, fontSize: "1.5em", fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
+    meta: { ...base, fontSize: "1.0em", fontWeight: weight },
+    label: { ...base, fontSize: "1.05em", fontWeight: bold ? 700 : 500 },
+    value: { ...base, fontSize: "1.05em", fontWeight: weight },
+    tblHdr: { padding: "4px 2px", fontWeight: headerWeight, fontSize: "1.05em", color: "#000", borderBottom: "1px solid #000" },
+    tblData: { padding: "3px 2px", fontWeight: weight, fontSize: "1.0em", color: "#000" },
+    total: { ...base, fontSize: "1.35em", fontWeight: headerWeight },
+    footer: { ...base, fontSize: "0.95em", fontWeight: weight, textAlign: "center" as const },
+  };
+};
 
+// ── Divider helpers ────────────────────────────────────────────────────────
+const DashedLine = () => (
+  <div style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
+);
+const SolidLine = () => (
+  <div style={{ borderTop: "1px solid #000", margin: "6px 0" }} />
+);
+const DoubleLine = () => (
+  <div style={{ margin: "6px 0" }}>
+    <div style={{ borderTop: "2px solid #000" }} />
+    <div style={{ borderTop: "1px solid #000", marginTop: "2px" }} />
+  </div>
+);
+
+// ── Main component ─────────────────────────────────────────────────────────
 const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
 
@@ -193,6 +211,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   }, []);
 
   const [isPdfView, setIsPdfView] = useState(false);
+  const [isBold, setIsBold] = useState(true);
+  const [showDiscount, setShowDiscount] = useState(true);
+  const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
@@ -212,18 +233,36 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   } = useSystemDetails();
 
   const {
-    canPrint,
-    isReprint,
-    printsRemaining,
-    printStatus,
-    statusLoading,
-    recordPrint,
+    canPrint, isReprint, printsRemaining,
+    printStatus, statusLoading, recordPrint,
   } = usePrintDocument({
     orderNo: cartDetails?.order_no,
     documentType,
     cartDetails,
     data,
   });
+
+  // Derived discount amount (mirrors CartDrawer logic)
+  const discountAmount =
+    cartDetails?.discount > 0
+      ? cartDetails.discount_type === "percentage"
+        ? parseFloat((subtotal * (cartDetails.discount / 100)).toFixed(2))
+        : cartDetails.discount
+      : 0;
+
+  // ── Display price helper ───────────────────────────────────────────────
+  // When the discount is hidden, we bake the discount proportionally into each
+  // item's displayed price so the total still reconciles without revealing the
+  // discount line to the customer.
+  const getDisplayPrice = useCallback(
+    (item: any): number => {
+      if (showDiscount || discountAmount === 0) return item.price;
+      const itemTotal = item.price * item.quantity;
+      const discountRatio = discountAmount / subtotal;
+      return (itemTotal * (1 - discountRatio)) / item.quantity;
+    },
+    [showDiscount, discountAmount, subtotal]
+  );
 
   const triggerPrint = useReactToPrint({
     content: () => componentRef.current,
@@ -241,7 +280,15 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     pageStyle: isPdfView
       ? `@page { size: A4; margin: 20mm; }
          @media print { * { color-adjust: exact !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } body { margin: 0; padding: 0; } }`
-      : `@media print { * { color-adjust: exact !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: black !important; font-weight: bold !important; } }`,
+      : `@media print {
+           * {
+             color-adjust: exact !important;
+             -webkit-print-color-adjust: exact !important;
+             print-color-adjust: exact !important;
+             color: black !important;
+             ${isBold ? "font-weight: bold !important;" : ""}
+           }
+         }`,
   });
 
   useEffect(() => {
@@ -262,53 +309,24 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const docConfig = getDocumentTypeConfig();
 
   const executePrint = useCallback(async (reason?: string) => {
-    // ── Gate 1: frontend canPrint flag ────────────────────────────────────
-    // This is set from the last known status. Catches the common case where
-    // the status was already fetched and shows as locked/over-limit.
     if (!canPrint) {
       message.error("Print limit reached. Printing is not allowed for this document.");
       return;
     }
-
     if (!refReady || !componentRef.current) {
       message.warning("Document is not ready yet. Please try again.");
       return;
     }
-
     setIsPrinting(true);
-
     try {
       const printFormat: PrintFormat = isPdfView ? "pdf" : "thermal";
-
-      // ── Gate 2: backend save ──────────────────────────────────────────
-      // attemptSave distinguishes hard blocks (403 / limit exceeded) from
-      // soft failures (network error / 500). Only a confirmed hard block
-      // stops the physical print from happening.
-      const { saved, blocked } = await attemptSave(recordPrint, {
-        print_format: printFormat,
-        reason,
-      });
-
-      if (blocked) {
-        // Backend rejected with a policy violation — error toast already
-        // shown by savePrintedDocument. Do NOT proceed to print.
-        console.warn("[executePrint] Save blocked — aborting print.");
-        setIsPrinting(false);
-        return;
-      }
-
+      const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
+      if (blocked) { setIsPrinting(false); return; }
       if (saved) {
-        message.success(
-          `${printFormat === "pdf" ? "PDF" : "Print"} ${isReprint ? "reprinted" : "printed"} and recorded successfully`
-        );
+        message.success(`${printFormat === "pdf" ? "PDF" : "Print"} ${isReprint ? "reprinted" : "printed"} and recorded successfully`);
       }
-      // If !saved && !blocked it was a network/500 error — we allow the
-      // physical print to continue so the cashier isn't blocked by infra issues.
-
-      // ── Trigger physical print ────────────────────────────────────────
       pendingPrintRef.current = true;
       setPrintTrigger((n) => n + 1);
-
     } catch (err) {
       console.error("executePrint error:", err);
       message.error("Failed to process print request");
@@ -317,14 +335,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   }, [canPrint, isPdfView, refReady, recordPrint, isReprint]);
 
   const handleFinish = async () => {
-    if (!canPrint) {
-      message.error("Print limit reached.");
-      return false;
-    }
-    if (isReprint && printStatus?.requires_reason) {
-      setReasonModalOpen(true);
-      return false;
-    }
+    if (!canPrint) { message.error("Print limit reached."); return false; }
+    if (isReprint && printStatus?.requires_reason) { setReasonModalOpen(true); return false; }
     await executePrint();
     return true;
   };
@@ -333,9 +345,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     setSending(true);
     try {
       const htmlTable = refToHtmlString(componentRef);
-      const fmtAmt = (n: number) =>
-        `KES ${n.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
-
+      const fmtAmt = (n: number) => `KES ${n.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`;
       const ok = await sendEmail({
         to: values.to,
         recipientName: values.recipientName ?? cartDetails?.client_name ?? cartDetails?.clientName ?? undefined,
@@ -359,14 +369,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   };
 
   // ── Styles ─────────────────────────────────────────────────────────────
-  const baseText = { fontFamily: "monospace", fontWeight: 700, color: "#000000" };
-  const hdr = { ...baseText, fontSize: "1.4em", fontWeight: 900 };
-  const subhdr = { ...baseText, fontSize: "1.2em", fontWeight: 800 };
-  const norm = { ...baseText, fontSize: "1.1em" };
-  const tblHdr = { padding: 1, fontWeight: 900, fontSize: "1.2em", color: "#000000" };
-  const tblData = { padding: 1, fontWeight: 700, fontSize: "1.1em", color: "#000000" };
-  const warrantyS = { ...subhdr, textAlign: "center" as const, border: "2px solid #000", padding: "8px", margin: "10px 0", backgroundColor: "#f9f9f9", fontWeight: 900 };
+  const S = makeReceiptStyles(isBold);
 
+  // PDF styles (always professional, unaffected by bold toggle)
   const pdfBase = { fontFamily: "'Segoe UI', Roboto, sans-serif", color: "#333" };
   const pdfHdr = { ...pdfBase, fontSize: "28px", fontWeight: 700, color: "#1a1a1a" };
   const pdfSub = { ...pdfBase, fontSize: "16px", fontWeight: 600, color: "#444" };
@@ -375,12 +380,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const pdfTD = { padding: "10px 8px", fontSize: "14px", color: "#333", borderBottom: "1px solid #eee" };
   const pdfWarranty = { textAlign: "center" as const, border: "3px solid #000", padding: "15px", margin: "20px 0", backgroundColor: "#fff9e6", fontWeight: 700, fontSize: "18px", borderRadius: "8px" };
 
+  const printDate = new Date();
+  const printDateStr = printDate.toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" });
+  const printTimeStr = `${String(printDate.getHours()).padStart(2, "0")}:${String(printDate.getMinutes()).padStart(2, "0")}`;
+
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <>
       <ModalForm
         className="receiptM"
-        modalProps={{ centered: true, destroyOnClose: true, width: isPdfView ? 900 : 600 }}
+        modalProps={{ centered: true, destroyOnClose: true, width: isPdfView ? 900 : 620 }}
         submitter={{
           render: (_, defaultDoms) => (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
@@ -413,6 +422,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
         }
         onFinish={handleFinish}
       >
+        {/* ── Alerts ──────────────────────────────────────────────────── */}
         {!canPrint && (
           <Alert type="error" showIcon icon={<LockOutlined />}
             message="Print limit reached"
@@ -427,13 +437,26 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           />
         )}
 
-        <Space direction="vertical" style={{ marginBottom: 20, width: "100%" }}>
-          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 2, paddingBottom: 2, borderBottom: "1px solid #f0f0f0" }}>
-            <Typography variant="body1" style={{ fontWeight: 600, margin: 0 }}>Document Type :</Typography>
+        {/* ── Toolbar ─────────────────────────────────────────────────── */}
+        <div style={{
+          background: "#fafafa",
+          border: "1px solid #e8e8e8",
+          borderRadius: 10,
+          padding: "12px 16px",
+          marginBottom: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}>
+          {/* Row 1: Document type */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>
+              Document Type:
+            </span>
             <Select
               value={documentType}
               onChange={(v: DocumentType) => setDocumentType(v)}
-              style={{ width: 200 }}
+              style={{ width: 170 }}
               options={[
                 { label: "Bill", value: "bill" },
                 { label: "Receipt", value: "receipt" },
@@ -441,146 +464,260 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 { label: "Quotation", value: "quotation" },
               ]}
             />
-            <Tag color={docConfig.color} style={{ fontSize: 14, padding: "4px 12px" }}>
-              {docConfig.icon} {docConfig.label}
+            <Tag color={docConfig.color} style={{ fontSize: 13, padding: "3px 10px", borderRadius: 6, margin: 0 }}>
+              {docConfig.icon}&nbsp;{docConfig.label}
             </Tag>
-          </Box>
-          <Space direction="horizontal" style={{ display: "flex", justifyContent: "center", alignItems: "center", paddingTop: 2 }}>
-            <PrinterOutlined style={{ fontSize: 18 }} />
-            <Typography variant="body1" style={{ fontWeight: 600, margin: 0 }}>Thermal Receipt</Typography>
-            <Switch checked={isPdfView} onChange={setIsPdfView} checkedChildren="PDF" unCheckedChildren="Thermal" disabled={!canPrint} />
-            <Typography variant="body1" style={{ fontWeight: 600, margin: 0 }}>A4 PDF</Typography>
-            <FilePdfOutlined style={{ fontSize: 18 }} />
-          </Space>
-        </Space>
+          </div>
 
-        {/* Thermal receipt — always mounted, hidden when PDF mode active */}
+          {/* Row 2: Format + Bold toggle */}
+          <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+            {/* Format toggle */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <PrinterOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+              <span style={{ fontSize: 13, color: "#374151" }}>Thermal</span>
+              <Switch
+                checked={isPdfView}
+                onChange={setIsPdfView}
+                checkedChildren="PDF"
+                unCheckedChildren="POS"
+                disabled={!canPrint}
+                style={{ background: isPdfView ? C.primary : undefined }}
+              />
+              <span style={{ fontSize: 13, color: "#374151" }}>A4 PDF</span>
+              <FilePdfOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+            </div>
+
+            {/* Divider */}
+            <div style={{ width: 1, height: 24, background: "#e5e7eb" }} />
+
+            {/* Bold toggle — only relevant for thermal */}
+            {!isPdfView && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <FontColorsOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                <span style={{ fontSize: 13, color: "#374151" }}>Text Weight:</span>
+                <Segmented
+                  size="small"
+                  value={isBold ? "bold" : "normal"}
+                  onChange={(v) => setIsBold(v === "bold")}
+                  options={[
+                    {
+                      label: (
+                        <Tooltip title="Bold — high contrast, easy to scan">
+                          <span style={{ fontWeight: 700, fontSize: 13 }}>Bold</span>
+                        </Tooltip>
+                      ),
+                      value: "bold",
+                    },
+                    {
+                      label: (
+                        <Tooltip title="Normal — cleaner, lighter look">
+                          <span style={{ fontWeight: 400, fontSize: 13 }}>Normal</span>
+                        </Tooltip>
+                      ),
+                      value: "normal",
+                    },
+                  ]}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Row 3: Show/hide Discount & VAT */}
+          <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>
+              Show on Print:
+            </span>
+
+            {/* Discount toggle */}
+            <Tooltip title={discountAmount > 0 ? "Toggle discount line on printed document" : "No discount applied to this order"}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <PercentageOutlined style={{ fontSize: 15, color: showDiscount ? "#6c1c2c" : "#9ca3af" }} />
+                <span style={{ fontSize: 13, color: "#374151" }}>Discount</span>
+                <Switch
+                  size="small"
+                  checked={showDiscount}
+                  onChange={setShowDiscount}
+                  disabled={discountAmount === 0}
+                  style={{ background: showDiscount && discountAmount > 0 ? C.primary : undefined }}
+                />
+              </div>
+            </Tooltip>
+
+            {/* Divider */}
+            <div style={{ width: 1, height: 20, background: "#e5e7eb" }} />
+
+            {/* VAT toggle */}
+            <Tooltip title="Toggle VAT line on printed document">
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <DollarOutlined style={{ fontSize: 15, color: showVat ? "#6c1c2c" : "#9ca3af" }} />
+                <span style={{ fontSize: 13, color: "#374151" }}>VAT</span>
+                <Switch
+                  size="small"
+                  checked={showVat}
+                  onChange={setShowVat}
+                  style={{ background: showVat ? C.primary : undefined }}
+                />
+              </div>
+            </Tooltip>
+          </div>
+        </div>
+
+        {/* ── THERMAL RECEIPT ─────────────────────────────────────────── */}
         <div
           ref={!isPdfView ? printableRef : undefined}
           className="receipt"
           id="receipt"
           style={{ color: "#000000", display: isPdfView ? "none" : "block" }}
         >
-          <div className="logo-print" style={{ display: "flex", flexDirection: "column", marginBottom: 15 }}>
-            <Typography variant="body1" style={hdr}>{BRAND_NAME1}</Typography>
-            <Typography variant="body1" style={{ ...hdr, textAlign: "center", fontSize: "1.6em", marginTop: 5, marginBottom: 5, color: "#000" }}>
-              {docConfig.label}
-            </Typography>
-            <Typography variant="body1" style={subhdr}>Phone: {PHONE_NO}</Typography>
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: 10 }}>
+            <div style={S.shopName}>{BRAND_NAME1}</div>
+            <div style={S.docType}>{docConfig.label}</div>
+            <SolidLine />
+            <div style={S.meta}>Tel: {PHONE_NO}</div>
             {Paybill_bs ? (
               <>
-                <Typography variant="body1" style={subhdr}>Business No: {Paybill_bs}</Typography>
-                {Paybill_ac && <Typography variant="body1" style={subhdr}>Account No: {Paybill_ac}</Typography>}
+                <div style={S.meta}>Paybill: {Paybill_bs}{Paybill_ac ? `  Acc: ${Paybill_ac}` : ""}</div>
               </>
             ) : (
-              TILL_NO && <Typography variant="body1" style={subhdr}>Till No: {TILL_NO}</Typography>
+              TILL_NO && <div style={S.meta}>Till No: {TILL_NO}</div>
             )}
             {cartDetails?.clientPin && (
-              <Typography variant="body1" style={norm}>Client Pin: {cartDetails?.clientPin}</Typography>
+              <div style={S.meta}>Client PIN: {cartDetails.clientPin}</div>
             )}
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <Typography variant="body1" style={subhdr}>{cartDetails?.order_no}</Typography>
-            <Typography variant="body1" style={subhdr}>
-              Served By: {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}
-            </Typography>
+          <DashedLine />
+
+          {/* Order info */}
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+            <span style={S.label}>Order: {cartDetails?.order_no}</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "-15px" }}>
-            <Typography variant="body1" style={subhdr}>Table: {cartDetails?.table_id?.name}</Typography>
-            <Typography variant="body1" style={norm}>
-              Date: {new Date().toLocaleDateString()} {new Date().getHours()}:{new Date().getMinutes()}
-            </Typography>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+            <span style={S.meta}>Cashier: {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}</span>
+            <span style={S.meta}>Table: {cartDetails?.table_id?.name}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+            <span style={S.meta}>Date: {printDateStr}</span>
+            <span style={S.meta}>Time: {printTimeStr}</span>
           </div>
 
-          <TableContainer sx={{ mt: 3, width: "inherit" }}>
-            <Table style={{ tableLayout: "fixed" }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ ...tblHdr, width: "10%" }}>#</TableCell>
-                  <TableCell sx={tblHdr}>ITEM</TableCell>
-                  <TableCell sx={{ ...tblHdr, textAlign: "right" }}>PRICE(.Ksh)</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data?.map((item: any, index: number) => (
-                  <TableRow key={item._id || index}>
-                    <TableCell sx={{ ...tblData, width: "5%", textAlign: "left" }}>{item.quantity}</TableCell>
-                    <TableCell component="th" scope="row" sx={{ ...tblData, wordWrap: "break-word" }}>{item?.product_id?.name}</TableCell>
-                    <TableCell sx={{ ...tblData, textAlign: "right" }}>{item?.price?.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <DashedLine />
 
-          <div style={{ marginTop: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <Typography variant="body1" style={subhdr}>Subtotal:</Typography>
-              <Typography variant="body1" style={subhdr}>Ksh. {subtotal.toLocaleString()}</Typography>
-            </div>
-            {cartDetails?.discount > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <Typography variant="body1" style={norm}>Discount:</Typography>
-                <Typography variant="body1" style={norm}>
-                  - Ksh. {(cartDetails.discount_type === "percentage"
-                    ? subtotal * (cartDetails.discount / 100)
-                    : cartDetails.discount
-                  ).toLocaleString()}
-                </Typography>
+          {/* Items table */}
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ ...S.tblHdr, textAlign: "left", width: "8%" }}>QTY</th>
+                <th style={{ ...S.tblHdr, textAlign: "left" }}>DESCRIPTION</th>
+                <th style={{ ...S.tblHdr, textAlign: "right", width: "28%" }}>AMOUNT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data?.map((item: any, index: number) => {
+                const displayPrice = getDisplayPrice(item);
+                return (
+                  <tr key={item._id || index}>
+                    <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top" }}>{item.quantity}</td>
+                    <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top", wordBreak: "break-word" }}>
+                      {item?.product_id?.name}
+                      {item.quantity > 1 && (
+                        <div style={{ ...S.meta, fontSize: "0.85em", color: "#555" }}>
+                          @ {displayPrice.toFixed(2)} each
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top" }}>
+                      {(displayPrice * item.quantity).toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <DashedLine />
+
+          {/* Totals */}
+          <div style={{ paddingLeft: "30%" }}>
+            {/* Only show subtotal line when discount is visible; when hidden the
+                item prices already absorb the discount so we skip the raw subtotal
+                to avoid confusing the customer with a number that doesn't match. */}
+            {showDiscount || discountAmount === 0 ? (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                <span style={S.value}>Subtotal</span>
+                <span style={S.value}>Ksh {subtotal.toLocaleString()}</span>
+              </div>
+            ) : null}
+
+            {showDiscount && discountAmount > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                <span style={S.value}>
+                  Discount{cartDetails.discount_type === "percentage" ? ` (${cartDetails.discount}%)` : ""}
+                </span>
+                <span style={S.value}>- Ksh {discountAmount.toFixed(2)}</span>
               </div>
             )}
+            {showVat && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                <span style={S.value}>VAT</span>
+                <span style={S.value}>Ksh {totalVatAmount.toFixed(2)}</span>
+              </div>
+            )}
+            <DoubleLine />
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <Typography variant="body1" style={norm}>VAT:</Typography>
-              <Typography variant="body1" style={norm}>Ksh. {totalVatAmount.toLocaleString()}</Typography>
-            </div>
-            <div style={{ borderTop: "2px dashed #000", margin: "5px 0" }} />
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <Typography variant="body1" style={hdr}>{docConfig.amountLabel}:</Typography>
-              <Typography variant="body1" style={hdr}>Ksh. {grandTotal.toLocaleString()}</Typography>
+              <span style={S.total}>{docConfig.amountLabel.toUpperCase()}</span>
+              <span style={S.total}>Ksh {grandTotal.toLocaleString()}</span>
             </div>
           </div>
 
+          {/* Warranty (electronics) */}
           {isElectronicsStore && documentType !== "quotation" && (
             <>
-              <div style={{ margin: "15px 0" }}>
-                <Typography variant="body1" style={warrantyS}>
+              <DashedLine />
+              <div style={{ border: "2px solid #000", padding: "8px", margin: "8px 0", textAlign: "center", backgroundColor: "#f9f9f9" }}>
+                <span style={{ ...S.label, fontSize: "1.1em" }}>
                   <SafetyCertificateFilled /> WARRANTY: 6 MONTHS <SafetyCertificateFilled />
-                </Typography>
+                </span>
               </div>
-              <div style={{ margin: "10px 0" }}>
-                <Typography variant="body1" style={{ ...norm, textAlign: "center" }}>* This receipt serves as your warranty certificate *</Typography>
-                <Typography variant="body1" style={{ ...norm, textAlign: "center" }}>* Please retain for warranty claims *</Typography>
+              <div style={{ textAlign: "center" }}>
+                <div style={S.meta}>* This receipt serves as your warranty certificate *</div>
+                <div style={S.meta}>* Please retain for warranty claims *</div>
               </div>
             </>
           )}
+
+          {/* Quotation notice */}
           {documentType === "quotation" && (
-            <div style={{ margin: "15px 0" }}>
-              <Typography variant="body1" style={{ ...norm, textAlign: "center" }}>* This quotation is valid for 30 days *</Typography>
-              <Typography variant="body1" style={{ ...norm, textAlign: "center" }}>* Prices subject to change without notice *</Typography>
-            </div>
+            <>
+              <DashedLine />
+              <div style={{ textAlign: "center" }}>
+                <div style={S.meta}>* This quotation is valid for 30 days *</div>
+                <div style={S.meta}>* Prices subject to change without notice *</div>
+              </div>
+            </>
           )}
 
-          <Typography variant="body1" sx={{ textAlign: "center", fontWeight: 900, marginTop: isElectronicsStore ? 0 : 5 }}>
-            ===========================
-          </Typography>
-          <div className="qrcoded" style={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
-            <QRCodeCanvas value={QR_Code} size={100} className="qrcode" />
+          {/* Footer */}
+          <DashedLine />
+          <div style={{ textAlign: "center", marginTop: 6 }}>
+            <div className="qrcoded" style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+              <QRCodeCanvas value={QR_Code} size={90} className="qrcode" />
+            </div>
+            <div style={S.footer}>Thank you for your {documentType === "quotation" ? "interest" : "business"}!</div>
+            <div style={S.footer}>{EMAIL_URL}</div>
+            <div style={S.footer}>Printed: {printDateStr} {printTimeStr}</div>
+            <div style={{ ...S.footer, marginTop: 4, fontSize: "0.85em", color: "#555" }}>Powered By  BasePoint Cloud</div>
           </div>
-          <Typography variant="body1" style={{ ...subhdr, textAlign: "center", marginTop: 10 }}>
-            Thank you for your {documentType === "quotation" ? "interest" : "support"}!
-          </Typography>
-          <Typography variant="body1" style={{ ...norm, textAlign: "center" }}>Info email: {EMAIL_URL}</Typography>
-          <Typography variant="body1" style={{ ...norm, textAlign: "center" }}>Generated on {new Date().toLocaleDateString()}</Typography>
-          <Typography variant="body1" style={{ ...norm, textAlign: "center" }}>Powered By Relia Tech Solutions</Typography>
         </div>
 
-        {/* PDF / A4 view */}
+        {/* ── PDF / A4 VIEW ────────────────────────────────────────────── */}
         {isPdfView && (
           <div
             ref={printableRef}
             style={{ backgroundColor: "#fff", padding: "40px", maxWidth: "800px", margin: "0 auto", boxShadow: "0 0 10px rgba(0,0,0,0.1)" }}
           >
+            {/* PDF Header */}
             <Box sx={{ borderBottom: "3px solid #333", paddingBottom: 3, marginBottom: 3 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
                 <Typography variant="h3" style={pdfHdr}>{BRAND_NAME1}</Typography>
@@ -591,16 +728,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <Box>
-                  <Typography variant="body1" style={pdfSub}>Phone: {PHONE_NO}</Typography>
+                  <Typography variant="body1" style={pdfSub}>Tel: {PHONE_NO}</Typography>
                   {Paybill_bs ? (
                     <>
-                      <Typography variant="body1" style={pdfNorm}>Business No: {Paybill_bs}</Typography>
+                      <Typography variant="body1" style={pdfNorm}>Paybill: {Paybill_bs}</Typography>
                       {Paybill_ac && <Typography variant="body1" style={pdfNorm}>Account No: {Paybill_ac}</Typography>}
                     </>
                   ) : (
                     TILL_NO && <Typography variant="body1" style={pdfNorm}>Till No: {TILL_NO}</Typography>
                   )}
-                  {cartDetails?.clientPin && <Typography variant="body1" style={pdfNorm}>Client Pin: {cartDetails?.clientPin}</Typography>}
+                  {cartDetails?.clientPin && <Typography variant="body1" style={pdfNorm}>Client PIN: {cartDetails.clientPin}</Typography>}
                 </Box>
                 <Box sx={{ textAlign: "right" }}>
                   <QRCodeCanvas value={QR_Code} size={120} />
@@ -608,103 +745,112 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Box>
             </Box>
 
-            <Box sx={{ marginBottom: 3 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", marginBottom: 1 }}>
-                <Typography variant="body1" style={pdfSub}>
-                  {documentType === "quotation" ? "Quote" : "Order"} No: {cartDetails?.order_no}
-                </Typography>
-                <Typography variant="body1" style={pdfNorm}>
-                  Date: {new Date().toLocaleDateString()} {new Date().getHours()}:{new Date().getMinutes()}
-                </Typography>
-              </Box>
-              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+            {/* PDF Order meta */}
+            <Box sx={{ display: "flex", justifyContent: "space-between", marginBottom: 3, backgroundColor: "#f8fafc", borderRadius: 2, padding: 2 }}>
+              <Box>
+                <Typography variant="body1" style={pdfSub}>{documentType === "quotation" ? "Quote" : "Order"} No: {cartDetails?.order_no}</Typography>
                 <Typography variant="body1" style={pdfNorm}>Table: {cartDetails?.table_id?.name}</Typography>
-                <Typography variant="body1" style={pdfNorm}>Served By: {cartDetails?.created_by?.username}</Typography>
+              </Box>
+              <Box sx={{ textAlign: "right" }}>
+                <Typography variant="body1" style={pdfNorm}>Date: {printDateStr}</Typography>
+                <Typography variant="body1" style={pdfNorm}>Time: {printTimeStr}</Typography>
+                <Typography variant="body1" style={pdfNorm}>Cashier: {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}</Typography>
               </Box>
             </Box>
 
+            {/* PDF Items */}
             <TableContainer component={Paper} elevation={0} sx={{ mb: 3 }}>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ ...pdfTH, width: "10%" }}>Qty</TableCell>
+                    <TableCell sx={{ ...pdfTH, width: "8%" }}>Qty</TableCell>
                     <TableCell sx={pdfTH}>Item Description</TableCell>
-                    <TableCell sx={{ ...pdfTH, textAlign: "right" }}>Unit Price</TableCell>
-                    <TableCell sx={{ ...pdfTH, textAlign: "right" }}>Total</TableCell>
+                    <TableCell sx={{ ...pdfTH, textAlign: "right" }}>Unit Price (Ksh)</TableCell>
+                    <TableCell sx={{ ...pdfTH, textAlign: "right" }}>Total (Ksh)</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {data?.map((item: any, index: number) => (
-                    <TableRow key={item._id || index}>
-                      <TableCell sx={pdfTD}>{item.quantity}</TableCell>
-                      <TableCell sx={pdfTD}>{item?.product_id?.name}</TableCell>
-                      <TableCell sx={{ ...pdfTD, textAlign: "right" }}>Ksh. {(item?.price / item.quantity).toFixed(2)}</TableCell>
-                      <TableCell sx={{ ...pdfTD, textAlign: "right" }}>Ksh. {item?.price?.toFixed(2)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {data?.map((item: any, index: number) => {
+                    const displayPrice = getDisplayPrice(item);
+                    return (
+                      <TableRow key={item._id || index}>
+                        <TableCell sx={pdfTD}>{item.quantity}</TableCell>
+                        <TableCell sx={pdfTD}>{item?.product_id?.name}</TableCell>
+                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{displayPrice.toFixed(2)}</TableCell>
+                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{(displayPrice * item.quantity).toFixed(2)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
 
-            <Box sx={{ marginLeft: "auto", maxWidth: "400px", padding: 2, backgroundColor: "#f9f9f9", borderRadius: 2 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", marginBottom: 1 }}>
-                <Typography variant="body1" style={pdfNorm}>Subtotal:</Typography>
-                <Typography variant="body1" style={pdfNorm}>Ksh. {subtotal.toLocaleString()}</Typography>
-              </Box>
-              {cartDetails?.discount > 0 && (
-                <Box sx={{ display: "flex", justifyContent: "space-between", marginBottom: 1 }}>
-                  <Typography variant="body1" style={pdfNorm}>Discount:</Typography>
-                  <Typography variant="body1" style={{ ...pdfNorm, color: "#d32f2f" }}>
-                    - Ksh. {(cartDetails.discount_type === "percentage"
-                      ? subtotal * (cartDetails.discount / 100)
-                      : cartDetails.discount
-                    ).toLocaleString()}
-                  </Typography>
+            {/* PDF Totals */}
+            <Box sx={{ marginLeft: "auto", maxWidth: "380px", padding: 2, backgroundColor: "#f9f9f9", borderRadius: 2, border: "1px solid #e2e8f0" }}>
+              {/* Only show subtotal row when discount is visible */}
+              {(showDiscount || discountAmount === 0) && (
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                  <Typography style={pdfNorm}>Subtotal</Typography>
+                  <Typography style={pdfNorm}>Ksh {subtotal.toLocaleString()}</Typography>
                 </Box>
               )}
-              <Box sx={{ display: "flex", justifyContent: "space-between", marginBottom: 1 }}>
-                <Typography variant="body1" style={pdfNorm}>VAT:</Typography>
-                <Typography variant="body1" style={pdfNorm}>Ksh. {totalVatAmount.toLocaleString()}</Typography>
-              </Box>
-              <Divider sx={{ my: 1, borderColor: "#333", borderWidth: 1 }} />
+              {showDiscount && discountAmount > 0 && (
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                  <Typography style={pdfNorm}>
+                    Discount{cartDetails.discount_type === "percentage" ? ` (${cartDetails.discount}%)` : ""}
+                  </Typography>
+                  <Typography style={{ ...pdfNorm, color: "#d32f2f" }}>- Ksh {discountAmount.toFixed(2)}</Typography>
+                </Box>
+              )}
+              {showVat && (
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                  <Typography style={pdfNorm}>VAT</Typography>
+                  <Typography style={pdfNorm}>Ksh {totalVatAmount.toFixed(2)}</Typography>
+                </Box>
+              )}
+              <Divider sx={{ my: 1.5, borderColor: "#333", borderWidth: 2 }} />
               <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                <Typography variant="h5" style={{ ...pdfHdr, fontSize: "22px" }}>{docConfig.amountLabel}:</Typography>
-                <Typography variant="h5" style={{ ...pdfHdr, fontSize: "22px" }}>Ksh. {grandTotal.toLocaleString()}</Typography>
+                <Typography style={{ ...pdfHdr, fontSize: "20px" }}>{docConfig.amountLabel}</Typography>
+                <Typography style={{ ...pdfHdr, fontSize: "20px" }}>Ksh {grandTotal.toLocaleString()}</Typography>
               </Box>
             </Box>
 
+            {/* Warranty */}
             {isElectronicsStore && documentType !== "quotation" && (
-              <Box sx={{ marginTop: 4, marginBottom: 3 }}>
-                <Typography variant="body1" style={pdfWarranty}>
+              <Box sx={{ mt: 4, mb: 3 }}>
+                <Typography style={pdfWarranty}>
                   <SafetyCertificateFilled style={{ marginRight: 8 }} />WARRANTY: 6 MONTHS<SafetyCertificateFilled style={{ marginLeft: 8 }} />
                 </Typography>
-                <Box sx={{ textAlign: "center", marginTop: 2 }}>
-                  <Typography variant="body1" style={pdfNorm}>This receipt serves as your warranty certificate</Typography>
-                  <Typography variant="body1" style={pdfNorm}>Please retain for warranty claims</Typography>
+                <Box sx={{ textAlign: "center", mt: 1 }}>
+                  <Typography style={pdfNorm}>This receipt serves as your warranty certificate</Typography>
+                  <Typography style={pdfNorm}>Please retain for warranty claims</Typography>
                 </Box>
               </Box>
             )}
+
+            {/* Quotation terms */}
             {documentType === "quotation" && (
-              <Box sx={{ marginTop: 4, marginBottom: 3, backgroundColor: "#fffbe6", border: "2px solid #faad14", borderRadius: "8px", padding: 2 }}>
-                <Typography variant="body1" style={{ ...pdfSub, textAlign: "center", marginBottom: 8 }}>Quotation Terms & Conditions</Typography>
-                <Typography variant="body1" style={{ ...pdfNorm, marginBottom: 4 }}>• This quotation is valid for 30 days from the date of issue</Typography>
-                <Typography variant="body1" style={{ ...pdfNorm, marginBottom: 4 }}>• Prices are subject to change without prior notice</Typography>
-                <Typography variant="body1" style={{ ...pdfNorm, marginBottom: 4 }}>• Final pricing may vary based on product availability</Typography>
+              <Box sx={{ mt: 4, mb: 3, backgroundColor: "#fffbe6", border: "2px solid #faad14", borderRadius: "8px", p: 2 }}>
+                <Typography style={{ ...pdfSub, textAlign: "center", marginBottom: 8 }}>Quotation Terms & Conditions</Typography>
+                <Typography style={{ ...pdfNorm, marginBottom: 4 }}>• Valid for 30 days from date of issue</Typography>
+                <Typography style={{ ...pdfNorm, marginBottom: 4 }}>• Prices subject to change without prior notice</Typography>
+                <Typography style={{ ...pdfNorm, marginBottom: 4 }}>• Final pricing may vary based on product availability</Typography>
               </Box>
             )}
 
-            <Box sx={{ borderTop: "2px solid #ddd", paddingTop: 3, marginTop: 4, textAlign: "center" }}>
-              <Typography variant="body1" style={{ ...pdfSub, marginBottom: 8 }}>
+            {/* PDF Footer */}
+            <Box sx={{ borderTop: "2px solid #ddd", pt: 3, mt: 4, textAlign: "center" }}>
+              <Typography style={{ ...pdfSub, marginBottom: 8 }}>
                 Thank you for your {documentType === "quotation" ? "interest" : "business"}!
               </Typography>
-              <Typography variant="body1" style={{ ...pdfNorm, marginBottom: 4 }}>Email: {EMAIL_URL}</Typography>
-              <Typography variant="body1" style={{ ...pdfNorm, marginBottom: 4 }}>Generated on {new Date().toLocaleDateString()}</Typography>
-              <Typography variant="body1" style={{ ...pdfNorm, color: "#666" }}>Powered By Relia Tech Solutions</Typography>
+              <Typography style={{ ...pdfNorm, mb: 0.5 }}>Email: {EMAIL_URL}</Typography>
+              <Typography style={{ ...pdfNorm, mb: 0.5 }}>Printed: {printDateStr} {printTimeStr}</Typography>
+              <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By  BasePoint Cloud</Typography>
             </Box>
           </div>
         )}
 
-        <Box sx={{ mt: 2, display: "flex", justifyContent: "space-evenly", columnGap: 5 }} />
+        <Box sx={{ mt: 2 }} />
       </ModalForm>
 
       <SendEmailModal
@@ -717,10 +863,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
       <ReprintReasonModal
         open={reasonModalOpen}
-        onConfirm={async (reason) => {
-          setReasonModalOpen(false);
-          await executePrint(reason);
-        }}
+        onConfirm={async (reason) => { setReasonModalOpen(false); await executePrint(reason); }}
         onCancel={() => setReasonModalOpen(false)}
       />
     </>

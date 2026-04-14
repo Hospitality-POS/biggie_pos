@@ -389,7 +389,7 @@ export const editInventory = async (params) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Failed to update inventory");
 
-      message.success("Inventory updated successfully");
+      // message.success("Inventory updated successfully");
       return data;
     } else {
       const subcategory_id = params.values.subcategory_id?.value || params.values.subcategory_id;

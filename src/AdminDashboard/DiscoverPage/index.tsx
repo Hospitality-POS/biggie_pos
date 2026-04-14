@@ -163,35 +163,16 @@ const INTEGRATIONS = [
         id: "mteja",
         name: "Mteja by Base",
         category: "CRM & Customer Engagement",
-        description: "All-in-one CRM suite — SMS, loyalty rewards, and customer relationship tools in one platform.",
-        longDescription: "Mteja by Base is your complete customer engagement suite. Manage customer relationships, run loyalty programmes, send automated SMS notifications, and build personalised marketing campaigns — all deeply integrated with Duka by Base and Pesa by Base.",
-        features: ["Customer Relationship Management", "Order & Payment Alerts", "Referral Programmes", "Customer Analytics"],
-        comingSoonFeatures: ["Loyalty Points & Rewards", "Tiered Membership Levels", "Automated SMS Notifications", "Bulk SMS Campaigns", "Birthday & Anniversary Rewards"],
+        description: "All-in-one CRM suite — SMS, loyalty rewards, omnichannel conversations, and customer relationship tools in one platform.",
+        longDescription: "Mteja by Base is your complete customer engagement suite. Manage customer relationships, run loyalty programmes, send automated SMS notifications, build personalised marketing campaigns, and engage customers across WhatsApp, SMS, and web chat — all deeply integrated with Duka by Base and Pesa by Base.",
+        features: ["Customer Relationship Management", "Order & Payment Alerts", "Referral Programmes", "Customer Analytics", "Omnichannel Conversations Inbox", "WhatsApp & SMS Integration", "Web Chat Widget"],
+        comingSoonFeatures: ["Loyalty Points & Rewards", "Tiered Membership Levels", "Automated SMS Notifications", "Bulk SMS Campaigns", "Birthday & Anniversary Rewards", "AI Auto-Reply", "Chatbot Builder"],
         benefits: ["Increase repeat visits", "Boost average order value", "Keep customers informed", "Reward your best customers", "Data-driven promotions", "Reduce no-shows", "Works without internet for SMS"],
         setupTime: "5 minutes",
         status: "available",
         icon: CustomerServiceOutlined,
         color: C.primary,
-        tags: ["Base Suite", "CRM", "Loyalty"],
-    },
-    // ── Conversations — sub-feature of Mteja ──────────────────────────────────
-    {
-        id: "conversations",
-        name: "Conversations",
-        category: "Omnichannel Messaging",
-        description: "Unified inbox for WhatsApp, SMS, and web chat — managed directly inside Mteja by Base.",
-        longDescription: "Conversations brings all your customer messages into one place. Connect WhatsApp Business, SMS, and web chat channels, assign conversations to staff, send template messages, and respond instantly — all from within the Mteja by Base CRM suite.",
-        features: ["Unified Inbox", "WhatsApp Business Integration", "SMS Channel", "Web Chat Widget", "Conversation Assignment", "Staff Collaboration", "Message Templates"],
-        comingSoonFeatures: ["AI Auto-Reply", "Chatbot Builder", "Broadcast Campaigns"],
-        benefits: ["Never miss a customer message", "Faster response times", "Full conversation history", "Team inbox visibility", "Seamless CRM integration"],
-        setupTime: "5 minutes",
-        status: "available",
-        icon: CommentOutlined,
-        color: C.teal,
-        tags: ["Base Suite", "Mteja", "WhatsApp", "Omnichannel"],
-        // Conversations requires Mteja to be enabled first
-        requiresModule: "mteja",
-        requiresLabel: "Mteja by Base",
+        tags: ["Base Suite", "CRM", "Loyalty", "Conversations"],
     },
     {
         id: "etims",
@@ -357,17 +338,14 @@ const PricingPill: React.FC<{ status: string }> = ({ status }) => {
 const IntegrationCard: React.FC<{
     integration: (typeof INTEGRATIONS)[0];
     isEnabled: boolean;
-    requirementMet: boolean;        // false when a required parent module isn't enabled
     onEnable: () => void;
     onDisable: () => void;
     onLearnMore: () => void;
     enableLoading?: boolean;
     disableLoading?: boolean;
-}> = ({ integration, isEnabled, requirementMet, onEnable, onDisable, onLearnMore, enableLoading, disableLoading }) => {
+}> = ({ integration, isEnabled, onEnable, onDisable, onLearnMore, enableLoading, disableLoading }) => {
     const Icon = integration.icon;
     const isComingSoon = integration.status === "coming_soon";
-    const isLocked = !requirementMet && !isEnabled;
-    const req = (integration as any).requiresLabel as string | undefined;
 
     return (
         <Card
@@ -375,13 +353,10 @@ const IntegrationCard: React.FC<{
                 height: "100%", borderRadius: 14,
                 border: isEnabled
                     ? `1.5px solid ${integration.color}`
-                    : isLocked
-                        ? `1px dashed ${C.border}`
-                        : `1px solid ${C.border}`,
+                    : `1px solid ${C.border}`,
                 boxShadow: isEnabled ? `0 4px 20px ${integration.color}20` : "0 1px 4px rgba(0,0,0,0.04)",
-                background: isEnabled ? `${integration.color}03` : isLocked ? "#fafafa" : "#fff",
+                background: isEnabled ? `${integration.color}03` : "#fff",
                 transition: "box-shadow 0.2s, border-color 0.2s",
-                opacity: isLocked ? 0.75 : 1,
             }}
             bodyStyle={{ padding: "18px 20px", height: "100%", display: "flex", flexDirection: "column" }}
         >
@@ -399,11 +374,6 @@ const IntegrationCard: React.FC<{
                     {isComingSoon && (
                         <span style={{ background: C.bg, color: C.subText, borderRadius: 6, fontSize: 10, fontWeight: 600, padding: "3px 8px" }}>Coming Soon</span>
                     )}
-                    {isLocked && (
-                        <span style={{ background: "#fff8ed", color: C.orange, borderRadius: 6, fontSize: 10, fontWeight: 600, padding: "3px 8px", border: `1px solid ${C.orange}30`, display: "flex", alignItems: "center", gap: 3 }}>
-                            <LockOutlined style={{ fontSize: 9 }} /> Requires {req}
-                        </span>
-                    )}
                 </div>
             </div>
 
@@ -415,21 +385,6 @@ const IntegrationCard: React.FC<{
             <Text style={{ fontSize: 12, color: C.subText, lineHeight: 1.6, display: "block", marginBottom: 14, flex: 1 }}>
                 {integration.description}
             </Text>
-
-            {/* Parent module banner */}
-            {req && (
-                <div style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    background: isEnabled ? `${integration.color}10` : isLocked ? "#fff8ed" : `${integration.color}10`,
-                    border: `1px solid ${isLocked ? C.orange + "30" : integration.color + "30"}`,
-                    borderRadius: 7, padding: "5px 10px", marginBottom: 10,
-                }}>
-                    <CustomerServiceOutlined style={{ color: isLocked ? C.orange : integration.color, fontSize: 11, flexShrink: 0 }} />
-                    <Text style={{ fontSize: 11, color: isLocked ? C.orange : integration.color }}>
-                        Part of <strong>{req}</strong>
-                    </Text>
-                </div>
-            )}
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                 {integration.tags.map((tag, i) => (
@@ -457,17 +412,17 @@ const IntegrationCard: React.FC<{
                     <Button
                         type="primary"
                         block
-                        icon={isComingSoon || isLocked ? <LockOutlined /> : <PlusOutlined />}
-                        disabled={isComingSoon || isLocked}
+                        icon={isComingSoon ? <LockOutlined /> : <PlusOutlined />}
+                        disabled={isComingSoon}
                         loading={enableLoading}
                         onClick={onEnable}
                         style={{
                             borderRadius: 8,
-                            background: (isComingSoon || isLocked) ? undefined : integration.color,
-                            borderColor: (isComingSoon || isLocked) ? undefined : integration.color,
+                            background: isComingSoon ? undefined : integration.color,
+                            borderColor: isComingSoon ? undefined : integration.color,
                         }}
                     >
-                        {isComingSoon ? "Coming Soon" : isLocked ? `Enable ${req} first` : "Enable"}
+                        {isComingSoon ? "Coming Soon" : "Enable"}
                     </Button>
                 )}
                 <Button block icon={<InfoCircleOutlined />} onClick={onLearnMore} style={{ borderRadius: 8, borderColor: C.border }}>
@@ -487,7 +442,6 @@ const LearnMoreModal: React.FC<{
     if (!integration) return null;
     const Icon = integration.icon;
     const isComingSoon = integration.status === "coming_soon";
-    const req = (integration as any).requiresLabel as string | undefined;
 
     return (
         <Modal open={open} onCancel={onClose} footer={null} style={{ top: 20 }} width="min(660px, 96vw)" destroyOnClose
@@ -495,15 +449,6 @@ const LearnMoreModal: React.FC<{
         >
             <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 4 }}>
                 {isComingSoon && <Alert message="Coming Soon" description="This integration is under development. Stay tuned for updates!" type="warning" showIcon />}
-                {req && (
-                    <Alert
-                        message={`Requires ${req}`}
-                        description={`This feature is part of the ${req} suite. You must enable ${req} before activating Conversations.`}
-                        type="info"
-                        showIcon
-                        icon={<CustomerServiceOutlined />}
-                    />
-                )}
                 <FormSection>
                     <SectionLabel>About</SectionLabel>
                     <Text style={{ fontSize: 13, color: C.darkText, lineHeight: 1.7 }}>{integration.longDescription}</Text>
@@ -522,6 +467,7 @@ const LearnMoreModal: React.FC<{
                         </FormSection>
                     </Col>
                 </Row>
+
                 <div style={{
                     display: "flex", alignItems: "center", gap: 12,
                     background: C.primaryLight, border: `1px solid ${C.primary}20`,
@@ -550,7 +496,6 @@ const DiscoverPage: React.FC = () => {
     const [posModalOpen, setPosModalOpen] = useState(false);
     const [banduModalOpen, setBanduModalOpen] = useState(false);
     const [mtejaModalOpen, setMtejaModalOpen] = useState(false);
-    const [conversationsModalOpen, setConversationsModalOpen] = useState(false);
     const [isUpdatingPesapal, setIsUpdatingPesapal] = useState(false);
 
     const [pesapalForm] = Form.useForm();
@@ -558,7 +503,6 @@ const DiscoverPage: React.FC = () => {
     const [posForm] = Form.useForm();
     const [banduForm] = Form.useForm();
     const [mtejaForm] = Form.useForm();
-    const [conversationsForm] = Form.useForm();
 
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -587,17 +531,8 @@ const DiscoverPage: React.FC = () => {
         if (id === "relia_accounting") return t.modules?.accounting === true ? "enabled" : "not_enabled";
         if (id === "relia_payroll") return t.modules?.payroll === true ? "enabled" : "not_enabled";
         if (id === "mteja") return t.modules?.crm === true ? "enabled" : "not_enabled";
-        // Conversations is enabled when the omnichannel module flag is set
-        if (id === "conversations") return t.modules?.omnichannel === true ? "enabled" : "not_enabled";
         if (id === "pesapal") return t.use_pesapal === true || pesapalConfig?.data?.enabled === true ? "enabled" : "not_enabled";
         return "not_enabled";
-    };
-
-    // Whether a card's prerequisite is satisfied
-    const isRequirementMet = (integration: (typeof INTEGRATIONS)[0]): boolean => {
-        const req = (integration as any).requiresModule as string | undefined;
-        if (!req) return true;
-        return getStatus(req) === "enabled";
     };
 
     const enabledCount = INTEGRATIONS.filter(i => getStatus(i.id) === "enabled").length;
@@ -663,8 +598,9 @@ const DiscoverPage: React.FC = () => {
         onError: (e: any) => notification.error({ message: "Failed to disable Bandu by Base", description: e.message, style: { borderRadius: 12 } }),
     });
 
+    // Mteja always enables Conversations (omnichannel) at the same time
     const enableMtejaMutation = useMutation({
-        mutationFn: (values: any) => enableMteja(tenantId, values),
+        mutationFn: (values: any) => enableMteja(tenantId, { ...values, enable_omnichannel: true }),
         onSuccess: () => {
             setMtejaModalOpen(false);
             mtejaForm.resetFields();
@@ -679,46 +615,15 @@ const DiscoverPage: React.FC = () => {
         onError: (e: any) => notification.error({ message: "Failed to disable Mteja by Base", description: e.message, style: { borderRadius: 12 } }),
     });
 
-    // ── Conversations mutations (calls enableMteja / disableMteja with omnichannel flag) ──
-    const enableConversationsMutation = useMutation({
-        mutationFn: (values: any) => enableMteja(tenantId, { ...values, enable_omnichannel: true }),
-        onSuccess: () => {
-            setConversationsModalOpen(false);
-            conversationsForm.resetFields();
-            queryClient.invalidateQueries(["tenant", tenantId]);
-            triggerAppRefresh(queryClient, "Conversations enabled successfully");
-        },
-        onError: (e: any) => notification.error({ message: "Failed to enable Conversations", description: e.message, style: { borderRadius: 12 } }),
-    });
-
-    const disableConversationsMutation = useMutation({
-        mutationFn: () => disableMteja(tenantId, { disable_omnichannel_only: true }),
-        onSuccess: () => {
-            queryClient.invalidateQueries(["tenant", tenantId]);
-            triggerAppRefresh(queryClient, "Conversations disabled");
-        },
-        onError: (e: any) => notification.error({ message: "Failed to disable Conversations", description: e.message, style: { borderRadius: 12 } }),
-    });
-
     const handleEnable = (integration: (typeof INTEGRATIONS)[0]) => {
         if (getStatus(integration.id) === "enabled") {
             notification.info({ message: `${integration.name} is already enabled`, style: { borderRadius: 12 } });
-            return;
-        }
-        if (!isRequirementMet(integration)) {
-            const req = (integration as any).requiresLabel as string;
-            notification.warning({
-                message: `${req} required`,
-                description: `Please enable ${req} before activating ${integration.name}.`,
-                style: { borderRadius: 12 },
-            });
             return;
         }
         if (integration.id === "relia_pos") { setPosModalOpen(true); return; }
         if (integration.id === "relia_accounting") { setAccountingModalOpen(true); return; }
         if (integration.id === "relia_payroll") { setBanduModalOpen(true); return; }
         if (integration.id === "mteja") { setMtejaModalOpen(true); return; }
-        if (integration.id === "conversations") { setConversationsModalOpen(true); return; }
         if (integration.id === "pesapal") { setPesapalModalOpen(true); setIsUpdatingPesapal(false); return; }
         notification.info({ message: "Coming soon", description: "This integration will be available soon.", style: { borderRadius: 12 } });
     };
@@ -742,13 +647,8 @@ const DiscoverPage: React.FC = () => {
             },
             mteja: {
                 title: "Disable Mteja by Base?",
-                content: "This will stop CRM, loyalty, and SMS features. If Conversations is active, it will also be disabled. Your customer data will be preserved.",
+                content: "This will stop all CRM, loyalty, SMS, and Conversations features. Your customer data will be preserved.",
                 onOk: () => disableMtejaMutation.mutateAsync(),
-            },
-            conversations: {
-                title: "Disable Conversations?",
-                content: "This will hide the omnichannel inbox. Your conversation history will be preserved and can be re-enabled at any time.",
-                onOk: () => disableConversationsMutation.mutateAsync(),
             },
             pesapal: {
                 title: "Disable Pesapal?",
@@ -805,13 +705,11 @@ const DiscoverPage: React.FC = () => {
             <Row gutter={[16, 16]}>
                 {INTEGRATIONS.map((integration) => {
                     const isEnabled = getStatus(integration.id) === "enabled";
-                    const requirementMet = isRequirementMet(integration);
                     return (
                         <Col xs={24} sm={24} md={12} lg={8} key={integration.id}>
                             <IntegrationCard
                                 integration={integration}
                                 isEnabled={isEnabled}
-                                requirementMet={requirementMet}
                                 onEnable={() => handleEnable(integration)}
                                 onDisable={() => handleDisable(integration.id)}
                                 onLearnMore={() => { setSelectedIntegration(integration); setLearnMoreOpen(true); }}
@@ -819,8 +717,7 @@ const DiscoverPage: React.FC = () => {
                                     (integration.id === "relia_accounting" && disableAccountingMutation.isPending) ||
                                     (integration.id === "relia_pos" && disablePosMutation.isPending) ||
                                     (integration.id === "relia_payroll" && disableBanduMutation.isPending) ||
-                                    (integration.id === "mteja" && disableMtejaMutation.isPending) ||
-                                    (integration.id === "conversations" && disableConversationsMutation.isPending)
+                                    (integration.id === "mteja" && disableMtejaMutation.isPending)
                                 }
                             />
                         </Col>
@@ -983,29 +880,29 @@ const DiscoverPage: React.FC = () => {
             >
                 <Form form={mtejaForm} layout="vertical" onFinish={v => enableMtejaMutation.mutate(v)}
                     initialValues={{ accept_terms: false, accept_charges: false }} style={{ paddingTop: 4 }}>
-                    <Alert message="Engage customers with loyalty rewards, SMS, and CRM tools." type="info" showIcon style={{ marginBottom: 14, borderRadius: 8 }} />
+                    <Alert message="Engage customers with loyalty rewards, SMS, CRM, and omnichannel conversations." type="info" showIcon style={{ marginBottom: 14, borderRadius: 8 }} />
                     <FormSection>
                         <SectionLabel>What's Included</SectionLabel>
                         <FeatureList
-                            items={["Customer relationship management", "Order & payment alerts", "Referral programmes", "Customer analytics"]}
-                            comingSoonFeatures={["Loyalty points & rewards", "Tiered membership levels", "Automated SMS notifications", "Bulk SMS campaigns", "Birthday & anniversary rewards"]}
+                            items={[
+                                "Customer relationship management",
+                                "Order & payment alerts",
+                                "Referral programmes",
+                                "Customer analytics",
+                                "Conversations inbox (WhatsApp, SMS & web chat)",
+                            ]}
+                            comingSoonItems={[
+                                "Loyalty points & rewards",
+                                "Tiered membership levels",
+                                "Automated SMS notifications",
+                                "Bulk SMS campaigns",
+                                "Birthday & anniversary rewards",
+                                "AI Auto-Reply",
+                                "Chatbot Builder",
+                            ]}
                             color={C.primary}
                         />
                     </FormSection>
-                    {/* Conversations upsell */}
-                    <div style={{
-                        display: "flex", alignItems: "flex-start", gap: 10,
-                        background: `${C.teal}08`, border: `1px solid ${C.teal}30`,
-                        borderRadius: 10, padding: "12px 14px", marginBottom: 14,
-                    }}>
-                        <CommentOutlined style={{ color: C.teal, fontSize: 16, flexShrink: 0, marginTop: 1 }} />
-                        <div>
-                            <Text strong style={{ fontSize: 13, color: C.teal, display: "block" }}>Includes Conversations</Text>
-                            <Text style={{ fontSize: 12, color: C.subText }}>
-                                Once Mteja is enabled, you can activate the Conversations (omnichannel inbox) module separately from the integrations page.
-                            </Text>
-                        </div>
-                    </div>
                     <div style={{ background: C.primaryLight, border: `1px solid ${C.primary}20`, borderRadius: 10, padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
                         <PhoneOutlined style={{ color: C.primary, fontSize: 16, flexShrink: 0 }} />
                         <div>
@@ -1031,74 +928,6 @@ const DiscoverPage: React.FC = () => {
                     <ModalFooter onCancel={() => { setMtejaModalOpen(false); mtejaForm.resetFields(); }}
                         submitLabel="Enable Mteja by Base" loading={enableMtejaMutation.isPending}
                         cancelDisabled={enableMtejaMutation.isPending} color={C.primary} icon={<CheckCircleOutlined />} />
-                </Form>
-            </Modal>
-
-            {/* ── Conversations Modal ── */}
-            <Modal open={conversationsModalOpen}
-                onCancel={() => { setConversationsModalOpen(false); conversationsForm.resetFields(); }}
-                footer={null} style={{ top: 20 }} width="min(520px, 96vw)" destroyOnClose
-                title={<ModalTitle icon={<CommentOutlined />} color={C.teal} title="Enable Conversations" />}
-            >
-                <Form form={conversationsForm} layout="vertical"
-                    onFinish={v => enableConversationsMutation.mutate(v)}
-                    initialValues={{ accept_terms: false, accept_charges: false }}
-                    style={{ paddingTop: 4 }}>
-
-                    <Alert
-                        message="Part of Mteja by Base"
-                        description="Conversations is the omnichannel messaging module within Mteja. It adds a unified inbox to your existing Mteja CRM."
-                        type="info"
-                        showIcon
-                        icon={<CustomerServiceOutlined />}
-                        style={{ marginBottom: 14, borderRadius: 8 }}
-                    />
-
-                    <FormSection>
-                        <SectionLabel>What's Included</SectionLabel>
-                        <FeatureList
-                            items={["Unified Inbox", "WhatsApp Business Integration", "SMS Channel", "Web Chat Widget", "Conversation Assignment", "Staff Collaboration", "Message Templates"]}
-                            comingSoonItems={["AI Auto-Reply", "Chatbot Builder", "Broadcast Campaigns"]}
-                            color={C.teal}
-                        />
-                    </FormSection>
-
-                    <div style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        background: `${C.teal}08`, border: `1px solid ${C.teal}30`,
-                        borderRadius: 10, padding: "12px 14px", marginBottom: 14,
-                    }}>
-                        <PhoneOutlined style={{ color: C.teal, fontSize: 16, flexShrink: 0 }} />
-                        <div>
-                            <Text strong style={{ fontSize: 13, color: C.teal, display: "block" }}>Pricing available on request</Text>
-                            <Text style={{ fontSize: 12, color: C.subText }}>Contact our support team for a tailored quote.</Text>
-                        </div>
-                    </div>
-
-                    <FormSection>
-                        <SectionLabel>Agreement</SectionLabel>
-                        <Form.Item name="accept_terms" valuePropName="checked"
-                            rules={[{ validator: (_, v) => v ? Promise.resolve() : Promise.reject("Required") }]}
-                            style={{ marginBottom: 10 }}>
-                            <Checkbox style={{ fontSize: 12 }}>
-                                I accept the <a href="/terms" target="_blank" rel="noreferrer">terms and conditions</a>
-                            </Checkbox>
-                        </Form.Item>
-                        <Form.Item name="accept_charges" valuePropName="checked"
-                            rules={[{ validator: (_, v) => v ? Promise.resolve() : Promise.reject("Required") }]}
-                            style={{ marginBottom: 6 }}>
-                            <Checkbox style={{ fontSize: 12 }}>I acknowledge that additional charges may apply</Checkbox>
-                        </Form.Item>
-                    </FormSection>
-
-                    <ModalFooter
-                        onCancel={() => { setConversationsModalOpen(false); conversationsForm.resetFields(); }}
-                        submitLabel="Enable Conversations"
-                        loading={enableConversationsMutation.isPending}
-                        cancelDisabled={enableConversationsMutation.isPending}
-                        color={C.teal}
-                        icon={<CheckCircleOutlined />}
-                    />
                 </Form>
             </Modal>
         </div>
