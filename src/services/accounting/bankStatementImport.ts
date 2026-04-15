@@ -193,7 +193,7 @@ export interface BankStatementImport {
     account_id: string | { _id: string; account_code: string; account_name: string; account_type: string };
     account_code?: string;
     account_name?: string;
-    source_type: "excel" | "csv" | "manual";
+    source_type: "excel" | "csv" | "manual" | "pdf";
     original_filename?: string;
     column_mapping_id?: string;
     statement_from?: string;
@@ -223,6 +223,24 @@ export interface BankStatementImport {
     updatedAt?: string;
 }
 
+// ── PDF Upload Response ──────────────────────────────────────────────────────
+
+export interface PDFParseResponse {
+    message: string;
+    import_no: string;
+    import_id: string;
+    total_transactions: number;
+    auto_categorized: number;
+    uncategorized: number;
+    file_parsed: boolean;
+    parsed_transactions: number;
+    original_filename: string;
+    statement_from?: string;
+    statement_to?: string;
+    opening_balance?: number;
+    closing_balance?: number;
+}
+
 // ── Params & Inputs ──────────────────────────────────────────────────────────
 
 export interface GetImportsParams {
@@ -244,7 +262,7 @@ export interface GetImportByIdParams {
 export interface ImportStatementInput {
     shop_id: string;
     account_id: string;
-    source_type?: "excel" | "csv" | "manual";
+    source_type?: "excel" | "csv" | "manual" | "pdf";
     original_filename?: string;
     column_mapping_id?: string;
     statement_from?: string;
@@ -283,6 +301,12 @@ export interface PushToJournalEntriesInput {
 
 export interface ReApplyRulesInput {
     reset_categorized?: boolean;
+}
+
+export interface UploadStatementInput {
+    shop_id: string;
+    account_id?: string;
+    bank_format?: string;
 }
 
 // ============================================
@@ -568,6 +592,80 @@ export const importStatement = async (data: ImportStatementInput) => {
         throw error;
     }
 };
+
+// ============================================
+// NEW: PDF UPLOAD & PARSE SERVICE
+// ============================================
+
+/**
+ * Upload and parse a bank statement file (PDF or Excel)
+ * @param formData - FormData containing file, shop_id, account_id, bank_format
+ */
+export const uploadAndParseStatement = async (formData: FormData) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/bank-statements/bank-imports/upload`,
+            formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+                onUploadProgress: (progressEvent) => {
+                    // You can track upload progress here if needed
+                    const percentCompleted = Math.round(
+                        (progressEvent.loaded * 100) / (progressEvent.total || 1)
+                    );
+                    // Store or emit progress as needed
+                },
+            }
+        );
+
+        if (response.data.message) {
+            message.success(response.data.message);
+        }
+
+        return response.data as PDFParseResponse;
+    } catch (error: any) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else if (error?.message) {
+            message.error(`Upload failed: ${error.message}`);
+        } else {
+            message.error("Error parsing and importing statement");
+        }
+        throw error;
+    }
+};
+
+/**
+ * Upload only (without auto-import) for preview purposes
+ * @param formData - FormData containing file, shop_id, bank_format
+ */
+export const previewBankStatement = async (formData: FormData) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/bank-statements/bank-imports/preview`,
+            formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            }
+        );
+        return response.data;
+    } catch (error: any) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error previewing statement");
+        }
+        throw error;
+    }
+};
+
+// ============================================
+// EXISTING SERVICES (continued)
+// ============================================
 
 export const reApplyRules = async (id: string, data?: ReApplyRulesInput) => {
     try {

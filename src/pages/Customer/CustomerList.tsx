@@ -3,7 +3,7 @@ import { Button, Typography } from "antd";
 import {
     CalendarOutlined, CreditCardOutlined, GiftOutlined,
     LockOutlined, MessageOutlined, StarOutlined, UserAddOutlined,
-    UserOutlined, WalletOutlined,
+    UserOutlined, WalletOutlined, TeamOutlined,
 } from "@ant-design/icons";
 import CustomerTable from "./CustomerTable";
 import Schedule from "../staff/schedule";
@@ -62,10 +62,13 @@ type TabItem = {
     icon: React.ReactNode;
     /** Permission required to view this tab. Admins always pass. */
     permissionKey: string;
+    /** Optional: show coming soon badge */
+    comingSoon?: boolean;
 };
 
 const getTabConfig = (): TabItem[] => {
     const isHospital = getPosMode() === "hospital";
+    const { hasMteja, hasPOS } = getTenantFlags();
 
     if (isHospital) {
         return [
@@ -77,6 +80,30 @@ const getTabConfig = (): TabItem[] => {
         ];
     }
 
+    // When BOTH hasMteja AND hasPOS are active → show everything
+    if (hasMteja && hasPOS) {
+        return [
+            { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
+            { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CUSTOMERS_VIEW", comingSoon: true },
+            { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
+            { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
+            { key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" },
+            { key: "consultations", label: "Consultations", icon: <StarOutlined />, permissionKey: "CONSULTATIONS_VIEW" },
+            { key: "feedback", label: "Feedback", icon: <MessageOutlined />, permissionKey: "FEEDBACK_VIEW" },
+            { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
+        ];
+    }
+
+    // Mteja only (no POS) → CRM-light view
+    if (hasMteja) {
+        return [
+            { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
+            { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CUSTOMERS_VIEW", comingSoon: true },
+            { key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" },
+        ];
+    }
+
+    // Default (POS only, no Mteja)
     return [
         { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
         { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
@@ -87,7 +114,6 @@ const getTabConfig = (): TabItem[] => {
         { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
     ];
 };
-
 // ── Locked tab placeholder ─────────────────────────────────────────────────
 const LockedTab = ({ label }: { label: string }) => (
     <div style={{
@@ -101,6 +127,26 @@ const LockedTab = ({ label }: { label: string }) => (
         </Text>
         <Text style={{ fontSize: 12, color: "#cbd5e1" }}>
             Contact your administrator to request access.
+        </Text>
+    </div>
+);
+
+// ── Coming Soon placeholder ─────────────────────────────────────────────────
+const ComingSoon = ({ label }: { label: string }) => (
+    <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", padding: "60px 24px", gap: 12,
+        color: "#94a3b8", textAlign: "center",
+    }}>
+        <StarOutlined style={{ fontSize: 32, color: "#cbd5e1" }} />
+        <Text style={{ fontSize: 16, fontWeight: 500, color: "#64748b" }}>
+            Coming Soon!
+        </Text>
+        <Text style={{ fontSize: 13, color: "#94a3b8" }}>
+            The <strong>{label}</strong> feature is currently under development.
+        </Text>
+        <Text style={{ fontSize: 12, color: "#cbd5e1" }}>
+            We're working hard to bring this to you as soon as possible.
         </Text>
     </div>
 );
@@ -122,28 +168,43 @@ const TabNav = ({
     }}>
         {tabs.map((tab) => {
             const isActive = tab.key === active;
+            const isDisabled = !tab.allowed || tab.comingSoon;
             return (
                 <button
                     key={tab.key}
-                    onClick={() => tab.allowed && onChange(tab.key)}
-                    title={!tab.allowed ? "You don't have permission to access this section" : undefined}
+                    onClick={() => !isDisabled && onChange(tab.key)}
+                    title={!tab.allowed ? "You don't have permission to access this section" : tab.comingSoon ? "Coming soon" : undefined}
                     style={{
                         display: "inline-flex", alignItems: "center", gap: 6,
                         padding: "6px 14px", borderRadius: 20,
-                        cursor: tab.allowed ? "pointer" : "not-allowed",
+                        cursor: isDisabled ? "not-allowed" : "pointer",
                         fontSize: 13, fontWeight: isActive ? 600 : 400,
                         border: isActive ? `1.5px solid ${C.primary}` : `1px solid ${C.border}`,
                         background: isActive ? C.primary : "#fff",
-                        color: isActive ? "#fff" : tab.allowed ? C.subText : "#cbd5e1",
+                        color: isActive ? "#fff" : isDisabled ? "#cbd5e1" : C.subText,
                         transition: "all 0.15s",
                         outline: "none",
-                        opacity: tab.allowed ? 1 : 0.5,
+                        opacity: isDisabled ? 0.5 : 1,
+                        position: "relative",
                     }}
                 >
                     <span style={{ fontSize: 13, lineHeight: 1 }}>
-                        {tab.allowed ? tab.icon : <LockOutlined />}
+                        {tab.icon}
                     </span>
                     {tab.label}
+                    {tab.comingSoon && (
+                        <span style={{
+                            fontSize: 9,
+                            marginLeft: 4,
+                            background: "#f0f0f0",
+                            padding: "2px 4px",
+                            borderRadius: 4,
+                            color: "#666",
+                            fontWeight: 400,
+                        }}>
+                            Soon
+                        </span>
+                    )}
                 </button>
             );
         })}
@@ -169,9 +230,9 @@ function Customers() {
     const isHospital = getPosMode() === "hospital";
     const showOnlyCustomers = !isHospital && ((hasAccounting && !hasPOS) || !hasMteja);
 
-    // Default to first tab the user can actually access
+    // Default to first tab the user can actually access (and not coming soon)
     const defaultTab = useMemo(() => {
-        const first = tabsWithAccess.find((t) => t.allowed);
+        const first = tabsWithAccess.find((t) => t.allowed && !t.comingSoon);
         return first?.key ?? "customers";
     }, [tabsWithAccess]);
 
@@ -208,6 +269,12 @@ function Customers() {
         if (!activeTabCfg?.allowed) {
             return <LockedTab label={activeTabCfg?.label ?? activeTab} />;
         }
+
+        // Coming soon check
+        if (activeTabCfg?.comingSoon) {
+            return <ComingSoon label={activeTabCfg.label} />;
+        }
+
         switch (activeTab) {
             case "customers": return <CustomerTable ref={customerTableRef} onEditCustomer={handleEditCustomer} />;
             case "packages": return <SubscriptionPackagesTable />;
@@ -235,9 +302,11 @@ function Customers() {
                 <Text style={{ fontSize: 11, color: C.subText, lineHeight: 1.3 }}>
                     {showOnlyCustomers
                         ? `Manage your ${isHospital ? "patients" : "customers"}`
-                        : isHospital
-                            ? "Patients, appointments, services & more"
-                            : "Customers, subscriptions, bookings & more"}
+                        : hasMteja
+                            ? "Customers, leads & bookings"
+                            : isHospital
+                                ? "Patients, appointments, services & more"
+                                : "Customers, subscriptions, bookings & more"}
                 </Text>
             </div>
             {/* Add button: only shown if user can create customers */}

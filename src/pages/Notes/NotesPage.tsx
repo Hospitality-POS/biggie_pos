@@ -16,6 +16,7 @@ import {
     Row,
     Col,
     Tabs,
+    message,
 } from "antd";
 import {
     PlusOutlined,
@@ -24,11 +25,13 @@ import {
     DeleteOutlined,
     FilterOutlined,
     FileProtectOutlined,
+    CheckCircleOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     getAllNotes,
     deleteNote,
+    applyNote,
     Note,
     NoteType,
     NoteStatus,
@@ -44,14 +47,14 @@ const { RangePicker } = DatePicker;
 
 const getShopId = (): string => localStorage.getItem("shopId") || "";
 
+// Updated status config - no more "Approved" state
 const STATUS_CONFIG: Record<NoteStatus, { badge: "success" | "processing" | "warning" | "error" | "default"; color: string }> = {
-    Draft: { badge: "default", color: "default" },
-    Approved: { badge: "processing", color: "blue" },
+    Draft: { badge: "warning", color: "orange" },
     Applied: { badge: "success", color: "green" },
     Voided: { badge: "error", color: "red" },
 };
 
-const ALL_STATUSES: (NoteStatus | "ALL")[] = ["ALL", "Draft", "Approved", "Applied", "Voided"];
+const ALL_STATUSES: (NoteStatus | "ALL")[] = ["ALL", "Draft", "Applied", "Voided"];
 
 // ── Shared table for a given note type ───────────────────────────────────────
 interface NoteTableProps {
@@ -62,11 +65,12 @@ interface NoteTableProps {
     onOpenEdit: (note: Note) => void;
     onOpenDetail: (id: string) => void;
     onDelete: (id: string) => void;
+    onApply: (id: string) => void;
 }
 
 const NoteTable: React.FC<NoteTableProps> = ({
     noteType, shopId, primaryColor,
-    onOpenCreate, onOpenEdit, onOpenDetail, onDelete,
+    onOpenCreate, onOpenEdit, onOpenDetail, onDelete, onApply,
 }) => {
     const actionRef = useRef<ActionType>();
     const [activeStatus, setActiveStatus] = useState<NoteStatus | "ALL">("ALL");
@@ -104,7 +108,7 @@ const NoteTable: React.FC<NoteTableProps> = ({
         .filter((n) => n.status !== "Voided")
         .reduce((s, n) => s + (n.grand_total || 0), 0);
     const draftCount = notes.filter((n) => n.status === "Draft").length;
-    const approvedCount = notes.filter((n) => n.status === "Approved").length;
+    const appliedCount = notes.filter((n) => n.status === "Applied").length;
 
     const isCredit = noteType === "CREDIT_NOTE";
     const amtColor = isCredit ? "#389e0d" : "#cf1322";
@@ -124,7 +128,7 @@ const NoteTable: React.FC<NoteTableProps> = ({
             width: 100,
             render: (_: any, r: Note) => (
                 <Tag color={r.direction === "customer" ? "blue" : "purple"}>
-                    {r.direction.toUpperCase()}
+                    {r.direction === "customer" ? "CUSTOMER" : "SUPPLIER"}
                 </Tag>
             ),
         },
@@ -134,11 +138,11 @@ const NoteTable: React.FC<NoteTableProps> = ({
             render: (_: any, r: Note) => {
                 if (r.direction === "customer" && r.customer_id) {
                     const c = r.customer_id as any;
-                    return <Text style={{ fontSize: 12 }}>{c?.customer_name || c}</Text>;
+                    return <Text style={{ fontSize: 12 }}>{c?.customer_name || c?.name || c}</Text>;
                 }
                 if (r.direction === "supplier" && r.supplier_id) {
                     const s = r.supplier_id as any;
-                    return <Text style={{ fontSize: 12 }}>{s?.name || s?.supplier_name || s}</Text>;
+                    return <Text style={{ fontSize: 12 }}>{s?.supplier_name || s?.name || s}</Text>;
                 }
                 return <Text type="secondary">—</Text>;
             },
@@ -184,13 +188,19 @@ const NoteTable: React.FC<NoteTableProps> = ({
             width: 110,
             render: (s: NoteStatus) => {
                 const cfg = STATUS_CONFIG[s] || STATUS_CONFIG.Draft;
-                return <Badge status={cfg.badge} text={s} />;
+                if (s === "Draft") {
+                    return <Badge status="warning" text="Draft" />;
+                }
+                if (s === "Applied") {
+                    return <Badge status="success" text="Applied" />;
+                }
+                return <Badge status="error" text="Voided" />;
             },
         },
         {
             title: "Actions",
             key: "actions",
-            width: 110,
+            width: 150,
             fixed: "right" as const,
             render: (_: any, record: Note) => (
                 <Space size={4}>
@@ -202,6 +212,18 @@ const NoteTable: React.FC<NoteTableProps> = ({
                         <Tooltip title="Edit">
                             <Button icon={<EditOutlined />} size="small"
                                 onClick={() => onOpenEdit(record)} />
+                        </Tooltip>
+                    )}
+                    {record.status === "Draft" && (
+                        <Tooltip title="Apply Note">
+                            <Button
+                                icon={<CheckCircleOutlined />}
+                                size="small"
+                                type="primary"
+                                ghost
+                                onClick={() => onApply(record._id)}
+                                style={{ borderColor: primaryColor, color: primaryColor }}
+                            />
                         </Tooltip>
                     )}
                     {record.status === "Draft" && (
@@ -251,9 +273,9 @@ const NoteTable: React.FC<NoteTableProps> = ({
                 <Col span={8}>
                     <ProCard bordered size="small">
                         <Statistic
-                            title="Approved"
-                            value={approvedCount}
-                            valueStyle={{ color: approvedCount > 0 ? "#1890ff" : "#8c8c8c", fontSize: 22 }}
+                            title="Applied"
+                            value={appliedCount}
+                            valueStyle={{ color: appliedCount > 0 ? "#52c41a" : "#8c8c8c", fontSize: 22 }}
                         />
                     </ProCard>
                 </Col>
@@ -351,6 +373,7 @@ const NotesPage: React.FC = () => {
     const shopId = getShopId();
     const primaryColor = usePrimaryColor();
     const queryClient = useQueryClient();
+    const { message } = App.useApp();
     const [activeTab, setActiveTab] = useState<NoteType>("CREDIT_NOTE");
 
     const [formOpen, setFormOpen] = useState(false);
@@ -361,7 +384,26 @@ const NotesPage: React.FC = () => {
 
     const deleteMutation = useMutation({
         mutationFn: (id: string) => deleteNote(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
+        onSuccess: () => {
+            message.success("Note deleted successfully");
+            queryClient.invalidateQueries({ queryKey: ["notes"] });
+        },
+        onError: (error: any) => {
+            message.error(error?.response?.data?.message || "Failed to delete note");
+        },
+    });
+
+    const applyMutation = useMutation({
+        mutationFn: (id: string) => applyNote(id),
+        onSuccess: (data) => {
+            message.success("Note applied successfully");
+            queryClient.invalidateQueries({ queryKey: ["notes"] });
+            // Also invalidate invoice queries since invoice was updated
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+        },
+        onError: (error: any) => {
+            message.error(error?.response?.data?.message || "Failed to apply note");
+        },
     });
 
     const openCreate = (type: NoteType) => {
@@ -381,8 +423,13 @@ const NotesPage: React.FC = () => {
         setDetailOpen(true);
     };
 
+    const handleApply = (id: string) => {
+        applyMutation.mutate(id);
+    };
+
     const onSuccess = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["notes"] });
+        queryClient.invalidateQueries({ queryKey: ["invoices"] });
     }, [queryClient]);
 
     const sharedTableProps = {
@@ -392,10 +439,11 @@ const NotesPage: React.FC = () => {
         onOpenEdit: openEdit,
         onOpenDetail: openDetail,
         onDelete: (id: string) => deleteMutation.mutate(id),
+        onApply: handleApply,
     };
 
     return (
-        <App>
+        <>
             {!shopId && (
                 <Alert
                     type="warning"
@@ -459,7 +507,7 @@ const NotesPage: React.FC = () => {
                 noteId={selectedNoteId}
                 onSuccess={onSuccess}
             />
-        </App>
+        </>
     );
 };
 

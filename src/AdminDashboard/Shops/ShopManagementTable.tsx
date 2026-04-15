@@ -1,4 +1,4 @@
-// ShopManagementTable.tsx (updated - added print settings tab)
+// ShopManagementTable.tsx
 import React, { useRef, useMemo, useEffect, useState, useCallback } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
@@ -18,7 +18,7 @@ import {
 } from "@services/shops";
 import AddEditShopModal from "@components/MODALS/pro/AddEditShopModal";
 import { useNavigate } from "react-router-dom";
-import PrintSettingsTab from "../../pages/Settings/systemSetup/PrintSettingsTab"; // Import the print settings component
+import PrintSettingsTab from "../../pages/Settings/systemSetup/PrintSettingsTab";
 
 const { Text } = Typography;
 
@@ -40,12 +40,45 @@ const useIsMobile = () => {
   return isMobile;
 };
 
+/**
+ * Central tenant config hook.
+ *
+ * Navigation targets when the user clicks "Open Shop":
+ *   - POS (default)        → /tables
+ *   - Accounting only      → /accounting
+ *   - Mteja only           → /mteja
+ *
+ * Tabs / columns hidden per module:
+ *   - Print Settings tab   → shown ONLY when POS is active (hidden for accounting-only & mteja-only)
+ *   - POS Mode column/tag  → shown ONLY when POS is active (hidden for accounting-only & mteja-only)
+ *   - Revenue column/stat  → hidden for mteja-only tenants
+ */
 const useTenantConfig = () => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
-  return { isAccountingOnly: hasAccounting && !hasPOS };
+  const hasMteja = tenant?.modules?.crm === true;
+  const isAccountingOnly = hasAccounting && !hasPOS;
+  const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting;
+
+  /** Where "Open Shop" should navigate */
+  const shopLandingPath = isMtejaOnly
+    ? "/mteja"
+    : isAccountingOnly
+      ? "/accounting"
+      : "/tables";
+
+  /** Whether the Print Settings tab should be visible */
+  const showPrintSettings = hasPOS && !isMtejaOnly;
+
+  /** Whether POS Mode column / tag should be visible */
+  const showPosMode = hasPOS && !isMtejaOnly;
+
+  /** Whether revenue column / stat should be visible (hidden for mteja-only) */
+  const showRevenue = !isMtejaOnly;
+
+  return { isAccountingOnly, isMtejaOnly, shopLandingPath, showPrintSettings, showPosMode, showRevenue };
 };
 
 const getLocationDisplay = (loc: any): string => {
@@ -59,24 +92,9 @@ const hasCoords = (loc: any): boolean =>
 
 // ── POS mode config ───────────────────────────────────────────────────────────
 const POS_MODE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
-  restaurant: {
-    label: "Duka Services",
-    icon: <SolutionOutlined />,
-    color: "#c2410c",
-    bg: "#fff7ed",
-  },
-  retail: {
-    label: "Retail",
-    icon: <ShopOutlined />,
-    color: "#1d4ed8",
-    bg: "#eff6ff",
-  },
-  hospital: {
-    label: "Hospital",
-    icon: <MedicineBoxOutlined />,
-    color: "#059669",
-    bg: "#f0fdf4",
-  },
+  restaurant: { label: "Duka Services", icon: <SolutionOutlined />, color: "#c2410c", bg: "#fff7ed" },
+  retail: { label: "Retail", icon: <ShopOutlined />, color: "#1d4ed8", bg: "#eff6ff" },
+  hospital: { label: "Hospital", icon: <MedicineBoxOutlined />, color: "#059669", bg: "#f0fdf4" },
 };
 
 // ── POS Mode Tag ──────────────────────────────────────────────────────────────
@@ -86,8 +104,7 @@ const PosModeTag: React.FC<{ mode: string }> = ({ mode }) => {
     <Tag
       icon={cfg.icon}
       style={{
-        background: cfg.bg,
-        color: cfg.color,
+        background: cfg.bg, color: cfg.color,
         border: "none", borderRadius: 6,
         padding: "2px 8px", fontSize: 11, fontWeight: 500,
       }}
@@ -137,16 +154,12 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
       mapObjRef.current = new g.Map(mapRef.current, {
         zoom: 12,
         center: { lat: withCoords[0].location.lat, lng: withCoords[0].location.lng },
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
+        mapTypeControl: false, streetViewControl: false, fullscreenControl: true,
         styles: [{ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }],
       });
     }
 
-    if (!infoWinRef.current) {
-      infoWinRef.current = new g.InfoWindow();
-    }
+    if (!infoWinRef.current) infoWinRef.current = new g.InfoWindow();
 
     markersRef.current.forEach(m => m.setMap(null));
     markersRef.current = [];
@@ -159,11 +172,8 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
         label: { text: String(idx + 1), color: "#fff", fontSize: "11px", fontWeight: "700" },
         icon: {
           path: g.SymbolPath.CIRCLE,
-          scale: 14,
-          fillColor: "#6c1c2c",
-          fillOpacity: 1,
-          strokeColor: "#fff",
-          strokeWeight: 2,
+          scale: 14, fillColor: "#6c1c2c", fillOpacity: 1,
+          strokeColor: "#fff", strokeWeight: 2,
         },
       });
 
@@ -309,16 +319,23 @@ const LocationChips: React.FC<{
 );
 
 // ── Summary strip ─────────────────────────────────────────────────────────────
-const SummaryStrip: React.FC<{ shops: any[] }> = ({ shops }) => {
+const SummaryStrip: React.FC<{ shops: any[]; isMtejaOnly?: boolean }> = ({ shops, isMtejaOnly }) => {
   if (!shops.length) return null;
   const stats = [
     { icon: <ShopOutlined />, label: "Branches", value: shops.length, color: "#f97316", bg: "#fff7ed" },
-    { icon: <DollarOutlined />, label: "Today Revenue", value: `Ksh ${fmtK(shops.reduce((s, r) => s + (r.daily_revenue || 0), 0))}`, color: "#10b981", bg: "#f0fdf4" },
+    // Revenue hidden for mteja-only tenants
+    ...(!isMtejaOnly ? [{
+      icon: <DollarOutlined />,
+      label: "Today Revenue",
+      value: `Ksh ${fmtK(shops.reduce((s, r) => s + (r.daily_revenue || 0), 0))}`,
+      color: "#10b981",
+      bg: "#f0fdf4",
+    }] : []),
     { icon: <TeamOutlined />, label: "Total Staff", value: shops.reduce((s, r) => s + (r.staff_count || 0), 0), color: "#06b6d4", bg: "#ecfeff" },
     { icon: <EnvironmentOutlined />, label: "Mapped", value: shops.filter(s => hasCoords(s.location)).length, color: "#8b5cf6", bg: "#f5f3ff" },
   ];
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${stats.length}, 1fr)`, gap: 10, marginBottom: 16 }}>
       {stats.map((s, i) => (
         <div key={i} style={{ background: s.bg, borderRadius: 10, padding: "10px 14px", border: `1px solid ${s.color}20` }}>
           <div style={{ color: s.color, fontSize: 14, marginBottom: 3 }}>{s.icon}</div>
@@ -333,12 +350,13 @@ const SummaryStrip: React.FC<{ shops: any[] }> = ({ shops }) => {
 // ── Mobile shop card ──────────────────────────────────────────────────────────
 const ShopCard: React.FC<{
   record: any;
-  isAccountingOnly: boolean;
+  showPosMode: boolean;
+  showRevenue: boolean;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
   deleting: boolean;
   tableRef: React.MutableRefObject<ActionType | undefined>;
-}> = ({ record, isAccountingOnly, onOpen, onDelete, deleting, tableRef }) => {
+}> = ({ record, showPosMode, showRevenue, onOpen, onDelete, deleting, tableRef }) => {
   const locDisplay = getLocationDisplay(record.location);
   return (
     <Card
@@ -365,15 +383,21 @@ const ShopCard: React.FC<{
             )}
           </div>
         </Space>
-        {!isAccountingOnly && record.pos_mode && <PosModeTag mode={record.pos_mode} />}
+        {/* POS Mode tag — hidden for accounting-only and mteja-only */}
+        {showPosMode && record.pos_mode && <PosModeTag mode={record.pos_mode} />}
       </div>
 
+      {/* Stats row — revenue hidden for mteja-only */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12, padding: "8px 10px", background: "#f8fafc", borderRadius: 8 }}>
-        <div style={{ flex: 1, textAlign: "center" }}>
-          <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Revenue</Text>
-          <Text strong style={{ fontSize: 13, color: "#10b981" }}>Ksh {fmtK(record.daily_revenue || 0)}</Text>
-        </div>
-        <div style={{ width: 1, background: "#e2e8f0" }} />
+        {showRevenue && (
+          <>
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Revenue</Text>
+              <Text strong style={{ fontSize: 13, color: "#10b981" }}>Ksh {fmtK(record.daily_revenue || 0)}</Text>
+            </div>
+            <div style={{ width: 1, background: "#e2e8f0" }} />
+          </>
+        )}
         <div style={{ flex: 1, textAlign: "center" }}>
           <Text style={{ fontSize: 10, color: "#94a3b8", display: "block" }}>Staff</Text>
           <Space size={4}>
@@ -400,9 +424,12 @@ const ShopCard: React.FC<{
 
 // ── Mobile list ───────────────────────────────────────────────────────────────
 const MobileShopList: React.FC<{
-  isAccountingOnly: boolean;
+  shopLandingPath: string;
+  showPosMode: boolean;
+  showRevenue: boolean;
+  isMtejaOnly: boolean;
   tableRef: React.MutableRefObject<ActionType | undefined>;
-}> = ({ isAccountingOnly, tableRef }) => {
+}> = ({ shopLandingPath, showPosMode, showRevenue, isMtejaOnly, tableRef }) => {
   const navigate = useNavigate();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [shops, setShops] = useState<any[]>([]);
@@ -427,7 +454,7 @@ const MobileShopList: React.FC<{
 
   const handleOpen = (shopId: string) => {
     localStorage.setItem("shopId", shopId);
-    navigate(isAccountingOnly ? "/accounting" : "/tables");
+    navigate(shopLandingPath);
   };
 
   const filtered = shops.filter(s =>
@@ -442,7 +469,7 @@ const MobileShopList: React.FC<{
       label: <Space size={4}><BranchesOutlined />Branches</Space>,
       children: (
         <>
-          <SummaryStrip shops={shops} />
+          <SummaryStrip shops={shops} isMtejaOnly={isMtejaOnly} />
           {loading
             ? Array.from({ length: 3 }).map((_, i) => (
               <Card key={i} style={{ borderRadius: 12, marginBottom: 10, border: "1px solid #e2e8f0" }} bodyStyle={{ padding: 16 }}>
@@ -452,9 +479,16 @@ const MobileShopList: React.FC<{
             : filtered.length === 0
               ? <Empty description="No branches found" style={{ padding: "40px 0" }} />
               : filtered.map(record => (
-                <ShopCard key={record._id} record={record} isAccountingOnly={isAccountingOnly}
-                  onOpen={handleOpen} onDelete={id => DeleteMutation.mutate(id)}
-                  deleting={deletingId === record._id} tableRef={tableRef} />
+                <ShopCard
+                  key={record._id}
+                  record={record}
+                  showPosMode={showPosMode}
+                  showRevenue={showRevenue}
+                  onOpen={handleOpen}
+                  onDelete={id => DeleteMutation.mutate(id)}
+                  deleting={deletingId === record._id}
+                  tableRef={tableRef}
+                />
               ))
           }
         </>
@@ -499,7 +533,7 @@ const ShopManagementTable: React.FC = () => {
   const tableRef = useRef<ActionType>();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { isAccountingOnly } = useTenantConfig();
+  const { isAccountingOnly, isMtejaOnly, shopLandingPath, showPrintSettings, showPosMode, showRevenue } = useTenantConfig();
   const [activeTab, setActiveTab] = useState("table");
   const [allShops, setAllShops] = useState<any[]>([]);
 
@@ -510,7 +544,7 @@ const ShopManagementTable: React.FC = () => {
 
   const handleShopClick = (shopId: string) => {
     localStorage.setItem("shopId", shopId);
-    navigate(isAccountingOnly ? "/accounting" : "/tables");
+    navigate(shopLandingPath);
   };
 
   const shopsWithLocation = useMemo(
@@ -572,7 +606,8 @@ const ShopManagementTable: React.FC = () => {
         );
       },
     },
-    ...(!isAccountingOnly ? [{
+    // POS Mode column — hidden for accounting-only and mteja-only tenants
+    ...(showPosMode ? [{
       title: "Mode",
       dataIndex: "pos_mode",
       hideInSearch: false,
@@ -585,7 +620,8 @@ const ShopManagementTable: React.FC = () => {
       render: (_: any, record: any) =>
         record.pos_mode ? <PosModeTag mode={record.pos_mode} /> : <Text type="secondary">—</Text>,
     }] : []),
-    {
+    // Today Revenue column — hidden for mteja-only tenants
+    ...(showRevenue ? [{
       title: "Today Revenue",
       dataIndex: "daily_revenue",
       hideInSearch: true,
@@ -594,7 +630,7 @@ const ShopManagementTable: React.FC = () => {
       render: (_: any, record: any) => (
         <Text strong style={{ color: "#10b981", fontSize: 13 }}>Ksh {fmtK(record?.daily_revenue || 0)}</Text>
       ),
-    },
+    }] : []),
     {
       title: "Staff",
       dataIndex: "staff_count",
@@ -603,7 +639,7 @@ const ShopManagementTable: React.FC = () => {
       sorter: (a: any, b: any) => (a.staff_count || 0) - (b.staff_count || 0),
       render: (_: any, record: any) => (
         <Space size={4}>
-          <TeamOutlined style={{ color: "#06b6d4", fontSize: 12 }} />
+          <TeamOutlined style={{ fontSize: 12, color: "#06b6d4" }} />
           <Text style={{ fontSize: 13, color: "#374151" }}>{record?.staff_count ?? 0}</Text>
         </Space>
       ),
@@ -633,19 +669,28 @@ const ShopManagementTable: React.FC = () => {
         </Space>
       ),
     },
-  ], [isAccountingOnly]);
+  ], [showPosMode, showRevenue]);
 
   if (isMobile) {
-    return <MobileShopList isAccountingOnly={isAccountingOnly} tableRef={tableRef} />;
+    return (
+      <MobileShopList
+        shopLandingPath={shopLandingPath}
+        showPosMode={showPosMode}
+        showRevenue={showRevenue}
+        isMtejaOnly={isMtejaOnly}
+        tableRef={tableRef}
+      />
+    );
   }
 
+  // Build desktop tab items — Print Settings only shown when POS is active
   const tabItems = [
     {
       key: "table",
       label: <Space size={4}><BranchesOutlined />All Branches</Space>,
       children: (
         <>
-          <SummaryStrip shops={allShops} />
+          <SummaryStrip shops={allShops} isMtejaOnly={isMtejaOnly} />
           <ProTable
             rowKey="_id"
             cardBordered={false}
@@ -692,7 +737,8 @@ const ShopManagementTable: React.FC = () => {
         </div>
       ),
     },
-    {
+    // Print Settings tab — only when POS is active (hidden for accounting-only & mteja-only)
+    ...(showPrintSettings ? [{
       key: "print-settings",
       label: (
         <Space size={4}>
@@ -705,7 +751,7 @@ const ShopManagementTable: React.FC = () => {
           <PrintSettingsTab />
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
