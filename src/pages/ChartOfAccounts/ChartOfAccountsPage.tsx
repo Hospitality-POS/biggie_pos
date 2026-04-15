@@ -48,6 +48,8 @@ const ChartOfAccountsPage: React.FC = () => {
     const [editingAccount, setEditingAccount] = useState<ChartOfAccount | null>(null);
     const [ledgerAccount, setLedgerAccount] = useState<ChartOfAccount | null>(null);
     const [seeding, setSeeding] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
 
     const { data, isLoading, refetch } = useQuery({
         queryKey: ["chart-of-accounts", shopId],
@@ -56,9 +58,15 @@ const ChartOfAccountsPage: React.FC = () => {
     });
 
     const allAccounts = data?.accounts || [];
-    const accounts = activeType === "ALL"
+    const filteredAccounts = activeType === "ALL"
         ? allAccounts
         : allAccounts.filter((a) => a.account_type === activeType);
+
+    // Calculate paginated data
+    const paginatedAccounts = filteredAccounts.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
 
     const toggleMutation = useMutation({
         mutationFn: (id: string) => toggleAccountActive(id),
@@ -92,6 +100,21 @@ const ChartOfAccountsPage: React.FC = () => {
     const onFormSuccess = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["chart-of-accounts", shopId] });
     }, [queryClient, shopId]);
+
+    // Handle tab change - reset to page 1
+    const handleTabChange = (key: string) => {
+        setActiveType(key as AccountType | "ALL");
+        setCurrentPage(1);
+    };
+
+    // Handle page change
+    const handlePageChange = (page: number, newPageSize: number) => {
+        setCurrentPage(page);
+        if (newPageSize !== pageSize) {
+            setPageSize(newPageSize);
+            setCurrentPage(1); // Reset to first page when changing page size
+        }
+    };
 
     const columns = [
         {
@@ -240,7 +263,7 @@ const ChartOfAccountsPage: React.FC = () => {
             >
                 <Tabs
                     activeKey={activeType}
-                    onChange={(k) => setActiveType(k as AccountType | "ALL")}
+                    onChange={handleTabChange}
                     items={tabItems}
                     style={{ paddingLeft: 16, paddingRight: 16, marginBottom: 0 }}
                     tabBarStyle={{ marginBottom: 0 }}
@@ -249,21 +272,29 @@ const ChartOfAccountsPage: React.FC = () => {
                 <ProTable<ChartOfAccount>
                     rowKey="_id"
                     actionRef={actionRef}
-                    dataSource={accounts}
+                    dataSource={paginatedAccounts}
                     columns={columns}
                     loading={isLoading}
                     search={false}
                     options={{ reload: () => refetch(), fullScreen: true }}
                     pagination={{
-                        pageSize: 20,
+                        current: currentPage,
+                        pageSize: pageSize,
+                        total: filteredAccounts.length,
+                        pageSizeOptions: [10, 20, 50, 100],
                         showSizeChanger: true,
-                        showTotal: (total) => `${total} accounts`,
+                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} accounts`,
+                        onChange: handlePageChange,
+                        onShowSizeChange: (current, size) => {
+                            setPageSize(size);
+                            setCurrentPage(1);
+                        },
                     }}
                     scroll={{ x: 1000 }}
                     size="small"
                     cardBordered={false}
                     toolbar={{
-                        title: `${accounts.length} ${activeType === "ALL" ? "total" : activeType.toLowerCase()} accounts`,
+                        title: `${filteredAccounts.length} ${activeType === "ALL" ? "total" : activeType.toLowerCase()} accounts`,
                         tooltip: "System accounts cannot be deleted but can be deactivated",
                     }}
                     rowClassName={(r) => !r.is_active ? "opacity-50" : ""}

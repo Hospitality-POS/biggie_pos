@@ -62,6 +62,11 @@ const DocumentCenter = lazy(() => import("@pages/Documents/DocumentCenter"));
 const OmnichannelInboxPage = lazy(() => import("src/pages/OmniChannel/OmnichannelInboxPage"));
 const OAuthCallbackPage = lazy(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
 
+// ─── Mteja Dashboard ──────────────────────────────────────────────────────────
+// Gated at render time by hasMteja flag — the route itself is always registered
+// so deep-links work; the component checks the flag internally and redirects if needed.
+const MtejaDashboard = lazy(() => import("src/pages/Dashboard/MtejaDashboard"));
+
 // ─── Accounting Module ────────────────────────────────────────────────────────
 const AccountingDashboardPage = lazy(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
 const ChartOfAccountsPage = lazy(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
@@ -81,6 +86,28 @@ const fullscreenSpin = (
   <Spin size="large" fullscreen style={{ color: getPrimaryColor() }} />
 );
 
+// ─── Mteja guard helper ───────────────────────────────────────────────────────
+// Checks tenant.modules.crm at render time and bounces non-Mteja tenants to /customers
+const getMtejaEnabled = (): boolean => {
+  try {
+    const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
+    return tenant?.modules?.crm === true;
+  } catch {
+    return false;
+  }
+};
+
+const MtejaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!getMtejaEnabled()) return <Navigate to="/customers" replace />;
+  return <>{children}</>;
+};
+
+const AdminMtejaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!getMtejaEnabled()) return <Navigate to="/admin/customers" replace />;
+  return <>{children}</>;
+};
+
+// ─── Page wrappers ─────────────────────────────────────────────────────────────
 const adminPage = (Component: React.ComponentType) => (
   <Suspense fallback={<NubaLoader />}>
     <AdminRoute>
@@ -115,7 +142,10 @@ const SmartShopRouter = () => {
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
+  const hasMteja = tenant?.modules?.crm === true;
 
+  // Mteja-only tenant: land on Mteja dashboard
+  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/mteja" replace />;
   if (hasAccounting && !hasPOS) return <Navigate to="/accounting" replace />;
   return privatePage(Table);
 };
@@ -131,7 +161,10 @@ const SmartDashboardRouter = () => {
 
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
+  const hasMteja = tenant?.modules?.crm === true;
 
+  // Mteja-only tenant: land on Mteja dashboard, not POS or Accounting
+  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/admin/mteja" replace />;
   if (hasAccounting && !hasPOS) return <Navigate to="/admin/accounting" replace />;
   return adminPage(DashboardAdminPage);
 };
@@ -249,6 +282,22 @@ const routes = createBrowserRouter(
         {/* ── Omnichannel Inbox — shop level ────────────────────────────── */}
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
+
+        {/* ── Mteja Dashboard — shop level ──────────────────────────────── */}
+        {/* Requires Mteja (CRM) module; bounces to /customers if not enabled */}
+        <Route path="mteja" errorElement={<NotFound />}
+          element={
+            <MtejaRoute>
+              <PermissionRoute permission="CUSTOMERS_VIEW">
+                <Suspense fallback={fullscreenSpin}>
+                  <Private>
+                    <MtejaDashboard />
+                  </Private>
+                </Suspense>
+              </PermissionRoute>
+            </MtejaRoute>
+          }
+        />
 
         {/* ── Accounting routes — shop level (/accounting/...) ─────────── */}
         <Route path="accounting" errorElement={<NotFound />}
@@ -417,6 +466,22 @@ const routes = createBrowserRouter(
         {/* ── Omnichannel Inbox — admin level ───────────────────────────── */}
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedAdminPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
+
+        {/* ── Mteja Dashboard — admin level ─────────────────────────────── */}
+        {/* Admin view: branch selector is shown; no shop_id lock */}
+        <Route path="mteja" errorElement={<NotFound />}
+          element={
+            <AdminMtejaRoute>
+              <PermissionRoute permission="CUSTOMERS_VIEW">
+                <Suspense fallback={fullscreenSpin}>
+                  <AdminRoute>
+                    <MtejaDashboard />
+                  </AdminRoute>
+                </Suspense>
+              </PermissionRoute>
+            </AdminMtejaRoute>
+          }
+        />
 
         {/* ── Accounting — admin level (/admin/accounting/...) ──────────── */}
         <Route path="accounting" errorElement={<NotFound />}

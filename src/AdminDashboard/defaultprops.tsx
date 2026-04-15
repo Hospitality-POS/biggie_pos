@@ -1,29 +1,34 @@
 import {
   AccountBookOutlined,
   AuditOutlined,
-  BankOutlined,
   CompassOutlined,
   DashboardOutlined,
   FileTextOutlined,
   FileDoneOutlined,
   ReconciliationOutlined,
   ShopOutlined,
-  TeamOutlined,
   UsergroupAddOutlined,
-  WalletOutlined,
+  CustomerServiceOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
+import { PeopleOutlined as MuiPeopleOutlined } from "@mui/icons-material";
 
 /**
  * AdminDefaultprops.tsx — Admin Layout (path="/admin")
  *
  * Module rules:
- *  - POS only        → Dashboard, Branch, Staff, Wages, POS Reports, Document Center, Help
- *  - Accounting only → Accounting Dashboard, Branch, Staff, Chart of Accounts,
- *                      Financial Reports, Document Center, Help
- *  - Both active     → Dashboard, Branch, Staff, Wages, POS Reports, Accounting Dashboard,
- *                      Chart of Accounts, Financial Reports, Document Center, Help
+ *  - POS only           → Dashboard, Branch, Staff, POS Reports, Documents, Help
+ *  - Accounting only    → Accounting Dashboard, Branch, Staff, CoA, Financial Reports, Documents, Help
+ *  - Both active        → Dashboard, Branch, Staff, POS Reports, Accounting Dashboard, CoA, Financial Reports, Documents, Help
+ *  - Mteja only         → Mteja Dashboard, Customers, Conversations, Branch, Staff, Documents, Help
+ *  - Mteja + POS        → POS routes + Branch/Staff/Docs + Mteja block + Help
+ *  - Mteja + Accounting → Accounting routes + Branch/Staff/Docs + Mteja block + Help
+ *  - Mteja + both       → Combined routes + Mteja block + Help
+ *
+ * NOTE: Customers and Conversations are ONLY shown when Mteja is active.
+ *       They are not shown in POS-only or Accounting-only nav.
  */
-const useProLayoutNav = () => {
+const useAdminProLayoutNav = () => {
   const storedTenant = localStorage.getItem("tenant");
   const storedUser = localStorage.getItem("user");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -31,102 +36,136 @@ const useProLayoutNav = () => {
 
   const userRole = user?.role?.toLowerCase();
 
-  // ── Module flags ────────────────────────────────────────────────────────────
+  // ── Module flags ─────────────────────────────────────────────────────────────
   const hasPOS = tenant?.pos_integration?.enabled === true;
   const hasAccounting = tenant?.modules?.accounting === true;
+  const hasMteja = tenant?.modules?.crm === true;
+  const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting;
 
-  console.log('[AdminNav] Module check:', {
-    'modules.pos': tenant?.pos_integration?.enabled,
-    'modules.accounting': tenant?.modules?.accounting,
-    'hasPOS': hasPOS,
-    'hasAccounting': hasAccounting
+  console.log("[AdminNav] Module check:", {
+    "pos_integration.enabled": tenant?.pos_integration?.enabled,
+    "modules.accounting": tenant?.modules?.accounting,
+    "modules.crm": tenant?.modules?.crm,
+    hasPOS,
+    hasAccounting,
+    hasMteja,
+    isMtejaOnly,
   });
 
-  // ── Common routes (always shown if any module is active) ───────────────────
+  // ── Common routes (always shown regardless of modules) ──────────────────────
+  // NOTE: Customers & Conversations are intentionally NOT here —
+  //       they only appear via mtejaRoutes when hasMteja is true.
   const commonRoutes = [
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
     { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
-    // ── Document Center — accessible at admin level regardless of module ──────
+
+  ];
+
+  // ── POS-specific routes ──────────────────────────────────────────────────────
+  const posRoutes = [
+    { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
+    ...(userRole === "admin"
+      ? [{ path: "/admin/reports", name: "Business Reports", icon: <ReconciliationOutlined /> }]
+      : []),
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
-  // ── POS-specific routes ─────────────────────────────────────────────────────
-  const posOnlyRoutes = [
-    { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
-    ...(userRole === "admin"
-      ? [
-        { path: "/admin/reports", name: "Business Reports", icon: <ReconciliationOutlined /> },
-      ]
-      : []),
-  ];
-
-  // ── Accounting-specific routes ──────────────────────────────────────────────
-  const accountingOnlyRoutes = [
+  // ── Accounting-specific routes ───────────────────────────────────────────────
+  const accountingRoutes = [
     { path: "/admin/accounting", name: "Accounting Dashboard", icon: <AccountBookOutlined /> },
     { path: "/admin/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
     { path: "/admin/accounting/reports", name: "Financial Reports", icon: <FileTextOutlined /> },
+    { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
-  // ── Help Center (always included) ───────────────────────────────────────────
+  // ── Mteja routes — ONLY injected when hasMteja is true ──────────────────────
+  // Mteja Dashboard → Customers → Conversations
+  const mtejaRoutes = [
+    { path: "/admin/mteja", name: "Mteja Dashboard", icon: <CustomerServiceOutlined /> },
+  ];
+
+  // ── Help Center (always last) ────────────────────────────────────────────────
   const helpRoute = { path: "/admin/help-center", name: "Help Center", icon: <CompassOutlined /> };
 
-  // ── Accounting ONLY (no POS) ────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 1: Mteja ONLY
+  // Mteja Dashboard → Customers → Conversations → Branch → Staff → Documents → Help
+  // ════════════════════════════════════════════════════════════════════════════
+  if (isMtejaOnly) {
+    console.log("[AdminNav] ✅ Mteja only");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...mtejaRoutes, ...commonRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 2: Accounting only (no POS)
+  // ════════════════════════════════════════════════════════════════════════════
   if (hasAccounting && !hasPOS) {
-    console.log('[AdminNav] ✅ Showing: Accounting only');
+    console.log("[AdminNav] ✅ Accounting only" + (hasMteja ? " + Mteja" : ""));
     return {
       route: {
         path: "/admin",
         routes: [
-          ...accountingOnlyRoutes,
+          ...accountingRoutes,
           ...commonRoutes,
+          ...(hasMteja ? mtejaRoutes : []),
           helpRoute,
         ],
       },
     };
   }
 
-  // ── POS ONLY (no Accounting) ────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 3: POS only (no Accounting)
+  // ════════════════════════════════════════════════════════════════════════════
   if (hasPOS && !hasAccounting) {
-    console.log('[AdminNav] ✅ Showing: POS only');
+    console.log("[AdminNav] ✅ POS only" + (hasMteja ? " + Mteja" : ""));
     return {
       route: {
         path: "/admin",
         routes: [
-          ...posOnlyRoutes,
+          ...posRoutes,
           ...commonRoutes,
+          ...(hasMteja ? mtejaRoutes : []),
           helpRoute,
         ],
       },
     };
   }
 
-  // ── Both POS + Accounting active ────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 4: Both POS + Accounting
+  // ════════════════════════════════════════════════════════════════════════════
   if (hasPOS && hasAccounting) {
-    console.log('[AdminNav] ✅ Showing: Both POS and Accounting');
+    console.log("[AdminNav] ✅ POS + Accounting" + (hasMteja ? " + Mteja" : ""));
     return {
       route: {
         path: "/admin",
         routes: [
-          ...posOnlyRoutes,
+          ...posRoutes,
           ...commonRoutes,
-          ...accountingOnlyRoutes,
+          ...accountingRoutes,
+          ...(hasMteja ? mtejaRoutes : []),
           helpRoute,
         ],
       },
     };
   }
 
-  // ── Fallback: Neither module enabled ────────────────────────────────────────
-  console.log('[AdminNav] ⚠️ Showing: Fallback (no modules enabled)');
+  // ════════════════════════════════════════════════════════════════════════════
+  // FALLBACK: No modules at all
+  // ════════════════════════════════════════════════════════════════════════════
+  console.log("[AdminNav] ⚠️ Fallback — no modules");
   return {
     route: {
       path: "/admin",
-      routes: [
-        ...commonRoutes,
-        helpRoute,
-      ],
+      routes: [...commonRoutes, helpRoute],
     },
   };
 };
 
-export default useProLayoutNav;
+export default useAdminProLayoutNav;

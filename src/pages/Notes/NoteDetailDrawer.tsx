@@ -4,6 +4,7 @@ import {
     ProFormSelect,
     ProFormDatePicker,
     ProFormTextArea,
+    ProFormSwitch,
 } from "@ant-design/pro-components";
 import {
     Drawer,
@@ -19,12 +20,14 @@ import {
     Divider,
     Segmented,
     Tag,
+    Alert,
 } from "antd";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
+import { PlusOutlined, DeleteOutlined, CheckCircleOutlined } from "@ant-design/icons";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     createNote,
     updateNote,
+    applyNote,
     Note,
     NoteType,
     NoteDirection,
@@ -85,10 +88,12 @@ const NoteFormDrawer: React.FC<Props> = ({
     open, onClose, onSuccess, editingNote, shopId, noteType,
 }) => {
     const [form] = ProForm.useForm();
+    const queryClient = useQueryClient();
     const isEdit = !!editingNote;
     const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
     const [direction, setDirection] = useState<NoteDirection>("customer");
     const [vatMode, setVatMode] = useState<"INCLUSIVE" | "EXCLUSIVE">("EXCLUSIVE");
+    const [applyNow, setApplyNow] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
     const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
@@ -139,12 +144,12 @@ const NoteFormDrawer: React.FC<Props> = ({
 
     const invoiceOptions = direction === "customer"
         ? customerInvoices.map((inv: any) => ({
-            label: `${inv.order_no} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
-            value: inv.order_no,
+            label: `${inv.invoice_no || inv.order_no} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
+            value: inv.invoice_no || inv.order_no,
         }))
         : supplierInvoices.map((inv: any) => ({
-            label: `${inv.order_no} — ${inv.counterparty_name || "Supplier"} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
-            value: inv.order_no,
+            label: `${inv.invoice_no || inv.order_no} — ${inv.counterparty_name || "Supplier"} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
+            value: inv.invoice_no || inv.order_no,
         }));
 
     useEffect(() => {
@@ -153,6 +158,7 @@ const NoteFormDrawer: React.FC<Props> = ({
             const dir = editingNote.direction;
             setDirection(dir);
             setVatMode(editingNote.vat_pricing_mode || "EXCLUSIVE");
+            setApplyNow(false); // Can't change application on edit
 
             const custId = typeof editingNote.customer_id === "object"
                 ? (editingNote.customer_id as any)?._id
@@ -193,6 +199,7 @@ const NoteFormDrawer: React.FC<Props> = ({
             setLines([emptyLine()]);
             setDirection("customer");
             setVatMode("EXCLUSIVE");
+            setApplyNow(false);
             setSelectedCustomerId(null);
             setSelectedSupplierId(null);
         }
@@ -219,7 +226,9 @@ const NoteFormDrawer: React.FC<Props> = ({
 
     const handleSubmit = async (values: any) => {
         const validLines = lines.filter((l) => l.description && l.account_id && l.unit_price > 0);
-        if (!validLines.length) return;
+        if (!validLines.length) {
+            return;
+        }
         setSubmitting(true);
         try {
             const linePayload = validLines.map((l) => ({
@@ -231,7 +240,10 @@ const NoteFormDrawer: React.FC<Props> = ({
                 account_id: l.account_id,
             }));
 
+            let createdNote: Note | null = null;
+
             if (isEdit && editingNote) {
+                // Editing a draft note - cannot apply immediately
                 await updateNote(editingNote._id, {
                     reason: values.reason,
                     notes: values.notes,
@@ -243,7 +255,8 @@ const NoteFormDrawer: React.FC<Props> = ({
                     lines: linePayload,
                 } as UpdateNoteParams);
             } else {
-                await createNote({
+                // Create new note with option to apply immediately
+                const createPayload: CreateNoteParams = {
                     shop_id: shopId,
                     note_type: noteType,
                     direction: values.direction,
@@ -257,10 +270,24 @@ const NoteFormDrawer: React.FC<Props> = ({
                     customer_id: direction === "customer" ? values.customer_id : undefined,
                     supplier_id: direction === "supplier" ? values.supplier_id : undefined,
                     lines: linePayload,
-                } as CreateNoteParams);
+                    status: applyNow ? "Applied" : "Draft",
+                    apply_now: applyNow,
+                } as CreateNoteParams;
+
+                createdNote = await createNote(createPayload);
             }
+
+            // Invalidate queries to refresh data
+            queryClient.invalidateQueries({ queryKey: ["notes"] });
+            if (applyNow || isEdit) {
+                queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            }
+
             onSuccess();
             onClose();
+        } catch (error: any) {
+            console.error("Submit error:", error);
+            // Error is already handled by the mutation/API
         } finally {
             setSubmitting(false);
         }
@@ -350,6 +377,11 @@ const NoteFormDrawer: React.FC<Props> = ({
         ? `Edit ${isCredit ? "Credit" : "Debit"} Note — ${editingNote?.note_no}`
         : `Create ${isCredit ? "Credit" : "Debit"} Note`;
 
+    const canApplyNow = !isEdit && direction &&
+        ((direction === "customer" && selectedCustomerId) ||
+            (direction === "supplier" && selectedSupplierId)) &&
+        totals.grandTotal > 0;
+
     return (
         <Drawer
             title={
@@ -366,12 +398,22 @@ const NoteFormDrawer: React.FC<Props> = ({
             destroyOnClose
             footer={null}
         >
+            {!isEdit && applyNow && (
+                <Alert
+                    message="This note will be applied immediately upon creation"
+                    description="Journal entries will be created and the linked invoice will be updated. This action cannot be undone."
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                />
+            )}
+
             <ProForm
                 form={form}
                 onFinish={handleSubmit}
                 submitter={{
                     searchConfig: {
-                        submitText: isEdit ? "Save Changes" : `Create ${isCredit ? "Credit" : "Debit"} Note`,
+                        submitText: isEdit ? "Save Changes" : (applyNow ? "Create & Apply" : `Create ${isCredit ? "Credit" : "Debit"} Note`),
                         resetText: "Cancel",
                     },
                     onReset: onClose,
@@ -397,6 +439,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                     setDirection(v);
                                     setSelectedCustomerId(null);
                                     setSelectedSupplierId(null);
+                                    setApplyNow(false);
                                     form.setFieldsValue({
                                         customer_id: undefined,
                                         supplier_id: undefined,
@@ -431,6 +474,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                 label="Customer"
                                 showSearch
                                 placeholder="Search customer…"
+                                rules={[{ required: true, message: "Customer is required" }]}
                                 fieldProps={{
                                     filterOption: false,
                                     onSearch: setCustomerSearch,
@@ -438,6 +482,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                     allowClear: true,
                                     onChange: (val: string) => {
                                         setSelectedCustomerId(val || null);
+                                        setApplyNow(false);
                                         form.setFieldValue("original_invoice_no", undefined);
                                     },
                                     notFoundContent: customersFetching ? "Searching..." : "No customers found",
@@ -457,6 +502,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                 label="Supplier"
                                 showSearch
                                 placeholder="Search supplier…"
+                                rules={[{ required: true, message: "Supplier is required" }]}
                                 fieldProps={{
                                     filterOption: false,
                                     onSearch: setSupplierSearch,
@@ -464,6 +510,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                     allowClear: true,
                                     onChange: (val: string) => {
                                         setSelectedSupplierId(val || null);
+                                        setApplyNow(false);
                                         form.setFieldValue("original_invoice_no", undefined);
                                     },
                                     notFoundContent: suppliersFetching ? "Searching..." : "No suppliers found",
@@ -480,7 +527,6 @@ const NoteFormDrawer: React.FC<Props> = ({
                         <ProFormSelect
                             name="original_invoice_no"
                             label="Original Invoice / Reference No."
-                            showSearch
                             placeholder={
                                 direction === "customer" && !selectedCustomerId
                                     ? "Select a customer first"
@@ -488,12 +534,14 @@ const NoteFormDrawer: React.FC<Props> = ({
                                         ? "Select a supplier first"
                                         : "Select invoice…"
                             }
+                            rules={[{ required: true, message: "Invoice reference is required" }]}
                             fieldProps={{
                                 disabled:
                                     (direction === "customer" && !selectedCustomerId) ||
                                     (direction === "supplier" && !selectedSupplierId),
                                 optionFilterProp: "label",
                                 allowClear: true,
+                                onChange: () => setApplyNow(false),
                             }}
                             options={invoiceOptions}
                         />
@@ -524,6 +572,30 @@ const NoteFormDrawer: React.FC<Props> = ({
                         />
                     </Col>
                 </Row>
+
+                {/* ── Apply Now Option (only for new notes) ── */}
+                {!isEdit && (
+                    <Row gutter={12} style={{ marginTop: 8, marginBottom: 8 }}>
+                        <Col span={24}>
+                            <ProFormSwitch
+                                name="apply_now"
+                                label="Apply immediately"
+                                checkedChildren="Will be applied"
+                                unCheckedChildren="Save as Draft"
+                                fieldProps={{
+                                    checked: applyNow,
+                                    onChange: (checked) => setApplyNow(checked),
+                                    disabled: !canApplyNow,
+                                }}
+                                extra={
+                                    !canApplyNow && !applyNow
+                                        ? "Select a contact, invoice, and add valid line items to enable immediate application"
+                                        : "Journal entries will be created and invoice will be updated"
+                                }
+                            />
+                        </Col>
+                    </Row>
+                )}
 
                 {/* ── VAT Mode + Lines ── */}
                 <Divider orientation="left" plain>

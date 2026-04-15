@@ -51,9 +51,7 @@ const useGooglePlaces = () => {
 
   useEffect(() => {
     if (sdkReady) return;
-    loadGoogleMaps()
-      .then(() => setSdkReady(true))
-      .catch(() => { });
+    loadGoogleMaps().then(() => setSdkReady(true)).catch(() => { });
   }, []);
 
   const ensureServices = useCallback(() => {
@@ -200,9 +198,7 @@ const LocationInput: React.FC<{ value?: any; onChange?: (v: any) => void }> = ({
         }}>
           {fetching
             ? <LoadingOutlined style={{ fontSize: 13, color: "#94a3b8" }} />
-            : place
-              ? <CheckCircleFilled />
-              : <SearchOutlined />}
+            : place ? <CheckCircleFilled /> : <SearchOutlined />}
         </span>
       </div>
 
@@ -212,17 +208,10 @@ const LocationInput: React.FC<{ value?: any; onChange?: (v: any) => void }> = ({
         return (
           <div style={{
             position: "fixed",
-            top: rect.bottom + 4,
-            left: rect.left,
-            width: rect.width,
-            background: "#fff",
-            borderRadius: 10,
-            zIndex: 999999,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-            border: "1px solid #e2e8f0",
-            overflow: "hidden",
-            maxHeight: 240,
-            overflowY: "auto" as const,
+            top: rect.bottom + 4, left: rect.left, width: rect.width,
+            background: "#fff", borderRadius: 10, zIndex: 999999,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.18)", border: "1px solid #e2e8f0",
+            overflow: "hidden", maxHeight: 240, overflowY: "auto" as const,
           }}>
             {options.map((opt, i) => (
               <div
@@ -330,11 +319,20 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
   const [posMode, setPosMode] = useState<PosMode>(normalisePosMode(data?.pos_mode));
   const primaryColor = usePrimaryColor();
 
+  // ── Tenant flags ─────────────────────────────────────────────────────────
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
-  const isAccountingOnly = hasAccounting && !hasPOS;
+  const hasMteja = tenant?.modules?.crm === true;
+
+  /**
+   * Hide POS Mode selector when:
+   *  - Accounting-only tenant  (no POS)
+   *  - Mteja-only tenant       (no POS, no Accounting)
+   * Show it only when POS module is active.
+   */
+  const showPosModeSelector = hasPOS && !(hasMteja && !hasPOS && !hasAccounting);
 
   const handleOpen = () => {
     if (edit && data) {
@@ -408,7 +406,8 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
             <LocationInput />
           </Form.Item>
 
-          {!isAccountingOnly && (
+          {/* POS Mode selector — only shown when POS module is active */}
+          {showPosModeSelector && (
             <Form.Item label="POS Mode" style={{ marginBottom: 0 }}>
               <div style={{ display: "flex", gap: 12 }}>
                 <ModeCard
