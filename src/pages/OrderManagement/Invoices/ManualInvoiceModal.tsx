@@ -29,7 +29,7 @@ const PAYMENT_TERMS = [
     { label: "Net 30", value: "Net 30" },
     { label: "Net 60", value: "Net 60" },
     { label: "Net 90", value: "Net 90" },
-    { label: "50% Upfront", value: "50% Upfront" },
+    // { label: "50% Upfront", value: "50% Upfront" },
     { label: "Cash on Delivery", value: "Cash on Delivery" },
 ];
 
@@ -579,9 +579,9 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                         </Form.Item>
                     </Col>
                     <Col span={8}>
-                        <Form.Item name="terms" label="Payment Terms">
+                        <Form.Item name="terms" label="Terms">
                             <Select
-                                placeholder="Select payment terms"
+                                placeholder="Select  terms"
                                 allowClear
                                 options={PAYMENT_TERMS}
                                 onChange={(terms) => {

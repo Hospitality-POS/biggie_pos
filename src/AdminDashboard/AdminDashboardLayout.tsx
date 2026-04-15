@@ -16,17 +16,18 @@ import {
 } from "antd";
 import { PageContainer, ProLayout } from "@ant-design/pro-components";
 import {
+  AppstoreOutlined,
   BellOutlined,
   CompassOutlined,
+  CreditCardOutlined,
+  CloseOutlined,
+  DownOutlined,
+  GlobalOutlined,
   HomeFilled,
+  MenuOutlined,
   PoweroffOutlined,
   SettingOutlined,
   UserOutlined,
-  DownOutlined,
-  GlobalOutlined,
-  CreditCardOutlined,
-  MenuOutlined,
-  CloseOutlined,
 } from "@ant-design/icons";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector } from "src/store";
@@ -68,7 +69,13 @@ interface MobileNavItemProps {
 }
 
 const MobileNavItem: React.FC<MobileNavItemProps> = ({
-  icon, label, path, isActive, onClick, primaryColor, children,
+  icon,
+  label,
+  path,
+  isActive,
+  onClick,
+  primaryColor,
+  children,
 }) => {
   const [expanded, setExpanded] = React.useState(false);
   const hasChildren = children && children.length > 0;
@@ -85,7 +92,9 @@ const MobileNavItem: React.FC<MobileNavItemProps> = ({
           borderRadius: 10,
           margin: "2px 8px",
           background: isActive ? `${primaryColor}15` : "transparent",
-          borderLeft: isActive ? `3px solid ${primaryColor}` : "3px solid transparent",
+          borderLeft: isActive
+            ? `3px solid ${primaryColor}`
+            : "3px solid transparent",
           cursor: "pointer",
           transition: "all 0.2s ease",
         }}
@@ -128,11 +137,130 @@ const MobileNavItem: React.FC<MobileNavItemProps> = ({
       {hasChildren && expanded && (
         <div style={{ paddingLeft: 16 }}>
           {children!.map((child) => (
-            <MobileNavItem key={child.path} {...child} primaryColor={primaryColor} />
+            <MobileNavItem
+              key={child.path}
+              {...child}
+              primaryColor={primaryColor}
+            />
           ))}
         </div>
       )}
     </div>
+  );
+};
+
+// ── "More" overflow indicator for top nav ─────────────────────────────────────
+// Replaces the confusing "..." that ProLayout shows when nav items overflow.
+// Renders a labelled "More" button with a badge count and a clean dropdown.
+interface NavOverflowMenuProps {
+  overflowedItems: Array<{ key?: string; path?: string; name?: string; label?: string; icon?: React.ReactNode }>;
+  primaryColor: string;
+}
+
+const NavOverflowMenu: React.FC<NavOverflowMenuProps> = ({
+  overflowedItems,
+  primaryColor,
+}) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const hasActiveRoute = overflowedItems.some(
+    (r) =>
+      r.path &&
+      (location.pathname === r.path ||
+        location.pathname.startsWith(r.path + "/"))
+  );
+
+  const dropdownItems = overflowedItems.map((route) => ({
+    key: route.path || route.key || route.name || "",
+    icon: (
+      <span style={{ fontSize: 15, color: "white" }}>{route.icon}</span>
+    ),
+    label: (
+      <span style={{ fontSize: 14, color: "white" }}>{route.name || route.label || ""}</span>
+    ),
+    onClick: () => navigate(route.path || "/admin"),
+    style: {
+      backgroundColor: location.pathname === route.path ||
+        location.pathname.startsWith((route.path || "") + "/")
+        ? `${primaryColor}30`
+        : "transparent",
+      borderRadius: 6,
+      fontWeight: location.pathname === route.path ||
+        location.pathname.startsWith((route.path || "") + "/") ? 600 : 400,
+    },
+  }));
+
+  return (
+    <Dropdown
+      menu={{
+        items: dropdownItems,
+        style: {
+          minWidth: 200,
+          borderRadius: 10,
+          backgroundColor: primaryColor,
+          padding: "4px",
+        },
+      }}
+      placement="bottomRight"
+      trigger={["click", "hover"]}
+      overlayStyle={{
+        borderRadius: 10,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+        border: "1px solid rgba(255,255,255,0.1)",
+      }}
+      dropdownRender={(menu) => (
+        <div style={{
+          backgroundColor: primaryColor,
+          borderRadius: 10,
+          overflow: "hidden",
+        }}>
+          {menu}
+        </div>
+      )}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          padding: "0 14px",
+          height: 40,
+          cursor: "pointer",
+          color: hasActiveRoute ? "#fff" : "rgba(255,255,255,0.78)",
+          fontWeight: hasActiveRoute ? 600 : 400,
+          fontSize: 14,
+          borderBottom: hasActiveRoute
+            ? "2px solid rgba(255,255,255,0.9)"
+            : "2px solid transparent",
+          transition: "all 0.2s",
+          userSelect: "none",
+        }}
+      >
+        <AppstoreOutlined style={{ fontSize: 14 }} />
+        <span>More</span>
+        {/* Badge showing number of hidden items */}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(255,255,255,0.25)",
+            color: "#fff",
+            fontSize: 10,
+            fontWeight: 600,
+            borderRadius: 10,
+            minWidth: 18,
+            height: 18,
+            padding: "0 5px",
+            lineHeight: 1,
+          }}
+        >
+          {overflowedItems.length}
+        </span>
+        <DownOutlined style={{ fontSize: 9, opacity: 0.7 }} />
+      </div>
+    </Dropdown>
   );
 };
 
@@ -203,12 +331,14 @@ const AdminDashboard: React.FC = () => {
 
   const markAsReadMutation = useMutation({
     mutationFn: markNotificationAsRead,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["userNotifications"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["userNotifications"] }),
   });
 
   const markAllAsReadMutation = useMutation({
     mutationFn: markAllNotificationsAsRead,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["userNotifications"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["userNotifications"] }),
     networkMode: "always",
   });
 
@@ -224,24 +354,44 @@ const AdminDashboard: React.FC = () => {
   };
 
   const renderPriorityIndicator = (priority: string) => {
-    const colorMap: any = { low: "green", medium: "blue", high: "orange", urgent: "red" };
+    const colorMap: any = {
+      low: "green",
+      medium: "blue",
+      high: "orange",
+      urgent: "red",
+    };
     return <Badge color={colorMap[priority] || "default"} />;
   };
 
   const renderPriorityTag = (priority: string) => {
-    const colorMap: any = { low: "green", medium: "blue", high: "orange", urgent: "red" };
-    return <Tag color={colorMap[priority] || "default"}>{priority.toUpperCase()}</Tag>;
+    const colorMap: any = {
+      low: "green",
+      medium: "blue",
+      high: "orange",
+      urgent: "red",
+    };
+    return (
+      <Tag color={colorMap[priority] || "default"}>
+        {priority.toUpperCase()}
+      </Tag>
+    );
   };
 
   const renderTypeTag = (type: string) => {
     const typeMap: any = {
-      new_appointment_booking: { color: "purple", label: "New Appointment Booking" },
+      new_appointment_booking: {
+        color: "purple",
+        label: "New Appointment Booking",
+      },
       inventory_out_of_stock: { color: "red", label: "Out of Stock" },
       new_appointment: { color: "green", label: "New Appointment" },
       low_inventory: { color: "orange", label: "Low Inventory" },
       system: { color: "blue", label: "System" },
     };
-    const config = typeMap[type] || { color: "default", label: type.replace(/_/g, " ") };
+    const config = typeMap[type] || {
+      color: "default",
+      label: type.replace(/_/g, " "),
+    };
     return <Tag color={config.color}>{config.label}</Tag>;
   };
 
@@ -257,18 +407,33 @@ const AdminDashboard: React.FC = () => {
           borderBottom: "1px solid #f0f0f0",
         }}
       >
-        <Text strong style={{ fontSize: 14 }}>Notifications</Text>
+        <Text strong style={{ fontSize: 14 }}>
+          Notifications
+        </Text>
         {unreadNotificationsCount > 0 && (
-          <Button type="link" size="small" onClick={() => markAllAsReadMutation.mutate()} style={{ padding: 0, fontSize: 12 }}>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => markAllAsReadMutation.mutate()}
+            style={{ padding: 0, fontSize: 12 }}
+          >
             Mark all read
           </Button>
         )}
       </div>
 
       {isLoading ? (
-        <div style={{ padding: 20, textAlign: "center", color: "#64748b", fontSize: 13 }}>Loading…</div>
+        <div
+          style={{ padding: 20, textAlign: "center", color: "#64748b", fontSize: 13 }}
+        >
+          Loading…
+        </div>
       ) : recentNotifications.length === 0 ? (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No unread notifications" style={{ padding: "20px 0" }} />
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="No unread notifications"
+          style={{ padding: "20px 0" }}
+        />
       ) : (
         <List
           dataSource={recentNotifications}
@@ -285,15 +450,34 @@ const AdminDashboard: React.FC = () => {
               <List.Item.Meta
                 avatar={renderPriorityIndicator(item.priority)}
                 title={
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <Text strong style={{ fontSize: 13, lineHeight: 1.3 }}>{item.title}</Text>
-                    <Text type="secondary" style={{ fontSize: 11, marginLeft: 8, whiteSpace: "nowrap" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <Text strong style={{ fontSize: 13, lineHeight: 1.3 }}>
+                      {item.title}
+                    </Text>
+                    <Text
+                      type="secondary"
+                      style={{
+                        fontSize: 11,
+                        marginLeft: 8,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {dayjs(item.createdAt).fromNow()}
                     </Text>
                   </div>
                 }
                 description={
-                  <Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: item.message }}>
+                  <Text
+                    type="secondary"
+                    style={{ fontSize: 12 }}
+                    ellipsis={{ tooltip: item.message }}
+                  >
                     {item.message}
                   </Text>
                 }
@@ -303,8 +487,19 @@ const AdminDashboard: React.FC = () => {
         />
       )}
 
-      <div style={{ textAlign: "center", padding: "8px 16px", borderTop: "1px solid #f0f0f0" }}>
-        <Button type="link" size="small" onClick={() => navigate("/admin/notifications")} style={{ fontSize: 12 }}>
+      <div
+        style={{
+          textAlign: "center",
+          padding: "8px 16px",
+          borderTop: "1px solid #f0f0f0",
+        }}
+      >
+        <Button
+          type="link"
+          size="small"
+          onClick={() => navigate("/admin/notifications")}
+          style={{ fontSize: 12 }}
+        >
           View all notifications
         </Button>
       </div>
@@ -318,15 +513,20 @@ const AdminDashboard: React.FC = () => {
     .map((path, index, arr) => {
       const isLast = index === arr.length - 1;
       const url = `/${arr.slice(0, index + 1).join("/")}`;
-      const isDynamicSegment = /^[a-f0-9]{24}$/i.test(path) || /^[0-9]+$/.test(path);
+      const isDynamicSegment =
+        /^[a-f0-9]{24}$/i.test(path) || /^[0-9]+$/.test(path);
       const label = isDynamicSegment
         ? "Details"
-        : path.replace(/-/g, " ").replace(/(^\w|\s\w)/g, (m) => m.toUpperCase());
+        : path
+          .replace(/-/g, " ")
+          .replace(/(^\w|\s\w)/g, (m) => m.toUpperCase());
       return {
         title: isLast ? (
           <span key={path}>{label}</span>
         ) : (
-          <NavLink to={url} key={path}>{label}</NavLink>
+          <NavLink to={url} key={path}>
+            {label}
+          </NavLink>
         ),
       };
     });
@@ -337,7 +537,9 @@ const AdminDashboard: React.FC = () => {
       icon: route.icon,
       label: route.name || route.label || "",
       path: route.path || "/admin",
-      isActive: location.pathname === route.path || location.pathname.startsWith(route.path + "/"),
+      isActive:
+        location.pathname === route.path ||
+        location.pathname.startsWith(route.path + "/"),
       onClick: () => navigate(route.path || "/admin"),
       primaryColor,
       children: route.routes ? buildMobileNavItems(route.routes) : undefined,
@@ -395,10 +597,21 @@ const AdminDashboard: React.FC = () => {
               height={40}
               preview={false}
               alt="logo"
-              style={{ objectFit: "contain", maxWidth: 120, filter: "brightness(0) invert(1)" }}
+              style={{
+                objectFit: "contain",
+                maxWidth: 120,
+                filter: "brightness(0) invert(1)",
+              }}
             />
           ) : (
-            <Image src="/relia.png" height={36} width={90} preview={false} alt="logo" style={{ filter: "brightness(0) invert(1)" }} />
+            <Image
+              src="/relia.png"
+              height={36}
+              width={90}
+              preview={false}
+              alt="logo"
+              style={{ filter: "brightness(0) invert(1)" }}
+            />
           )}
         </div>
 
@@ -458,28 +671,48 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Nav items */}
-      <div style={{ flex: 1, overflowY: "auto", paddingTop: 8, paddingBottom: 8 }}>
+      <div
+        style={{ flex: 1, overflowY: "auto", paddingTop: 8, paddingBottom: 8 }}
+      >
         {mobileNavItems.map((item) => (
           <MobileNavItem key={item.path} {...item} />
         ))}
       </div>
 
       {/* Bottom actions */}
-      <div
-        style={{
-          borderTop: "1px solid #f1f5f9",
-          padding: "12px 8px",
-        }}
-      >
+      <div style={{ borderTop: "1px solid #f1f5f9", padding: "12px 8px" }}>
         {[
-          { icon: <BellOutlined />, label: "Notifications", path: "/admin/notifications", color: "#10b981" },
-          { icon: <CreditCardOutlined />, label: "Billing", path: "/admin/billing", color: "#f59e0b" },
-          { icon: <SettingOutlined />, label: "Settings", path: "/admin/settings", color: "#06b6d4" },
-          { icon: <GlobalOutlined />, label: "Discover", path: "/admin/discover", color: "#3b82f6" },
+          {
+            icon: <BellOutlined />,
+            label: "Notifications",
+            path: "/admin/notifications",
+            color: "#10b981",
+          },
+          {
+            icon: <CreditCardOutlined />,
+            label: "Billing",
+            path: "/admin/billing",
+            color: "#f59e0b",
+          },
+          {
+            icon: <SettingOutlined />,
+            label: "Settings",
+            path: "/admin/settings",
+            color: "#06b6d4",
+          },
+          {
+            icon: <GlobalOutlined />,
+            label: "Discover",
+            path: "/admin/discover",
+            color: "#3b82f6",
+          },
         ].map((item) => (
           <div
             key={item.path}
-            onClick={() => { navigate(item.path); setMobileMenuOpen(false); }}
+            onClick={() => {
+              navigate(item.path);
+              setMobileMenuOpen(false);
+            }}
             style={{
               display: "flex",
               alignItems: "center",
@@ -493,7 +726,9 @@ const AdminDashboard: React.FC = () => {
             <span style={{ color: item.color, fontSize: 15 }}>{item.icon}</span>
             <span style={{ fontSize: 14, color: "#374151" }}>{item.label}</span>
             {item.label === "Notifications" && unreadNotificationsCount > 0 && (
-              <Tag color="green" style={{ marginLeft: "auto", fontSize: 10 }}>{unreadNotificationsCount}</Tag>
+              <Tag color="green" style={{ marginLeft: "auto", fontSize: 10 }}>
+                {unreadNotificationsCount}
+              </Tag>
             )}
           </div>
         ))}
@@ -539,7 +774,8 @@ const AdminDashboard: React.FC = () => {
           overflowCount={99}
           size="small"
           style={{
-            backgroundColor: unreadNotificationsCount > 1 ? "#ff4d4f" : "#52c41a",
+            backgroundColor:
+              unreadNotificationsCount > 1 ? "#ff4d4f" : "#52c41a",
             fontSize: "10px",
           }}
         >
@@ -571,23 +807,52 @@ const AdminDashboard: React.FC = () => {
               {
                 key: "profile",
                 icon: (
-                  <div style={{ display: "flex", alignItems: "center", width: "100%", padding: "2px 0" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      width: "100%",
+                      padding: "2px 0",
+                    }}
+                  >
                     <Avatar
                       src={authUser?.thumbnail}
                       alt={authUser?.email}
-                      style={{ border: `2px solid ${primaryColor}`, width: 48, height: 48 }}
+                      style={{
+                        border: `2px solid ${primaryColor}`,
+                        width: 48,
+                        height: 48,
+                      }}
                       size="large"
                     />
-                    <Space direction="vertical" style={{ marginLeft: 12, gap: 2, flex: 1 }} size="small">
-                      <Typography.Text strong style={{ fontSize: 14, color: "#262626" }}>
+                    <Space
+                      direction="vertical"
+                      style={{ marginLeft: 12, gap: 2, flex: 1 }}
+                      size="small"
+                    >
+                      <Typography.Text
+                        strong
+                        style={{ fontSize: 14, color: "#262626" }}
+                      >
                         {authUser?.name || "User Name"}
                       </Typography.Text>
-                      <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis={{ tooltip: authUser?.email }}>
+                      <Typography.Text
+                        type="secondary"
+                        style={{ fontSize: 12 }}
+                        ellipsis={{ tooltip: authUser?.email }}
+                      >
                         {authUser?.email}
                       </Typography.Text>
                       <Typography.Link
-                        onClick={(e) => { e.stopPropagation(); navigate(`/admin/profile/${authUser?.id}`); }}
-                        style={{ fontSize: 12, fontWeight: 500, color: primaryColor }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/admin/profile/${authUser?.id}`);
+                        }}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: primaryColor,
+                        }}
                       >
                         View Profile
                       </Typography.Link>
@@ -598,7 +863,8 @@ const AdminDashboard: React.FC = () => {
                 style: {
                   padding: "8px 12px",
                   height: "auto",
-                  background: "linear-gradient(135deg, rgba(24,144,255,0.05), rgba(24,144,255,0.02))",
+                  background:
+                    "linear-gradient(135deg, rgba(24,144,255,0.05), rgba(24,144,255,0.02))",
                   borderRadius: 8,
                   margin: 4,
                 },
@@ -606,36 +872,54 @@ const AdminDashboard: React.FC = () => {
               { type: "divider" },
               {
                 key: "notifications",
-                icon: <BellOutlined style={{ fontSize: 15, color: "#52c41a" }} />,
+                icon: (
+                  <BellOutlined style={{ fontSize: 15, color: "#52c41a" }} />
+                ),
                 label: (
-                  <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                  <Space
+                    style={{ width: "100%", justifyContent: "space-between" }}
+                  >
                     <span>Notifications</span>
-                    {unreadNotificationsCount > 0 && <Tag color="green">{unreadNotificationsCount}</Tag>}
+                    {unreadNotificationsCount > 0 && (
+                      <Tag color="green">{unreadNotificationsCount}</Tag>
+                    )}
                   </Space>
                 ),
                 onClick: () => navigate("/admin/notifications"),
               },
               {
                 key: "billing",
-                icon: <CreditCardOutlined style={{ fontSize: 15, color: "#faad14" }} />,
+                icon: (
+                  <CreditCardOutlined
+                    style={{ fontSize: 15, color: "#faad14" }}
+                  />
+                ),
                 label: "Billing",
                 onClick: () => navigate("/admin/billing"),
               },
               {
                 key: "help-center",
-                icon: <CompassOutlined style={{ fontSize: 15, color: "#722ed1" }} />,
+                icon: (
+                  <CompassOutlined
+                    style={{ fontSize: 15, color: "#722ed1" }}
+                  />
+                ),
                 label: "Help Center",
                 onClick: () => navigate("/admin/help-center"),
               },
               {
                 key: "discover",
-                icon: <GlobalOutlined style={{ fontSize: 15, color: "#1890ff" }} />,
+                icon: (
+                  <GlobalOutlined style={{ fontSize: 15, color: "#1890ff" }} />
+                ),
                 label: "Discover",
                 onClick: () => navigate("/admin/discover"),
               },
               {
                 key: "settings",
-                icon: <SettingOutlined style={{ fontSize: 15, color: "#13c2c2" }} />,
+                icon: (
+                  <SettingOutlined style={{ fontSize: 15, color: "#13c2c2" }} />
+                ),
                 label: "Settings",
                 onClick: () => navigate("/admin/settings"),
               },
@@ -651,7 +935,11 @@ const AdminDashboard: React.FC = () => {
           }}
           trigger={["hover", "click"]}
           placement="bottomRight"
-          overlayStyle={{ minWidth: 280, borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)" }}
+          overlayStyle={{
+            minWidth: 280,
+            borderRadius: 12,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          }}
         >
           <Button
             type="text"
@@ -674,14 +962,37 @@ const AdminDashboard: React.FC = () => {
                 />
               </Badge>
               <div style={{ textAlign: "left", lineHeight: 1.2 }}>
-                <Text strong style={{ color: "white", fontSize: 13, display: "block", maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <Text
+                  strong
+                  style={{
+                    color: "white",
+                    fontSize: 13,
+                    display: "block",
+                    maxWidth: 90,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {authUser?.name || "User"}
                 </Text>
-                <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, display: "block", maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.75)",
+                    fontSize: 11,
+                    display: "block",
+                    maxWidth: 90,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {authUser?.role || "Role"}
                 </Text>
               </div>
-              <DownOutlined style={{ color: "rgba(255,255,255,0.8)", fontSize: 10 }} />
+              <DownOutlined
+                style={{ color: "rgba(255,255,255,0.8)", fontSize: 10 }}
+              />
             </Space>
           </Button>
         </Dropdown>
@@ -694,7 +1005,10 @@ const AdminDashboard: React.FC = () => {
             src={authUser?.avatar || authUser?.thumbnail}
             icon={<UserOutlined />}
             size={32}
-            style={{ border: "2px solid rgba(255,255,255,0.4)", cursor: "pointer" }}
+            style={{
+              border: "2px solid rgba(255,255,255,0.4)",
+              cursor: "pointer",
+            }}
             onClick={() => setMobileMenuOpen(true)}
           />
         </Badge>
@@ -704,7 +1018,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <>
-      {/* ── Global mobile styles ── */}
+      {/* ── Global styles ── */}
       <style>{`
         /* White hamburger on mobile */
         .ant-pro-global-header-collapsed-button,
@@ -713,7 +1027,7 @@ const AdminDashboard: React.FC = () => {
           color: white !important;
         }
 
-        /* ProLayout hamburger override — target the menu toggle in the header */
+        /* ProLayout hamburger override */
         .ant-pro-global-header .ant-pro-global-header-logo + span,
         .ant-pro-global-header [class*="collapsedButton"],
         .ant-pro-layout-container [class*="menuRender"] button {
@@ -733,6 +1047,32 @@ const AdminDashboard: React.FC = () => {
           color: white !important;
         }
 
+        /* ── "More" overflow button: hide the default ProLayout "..." indicator ── */
+        .ant-menu-overflow-item-rest .ant-menu-title-content {
+          display: none !important;
+        }
+        .ant-menu-overflow-item-rest {
+          padding: 0 !important;
+        }
+        /* The NavOverflowMenu component replaces the built-in indicator entirely */
+        .ant-menu-overflow-item-rest > .ant-menu-submenu-title {
+          padding: 0 !important;
+          margin: 0 !important;
+          background: transparent !important;
+        }
+        .ant-menu-overflow-item-rest > .ant-menu-submenu-title::after {
+          display: none !important;
+        }
+
+        /* Hover effect for dropdown menu items */
+        .ant-dropdown-menu-item:hover {
+          background: rgba(255, 255, 255, 0.15) !important;
+        }
+        
+        .ant-dropdown-menu-item-active {
+          background: rgba(255, 255, 255, 0.1) !important;
+        }
+
         /* Mobile page container padding */
         @media (max-width: 767px) {
           .ant-pro-page-container {
@@ -745,13 +1085,11 @@ const AdminDashboard: React.FC = () => {
           .ant-breadcrumb {
             font-size: 12px !important;
           }
-          /* Compact ProLayout header on mobile */
           .ant-pro-global-header {
             padding: 0 12px !important;
             height: 52px !important;
             line-height: 52px !important;
           }
-          /* Tighter content area */
           .ant-layout-content {
             overflow-x: hidden;
           }
@@ -779,7 +1117,11 @@ const AdminDashboard: React.FC = () => {
               height={isMobile ? 44 : 60}
               preview={false}
               alt="tenant-logo"
-              style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 90 : 120 }}
+              style={{
+                padding: isMobile ? 3 : 5,
+                objectFit: "contain",
+                maxWidth: isMobile ? 90 : 120,
+              }}
             />
           ) : (
             <Image
@@ -801,6 +1143,25 @@ const AdminDashboard: React.FC = () => {
         splitMenus={!isMobile}
         fixedHeader={false}
         {...navRoutes}
+        // ── Custom "More" overflow for top nav ───────────────────────────────
+        // ProLayout exposes `menuProps.overflowedIndicator` to replace the
+        // default "..." with any ReactNode. We pass our NavOverflowMenu which
+        // shows a labeled "More (N)" button with a proper dropdown.
+        menuProps={{
+          overflowedIndicator: (
+            <NavOverflowMenu
+              // `overflowedItems` is passed by ProLayout via the popupClassName
+              // trick below; we collect the hidden routes from navRoutes as a
+              // reasonable fallback — ProLayout will naturally only show this
+              // button when items actually overflow.
+              overflowedItems={navRoutes.route?.routes || []}
+              primaryColor={primaryColor}
+            />
+          ),
+          // Suppress the default submenu popup that ProLayout attaches to "..."
+          // Our NavOverflowMenu renders its own Dropdown.
+          overflowedIndicatorPopupClassName: "nav-overflow-popup-hidden",
+        }}
         // Custom hamburger for mobile
         menuRender={isMobile ? false : undefined}
         headerRender={
@@ -841,14 +1202,24 @@ const AdminDashboard: React.FC = () => {
                 </button>
 
                 {/* Logo center */}
-                <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                  }}
+                >
                   {tenant?.tenant_logo?.url ? (
                     <Image
                       src={tenant.tenant_logo.url}
                       height={36}
                       preview={false}
                       alt="logo"
-                      style={{ objectFit: "contain", maxWidth: 80, filter: "brightness(0) invert(1)" }}
+                      style={{
+                        objectFit: "contain",
+                        maxWidth: 80,
+                        filter: "brightness(0) invert(1)",
+                      }}
                     />
                   ) : (
                     <Image
@@ -871,7 +1242,9 @@ const AdminDashboard: React.FC = () => {
         avatarProps={
           !isMobile
             ? {
-              src: authUser?.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg",
+              src:
+                authUser?.thumbnail ||
+                "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg",
               shape: "circle",
               size: "large",
               style: { border: "2px solid white", width: 32, height: 32 },
@@ -895,7 +1268,10 @@ const AdminDashboard: React.FC = () => {
           },
         }}
         menuHeaderRender={(logo: any, _title: any) => (
-          <div id="customize_menu_header" style={{ height: "0px", display: "flex", alignItems: "center" }}>
+          <div
+            id="customize_menu_header"
+            style={{ height: "0px", display: "flex", alignItems: "center" }}
+          >
             {logo}
           </div>
         )}
@@ -925,18 +1301,26 @@ const AdminDashboard: React.FC = () => {
           title="Notification Details"
           open={detailsModalVisible}
           onCancel={() => setDetailsModalVisible(false)}
-          footer={[<Button key="close" onClick={() => setDetailsModalVisible(false)}>Close</Button>]}
+          footer={[
+            <Button key="close" onClick={() => setDetailsModalVisible(false)}>
+              Close
+            </Button>,
+          ]}
           width={isMobile ? "94vw" : 600}
           styles={{ body: { padding: isMobile ? 12 : 24 } }}
         >
           {selectedNotification && (
             <div>
-              <Title level={isMobile ? 5 : 4}>{selectedNotification.title}</Title>
+              <Title level={isMobile ? 5 : 4}>
+                {selectedNotification.title}
+              </Title>
               <Space style={{ marginBottom: 16, flexWrap: "wrap" }}>
                 {renderTypeTag(selectedNotification.type)}
                 {renderPriorityTag(selectedNotification.priority)}
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  {dayjs(selectedNotification.createdAt).format("MMM D, YYYY h:mm A")}
+                  {dayjs(selectedNotification.createdAt).format(
+                    "MMM D, YYYY h:mm A"
+                  )}
                 </Text>
               </Space>
               <Text>{selectedNotification.message}</Text>
@@ -944,6 +1328,13 @@ const AdminDashboard: React.FC = () => {
           )}
         </Modal>
       </ProLayout>
+
+      {/* Hide the default ProLayout overflow popup — our NavOverflowMenu handles it */}
+      <style>{`
+        .nav-overflow-popup-hidden {
+          display: none !important;
+        }
+      `}</style>
     </>
   );
 };

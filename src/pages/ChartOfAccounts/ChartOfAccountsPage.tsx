@@ -2,11 +2,12 @@ import React, { useRef, useState, useCallback } from "react";
 import { ProTable, ActionType } from "@ant-design/pro-components";
 import {
     Button, Space, Tag, Tooltip, Popconfirm,
-    Typography, Badge, Card, Tabs, App,
+    Typography, Badge, Card, Tabs, App, Dropdown, MenuProps,
 } from "antd";
 import {
     PlusOutlined, EditOutlined, DeleteOutlined,
     PoweroffOutlined, BookOutlined, ThunderboltOutlined, BankOutlined,
+    DownloadOutlined, FilePdfOutlined, FileExcelOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -34,6 +35,108 @@ const BALANCE_COLOR = (a: ChartOfAccount) => {
 
 const ALL_TYPES: (AccountType | "ALL")[] = ["ALL", "ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"];
 
+/** Only parent/header accounts (e.g. "Current Assets") are restricted — children are freely editable */
+const isMainAccount = (r: ChartOfAccount) => r.is_parent === true;
+
+// ---------------------------------------------------------------------------
+// Export helpers
+// ---------------------------------------------------------------------------
+const exportToExcel = async (accounts: ChartOfAccount[], activeType: AccountType | "ALL") => {
+    // Lazy-load SheetJS
+    const XLSX = await import("xlsx");
+
+    const rows = accounts.map((a) => ({
+        Code: a.account_code,
+        "Account Name": a.account_name,
+        Type: a.account_type,
+        Subtype: a.account_subtype || "",
+        "Normal Balance": a.normal_balance,
+        "Current Balance": a.current_balance ?? 0,
+        Status: a.is_active ? "Active" : "Inactive",
+        "System Account": a.is_system_account ? "Yes" : "No",
+        "Bank/Cash": a.is_bank_account ? "Yes" : "No",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Auto-fit column widths
+    const colWidths = Object.keys(rows[0] || {}).map((key) => ({
+        wch: Math.max(key.length, ...rows.map((r) => String((r as any)[key]).length)) + 2,
+    }));
+    ws["!cols"] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    const sheetName = activeType === "ALL" ? "All Accounts" : `${activeType} Accounts`;
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, `chart-of-accounts-${activeType.toLowerCase()}-${Date.now()}.xlsx`);
+};
+
+const exportToPdf = async (accounts: ChartOfAccount[], activeType: AccountType | "ALL") => {
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+    const title = activeType === "ALL" ? "Chart of Accounts" : `${activeType} Accounts`;
+    const generatedAt = new Date().toLocaleString("en-KE");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(title, 14, 14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text(`Generated: ${generatedAt}`, 14, 20);
+    doc.setTextColor(0);
+
+    autoTable(doc, {
+        startY: 25,
+        head: [["Code", "Account Name", "Type", "Subtype", "Normal Bal.", "Balance (KES)", "Status"]],
+        body: accounts.map((a) => [
+            a.account_code,
+            ("—".repeat(Math.max(0, (a.level || 1) - 1)) + " " + a.account_name).trim(),
+            a.account_type,
+            a.account_subtype || "—",
+            a.normal_balance,
+            (a.current_balance ?? 0).toLocaleString("en-KE", { minimumFractionDigits: 2 }),
+            a.is_active ? "Active" : "Inactive",
+        ]),
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [24, 144, 255], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [245, 248, 255] },
+        columnStyles: {
+            0: { cellWidth: 20 },
+            5: { halign: "right" },
+        },
+        didParseCell: (data) => {
+            // Highlight inactive rows
+            if (data.row.index % 1 === 0) {
+                const status = data.row.raw?.[6];
+                if (status === "Inactive") {
+                    data.cell.styles.textColor = [180, 180, 180];
+                }
+            }
+        },
+    });
+
+    // Footer page numbers
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(160);
+        doc.text(
+            `Page ${i} of ${pageCount}`,
+            doc.internal.pageSize.getWidth() - 30,
+            doc.internal.pageSize.getHeight() - 5,
+        );
+    }
+
+    doc.save(`chart-of-accounts-${activeType.toLowerCase()}-${Date.now()}.pdf`);
+};
+
+// ---------------------------------------------------------------------------
+
 const ChartOfAccountsPage: React.FC = () => {
     const primaryColor = usePrimaryColor();
     const queryClient = useQueryClient();
@@ -48,6 +151,7 @@ const ChartOfAccountsPage: React.FC = () => {
     const [editingAccount, setEditingAccount] = useState<ChartOfAccount | null>(null);
     const [ledgerAccount, setLedgerAccount] = useState<ChartOfAccount | null>(null);
     const [seeding, setSeeding] = useState(false);
+    const [exporting, setExporting] = useState(false);
 
     const { data, isLoading, refetch } = useQuery({
         queryKey: ["chart-of-accounts", shopId],
@@ -86,6 +190,31 @@ const ChartOfAccountsPage: React.FC = () => {
         });
     };
 
+    const handleExport = async (type: "excel" | "pdf") => {
+        setExporting(true);
+        try {
+            if (type === "excel") await exportToExcel(accounts, activeType);
+            else await exportToPdf(accounts, activeType);
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const exportMenuItems: MenuProps["items"] = [
+        {
+            key: "excel",
+            icon: <FileExcelOutlined style={{ color: "#217346" }} />,
+            label: "Export to Excel (.xlsx)",
+            onClick: () => handleExport("excel"),
+        },
+        {
+            key: "pdf",
+            icon: <FilePdfOutlined style={{ color: "#e53935" }} />,
+            label: "Export to PDF",
+            onClick: () => handleExport("pdf"),
+        },
+    ];
+
     const openCreate = () => { setEditingAccount(null); setFormOpen(true); };
     const openEdit = (r: ChartOfAccount) => { setEditingAccount(r); setFormOpen(true); };
     const openLedger = (r: ChartOfAccount) => { setLedgerAccount(r); setLedgerOpen(true); };
@@ -112,6 +241,11 @@ const ChartOfAccountsPage: React.FC = () => {
                     </Text>
                     {r.is_system_account && (
                         <Tag style={{ fontSize: 10, lineHeight: "16px", padding: "0 4px" }}>SYSTEM</Tag>
+                    )}
+                    {r.is_parent && (
+                        <Tag color="geekblue" style={{ fontSize: 10, lineHeight: "16px", padding: "0 4px" }}>
+                            MAIN
+                        </Tag>
                     )}
                 </Space>
             ),
@@ -150,42 +284,73 @@ const ChartOfAccountsPage: React.FC = () => {
         },
         {
             title: "Actions", key: "actions", width: 150, fixed: "right" as const,
-            render: (_: any, r: ChartOfAccount) => (
-                <Space size={4}>
-                    <Tooltip title="View Ledger">
-                        <Button icon={<BookOutlined />} size="small" onClick={() => openLedger(r)} />
-                    </Tooltip>
-                    <Tooltip title="Edit">
-                        <Button icon={<EditOutlined />} size="small" onClick={() => openEdit(r)} />
-                    </Tooltip>
-                    <Tooltip title={r.is_active ? "Deactivate" : "Activate"}>
-                        <Popconfirm
-                            title={`${r.is_active ? "Deactivate" : "Activate"} this account?`}
-                            onConfirm={() => toggleMutation.mutate(r._id)}
-                            okText="Yes" cancelText="No"
-                        >
-                            <Button
-                                icon={<PoweroffOutlined />} size="small"
-                                danger={r.is_active}
-                                type={r.is_active ? "default" : "primary"}
-                                ghost={!r.is_active}
-                            />
-                        </Popconfirm>
-                    </Tooltip>
-                    {!r.is_system_account && (
-                        <Tooltip title="Delete">
-                            <Popconfirm
-                                title="Delete this account?"
-                                description="Blocked if used in journal entries."
-                                onConfirm={() => deleteMutation.mutate(r._id)}
-                                okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel"
-                            >
-                                <Button icon={<DeleteOutlined />} size="small" danger />
-                            </Popconfirm>
+            render: (_: any, r: ChartOfAccount) => {
+                const isMain = isMainAccount(r);
+                return (
+                    <Space size={4}>
+                        {/* Ledger — always available */}
+                        <Tooltip title="View Ledger">
+                            <Button icon={<BookOutlined />} size="small" onClick={() => openLedger(r)} />
                         </Tooltip>
-                    )}
-                </Space>
-            ),
+
+                        {/* Edit — disabled for main / system accounts */}
+                        <Tooltip title={isMain ? "Main accounts cannot be edited" : "Edit"}>
+                            <Button
+                                icon={<EditOutlined />}
+                                size="small"
+                                onClick={() => !isMain && openEdit(r)}
+                                disabled={isMain}
+                            />
+                        </Tooltip>
+
+                        {/* Toggle active — disabled for main / system accounts */}
+                        <Tooltip title={isMain ? "Main accounts cannot be deactivated" : (r.is_active ? "Deactivate" : "Activate")}>
+                            <span> {/* wrapper needed so Tooltip works on disabled Button */}
+                                <Popconfirm
+                                    title={`${r.is_active ? "Deactivate" : "Activate"} this account?`}
+                                    onConfirm={() => toggleMutation.mutate(r._id)}
+                                    okText="Yes"
+                                    cancelText="No"
+                                    disabled={isMain}
+                                >
+                                    <Button
+                                        icon={<PoweroffOutlined />}
+                                        size="small"
+                                        danger={r.is_active && !isMain}
+                                        type={!isMain && !r.is_active ? "primary" : "default"}
+                                        ghost={!isMain && !r.is_active}
+                                        disabled={isMain}
+                                    />
+                                </Popconfirm>
+                            </span>
+                        </Tooltip>
+
+                        {/* Delete — hidden for system accounts, disabled for parent/main accounts */}
+                        {!r.is_system_account && (
+                            <Tooltip title={isMain ? "Main accounts cannot be deleted" : "Delete"}>
+                                <span>
+                                    <Popconfirm
+                                        title="Delete this account?"
+                                        description="Blocked if used in journal entries."
+                                        onConfirm={() => deleteMutation.mutate(r._id)}
+                                        okText="Delete"
+                                        okButtonProps={{ danger: true }}
+                                        cancelText="Cancel"
+                                        disabled={isMain}
+                                    >
+                                        <Button
+                                            icon={<DeleteOutlined />}
+                                            size="small"
+                                            danger={!isMain}
+                                            disabled={isMain}
+                                        />
+                                    </Popconfirm>
+                                </span>
+                            </Tooltip>
+                        )}
+                    </Space>
+                );
+            },
         },
     ];
 
@@ -229,6 +394,14 @@ const ChartOfAccountsPage: React.FC = () => {
                                 Seed Defaults
                             </Button>
                         </Tooltip>
+
+                        {/* Export dropdown */}
+                        <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight" disabled={exporting}>
+                            <Button icon={<DownloadOutlined />} loading={exporting}>
+                                Export
+                            </Button>
+                        </Dropdown>
+
                         <Button
                             type="primary" icon={<PlusOutlined />} onClick={openCreate}
                             style={{ background: primaryColor, borderColor: primaryColor }}
@@ -264,7 +437,7 @@ const ChartOfAccountsPage: React.FC = () => {
                     cardBordered={false}
                     toolbar={{
                         title: `${accounts.length} ${activeType === "ALL" ? "total" : activeType.toLowerCase()} accounts`,
-                        tooltip: "System accounts cannot be deleted but can be deactivated",
+                        tooltip: "Main & system accounts cannot be edited, deactivated or deleted",
                     }}
                     rowClassName={(r) => !r.is_active ? "opacity-50" : ""}
                     columnsState={{
@@ -280,6 +453,7 @@ const ChartOfAccountsPage: React.FC = () => {
                 onSuccess={onFormSuccess}
                 editingAccount={editingAccount}
                 accounts={allAccounts}
+                shopId={shopId}
             />
 
             <AccountLedgerDrawer

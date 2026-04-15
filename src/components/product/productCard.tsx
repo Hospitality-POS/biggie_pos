@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import Paper from "@mui/material/Paper";
-import { addItemToCart } from "../../features/Cart/CartActions";
+import { addItemToCart, addQtyCart } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { Typography } from "antd";
@@ -48,7 +48,7 @@ function formatDuration(duration: number) {
 
 const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const { user } = useAppSelector((state) => state.auth);
-  const { cartDetails, loading } = useAppSelector((state) => state.cart);
+  const { cartDetails, cartItems, loading } = useAppSelector((state) => state.cart);
   const [isHovered, setIsHovered] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -76,6 +76,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
   const formattedQuantity = useMemo(() => 1, []);
 
+  // Check if this product already exists in the cart
+  const existingCartItem = useMemo(() => {
+    return cartItems?.find(
+      (item) =>
+        item.product_id === menu._id ||
+        (item as any).productId === menu._id
+    );
+  }, [cartItems, menu._id]);
+
   const handleAddToCart = useCallback(async () => {
     if (loading || isProcessing) return;
     if (!tableId) {
@@ -85,25 +94,30 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
     setIsProcessing(true);
     try {
-      // ── No optimistic addItem dispatch here ───────────────────────────
-      // Dispatching addItem(menu._id) was pushing a bare string into
-      // cartItems[], causing calculateTotals() to read item.price as
-      // undefined → NaN → corrupted subtotal/VAT/grandTotal.
-      // addItemToCart already dispatches getCart() on success, so the
-      // cart updates correctly once the server responds.
-      await dispatch(
-        addItemToCart({
-          cart_id: cartDetails?._id || undefined,
-          product_id: menu._id,
-          product_type: menu.type === 'product' ? 'Product_Inventory' : 'Product',
-          price: menu.price,
-          created_by: user?.id,
-          quantity: formattedQuantity,
-          desc: menu.desc,
-          table_id: tableId,
-          ...(menu.type === 'service' && menu.duration && { duration: menu.duration }),
-        })
-      );
+      if (existingCartItem) {
+        // ── Item already in cart — increment quantity only, never resend price ──
+        // addQtyCart does: existing.quantity + 1 via PUT /cart-item/:id
+        // It does NOT modify price, so the unit price stays correct and
+        // calculateTotals() will compute lineTotal = unitPrice * newQty correctly.
+        await dispatch(addQtyCart(existingCartItem));
+      } else {
+        // ── New item — add fresh with unit price ──────────────────────────────
+        // We only send price once (on first add). All subsequent clicks go through
+        // addQtyCart above which only touches quantity, never price.
+        await dispatch(
+          addItemToCart({
+            cart_id: cartDetails?._id || undefined,
+            product_id: menu._id,
+            product_type: menu.type === 'product' ? 'Product_Inventory' : 'Product',
+            price: menu.price,         // unit price — set exactly once
+            created_by: user?.id,
+            quantity: formattedQuantity,
+            desc: menu.desc,
+            table_id: tableId,
+            ...(menu.type === 'service' && menu.duration && { duration: menu.duration }),
+          })
+        );
+      }
       invalidate();
     } catch (error) {
       console.error('Failed to add item to cart:', error);
@@ -124,6 +138,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
     user?.id,
     formattedQuantity,
     invalidate,
+    existingCartItem,
   ]);
 
   const formattedPrice = useMemo(() => formatPrice(menu.price), [menu.price]);
@@ -147,9 +162,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
   const badgeProps = getBadgeProps();
 
+  // Show current quantity in cart on the action button (handy UX hint)
+  const cartQty = existingCartItem?.quantity ?? 0;
+
   const getActionText = () => {
     if (isProcessing) return 'Adding...';
     if (!tableId) return 'Loading slot...';
+    if (cartQty > 0) {
+      return menu.type === 'service' ? `Book Again (×${cartQty})` : `Add Again (×${cartQty})`;
+    }
     return menu.type === 'service' ? 'Book Service' : 'Add to Cart';
   };
 
@@ -202,6 +223,29 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         {badgeProps.icon}
         {badgeProps.text}
       </div>
+
+      {/* Cart quantity badge — shown when item is already in cart */}
+      {cartQty > 0 && (
+        <div style={{
+          position: "absolute",
+          top: "8px",
+          left: "8px",
+          backgroundColor: "rgba(0,0,0,0.65)",
+          color: "white",
+          width: "22px",
+          height: "22px",
+          borderRadius: "50%",
+          fontSize: "11px",
+          fontWeight: "bold",
+          zIndex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+        }}>
+          {cartQty}
+        </div>
+      )}
 
       {/* Processing Indicator */}
       {isProcessing && (

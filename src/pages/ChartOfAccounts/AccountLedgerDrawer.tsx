@@ -1,6 +1,12 @@
 import React, { useState } from "react";
-import { Drawer, Table, Typography, Space, Tag, Statistic, Row, Col, DatePicker } from "antd";
-import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
+import {
+    Drawer, Table, Typography, Space, Tag,
+    Statistic, Row, Col, DatePicker, Button, Dropdown, MenuProps,
+} from "antd";
+import {
+    ArrowUpOutlined, ArrowDownOutlined,
+    DownloadOutlined, FileExcelOutlined, FilePdfOutlined,
+} from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import {
     getAccountLedger,
@@ -29,8 +35,158 @@ const SOURCE_COLORS: Record<string, string> = {
     reconciliation: "geekblue",
 };
 
+// ── Export helpers ────────────────────────────────────────────────────────────
+
+const exportLedgerToExcel = async (
+    ledger: LedgerLine[],
+    account: ChartOfAccount,
+    dateRange: [Dayjs | null, Dayjs | null],
+    totals: { totalDebit: number; totalCredit: number; closing: number }
+) => {
+    const XLSX = await import("xlsx");
+
+    const period = `${dateRange[0]?.format("DD MMM YYYY")} – ${dateRange[1]?.format("DD MMM YYYY")}`;
+
+    const rows = ledger.map((l) => ({
+        Date: dayjs(l.entry_date).format("DD MMM YYYY"),
+        "Entry No.": l.entry_no,
+        Description: l.description || "",
+        Source: l.source?.replace(/_/g, " ").toUpperCase() || "",
+        "Debit (KES)": l.debit || 0,
+        "Credit (KES)": l.credit || 0,
+        "Balance (KES)": l.balance,
+    }));
+
+    // Totals row
+    rows.push({
+        Date: "",
+        "Entry No.": "",
+        Description: "TOTALS",
+        Source: "",
+        "Debit (KES)": totals.totalDebit,
+        "Credit (KES)": totals.totalCredit,
+        "Balance (KES)": totals.closing,
+    } as any);
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Column widths
+    ws["!cols"] = [
+        { wch: 14 }, { wch: 16 }, { wch: 36 }, { wch: 18 },
+        { wch: 14 }, { wch: 14 }, { wch: 14 },
+    ];
+
+    // Header meta rows above the data (insert before data)
+    XLSX.utils.sheet_add_aoa(ws, [
+        [`Account Ledger — ${account.account_code} ${account.account_name}`],
+        [`Period: ${period}`],
+        [],
+    ], { origin: "A1" });
+
+    // Shift data down by 3 rows to make room for the header
+    const dataWs = XLSX.utils.json_to_sheet(rows);
+    dataWs["!cols"] = ws["!cols"];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, dataWs, "Ledger");
+    XLSX.writeFile(
+        wb,
+        `ledger-${account.account_code}-${dayjs().format("YYYYMMDD")}.xlsx`
+    );
+};
+
+const exportLedgerToPdf = async (
+    ledger: LedgerLine[],
+    account: ChartOfAccount,
+    dateRange: [Dayjs | null, Dayjs | null],
+    totals: { totalDebit: number; totalCredit: number; closing: number }
+) => {
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const period = `${dateRange[0]?.format("DD MMM YYYY")} – ${dateRange[1]?.format("DD MMM YYYY")}`;
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(`Account Ledger — ${account.account_code} ${account.account_name}`, 14, 14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text(`Period: ${period}`, 14, 20);
+    doc.text(`Generated: ${dayjs().format("DD MMM YYYY HH:mm")}`, 14, 25);
+    doc.setTextColor(0);
+
+    // Summary band
+    doc.setFontSize(8);
+    doc.setFillColor(240, 245, 255);
+    doc.roundedRect(14, 28, 268, 10, 2, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total Debits: KES ${totals.totalDebit.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`, 18, 34);
+    doc.text(`Total Credits: KES ${totals.totalCredit.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`, 110, 34);
+    doc.text(
+        `Closing Balance: KES ${Math.abs(totals.closing).toLocaleString("en-KE", { minimumFractionDigits: 2 })} ${totals.closing < 0 ? "(CR)" : "(DR)"}`,
+        200, 34
+    );
+    doc.setFont("helvetica", "normal");
+
+    autoTable(doc, {
+        startY: 42,
+        head: [["Date", "Entry No.", "Description", "Source", "Debit (KES)", "Credit (KES)", "Balance (KES)"]],
+        body: [
+            ...ledger.map((l) => [
+                dayjs(l.entry_date).format("DD MMM YYYY"),
+                l.entry_no,
+                l.description || "",
+                (l.source || "").replace(/_/g, " ").toUpperCase(),
+                l.debit > 0 ? l.debit.toLocaleString("en-KE", { minimumFractionDigits: 2 }) : "—",
+                l.credit > 0 ? l.credit.toLocaleString("en-KE", { minimumFractionDigits: 2 }) : "—",
+                l.balance.toLocaleString("en-KE", { minimumFractionDigits: 2 }),
+            ]),
+            // Totals row
+            [
+                "", "", { content: "PAGE TOTALS", styles: { fontStyle: "bold" } }, "",
+                { content: totals.totalDebit.toLocaleString("en-KE", { minimumFractionDigits: 2 }), styles: { fontStyle: "bold", textColor: [207, 19, 34] } },
+                { content: totals.totalCredit.toLocaleString("en-KE", { minimumFractionDigits: 2 }), styles: { fontStyle: "bold", textColor: [56, 158, 13] } },
+                { content: Math.abs(totals.closing).toLocaleString("en-KE", { minimumFractionDigits: 2 }), styles: { fontStyle: "bold", textColor: totals.closing >= 0 ? [29, 57, 196] : [207, 19, 34] } },
+            ],
+        ],
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [24, 144, 255], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [248, 250, 255] },
+        columnStyles: {
+            0: { cellWidth: 24 },
+            1: { cellWidth: 28 },
+            2: { cellWidth: 80 },
+            3: { cellWidth: 28 },
+            4: { halign: "right", cellWidth: 30 },
+            5: { halign: "right", cellWidth: 30 },
+            6: { halign: "right", cellWidth: 32 },
+        },
+    });
+
+    // Page numbers
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(160);
+        doc.text(
+            `Page ${i} of ${pageCount}`,
+            doc.internal.pageSize.getWidth() - 30,
+            doc.internal.pageSize.getHeight() - 5
+        );
+    }
+
+    doc.save(`ledger-${account.account_code}-${dayjs().format("YYYYMMDD")}.pdf`);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId }) => {
     const [page, setPage] = useState(1);
+    const [exporting, setExporting] = useState(false);
     const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
         dayjs().startOf("month"),
         dayjs().endOf("month"),
@@ -42,25 +198,44 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId }
     const { data, isLoading } = useQuery({
         queryKey: ["account-ledger", account?._id, page, from, to],
         queryFn: () =>
-            getAccountLedger(account!._id, {
-                shop_id: shopId,
-                from,
-                to,
-                page,
-                limit: 20,
-            }),
+            getAccountLedger(account!._id, { shop_id: shopId, from, to, page, limit: 20 }),
         enabled: open && !!account?._id,
         keepPreviousData: true,
     });
 
     const ledger = data?.ledger || [];
     const pagination = data?.pagination || { total: 0, page: 1, totalPages: 1 };
-    const accountInfo = data?.account;
 
-    // Summary stats
     const totalDebit = ledger.reduce((s, l) => s + (l.debit || 0), 0);
     const totalCredit = ledger.reduce((s, l) => s + (l.credit || 0), 0);
     const closing = ledger.length > 0 ? ledger[ledger.length - 1].balance : 0;
+    const totals = { totalDebit, totalCredit, closing };
+
+    const handleExport = async (type: "excel" | "pdf") => {
+        if (!account) return;
+        setExporting(true);
+        try {
+            if (type === "excel") await exportLedgerToExcel(ledger, account, dateRange, totals);
+            else await exportLedgerToPdf(ledger, account, dateRange, totals);
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const exportMenuItems: MenuProps["items"] = [
+        {
+            key: "excel",
+            icon: <FileExcelOutlined style={{ color: "#217346" }} />,
+            label: "Export to Excel (.xlsx)",
+            onClick: () => handleExport("excel"),
+        },
+        {
+            key: "pdf",
+            icon: <FilePdfOutlined style={{ color: "#e53935" }} />,
+            label: "Export to PDF",
+            onClick: () => handleExport("pdf"),
+        },
+    ];
 
     const columns = [
         {
@@ -105,9 +280,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId }
                     <Text style={{ color: "#cf1322" }}>
                         {v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                     </Text>
-                ) : (
-                    <Text type="secondary">—</Text>
-                ),
+                ) : <Text type="secondary">—</Text>,
         },
         {
             title: "Credit",
@@ -120,9 +293,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId }
                     <Text style={{ color: "#389e0d" }}>
                         {v.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
                     </Text>
-                ) : (
-                    <Text type="secondary">—</Text>
-                ),
+                ) : <Text type="secondary">—</Text>,
         },
         {
             title: "Balance",
@@ -142,9 +313,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId }
         <Drawer
             title={
                 <Space direction="vertical" size={0}>
-                    <Title level={5} style={{ margin: 0 }}>
-                        Account Ledger
-                    </Title>
+                    <Title level={5} style={{ margin: 0 }}>Account Ledger</Title>
                     {account && (
                         <Text type="secondary" style={{ fontSize: 13 }}>
                             {account.account_code} — {account.account_name}
@@ -153,21 +322,26 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId }
                 </Space>
             }
             open={open}
-            onClose={() => {
-                onClose();
-                setPage(1);
-            }}
+            onClose={() => { onClose(); setPage(1); }}
             width={860}
             destroyOnClose
+            extra={
+                <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight" disabled={exporting || ledger.length === 0}>
+                    <Button icon={<DownloadOutlined />} loading={exporting} size="small">
+                        Export
+                    </Button>
+                </Dropdown>
+            }
         >
             {/* ── Date Range Filter ── */}
             <Space style={{ marginBottom: 16 }}>
                 <Text type="secondary">Period:</Text>
                 <RangePicker
                     value={dateRange}
-                    onChange={(range) =>
-                        setDateRange(range as [Dayjs | null, Dayjs | null])
-                    }
+                    onChange={(range) => {
+                        setDateRange(range as [Dayjs | null, Dayjs | null]);
+                        setPage(1);
+                    }}
                     allowClear={false}
                     format="DD MMM YYYY"
                     presets={[
