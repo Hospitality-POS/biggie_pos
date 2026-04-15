@@ -267,7 +267,7 @@ const useProLayoutNav = () => {
       { path: p("/accounting/bills"), name: "Bills", icon: <FileTextOutlined />, _bare: "/accounting/bills" },
       { path: p("/accounting/notes"), name: "Debit/Credit Notes", icon: <FileSearchOutlined />, _bare: "/accounting/notes" },
       { path: p("/accounting/journals"), name: "Journal Entries", icon: <AuditOutlined />, _bare: "/accounting/journals" },
-      { path: p("/accounting/bank-statements"), name: "Banking", icon: <FileExcelOutlined />, _bare: "/accounting/bank-statements" },
+      { path: p("/accounting/bank-statements"), name: "Banking", icon: <BankOutlined />, _bare: "/accounting/bank-statements" },
       { path: p("/accounting/reconciliation"), name: "Bank Reconciliation", icon: <BankOutlined />, _bare: "/accounting/reconciliation" },
       { path: p("/accounting/accounts"), name: "Chart of Accounts", icon: <AuditOutlined />, _bare: "/accounting/accounts" },
       ...(includeReports
