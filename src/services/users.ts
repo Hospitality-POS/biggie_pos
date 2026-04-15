@@ -82,7 +82,22 @@ export const updateSubscription = createAsyncThunk(
     }
   }
 );
+export const verifyBusinessEmail = async (data: ParamsType) => {
+  try {
+    const url = `${tenantUrl}/verify-by-email`;
 
+    // Create the request body
+    const requestBody = {
+      businessEmail: data.businessEmail,
+    };
+
+    const response = await axiosInstance.post(url, requestBody);
+
+    return response.data.data;
+  } catch (error: any) {
+    throw new Error(error?.message || "Failed to verify business email.");
+  }
+};
 export const verifyCompanyCode = async (data: ParamsType) => {
   try {
     const url = `${tenantUrl}/verify`;
