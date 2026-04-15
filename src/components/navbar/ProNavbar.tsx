@@ -33,10 +33,10 @@ import {
   CreditCardOutlined,
   FileTextOutlined,
   FileExcelOutlined,
-  DollarOutlined,
   RiseOutlined,
   AuditOutlined,
   FileDoneOutlined,
+  AppstoreOutlined,
 } from "@ant-design/icons";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
@@ -152,6 +152,25 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
   const isAdmin = user?.role === "admin";
 
+  // ── Module flags ─────────────────────────────────────────────────────────────
+  const getModuleFlags = () => {
+    try {
+      const storedTenant = localStorage.getItem("tenant");
+      if (!storedTenant) return { hasPOS: true, hasAccounting: false, hasMteja: false, hasBandu: false };
+      const tenantData = JSON.parse(storedTenant);
+      return {
+        hasPOS: tenantData?.pos_integration?.enabled === true,
+        hasAccounting: !!(tenantData?.accounting_database?.enabled || tenantData?.modules?.accounting),
+        hasMteja: tenantData?.modules?.crm === true,
+        hasBandu: tenantData?.modules?.payroll === true,
+      };
+    } catch {
+      return { hasPOS: true, hasAccounting: false, hasMteja: false, hasBandu: false };
+    }
+  };
+
+  const { hasPOS, hasAccounting, hasMteja, hasBandu } = getModuleFlags();
+
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
     if (storedTenant) setTenant(JSON.parse(storedTenant));
@@ -225,8 +244,12 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
   const fakeActionRef = { current: { reload: invalidateAll, reset: invalidateAll } };
 
-  const quickCreateItems = [
-    {
+  // ── Filtered Quick Create Items based on modules ────────────────────────────
+  const getQuickCreateItems = () => {
+    const items: any[] = [];
+
+    // People group - ALWAYS shown (customers and suppliers are common to all)
+    const peopleGroup = {
       type: "group" as const,
       label: (
         <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
@@ -247,64 +270,80 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           onClick: () => setQuickCreateModal("supplier"),
         },
       ],
-    },
-    {
-      type: "group" as const,
-      label: (
-        <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-          Accounting
-        </Text>
-      ),
-      children: [
-        {
-          key: "coa",
-          icon: <BankOutlined style={{ color: "#0ea5e9" }} />,
-          label: <span style={{ fontSize: 13 }}>Chart of Account</span>,
-          onClick: () => setQuickCreateModal("coa"),
-        },
-        {
-          key: "journal",
-          icon: <AuditOutlined style={{ color: "#6366f1" }} />,
-          label: <span style={{ fontSize: 13 }}>Journal Entry</span>,
-          onClick: () => setQuickCreateModal("journal"),
-        },
-        {
-          key: "payment-method",
-          icon: <CreditCardOutlined style={{ color: "#f59e0b" }} />,
-          label: <span style={{ fontSize: 13 }}>Payment Method</span>,
-          onClick: () => setQuickCreateModal("payment-method"),
-        },
-        {
-          key: "bank-statement",
-          icon: <FileExcelOutlined style={{ color: "#16a34a" }} />,
-          label: <span style={{ fontSize: 13 }}>Bank Statement Import</span>,
-          onClick: () => navigate(isAdmin ? "/admin/accounting/bank-statements" : "/accounting/bank-statements"),
-        },
-      ],
-    },
-    {
-      type: "group" as const,
-      label: (
-        <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-          Transactions
-        </Text>
-      ),
-      children: [
-        {
-          key: "invoice",
-          icon: <FileTextOutlined style={{ color: "#10b981" }} />,
-          label: <span style={{ fontSize: 13 }}>Invoice / Quote</span>,
-          onClick: () => setQuickCreateModal("invoice"),
-        },
-        {
-          key: "income-expense",
-          icon: <RiseOutlined style={{ color: "#22c55e" }} />,
-          label: <span style={{ fontSize: 13 }}>Expense / Bill</span>,
-          onClick: () => setQuickCreateModal("income-expense"),
-        },
-      ],
-    },
-    {
+    };
+    items.push(peopleGroup);
+
+    // Accounting group - only shown if Accounting (Pesa) is enabled
+    if (hasAccounting) {
+      const accountingGroup = {
+        type: "group" as const,
+        label: (
+          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+            Accounting
+          </Text>
+        ),
+        children: [
+          {
+            key: "coa",
+            icon: <BankOutlined style={{ color: "#0ea5e9" }} />,
+            label: <span style={{ fontSize: 13 }}>Chart of Account</span>,
+            onClick: () => setQuickCreateModal("coa"),
+          },
+          {
+            key: "journal",
+            icon: <AuditOutlined style={{ color: "#6366f1" }} />,
+            label: <span style={{ fontSize: 13 }}>Journal Entry</span>,
+            onClick: () => setQuickCreateModal("journal"),
+          },
+          {
+            key: "payment-method",
+            icon: <CreditCardOutlined style={{ color: "#f59e0b" }} />,
+            label: <span style={{ fontSize: 13 }}>Payment Method</span>,
+            onClick: () => setQuickCreateModal("payment-method"),
+          },
+          {
+            key: "bank-statement",
+            icon: <FileExcelOutlined style={{ color: "#16a34a" }} />,
+            label: <span style={{ fontSize: 13 }}>Bank Statement Import</span>,
+            onClick: () => navigate(isAdmin ? "/admin/accounting/bank-statements" : "/accounting/bank-statements"),
+          },
+        ],
+      };
+      items.push(accountingGroup);
+    }
+
+    // Transactions group - shown if POS (Duka) OR Accounting (Pesa) is enabled
+    if (hasPOS || hasAccounting) {
+      const transactionsGroup = {
+        type: "group" as const,
+        label: (
+          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+            Transactions
+          </Text>
+        ),
+        children: [
+          ...(hasPOS ? [{
+            key: "invoice",
+            icon: <FileTextOutlined style={{ color: "#10b981" }} />,
+            label: <span style={{ fontSize: 13 }}>Invoice / Quote</span>,
+            onClick: () => setQuickCreateModal("invoice"),
+          }] : []),
+          ...(hasAccounting ? [{
+            key: "income-expense",
+            icon: <RiseOutlined style={{ color: "#22c55e" }} />,
+            label: <span style={{ fontSize: 13 }}>Expense / Bill</span>,
+            onClick: () => setQuickCreateModal("income-expense"),
+          }] : []),
+        ],
+      };
+      // Only add if there are children
+      if (transactionsGroup.children.length > 0) {
+        items.push(transactionsGroup);
+      }
+    }
+
+    // Documents group - ALWAYS shown
+    const documentsGroup = {
       type: "group" as const,
       label: (
         <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
@@ -319,8 +358,61 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           onClick: () => navigate(isAdmin ? "/admin/documents" : "/documents"),
         },
       ],
-    },
-  ];
+    };
+    items.push(documentsGroup);
+
+    // Mteja specific - shown if Mteja (CRM) is enabled
+    if (hasMteja) {
+      const mtejaGroup = {
+        type: "group" as const,
+        label: (
+          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+            CRM
+          </Text>
+        ),
+        children: [
+          {
+            key: "mteja-customer",
+            icon: <TeamOutlined style={{ color: "#6c1c2c" }} />,
+            label: <span style={{ fontSize: 13 }}>Mteja Customer</span>,
+            onClick: () => setQuickCreateModal("customer"),
+          },
+        ],
+      };
+      items.push(mtejaGroup);
+    }
+
+    // Bandu specific - shown if Bandu (Payroll/HR) is enabled
+    if (hasBandu) {
+      const banduGroup = {
+        type: "group" as const,
+        label: (
+          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+            HR & Payroll
+          </Text>
+        ),
+        children: [
+          {
+            key: "employee",
+            icon: <TeamOutlined style={{ color: "#8b5cf6" }} />,
+            label: <span style={{ fontSize: 13 }}>Add Employee</span>,
+            onClick: () => navigate(isAdmin ? "/admin/bandu/employees" : "/bandu/employees"),
+          },
+          {
+            key: "payroll",
+            icon: <FileTextOutlined style={{ color: "#10b981" }} />,
+            label: <span style={{ fontSize: 13 }}>Process Payroll</span>,
+            onClick: () => navigate(isAdmin ? "/admin/bandu/payroll" : "/bandu/payroll"),
+          },
+        ],
+      };
+      items.push(banduGroup);
+    }
+
+    return items;
+  };
+
+  const quickCreateItems = getQuickCreateItems();
 
   const QuickCreateButton = (
     <Dropdown
@@ -746,6 +838,61 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-pro-global-header .anticon { color: white !important; }
         .ant-pro-global-header-collapsed-button,
         .ant-pro-sider-collapsed-button { color: white !important; }
+
+        /* Hover effect for dropdown menu items */
+        .ant-dropdown-menu-item:hover {
+          background: rgba(255, 255, 255, 0.15) !important;
+        }
+        .ant-dropdown-menu-item-active {
+          background: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* ── Native overflow "More" popup theming ───────────────────────── */
+        .nav-overflow-popup .ant-menu {
+          background: ${primaryColor} !important;
+          border-radius: 10px !important;
+          padding: 4px !important;
+          border: none !important;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.14) !important;
+        }
+        .nav-overflow-popup .ant-menu-item {
+          color: rgba(255,255,255,0.85) !important;
+          border-radius: 6px !important;
+          margin: 2px 0 !important;
+          height: 38px !important;
+          line-height: 38px !important;
+        }
+        .nav-overflow-popup .ant-menu-item:hover {
+          background: rgba(255,255,255,0.15) !important;
+          color: #fff !important;
+        }
+        .nav-overflow-popup .ant-menu-item-selected {
+          background: rgba(255,255,255,0.2) !important;
+          color: #fff !important;
+          font-weight: 600;
+        }
+        .nav-overflow-popup .ant-menu-item .anticon {
+          color: rgba(255,255,255,0.85) !important;
+        }
+        .nav-overflow-popup .ant-menu-item:hover .anticon {
+          color: #fff !important;
+        }
+        /* Hide the default rest indicator icon/text ProLayout inserts */
+        .ant-menu-overflow-item-rest .ant-menu-title-content {
+          display: none !important;
+        }
+        .ant-menu-overflow-item-rest {
+          padding: 0 !important;
+        }
+        .ant-menu-overflow-item-rest > .ant-menu-submenu-title {
+          padding: 0 !important;
+          margin: 0 !important;
+          background: transparent !important;
+        }
+        .ant-menu-overflow-item-rest > .ant-menu-submenu-title::after {
+          display: none !important;
+        }
+
         @media (max-width: 767px) {
           .ant-pro-page-container { padding: 12px !important; }
           .ant-pro-global-header { padding: 0 12px !important; }
@@ -829,6 +976,30 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         splitMenus={false}
         fixedHeader={true}
         menuRender={isMobile ? false : undefined}
+        // ── Native overflow indicator – only the items that truly don't fit
+        // are passed by Ant Design's Menu internals; we just style the trigger.
+        menuProps={{
+          overflowedIndicatorPopupClassName: "nav-overflow-popup",
+          overflowedIndicator: (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "0 14px",
+                height: 40,
+                cursor: "pointer",
+                color: "rgba(255,255,255,0.85)",
+                fontSize: 14,
+                userSelect: "none",
+              }}
+            >
+              <AppstoreOutlined style={{ fontSize: 14 }} />
+              <span>More</span>
+              <DownOutlined style={{ fontSize: 9, opacity: 0.7 }} />
+            </div>
+          ),
+        }}
         headerRender={
           isMobile
             ? () => (

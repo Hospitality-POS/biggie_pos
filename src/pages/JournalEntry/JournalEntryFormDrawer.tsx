@@ -18,7 +18,7 @@ import {
     Divider,
     Alert,
 } from "antd";
-import { PlusOutlined, DeleteOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { PlusOutlined, DeleteOutlined, InfoCircleOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     createManualEntry,
@@ -65,6 +65,16 @@ const emptyLine = (): LineItem => ({
     description: "",
 });
 
+// Generate a unique reference number
+const generateReferenceNumber = (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `JE-${year}${month}${day}-${random}`;
+};
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shopId }) => {
@@ -73,6 +83,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
     const [lines, setLines] = useState<LineItem[]>([emptyLine(), emptyLine()]);
     const [submitting, setSubmitting] = useState(false);
     const [addAccountOpen, setAddAccountOpen] = useState(false);
+    const [reference, setReference] = useState<string>("");
 
     // ── Accounts ───────────────────────────────────────────────────────────────
     // Fetch ALL active accounts — filter allows_direct_posting client-side.
@@ -106,10 +117,20 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
 
     useEffect(() => {
         if (open) {
+            const newReference = generateReferenceNumber();
+            setReference(newReference);
             form.resetFields();
+            form.setFieldValue("reference", newReference);
             setLines([emptyLine(), emptyLine()]);
         }
     }, [open, form]);
+
+    // ── Generate new reference ─────────────────────────────────────────────────
+    const handleGenerateNewReference = () => {
+        const newReference = generateReferenceNumber();
+        setReference(newReference);
+        form.setFieldValue("reference", newReference);
+    };
 
     // ── Account added callback ─────────────────────────────────────────────────
     const handleAccountAdded = () => {
@@ -150,7 +171,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
             const payload: CreateManualEntryParams = {
                 shop_id: shopId,
                 description: values.description,
-                reference: values.reference,
+                reference: values.reference, // Use the edited or auto-generated reference
                 entry_date: values.entry_date
                     ? dayjs(values.entry_date).toISOString()
                     : undefined,
@@ -344,12 +365,27 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                             rules={[{ required: true, message: "Required" }]}
                             fieldProps={{ style: { width: 280 } }}
                         />
-                        <ProFormText
-                            name="reference"
-                            label="Reference"
-                            placeholder="e.g. INV-001"
-                            fieldProps={{ style: { width: 150 } }}
-                        />
+                        <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                            <ProFormText
+                                name="reference"
+                                label="Reference"
+                                placeholder="e.g. INV-001"
+                                rules={[{ required: true, message: "Reference is required" }]}
+                                fieldProps={{
+                                    style: { width: 180 },
+                                    value: reference,
+                                    onChange: (e) => setReference(e.target.value)
+                                }}
+                            />
+                            <Button
+                                icon={<ReloadOutlined />}
+                                onClick={handleGenerateNewReference}
+                                style={{ marginTop: "28px" }}
+                                title="Generate new reference number"
+                            >
+                                Generate
+                            </Button>
+                        </div>
                     </Space>
 
                     <ProFormSwitch

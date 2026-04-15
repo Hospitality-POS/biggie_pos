@@ -12,13 +12,13 @@ import CartLoader from "../spinner/cartLoader";
 import { fetchAllUsersByShopId } from "../../services/users";
 import {
   Button, Space, Typography, Tag, Empty, Divider,
-  Flex, Avatar, Tooltip, Select, Popconfirm,
+  Flex, Avatar, Tooltip, Select, Popconfirm, message,
 } from "antd";
 import {
   ClearOutlined, CloseCircleOutlined, OrderedListOutlined,
   PlusCircleOutlined, RestOutlined, SmileFilled,
   SwitcherOutlined, UserOutlined, EditOutlined,
-  CalendarOutlined, PrinterOutlined,
+  CalendarOutlined, PrinterOutlined, UserDeleteOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
@@ -124,9 +124,9 @@ const CartDrawer: React.FC = () => {
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [editingServedBy, setEditingServedBy] = useState(false);
   const [updatingServedBy, setUpdatingServedBy] = useState(false);
+  const [delinkingCustomer, setDelinkingCustomer] = useState(false);
 
   // Document type driving which print status to check.
-  // Adjust this if your cart can switch between bill / receipt / invoice / quotation.
   const documentType: DocumentType = "bill";
 
   const storedTenant = localStorage.getItem("tenant");
@@ -280,7 +280,6 @@ const CartDrawer: React.FC = () => {
       setLoadingData(true);
       try {
         await dispatch(getCart(tableId));
-        // Refresh print status whenever the cart changes
         await refreshStatus();
         if (!isSlotMode && !data && !cartDetails) navigate("/tables");
       } catch (e) {
@@ -319,6 +318,32 @@ const CartDrawer: React.FC = () => {
       console.error("Failed to update served by", e);
     } finally {
       setUpdatingServedBy(false);
+    }
+  };
+
+  // ── Delink customer from cart ─────────────────────────────────────────────
+  // Clears customer_id, client_name, client_pin, client_email and any
+  // subscription fields so the cart becomes a walk-in order.
+  const handleDelinkCustomer = async () => {
+    const cartId = cartDetails?._id ?? cartDetails?.id;
+    if (!cartId) return;
+    setDelinkingCustomer(true);
+    try {
+      await updateCartService(cartId, {
+        customer_id: null,
+        client_name: null,
+        client_pin: null,
+        use_subscription: false,
+        payment_type: "Cash",
+        subscription_id: null,
+      } as any);
+      await dispatch(getCart(tableId));
+      message.success("Customer removed from order");
+    } catch (e) {
+      console.error("Failed to delink customer", e);
+      message.error("Could not remove customer");
+    } finally {
+      setDelinkingCustomer(false);
     }
   };
 
@@ -400,10 +425,24 @@ const CartDrawer: React.FC = () => {
         {/* ── Customer banner ───────────────────────────────────────────── */}
         {customerDetails && (
           <Flex
-            align="center" gap={8}
-            style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 10px", marginBottom: 10 }}
+            align="center"
+            gap={8}
+            style={{
+              background: "#f0fdf4",
+              border: "1px solid #bbf7d0",
+              borderRadius: 8,
+              padding: "8px 10px",
+              marginBottom: 10,
+            }}
           >
-            <Avatar size={28} icon={<UserOutlined />} style={{ background: primaryColor, flexShrink: 0 }} />
+            {/* Avatar */}
+            <Avatar
+              size={28}
+              icon={<UserOutlined />}
+              style={{ background: primaryColor, flexShrink: 0 }}
+            />
+
+            {/* Customer info */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <Text strong style={{ fontSize: 13, display: "block", lineHeight: 1.3 }}>
                 {customerDetails.customer_name || "Customer"}
@@ -415,8 +454,44 @@ const CartDrawer: React.FC = () => {
                 </Text>
               )}
             </div>
+
+            {/* Linked badge */}
             {customerDetails.customer_id && (
-              <Tag color="success" style={{ fontSize: 10, borderRadius: 4, flexShrink: 0, margin: 0 }}>Linked</Tag>
+              <Tag
+                color="success"
+                style={{ fontSize: 10, borderRadius: 4, flexShrink: 0, margin: 0 }}
+              >
+                Linked
+              </Tag>
+            )}
+
+            {/* ── Delink button — admin / cashier only ───────────────── */}
+            {(user?.role === "admin" || user?.role === "cashier") && (
+              <Popconfirm
+                title="Remove customer from this order?"
+                description="The order will continue as a walk-in. This cannot be undone."
+                onConfirm={handleDelinkCustomer}
+                okText="Remove"
+                okButtonProps={{ danger: true }}
+                cancelText="Cancel"
+                placement="topRight"
+              >
+                <Tooltip title="Remove customer">
+                  <Button
+                    size="small"
+                    type="text"
+                    danger
+                    icon={<UserDeleteOutlined style={{ fontSize: 14 }} />}
+                    loading={delinkingCustomer}
+                    style={{
+                      flexShrink: 0,
+                      borderRadius: 6,
+                      padding: "0 6px",
+                      height: 26,
+                    }}
+                  />
+                </Tooltip>
+              </Popconfirm>
             )}
           </Flex>
         )}

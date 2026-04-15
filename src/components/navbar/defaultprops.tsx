@@ -150,7 +150,6 @@ const getTenantFlags = () => {
     return {
       hasPOS: tenant?.pos_integration?.enabled === true,
       hasAccounting: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting),
-      // Mteja = CRM module (omnichannel is bundled with it)
       hasMteja: tenant?.modules?.crm === true,
     };
   } catch {
@@ -195,8 +194,6 @@ const useProLayoutNav = () => {
   const { hasPOS, hasAccounting, hasMteja } = getTenantFlags();
 
   // ── Derived mode flags ────────────────────────────────────────────────────
-  // isMtejaOnly: tenant has ONLY Mteja enabled (no POS, no Accounting)
-  // When true, the entire nav is Mteja-first
   const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting;
 
   const inventoryBarePath = "/inventory";
@@ -212,34 +209,31 @@ const useProLayoutNav = () => {
     icon: <FileDoneOutlined />,
   };
 
-  // ── Shared Mteja routes (Dashboard + Customers + Conversations) ──────────
-  // These are only injected when hasMteja is true
-  const mtejaNavRoutes = hasMteja ? [
-    // Mteja Dashboard — only visible when Mteja is on
-    ...(can("CUSTOMERS_VIEW") ? [{
-      path: p("/mteja"),
-      name: "Mteja",
-      icon: <CustomerServiceOutlined />,
-      _bare: "/mteja",
-    }] : []),
-    // Customers tab — always in Mteja context
-    ...(can("CUSTOMERS_VIEW") ? [{
-      path: p("/customers"),
-      name: isHospitalMode ? "Patients" : "Customers",
-      icon: <PeopleOutlined />,
-      _bare: "/customers",
-    }] : []),
-    // Conversations — only when user also has OMNICHANNEL_VIEW
-    ...(can("OMNICHANNEL_VIEW") ? [{
-      path: p("/omnichannel"),
-      name: "Conversations",
-      icon: <MessageOutlined />,
-      _bare: "/omnichannel",
-    }] : []),
-  ] : [];
+  // ── Mteja Conversations (shown whenever Mteja is enabled) ─────────────────
+  const mtejaConversationsRoute = (hasMteja && can("OMNICHANNEL_VIEW")) ? [{
+    path: p("/omnichannel"),
+    name: "Conversations",
+    icon: <MessageOutlined />,
+    _bare: "/omnichannel",
+  }] : [];
+
+  // ── Mteja Dashboard (only shown when Mteja is the SOLE module) ────────────
+  const mtejaDashboardRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
+    path: p("/mteja"),
+    name: "Mteja Dashboard",
+    icon: <CustomerServiceOutlined />,
+    _bare: "/mteja",
+  }] : [];
+
+  // ── Mteja Customers (only shown when Mteja is the SOLE module) ────────────
+  const mtejaCustomersRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
+    path: p("/customers"),
+    name: isHospitalMode ? "Patients" : "Customers",
+    icon: <PeopleOutlined />,
+    _bare: "/customers",
+  }] : [];
 
   // ── POS routes ────────────────────────────────────────────────────────────
-
   const posRoutesFullAccessBase = [
     { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
@@ -249,12 +243,12 @@ const useProLayoutNav = () => {
       : []),
     { ...inventoryRoute, _bare: inventoryBarePath },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
-    // Customers in POS — only shown if Mteja NOT active (Mteja owns the customers UX)
-    ...(!hasMteja ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
+    // Customers in POS - only shown when Mteja is NOT active OR when Mteja is not the sole module
+    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
     { path: p("/reports"), name: "Business Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
-    // Inject Mteja routes at the end when Mteja is on alongside POS
-    ...(hasMteja ? mtejaNavRoutes : []),
+    // Conversations - ALWAYS shown when Mteja is enabled
+    ...mtejaConversationsRoute,
   ];
 
   const posRoutesFullAccess = posRoutesFullAccessBase
@@ -270,9 +264,10 @@ const useProLayoutNav = () => {
       : []),
     { ...inventoryRoute, _bare: inventoryBarePath },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
-    ...(!hasMteja ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
+    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
     { ...documentRoute, _bare: "/documents" },
-    ...(hasMteja ? mtejaNavRoutes : []),
+    // Conversations - ALWAYS shown when Mteja is enabled
+    ...mtejaConversationsRoute,
   ];
 
   const posRoutesStaff = posRoutesStaffBase
@@ -280,7 +275,6 @@ const useProLayoutNav = () => {
     .map(({ _bare: _b, ...rest }) => rest);
 
   // ── Accounting routes ─────────────────────────────────────────────────────
-
   const buildAccountingRoutes = (includeReports: boolean) => {
     const routesBase = [
       { path: p("/accounting"), name: "Overview", icon: <DashboardOutlined />, _bare: "/accounting" },
@@ -289,21 +283,21 @@ const useProLayoutNav = () => {
       { path: p("/accounting/bills"), name: "Bills", icon: <FileTextOutlined />, _bare: "/accounting/bills" },
       { path: p("/accounting/notes"), name: "Debit/Credit Notes", icon: <FileSearchOutlined />, _bare: "/accounting/notes" },
       { path: p("/accounting/journals"), name: "Journal Entries", icon: <AuditOutlined />, _bare: "/accounting/journals" },
-      { path: p("/accounting/bank-statements"), name: "Banking", icon: <FileExcelOutlined />, _bare: "/accounting/bank-statements" },
+      { path: p("/accounting/bank-statements"), name: "Banking", icon: <BankOutlined />, _bare: "/accounting/bank-statements" },
       { path: p("/accounting/reconciliation"), name: "Bank Reconciliation", icon: <BankOutlined />, _bare: "/accounting/reconciliation" },
       { path: p("/accounting/accounts"), name: "Chart of Accounts", icon: <AuditOutlined />, _bare: "/accounting/accounts" },
       ...(includeReports
         ? [{ path: p("/accounting/reports"), name: "Reports", icon: <ReconciliationOutlined />, _bare: "/accounting/reports" }]
         : []),
       { ...inventoryRoute, _bare: inventoryBarePath },
-      // Customers in accounting — only when Mteja NOT active
-      ...(!hasMteja ? [{ path: p("/customers"), name: "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
+      // Customers in accounting - only shown when Mteja is NOT active OR when Mteja is not the sole module
+      ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
       { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
       { path: p("/payment-methods"), name: "Payment Methods", icon: <CalculatorFilled />, _bare: "/payment-methods" },
       { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
       { ...documentRoute, _bare: "/documents" },
-      // Inject Mteja routes when Mteja is on alongside Accounting
-      ...(hasMteja ? mtejaNavRoutes : []),
+      // Conversations - ALWAYS shown when Mteja is enabled
+      ...mtejaConversationsRoute,
     ];
 
     return routesBase
@@ -313,13 +307,6 @@ const useProLayoutNav = () => {
 
   const accountingRoutes = buildAccountingRoutes(true);
   const accountingRoutesStaff = buildAccountingRoutes(false);
-
-  // ── Mteja-only routes (hasMteja && !hasPOS && !hasAccounting) ─────────────
-  // When the tenant ONLY has Mteja: Mteja Dashboard → Customers → Conversations
-  // No POS, no accounting — minimal clean nav
-  const mtejaOnlyRoutes = mtejaNavRoutes
-    .filter((r) => canSee(r._bare, POS_ROUTE_PERMISSIONS))
-    .map(({ _bare: _b, ...rest }) => rest);
 
   // ── App tiles ─────────────────────────────────────────────────────────────
 
@@ -333,21 +320,13 @@ const useProLayoutNav = () => {
     { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Get answers to your most common questions.", url: p("/fss-faqs"), _bare: "/fss-faqs" },
     { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store your store images.", url: p("/website-builder"), _bare: "/website-builder" },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
-    // Conversations app tile — only when Mteja is on
+    // Conversations tile - ALWAYS shown when Mteja is enabled
     ...(hasMteja && can("OMNICHANNEL_VIEW") ? [{
       icon: makeTile("#7c3aed", ICONS.omnichannel),
       title: "Conversations",
       desc: "Manage WhatsApp, Messenger and Instagram conversations.",
       url: p("/omnichannel"),
       _bare: "/omnichannel",
-    }] : []),
-    // Mteja tile — only when Mteja is on
-    ...(hasMteja && can("CUSTOMERS_VIEW") ? [{
-      icon: makeTile("#6c1c2c", ICONS.mteja),
-      title: "Mteja Dashboard",
-      desc: "CRM overview — subscriptions, conversations and customer insights.",
-      url: p("/mteja"),
-      _bare: "/mteja",
     }] : []),
   ];
 
@@ -373,6 +352,7 @@ const useProLayoutNav = () => {
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: p("/payment-methods"), _bare: "/payment-methods" },
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: p("/system-setup"), _bare: "/system-setup" },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
+    // Conversations tile - ALWAYS shown when Mteja is enabled
     ...(hasMteja && can("OMNICHANNEL_VIEW") ? [{
       icon: makeTile("#7c3aed", ICONS.omnichannel),
       title: "Conversations",
@@ -380,21 +360,14 @@ const useProLayoutNav = () => {
       url: p("/omnichannel"),
       _bare: "/omnichannel",
     }] : []),
-    ...(hasMteja && can("CUSTOMERS_VIEW") ? [{
-      icon: makeTile("#6c1c2c", ICONS.mteja),
-      title: "Mteja Dashboard",
-      desc: "CRM overview — subscriptions, conversations and customer insights.",
-      url: p("/mteja"),
-      _bare: "/mteja",
-    }] : []),
   ];
 
   const accountingAppList = accountingAppListBase
     .filter((t) => canSee(t._bare, ACCOUNTING_APP_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
-  // ── Mteja-only app tiles ──────────────────────────────────────────────────
-  const mtejaOnlyAppList = [
+  // ── Mteja-only app tiles (only when Mteja is the SOLE module) ─────────────
+  const mtejaOnlyAppList = (isMtejaOnly) ? [
     ...(can("CUSTOMERS_VIEW") ? [{
       icon: makeTile("#6c1c2c", ICONS.mteja),
       title: "Mteja Dashboard",
@@ -407,39 +380,59 @@ const useProLayoutNav = () => {
       desc: "Manage your customer relationships and subscriptions.",
       url: p("/customers"),
     }] : []),
-    ...(can("OMNICHANNEL_VIEW") ? [{
+    ...(hasMteja && can("OMNICHANNEL_VIEW") ? [{
       icon: makeTile("#7c3aed", ICONS.omnichannel),
       title: "Conversations",
       desc: "Manage WhatsApp, Messenger and Instagram conversations.",
       url: p("/omnichannel"),
     }] : []),
-  ];
+  ] : [];
+
+  // ── Mteja-only routes (only when Mteja is the SOLE module) ────────────────
+  const mtejaOnlyRoutes = (isMtejaOnly) ? [
+    ...mtejaDashboardRoute,
+    ...mtejaCustomersRoute,
+    ...mtejaConversationsRoute,
+  ] : [];
 
   // ── Compose final nav ─────────────────────────────────────────────────────
 
   const posRoutes = isAdminOrCashier ? posRoutesFullAccess : posRoutesStaff;
 
-  // ── Case 1: Mteja ONLY — no POS, no Accounting ────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 1: Mteja ONLY — no POS, no Accounting
+  // Show: Mteja Dashboard → Customers → Conversations
+  // ════════════════════════════════════════════════════════════════════════════
   if (isMtejaOnly) {
+    console.log("[Nav] ✅ Mteja only mode - showing Mteja Dashboard + Customers + Conversations");
     return {
       route: { path: "/", routes: mtejaOnlyRoutes },
       appList: mtejaOnlyAppList,
     };
   }
 
-  // ── Case 2: Accounting only (no POS) ─────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 2: Accounting only (no POS)
+  // ════════════════════════════════════════════════════════════════════════════
   if (hasAccounting && !hasPOS) {
+    console.log("[Nav] ✅ Accounting only mode" + (hasMteja ? " (Conversations visible)" : ""));
     const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
     return { route: { path: "/", routes: accRoutes }, appList: accountingAppList };
   }
 
-  // ── Case 3: POS only ──────────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 3: POS only
+  // ════════════════════════════════════════════════════════════════════════════
   if (hasPOS && !hasAccounting) {
+    console.log("[Nav] ✅ POS only mode" + (hasMteja ? " (Conversations visible)" : ""));
     return { route: { path: "/", routes: posRoutes }, appList: posAppList };
   }
 
-  // ── Case 4: POS + Accounting ──────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 4: POS + Accounting (Mteja Dashboard hidden, Conversations visible if Mteja enabled)
+  // ════════════════════════════════════════════════════════════════════════════
   if (hasPOS && hasAccounting) {
+    console.log("[Nav] ✅ POS + Accounting mode" + (hasMteja ? " (Conversations visible, Mteja Dashboard hidden)" : ""));
     const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
     return {
       route: {
@@ -458,7 +451,10 @@ const useProLayoutNav = () => {
     };
   }
 
-  // ── Fallback ──────────────────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  // FALLBACK: No modules at all
+  // ════════════════════════════════════════════════════════════════════════════
+  console.log("[Nav] ⚠️ Fallback — no modules");
   return { route: { path: "/", routes: posRoutes }, appList: posAppList };
 };
 

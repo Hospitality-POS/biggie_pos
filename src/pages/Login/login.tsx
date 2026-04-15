@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Space, Row, Col, Typography } from "antd";
+import { Button, Input, Space, Row, Col, Typography, Segmented } from "antd";
 import {
     KeyOutlined,
     DeleteOutlined,
     UsergroupAddOutlined,
     SwapOutlined,
-    EyeInvisibleOutlined, EyeOutlined,
+    EyeInvisibleOutlined,
+    EyeOutlined,
+    MailOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch, useAppSelector } from "src/store";
-import { verifyCompanyCode } from "@services/users";
+import { verifyCompanyCode, verifyBusinessEmail } from "@services/users";
 import { useLogin } from "@components/staffCard/hook/useLogin";
 import { useNavigate } from "react-router-dom";
 import { ProCard } from "@ant-design/pro-components";
 import { useRefreshPrimaryColor } from "@context/PrimaryColorContext";
 
 const { Text } = Typography;
+
+type LoginMethod = "companyCode" | "businessEmail";
 
 const StaffLoginPage = () => {
     const { handleLogin } = useLogin();
@@ -32,6 +36,10 @@ const StaffLoginPage = () => {
     const [tenant, setTenant] = useState<any>(null);
     const [visible, setVisible] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    // New state for email login
+    const [loginMethod, setLoginMethod] = useState<LoginMethod>("companyCode");
+    const [businessEmail, setBusinessEmail] = useState<string>("");
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -83,6 +91,40 @@ const StaffLoginPage = () => {
         }
     };
 
+    const handleBusinessEmailSubmit = async (email: string) => {
+        setError(null);
+        setLoading(true);
+        dispatch({ type: "VERIFY_BUSINESS_EMAIL_REQUEST" });
+
+        try {
+            const result = await verifyBusinessEmail({ businessEmail: email });
+
+            // CRITICAL: Extract tenant_code from response and store it as companyCode
+            const tenantCode = result.data?.tenant_code || result.data?.code;
+
+            if (!tenantCode) {
+                throw new Error("No tenant code found in response");
+            }
+
+            localStorage.setItem("tenant", JSON.stringify(result.data));
+            localStorage.setItem("businessEmail", email);
+            localStorage.setItem("companyCode", tenantCode); // Store tenant_code as companyCode
+
+            window.dispatchEvent(new CustomEvent("tenantUpdated"));
+
+            setCompanyName(result.data.name || "");
+            setTenant(result.data);
+            setCompanyCode(tenantCode); // Set the tenant_code as companyCode
+            dispatch({ type: "VERIFY_BUSINESS_EMAIL_SUCCESS", payload: result });
+            setStep("pin");
+        } catch (error: any) {
+            dispatch({ type: "VERIFY_BUSINESS_EMAIL_FAILURE", payload: error });
+            setError(error?.message || "Failed to verify business email. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handlePinClick = (number: number) => {
         if (pin.length < 4) {
             setPin((prev) => prev + number);
@@ -94,30 +136,51 @@ const StaffLoginPage = () => {
 
     const handleSwitchCompany = () => {
         localStorage.removeItem("companyCode");
+        localStorage.removeItem("businessEmail");
         localStorage.removeItem("tenant");
         refreshPrimaryColor();
         setCompanyCode(null);
+        setBusinessEmail("");
         setCompanyName("");
         setTenant(null);
         setStep("companyCode");
         setPin("");
         setError(null);
+        setLoginMethod("companyCode");
     };
 
     const handleLoginWithNavigation = async (enteredPin: string) => {
         setLoading(true);
         setError(null);
 
-        const { success, error, user: userPayload } = await handleLogin(enteredPin);
+        // Ensure companyCode is available for the login API
+        const currentCompanyCode = companyCode || localStorage.getItem("companyCode");
+
+        if (!currentCompanyCode) {
+            setError("Company code not found. Please restart the login process.");
+            setLoading(false);
+            return;
+        }
+
+        const { success, error: loginError, user: userPayload } = await handleLogin(enteredPin);
+
         if (success && userPayload?.role === "admin") {
             navigate("/admin/dashboard");
         } else if (success) {
             navigate("/tables");
         } else {
-            setError(error);
+            setError(loginError);
         }
 
         setLoading(false);
+    };
+
+    const handleVerifySubmit = () => {
+        if (loginMethod === "companyCode" && companyCode) {
+            handleCompanyCodeSubmit(companyCode);
+        } else if (loginMethod === "businessEmail" && businessEmail) {
+            handleBusinessEmailSubmit(businessEmail);
+        }
     };
 
     const getBackgroundGradient = () => {
@@ -338,11 +401,11 @@ const StaffLoginPage = () => {
                                         fontWeight: 600,
                                     }}
                                 >
-                                    {step === "companyCode" ? "Enter Company Code" : "Enter PIN"}
+                                    {step === "companyCode" ? "Access Your Account" : "Enter PIN"}
                                 </h3>
                                 <p style={{ color: "#666", fontSize: "14px", margin: 0 }}>
                                     {step === "companyCode"
-                                        ? "Please enter your company code to continue"
+                                        ? "Choose your preferred way to access your account"
                                         : "Enter your 4-digit PIN to access your account"}
                                 </p>
                             </div>
@@ -362,36 +425,84 @@ const StaffLoginPage = () => {
 
                             {step === "companyCode" ? (
                                 <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                                    <Input
-                                        autoFocus
-                                        onPressEnter={() => handleCompanyCodeSubmit(companyCode!)}
-                                        prefix={<UsergroupAddOutlined />}
-                                        placeholder="Company Code"
-                                        onChange={(e) => setCompanyCode(e.target.value)}
-                                        size="large"
-                                        value={companyCode || ""}
-                                        autoComplete="off"
-                                        type={visible ? "text" : "password"}
-                                        suffix={
-                                            visible ? (
-                                                <EyeOutlined
-                                                    onClick={() => setVisible(false)}
-                                                    style={{ cursor: "pointer" }}
-                                                />
-                                            ) : (
-                                                <EyeInvisibleOutlined
-                                                    onClick={() => setVisible(true)}
-                                                    style={{ cursor: "pointer" }}
-                                                />
-                                            )
-                                        }
+                                    {/* Login Method Selector */}
+                                    <Segmented
+                                        block
+                                        value={loginMethod}
+                                        onChange={(value) => {
+                                            setLoginMethod(value as LoginMethod);
+                                            setError(null);
+                                        }}
+                                        options={[
+                                            {
+                                                label: (
+                                                    <span>
+                                                        <UsergroupAddOutlined /> Company Code
+                                                    </span>
+                                                ),
+                                                value: "companyCode",
+                                            },
+                                            {
+                                                label: (
+                                                    <span>
+                                                        <MailOutlined /> Business Email
+                                                    </span>
+                                                ),
+                                                value: "businessEmail",
+                                            },
+                                        ]}
+                                        style={{ marginBottom: "8px" }}
                                     />
+
+                                    {loginMethod === "companyCode" ? (
+                                        <Input
+                                            autoFocus
+                                            onPressEnter={() => handleVerifySubmit()}
+                                            prefix={<UsergroupAddOutlined />}
+                                            placeholder="Enter Company Code"
+                                            onChange={(e) => setCompanyCode(e.target.value)}
+                                            size="large"
+                                            value={companyCode || ""}
+                                            autoComplete="off"
+                                            type={visible ? "text" : "password"}
+                                            suffix={
+                                                visible ? (
+                                                    <EyeOutlined
+                                                        onClick={() => setVisible(false)}
+                                                        style={{ cursor: "pointer" }}
+                                                    />
+                                                ) : (
+                                                    <EyeInvisibleOutlined
+                                                        onClick={() => setVisible(true)}
+                                                        style={{ cursor: "pointer" }}
+                                                    />
+                                                )
+                                            }
+                                        />
+                                    ) : (
+                                        <Input
+                                            autoFocus
+                                            onPressEnter={() => handleVerifySubmit()}
+                                            prefix={<MailOutlined />}
+                                            placeholder="business@company.com"
+                                            onChange={(e) => setBusinessEmail(e.target.value)}
+                                            size="large"
+                                            value={businessEmail}
+                                            autoComplete="off"
+                                            type="email"
+                                        />
+                                    )}
+
                                     <Button
                                         type="primary"
                                         block
                                         size="large"
-                                        disabled={!companyCode || loading}
-                                        onClick={() => handleCompanyCodeSubmit(companyCode!)}
+                                        disabled={
+                                            loading ||
+                                            (loginMethod === "companyCode" && !companyCode) ||
+                                            (loginMethod === "businessEmail" && !businessEmail)
+                                        }
+                                        onClick={handleVerifySubmit}
                                         loading={loading}
                                     >
                                         {loading ? "Verifying..." : "Continue"}
