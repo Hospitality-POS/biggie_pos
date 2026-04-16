@@ -238,52 +238,297 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
     );
 };
 
-// ── 2. Profit & Loss ──────────────────────────────────────────────────────────
+// ── 2. Profit & Loss (Enhanced with COGS, Operating/Non-Operating splits) ───
 export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse }> = ({ data }) => {
     const amountCols = (color: string) => [
         { title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => <Text code style={{ fontSize: 11 }}>{v}</Text> },
         { title: "Account", dataIndex: "account_name" },
         { title: "Amount (KES)", dataIndex: "amount", align: "right" as const, width: 150, render: (v: number) => <Text strong style={{ color }}>{fmt(v)}</Text> },
     ];
+
     const revenueRows = data.revenue.accounts.map((a) => ({ ...a }));
     const expenseRows = data.expenses.accounts.map((a) => ({ ...a }));
+    const cogsRows: any[] = (data as any).cogs?.accounts || [];
+    const totalCogs: number = (data as any).cogs?.total_cogs || 0;
+    const grossProfit = data.revenue.total_revenue - totalCogs;
+
+    // Split operating vs non-operating if the data carries that flag
+    const opExpRows = expenseRows.filter((a: any) => !a.is_non_operating);
+    const nonOpExpRows = expenseRows.filter((a: any) => a.is_non_operating);
+    const opIncRows = revenueRows.filter((a: any) => !a.is_non_operating);
+    const nonOpIncRows = revenueRows.filter((a: any) => a.is_non_operating);
+
+    const totalOpInc = opIncRows.reduce((s, a) => s + a.amount, 0) || data.revenue.total_revenue;
+    const totalOpExp = opExpRows.reduce((s, a) => s + a.amount, 0) || data.expenses.total_expenses;
+    const totalNonOpInc = nonOpIncRows.reduce((s, a) => s + a.amount, 0);
+    const totalNonOpExp = nonOpExpRows.reduce((s, a) => s + a.amount, 0);
+    const opProfit = grossProfit - totalOpExp;
+    const netProfit = data.net_profit;
+
     const PL_COLS = ["Section", "Code", "Account", "Amount (KES)"];
+
+    // ── Print ────────────────────────────────────────────────────────────────
+    const handlePrint = () => {
+        const periodLabel = (data as any).period
+            ? `${dayjs((data as any).period.from).format("DD MMM YYYY")} – ${dayjs((data as any).period.to).format("DD MMM YYYY")}`
+            : dayjs().format("MMM YYYY");
+
+        const profitColor = (v: number) => v >= 0 ? "#389e0d" : "#cf1322";
+        const profitSign = (v: number) => v < 0 ? `(${fmt(Math.abs(v))})` : fmt(v);
+
+        const accountRows = (accounts: any[]) =>
+            accounts.length
+                ? accounts.map((a) => `
+                    <tr>
+                        <td style="padding-left:24px">
+                            <span style="font-family:monospace;font-size:10px;background:#f5f5f5;
+                                  padding:1px 5px;border-radius:3px;margin-right:6px">${a.account_code}</span>
+                            ${a.account_name}
+                        </td>
+                        <td class="num">${fmt(a.amount)}</td>
+                    </tr>`).join("")
+                : `<tr><td colspan="2" style="padding-left:24px;color:#aaa;font-style:italic">—</td></tr>`;
+
+        const html = `
+            <div class="header-block">
+                <div>
+                    <div class="company">Profit and Loss</div>
+                    <div class="subtitle">Basis: Accrual &nbsp;·&nbsp; ${periodLabel}</div>
+                </div>
+                <div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div>
+            </div>
+
+            <table>
+                <colgroup><col style="width:65%"><col style="width:35%"></colgroup>
+                <thead>
+                    <tr><th>Account</th><th class="num">Total (KES)</th></tr>
+                </thead>
+                <tbody>
+
+                    <!-- Operating Income -->
+                    <tr class="section-header"><td colspan="2">Operating Income</td></tr>
+                    ${accountRows(opIncRows.length ? opIncRows : revenueRows)}
+                    <tr class="total-row">
+                        <td>Total for Operating Income</td>
+                        <td class="num cr">${fmt(totalOpInc)}</td>
+                    </tr>
+
+                    <!-- Cost of Goods Sold -->
+                    <tr class="section-header"><td colspan="2">Cost of Goods Sold</td></tr>
+                    ${cogsRows.length ? accountRows(cogsRows) : `<tr><td colspan="2" style="padding-left:24px;color:#aaa;font-style:italic">—</td></tr>`}
+                    <tr class="total-row">
+                        <td>Total for Cost of Goods Sold</td>
+                        <td class="num dr">${fmt(totalCogs)}</td>
+                    </tr>
+
+                    <!-- Gross Profit -->
+                    <tr style="background:#dbeafe;border-top:2px solid #3b82f6">
+                        <td style="font-weight:800;font-size:12px;padding:8px 6px">Gross Profit</td>
+                        <td class="num" style="font-weight:800;font-size:12px;color:${profitColor(grossProfit)};padding:8px 6px">
+                            ${profitSign(grossProfit)}
+                        </td>
+                    </tr>
+
+                    <!-- Operating Expense -->
+                    <tr class="section-header"><td colspan="2">Operating Expense</td></tr>
+                    ${accountRows(opExpRows.length ? opExpRows : expenseRows)}
+                    <tr class="total-row">
+                        <td>Total for Operating Expense</td>
+                        <td class="num dr">${fmt(totalOpExp)}</td>
+                    </tr>
+
+                    <!-- Operating Profit -->
+                    <tr style="background:#fce7f3;border-top:2px solid #6c1c2c">
+                        <td style="font-weight:800;font-size:12px;padding:8px 6px">Operating Profit</td>
+                        <td class="num" style="font-weight:800;font-size:12px;color:${profitColor(opProfit)};padding:8px 6px">
+                            ${profitSign(opProfit)}
+                        </td>
+                    </tr>
+
+                    <!-- Non-Operating Income -->
+                    <tr class="section-header"><td colspan="2">Non Operating Income</td></tr>
+                    ${accountRows(nonOpIncRows)}
+                    <tr class="total-row">
+                        <td>Total for Non Operating Income</td>
+                        <td class="num cr">${fmt(totalNonOpInc)}</td>
+                    </tr>
+
+                    <!-- Non-Operating Expense -->
+                    <tr class="section-header"><td colspan="2">Non Operating Expense</td></tr>
+                    ${accountRows(nonOpExpRows)}
+                    <tr class="total-row">
+                        <td>Total for Non Operating Expense</td>
+                        <td class="num dr">${fmt(totalNonOpExp)}</td>
+                    </tr>
+
+                </tbody>
+                <tfoot>
+                    <!-- Net Profit / Loss -->
+                    <tr style="background:${netProfit >= 0 ? "#f0fdf4" : "#fff2f0"};
+                                border-top:3px solid ${profitColor(netProfit)}">
+                        <td style="font-weight:800;font-size:14px;padding:10px 6px">
+                            ${netProfit >= 0 ? "Net Profit/Loss" : "Net Profit/Loss"}
+                        </td>
+                        <td class="num" style="font-weight:800;font-size:14px;
+                                color:${profitColor(netProfit)};padding:10px 6px">
+                            ${profitSign(netProfit)}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="font-size:9px;color:#aaa;padding:6px">
+                            **Amount is displayed in your base currency KES
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>`;
+
+        printSection(html, "Profit and Loss");
+    };
+
+    // ── Excel ────────────────────────────────────────────────────────────────
     const handleExcel = () => exportToExcel("profit_loss", [
-        ...revenueRows.map((r) => ({ Section: "Revenue", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
-        { Section: "", Code: "", Account: "Total Revenue", "Amount (KES)": data.revenue.total_revenue },
+        { Section: "Operating Income", Code: "", Account: "", "Amount (KES)": "" },
+        ...(opIncRows.length ? opIncRows : revenueRows).map((r) => ({
+            Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount,
+        })),
+        { Section: "", Code: "", Account: "Total for Operating Income", "Amount (KES)": totalOpInc },
         BLANK_ROW(PL_COLS),
-        ...expenseRows.map((r) => ({ Section: "Expense", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
-        { Section: "", Code: "", Account: "Total Expenses", "Amount (KES)": data.expenses.total_expenses },
+        { Section: "Cost of Goods Sold", Code: "", Account: "", "Amount (KES)": "" },
+        ...cogsRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
+        { Section: "", Code: "", Account: "Total for Cost of Goods Sold", "Amount (KES)": totalCogs },
+        { Section: "", Code: "", Account: "Gross Profit", "Amount (KES)": grossProfit },
         BLANK_ROW(PL_COLS),
-        { Section: "", Code: "", Account: data.is_profit ? "NET PROFIT" : "NET LOSS", "Amount (KES)": data.net_profit },
+        { Section: "Operating Expense", Code: "", Account: "", "Amount (KES)": "" },
+        ...(opExpRows.length ? opExpRows : expenseRows).map((r) => ({
+            Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount,
+        })),
+        { Section: "", Code: "", Account: "Total for Operating Expense", "Amount (KES)": totalOpExp },
+        { Section: "", Code: "", Account: "Operating Profit", "Amount (KES)": opProfit },
+        BLANK_ROW(PL_COLS),
+        { Section: "Non Operating Income", Code: "", Account: "", "Amount (KES)": "" },
+        ...nonOpIncRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
+        { Section: "", Code: "", Account: "Total for Non Operating Income", "Amount (KES)": totalNonOpInc },
+        BLANK_ROW(PL_COLS),
+        { Section: "Non Operating Expense", Code: "", Account: "", "Amount (KES)": "" },
+        ...nonOpExpRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
+        { Section: "", Code: "", Account: "Total for Non Operating Expense", "Amount (KES)": totalNonOpExp },
+        BLANK_ROW(PL_COLS),
+        { Section: "", Code: "", Account: netProfit >= 0 ? "NET PROFIT" : "NET LOSS", "Amount (KES)": netProfit },
     ]);
-    const handlePdf = () => exportToPdf("profit_loss", "Profit & Loss", "", ["Section", "Code", "Account", "Amount (KES)"], [
-        ...revenueRows.map((r) => ["Revenue", r.account_code, r.account_name, fmt(r.amount)]),
-        ["", "", { content: "Total Revenue", styles: { fontStyle: "bold" } }, { content: fmt(data.revenue.total_revenue), styles: { fontStyle: "bold", textColor: [56, 158, 13] } }],
-        ...expenseRows.map((r) => ["Expense", r.account_code, r.account_name, fmt(r.amount)]),
-        ["", "", { content: "Total Expenses", styles: { fontStyle: "bold" } }, { content: fmt(data.expenses.total_expenses), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }],
-        ["", "", { content: data.is_profit ? "NET PROFIT" : "NET LOSS", styles: { fontStyle: "bold", fontSize: 9 } }, { content: fmt(Math.abs(data.net_profit)), styles: { fontStyle: "bold", fontSize: 9, textColor: data.is_profit ? [56, 158, 13] : [207, 19, 34] } }],
-    ]);
+
+    // ── PDF ──────────────────────────────────────────────────────────────────
+    const handlePdf = () => exportToPdf(
+        "profit_loss",
+        "Profit and Loss",
+        `Basis: Accrual  |  Revenue: KES ${fmt(data.revenue.total_revenue)}  |  Expenses: KES ${fmt(data.expenses.total_expenses)}  |  ${data.is_profit ? "Net Profit" : "Net Loss"}: KES ${fmt(Math.abs(netProfit))}`,
+        ["Section", "Code", "Account", "Amount (KES)"],
+        [
+            [{ content: "Operating Income", colSpan: 4, styles: { fontStyle: "bold", fillColor: [245, 240, 245] } }],
+            ...(opIncRows.length ? opIncRows : revenueRows).map((r) => ["", r.account_code, r.account_name, fmt(r.amount)]),
+            ["", "", { content: "Total for Operating Income", styles: { fontStyle: "bold" } }, { content: fmt(totalOpInc), styles: { fontStyle: "bold", textColor: [56, 158, 13] } }],
+            [{ content: "Cost of Goods Sold", colSpan: 4, styles: { fontStyle: "bold", fillColor: [245, 240, 245] } }],
+            ...cogsRows.map((r: any) => ["", r.account_code, r.account_name, fmt(r.amount)]),
+            ["", "", { content: "Total for COGS", styles: { fontStyle: "bold" } }, { content: fmt(totalCogs), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }],
+            ["", "", { content: "Gross Profit", styles: { fontStyle: "bold", fontSize: 9 } }, { content: fmt(grossProfit), styles: { fontStyle: "bold", fontSize: 9, textColor: grossProfit >= 0 ? [56, 158, 13] : [207, 19, 34] } }],
+            [{ content: "Operating Expense", colSpan: 4, styles: { fontStyle: "bold", fillColor: [245, 240, 245] } }],
+            ...(opExpRows.length ? opExpRows : expenseRows).map((r) => ["", r.account_code, r.account_name, fmt(r.amount)]),
+            ["", "", { content: "Total for Operating Expense", styles: { fontStyle: "bold" } }, { content: fmt(totalOpExp), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }],
+            ["", "", { content: "Operating Profit", styles: { fontStyle: "bold", fontSize: 9 } }, { content: fmt(opProfit), styles: { fontStyle: "bold", fontSize: 9, textColor: opProfit >= 0 ? [56, 158, 13] : [207, 19, 34] } }],
+            ["", "", { content: netProfit >= 0 ? "NET PROFIT" : "NET LOSS", styles: { fontStyle: "bold", fontSize: 11 } }, { content: fmt(Math.abs(netProfit)), styles: { fontStyle: "bold", fontSize: 11, textColor: netProfit >= 0 ? [56, 158, 13] : [207, 19, 34] } }],
+        ]
+    );
+
+    // ── Render ───────────────────────────────────────────────────────────────
     return (
         <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <Space size={6}>
+                <Space size={6} wrap>
                     <Tag color="green" style={{ fontSize: 12, padding: "2px 10px" }}>Revenue: KES {fmt(data.revenue.total_revenue)}</Tag>
-                    <Tag color="red" style={{ fontSize: 12, padding: "2px 10px" }}>Expenses: KES {fmt(data.expenses.total_expenses)}</Tag>
+                    {totalCogs > 0 && <Tag color="orange" style={{ fontSize: 12, padding: "2px 10px" }}>COGS: KES {fmt(totalCogs)}</Tag>}
+                    <Tag color={grossProfit >= 0 ? "blue" : "error"} style={{ fontSize: 12, padding: "2px 10px" }}>Gross Profit: KES {fmt(grossProfit)}</Tag>
+                    <Tag color="red" style={{ fontSize: 12, padding: "2px 10px" }}>Op. Expenses: KES {fmt(totalOpExp)}</Tag>
                     <Tag color={data.is_profit ? "success" : "error"} style={{ fontSize: 12, padding: "2px 10px" }}>
-                        {data.is_profit ? "Net Profit" : "Net Loss"}: KES {fmt(Math.abs(data.net_profit))}
+                        {data.is_profit ? "Net Profit" : "Net Loss"}: KES {fmt(Math.abs(netProfit))}
                     </Tag>
                 </Space>
-                <ExportDropdown onExcel={handleExcel} onPdf={handlePdf} />
+                <ExportDropdown onExcel={handleExcel} onPdf={handlePdf} onPrint={handlePrint} />
             </div>
-            <Text strong style={{ fontSize: 13, display: "block", marginBottom: 6, color: "#389e0d" }}>Revenue</Text>
-            <Table rowKey="account_code" dataSource={revenueRows} pagination={false} size="small" style={{ marginBottom: 20 }} columns={amountCols("#389e0d")}
-                summary={() => (<Table.Summary.Row style={{ background: "#f6ffed" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total Revenue</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#389e0d" }}>{fmt(data.revenue.total_revenue)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
+
+            {/* Operating Income */}
+            <Text strong style={{ fontSize: 13, display: "block", marginBottom: 6, color: "#389e0d" }}>Operating Income</Text>
+            <Table rowKey="account_code" dataSource={opIncRows.length ? opIncRows : revenueRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#389e0d")}
+                summary={() => (<Table.Summary.Row style={{ background: "#f6ffed" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Operating Income</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#389e0d" }}>{fmt(totalOpInc)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
             />
-            <Text strong style={{ fontSize: 13, display: "block", marginBottom: 6, color: "#cf1322" }}>Expenses</Text>
-            <Table rowKey="account_code" dataSource={expenseRows} pagination={false} size="small" columns={amountCols("#cf1322")}
-                summary={() => (<Table.Summary.Row style={{ background: "#fff2f0" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total Expenses</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#cf1322" }}>{fmt(data.expenses.total_expenses)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
+
+            {/* COGS */}
+            {cogsRows.length > 0 && (
+                <>
+                    <Text strong style={{ fontSize: 13, display: "block", margin: "16px 0 6px", color: "#fa8c16" }}>Cost of Goods Sold</Text>
+                    <Table rowKey="account_code" dataSource={cogsRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#fa8c16")}
+                        summary={() => (<Table.Summary.Row style={{ background: "#fff7e6" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Cost of Goods Sold</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#fa8c16" }}>{fmt(totalCogs)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
+                    />
+                </>
+            )}
+
+            {/* Gross Profit line */}
+            <div style={{ background: "#dbeafe", border: "1px solid #93c5fd", borderRadius: 6, padding: "10px 16px", display: "flex", justifyContent: "space-between", margin: "8px 0 16px" }}>
+                <Text strong style={{ fontSize: 13 }}>Gross Profit</Text>
+                <Text strong style={{ fontSize: 14, color: grossProfit >= 0 ? "#1d4ed8" : "#cf1322" }}>KES {fmt(grossProfit)}</Text>
+            </div>
+
+            {/* Operating Expense */}
+            <Text strong style={{ fontSize: 13, display: "block", marginBottom: 6, color: "#cf1322" }}>Operating Expense</Text>
+            <Table rowKey="account_code" dataSource={opExpRows.length ? opExpRows : expenseRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#cf1322")}
+                summary={() => (<Table.Summary.Row style={{ background: "#fff2f0" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Operating Expense</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#cf1322" }}>{fmt(totalOpExp)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
             />
+
+            {/* Operating Profit line */}
+            <div style={{ background: opProfit >= 0 ? "#f0fdf4" : "#fff2f0", border: `1px solid ${opProfit >= 0 ? "#86efac" : "#fca5a5"}`, borderRadius: 6, padding: "10px 16px", display: "flex", justifyContent: "space-between", margin: "8px 0 16px" }}>
+                <Text strong style={{ fontSize: 13 }}>Operating Profit</Text>
+                <Text strong style={{ fontSize: 14, color: opProfit >= 0 ? "#15803d" : "#cf1322" }}>KES {opProfit < 0 ? `(${fmt(Math.abs(opProfit))})` : fmt(opProfit)}</Text>
+            </div>
+
+            {/* Non-Operating (only show if data has them) */}
+            {(nonOpIncRows.length > 0 || nonOpExpRows.length > 0) && (
+                <>
+                    {nonOpIncRows.length > 0 && (
+                        <>
+                            <Text strong style={{ fontSize: 13, display: "block", marginBottom: 6, color: "#10b981" }}>Non Operating Income</Text>
+                            <Table rowKey="account_code" dataSource={nonOpIncRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#10b981")}
+                                summary={() => (<Table.Summary.Row style={{ background: "#f0fdf4" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Non Operating Income</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#10b981" }}>{fmt(totalNonOpInc)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
+                            />
+                        </>
+                    )}
+                    {nonOpExpRows.length > 0 && (
+                        <>
+                            <Text strong style={{ fontSize: 13, display: "block", margin: "16px 0 6px", color: "#ef4444" }}>Non Operating Expense</Text>
+                            <Table rowKey="account_code" dataSource={nonOpExpRows} pagination={false} size="small" style={{ marginBottom: 8 }} columns={amountCols("#ef4444")}
+                                summary={() => (<Table.Summary.Row style={{ background: "#fef2f2" }}><Table.Summary.Cell index={0} colSpan={2}><Text strong>Total for Non Operating Expense</Text></Table.Summary.Cell><Table.Summary.Cell index={2} align="right"><Text strong style={{ color: "#ef4444" }}>{fmt(totalNonOpExp)}</Text></Table.Summary.Cell></Table.Summary.Row>)}
+                            />
+                        </>
+                    )}
+                </>
+            )}
+
+            {/* Net Profit / Loss */}
+            <div style={{
+                background: netProfit >= 0 ? "#f0fdf4" : "#fff2f0",
+                border: `2px solid ${netProfit >= 0 ? "#16a34a" : "#dc2626"}`,
+                borderRadius: 8,
+                padding: "14px 16px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginTop: 16,
+            }}>
+                <Text strong style={{ fontSize: 15 }}>Net Profit/Loss</Text>
+                <Text strong style={{ fontSize: 18, color: netProfit >= 0 ? "#16a34a" : "#dc2626" }}>
+                    {netProfit < 0 ? `(KES ${fmt(Math.abs(netProfit))})` : `KES ${fmt(netProfit)}`}
+                </Text>
+            </div>
+            <Text type="secondary" style={{ fontSize: 10, display: "block", marginTop: 6 }}>
+                **Amount is displayed in your base currency KES
+            </Text>
         </>
     );
 };
@@ -831,13 +1076,13 @@ export const APAgingTable: React.FC<{ data: APAgingResponse }> = ({ data }) => {
     const handlePrint = (mode: "summary" | "detailed") => {
         if (mode === "summary") {
             const bh = allBucketLabels.map((l) => `<th class="num">${l}</th>`).join("");
-            const rows = summaryRows.map((r) => `<tr><td>${r.supplier_name}</td>${allBucketLabels.map((l) => `<td class="num" style="color:${r[l] > 0 ? "#fa8c16" : "#aaa"}">${r[l] > 0 ? "KES" + fmt(r[l]) : "KES0.00"}</td>`).join("")}<td class="num" style="color:#fa8c16;font-weight:700">KES${fmt(r.total)}</td></tr>`).join("");
+            const rows = summaryRows.map((r) => `<tr><td>${r.supplier_name}</td>${allBucketLabels.map((l) => `<td class="num" style="color:${r[l] > 0 ? "#fa8c16" : "#aaa"}">${r[l] > 0 ? "KES" + fmt(r[l]) : "KES0.00"}</td>`).join("")}<td class="num" style="color:#fa8c16;font-weight:700">KES${fmt(r.total)}</td>`).join("");
             const html = `<div class="header-block"><div><div class="company">AP Aging Summary</div><div class="subtitle">As of ${dayjs(data.as_of).format("DD/MM/YYYY")}</div></div><div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div></div>
             <table><thead><tr><th>Supplier Name</th>${bh}<th class="num">Total</th></tr></thead><tbody>${rows}</tbody></table>`;
             printSection(html, "AP Aging Summary");
         } else {
             const rows = data.suppliers.map((s) => {
-                const billRows = s.bills.map((b) => `<tr><td style="padding-left:32px">${dayjs(b.issue_date).format("DD/MM/YYYY")}</td><td style="padding-left:32px;color:#fa8c16">${b.invoice_no}</td><td>Bill</td><td><span style="color:${b.status === "Overdue" ? "#cf1322" : "#666"}">${b.status}</span></td><td class="num">${b.days_overdue} Days</td><td class="num" style="color:#fa8c16">KES${fmt(b.grand_total)}</td><td class="num" style="color:#fa8c16">KES${fmt(b.amount_due)}</td></tr>`).join("");
+                const billRows = s.bills.map((b) => `<tr><td style="padding-left:32px">${dayjs(b.issue_date).format("DD/MM/YYYY")}</td><td style="padding-left:32px;color:#fa8c16">${b.invoice_no}</td><td>Bill</td><td><span style="color:${b.status === "Overdue" ? "#cf1322" : "#666"}">${b.status}</span></td><td class="num">${b.days_overdue} Days</td><td class="num" style="color:#fa8c16">KES${fmt(b.grand_total)}</td><td class="num" style="color:#fa8c16">KES${fmt(b.amount_due)}</td>`).join("");
                 return `<tr class="section-header"><td colspan="7">${s.supplier_name} — KES${fmt(s.total)}</td></tr>${billRows}`;
             }).join("");
             const html = `<div class="header-block"><div><div class="company">AP Aging Details</div><div class="subtitle">As of ${dayjs(data.as_of).format("DD/MM/YYYY")}</div></div><div class="meta">Generated: ${dayjs().format("DD MMM YYYY HH:mm")}</div></div>

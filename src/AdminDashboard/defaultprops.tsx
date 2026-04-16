@@ -9,22 +9,29 @@ import {
   ShopOutlined,
   UsergroupAddOutlined,
   CustomerServiceOutlined,
-  MessageOutlined,
 } from "@ant-design/icons";
-import { PeopleOutlined as MuiPeopleOutlined } from "@mui/icons-material";
 
 /**
  * AdminDefaultprops.tsx — Admin Layout (path="/admin")
  *
  * Module rules:
- *  - Duka (POS) only              → Dashboard, Branch, Staff, POS Reports, Documents, Help
- *  - Pesa (Accounting) only       → Accounting Dashboard, Branch, Staff, CoA, Financial Reports, Documents, Help
- *  - Duka + Pesa both active      → Dashboard, Branch, Staff, POS Reports, Accounting Dashboard, CoA, Financial Reports, Documents, Help
- *  - Mteja (CRM) ONLY             → Mteja Dashboard, Customers, Conversations, Branch, Staff, Documents, Help
- *  - Mteja + ANY other module     → NO Mteja routes at all (only the other module(s) + Branch/Staff/Docs + Help)
+ *  - Duka (POS) only         → Dashboard, Branch, Staff, POS Reports, Documents, Help
+ *  - Pesa (Accounting) only  → Accounting Dashboard, Branch, Staff, CoA, Financial Reports, Documents, Help
+ *  - Duka + Pesa both        → Dashboard, Branch, Staff, POS Reports, Accounting Dashboard, CoA, Financial Reports, Documents, Help
+ *  - Mteja ONLY              → Mteja Dashboard, Branch, Staff, Help
+ *  - Mteja + any other       → Mteja routes hidden; only the other module(s) show
  *
- * NOTE: Mteja Dashboard is ONLY shown when Mteja is the SOLE active module.
- *       If Duka (POS) OR Pesa (Accounting) is enabled, ALL Mteja routes are completely hidden.
+ * Router paths (Routers.tsx) — must match exactly:
+ *  /admin/dashboard
+ *  /admin/reports                    ← POS business reports
+ *  /admin/documents
+ *  /admin/accounting                 ← Accounting dashboard
+ *  /admin/accounting/accounts        ← Chart of Accounts  (was /admin/accounts — 404)
+ *  /admin/accounting/reports         ← Financial reports   (was /admin/reports — conflict with POS)
+ *  /admin/shop-management
+ *  /admin/staff-management
+ *  /admin/mteja
+ *  /admin/help-center
  */
 const useAdminProLayoutNav = () => {
   const storedTenant = localStorage.getItem("tenant");
@@ -34,12 +41,11 @@ const useAdminProLayoutNav = () => {
 
   const userRole = user?.role?.toLowerCase();
 
-  // ── Module flags ─────────────────────────────────────────────────────────────
-  const hasDuka = tenant?.pos_integration?.enabled === true;      // Duka = POS
-  const hasPesa = tenant?.modules?.accounting === true;           // Pesa = Accounting
-  const hasMteja = tenant?.modules?.crm === true;                 // Mteja = CRM
+  // ── Module flags ──────────────────────────────────────────────────────────
+  const hasDuka = tenant?.pos_integration?.enabled === true;
+  const hasPesa = tenant?.modules?.accounting === true;
+  const hasMteja = tenant?.modules?.crm === true;
 
-  // Mteja is ONLY shown when it's the ONLY module enabled (no Duka, no Pesa)
   const isMtejaOnly = hasMteja && !hasDuka && !hasPesa;
 
   console.log("[AdminNav] Module check:", {
@@ -52,13 +58,13 @@ const useAdminProLayoutNav = () => {
     isMtejaOnly,
   });
 
-  // ── Common routes (always shown regardless of modules) ──────────────────────
+  // ── Common routes (always shown) ──────────────────────────────────────────
   const commonRoutes = [
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
     { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
   ];
 
-  // ── Duka (POS) routes ──────────────────────────────────────────────────────
+  // ── Duka (POS) routes ─────────────────────────────────────────────────────
   const dukaRoutes = [
     { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
     ...(userRole === "admin"
@@ -67,7 +73,10 @@ const useAdminProLayoutNav = () => {
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
-  // ── Pesa (Accounting) routes ───────────────────────────────────────────────
+  // ── Pesa (Accounting) routes ──────────────────────────────────────────────
+  // FIX: paths now match router exactly
+  //   /admin/accounts          → /admin/accounting/accounts  (was 404)
+  //   /admin/reports           → /admin/accounting/reports   (was clashing with POS reports)
   const pesaRoutes = [
     { path: "/admin/accounting", name: "Accounting Dashboard", icon: <AccountBookOutlined /> },
     { path: "/admin/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
@@ -75,20 +84,21 @@ const useAdminProLayoutNav = () => {
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
-  // ── Mteja (CRM) routes — ONLY included when Mteja is the SOLE module ────────
+  // ── Mteja (CRM) routes — only when Mteja is the sole module ──────────────
   const mtejaRoutes = [
     { path: "/admin/mteja", name: "Mteja Dashboard", icon: <CustomerServiceOutlined /> },
   ];
 
-  // ── Help Center (always last) ────────────────────────────────────────────────
-  const helpRoute = { path: "/admin/help-center", name: "Help Center", icon: <CompassOutlined /> };
+  // ── Help Center (always last) ─────────────────────────────────────────────
+  const helpRoute = {
+    path: "/admin/help-center",
+    name: "Help Center",
+    icon: <CompassOutlined />,
+  };
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // CASE 1: Mteja ONLY (no Duka, no Pesa)
-  // Show: Mteja Dashboard → Customers → Conversations → Branch → Staff → Documents → Help
-  // ════════════════════════════════════════════════════════════════════════════
+  // ── CASE 1: Mteja ONLY ────────────────────────────────────────────────────
   if (isMtejaOnly) {
-    console.log("[AdminNav] ✅ Mteja ONLY - showing Mteja Dashboard and Mteja routes");
+    console.log("[AdminNav] ✅ Mteja ONLY");
     return {
       route: {
         path: "/admin",
@@ -97,11 +107,9 @@ const useAdminProLayoutNav = () => {
     };
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // CASE 2: Duka only (POS only) - Mteja routes are COMPLETELY HIDDEN
-  // ════════════════════════════════════════════════════════════════════════════
+  // ── CASE 2: Duka only ─────────────────────────────────────────────────────
   if (hasDuka && !hasPesa) {
-    console.log("[AdminNav] ✅ Duka only (POS only) - Mteja routes hidden" + (hasMteja ? " (Mteja exists but hidden)" : ""));
+    console.log("[AdminNav] ✅ Duka only (POS)");
     return {
       route: {
         path: "/admin",
@@ -110,11 +118,9 @@ const useAdminProLayoutNav = () => {
     };
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // CASE 3: Pesa only (Accounting only) - Mteja routes are COMPLETELY HIDDEN
-  // ════════════════════════════════════════════════════════════════════════════
+  // ── CASE 3: Pesa only ─────────────────────────────────────────────────────
   if (hasPesa && !hasDuka) {
-    console.log("[AdminNav] ✅ Pesa only (Accounting only) - Mteja routes hidden" + (hasMteja ? " (Mteja exists but hidden)" : ""));
+    console.log("[AdminNav] ✅ Pesa only (Accounting)");
     return {
       route: {
         path: "/admin",
@@ -123,22 +129,21 @@ const useAdminProLayoutNav = () => {
     };
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // CASE 4: Both Duka + Pesa (POS + Accounting) - Mteja routes are COMPLETELY HIDDEN
-  // ════════════════════════════════════════════════════════════════════════════
+  // ── CASE 4: Duka + Pesa ───────────────────────────────────────────────────
+  // FIX: deduplicate Document Center — appears in both dukaRoutes and pesaRoutes.
+  // When combined, filter it out of pesaRoutes to avoid two identical nav items.
   if (hasDuka && hasPesa) {
-    console.log("[AdminNav] ✅ Duka + Pesa (POS + Accounting) - Mteja routes hidden" + (hasMteja ? " (Mteja exists but hidden)" : ""));
+    console.log("[AdminNav] ✅ Duka + Pesa (POS + Accounting)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...commonRoutes, ...pesaRoutes, helpRoute],
+        routes: [...dukaRoutes, ...commonRoutes, ...pesaWithoutDocs, helpRoute],
       },
     };
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // FALLBACK: No modules at all
-  // ════════════════════════════════════════════════════════════════════════════
+  // ── FALLBACK: no modules ──────────────────────────────────────────────────
   console.log("[AdminNav] ⚠️ Fallback — no modules");
   return {
     route: {

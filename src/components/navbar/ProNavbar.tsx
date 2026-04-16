@@ -958,7 +958,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             <Image src={tenant.tenant_logo.url} height={isMobile ? 44 : 60} preview={false} alt="tenant-logo"
               style={{ padding: isMobile ? 3 : 5, objectFit: "contain", maxWidth: isMobile ? 90 : 120 }} />
           ) : (
-            <Image src="/relia.png" height={isMobile ? 38 : 55} width={isMobile ? 90 : 120}
+            <Image src="/relia.png" height={isMobile ? 38 : 90} width={isMobile ? 90 : 120}
               preview={false} alt="relia-logo" style={{ padding: isMobile ? 6 : 12 }} />
           )
         }

@@ -4,6 +4,7 @@ import {
   createRoutesFromElements,
   RouterProvider,
   Navigate,
+  Outlet,
 } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import Private, { AdminRoute } from "@components/layout/private/Private";
@@ -63,8 +64,6 @@ const OmnichannelInboxPage = lazy(() => import("src/pages/OmniChannel/Omnichanne
 const OAuthCallbackPage = lazy(() => import("src/pages/OmniChannel/OAuthCallbackPage"));
 
 // ─── Mteja Dashboard ──────────────────────────────────────────────────────────
-// Gated at render time by hasMteja flag — the route itself is always registered
-// so deep-links work; the component checks the flag internally and redirects if needed.
 const MtejaDashboard = lazy(() => import("src/pages/Dashboard/MtejaDashboard"));
 
 // ─── Accounting Module ────────────────────────────────────────────────────────
@@ -86,8 +85,7 @@ const fullscreenSpin = (
   <Spin size="large" fullscreen style={{ color: getPrimaryColor() }} />
 );
 
-// ─── Mteja guard helper ───────────────────────────────────────────────────────
-// Checks tenant.modules.crm at render time and bounces non-Mteja tenants to /customers
+// ─── Mteja guard ─────────────────────────────────────────────────────────────
 const getMtejaEnabled = (): boolean => {
   try {
     const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
@@ -107,7 +105,7 @@ const AdminMtejaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) 
   return <>{children}</>;
 };
 
-// ─── Page wrappers ─────────────────────────────────────────────────────────────
+// ─── Page wrappers ────────────────────────────────────────────────────────────
 const adminPage = (Component: React.ComponentType) => (
   <Suspense fallback={<NubaLoader />}>
     <AdminRoute>
@@ -136,26 +134,28 @@ const guardedAdminPage = (Component: React.ComponentType, permission: string) =>
   </PermissionRoute>
 );
 
-// ─── Smart Shop Router (for "/" path) ────────────────────────────────────────
+// ─── Accounting layout wrapper ────────────────────────────────────────────────
+// A transparent pass-through that just renders <Outlet />.
+// Required so that nested routes like accounting/accounts resolve correctly
+// in React Router v6 — without this parent, RRv6 can't match sub-paths
+// when the parent route renders a page component instead of an Outlet.
+const AccountingLayout = () => <Outlet />;
+
+// ─── Smart routers ────────────────────────────────────────────────────────────
 const SmartShopRouter = () => {
-  const storedTenant = localStorage.getItem("tenant");
-  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const tenant = (() => { try { return JSON.parse(localStorage.getItem("tenant") || "{}"); } catch { return {}; } })();
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
   const hasMteja = tenant?.modules?.crm === true;
 
-  // Mteja-only tenant: land on Mteja dashboard
   if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/mteja" replace />;
   if (hasAccounting && !hasPOS) return <Navigate to="/accounting" replace />;
   return privatePage(Table);
 };
 
-// ─── Smart Dashboard Router (for "/admin" path) ──────────────────────────────
 const SmartDashboardRouter = () => {
-  const storedUser = localStorage.getItem("user");
-  const storedTenant = localStorage.getItem("tenant");
-  const user = storedUser ? JSON.parse(storedUser) : null;
-  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const user = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
+  const tenant = (() => { try { return JSON.parse(localStorage.getItem("tenant") || "{}"); } catch { return {}; } })();
 
   if (!user?.role) return <Navigate to="/login" replace />;
 
@@ -163,7 +163,6 @@ const SmartDashboardRouter = () => {
   const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
   const hasMteja = tenant?.modules?.crm === true;
 
-  // Mteja-only tenant: land on Mteja dashboard, not POS or Accounting
   if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/admin/mteja" replace />;
   if (hasAccounting && !hasPOS) return <Navigate to="/admin/accounting" replace />;
   return adminPage(DashboardAdminPage);
@@ -173,23 +172,16 @@ const SmartDashboardRouter = () => {
 const routes = createBrowserRouter(
   createRoutesFromElements(
     <>
-      {/* ════════════════════════════════════════════════════════════════════
-          PUBLIC ROUTES — no auth guard, no layout wrapper
-          Meta OAuth redirects here; the popup closes itself after ~2s
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* Public — OAuth popup */}
       <Route
         path="/omnichannel/oauth/callback"
         errorElement={<NotFound />}
-        element={
-          <Suspense fallback={fullscreenSpin}>
-            <OAuthCallbackPage />
-          </Suspense>
-        }
+        element={<Suspense fallback={fullscreenSpin}><OAuthCallbackPage /></Suspense>}
       />
 
-      {/* ════════════════════════════════════════════════════════════════════
+      {/* ══════════════════════════════════════════════════════════════════
           SHOP / POS ROUTES  (prefix: "/")
-      ════════════════════════════════════════════════════════════════════ */}
+      ══════════════════════════════════════════════════════════════════ */}
       <Route path="/" element={<Layout />}>
         <Route index errorElement={<NotFound />} element={<SmartShopRouter />} />
 
@@ -241,7 +233,6 @@ const routes = createBrowserRouter(
         <Route path="table-settings" errorElement={<NotFound />}
           element={guardedPage(TableMainSettings, "TABLES_VIEW")} />
 
-        {/* alias kept for legacy links */}
         <Route path="Category-settings" errorElement={<NotFound />}
           element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
@@ -275,67 +266,59 @@ const routes = createBrowserRouter(
         <Route path="employee-shift" errorElement={<NotFound />}
           element={guardedPage(EmployeeShift, "SHIFTS_VIEW")} />
 
-        {/* ── Document Center — shop level ──────────────────────────────── */}
         <Route path="documents" errorElement={<NotFound />}
           element={guardedPage(DocumentCenter, "DOCUMENTS_VIEW")} />
 
-        {/* ── Omnichannel Inbox — shop level ────────────────────────────── */}
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
 
-        {/* ── Mteja Dashboard — shop level ──────────────────────────────── */}
-        {/* Requires Mteja (CRM) module; bounces to /customers if not enabled */}
         <Route path="mteja" errorElement={<NotFound />}
           element={
             <MtejaRoute>
               <PermissionRoute permission="CUSTOMERS_VIEW">
                 <Suspense fallback={fullscreenSpin}>
-                  <Private>
-                    <MtejaDashboard />
-                  </Private>
+                  <Private><MtejaDashboard /></Private>
                 </Suspense>
               </PermissionRoute>
             </MtejaRoute>
           }
         />
 
-        {/* ── Accounting routes — shop level (/accounting/...) ─────────── */}
-        <Route path="accounting" errorElement={<NotFound />}
-          element={guardedPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
-
-        <Route path="accounting/accounts" errorElement={<NotFound />}
-          element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
-
-        <Route path="accounting/journals" errorElement={<NotFound />}
-          element={guardedPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
-
-        <Route path="accounting/notes" errorElement={<NotFound />}
-          element={guardedPage(NotesPage, "ACCOUNTING_NOTES_VIEW")} />
-
-        <Route path="accounting/bank-statements" errorElement={<NotFound />}
-          element={guardedPage(BankStatementPage, "ACCOUNTING_BANK_STMT_VIEW")} />
-
-        <Route path="accounting/reconciliation" errorElement={<NotFound />}
-          element={guardedPage(BankReconciliationPage, "ACCOUNTING_RECON_VIEW")} />
-
-        <Route path="accounting/reports" errorElement={<NotFound />}
-          element={guardedPage(AccountingReportsPage, "ACCOUNTING_REPORT_PROFIT_LOSS")} />
-
-        <Route path="accounting/expenses" errorElement={<NotFound />}
-          element={guardedPage(ExpensesPage, "ACCOUNTING_INCOME_POST_EXPENSE")} />
-
-        <Route path="accounting/bills" errorElement={<NotFound />}
-          element={guardedPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
-
-        <Route path="accounting/income" errorElement={<NotFound />}
-          element={guardedPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
+        {/* ── Accounting — shop level (/accounting/...) ──────────────────
+            AccountingLayout renders <Outlet /> so sub-routes resolve.
+            The index renders the dashboard; children render sub-pages.
+        ────────────────────────────────────────────────────────────────── */}
+        <Route path="accounting" element={<AccountingLayout />}>
+          <Route index errorElement={<NotFound />}
+            element={guardedPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={guardedPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
+          <Route path="accounts" errorElement={<NotFound />}
+            element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
+          <Route path="journals" errorElement={<NotFound />}
+            element={guardedPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
+          <Route path="notes" errorElement={<NotFound />}
+            element={guardedPage(NotesPage, "ACCOUNTING_NOTES_VIEW")} />
+          <Route path="bank-statements" errorElement={<NotFound />}
+            element={guardedPage(BankStatementPage, "ACCOUNTING_BANK_STMT_VIEW")} />
+          <Route path="reconciliation" errorElement={<NotFound />}
+            element={guardedPage(BankReconciliationPage, "ACCOUNTING_RECON_VIEW")} />
+          <Route path="reports" errorElement={<NotFound />}
+            element={guardedPage(AccountingReportsPage, "ACCOUNTING_REPORT_PROFIT_LOSS")} />
+          <Route path="expenses" errorElement={<NotFound />}
+            element={guardedPage(ExpensesPage, "ACCOUNTING_INCOME_POST_EXPENSE")} />
+          <Route path="bills" errorElement={<NotFound />}
+            element={guardedPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
+          <Route path="income" errorElement={<NotFound />}
+            element={guardedPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
+        </Route>
 
         <Route path="*" element={<NotFound />} />
       </Route>
 
-      {/* ════════════════════════════════════════════════════════════════════
+      {/* ══════════════════════════════════════════════════════════════════
           ADMIN ROUTES  (prefix: "/admin")
-      ════════════════════════════════════════════════════════════════════ */}
+      ══════════════════════════════════════════════════════════════════ */}
       <Route path="/admin" element={<Layout />}>
         <Route index element={<SmartDashboardRouter />} />
 
@@ -345,7 +328,6 @@ const routes = createBrowserRouter(
         <Route path="notifications" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
 
-        {/* ── POS / Operations ──────────────────────────────────────────── */}
         <Route path="tables" errorElement={<NotFound />}
           element={guardedAdminPage(Table, "CART_VIEW_ITEMS")} />
 
@@ -389,7 +371,8 @@ const routes = createBrowserRouter(
                 <AdminRoute><AdminReports /></AdminRoute>
               </Suspense>
             </PermissionRoute>
-          } />
+          }
+        />
 
         <Route path="wages" errorElement={<NotFound />}
           element={adminPage(WagesList)} />
@@ -404,7 +387,8 @@ const routes = createBrowserRouter(
                 <AdminRoute><UsersMainSettings /></AdminRoute>
               </Suspense>
             </PermissionRoute>
-          } />
+          }
+        />
 
         <Route path="users-settings" errorElement={<NotFound />}
           element={guardedAdminPage(UsersMainSettings, "USERS_VIEW")} />
@@ -416,7 +400,8 @@ const routes = createBrowserRouter(
                 <AdminRoute><AdminCustomersList /></AdminRoute>
               </Suspense>
             </PermissionRoute>
-          } />
+          }
+        />
 
         <Route path="employee-shift" errorElement={<NotFound />}
           element={guardedAdminPage(EmployeeShift, "SHIFTS_VIEW")} />
@@ -424,7 +409,6 @@ const routes = createBrowserRouter(
         <Route path="staff-clock-in" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><StaffClockTracker /></Suspense>} />
 
-        {/* ── System & Settings ──────────────────────────────────────────── */}
         <Route path="billing" errorElement={<NotFound />}
           element={adminPage(PaymentSubscriptionPage)} />
 
@@ -433,7 +417,8 @@ const routes = createBrowserRouter(
             <Suspense fallback={fullscreenSpin}>
               <AdminRoute><AdminProfile /></AdminRoute>
             </Suspense>
-          } />
+          }
+        />
 
         <Route path="help-center" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><AdminRoute><HelpCenter /></AdminRoute></Suspense>} />
@@ -459,63 +444,52 @@ const routes = createBrowserRouter(
         <Route path="website-builder" errorElement={<NotFound />}
           element={guardedAdminPage(Website, "GALLERY_VIEW")} />
 
-        {/* ── Document Center — admin level ─────────────────────────────── */}
         <Route path="documents" errorElement={<NotFound />}
           element={guardedAdminPage(DocumentCenter, "DOCUMENTS_VIEW")} />
 
-        {/* ── Omnichannel Inbox — admin level ───────────────────────────── */}
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedAdminPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
 
-        {/* ── Mteja Dashboard — admin level ─────────────────────────────── */}
-        {/* Admin view: branch selector is shown; no shop_id lock */}
         <Route path="mteja" errorElement={<NotFound />}
           element={
             <AdminMtejaRoute>
               <PermissionRoute permission="CUSTOMERS_VIEW">
                 <Suspense fallback={fullscreenSpin}>
-                  <AdminRoute>
-                    <MtejaDashboard />
-                  </AdminRoute>
+                  <AdminRoute><MtejaDashboard /></AdminRoute>
                 </Suspense>
               </PermissionRoute>
             </AdminMtejaRoute>
           }
         />
 
-        {/* ── Accounting — admin level (/admin/accounting/...) ──────────── */}
-        <Route path="accounting" errorElement={<NotFound />}
-          element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
-
-        <Route path="accounting/dashboard" errorElement={<NotFound />}
-          element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
-
-        <Route path="accounting/accounts" errorElement={<NotFound />}
-          element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
-
-        <Route path="accounting/journals" errorElement={<NotFound />}
-          element={guardedAdminPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
-
-        <Route path="accounting/notes" errorElement={<NotFound />}
-          element={guardedAdminPage(NotesPage, "ACCOUNTING_NOTES_VIEW")} />
-
-        <Route path="accounting/bank-statements" errorElement={<NotFound />}
-          element={guardedAdminPage(BankStatementPage, "ACCOUNTING_BANK_STMT_VIEW")} />
-
-        <Route path="accounting/reconciliation" errorElement={<NotFound />}
-          element={guardedAdminPage(BankReconciliationPage, "ACCOUNTING_RECON_VIEW")} />
-
-        <Route path="accounting/reports" errorElement={<NotFound />}
-          element={guardedAdminPage(AccountingReportsPage, "ACCOUNTING_REPORT_PROFIT_LOSS")} />
-
-        <Route path="accounting/expenses" errorElement={<NotFound />}
-          element={guardedAdminPage(ExpensesPage, "ACCOUNTING_INCOME_POST_EXPENSE")} />
-
-        <Route path="accounting/bills" errorElement={<NotFound />}
-          element={guardedAdminPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
-
-        <Route path="accounting/income" errorElement={<NotFound />}
-          element={guardedAdminPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
+        {/* ── Accounting — admin level (/admin/accounting/...) ───────────
+            Same AccountingLayout <Outlet /> pattern as shop level.
+            index → dashboard, children → sub-pages.
+        ────────────────────────────────────────────────────────────────── */}
+        <Route path="accounting" element={<AccountingLayout />}>
+          <Route index errorElement={<NotFound />}
+            element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
+          <Route path="accounts" errorElement={<NotFound />}
+            element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
+          <Route path="journals" errorElement={<NotFound />}
+            element={guardedAdminPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
+          <Route path="notes" errorElement={<NotFound />}
+            element={guardedAdminPage(NotesPage, "ACCOUNTING_NOTES_VIEW")} />
+          <Route path="bank-statements" errorElement={<NotFound />}
+            element={guardedAdminPage(BankStatementPage, "ACCOUNTING_BANK_STMT_VIEW")} />
+          <Route path="reconciliation" errorElement={<NotFound />}
+            element={guardedAdminPage(BankReconciliationPage, "ACCOUNTING_RECON_VIEW")} />
+          <Route path="reports" errorElement={<NotFound />}
+            element={guardedAdminPage(AccountingReportsPage, "ACCOUNTING_REPORT_PROFIT_LOSS")} />
+          <Route path="expenses" errorElement={<NotFound />}
+            element={guardedAdminPage(ExpensesPage, "ACCOUNTING_INCOME_POST_EXPENSE")} />
+          <Route path="bills" errorElement={<NotFound />}
+            element={guardedAdminPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
+          <Route path="income" errorElement={<NotFound />}
+            element={guardedAdminPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
+        </Route>
 
         <Route path="*" element={<NotFound />} />
       </Route>
