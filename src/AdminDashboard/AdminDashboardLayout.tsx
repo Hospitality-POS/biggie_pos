@@ -737,7 +737,7 @@ const AdminDashboard: React.FC = () => {
           ) : (
             <Image
               src="/relia.png"
-              height={36}
+              height={70}
               width={90}
               preview={false}
               alt="logo"
@@ -1178,7 +1178,7 @@ const AdminDashboard: React.FC = () => {
         ) : (
           <Image
             src="/relia.png"
-            height={38}
+            height={70}
             width={100}
             preview={false}
             alt="relia-logo"
@@ -1334,7 +1334,7 @@ const AdminDashboard: React.FC = () => {
                 {tenant?.tenant_logo?.url ? (
                   <Image
                     src={tenant.tenant_logo.url}
-                    height={36}
+                    height={70}
                     preview={false}
                     alt="logo"
                     style={{
@@ -1346,7 +1346,7 @@ const AdminDashboard: React.FC = () => {
                 ) : (
                   <Image
                     src="/relia.png"
-                    height={30}
+                    height={70}
                     width={75}
                     preview={false}
                     alt="logo"
