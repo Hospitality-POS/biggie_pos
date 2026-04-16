@@ -228,8 +228,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
 
   const {
-    BRAND_NAME1, EMAIL_URL, PHONE_NO,
-    QR_Code, Paybill_bs, Paybill_ac, TILL_NO,
+    BRAND_NAME1,
+    EMAIL_URL,
+    PHONE_NO,
+    PO_BOX,
+    QR_Code,
+    Paybill_bs,
+    Paybill_ac,
+    TILL_NO,
+    PIN,
+    bank_details,
   } = useSystemDetails();
 
   const {
@@ -251,9 +259,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
       : 0;
 
   // ── Display price helper ───────────────────────────────────────────────
-  // When the discount is hidden, we bake the discount proportionally into each
-  // item's displayed price so the total still reconciles without revealing the
-  // discount line to the customer.
   const getDisplayPrice = useCallback(
     (item: any): number => {
       if (showDiscount || discountAmount === 0) return item.price;
@@ -383,6 +388,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const printDate = new Date();
   const printDateStr = printDate.toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" });
   const printTimeStr = `${String(printDate.getHours()).padStart(2, "0")}:${String(printDate.getMinutes()).padStart(2, "0")}`;
+
+  // Get customer details
+  const customerName = cartDetails?.client_name || cartDetails?.clientName || "Walk-in Customer";
+  const customerPhone = cartDetails?.client_phone || cartDetails?.clientPhone || "";
+  const customerEmail = cartDetails?.client_email || cartDetails?.clientEmail || "";
+  const customerAddress = cartDetails?.client_address || cartDetails?.clientAddress || "";
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -569,22 +580,50 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           id="receipt"
           style={{ color: "#000000", display: isPdfView ? "none" : "block" }}
         >
-          {/* Header */}
-          <div style={{ textAlign: "center", marginBottom: 10 }}>
-            <div style={S.shopName}>{BRAND_NAME1}</div>
-            <div style={S.docType}>{docConfig.label}</div>
+          {/* Header - Left side: Logo area + company details */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              {/* Left column - Company details */}
+              <div style={{ textAlign: "left", flex: 1 }}>
+                <div style={S.shopName}>{BRAND_NAME1}</div>
+                <div style={S.meta}>PIN: {PIN || "N/A"}</div>
+                <div style={S.meta}>Tel: {PHONE_NO}</div>
+                <div style={S.meta}>Email: {EMAIL_URL}</div>
+              </div>
+
+              {/* Right column - Document info */}
+              <div style={{ textAlign: "right" }}>
+                <div style={S.docType}>{docConfig.label}</div>
+                <div style={S.meta}>Date: {printDateStr}</div>
+                <div style={S.meta}>
+                  {documentType === "receipt"
+                    ? "Receipt No"
+                    : documentType === "invoice"
+                      ? "Invoice No"
+                      : documentType === "quotation"
+                        ? "Quote No"
+                        : "Bill No"}:{" "}
+                  {documentType === "receipt"
+                    ? cartDetails?.order_no
+                    : documentType === "invoice"
+                      ? cartDetails?.order_no
+                      : documentType === "quotation"
+                        ? cartDetails?.order_no
+                        : cartDetails?.order_no || "N/A"}
+                </div>
+                {/* <div style={S.meta}>LPO No: {cartDetails?.lpo_no || "N/A"}</div> */}
+              </div>
+            </div>
             <SolidLine />
-            <div style={S.meta}>Tel: {PHONE_NO}</div>
-            {Paybill_bs ? (
-              <>
-                <div style={S.meta}>Paybill: {Paybill_bs}{Paybill_ac ? `  Acc: ${Paybill_ac}` : ""}</div>
-              </>
-            ) : (
-              TILL_NO && <div style={S.meta}>Till No: {TILL_NO}</div>
-            )}
-            {cartDetails?.clientPin && (
-              <div style={S.meta}>Client PIN: {cartDetails.clientPin}</div>
-            )}
+          </div>
+
+          {/* Bill To Section - Customer Details */}
+          <div style={{ marginBottom: 12, backgroundColor: "#f9f9f9", padding: "8px", border: "1px solid #ddd" }}>
+            <div style={{ ...S.label, marginBottom: 4 }}>BILL TO:</div>
+            <div style={S.value}>{customerName}</div>
+            {customerPhone && <div style={S.meta}>Phone: {customerPhone}</div>}
+            {customerEmail && <div style={S.meta}>Email: {customerEmail}</div>}
+            {customerAddress && <div style={S.meta}>Address: {customerAddress}</div>}
           </div>
 
           <DashedLine />
@@ -604,20 +643,25 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
           <DashedLine />
 
-          {/* Items table */}
+          {/* Items table - New column structure */}
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                <th style={{ ...S.tblHdr, textAlign: "left", width: "8%" }}>QTY</th>
-                <th style={{ ...S.tblHdr, textAlign: "left" }}>DESCRIPTION</th>
-                <th style={{ ...S.tblHdr, textAlign: "right", width: "28%" }}>AMOUNT</th>
+                <th style={{ ...S.tblHdr, textAlign: "left", width: "8%" }}>Item</th>
+                <th style={{ ...S.tblHdr, textAlign: "left", width: "8%" }}>Unit</th>
+                <th style={{ ...S.tblHdr, textAlign: "left" }}>Description</th>
+                <th style={{ ...S.tblHdr, textAlign: "right", width: "12%" }}>Unit Price</th>
+                <th style={{ ...S.tblHdr, textAlign: "right", width: "8%" }}>VAT</th>
+                <th style={{ ...S.tblHdr, textAlign: "right", width: "12%" }}>Total</th>
               </tr>
             </thead>
             <tbody>
               {data?.map((item: any, index: number) => {
                 const displayPrice = getDisplayPrice(item);
+                const itemVat = item.vat_amount || (item.price * item.quantity * (item.vat_rate || 0) / 100);
                 return (
                   <tr key={item._id || index}>
+                    <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top" }}>{index + 1}</td>
                     <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top" }}>{item.quantity}</td>
                     <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top", wordBreak: "break-word" }}>
                       {item?.product_id?.name}
@@ -626,6 +670,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                           @ {displayPrice.toFixed(2)} each
                         </div>
                       )}
+                    </td>
+                    <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top" }}>
+                      {displayPrice.toFixed(2)}
+                    </td>
+                    <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top" }}>
+                      {itemVat.toFixed(2)}
                     </td>
                     <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top" }}>
                       {(displayPrice * item.quantity).toFixed(2)}
@@ -639,10 +689,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           <DashedLine />
 
           {/* Totals */}
-          <div style={{ paddingLeft: "30%" }}>
-            {/* Only show subtotal line when discount is visible; when hidden the
-                item prices already absorb the discount so we skip the raw subtotal
-                to avoid confusing the customer with a number that doesn't match. */}
+          <div style={{ paddingLeft: "40%" }}>
             {showDiscount || discountAmount === 0 ? (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
                 <span style={S.value}>Subtotal</span>
@@ -671,6 +718,28 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             </div>
           </div>
 
+          {/* Payment info for receipts */}
+          {Paybill_bs && documentType === "receipt" && (
+            <>
+              <DashedLine />
+              <div style={{ textAlign: "center", margin: "8px 0" }}>
+                <div style={S.label}>Payment Details</div>
+                <div style={S.meta}>Paybill: {Paybill_bs}</div>
+                {Paybill_ac && <div style={S.meta}>Account: {Paybill_ac}</div>}
+              </div>
+            </>
+          )}
+
+          {TILL_NO && documentType === "receipt" && (
+            <>
+              <DashedLine />
+              <div style={{ textAlign: "center", margin: "8px 0" }}>
+                <div style={S.label}>Payment Details</div>
+                <div style={S.meta}>Till No: {TILL_NO}</div>
+              </div>
+            </>
+          )}
+
           {/* Warranty (electronics) */}
           {isElectronicsStore && documentType !== "quotation" && (
             <>
@@ -698,7 +767,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             </>
           )}
 
-          {/* Footer */}
+          {/* Footer - No Bank Details or PO Box for Thermal */}
           <DashedLine />
           <div style={{ textAlign: "center", marginTop: 6 }}>
             <div className="qrcoded" style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
@@ -707,7 +776,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             <div style={S.footer}>Thank you for your {documentType === "quotation" ? "interest" : "business"}!</div>
             <div style={S.footer}>{EMAIL_URL}</div>
             <div style={S.footer}>Printed: {printDateStr} {printTimeStr}</div>
-            <div style={{ ...S.footer, marginTop: 4, fontSize: "0.85em", color: "#555" }}>Powered By  BasePoint Cloud</div>
+            <div style={{ ...S.footer, marginTop: 4, fontSize: "0.85em", color: "#555" }}>Powered By BasePoint Cloud</div>
           </div>
         </div>
 
@@ -717,32 +786,43 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             ref={printableRef}
             style={{ backgroundColor: "#fff", padding: "40px", maxWidth: "800px", margin: "0 auto", boxShadow: "0 0 10px rgba(0,0,0,0.1)" }}
           >
-            {/* PDF Header */}
+            {/* PDF Header - Left and Right sections */}
             <Box sx={{ borderBottom: "3px solid #333", paddingBottom: 3, marginBottom: 3 }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
-                <Typography variant="h3" style={pdfHdr}>{BRAND_NAME1}</Typography>
-                <Box sx={{ backgroundColor: docConfig.color, color: "#fff", padding: "8px 20px", borderRadius: "8px", display: "flex", alignItems: "center", gap: 1 }}>
-                  {docConfig.icon}
-                  <Typography variant="h5" style={{ fontSize: "20px", fontWeight: 700, color: "#fff", margin: 0 }}>{docConfig.label}</Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 2 }}>
+                {/* Left side - Company details */}
                 <Box>
-                  <Typography variant="body1" style={pdfSub}>Tel: {PHONE_NO}</Typography>
-                  {Paybill_bs ? (
-                    <>
-                      <Typography variant="body1" style={pdfNorm}>Paybill: {Paybill_bs}</Typography>
-                      {Paybill_ac && <Typography variant="body1" style={pdfNorm}>Account No: {Paybill_ac}</Typography>}
-                    </>
-                  ) : (
-                    TILL_NO && <Typography variant="body1" style={pdfNorm}>Till No: {TILL_NO}</Typography>
-                  )}
-                  {cartDetails?.clientPin && <Typography variant="body1" style={pdfNorm}>Client PIN: {cartDetails.clientPin}</Typography>}
+                  <Typography variant="h3" style={pdfHdr}>{BRAND_NAME1}</Typography>
+                  <Typography variant="body1" style={pdfNorm}>PIN: {PIN || "N/A"}</Typography>
+                  <Typography variant="body1" style={pdfNorm}>P.O. Box {PO_BOX || "N/A"}</Typography>
+                  <Typography variant="body1" style={pdfNorm}>Tel: {PHONE_NO}</Typography>
+                  <Typography variant="body1" style={pdfNorm}>Email: {EMAIL_URL}</Typography>
                 </Box>
+
+                {/* Right side - Document info */}
                 <Box sx={{ textAlign: "right" }}>
-                  <QRCodeCanvas value={QR_Code} size={120} />
+                  <Box sx={{ backgroundColor: docConfig.color, color: "#fff", padding: "8px 20px", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: 1, mb: 2 }}>
+                    {docConfig.icon}
+                    <Typography variant="h5" style={{ fontSize: "20px", fontWeight: 700, color: "#fff", margin: 0 }}>{docConfig.label}</Typography>
+                  </Box>
+                  <Typography variant="body1" style={pdfNorm}>Date: {printDateStr}</Typography>
+                  <Typography variant="body1" style={pdfNorm}>Invoice No: {cartDetails?.order_no || "N/A"}</Typography>
+                  <Typography variant="body1" style={pdfNorm}>LPO No: {cartDetails?.lpo_no || "N/A"}</Typography>
                 </Box>
               </Box>
+
+              {/* QR Code row */}
+              <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+                <QRCodeCanvas value={QR_Code} size={100} />
+              </Box>
+            </Box>
+
+            {/* Bill To Section */}
+            <Box sx={{ mb: 3, backgroundColor: "#f8fafc", borderRadius: 2, padding: 2, border: "1px solid #e2e8f0" }}>
+              <Typography variant="h6" style={pdfSub}>BILL TO:</Typography>
+              <Typography variant="body1" style={pdfNorm}><strong>{customerName}</strong></Typography>
+              {customerPhone && <Typography variant="body1" style={pdfNorm}>Phone: {customerPhone}</Typography>}
+              {customerEmail && <Typography variant="body1" style={pdfNorm}>Email: {customerEmail}</Typography>}
+              {customerAddress && <Typography variant="body1" style={pdfNorm}>Address: {customerAddress}</Typography>}
             </Box>
 
             {/* PDF Order meta */}
@@ -758,25 +838,30 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Box>
             </Box>
 
-            {/* PDF Items */}
+            {/* PDF Items - Updated columns */}
             <TableContainer component={Paper} elevation={0} sx={{ mb: 3 }}>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ ...pdfTH, width: "8%" }}>Qty</TableCell>
-                    <TableCell sx={pdfTH}>Item Description</TableCell>
-                    <TableCell sx={{ ...pdfTH, textAlign: "right" }}>Unit Price (Ksh)</TableCell>
-                    <TableCell sx={{ ...pdfTH, textAlign: "right" }}>Total (Ksh)</TableCell>
+                    <TableCell sx={{ ...pdfTH, width: "8%" }}>Item</TableCell>
+                    <TableCell sx={{ ...pdfTH, width: "8%" }}>Unit</TableCell>
+                    <TableCell sx={pdfTH}>Description</TableCell>
+                    <TableCell sx={{ ...pdfTH, textAlign: "right", width: "12%" }}>Unit Price</TableCell>
+                    <TableCell sx={{ ...pdfTH, textAlign: "right", width: "10%" }}>VAT</TableCell>
+                    <TableCell sx={{ ...pdfTH, textAlign: "right", width: "12%" }}>Total</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {data?.map((item: any, index: number) => {
                     const displayPrice = getDisplayPrice(item);
+                    const itemVat = item.vat_amount || (item.price * item.quantity * (item.vat_rate || 0) / 100);
                     return (
                       <TableRow key={item._id || index}>
+                        <TableCell sx={pdfTD}>{index + 1}</TableCell>
                         <TableCell sx={pdfTD}>{item.quantity}</TableCell>
                         <TableCell sx={pdfTD}>{item?.product_id?.name}</TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{displayPrice.toFixed(2)}</TableCell>
+                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{itemVat.toFixed(2)}</TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{(displayPrice * item.quantity).toFixed(2)}</TableCell>
                       </TableRow>
                     );
@@ -787,7 +872,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
             {/* PDF Totals */}
             <Box sx={{ marginLeft: "auto", maxWidth: "380px", padding: 2, backgroundColor: "#f9f9f9", borderRadius: 2, border: "1px solid #e2e8f0" }}>
-              {/* Only show subtotal row when discount is visible */}
               {(showDiscount || discountAmount === 0) && (
                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                   <Typography style={pdfNorm}>Subtotal</Typography>
@@ -814,6 +898,28 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 <Typography style={{ ...pdfHdr, fontSize: "20px" }}>Ksh {grandTotal.toLocaleString()}</Typography>
               </Box>
             </Box>
+
+            {/* Payment Details for receipts */}
+            {(Paybill_bs || TILL_NO) && documentType === "receipt" && (
+              <Box sx={{ mt: 3, mb: 2, backgroundColor: "#f0f9ff", borderRadius: 2, padding: 2, border: "1px solid #bae6fd" }}>
+                <Typography variant="h6" style={pdfSub} sx={{ textAlign: "center" }}>Payment Details</Typography>
+                {Paybill_bs && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Paybill: {Paybill_bs} {Paybill_ac && `| Account: ${Paybill_ac}`}</Typography>}
+                {TILL_NO && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Till No: {TILL_NO}</Typography>}
+              </Box>
+            )}
+
+            {/* Bank Details - Only in PDF */}
+            {bank_details && (bank_details.bank_name || bank_details.account_no) && (
+              <Box sx={{ mt: 3, mb: 2, backgroundColor: "#fef3c7", borderRadius: 2, padding: 2, border: "1px solid #fde68a" }}>
+                <Typography variant="h6" style={pdfSub} sx={{ textAlign: "center" }}>Bank Details</Typography>
+                {bank_details.account_no && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Account: {bank_details.account_no}</Typography>}
+                {bank_details.account_name && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Account Name: {bank_details.account_name}</Typography>}
+                {bank_details.bank_name && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Bank: {bank_details.bank_name}</Typography>}
+                {bank_details.branch && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Branch: {bank_details.branch}</Typography>}
+                {bank_details.swift_code && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>SWIFT: {bank_details.swift_code}</Typography>}
+                {bank_details.paybill_no && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Paybill: {bank_details.paybill_no}</Typography>}
+              </Box>
+            )}
 
             {/* Warranty */}
             {isElectronicsStore && documentType !== "quotation" && (
@@ -845,7 +951,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Typography>
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Email: {EMAIL_URL}</Typography>
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Printed: {printDateStr} {printTimeStr}</Typography>
-              <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By  BasePoint Cloud</Typography>
+              <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By BasePoint Cloud</Typography>
             </Box>
           </div>
         )}

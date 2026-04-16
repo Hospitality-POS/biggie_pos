@@ -9,7 +9,7 @@ function useSystemDetails() {
     refetchInterval: 3000,
     networkMode: "always",
   });
-
+  console.log('nice work', data);
   return {
     BRAND_NAME1: `${data?.name} ${data?.location}`,
     PHONE_NO: data?.phone,
@@ -20,6 +20,10 @@ function useSystemDetails() {
     TILL_NO: data?.till_no,
     Paybill_ac: data?.account_no,
     Paybill_bs: data?.business_no,
+    PO_BOX: data?.po_box,
+    bank_details: data?.bank_details
+
+
   };
 }
 

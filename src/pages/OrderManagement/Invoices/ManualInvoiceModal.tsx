@@ -22,30 +22,27 @@ import dayjs, { Dayjs } from "dayjs";
 const { TextArea } = Input;
 const { Text } = Typography;
 
-const PAYMENT_TERMS = [
-    { label: "Due on Receipt", value: "Due on Receipt" },
-    { label: "Net 7", value: "Net 7" },
-    { label: "Net 14", value: "Net 14" },
-    { label: "Net 30", value: "Net 30" },
-    { label: "Net 60", value: "Net 60" },
-    { label: "Net 90", value: "Net 90" },
-    // { label: "50% Upfront", value: "50% Upfront" },
-    { label: "Cash on Delivery", value: "Cash on Delivery" },
+const PRESET_TERMS = [
+    { label: "Due on Receipt", value: "Due on Receipt", days: 0 },
+    { label: "Net 7", value: "Net 7", days: 7 },
+    { label: "Net 14", value: "Net 14", days: 14 },
+    { label: "Net 30", value: "Net 30", days: 30 },
+    { label: "Net 60", value: "Net 60", days: 60 },
+    { label: "Net 90", value: "Net 90", days: 90 },
+    { label: "Cash on Delivery", value: "Cash on Delivery", days: null },
 ];
 
-const TERM_DAYS: Record<string, number | null> = {
-    "Due on Receipt": 0,
-    "Net 7": 7,
-    "Net 14": 14,
-    "Net 30": 30,
-    "Net 60": 60,
-    "Net 90": 90,
-    "50% Upfront": null,
-    "Cash on Delivery": null,
+// Parse "Net N" pattern to extract days — handles custom terms like "Net 2", "Net 45"
+const parseDaysFromTerm = (term: string): number | null => {
+    const preset = PRESET_TERMS.find((t) => t.value === term);
+    if (preset !== undefined) return preset.days;
+    const match = term?.match(/^[Nn]et\s+(\d+)$/);
+    if (match) return parseInt(match[1]);
+    return null;
 };
 
 const calcDueDate = (issueDate: Dayjs, terms: string): Dayjs | null => {
-    const days = TERM_DAYS[terms];
+    const days = parseDaysFromTerm(terms);
     if (days == null) return null;
     return issueDate.add(days, "day");
 };
@@ -88,6 +85,10 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     const [step, setStep] = useState(0);
     const [savedInvoice, setSavedInvoice] = useState<any>(null);
     const [customerSearch, setCustomerSearch] = useState("");
+    const [customTermInput, setCustomTermInput] = useState("");
+
+    // Track whether we've had a successful save so closing always triggers refresh
+    const [didSave, setDidSave] = useState(false);
 
     // ── Inline add modals ─────────────────────────────────────────────────────
     const [addCustomerOpen, setAddCustomerOpen] = useState(false);
@@ -238,6 +239,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         mutationFn: createInvoice,
         onSuccess: (data) => {
             setSavedInvoice(data?.invoice);
+            setDidSave(true); // mark: table needs refresh when modal closes
             queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
             setStep(docType === "quote" ? 1 : 2);
@@ -251,6 +253,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             convertQuoteToInvoice(id, data),
         onSuccess: (data) => {
             setSavedInvoice(data?.invoice);
+            setDidSave(true);
             queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
             setStep(2);
@@ -266,22 +269,34 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             message.success("Payment recorded — invoice settled");
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
             queryClient.invalidateQueries({ queryKey: ["income-history"] });
+            // Payment success: call onSuccess then close cleanly
             onSuccess?.();
-            handleClose();
+            resetAndClose();
         },
         onError: (err: any) =>
             message.error(err?.response?.data?.message || "Failed to record payment"),
     });
 
-    // ── Handlers ──────────────────────────────────────────────────────────────
-    const handleClose = () => {
+    // ── Reset + close — always fires onSuccess if anything was saved ──────────
+    const resetAndClose = () => {
         form.resetFields();
         payForm.resetFields();
         setLines([newLine(vatEnabled ? standardVatRate : 0)]);
         setStep(0);
         setDocType("invoice");
         setSavedInvoice(null);
+        setDidSave(false);
+        setCustomTermInput("");
         onClose();
+    };
+
+    // Called for every close path (X button, Cancel, Skip, close after payment)
+    const handleClose = () => {
+        // If we successfully created/converted anything, refresh the table
+        if (didSave) {
+            onSuccess?.();
+        }
+        resetAndClose();
     };
 
     const buildPayload = (values: any, status: "Draft" | "Pending") => ({
@@ -581,10 +596,19 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                     <Col span={8}>
                         <Form.Item name="terms" label="Terms">
                             <Select
-                                placeholder="Select  terms"
+                                placeholder="Select terms"
                                 allowClear
-                                options={PAYMENT_TERMS}
+                                showSearch
+                                filterOption={(input, option) =>
+                                    (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                                }
+                                options={PRESET_TERMS.map((t) => ({ label: t.label, value: t.value }))}
+                                listHeight={220}
+                                dropdownStyle={{ paddingBottom: 0 }}
+                                searchValue={customTermInput}
+                                onSearch={(val) => setCustomTermInput(val)}
                                 onChange={(terms) => {
+                                    setCustomTermInput("");
                                     const issueDate = form.getFieldValue("issue_date");
                                     if (issueDate && terms) {
                                         const due = calcDueDate(issueDate, terms);
@@ -593,6 +617,58 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                                         form.setFieldValue("due_date", null);
                                     }
                                 }}
+                                dropdownRender={(menu) => (
+                                    <div>
+                                        {menu}
+                                        <div style={{
+                                            padding: "8px 12px",
+                                            borderTop: "1px solid #f0f0f0",
+                                            background: "#fafafa",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 6,
+                                        }}>
+                                            <span style={{ fontSize: 12, color: "#64748b", whiteSpace: "nowrap" }}>
+                                                Custom Net:
+                                            </span>
+                                            <InputNumber
+                                                size="small"
+                                                min={1}
+                                                max={365}
+                                                placeholder="days"
+                                                style={{ width: 72 }}
+                                                value={customTermInput ? parseInt(customTermInput) || undefined : undefined}
+                                                onChange={(val) => setCustomTermInput(val ? String(val) : "")}
+                                                onPressEnter={() => {
+                                                    const days = parseInt(customTermInput);
+                                                    if (!days || days < 1) return;
+                                                    const term = `Net ${days}`;
+                                                    form.setFieldValue("terms", term);
+                                                    setCustomTermInput("");
+                                                    const issueDate = form.getFieldValue("issue_date");
+                                                    if (issueDate) form.setFieldValue("due_date", calcDueDate(issueDate, term));
+                                                }}
+                                            />
+                                            <Button
+                                                size="small"
+                                                type="primary"
+                                                disabled={!customTermInput || parseInt(customTermInput) < 1}
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    const days = parseInt(customTermInput);
+                                                    if (!days || days < 1) return;
+                                                    const term = `Net ${days}`;
+                                                    form.setFieldValue("terms", term);
+                                                    setCustomTermInput("");
+                                                    const issueDate = form.getFieldValue("issue_date");
+                                                    if (issueDate) form.setFieldValue("due_date", calcDueDate(issueDate, term));
+                                                }}
+                                            >
+                                                Add
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             />
                         </Form.Item>
                     </Col>
@@ -734,7 +810,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                             name="account_id"
                             label="Deposit Account"
                             rules={[{ required: true, message: "Select the account receiving payment" }]}
-                            tooltip="Choose the cash or bank account where this payment is deposited. This determines the debit side of the journal entry."
+                            tooltip="Choose the cash or bank account where this payment is deposited."
                         >
                             <Select
                                 showSearch
@@ -795,6 +871,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             </Button>,
         ];
         if (step === 1) return [
+            // "Close" on step 1 = saved a quote, still trigger refresh
             <Button key="close" onClick={handleClose}>Close (save as quote)</Button>,
             <Button key="convert" type="primary"
                 loading={convertMutation.isPending}
@@ -804,6 +881,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             </Button>,
         ];
         if (step === 2) return [
+            // "Skip" = invoice already posted, must refresh table
             <Button key="skip" onClick={handleClose}>Skip — pay later</Button>,
             <Button key="pay" type="primary"
                 loading={payMutation.isPending}
@@ -863,7 +941,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                 {step === 2 && renderStep2()}
             </Modal>
 
-            {/* ── Add Customer — triggered from customer dropdown ── */}
             <AddCustomerModal
                 visible={addCustomerOpen}
                 onClose={() => setAddCustomerOpen(false)}
@@ -871,7 +948,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                 mode="add"
             />
 
-            {/* ── Add Revenue Account — triggered from line item account dropdown ── */}
             <AccountFormDrawer
                 open={addAccountOpen}
                 onClose={() => setAddAccountOpen(false)}
@@ -883,7 +959,6 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                 shopId={shopId}
             />
 
-            {/* ── Add Asset Account — triggered from deposit account dropdown (step 2) ── */}
             <AccountFormDrawer
                 open={addDepositAccountOpen}
                 onClose={() => setAddDepositAccountOpen(false)}

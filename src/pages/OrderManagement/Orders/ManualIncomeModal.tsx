@@ -21,13 +21,16 @@ const { TextArea } = Input;
 interface Props {
     open: boolean;
     onClose: () => void;
+    onSuccess?: () => void;
     defaultTab?: "expense" | "bill";
 }
 
 const numFormatter = (v: any) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const numParser = (v: any) => v!.replace(/,/g, "") as any;
 
-const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "expense" }) => {
+const ManualExpenseBillModal: React.FC<Props> = ({
+    open, onClose, onSuccess, defaultTab = "expense",
+}) => {
     const [expenseForm] = Form.useForm();
     const [billForm] = Form.useForm();
     const { message } = App.useApp();
@@ -37,7 +40,6 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
     const [expenseSupplierSearch, setExpenseSupplierSearch] = useState("");
     const [billSupplierSearch, setBillSupplierSearch] = useState("");
 
-    // ── Inline add modal state ────────────────────────────────────────────────
     const [expenseAddSupplierOpen, setExpenseAddSupplierOpen] = useState(false);
     const [billAddSupplierOpen, setBillAddSupplierOpen] = useState(false);
     const [addAccountOpen, setAddAccountOpen] = useState(false);
@@ -64,7 +66,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
         queryFn: () => fetchAllPaymentMethods({}),
         enabled: open,
     });
-    const paymentMethods = methodsData || [];
+    const paymentMethods: any[] = methodsData || [];
 
     const { data: expenseSuppliersData, isFetching: expenseSuppliersFetching } = useQuery({
         queryKey: ["suppliers-dropdown-expense", expenseSupplierSearch],
@@ -83,7 +85,13 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
     });
 
     // ── Options ───────────────────────────────────────────────────────────────
-    const methodOptions = paymentMethods.map((m: any) => ({ label: m.name, value: m._id }));
+    // FIX: keep full method object in value so we can read account_id on submit
+    const methodOptions = paymentMethods.map((m: any) => ({
+        label: m.name,
+        value: m._id,
+        // Store the linked COA account_id alongside so we can resolve it on submit
+        account_id: m.account_id || null,
+    }));
 
     const expenseAccountOptions = expenseAccts.map((a: any) => ({
         label: `${a.account_code} — ${a.account_name}`,
@@ -110,15 +118,13 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
         queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
     };
 
-    // ── Reusable dropdown footers ─────────────────────────────────────────────
-    // onMouseDown + e.preventDefault() — prevents Select closing before state setter fires.
+    // ── Dropdown render helpers ───────────────────────────────────────────────
     const supplierDropdownRender = (menu: React.ReactNode, onAdd: () => void) => (
         <>
             {menu}
             <Divider style={{ margin: "4px 0" }} />
             <Button
-                type="link"
-                icon={<PlusOutlined />}
+                type="link" icon={<PlusOutlined />}
                 style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
                 onMouseDown={(e) => { e.preventDefault(); onAdd(); }}
             >
@@ -127,15 +133,12 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
         </>
     );
 
-    // Single shared accountDropdownRender — both expense and bill account
-    // dropdowns open the same AccountFormDrawer (one instance, shared state).
     const accountDropdownRender = (menu: React.ReactNode) => (
         <>
             {menu}
             <Divider style={{ margin: "4px 0" }} />
             <Button
-                type="link"
-                icon={<PlusOutlined />}
+                type="link" icon={<PlusOutlined />}
                 style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
                 onMouseDown={(e) => { e.preventDefault(); setAddAccountOpen(true); }}
             >
@@ -147,11 +150,13 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
     // ── Mutations ─────────────────────────────────────────────────────────────
     const expenseMutation = useMutation({
         mutationFn: createExpense,
-        onSuccess: () => {
+        onSuccess: (res: any) => {
+            if (res?.warning) message.warning(res.warning);
             expenseForm.resetFields();
             queryClient.invalidateQueries({ queryKey: ["expenses"] });
             queryClient.invalidateQueries({ queryKey: ["expense-summary"] });
             queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+            onSuccess?.();
             onClose();
         },
         onError: (err: any) =>
@@ -160,11 +165,13 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
 
     const billMutation = useMutation({
         mutationFn: createBill,
-        onSuccess: () => {
+        onSuccess: (res: any) => {
+            if (res?.warning) message.warning(res.warning);
             billForm.resetFields();
             queryClient.invalidateQueries({ queryKey: ["bills"] });
             queryClient.invalidateQueries({ queryKey: ["bill-summary"] });
             queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+            onSuccess?.();
             onClose();
         },
         onError: (err: any) =>
@@ -193,8 +200,12 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                     vat_inclusive: false,
                 },
             ],
-            payment_account_id: v.method_id || undefined,
-            payment_method: "Cash",
+            // Direct COA account selected by user — no method lookup needed
+            payment_account_id: v.payment_account_id,
+            payment_method_id: v.method_id || undefined,
+            payment_method: v.method_id
+                ? (paymentMethods.find((m: any) => m._id === v.method_id)?.name || "Cash")
+                : "Cash",
             notes: v.notes || undefined,
             status: "Approved",
             currency: "KES",
@@ -225,6 +236,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                 },
             ],
             notes: v.notes || undefined,
+            // Bills are deferred — Pending until paid via Record Payment
             status: "Pending",
             currency: "KES",
         });
@@ -252,12 +264,6 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
         setExpenseSupplierSearch("");
         setBillSupplierSearch("");
     };
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Both forms are always mounted and toggled via display:none.
-    // Ant Design Form instances rely on a stable React subtree — unmounting
-    // via Tabs destroyInactiveTabPane causes field state bleed between tabs.
-    // ─────────────────────────────────────────────────────────────────────────
 
     return (
         <>
@@ -321,6 +327,12 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
 
                 {/* ── EXPENSE FORM ──────────────────────────────────────────── */}
                 <div style={{ display: activeTab === "expense" ? "block" : "none" }}>
+                    <Alert
+                        type="success"
+                        showIcon
+                        message="Expense posts instantly — cash is recorded as paid now."
+                        style={{ marginBottom: 16 }}
+                    />
                     <Form
                         form={expenseForm}
                         layout="vertical"
@@ -328,14 +340,9 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                     >
                         <Row gutter={16}>
                             <Col span={12}>
-                                <Form.Item
-                                    name="expense_date"
-                                    label="Date"
-                                    rules={[{ required: true }]}
-                                >
+                                <Form.Item name="expense_date" label="Date" rules={[{ required: true }]}>
                                     <DatePicker
-                                        showTime
-                                        style={{ width: "100%" }}
+                                        showTime style={{ width: "100%" }}
                                         format="DD MMM YYYY HH:mm"
                                     />
                                 </Form.Item>
@@ -347,11 +354,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                             </Col>
                         </Row>
 
-                        <Form.Item
-                            name="description"
-                            label="Description"
-                            rules={[{ required: true }]}
-                        >
+                        <Form.Item name="description" label="Description" rules={[{ required: true }]}>
                             <Input placeholder="e.g. Office rent — January 2025" />
                         </Form.Item>
 
@@ -361,16 +364,12 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                             tooltip="Link to a supplier for reporting"
                         >
                             <Select
-                                showSearch
-                                allowClear
-                                placeholder="Search supplier..."
+                                showSearch allowClear placeholder="Search supplier..."
                                 filterOption={false}
                                 onSearch={setExpenseSupplierSearch}
                                 loading={expenseSuppliersFetching}
                                 options={expenseSupplierOptions}
-                                notFoundContent={
-                                    expenseSuppliersFetching ? "Searching..." : "No suppliers found"
-                                }
+                                notFoundContent={expenseSuppliersFetching ? "Searching..." : "No suppliers found"}
                                 dropdownRender={(menu) =>
                                     supplierDropdownRender(menu, () => setExpenseAddSupplierOpen(true))
                                 }
@@ -381,12 +380,11 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                             <Col span={12}>
                                 <Form.Item
                                     name="method_id"
-                                    label="Paid From (CR)"
-                                    rules={[{ required: true }]}
-                                    tooltip="Which payment method / bank account was used?"
+                                    label="Payment Method"
+                                    tooltip="How was this paid?"
                                 >
                                     <Select
-                                        showSearch
+                                        showSearch allowClear
                                         placeholder="M-Pesa / Bank / Cash"
                                         options={methodOptions}
                                         optionFilterProp="label"
@@ -395,6 +393,29 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                             </Col>
                             <Col span={12}>
                                 <Form.Item
+                                    name="payment_account_id"
+                                    label="Paid From Account (CR)"
+                                    rules={[{ required: true, message: "Select the account cash left from" }]}
+                                    tooltip="Which bank/cash COA account was credited?"
+                                >
+                                    <Select
+                                        showSearch
+                                        placeholder="e.g. Cash on Hand, M-Pesa Float"
+                                        optionFilterProp="label"
+                                        options={allAccounts
+                                            .filter((a: any) => a.account_type === "ASSET" && a.is_active)
+                                            .map((a: any) => ({
+                                                label: `${a.account_code} — ${a.account_name}`,
+                                                value: a._id,
+                                            }))
+                                        }
+                                    />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                        <Row gutter={16}>
+                            <Col span={24}>
+                                <Form.Item
                                     name="expense_account_id"
                                     label="Expense Account (DR)"
                                     rules={[{ required: true }]}
@@ -402,7 +423,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                                 >
                                     <Select
                                         showSearch
-                                        placeholder="Expense account"
+                                        placeholder="e.g. Rent, Utilities, Salaries"
                                         options={expenseAccountOptions}
                                         optionFilterProp="label"
                                         dropdownRender={accountDropdownRender}
@@ -419,12 +440,8 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                                     rules={[{ required: true }, { type: "number", min: 0.01 }]}
                                 >
                                     <InputNumber
-                                        style={{ width: "100%" }}
-                                        min={0.01}
-                                        precision={2}
-                                        placeholder="0.00"
-                                        formatter={numFormatter}
-                                        parser={numParser}
+                                        style={{ width: "100%" }} min={0.01} precision={2}
+                                        placeholder="0.00" formatter={numFormatter} parser={numParser}
                                     />
                                 </Form.Item>
                             </Col>
@@ -432,15 +449,11 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                                 <Form.Item
                                     name="vat_amount"
                                     label="Input VAT (optional)"
-                                    tooltip="VAT you can reclaim — auto-posted to VAT Input account"
+                                    tooltip="VAT you can reclaim — auto-posted to VAT Input account (1350)"
                                 >
                                     <InputNumber
-                                        style={{ width: "100%" }}
-                                        min={0}
-                                        precision={2}
-                                        placeholder="0.00"
-                                        formatter={numFormatter}
-                                        parser={numParser}
+                                        style={{ width: "100%" }} min={0} precision={2}
+                                        placeholder="0.00" formatter={numFormatter} parser={numParser}
                                     />
                                 </Form.Item>
                             </Col>
@@ -454,34 +467,29 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
 
                 {/* ── BILL FORM ─────────────────────────────────────────────── */}
                 <div style={{ display: activeTab === "bill" ? "block" : "none" }}>
+                    <Alert
+                        type="info"
+                        showIcon
+                        message="Supplier bill stays Pending — use Record Payment on the Bills list when you pay."
+                        style={{ marginBottom: 16 }}
+                    />
                     <Form
                         form={billForm}
                         layout="vertical"
                         initialValues={{ issue_date: dayjs() }}
                     >
-                        <Alert
-                            type="info"
-                            showIcon
-                            message="Supplier bill records an amount owed to a supplier — stays Pending until paid."
-                            style={{ marginBottom: 16 }}
-                        />
-
                         <Form.Item
                             name="supplier_id"
                             label="Supplier"
                             rules={[{ required: true, message: "Supplier is required" }]}
                         >
                             <Select
-                                showSearch
-                                allowClear
-                                placeholder="Search supplier..."
+                                showSearch allowClear placeholder="Search supplier..."
                                 filterOption={false}
                                 onSearch={setBillSupplierSearch}
                                 loading={billSuppliersFetching}
                                 options={billSupplierOptions}
-                                notFoundContent={
-                                    billSuppliersFetching ? "Searching..." : "No suppliers found"
-                                }
+                                notFoundContent={billSuppliersFetching ? "Searching..." : "No suppliers found"}
                                 dropdownRender={(menu) =>
                                     supplierDropdownRender(menu, () => setBillAddSupplierOpen(true))
                                 }
@@ -498,20 +506,12 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
 
                         <Row gutter={16}>
                             <Col span={12}>
-                                <Form.Item
-                                    name="issue_date"
-                                    label="Bill Date"
-                                    rules={[{ required: true }]}
-                                >
+                                <Form.Item name="issue_date" label="Bill Date" rules={[{ required: true }]}>
                                     <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
                                 </Form.Item>
                             </Col>
                             <Col span={12}>
-                                <Form.Item
-                                    name="due_date"
-                                    label="Due Date"
-                                    rules={[{ required: true }]}
-                                >
+                                <Form.Item name="due_date" label="Due Date" rules={[{ required: true }]}>
                                     <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
                                 </Form.Item>
                             </Col>
@@ -525,7 +525,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                         >
                             <Select
                                 showSearch
-                                placeholder="Expense account"
+                                placeholder="e.g. Rent, Utilities, COGS"
                                 options={expenseAccountOptions}
                                 optionFilterProp="label"
                                 dropdownRender={accountDropdownRender}
@@ -540,24 +540,16 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                                     rules={[{ required: true }, { type: "number", min: 0.01 }]}
                                 >
                                     <InputNumber
-                                        style={{ width: "100%" }}
-                                        min={0.01}
-                                        precision={2}
-                                        placeholder="0.00"
-                                        formatter={numFormatter}
-                                        parser={numParser}
+                                        style={{ width: "100%" }} min={0.01} precision={2}
+                                        placeholder="0.00" formatter={numFormatter} parser={numParser}
                                     />
                                 </Form.Item>
                             </Col>
                             <Col span={12}>
                                 <Form.Item name="vat_amount" label="VAT Amount (optional)">
                                     <InputNumber
-                                        style={{ width: "100%" }}
-                                        min={0}
-                                        precision={2}
-                                        placeholder="0.00"
-                                        formatter={numFormatter}
-                                        parser={numParser}
+                                        style={{ width: "100%" }} min={0} precision={2}
+                                        placeholder="0.00" formatter={numFormatter} parser={numParser}
                                     />
                                 </Form.Item>
                             </Col>
@@ -570,36 +562,18 @@ const ManualExpenseBillModal: React.FC<Props> = ({ open, onClose, defaultTab = "
                 </div>
             </Modal>
 
-            {/* Add Supplier — Expense tab */}
             <AddProSupplierModal
                 externalOpen={expenseAddSupplierOpen}
-                onExternalClose={() => {
-                    setExpenseAddSupplierOpen(false);
-                    handleSupplierAdded();
-                }}
+                onExternalClose={() => { setExpenseAddSupplierOpen(false); handleSupplierAdded(); }}
             />
-
-            {/* Add Supplier — Bill tab */}
             <AddProSupplierModal
                 externalOpen={billAddSupplierOpen}
-                onExternalClose={() => {
-                    setBillAddSupplierOpen(false);
-                    handleSupplierAdded();
-                }}
+                onExternalClose={() => { setBillAddSupplierOpen(false); handleSupplierAdded(); }}
             />
-
-            {/*
-             * Add Expense Account — one instance shared by both tabs.
-             * Both account dropdowns call setAddAccountOpen(true) and both
-             * invalidate ["chart-of-accounts"], so a single drawer handles both.
-             */}
             <AccountFormDrawer
                 open={addAccountOpen}
                 onClose={() => setAddAccountOpen(false)}
-                onSuccess={() => {
-                    setAddAccountOpen(false);
-                    handleAccountAdded();
-                }}
+                onSuccess={() => { setAddAccountOpen(false); handleAccountAdded(); }}
                 accounts={allAccounts}
                 shopId={shopId}
             />
