@@ -474,7 +474,9 @@ const CalendarView = ({ onRegisterEditHandler }: CalendarViewProps) => {
     select: (data: any[]) =>
       data?.filter(u => {
         const rt = u.role?.role_type?.toLowerCase();
-        return rt !== "admin" && rt !== "cleaner";
+        const isActive = u.status === "Active";
+
+        return rt !== "admin" && rt !== "cleaner" && rt !== "cashier" && isActive;
       }) ?? [],
   });
 

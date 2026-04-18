@@ -1,8 +1,8 @@
 import React from "react";
 import CircleIcon from "@mui/icons-material/Circle";
 import { useAppDispatch, useAppSelector } from "../../store";
-import { Card, Typography, Switch, Tooltip } from "antd";
-import { DeleteFilled } from "@ant-design/icons";
+import { Card, Typography, Switch, Tooltip, message } from "antd";
+import { DeleteFilled, EditOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { deleteProduct, editProduct } from "@services/products";
 import StoreModal from "@components/MODALS/pro/StoreModal";
@@ -30,45 +30,96 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
   const primaryColor = usePrimaryColor();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
+
+  // Check if user is admin OR manager (for delete and disable operations)
   const isAdmin = user?.role === "admin";
+  const isManager = user?.role === "manager";
+  const canManageProducts = isAdmin || isManager; // For delete and disable
+  const canEdit = true; // Everyone can edit products
 
   const handleToggleDisabled = async () => {
-    if (!isAdmin) return;
+    if (!canManageProducts) {
+      message.warning("Only admins and managers can enable/disable products");
+      return;
+    }
     setToggling(true);
     const newDisabledState = !isDisabled;
     setIsDisabled(newDisabledState); // optimistic update
     try {
       await editProduct({ ...product, is_disabled: newDisabledState });
+      message.success(`Product ${newDisabledState ? "disabled" : "enabled"} successfully`);
     } catch {
       setIsDisabled(!newDisabledState); // revert on failure
+      message.error("Failed to update product status");
     } finally {
       setToggling(false);
     }
   };
 
-  // Frozen actions shown only when product is disabled — toggle only
+  const handleDelete = async () => {
+    if (!canManageProducts) {
+      message.warning("Only admins and managers can delete products");
+      return;
+    }
+    const confirm = await ShowConfirm({
+      title: `Are you sure you want to delete ${name}?`,
+      position: true,
+      description: "This action cannot be undone.",
+    });
+    if (confirm) {
+      try {
+        await dispatch(deleteProduct(productId));
+        message.success(`${name} deleted successfully`);
+      } catch (error) {
+        message.error("Failed to delete product");
+      }
+    }
+  };
+
+  // Frozen actions shown only when product is disabled
   const disabledActions = [
-    <div
-      key="frozen-recipe"
-      style={{ fontSize: 18, color: "#d1d5db", cursor: "not-allowed" }}
-      title="Product is disabled"
+    <RecipeModal
+      productId={product?._id}
+      key={product?._id}
+      activateInventory={product?.activateInventory}
+      productName={name}
+      disabled={isDisabled}
+    />,
+    <Tooltip
+      key="edit-tooltip"
+      title="Edit product"
     >
-      <span style={{ fontSize: 16, opacity: 0.3 }}>📋</span>
-    </div>,
-    <div
-      key="frozen-edit"
-      style={{ fontSize: 18, color: "#d1d5db", cursor: "not-allowed" }}
-      title="Product is disabled"
+      <div>
+        <StoreModal
+          edit={true}
+          data={product}
+          trigger={
+            <EditOutlined
+              style={{
+                fontSize: 18,
+                color: primaryColor,
+                cursor: "pointer",
+              }}
+            />
+          }
+        />
+      </div>
+    </Tooltip>,
+    <Tooltip
+      key="delete-tooltip"
+      title={!canManageProducts ? "Only admins and managers can delete products" : "Delete product"}
     >
-      <span style={{ fontSize: 16, opacity: 0.3 }}>✏️</span>
-    </div>,
-    <div
-      key="frozen-delete"
-      style={{ fontSize: 18, color: "#d1d5db", cursor: "not-allowed" }}
-      title="Product is disabled"
-    >
-      <DeleteFilled style={{ fontSize: 18, color: "#d1d5db", opacity: 0.3 }} />
-    </div>,
+      <DeleteFilled
+        key="delete"
+        onClick={handleDelete}
+        style={{
+          fontSize: 18,
+          color: canManageProducts ? "#ef4444" : "#9ca3af",
+          cursor: canManageProducts ? "pointer" : "not-allowed",
+          opacity: canManageProducts ? 1 : 0.5,
+        }}
+      />
+    </Tooltip>,
   ];
 
   // Normal actions shown when product is active
@@ -79,27 +130,49 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
       activateInventory={product?.activateInventory}
       productName={name}
     />,
-    <StoreModal edit={true} data={product} />,
-    <DeleteFilled
-      key="delete"
-      onClick={async () => {
-        if (!isAdmin) return;
-        const confirm = await ShowConfirm({
-          title: `Are you sure you want to delete ${name}?`,
-          position: true,
-        });
-        if (confirm) {
-          dispatch(deleteProduct(productId));
-        }
-      }}
-      style={{
-        fontSize: 18,
-        color: isAdmin ? "#ef4444" : "gray",
-        pointerEvents: !isAdmin ? "none" : "auto",
-        opacity: !isAdmin ? 0.5 : 1,
-      }}
-    />,
+    <Tooltip
+      key="edit-tooltip"
+      title="Edit product"
+    >
+      <div>
+        <StoreModal
+          edit={true}
+          data={product}
+          trigger={
+            <EditOutlined
+              style={{
+                fontSize: 18,
+                color: primaryColor,
+                cursor: "pointer",
+              }}
+            />
+          }
+        />
+      </div>
+    </Tooltip>,
+    <Tooltip
+      key="delete-tooltip"
+      title={!canManageProducts ? "Only admins and managers can delete products" : "Delete product"}
+    >
+      <DeleteFilled
+        key="delete"
+        onClick={handleDelete}
+        style={{
+          fontSize: 18,
+          color: canManageProducts ? "#ef4444" : "#9ca3af",
+          cursor: canManageProducts ? "pointer" : "not-allowed",
+          opacity: canManageProducts ? 1 : 0.5,
+        }}
+      />
+    </Tooltip>,
   ];
+
+  // Get role badge text
+  const getRoleBadge = () => {
+    if (isAdmin) return "Admin";
+    if (isManager) return "Manager";
+    return "Staff";
+  };
 
   return (
     <Card
@@ -132,7 +205,6 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
             zIndex: 10,
             borderRadius: 10,
             cursor: "not-allowed",
-            // Leave room for the actions row at the bottom (~53px) and toggle area at top (~36px)
             bottom: 53,
             top: 36,
           }}
@@ -143,7 +215,8 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
       <div
         style={{
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
+          alignItems: "center",
           marginBottom: 6,
           position: "relative",
           zIndex: 11, // always above the overlay so toggle is always clickable
@@ -151,24 +224,40 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
       >
         <Tooltip
           title={
-            !isAdmin
-              ? "Only admins can enable/disable services"
+            !canManageProducts
+              ? "Only admins and managers can enable/disable products"
               : isDisabled
-                ? "Enable service at POS"
-                : "Disable service at POS"
+                ? "Enable product at POS"
+                : "Disable product at POS"
           }
         >
           <Switch
             size="small"
             checked={!isDisabled}
             loading={toggling}
-            disabled={!isAdmin}
+            disabled={!canManageProducts}
             onChange={handleToggleDisabled}
             style={{
               backgroundColor: isDisabled ? "#d1d5db" : "#6c1c2c",
             }}
           />
         </Tooltip>
+
+        {/* Role indicator */}
+        {/* <Tooltip title={`Role: ${getRoleBadge()}`}>
+          <div
+            style={{
+              fontSize: 9,
+              padding: "2px 6px",
+              borderRadius: 4,
+              backgroundColor: isAdmin ? "#ef4444" : isManager ? "#f59e0b" : "#9ca3af",
+              color: "#fff",
+              fontWeight: 500,
+            }}
+          >
+            {getRoleBadge()}
+          </div>
+        </Tooltip> */}
       </div>
 
       <Typography.Title
