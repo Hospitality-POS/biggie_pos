@@ -5,7 +5,7 @@ import {
     EnvironmentOutlined, EyeOutlined, GiftOutlined, HistoryOutlined,
     IdcardOutlined, MailOutlined, MoreOutlined, ReloadOutlined,
     SearchOutlined, StarFilled, TeamOutlined, TrophyOutlined,
-    UserAddOutlined, UserOutlined,
+    UserAddOutlined, UserOutlined, PhoneOutlined,
 } from "@ant-design/icons";
 import { App, Button, Drawer, Dropdown, Form, Input, Modal, Table, Typography } from "antd";
 import { fetchAllCustomers, fetchAllGiftCards } from "@services/customers";
@@ -471,6 +471,8 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         const [mobilePage, setMobilePage] = useState(1);
         const [mobileLoading, setMobileLoading] = useState(false);
         const [mobileSearch, setMobileSearch] = useState("");
+        const [mobilePhoneSearch, setMobilePhoneSearch] = useState("");
+        const [mobileEmailSearch, setMobileEmailSearch] = useState("");
 
         const { message: messageApi } = App.useApp();
 
@@ -478,7 +480,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             reload: () => {
                 actionRef.current?.reload();
                 loadAllForStats();
-                if (isMobile) loadMobileData(1, mobileSearch);
+                if (isMobile) loadMobileData(1, mobileSearch, mobilePhoneSearch, mobileEmailSearch);
             },
         }));
 
@@ -497,11 +499,14 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
 
         useEffect(() => { loadAllForStats(); }, []);
 
-        const loadMobileData = async (page: number, search?: string) => {
+        const loadMobileData = async (page: number, name?: string, phone?: string, email?: string) => {
             setMobileLoading(true);
             try {
                 const params: any = { current: page, pageSize: 15 };
-                if (search) params.customer_name = search;
+                if (name) params.customer_name = name;
+                if (phone) params.phone = phone;
+                if (email) params.email = email;
+
                 const res = await fetchAllCustomers(params);
                 const incoming = Array.isArray(res) ? res : res?.data || [];
                 const total = Array.isArray(res) ? incoming.length : res?.total || incoming.length;
@@ -517,10 +522,17 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
 
         useEffect(() => { if (isMobile) loadMobileData(1); }, [isMobile]);
 
-        const handleMobileSearch = (search: string) => {
-            setMobileSearch(search);
+        const handleMobileSearch = () => {
             setMobileData([]);
-            loadMobileData(1, search);
+            loadMobileData(1, mobileSearch, mobilePhoneSearch, mobileEmailSearch);
+        };
+
+        const clearMobileSearch = () => {
+            setMobileSearch("");
+            setMobilePhoneSearch("");
+            setMobileEmailSearch("");
+            setMobileData([]);
+            loadMobileData(1, "", "", "");
         };
 
         const getLastVisit = (visits: any[]) => {
@@ -620,14 +632,15 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             },
             {
                 title: "Email", dataIndex: "email", copyable: true,
-                fieldProps: { placeholder: "Customer Email" },
+                fieldProps: { placeholder: "Search by email..." },
                 render: (text: string) => (
                     <Text style={{ fontSize: 12, color: C.subText }}>{text || "—"}</Text>
                 ),
             },
             {
-                title: "Phone", dataIndex: "phone", copyable: true, search: false,
-                render: (phone: string) => <Text style={{ fontSize: 12 }}>{phone}</Text>,
+                title: "Phone", dataIndex: "phone", copyable: true,
+                fieldProps: { placeholder: "Search by phone..." },
+                render: (phone: string) => <Text style={{ fontSize: 12 }}>{phone || "—"}</Text>,
             },
             {
                 title: "Location", dataIndex: "location", search: false,
@@ -861,20 +874,45 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                             <Text style={{ fontSize: 11, color: C.subText }}>{mobileTotal} total</Text>
                         </div>
                         <Button icon={<ReloadOutlined />}
-                            onClick={() => { setMobileData([]); loadMobileData(1, mobileSearch); loadAllForStats(); }}
+                            onClick={() => { setMobileData([]); loadMobileData(1, mobileSearch, mobilePhoneSearch, mobileEmailSearch); loadAllForStats(); }}
                             style={{ borderRadius: 8 }} />
                     </div>
 
-                    <Form form={searchForm} onFinish={v => handleMobileSearch(v.search || "")} style={{ marginBottom: 12 }}>
-                        <Form.Item name="search" style={{ margin: 0 }}>
-                            <Input
-                                prefix={<SearchOutlined style={{ color: C.subText }} />}
-                                placeholder="Search by name, code, email…"
-                                allowClear style={{ borderRadius: 8 }}
-                                onChange={e => { if (!e.target.value) handleMobileSearch(""); }}
-                            />
-                        </Form.Item>
-                    </Form>
+                    {/* Search inputs for mobile */}
+                    <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                        <Input
+                            prefix={<SearchOutlined style={{ color: C.subText }} />}
+                            placeholder="Search by name or code..."
+                            value={mobileSearch}
+                            onChange={e => setMobileSearch(e.target.value)}
+                            allowClear
+                            style={{ borderRadius: 8 }}
+                        />
+                        <Input
+                            prefix={<PhoneOutlined style={{ color: C.subText }} />}
+                            placeholder="Search by phone number..."
+                            value={mobilePhoneSearch}
+                            onChange={e => setMobilePhoneSearch(e.target.value)}
+                            allowClear
+                            style={{ borderRadius: 8 }}
+                        />
+                        <Input
+                            prefix={<MailOutlined style={{ color: C.subText }} />}
+                            placeholder="Search by email..."
+                            value={mobileEmailSearch}
+                            onChange={e => setMobileEmailSearch(e.target.value)}
+                            allowClear
+                            style={{ borderRadius: 8 }}
+                        />
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <Button type="primary" onClick={handleMobileSearch} style={{ flex: 1, borderRadius: 8 }}>
+                                Search
+                            </Button>
+                            <Button onClick={clearMobileSearch} style={{ flex: 1, borderRadius: 8 }}>
+                                Clear
+                            </Button>
+                        </div>
+                    </div>
 
                     {mobileData.length === 0 && !mobileLoading && (
                         <div style={{
@@ -897,7 +935,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
 
                     {mobileData.length < mobileTotal && (
                         <Button block loading={mobileLoading}
-                            onClick={() => loadMobileData(mobilePage + 1, mobileSearch)}
+                            onClick={() => loadMobileData(mobilePage + 1, mobileSearch, mobilePhoneSearch, mobileEmailSearch)}
                             style={{ borderRadius: 8, marginTop: 4, borderColor: C.border }}>
                             Load More
                         </Button>

@@ -436,11 +436,15 @@ const MessageThread: React.FC<Props> = ({
 }) => {
     const { message: antMessage } = App.useApp();
     const queryClient = useQueryClient();
-    const bottomRef = useRef<HTMLDivElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
+    const [isAutoScroll, setIsAutoScroll] = useState(true);
 
     const [text, setText] = useState("");
     const [page, setPage] = useState(1);
     const [allMessages, setAllMessages] = useState<Message[]>([]);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [templateModalOpen, setTemplateModalOpen] = useState(false);
     const [customMessageOpen, setCustomMessageOpen] = useState(false);
 
@@ -449,45 +453,72 @@ const MessageThread: React.FC<Props> = ({
     const isWhatsApp = conversation.channel === "whatsapp";
     const windowOpen = conversation.is_window_open;
 
-    // ── Fetch messages ─────────────────────────────────────────────────────────
+    // ── Fetch messages (oldest first, then we'll reverse for display) ─────────
 
-    const { data, isLoading } = useQuery({
+    const { data, isLoading, refetch } = useQuery({
         queryKey: ["messages", conversation._id, page],
         queryFn: () => fetchMessages(conversation._id, { page, limit: 30 }),
         enabled: !!conversation._id,
-        refetchInterval: 8_000,
+        refetchInterval: 8000,
     });
 
+    // Handle pagination - load older messages (append to top)
     useEffect(() => {
         if (data?.messages) {
+            // API returns messages from oldest to newest per page
+            // For page 1: messages [1-30] (oldest first)
+            // For page 2: messages [31-60] (older messages)
+
             if (page === 1) {
-                setAllMessages(data.messages.slice().reverse());
+                // First page: store as is (oldest to newest)
+                setAllMessages(data.messages);
             } else {
-                setAllMessages((prev) => [
-                    ...data.messages.slice().reverse(),
-                    ...prev,
-                ]);
+                // Load more: prepend older messages to the beginning
+                setAllMessages(prev => [...data.messages, ...prev]);
             }
+            setHasMore(data.hasMore);
+            setIsLoadingMore(false);
         }
     }, [data, page]);
 
+    // Reset when conversation changes
     useEffect(() => {
         setPage(1);
         setAllMessages([]);
+        setHasMore(true);
         setText("");
+        setIsAutoScroll(true);
     }, [conversation._id]);
 
+    // Scroll to bottom when new messages arrive (only if auto-scroll is enabled)
     useEffect(() => {
-        if (page === 1) {
-            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (isAutoScroll && messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
         }
-    }, [allMessages, page]);
+    }, [allMessages, isAutoScroll]);
 
+    // Mark as read when conversation is opened
     useEffect(() => {
         if (conversation.unread_count > 0) {
             markConversationAsRead(conversation._id).catch(() => { });
         }
     }, [conversation._id, conversation.unread_count]);
+
+    // Handle scroll to detect when user scrolls up to load more
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        const isAtTop = target.scrollTop === 0;
+
+        // Check if user is at the bottom (within 100px)
+        const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+        setIsAutoScroll(isAtBottom);
+
+        // Load more messages when scrolling to top
+        if (isAtTop && hasMore && !isLoadingMore && page > 0) {
+            setIsLoadingMore(true);
+            setPage(prev => prev + 1);
+        }
+    }, [hasMore, isLoadingMore, page]);
 
     // ── Send text message ──────────────────────────────────────────────────────
 
@@ -499,14 +530,17 @@ const MessageThread: React.FC<Props> = ({
             }),
         onSuccess: () => {
             setText("");
-            queryClient.invalidateQueries({ queryKey: ["messages", conversation._id] });
+            refetch();
             onMessageSent();
             onConversationUpdate();
+            // Scroll to bottom after sending
+            setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
         },
         onError: (error: any) => {
             if (error?.response?.data?.window_expired) {
                 antMessage.warning("24hr window expired. Sending as template instead.");
-                // Auto-send as template when window is closed
                 sendAsTemplate(text.trim());
             } else {
                 antMessage.error("Failed to send message");
@@ -527,9 +561,12 @@ const MessageThread: React.FC<Props> = ({
         onSuccess: () => {
             antMessage.success("Message sent successfully via template");
             setCustomMessageOpen(false);
-            queryClient.invalidateQueries({ queryKey: ["messages", conversation._id] });
+            refetch();
             onMessageSent();
             onConversationUpdate();
+            setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
         },
         onError: () => {
             antMessage.error("Failed to send message. Please try a different template.");
@@ -555,9 +592,12 @@ const MessageThread: React.FC<Props> = ({
         onSuccess: () => {
             antMessage.success("Template message sent successfully");
             setTemplateModalOpen(false);
-            queryClient.invalidateQueries({ queryKey: ["messages", conversation._id] });
+            refetch();
             onMessageSent();
             onConversationUpdate();
+            setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
         },
         onError: () => {
             antMessage.error("Failed to send template message");
@@ -568,7 +608,6 @@ const MessageThread: React.FC<Props> = ({
         if (!text.trim()) return;
 
         if (isWhatsApp && !windowOpen) {
-            // Window is closed, offer to send as template
             setCustomMessageOpen(true);
         } else {
             sendMutation.mutate();
@@ -599,7 +638,7 @@ const MessageThread: React.FC<Props> = ({
 
     const statusMutation = useMutation({
         mutationFn: (status: ConversationStatus) =>
-            updateConversationStatus(conversation._id, status), // Make sure conversation._id is a string
+            updateConversationStatus(conversation._id, status),
         onSuccess: () => onConversationUpdate(),
     });
 
@@ -643,7 +682,7 @@ const MessageThread: React.FC<Props> = ({
                     background: "#fff",
                 }}
             >
-                {/* ── Header ── */}
+                {/* Header */}
                 <div
                     style={{
                         padding: "10px 16px",
@@ -737,24 +776,35 @@ const MessageThread: React.FC<Props> = ({
                     </Space>
                 </div>
 
-                {/* ── Messages ── */}
+                {/* Messages Container - with scroll handling */}
                 <div
+                    ref={messagesContainerRef}
+                    onScroll={handleScroll}
                     style={{
                         flex: 1,
                         overflowY: "auto",
                         padding: "12px 16px",
                         background: "#fafafa",
+                        display: "flex",
+                        flexDirection: "column",
                     }}
                 >
-                    {data?.hasMore && (
+                    {/* Loading indicator for older messages */}
+                    {isLoadingMore && (
                         <div style={{ textAlign: "center", marginBottom: 12 }}>
-                            <Button
-                                size="small"
-                                type="text"
-                                onClick={() => setPage((p) => p + 1)}
-                            >
-                                Load earlier messages
-                            </Button>
+                            <Spin size="small" />
+                            <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                                Loading older messages...
+                            </Text>
+                        </div>
+                    )}
+
+                    {/* No more messages indicator */}
+                    {!hasMore && allMessages.length > 0 && (
+                        <div style={{ textAlign: "center", marginBottom: 12 }}>
+                            <Text type="secondary" style={{ fontSize: 11 }}>
+                                ─── Beginning of conversation ───
+                            </Text>
                         </div>
                     )}
 
@@ -784,10 +834,12 @@ const MessageThread: React.FC<Props> = ({
                             </div>
                         ))
                     )}
-                    <div ref={bottomRef} />
+
+                    {/* Scroll anchor - always at bottom */}
+                    <div ref={messagesEndRef} />
                 </div>
 
-                {/* ── Input area ── */}
+                {/* Input area */}
                 <div
                     style={{
                         padding: "10px 12px",

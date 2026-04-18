@@ -31,6 +31,9 @@ import {
   WarningOutlined,
   FontColorsOutlined,
   PercentageOutlined,
+  IdcardOutlined,
+  ZoomInOutlined,
+  ZoomOutOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -45,6 +48,7 @@ import {
   message,
   Tooltip,
   Segmented,
+  Slider as AntSlider,
 } from "antd";
 import { ModalForm } from "@ant-design/pro-form";
 import { useAppSelector } from "src/store";
@@ -164,22 +168,26 @@ async function attemptSave(
   }
 }
 
-// ── Receipt styles helper — switches between bold and normal ───────────────
-const makeReceiptStyles = (bold: boolean) => {
+// ── Receipt styles helper — supports font size and weight ───────────────
+const makeReceiptStyles = (bold: boolean, fontSize: number) => {
   const weight = bold ? 700 : 400;
   const headerWeight = bold ? 900 : 600;
   const base = { fontFamily: "'Courier New', Courier, monospace", color: "#000000" };
+  const baseFontSize = `${fontSize}px`;
+  const smallFontSize = `${fontSize - 1}px`;
+  const smallerFontSize = `${fontSize - 1.5}px`;
+
   return {
-    shopName: { ...base, fontSize: "1.35em", fontWeight: headerWeight, letterSpacing: "0.5px" },
-    docType: { ...base, fontSize: "1.5em", fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
-    meta: { ...base, fontSize: "1.0em", fontWeight: weight },
-    label: { ...base, fontSize: "1.05em", fontWeight: bold ? 700 : 500 },
-    value: { ...base, fontSize: "1.05em", fontWeight: weight },
-    tblHdr: { padding: "4px 2px", fontWeight: headerWeight, fontSize: "1.05em", color: "#000", borderBottom: "1px solid #000" },
-    tblData: { padding: "3px 2px", fontWeight: weight, fontSize: "1.0em", color: "#000" },
-    total: { ...base, fontSize: "1.35em", fontWeight: headerWeight },
-    footer: { ...base, fontSize: "0.95em", fontWeight: weight, textAlign: "center" as const },
-    clientHdr: { ...base, fontSize: "1.05em", fontWeight: headerWeight, letterSpacing: "1px" },
+    shopName: { ...base, fontSize: `${fontSize + 2}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
+    docType: { ...base, fontSize: `${fontSize + 4}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
+    meta: { ...base, fontSize: smallFontSize, fontWeight: weight },
+    label: { ...base, fontSize: baseFontSize, fontWeight: bold ? 700 : 500 },
+    value: { ...base, fontSize: baseFontSize, fontWeight: weight },
+    tblHdr: { padding: "4px 2px", fontWeight: headerWeight, fontSize: baseFontSize, color: "#000", borderBottom: "1px solid #000" },
+    tblData: { padding: "3px 2px", fontWeight: weight, fontSize: smallFontSize, color: "#000" },
+    total: { ...base, fontSize: `${fontSize + 2}px`, fontWeight: headerWeight },
+    footer: { ...base, fontSize: smallerFontSize, fontWeight: weight, textAlign: "center" as const },
+    clientHdr: { ...base, fontSize: baseFontSize, fontWeight: headerWeight, letterSpacing: "1px" },
   };
 };
 
@@ -207,6 +215,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   const [isPdfView, setIsPdfView] = useState(false);
   const [isBold, setIsBold] = useState(true);
+  const [fontSize, setFontSize] = useState(11); // Base font size in pixels
   const [showDiscount, setShowDiscount] = useState(true);
   const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
@@ -233,11 +242,12 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     data,
   });
 
-  // Client info helpers
+  // Client info helpers with KRA PIN
   const clientName = cartDetails?.client_name ?? cartDetails?.clientName ?? null;
-  const clientPhone = cartDetails?.client_pin ?? cartDetails?.clientPin ?? null;
-  const clientEmail = cartDetails?.client_email ?? null;
-  const hasClient = !!(clientName || clientPhone || clientEmail);
+  const clientPhone = cartDetails?.client_phone ?? cartDetails?.clientPhone ?? null;
+  const clientEmail = cartDetails?.client_email ?? cartDetails?.clientEmail ?? null;
+  const clientKraPin = cartDetails?.client_kra_pin ?? cartDetails?.clientKraPin ?? cartDetails?.client_pin ?? null;
+  const hasClient = !!(clientName || clientPhone || clientEmail || clientKraPin);
 
   const discountAmount =
     cartDetails?.discount > 0
@@ -247,9 +257,6 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
       : 0;
 
   // ── Display price helper ───────────────────────────────────────────────
-  // When the discount is hidden, we bake the discount proportionally into each
-  // item's displayed price so the total still reconciles without revealing the
-  // discount line to the customer.
   const getDisplayPrice = useCallback(
     (item: any): number => {
       if (showDiscount || discountAmount === 0) return item.price;
@@ -365,7 +372,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   };
 
   // ── Styles ─────────────────────────────────────────────────────────────
-  const S = makeReceiptStyles(isBold);
+  const S = makeReceiptStyles(isBold, fontSize);
 
   const pdfBase = { fontFamily: "'Segoe UI', Roboto, sans-serif", color: "#333" };
   const pdfHdr = { ...pdfBase, fontSize: "28px", fontWeight: 700, color: "#1a1a1a" };
@@ -378,12 +385,20 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const printDateStr = printDate.toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" });
   const printTimeStr = `${String(printDate.getHours()).padStart(2, "0")}:${String(printDate.getMinutes()).padStart(2, "0")}`;
 
+  // Font size presets
+  const fontSizes = [
+    { value: 9, label: "Small" },
+    { value: 11, label: "Normal" },
+    { value: 13, label: "Large" },
+    { value: 15, label: "X-Large" },
+  ];
+
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <>
       <ModalForm
         className="receiptM"
-        modalProps={{ centered: true, destroyOnClose: true, width: isPdfView ? 900 : 620 }}
+        modalProps={{ centered: true, destroyOnClose: true, width: isPdfView ? 900 : 680 }}
         submitter={{
           render: (_, defaultDoms) => (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
@@ -463,7 +478,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             </Tag>
           </div>
 
-          {/* Row 2: Format + Bold toggle */}
+          {/* Row 2: Format + Font controls */}
           <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
             {/* Format toggle */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -484,35 +499,64 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             {/* Divider */}
             <div style={{ width: 1, height: 24, background: "#e5e7eb" }} />
 
-            {/* Bold toggle — thermal only */}
+            {/* Font controls — thermal only */}
             {!isPdfView && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <FontColorsOutlined style={{ fontSize: 16, color: "#6b7280" }} />
-                <span style={{ fontSize: 13, color: "#374151" }}>Text Weight:</span>
-                <Segmented
-                  size="small"
-                  value={isBold ? "bold" : "normal"}
-                  onChange={(v) => setIsBold(v === "bold")}
-                  options={[
-                    {
-                      label: (
-                        <Tooltip title="Bold — high contrast, easy to scan">
-                          <span style={{ fontWeight: 700, fontSize: 13 }}>Bold</span>
-                        </Tooltip>
-                      ),
-                      value: "bold",
-                    },
-                    {
-                      label: (
-                        <Tooltip title="Normal — cleaner, lighter look">
-                          <span style={{ fontWeight: 400, fontSize: 13 }}>Normal</span>
-                        </Tooltip>
-                      ),
-                      value: "normal",
-                    },
-                  ]}
-                />
-              </div>
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <FontColorsOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  <span style={{ fontSize: 13, color: "#374151" }}>Text Weight:</span>
+                  <Segmented
+                    size="small"
+                    value={isBold ? "bold" : "normal"}
+                    onChange={(v) => setIsBold(v === "bold")}
+                    options={[
+                      {
+                        label: (
+                          <Tooltip title="Bold — high contrast, easy to scan">
+                            <span style={{ fontWeight: 700, fontSize: 13 }}>Bold</span>
+                          </Tooltip>
+                        ),
+                        value: "bold",
+                      },
+                      {
+                        label: (
+                          <Tooltip title="Normal — cleaner, lighter look">
+                            <span style={{ fontWeight: 400, fontSize: 13 }}>Normal</span>
+                          </Tooltip>
+                        ),
+                        value: "normal",
+                      },
+                    ]}
+                  />
+                </div>
+
+                <div style={{ width: 1, height: 24, background: "#e5e7eb" }} />
+
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
+                  <Tooltip title="Font Size">
+                    <ZoomInOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  </Tooltip>
+                  <AntSlider
+                    min={8}
+                    max={16}
+                    value={fontSize}
+                    onChange={setFontSize}
+                    style={{ width: 120, margin: 0 }}
+                    tooltip={{ formatter: (v) => `${v}px` }}
+                  />
+                  <ZoomOutOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  <span style={{ fontSize: 12, color: "#6b7280", minWidth: 45 }}>
+                    {fontSize}px
+                  </span>
+                  <Select
+                    value={fontSize}
+                    onChange={setFontSize}
+                    size="small"
+                    style={{ width: 100 }}
+                    options={fontSizes.map(fs => ({ label: fs.label, value: fs.value }))}
+                  />
+                </div>
+              </>
             )}
           </div>
 
@@ -591,7 +635,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             <span style={S.meta}>Time: {printTimeStr}</span>
           </div>
 
-          {/* Client section — spa-specific */}
+          {/* Client section — spa-specific with KRA PIN */}
           {hasClient && (
             <>
               <DashedLine />
@@ -600,6 +644,11 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 {clientName && <div style={S.meta}>Name:  {clientName}</div>}
                 {clientPhone && <div style={S.meta}>Phone: {clientPhone}</div>}
                 {clientEmail && <div style={S.meta}>Email: {clientEmail}</div>}
+                {clientKraPin && (
+                  <div style={{ ...S.meta, marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                    <IdcardOutlined style={{ fontSize: fontSize - 2 }} /> KRA PIN: {clientKraPin}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -624,7 +673,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top", wordBreak: "break-word" }}>
                       {item?.product_id?.name}
                       {item.quantity > 1 && (
-                        <div style={{ ...S.meta, fontSize: "0.85em", color: "#555" }}>
+                        <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#555" }}>
                           @ {displayPrice.toFixed(2)} each
                         </div>
                       )}
@@ -642,9 +691,6 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
           {/* Totals — right-aligned block */}
           <div style={{ paddingLeft: "30%" }}>
-            {/* Only show raw subtotal when discount is visible; when hidden the
-                item prices already absorb the discount, so we skip the raw subtotal
-                to avoid confusing the customer with a number that doesn't match. */}
             {(showDiscount || discountAmount === 0) && (
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
                 <span style={S.value}>Subtotal</span>
@@ -691,7 +737,9 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             <div style={S.footer}>Thank you for your {documentType === "quotation" ? "interest" : "visit"}!</div>
             <div style={S.footer}>{EMAIL_URL}</div>
             <div style={S.footer}>Printed: {printDateStr} {printTimeStr}</div>
-            <div style={{ ...S.footer, marginTop: 4, fontSize: "0.85em", color: "#555" }}>Powered By  BasePoint Cloud</div>
+            <div style={{ ...S.footer, marginTop: 4, fontSize: `${fontSize - 2}px`, color: "#555" }}>
+              Powered By BasePoint Cloud
+            </div>
           </div>
         </div>
 
@@ -739,7 +787,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Box>
             </Box>
 
-            {/* Client section */}
+            {/* Client section with KRA PIN */}
             {hasClient && (
               <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", p: "12px 16px", mb: 3 }}>
                 <UserOutlined style={{ fontSize: 20, color: "#16a34a", marginTop: 2 }} />
@@ -748,6 +796,11 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                   {clientName && <Typography style={pdfNorm}>Name: {clientName}</Typography>}
                   {clientPhone && <Typography style={pdfNorm}>Phone: {clientPhone}</Typography>}
                   {clientEmail && <Typography style={pdfNorm}>Email: {clientEmail}</Typography>}
+                  {clientKraPin && (
+                    <Typography style={{ ...pdfNorm, marginTop: 2 }}>
+                      <IdcardOutlined style={{ marginRight: 4 }} /> KRA PIN: {clientKraPin}
+                    </Typography>
+                  )}
                 </Box>
               </Box>
             )}
@@ -779,7 +832,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Table>
             </TableContainer>
 
-            {/* Discount banner — only shown when discount is visible */}
+            {/* Discount banner */}
             {showDiscount && discountAmount > 0 && (
               <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
                 <Box sx={{ backgroundColor: "#fff9e6", border: "2px solid #ffa500", borderRadius: "8px", px: 2, py: 1, display: "inline-flex", alignItems: "center", gap: 1 }}>
@@ -796,7 +849,6 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
             {/* Totals box */}
             <Box sx={{ ml: "auto", maxWidth: "380px", p: 2, backgroundColor: "#f9f9f9", borderRadius: 2, border: "1px solid #e2e8f0" }}>
-              {/* Only show raw subtotal when discount is visible */}
               {(showDiscount || discountAmount === 0) && (
                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                   <Typography style={pdfNorm}>Subtotal</Typography>
@@ -841,7 +893,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Typography>
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Email: {EMAIL_URL}</Typography>
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Printed: {printDateStr} {printTimeStr}</Typography>
-              <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By  BasePoint Cloud</Typography>
+              <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By BasePoint Cloud</Typography>
             </Box>
           </div>
         )}
