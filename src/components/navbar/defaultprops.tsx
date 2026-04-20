@@ -22,6 +22,7 @@ import {
   FileDoneOutlined,
   MessageOutlined,
   CustomerServiceOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import { PeopleOutlined } from "@mui/icons-material";
 import { useAppSelector } from "src/store";
@@ -29,7 +30,6 @@ import React from "react";
 import { makePermissionChecker } from "@utils/accessControl";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
-
 const makeTile = (color: string, pathD: string): string => {
   const svg = [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">',
@@ -66,6 +66,8 @@ const ICONS = {
   documents: 'M20 6h-2.18c.07-.44.18-.88.18-1.38 0-2.57-2.04-4.62-4.5-4.62S9 2.05 9 4.62c0 .5.11.94.18 1.38H7C5.9 6 5 6.9 5 8v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 0H10V4.62C10 3.17 11.12 2 12.5 2S15 3.17 15 4.62V6h-1zm1 5H9v-2h6v2zm4 4H9v-2h10v2z',
   omnichannel: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z',
   mteja: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z',
+  // ── Multi-currency icon ──────────────────────────────────────────────────
+  currency: 'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z',
 };
 
 // ─── Route → permission gate map ─────────────────────────────────────────────
@@ -82,6 +84,8 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/documents": "DOCUMENTS_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/mteja": "CUSTOMERS_VIEW",
+  // Currency is gated to finance admins (COA permission) in all modules
+  "/currencies": "ACCOUNTING_COA_VIEW",
 };
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -96,6 +100,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/income": "ACCOUNTING_INCOME_VIEW_HISTORY",
   "/accounting/reports": "ACCOUNTING_REPORT_PROFIT_LOSS",
+  "/accounting/currencies": "ACCOUNTING_COA_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/customers": "CUSTOMERS_VIEW",
   "/suppliers": "SUPPLIERS_VIEW",
@@ -104,6 +109,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/documents": "DOCUMENTS_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/mteja": "CUSTOMERS_VIEW",
+  "/currencies": "ACCOUNTING_COA_VIEW",
 };
 
 const POS_APP_PERMISSIONS: Record<string, string> = {
@@ -117,6 +123,7 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
   "/website-builder": "GALLERY_VIEW",
   "/documents": "DOCUMENTS_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
+  "/currencies": "ACCOUNTING_COA_VIEW",
 };
 
 const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
@@ -131,6 +138,7 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/income": "ACCOUNTING_INCOME_VIEW_HISTORY",
   "/accounting/reports": "ACCOUNTING_REPORT_PROFIT_LOSS",
+  "/accounting/currencies": "ACCOUNTING_COA_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/customers": "CUSTOMERS_VIEW",
   "/suppliers": "SUPPLIERS_VIEW",
@@ -138,10 +146,10 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/system-setup": "SYSTEM_SETUP_VIEW",
   "/documents": "DOCUMENTS_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
+  "/currencies": "ACCOUNTING_COA_VIEW",
 };
 
-// ─── Tenant feature flags ────────────────────────────────────────────────────
-
+// ─── Tenant feature flags ─────────────────────────────────────────────────────
 const getTenantFlags = () => {
   try {
     const stored = localStorage.getItem("tenant");
@@ -158,7 +166,6 @@ const getTenantFlags = () => {
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
-
 const useProLayoutNav = () => {
   const { user } = useAppSelector((state) => state.auth);
 
@@ -181,7 +188,6 @@ const useProLayoutNav = () => {
   };
 
   // ── Tenant / mode context ─────────────────────────────────────────────────
-
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
@@ -209,7 +215,18 @@ const useProLayoutNav = () => {
     icon: <FileDoneOutlined />,
   };
 
-  // ── Mteja Conversations (shown whenever Mteja is enabled) ─────────────────
+  // ── Currency route — shown in ALL modules to users with COA permission ─────
+  // This single route definition is reused across POS, Accounting, Bandu, Mteja.
+  // The path adapts based on whether we're inside /accounting or at root level.
+  const currencyBarePath = hasAccounting ? "/accounting/currencies" : "/currencies";
+  const currencyRoute = {
+    path: p(currencyBarePath),
+    name: "Currencies",
+    icon: <GlobalOutlined />,
+    _bare: currencyBarePath,
+  };
+
+  // ── Mteja Conversations ───────────────────────────────────────────────────
   const mtejaConversationsRoute = (hasMteja && can("OMNICHANNEL_VIEW")) ? [{
     path: p("/omnichannel"),
     name: "Conversations",
@@ -217,7 +234,7 @@ const useProLayoutNav = () => {
     _bare: "/omnichannel",
   }] : [];
 
-  // ── Mteja Dashboard (only shown when Mteja is the SOLE module) ────────────
+  // ── Mteja Dashboard (sole module only) ───────────────────────────────────
   const mtejaDashboardRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
     path: p("/mteja"),
     name: "Mteja Dashboard",
@@ -225,7 +242,7 @@ const useProLayoutNav = () => {
     _bare: "/mteja",
   }] : [];
 
-  // ── Mteja Customers (only shown when Mteja is the SOLE module) ────────────
+  // ── Mteja Customers (sole module only) ───────────────────────────────────
   const mtejaCustomersRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
     path: p("/customers"),
     name: isHospitalMode ? "Patients" : "Customers",
@@ -243,12 +260,12 @@ const useProLayoutNav = () => {
       : []),
     { ...inventoryRoute, _bare: inventoryBarePath },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
-    // Customers in POS - only shown when Mteja is NOT active OR when Mteja is not the sole module
     ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
     { path: p("/reports"), name: "Business Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
-    // Conversations - ALWAYS shown when Mteja is enabled
     ...mtejaConversationsRoute,
+    // Currency at end of POS nav for finance admins
+    { ...currencyRoute },
   ];
 
   const posRoutesFullAccess = posRoutesFullAccessBase
@@ -266,8 +283,8 @@ const useProLayoutNav = () => {
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
     ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
     { ...documentRoute, _bare: "/documents" },
-    // Conversations - ALWAYS shown when Mteja is enabled
     ...mtejaConversationsRoute,
+    { ...currencyRoute },
   ];
 
   const posRoutesStaff = posRoutesStaffBase
@@ -289,14 +306,14 @@ const useProLayoutNav = () => {
       ...(includeReports
         ? [{ path: p("/accounting/reports"), name: "Reports", icon: <ReconciliationOutlined />, _bare: "/accounting/reports" }]
         : []),
+      // Currency under accounting sub-nav
+      { path: p("/accounting/currencies"), name: "Currencies", icon: <GlobalOutlined />, _bare: "/accounting/currencies" },
       { ...inventoryRoute, _bare: inventoryBarePath },
-      // Customers in accounting - only shown when Mteja is NOT active OR when Mteja is not the sole module
       ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
       { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
       { path: p("/payment-methods"), name: "Payment Methods", icon: <CalculatorFilled />, _bare: "/payment-methods" },
       { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
       { ...documentRoute, _bare: "/documents" },
-      // Conversations - ALWAYS shown when Mteja is enabled
       ...mtejaConversationsRoute,
     ];
 
@@ -310,6 +327,15 @@ const useProLayoutNav = () => {
 
   // ── App tiles ─────────────────────────────────────────────────────────────
 
+  // Currency tile — shared across POS, Accounting, Mteja, Bandu
+  const currencyTile = {
+    icon: makeTile("#0d9488", ICONS.currency),
+    title: "Currencies",
+    desc: "Manage currencies, exchange rates and multi-currency settings.",
+    url: p(currencyBarePath),
+    _bare: currencyBarePath,
+  };
+
   const posAppListBase = [
     { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize your products with clear categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
     { icon: makeTile("#0ea5e9", ICONS.table), title: homeRouteName, desc: isHospitalMode ? "Manage wards, beds and patient locations." : "Manage Tables location and naming.", url: p("/table-settings"), _bare: "/table-settings" },
@@ -320,7 +346,6 @@ const useProLayoutNav = () => {
     { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Get answers to your most common questions.", url: p("/fss-faqs"), _bare: "/fss-faqs" },
     { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store your store images.", url: p("/website-builder"), _bare: "/website-builder" },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
-    // Conversations tile - ALWAYS shown when Mteja is enabled
     ...(hasMteja && can("OMNICHANNEL_VIEW") ? [{
       icon: makeTile("#7c3aed", ICONS.omnichannel),
       title: "Conversations",
@@ -328,6 +353,8 @@ const useProLayoutNav = () => {
       url: p("/omnichannel"),
       _bare: "/omnichannel",
     }] : []),
+    // Currency tile for POS finance admins
+    { ...currencyTile },
   ];
 
   const posAppList = posAppListBase
@@ -346,13 +373,14 @@ const useProLayoutNav = () => {
     { icon: makeTile("#8b5cf6", ICONS.bill), title: "Supplier Bills", desc: "Manage outstanding bills owed to suppliers.", url: p("/accounting/bills"), _bare: "/accounting/bills" },
     { icon: makeTile("#10b981", ICONS.income), title: "Income", desc: "View all inbound and outbound payments.", url: p("/accounting/income"), _bare: "/accounting/income" },
     { icon: makeTile("#10b981", ICONS.reports), title: "Financial Reports", desc: "P&L, Balance Sheet, VAT, Aging and more.", url: p("/accounting/reports"), _bare: "/accounting/reports" },
+    // Currency tile for Pesa (Accounting) users
+    { ...currencyTile, url: p("/accounting/currencies"), _bare: "/accounting/currencies" },
     { icon: makeTile("#10b981", ICONS.inventory), title: "Inventory", desc: "Track and manage your stock levels.", url: p("/inventory"), _bare: "/inventory" },
     { icon: makeTile("#06b6d4", ICONS.customers), title: "Customers", desc: "Manage your customer relationships.", url: p("/customers"), _bare: "/customers" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: p("/suppliers"), _bare: "/suppliers" },
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: p("/payment-methods"), _bare: "/payment-methods" },
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: p("/system-setup"), _bare: "/system-setup" },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
-    // Conversations tile - ALWAYS shown when Mteja is enabled
     ...(hasMteja && can("OMNICHANNEL_VIEW") ? [{
       icon: makeTile("#7c3aed", ICONS.omnichannel),
       title: "Conversations",
@@ -366,7 +394,7 @@ const useProLayoutNav = () => {
     .filter((t) => canSee(t._bare, ACCOUNTING_APP_PERMISSIONS))
     .map(({ _bare: _b, ...rest }) => rest);
 
-  // ── Mteja-only app tiles (only when Mteja is the SOLE module) ─────────────
+  // ── Mteja-only tiles ──────────────────────────────────────────────────────
   const mtejaOnlyAppList = (isMtejaOnly) ? [
     ...(can("CUSTOMERS_VIEW") ? [{
       icon: makeTile("#6c1c2c", ICONS.mteja),
@@ -386,25 +414,30 @@ const useProLayoutNav = () => {
       desc: "Manage WhatsApp, Messenger and Instagram conversations.",
       url: p("/omnichannel"),
     }] : []),
+    // Currency available in Mteja-only too (payments can be multi-currency)
+    ...(can("ACCOUNTING_COA_VIEW") ? [{ ...currencyTile, url: p("/currencies"), _bare: undefined }] : []),
   ] : [];
 
-  // ── Mteja-only routes (only when Mteja is the SOLE module) ────────────────
+  // ── Mteja-only routes ─────────────────────────────────────────────────────
   const mtejaOnlyRoutes = (isMtejaOnly) ? [
     ...mtejaDashboardRoute,
     ...mtejaCustomersRoute,
     ...mtejaConversationsRoute,
+    // Currency at end for eligible Mteja-only users
+    ...(can("ACCOUNTING_COA_VIEW") ? [{
+      path: p("/currencies"),
+      name: "Currencies",
+      icon: <GlobalOutlined />,
+    }] : []),
   ] : [];
 
   // ── Compose final nav ─────────────────────────────────────────────────────
-
   const posRoutes = isAdminOrCashier ? posRoutesFullAccess : posRoutesStaff;
 
   // ════════════════════════════════════════════════════════════════════════════
-  // CASE 1: Mteja ONLY — no POS, no Accounting
-  // Show: Mteja Dashboard → Customers → Conversations
+  // CASE 1: Mteja ONLY
   // ════════════════════════════════════════════════════════════════════════════
   if (isMtejaOnly) {
-    console.log("[Nav] ✅ Mteja only mode - showing Mteja Dashboard + Customers + Conversations");
     return {
       route: { path: "/", routes: mtejaOnlyRoutes },
       appList: mtejaOnlyAppList,
@@ -415,7 +448,6 @@ const useProLayoutNav = () => {
   // CASE 2: Accounting only (no POS)
   // ════════════════════════════════════════════════════════════════════════════
   if (hasAccounting && !hasPOS) {
-    console.log("[Nav] ✅ Accounting only mode" + (hasMteja ? " (Conversations visible)" : ""));
     const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
     return { route: { path: "/", routes: accRoutes }, appList: accountingAppList };
   }
@@ -424,15 +456,13 @@ const useProLayoutNav = () => {
   // CASE 3: POS only
   // ════════════════════════════════════════════════════════════════════════════
   if (hasPOS && !hasAccounting) {
-    console.log("[Nav] ✅ POS only mode" + (hasMteja ? " (Conversations visible)" : ""));
     return { route: { path: "/", routes: posRoutes }, appList: posAppList };
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // CASE 4: POS + Accounting (Mteja Dashboard hidden, Conversations visible if Mteja enabled)
+  // CASE 4: POS + Accounting
   // ════════════════════════════════════════════════════════════════════════════
   if (hasPOS && hasAccounting) {
-    console.log("[Nav] ✅ POS + Accounting mode" + (hasMteja ? " (Conversations visible, Mteja Dashboard hidden)" : ""));
     const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
     return {
       route: {
@@ -452,9 +482,8 @@ const useProLayoutNav = () => {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // FALLBACK: No modules at all
+  // FALLBACK
   // ════════════════════════════════════════════════════════════════════════════
-  console.log("[Nav] ⚠️ Fallback — no modules");
   return { route: { path: "/", routes: posRoutes }, appList: posAppList };
 };
 

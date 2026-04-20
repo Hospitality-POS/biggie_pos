@@ -37,6 +37,7 @@ import {
   AuditOutlined,
   FileDoneOutlined,
   AppstoreOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
@@ -306,6 +307,12 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             icon: <FileExcelOutlined style={{ color: "#16a34a" }} />,
             label: <span style={{ fontSize: 13 }}>Bank Statement Import</span>,
             onClick: () => navigate(isAdmin ? "/admin/accounting/bank-statements" : "/accounting/bank-statements"),
+          },
+          {
+            key: "currencies",
+            icon: <GlobalOutlined style={{ color: "#0d9488" }} />,
+            label: <span style={{ fontSize: 13 }}>Currency Settings</span>,
+            onClick: () => navigate(isAdmin ? "/admin/accounting/currencies" : "/accounting/currencies"),
           },
         ],
       };
@@ -976,8 +983,6 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         splitMenus={false}
         fixedHeader={true}
         menuRender={isMobile ? false : undefined}
-        // ── Native overflow indicator – only the items that truly don't fit
-        // are passed by Ant Design's Menu internals; we just style the trigger.
         menuProps={{
           overflowedIndicatorPopupClassName: "nav-overflow-popup",
           overflowedIndicator: (

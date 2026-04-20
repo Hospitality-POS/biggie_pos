@@ -80,6 +80,12 @@ const ExpensesPage = lazy(() => import("@pages/OrderManagement/ExpensesPage"));
 const BillsPage = lazy(() => import("@pages/OrderManagement/BillsPage"));
 const IncomePage = lazy(() => import("@pages/OrderManagement/IncomePage"));
 
+// ─── Currency ─────────────────────────────────────────────────────────────────
+// Multi-currency management (Currencies + Exchange Rates).
+// Accessible from ALL modules (Duka POS, Pesa Accounting, Bandu Payroll, Mteja CRM)
+// because every financial transaction can now carry a currency.
+const CurrencyPage = lazy(() => import("src/pages/Currency/CurrencyPage"));
+
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = (
   <Spin size="large" fullscreen style={{ color: getPrimaryColor() }} />
@@ -135,10 +141,6 @@ const guardedAdminPage = (Component: React.ComponentType, permission: string) =>
 );
 
 // ─── Accounting layout wrapper ────────────────────────────────────────────────
-// A transparent pass-through that just renders <Outlet />.
-// Required so that nested routes like accounting/accounts resolve correctly
-// in React Router v6 — without this parent, RRv6 can't match sub-paths
-// when the parent route renders a page component instead of an Outlet.
 const AccountingLayout = () => <Outlet />;
 
 // ─── Smart routers ────────────────────────────────────────────────────────────
@@ -168,7 +170,9 @@ const SmartDashboardRouter = () => {
   return adminPage(DashboardAdminPage);
 };
 
-// ─── Router ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ROUTER
+// ─────────────────────────────────────────────────────────────────────────────
 const routes = createBrowserRouter(
   createRoutesFromElements(
     <>
@@ -284,10 +288,14 @@ const routes = createBrowserRouter(
           }
         />
 
-        {/* ── Accounting — shop level (/accounting/...) ──────────────────
-            AccountingLayout renders <Outlet /> so sub-routes resolve.
-            The index renders the dashboard; children render sub-pages.
-        ────────────────────────────────────────────────────────────────── */}
+        {/* ── Currency — shop level (/currencies) ──────────────────────────
+            Accessible to any authenticated user across all modules.
+            Reuses ACCOUNTING_COA_VIEW permission (finance admin gate).
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="currencies" errorElement={<NotFound />}
+          element={guardedPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
+
+        {/* ── Accounting — shop level (/accounting/...) ──────────────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
             element={guardedPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
@@ -311,6 +319,9 @@ const routes = createBrowserRouter(
             element={guardedPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
           <Route path="income" errorElement={<NotFound />}
             element={guardedPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
+          {/* Currency settings nested under accounting for Pesa users */}
+          <Route path="currencies" errorElement={<NotFound />}
+            element={guardedPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
@@ -462,10 +473,14 @@ const routes = createBrowserRouter(
           }
         />
 
-        {/* ── Accounting — admin level (/admin/accounting/...) ───────────
-            Same AccountingLayout <Outlet /> pattern as shop level.
-            index → dashboard, children → sub-pages.
-        ────────────────────────────────────────────────────────────────── */}
+        {/* ── Currency — admin level (/admin/currencies) ────────────────────
+            Top-level admin route so it's reachable without Accounting being
+            enabled — Duka POS, Bandu and Mteja all need currency settings.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="currencies" errorElement={<NotFound />}
+          element={guardedAdminPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
+
+        {/* ── Accounting — admin level (/admin/accounting/...) ───────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
             element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
@@ -489,6 +504,9 @@ const routes = createBrowserRouter(
             element={guardedAdminPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
           <Route path="income" errorElement={<NotFound />}
             element={guardedAdminPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
+          {/* Currency settings nested under /admin/accounting/currencies too */}
+          <Route path="currencies" errorElement={<NotFound />}
+            element={guardedAdminPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
