@@ -215,7 +215,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   const [isPdfView, setIsPdfView] = useState(false);
   const [isBold, setIsBold] = useState(true);
-  const [fontSize, setFontSize] = useState(11); // Base font size in pixels
+  const [fontSize, setFontSize] = useState(11);
   const [showDiscount, setShowDiscount] = useState(true);
   const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
@@ -385,12 +385,14 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const printDateStr = printDate.toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" });
   const printTimeStr = `${String(printDate.getHours()).padStart(2, "0")}:${String(printDate.getMinutes()).padStart(2, "0")}`;
 
-  // Font size presets
+  // ── Font size presets — extended for larger options ────────────────────
   const fontSizes = [
     { value: 9, label: "Small" },
     { value: 11, label: "Normal" },
     { value: 13, label: "Large" },
     { value: 15, label: "X-Large" },
+    { value: 17, label: "XX-Large" },
+    { value: 20, label: "Huge" },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -496,7 +498,6 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               <FilePdfOutlined style={{ fontSize: 16, color: "#6b7280" }} />
             </div>
 
-            {/* Divider */}
             <div style={{ width: 1, height: 24, background: "#e5e7eb" }} />
 
             {/* Font controls — thermal only */}
@@ -533,18 +534,28 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 <div style={{ width: 1, height: 24, background: "#e5e7eb" }} />
 
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                  <Tooltip title="Font Size">
-                    <ZoomInOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  <Tooltip title="Decrease Font Size">
+                    <ZoomOutOutlined style={{ fontSize: 16, color: "#6b7280" }} />
                   </Tooltip>
                   <AntSlider
                     min={8}
-                    max={16}
+                    max={20}
                     value={fontSize}
                     onChange={setFontSize}
-                    style={{ width: 120, margin: 0 }}
+                    style={{ width: 130, margin: 0 }}
                     tooltip={{ formatter: (v) => `${v}px` }}
+                    marks={{
+                      8: "",
+                      11: "",
+                      13: "",
+                      15: "",
+                      17: "",
+                      20: "",
+                    }}
                   />
-                  <ZoomOutOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  <Tooltip title="Increase Font Size">
+                    <ZoomInOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  </Tooltip>
                   <span style={{ fontSize: 12, color: "#6b7280", minWidth: 45 }}>
                     {fontSize}px
                   </span>
@@ -552,8 +563,8 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     value={fontSize}
                     onChange={setFontSize}
                     size="small"
-                    style={{ width: 100 }}
-                    options={fontSizes.map(fs => ({ label: fs.label, value: fs.value }))}
+                    style={{ width: 110 }}
+                    options={fontSizes.map((fs) => ({ label: fs.label, value: fs.value }))}
                   />
                 </div>
               </>
@@ -566,7 +577,6 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               Show on Print:
             </span>
 
-            {/* Discount toggle */}
             <Tooltip title={discountAmount > 0 ? "Toggle discount line on printed document" : "No discount applied to this order"}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <PercentageOutlined style={{ fontSize: 15, color: showDiscount ? "#6c1c2c" : "#9ca3af" }} />
@@ -581,10 +591,8 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </div>
             </Tooltip>
 
-            {/* Divider */}
             <div style={{ width: 1, height: 20, background: "#e5e7eb" }} />
 
-            {/* VAT toggle */}
             <Tooltip title="Toggle VAT line on printed document">
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <DollarOutlined style={{ fontSize: 15, color: showVat ? "#6c1c2c" : "#9ca3af" }} />
@@ -613,10 +621,14 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             <div style={S.docType}>{docConfig.label}</div>
             <SolidLine />
             <div style={S.meta}>Tel: {PHONE_NO}</div>
-            {Paybill_bs ? (
-              <div style={S.meta}>Paybill: {Paybill_bs}{Paybill_ac ? `  Acc: ${Paybill_ac}` : ""}</div>
-            ) : (
-              TILL_NO && <div style={S.meta}>Till No: {TILL_NO}</div>
+            {/* ── Always show payment details if Paybill or Till No exists ── */}
+            {Paybill_bs && (
+              <div style={S.meta}>
+                Paybill: {Paybill_bs}{Paybill_ac ? `  Acc: ${Paybill_ac}` : ""}
+              </div>
+            )}
+            {TILL_NO && (
+              <div style={S.meta}>Till No: {TILL_NO}</div>
             )}
           </div>
 
@@ -742,6 +754,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             </div>
           </div>
         </div>
+        {/* ── END THERMAL ─────────────────────────────────────────────── */}
 
         {/* ── PDF / A4 VIEW ────────────────────────────────────────────── */}
         {isPdfView && (
@@ -761,13 +774,15 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <Box>
                   <Typography variant="body1" style={pdfSub}>Tel: {PHONE_NO}</Typography>
-                  {Paybill_bs ? (
+                  {/* ── Always show payment details if Paybill or Till No exists ── */}
+                  {Paybill_bs && (
                     <>
                       <Typography variant="body1" style={pdfNorm}>Paybill: {Paybill_bs}</Typography>
                       {Paybill_ac && <Typography variant="body1" style={pdfNorm}>Account No: {Paybill_ac}</Typography>}
                     </>
-                  ) : (
-                    TILL_NO && <Typography variant="body1" style={pdfNorm}>Till No: {TILL_NO}</Typography>
+                  )}
+                  {TILL_NO && (
+                    <Typography variant="body1" style={pdfNorm}>Till No: {TILL_NO}</Typography>
                   )}
                 </Box>
                 <Box><QRCodeCanvas value={QR_Code} size={120} /></Box>

@@ -10,57 +10,80 @@ import { addNewCustomer, updateCustomer } from "@services/customers";
 
 const { Text } = Typography;
 
-// ── Palette ────────────────────────────────────────────────────────────────
 const C = {
     primary: "#6c1c2c",
     primaryLight: "#f9f0f2",
     blue: "#3b82f6",
+    green: "#10b981",
     subText: "#64748b",
     darkText: "#0f172a",
     border: "#e2e8f0",
     bg: "#f8fafc",
 };
 
-// ── Types ──────────────────────────────────────────────────────────────────
 interface AddCustomerModalProps {
     visible: boolean;
     onClose: () => void;
     onSuccess?: () => void;
     customer?: any;
     mode?: "add" | "edit";
+    /**
+     * When set, the modal opens in lead-conversion mode:
+     * - Always treated as "add" (creates a new customer)
+     * - Fields pre-filled from the lead's contact data
+     * - Green accent + "Converting from Lead" banner
+     */
+    leadPrefill?: {
+        customer_name?: string;
+        phone?: string;
+        email?: string;
+        location?: string;
+    };
 }
 
-// ── Component ──────────────────────────────────────────────────────────────
+/** Parse a raw phone string into the { code, phone, short } shape PhoneInput expects */
+function parsePhoneForInput(raw?: string) {
+    if (!raw) return undefined;
+    const s = String(raw).replace(/\s/g, "");
+    const local = s.startsWith("+254") ? s.slice(4)
+        : s.startsWith("254") ? s.slice(3)
+            : s;
+    return { code: 254, phone: local, short: "KE" };
+}
+
 const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
-    visible, onClose, onSuccess, customer, mode = "add",
+    visible, onClose, onSuccess, customer, mode = "add", leadPrefill,
 }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
 
-    const isEdit = mode === "edit";
+    // leadPrefill always forces create mode regardless of mode prop
+    const isFromLead = !!leadPrefill;
+    const isEdit = mode === "edit" && !isFromLead;
 
     useEffect(() => {
         if (!visible) return;
-        if (isEdit && customer) {
-            let phoneValue: any;
-            if (customer.phone) {
-                const s = String(customer.phone);
-                const local = s.startsWith("+254") ? s.slice(4)
-                    : s.startsWith("254") ? s.slice(3)
-                        : s;
-                phoneValue = { code: 254, phone: local, short: "KE" };
-            }
+
+        if (isFromLead) {
+            form.setFieldsValue({
+                customer_name: leadPrefill!.customer_name ?? "",
+                email: leadPrefill!.email ?? "",
+                location: leadPrefill!.location ?? "",
+                kra_pin: "",
+                phoneNumber: parsePhoneForInput(leadPrefill!.phone),
+            });
+        } else if (isEdit && customer) {
             form.setFieldsValue({
                 customer_name: customer.customer_name,
-                email: customer.email || "",
-                phoneNumber: phoneValue,
-                location: customer.location || "",
-                kra_pin: customer.kra_pin || "",
+                email: customer.email ?? "",
+                location: customer.location ?? "",
+                kra_pin: customer.kra_pin ?? "",
+                phoneNumber: parsePhoneForInput(customer.phone),
             });
         } else {
             form.resetFields();
         }
-    }, [visible, mode, customer, form]);
+    }, [visible, mode, customer, leadPrefill, form]);
 
     const handleSubmit = async (values: any) => {
         setLoading(true);
@@ -79,7 +102,11 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                 : await addNewCustomer(payload);
 
             if (response?.status === 200 || response?.status === 201) {
-                message.success(isEdit ? "Customer updated successfully!" : "Customer added successfully!");
+                message.success(
+                    isFromLead ? "Customer created from lead successfully!"
+                        : isEdit ? "Customer updated successfully!"
+                            : "Customer added successfully!"
+                );
                 form.resetFields();
                 onClose();
                 onSuccess?.();
@@ -88,7 +115,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             message.error(
                 error?.response?.data?.message ||
                 error?.message ||
-                `Failed to ${isEdit ? "update" : "add"} customer`,
+                `Failed to ${isEdit ? "update" : "add"} customer`
             );
         } finally {
             setLoading(false);
@@ -101,7 +128,11 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         onClose();
     };
 
-    const iconColor = isEdit ? C.blue : C.primary;
+    const accentColor = isFromLead ? C.green : isEdit ? C.blue : C.primary;
+    const accentBg = isFromLead ? "#f0fdf4" : isEdit ? "#eff6ff" : C.primaryLight;
+    const titleText = isFromLead ? "Convert Lead to Customer"
+        : isEdit ? "Edit Customer"
+            : "Add New Customer";
 
     return (
         <Modal
@@ -114,22 +145,32 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             styles={{ body: { padding: "20px 24px 24px" } }}
             title={
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{
-                        background: isEdit ? "#eff6ff" : C.primaryLight,
-                        borderRadius: 7, padding: "4px 6px",
-                        color: iconColor, fontSize: 14, lineHeight: 1,
-                    }}>
+                    <div style={{ background: accentBg, borderRadius: 7, padding: "4px 6px", color: accentColor, fontSize: 14, lineHeight: 1 }}>
                         {isEdit ? <EditOutlined /> : <UserAddOutlined />}
                     </div>
-                    <Text strong style={{ fontSize: 14, color: C.darkText }}>
-                        {isEdit ? "Edit Customer" : "Add New Customer"}
-                    </Text>
+                    <Text strong style={{ fontSize: 14, color: C.darkText }}>{titleText}</Text>
                 </div>
             }
         >
+            {/* Lead conversion info banner */}
+            {isFromLead && (
+                <div style={{
+                    background: "#f0fdf4", border: "1px solid #bbf7d0",
+                    borderRadius: 8, padding: "10px 14px", marginBottom: 16,
+                    display: "flex", alignItems: "flex-start", gap: 8,
+                }}>
+                    <UserAddOutlined style={{ color: C.green, marginTop: 2, flexShrink: 0 }} />
+                    <div>
+                        <Text strong style={{ fontSize: 12, color: C.green, display: "block" }}>Converting from Lead</Text>
+                        <Text style={{ fontSize: 11, color: C.subText }}>
+                            Fields pre-filled from lead data. Review and save to create the customer record.
+                        </Text>
+                    </div>
+                </div>
+            )}
+
             <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 4 }}>
 
-                {/* Name */}
                 <Form.Item
                     name="customer_name" label="Customer Name"
                     rules={[
@@ -145,14 +186,12 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     />
                 </Form.Item>
 
-                {/* Phone */}
                 <PhoneInput
                     label="Phone Number"
                     owner="phoneNumber"
                     rules={[{ required: true, message: "Please enter phone number" }]}
                 />
 
-                {/* Two-column: Email + Location */}
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                     <Form.Item
                         name="email" label="Email Address"
@@ -179,7 +218,6 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     </Form.Item>
                 </div>
 
-                {/* KRA PIN */}
                 <Form.Item
                     name="kra_pin" label="KRA PIN"
                     rules={[{
@@ -195,23 +233,24 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                     />
                 </Form.Item>
 
-                {/* Optional fields note */}
                 <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 20, marginTop: -8 }}>
                     Email, location and KRA PIN are optional.
                 </Text>
 
-                {/* Footer buttons */}
                 <div style={{ display: "flex", gap: 10 }}>
-                    <Button block onClick={handleCancel} disabled={loading}
-                        style={{ borderRadius: 8, height: 38 }}>
+                    <Button block onClick={handleCancel} disabled={loading} style={{ borderRadius: 8, height: 38 }}>
                         Cancel
                     </Button>
                     <Button
                         block type="primary" htmlType="submit" icon={<SaveOutlined />}
                         loading={loading}
-                        style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 38, fontWeight: 500 }}
+                        style={{
+                            background: accentColor,
+                            borderColor: accentColor,
+                            borderRadius: 8, height: 38, fontWeight: 500,
+                        }}
                     >
-                        {isEdit ? "Update Customer" : "Add Customer"}
+                        {isFromLead ? "Create Customer from Lead" : isEdit ? "Update Customer" : "Add Customer"}
                     </Button>
                 </div>
             </Form>

@@ -23,6 +23,10 @@ import {
   MessageOutlined,
   CustomerServiceOutlined,
   GlobalOutlined,
+  TeamOutlined,
+  NotificationOutlined,
+  AimOutlined,
+  RiseOutlined,
 } from "@ant-design/icons";
 import { PeopleOutlined } from "@mui/icons-material";
 import { useAppSelector } from "src/store";
@@ -66,11 +70,15 @@ const ICONS = {
   documents: 'M20 6h-2.18c.07-.44.18-.88.18-1.38 0-2.57-2.04-4.62-4.5-4.62S9 2.05 9 4.62c0 .5.11.94.18 1.38H7C5.9 6 5 6.9 5 8v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 0H10V4.62C10 3.17 11.12 2 12.5 2S15 3.17 15 4.62V6h-1zm1 5H9v-2h6v2zm4 4H9v-2h10v2z',
   omnichannel: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z',
   mteja: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z',
-  // ── Multi-currency icon ──────────────────────────────────────────────────
   currency: 'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z',
+  // ── CRM icons ─────────────────────────────────────────────────────────────
+  leads: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
+  campaigns: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z',
+  target: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
+  budget: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z',
 };
 
-// ─── Route → permission gate map ─────────────────────────────────────────────
+// ─── Route → permission gate maps ────────────────────────────────────────────
 
 const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/tables": "CART_VIEW_ITEMS",
@@ -84,8 +92,12 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/documents": "DOCUMENTS_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/mteja": "CUSTOMERS_VIEW",
-  // Currency is gated to finance admins (COA permission) in all modules
   "/currencies": "ACCOUNTING_COA_VIEW",
+  // CRM routes — only reachable when hasMteja, permission-gated here too
+  "/crm/leads": "CRM_LEADS_VIEW",
+  "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
+  "/crm/sales-targets": "CRM_TARGETS_VIEW",
+  "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
 };
 
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
@@ -110,6 +122,11 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/mteja": "CUSTOMERS_VIEW",
   "/currencies": "ACCOUNTING_COA_VIEW",
+  // CRM routes
+  "/crm/leads": "CRM_LEADS_VIEW",
+  "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
+  "/crm/sales-targets": "CRM_TARGETS_VIEW",
+  "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
 };
 
 const POS_APP_PERMISSIONS: Record<string, string> = {
@@ -124,6 +141,11 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
   "/documents": "DOCUMENTS_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/currencies": "ACCOUNTING_COA_VIEW",
+  // CRM tiles
+  "/crm/leads": "CRM_LEADS_VIEW",
+  "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
+  "/crm/sales-targets": "CRM_TARGETS_VIEW",
+  "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
 };
 
 const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
@@ -147,6 +169,11 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/documents": "DOCUMENTS_VIEW",
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/currencies": "ACCOUNTING_COA_VIEW",
+  // CRM tiles
+  "/crm/leads": "CRM_LEADS_VIEW",
+  "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
+  "/crm/sales-targets": "CRM_TARGETS_VIEW",
+  "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
 };
 
 // ─── Tenant feature flags ─────────────────────────────────────────────────────
@@ -187,7 +214,6 @@ const useProLayoutNav = () => {
     return can(gate);
   };
 
-  // ── Tenant / mode context ─────────────────────────────────────────────────
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
 
@@ -198,8 +224,6 @@ const useProLayoutNav = () => {
   const homeRouteIcon = isHospitalMode ? <MedicineBoxOutlined /> : <HomeFilled />;
 
   const { hasPOS, hasAccounting, hasMteja } = getTenantFlags();
-
-  // ── Derived mode flags ────────────────────────────────────────────────────
   const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting;
 
   const inventoryBarePath = "/inventory";
@@ -215,16 +239,13 @@ const useProLayoutNav = () => {
     icon: <FileDoneOutlined />,
   };
 
-  // ── Currency route — shown in ALL modules to users with COA permission ─────
-  // This single route definition is reused across POS, Accounting, Bandu, Mteja.
-  // The path adapts based on whether we're inside /accounting or at root level.
-  const currencyBarePath = hasAccounting ? "/accounting/currencies" : "/currencies";
-  const currencyRoute = {
-    path: p(currencyBarePath),
-    name: "Currencies",
-    icon: <GlobalOutlined />,
-    _bare: currencyBarePath,
-  };
+  // const currencyBarePath = hasAccounting ? "/accounting/currencies" : "/currencies";
+  // const currencyRoute = {
+  //   path: p(currencyBarePath),
+  //   name: "Currencies",
+  //   icon: <GlobalOutlined />,
+  //   _bare: currencyBarePath,
+  // };
 
   // ── Mteja Conversations ───────────────────────────────────────────────────
   const mtejaConversationsRoute = (hasMteja && can("OMNICHANNEL_VIEW")) ? [{
@@ -250,6 +271,73 @@ const useProLayoutNav = () => {
     _bare: "/customers",
   }] : [];
 
+  // ── CRM nav routes — ONLY when hasMteja === true ──────────────────────────
+  // Each route is also permission-checked individually so reps without
+  // CRM_LEADS_VIEW etc. don't see routes they can't access.
+  const crmRoutes = hasMteja ? [
+    ...(can("CRM_LEADS_VIEW") ? [{
+      path: p("/crm/leads"),
+      name: "Leads",
+      icon: <TeamOutlined />,
+      _bare: "/crm/leads",
+    }] : []),
+    ...(can("CRM_CAMPAIGNS_VIEW") ? [{
+      path: p("/crm/campaigns"),
+      name: "Campaigns",
+      icon: <NotificationOutlined />,
+      _bare: "/crm/campaigns",
+    }] : []),
+    ...(can("CRM_TARGETS_VIEW") ? [{
+      path: p("/crm/sales-targets"),
+      name: "Sales Targets",
+      icon: <AimOutlined />,
+      _bare: "/crm/sales-targets",
+    }] : []),
+    ...(can("CRM_BUDGETS_VIEW") ? [{
+      path: p("/crm/sales-budgets"),
+      name: "Sales Budgets",
+      icon: <RiseOutlined />,
+      _bare: "/crm/sales-budgets",
+    }] : []),
+  ] : [];
+
+  // ── CRM app tiles — ONLY when hasMteja === true ───────────────────────────
+  const crmAppTilesBase = hasMteja ? [
+    {
+      icon: makeTile("#6c1c2c", ICONS.leads),
+      title: "Leads",
+      desc: "Track prospects through your sales pipeline.",
+      url: p("/crm/leads"),
+      _bare: "/crm/leads",
+    },
+    {
+      icon: makeTile("#7c3aed", ICONS.campaigns),
+      title: "Campaigns",
+      desc: "Manage marketing campaigns and track ROI.",
+      url: p("/crm/campaigns"),
+      _bare: "/crm/campaigns",
+    },
+    {
+      icon: makeTile("#0891b2", ICONS.target),
+      title: "Sales Targets",
+      desc: "Set and track revenue and unit targets.",
+      url: p("/crm/sales-targets"),
+      _bare: "/crm/sales-targets",
+    },
+    {
+      icon: makeTile("#16a34a", ICONS.budget),
+      title: "Sales Budgets",
+      desc: "Plan budgets with approval workflows.",
+      url: p("/crm/sales-budgets"),
+      _bare: "/crm/sales-budgets",
+    },
+  ] : [];
+
+  // Filter CRM tiles by permission (reuse POS_APP_PERMISSIONS which now includes CRM entries)
+  const crmAppTiles = crmAppTilesBase
+    .filter((t) => canSee(t._bare, POS_APP_PERMISSIONS))
+    .map(({ _bare: _b, ...rest }) => rest);
+
   // ── POS routes ────────────────────────────────────────────────────────────
   const posRoutesFullAccessBase = [
     { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
@@ -264,8 +352,9 @@ const useProLayoutNav = () => {
     { path: p("/reports"), name: "Business Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
     ...mtejaConversationsRoute,
-    // Currency at end of POS nav for finance admins
-    { ...currencyRoute },
+    // CRM sub-routes — only visible when hasMteja
+    ...crmRoutes,
+    // { ...currencyRoute },
   ];
 
   const posRoutesFullAccess = posRoutesFullAccessBase
@@ -284,7 +373,9 @@ const useProLayoutNav = () => {
     ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
     { ...documentRoute, _bare: "/documents" },
     ...mtejaConversationsRoute,
-    { ...currencyRoute },
+    // CRM sub-routes — only visible when hasMteja
+    ...crmRoutes,
+    // { ...currencyRoute },
   ];
 
   const posRoutesStaff = posRoutesStaffBase
@@ -306,8 +397,7 @@ const useProLayoutNav = () => {
       ...(includeReports
         ? [{ path: p("/accounting/reports"), name: "Reports", icon: <ReconciliationOutlined />, _bare: "/accounting/reports" }]
         : []),
-      // Currency under accounting sub-nav
-      { path: p("/accounting/currencies"), name: "Currencies", icon: <GlobalOutlined />, _bare: "/accounting/currencies" },
+      // { path: p("/accounting/currencies"), name: "Currencies", icon: <GlobalOutlined />, _bare: "/accounting/currencies" },
       { ...inventoryRoute, _bare: inventoryBarePath },
       ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
       { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
@@ -315,6 +405,8 @@ const useProLayoutNav = () => {
       { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
       { ...documentRoute, _bare: "/documents" },
       ...mtejaConversationsRoute,
+      // CRM routes under accounting layout too — only when hasMteja
+      ...crmRoutes,
     ];
 
     return routesBase
@@ -326,15 +418,13 @@ const useProLayoutNav = () => {
   const accountingRoutesStaff = buildAccountingRoutes(false);
 
   // ── App tiles ─────────────────────────────────────────────────────────────
-
-  // Currency tile — shared across POS, Accounting, Mteja, Bandu
-  const currencyTile = {
-    icon: makeTile("#0d9488", ICONS.currency),
-    title: "Currencies",
-    desc: "Manage currencies, exchange rates and multi-currency settings.",
-    url: p(currencyBarePath),
-    _bare: currencyBarePath,
-  };
+  // const currencyTile = {
+  //   icon: makeTile("#0d9488", ICONS.currency),
+  //   title: "Currencies",
+  //   desc: "Manage currencies, exchange rates and multi-currency settings.",
+  //   url: p(currencyBarePath),
+  //   _bare: currencyBarePath,
+  // };
 
   const posAppListBase = [
     { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize your products with clear categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
@@ -353,8 +443,9 @@ const useProLayoutNav = () => {
       url: p("/omnichannel"),
       _bare: "/omnichannel",
     }] : []),
-    // Currency tile for POS finance admins
-    { ...currencyTile },
+    // { ...currencyTile },
+    // CRM tiles — appended only when hasMteja; already permission-filtered inside crmAppTiles
+    ...crmAppTilesBase.map(t => ({ ...t })),
   ];
 
   const posAppList = posAppListBase
@@ -373,8 +464,7 @@ const useProLayoutNav = () => {
     { icon: makeTile("#8b5cf6", ICONS.bill), title: "Supplier Bills", desc: "Manage outstanding bills owed to suppliers.", url: p("/accounting/bills"), _bare: "/accounting/bills" },
     { icon: makeTile("#10b981", ICONS.income), title: "Income", desc: "View all inbound and outbound payments.", url: p("/accounting/income"), _bare: "/accounting/income" },
     { icon: makeTile("#10b981", ICONS.reports), title: "Financial Reports", desc: "P&L, Balance Sheet, VAT, Aging and more.", url: p("/accounting/reports"), _bare: "/accounting/reports" },
-    // Currency tile for Pesa (Accounting) users
-    { ...currencyTile, url: p("/accounting/currencies"), _bare: "/accounting/currencies" },
+    // { ...currencyTile, url: p("/accounting/currencies"), _bare: "/accounting/currencies" },
     { icon: makeTile("#10b981", ICONS.inventory), title: "Inventory", desc: "Track and manage your stock levels.", url: p("/inventory"), _bare: "/inventory" },
     { icon: makeTile("#06b6d4", ICONS.customers), title: "Customers", desc: "Manage your customer relationships.", url: p("/customers"), _bare: "/customers" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: p("/suppliers"), _bare: "/suppliers" },
@@ -388,6 +478,8 @@ const useProLayoutNav = () => {
       url: p("/omnichannel"),
       _bare: "/omnichannel",
     }] : []),
+    // CRM tiles — only when hasMteja
+    ...crmAppTilesBase.map(t => ({ ...t })),
   ];
 
   const accountingAppList = accountingAppListBase
@@ -414,8 +506,9 @@ const useProLayoutNav = () => {
       desc: "Manage WhatsApp, Messenger and Instagram conversations.",
       url: p("/omnichannel"),
     }] : []),
-    // Currency available in Mteja-only too (payments can be multi-currency)
-    ...(can("ACCOUNTING_COA_VIEW") ? [{ ...currencyTile, url: p("/currencies"), _bare: undefined }] : []),
+    // CRM tiles are always shown in Mteja-only mode (already hasMteja-gated by isMtejaOnly)
+    ...crmAppTiles,
+    // ...(can("ACCOUNTING_COA_VIEW") ? [{ ...currencyTile, url: p("/currencies"), _bare: undefined }] : []),
   ] : [];
 
   // ── Mteja-only routes ─────────────────────────────────────────────────────
@@ -423,15 +516,15 @@ const useProLayoutNav = () => {
     ...mtejaDashboardRoute,
     ...mtejaCustomersRoute,
     ...mtejaConversationsRoute,
-    // Currency at end for eligible Mteja-only users
-    ...(can("ACCOUNTING_COA_VIEW") ? [{
-      path: p("/currencies"),
-      name: "Currencies",
-      icon: <GlobalOutlined />,
-    }] : []),
+    // CRM routes are always injected in Mteja-only mode
+    ...crmRoutes,
+    // ...(can("ACCOUNTING_COA_VIEW") ? [{
+    //   path: p("/currencies"),
+    //   name: "Currencies",
+    //   icon: <GlobalOutlined />,
+    // }] : []),
   ] : [];
 
-  // ── Compose final nav ─────────────────────────────────────────────────────
   const posRoutes = isAdminOrCashier ? posRoutesFullAccess : posRoutesStaff;
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -475,6 +568,13 @@ const useProLayoutNav = () => {
             icon: <AccountBookOutlined />,
             routes: accRoutes,
           },
+          // CRM as a top-level nav group — only when hasMteja
+          ...(hasMteja && crmRoutes.length > 0 ? [{
+            path: p("/crm/leads"),
+            name: "CRM",
+            icon: <TeamOutlined />,
+            routes: crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          }] : []),
         ],
       },
       appList: [...posAppList, ...accountingAppList],

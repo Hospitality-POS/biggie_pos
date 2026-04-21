@@ -81,10 +81,15 @@ const BillsPage = lazy(() => import("@pages/OrderManagement/BillsPage"));
 const IncomePage = lazy(() => import("@pages/OrderManagement/IncomePage"));
 
 // ─── Currency ─────────────────────────────────────────────────────────────────
-// Multi-currency management (Currencies + Exchange Rates).
-// Accessible from ALL modules (Duka POS, Pesa Accounting, Bandu Payroll, Mteja CRM)
-// because every financial transaction can now carry a currency.
 const CurrencyPage = lazy(() => import("src/pages/Currency/CurrencyPage"));
+
+// ─── CRM / Mteja Module ───────────────────────────────────────────────────────
+// All CRM pages are lazy-loaded and only reachable when hasMteja === true.
+// The MtejaRoute guard below enforces this at runtime.
+const LeadsPage = lazy(() => import("src/pages/Lead/Leads"));
+const CampaignsPage = lazy(() => import("src/pages/Campaign/Campaigns"));
+const SalesTargetsPage = lazy(() => import("src/pages/SalesTargets/SalesTargets"));
+const SalesBudgetsPage = lazy(() => import("src/pages/Salesbudgets/Salesbudgets"));
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = (
@@ -140,8 +145,28 @@ const guardedAdminPage = (Component: React.ComponentType, permission: string) =>
   </PermissionRoute>
 );
 
+// ─── CRM page wrapper — private + Mteja guard ────────────────────────────────
+const mtejaPage = (Component: React.ComponentType, permission: string) => (
+  <MtejaRoute>
+    <PermissionRoute permission={permission}>
+      {privatePage(Component)}
+    </PermissionRoute>
+  </MtejaRoute>
+);
+
+const mtejaAdminPage = (Component: React.ComponentType, permission: string) => (
+  <AdminMtejaRoute>
+    <PermissionRoute permission={permission}>
+      {adminPage(Component)}
+    </PermissionRoute>
+  </AdminMtejaRoute>
+);
+
 // ─── Accounting layout wrapper ────────────────────────────────────────────────
 const AccountingLayout = () => <Outlet />;
+
+// ─── CRM layout wrapper ───────────────────────────────────────────────────────
+const CrmLayout = () => <Outlet />;
 
 // ─── Smart routers ────────────────────────────────────────────────────────────
 const SmartShopRouter = () => {
@@ -288,10 +313,6 @@ const routes = createBrowserRouter(
           }
         />
 
-        {/* ── Currency — shop level (/currencies) ──────────────────────────
-            Accessible to any authenticated user across all modules.
-            Reuses ACCOUNTING_COA_VIEW permission (finance admin gate).
-        ─────────────────────────────────────────────────────────────────── */}
         <Route path="currencies" errorElement={<NotFound />}
           element={guardedPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
 
@@ -319,9 +340,26 @@ const routes = createBrowserRouter(
             element={guardedPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
           <Route path="income" errorElement={<NotFound />}
             element={guardedPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
-          {/* Currency settings nested under accounting for Pesa users */}
           <Route path="currencies" errorElement={<NotFound />}
             element={guardedPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
+        </Route>
+
+        {/* ── CRM / Mteja — shop level (/crm/...) ───────────────────────────
+            ALL routes here require hasMteja === true (MtejaRoute guard).
+            Permission: CUSTOMERS_VIEW gates all CRM pages for now —
+            add dedicated CRM permissions when roles are extended.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="crm" element={<CrmLayout />}>
+          <Route index errorElement={<NotFound />}
+            element={mtejaPage(LeadsPage, "CUSTOMERS_VIEW")} />
+          <Route path="leads" errorElement={<NotFound />}
+            element={mtejaPage(LeadsPage, "CUSTOMERS_VIEW")} />
+          <Route path="campaigns" errorElement={<NotFound />}
+            element={mtejaPage(CampaignsPage, "CUSTOMERS_VIEW")} />
+          <Route path="sales-targets" errorElement={<NotFound />}
+            element={mtejaPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
+          <Route path="sales-budgets" errorElement={<NotFound />}
+            element={mtejaPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
@@ -473,10 +511,6 @@ const routes = createBrowserRouter(
           }
         />
 
-        {/* ── Currency — admin level (/admin/currencies) ────────────────────
-            Top-level admin route so it's reachable without Accounting being
-            enabled — Duka POS, Bandu and Mteja all need currency settings.
-        ─────────────────────────────────────────────────────────────────── */}
         <Route path="currencies" errorElement={<NotFound />}
           element={guardedAdminPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
 
@@ -504,9 +538,25 @@ const routes = createBrowserRouter(
             element={guardedAdminPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
           <Route path="income" errorElement={<NotFound />}
             element={guardedAdminPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
-          {/* Currency settings nested under /admin/accounting/currencies too */}
           <Route path="currencies" errorElement={<NotFound />}
             element={guardedAdminPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
+        </Route>
+
+        {/* ── CRM / Mteja — admin level (/admin/crm/...) ────────────────────
+            Mirrors the shop-level CRM routes above.
+            All gated behind AdminMtejaRoute so non-CRM tenants can't access.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="crm" element={<CrmLayout />}>
+          <Route index errorElement={<NotFound />}
+            element={mtejaAdminPage(LeadsPage, "CUSTOMERS_VIEW")} />
+          <Route path="leads" errorElement={<NotFound />}
+            element={mtejaAdminPage(LeadsPage, "CUSTOMERS_VIEW")} />
+          <Route path="campaigns" errorElement={<NotFound />}
+            element={mtejaAdminPage(CampaignsPage, "CUSTOMERS_VIEW")} />
+          <Route path="sales-targets" errorElement={<NotFound />}
+            element={mtejaAdminPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
+          <Route path="sales-budgets" errorElement={<NotFound />}
+            element={mtejaAdminPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

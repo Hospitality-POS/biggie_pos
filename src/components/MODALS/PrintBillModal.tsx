@@ -422,12 +422,14 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     total: "52px",
   } as const;
 
-  // Font size presets
+  // ── Font size presets — extended for larger options ────────────────────
   const fontSizes = [
     { value: 9, label: "Small" },
     { value: 11, label: "Normal" },
     { value: 13, label: "Large" },
     { value: 15, label: "X-Large" },
+    { value: 17, label: "XX-Large" },
+    { value: 20, label: "Huge" },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -562,18 +564,28 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 <div style={{ width: 1, height: 24, background: "#e5e7eb" }} />
 
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                  <Tooltip title="Font Size">
-                    <ZoomInOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  <Tooltip title="Decrease Font Size">
+                    <ZoomOutOutlined style={{ fontSize: 16, color: "#6b7280" }} />
                   </Tooltip>
                   <AntSlider
                     min={8}
-                    max={16}
+                    max={20}
                     value={fontSize}
                     onChange={setFontSize}
-                    style={{ width: 120, margin: 0 }}
+                    style={{ width: 130, margin: 0 }}
                     tooltip={{ formatter: (v) => `${v}px` }}
+                    marks={{
+                      8: "",
+                      11: "",
+                      13: "",
+                      15: "",
+                      17: "",
+                      20: "",
+                    }}
                   />
-                  <ZoomOutOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  <Tooltip title="Increase Font Size">
+                    <ZoomInOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  </Tooltip>
                   <span style={{ fontSize: 12, color: "#6b7280", minWidth: 45 }}>
                     {fontSize}px
                   </span>
@@ -581,8 +593,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     value={fontSize}
                     onChange={setFontSize}
                     size="small"
-                    style={{ width: 100 }}
-                    options={fontSizes.map(fs => ({ label: fs.label, value: fs.value }))}
+                    style={{ width: 110 }}
+                    options={fontSizes.map((fs) => ({ label: fs.label, value: fs.value }))}
                   />
                 </div>
               </>
@@ -634,7 +646,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           style={{
             color: "#000000",
             display: isPdfView ? "none" : "block",
-            // Mimic 80 mm roll width in preview — removes need for manual centering
             maxWidth: "300px",
             margin: "0 auto",
             fontFamily: "'Courier New', Courier, monospace",
@@ -642,7 +653,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
         >
           {/* ── HEADER ───────────────────────────────────────────────── */}
           <div style={{ marginBottom: 8 }}>
-            {/* Company name — centered */}
             <div style={{ textAlign: "center", marginBottom: 4 }}>
               <div style={S.shopName}>{BRAND_NAME1}</div>
               {PIN && <div style={S.meta}>PIN: {PIN}</div>}
@@ -652,10 +662,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
             <SolidLine />
 
-            {/* Document type — centered, prominent */}
             <div style={{ ...S.docType, marginBottom: 4 }}>{docConfig.label}</div>
 
-            {/* Order number + date block — two columns */}
             <MetaRow
               left={<span style={S.meta}>
                 {documentType === "receipt" ? "Receipt No" :
@@ -797,23 +805,21 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           </table>
 
           {/* ── PAYMENT INFO ─────────────────────────────────────────── */}
-          {Paybill_bs && documentType === "receipt" && (
+          {/* Always show payment details whenever Paybill or Till No exists */}
+          {(Paybill_bs || TILL_NO) && (
             <>
               <DashedLine />
               <div style={{ textAlign: "center" }}>
                 <div style={S.label}>Payment Details</div>
-                <div style={S.meta}>Paybill: {Paybill_bs}</div>
-                {Paybill_ac && <div style={S.meta}>Account: {Paybill_ac}</div>}
-              </div>
-            </>
-          )}
-
-          {TILL_NO && documentType === "receipt" && (
-            <>
-              <DashedLine />
-              <div style={{ textAlign: "center" }}>
-                <div style={S.label}>Payment Details</div>
-                <div style={S.meta}>Till No: {TILL_NO}</div>
+                {Paybill_bs && (
+                  <>
+                    <div style={S.meta}>Paybill: {Paybill_bs}</div>
+                    {Paybill_ac && <div style={S.meta}>Account: {Paybill_ac}</div>}
+                  </>
+                )}
+                {TILL_NO && (
+                  <div style={S.meta}>Till No: {TILL_NO}</div>
+                )}
               </div>
             </>
           )}
@@ -985,12 +991,20 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Box>
             </Box>
 
-            {/* Payment Details */}
-            {(Paybill_bs || TILL_NO) && documentType === "receipt" && (
+            {/* Payment Details — PDF: always show if Paybill or Till No exists */}
+            {(Paybill_bs || TILL_NO) && (
               <Box sx={{ mt: 3, mb: 2, backgroundColor: "#f0f9ff", borderRadius: 2, padding: 2, border: "1px solid #bae6fd" }}>
                 <Typography variant="h6" style={pdfSub} sx={{ textAlign: "center" }}>Payment Details</Typography>
-                {Paybill_bs && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Paybill: {Paybill_bs}{Paybill_ac && ` | Account: ${Paybill_ac}`}</Typography>}
-                {TILL_NO && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Till No: {TILL_NO}</Typography>}
+                {Paybill_bs && (
+                  <Typography style={pdfNorm} sx={{ textAlign: "center" }}>
+                    Paybill: {Paybill_bs}{Paybill_ac && ` | Account: ${Paybill_ac}`}
+                  </Typography>
+                )}
+                {TILL_NO && (
+                  <Typography style={pdfNorm} sx={{ textAlign: "center" }}>
+                    Till No: {TILL_NO}
+                  </Typography>
+                )}
               </Box>
             )}
 

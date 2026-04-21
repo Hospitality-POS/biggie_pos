@@ -26,20 +26,15 @@ import {
     PoweroffOutlined,
     PlusOutlined,
     RocketOutlined,
-    TeamOutlined,
     ThunderboltOutlined,
-    LoadingOutlined,
     SyncOutlined,
     AuditOutlined,
     WalletOutlined,
     MobileOutlined,
     RobotOutlined,
-    MessageOutlined,
-    GiftOutlined,
-    CodeOutlined,
     CustomerServiceOutlined,
     PhoneOutlined,
-    CommentOutlined,
+    CodeOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -163,16 +158,42 @@ const INTEGRATIONS = [
         id: "mteja",
         name: "Mteja by Base",
         category: "CRM & Customer Engagement",
-        description: "All-in-one CRM suite — SMS, loyalty rewards, omnichannel conversations, and customer relationship tools in one platform.",
-        longDescription: "Mteja by Base is your complete customer engagement suite. Manage customer relationships, run loyalty programmes, send automated SMS notifications, build personalised marketing campaigns, and engage customers across WhatsApp, SMS, and web chat — all deeply integrated with Duka by Base and Pesa by Base.",
-        features: ["Customer Relationship Management", "Order & Payment Alerts", "Referral Programmes", "Customer Analytics", "Omnichannel Conversations Inbox", "WhatsApp & SMS Integration", "Web Chat Widget"],
-        comingSoonFeatures: ["Loyalty Points & Rewards", "Tiered Membership Levels", "Automated SMS Notifications", "Bulk SMS Campaigns", "Birthday & Anniversary Rewards", "AI Auto-Reply", "Chatbot Builder"],
-        benefits: ["Increase repeat visits", "Boost average order value", "Keep customers informed", "Reward your best customers", "Data-driven promotions", "Reduce no-shows", "Works without internet for SMS"],
+        description: "Full-stack CRM suite — leads pipeline, campaigns, sales targets, omnichannel conversations, and customer loyalty tools in one platform.",
+        longDescription: "Mteja by Base is your complete customer engagement and sales platform. Manage leads through a visual pipeline, run marketing campaigns, track sales targets and budgets, engage customers across WhatsApp and SMS, and build loyalty programmes — all deeply integrated with Duka by Base and Pesa by Base.",
+        features: [
+            "Leads Pipeline & Stage Management",
+            "Lead Activities & Follow-up Tracking",
+            "Marketing Campaigns & ROI Tracking",
+            "Sales Targets & Leaderboard",
+            "Sales Budgets & Approval Workflows",
+            "Customer Relationship Management",
+            "Omnichannel Conversations Inbox",
+            "WhatsApp, SMS & Web Chat Integration",
+            "Order & Payment Alerts",
+            "Customer Analytics Dashboard",
+            "Referral Programmes",
+        ],
+        comingSoonFeatures: [
+            "Loyalty Points & Rewards",
+            "Tiered Membership Levels",
+            "Automated SMS Campaigns",
+            "Birthday & Anniversary Rewards",
+            "AI Auto-Reply & Chatbot Builder",
+        ],
+        benefits: [
+            "Full lead-to-customer pipeline",
+            "Increase repeat visits & revenue",
+            "Track sales team performance",
+            "Keep customers informed in real-time",
+            "Reward your best customers",
+            "Data-driven campaigns",
+            "Reduce no-shows",
+        ],
         setupTime: "5 minutes",
         status: "available",
         icon: CustomerServiceOutlined,
         color: C.primary,
-        tags: ["Base Suite", "CRM", "Loyalty", "Conversations"],
+        tags: ["Base Suite", "CRM", "Leads", "Loyalty", "Conversations"],
     },
     {
         id: "etims",
@@ -313,11 +334,7 @@ const ModalFooter: React.FC<{
 const PricingPill: React.FC<{ status: string }> = ({ status }) => {
     if (status === "coming_soon") {
         return (
-            <div style={{
-                display: "flex", alignItems: "center", gap: 6,
-                background: C.bg, border: `1px solid ${C.border}`,
-                borderRadius: 8, padding: "8px 12px", flex: 1,
-            }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", flex: 1 }}>
                 <PhoneOutlined style={{ color: C.primary, fontSize: 12, flexShrink: 0 }} />
                 <div>
                     <Text style={{ fontSize: 10, color: C.subText, display: "block" }}>Pricing</Text>
@@ -351,9 +368,7 @@ const IntegrationCard: React.FC<{
         <Card
             style={{
                 height: "100%", borderRadius: 14,
-                border: isEnabled
-                    ? `1.5px solid ${integration.color}`
-                    : `1px solid ${C.border}`,
+                border: isEnabled ? `1.5px solid ${integration.color}` : `1px solid ${C.border}`,
                 boxShadow: isEnabled ? `0 4px 20px ${integration.color}20` : "0 1px 4px rgba(0,0,0,0.04)",
                 background: isEnabled ? `${integration.color}03` : "#fff",
                 transition: "box-shadow 0.2s, border-color 0.2s",
@@ -388,13 +403,17 @@ const IntegrationCard: React.FC<{
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
                 {integration.tags.map((tag, i) => (
-                    <span key={i} style={{ background: i === 0 ? integration.color + "14" : C.bg, color: i === 0 ? integration.color : C.subText, borderRadius: 5, fontSize: 10, fontWeight: 600, padding: "2px 7px", border: `1px solid ${i === 0 ? integration.color + "30" : C.border}` }}>
+                    <span key={i} style={{
+                        background: i === 0 ? integration.color + "14" : C.bg,
+                        color: i === 0 ? integration.color : C.subText,
+                        borderRadius: 5, fontSize: 10, fontWeight: 600, padding: "2px 7px",
+                        border: `1px solid ${i === 0 ? integration.color + "30" : C.border}`,
+                    }}>
                         {tag}
                     </span>
                 ))}
             </div>
 
-            {/* Pricing + setup */}
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <PricingPill status={integration.status} />
                 <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", flex: 1, textAlign: "right" }}>
@@ -410,17 +429,12 @@ const IntegrationCard: React.FC<{
                     </Button>
                 ) : (
                     <Button
-                        type="primary"
-                        block
+                        type="primary" block
                         icon={isComingSoon ? <LockOutlined /> : <PlusOutlined />}
                         disabled={isComingSoon}
                         loading={enableLoading}
                         onClick={onEnable}
-                        style={{
-                            borderRadius: 8,
-                            background: isComingSoon ? undefined : integration.color,
-                            borderColor: isComingSoon ? undefined : integration.color,
-                        }}
+                        style={{ borderRadius: 8, background: isComingSoon ? undefined : integration.color, borderColor: isComingSoon ? undefined : integration.color }}
                     >
                         {isComingSoon ? "Coming Soon" : "Enable"}
                     </Button>
@@ -467,18 +481,11 @@ const LearnMoreModal: React.FC<{
                         </FormSection>
                     </Col>
                 </Row>
-
-                <div style={{
-                    display: "flex", alignItems: "center", gap: 12,
-                    background: C.primaryLight, border: `1px solid ${C.primary}20`,
-                    borderRadius: 10, padding: "14px 16px",
-                }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, background: C.primaryLight, border: `1px solid ${C.primary}20`, borderRadius: 10, padding: "14px 16px" }}>
                     <PhoneOutlined style={{ color: C.primary, fontSize: 20, flexShrink: 0 }} />
                     <div>
                         <Text strong style={{ fontSize: 13, color: C.primary, display: "block" }}>Pricing available on request</Text>
-                        <Text style={{ fontSize: 12, color: C.subText }}>
-                            Contact our support team for a quote tailored to your business size and needs.
-                        </Text>
+                        <Text style={{ fontSize: 12, color: C.subText }}>Contact our support team for a quote tailored to your business size and needs.</Text>
                     </div>
                 </div>
                 <Button block onClick={onClose} style={{ borderRadius: 8 }}>Close</Button>
@@ -537,7 +544,7 @@ const DiscoverPage: React.FC = () => {
 
     const enabledCount = INTEGRATIONS.filter(i => getStatus(i.id) === "enabled").length;
 
-    // ── Mutations ─────────────────────────────────────────────────────────────
+    // ── Mutations ──────────────────────────────────────────────────────────────
     const pesapalMutation = useMutation({
         mutationFn: (values: any) => pesapalApi.configure(tenantId, values),
         onSuccess: () => {
@@ -647,7 +654,7 @@ const DiscoverPage: React.FC = () => {
             },
             mteja: {
                 title: "Disable Mteja by Base?",
-                content: "This will stop all CRM, loyalty, SMS, and Conversations features. Your customer data will be preserved.",
+                content: "This will hide the CRM, leads, campaigns, sales targets, conversations, and loyalty features. Your customer and lead data will be preserved.",
                 onOk: () => disableMtejaMutation.mutateAsync(),
             },
             pesapal: {
@@ -875,30 +882,37 @@ const DiscoverPage: React.FC = () => {
             {/* Mteja by Base Modal */}
             <Modal open={mtejaModalOpen}
                 onCancel={() => { setMtejaModalOpen(false); mtejaForm.resetFields(); }}
-                footer={null} style={{ top: 20 }} width="min(520px, 96vw)" destroyOnClose
+                footer={null} style={{ top: 20 }} width="min(560px, 96vw)" destroyOnClose
                 title={<ModalTitle icon={<CustomerServiceOutlined />} color={C.primary} title="Enable Mteja by Base" />}
             >
                 <Form form={mtejaForm} layout="vertical" onFinish={v => enableMtejaMutation.mutate(v)}
                     initialValues={{ accept_terms: false, accept_charges: false }} style={{ paddingTop: 4 }}>
-                    <Alert message="Engage customers with loyalty rewards, SMS, CRM, and omnichannel conversations." type="info" showIcon style={{ marginBottom: 14, borderRadius: 8 }} />
+                    <Alert
+                        message="Full-stack CRM, leads pipeline, campaigns, sales tracking, and customer conversations — all in one."
+                        type="info" showIcon style={{ marginBottom: 14, borderRadius: 8 }}
+                    />
                     <FormSection>
-                        <SectionLabel>What's Included</SectionLabel>
+                        <SectionLabel>What's Included — Live Now</SectionLabel>
                         <FeatureList
                             items={[
+                                "Leads pipeline with stage management",
+                                "Lead activities & follow-up tracking",
+                                "Marketing campaigns & ROI tracking",
+                                "Sales targets & team leaderboard",
+                                "Sales budgets & approval workflows",
                                 "Customer relationship management",
+                                "Omnichannel conversations inbox",
+                                "WhatsApp, SMS & web chat integration",
                                 "Order & payment alerts",
+                                "Customer analytics dashboard",
                                 "Referral programmes",
-                                "Customer analytics",
-                                "Conversations inbox (WhatsApp, SMS & web chat)",
                             ]}
                             comingSoonItems={[
                                 "Loyalty points & rewards",
                                 "Tiered membership levels",
-                                "Automated SMS notifications",
-                                "Bulk SMS campaigns",
+                                "Automated SMS campaigns",
                                 "Birthday & anniversary rewards",
-                                "AI Auto-Reply",
-                                "Chatbot Builder",
+                                "AI Auto-Reply & Chatbot Builder",
                             ]}
                             color={C.primary}
                         />
