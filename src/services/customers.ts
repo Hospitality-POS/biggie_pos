@@ -402,11 +402,16 @@ export type CustomerSource =
 export interface CustomerAddress {
   street?: string;
   building?: string;
+  floor?: string; // New
   city?: string;
   county?: string;
   postal_code?: string;
   country?: string;
   coordinates?: { lat: number; lng: number };
+  address_type?: 'billing' | 'shipping' | 'both'; // New
+  is_primary?: boolean; // New
+  landmark?: string; // New
+  directions?: string; // New
 }
 
 export interface CustomerContactPerson {
@@ -460,6 +465,7 @@ export interface Customer {
 
   // ── Address (new) ──────────────────────────────────────────────────────────
   address?: CustomerAddress;
+  billing_addresses?: CustomerAddress[]; // Multiple addresses support
 
   // ── CRM fields (new) ──────────────────────────────────────────────────────
   type?: CustomerType;

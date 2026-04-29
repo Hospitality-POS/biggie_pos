@@ -9,11 +9,13 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { createExpense } from "@services/accounting/expense";
-import { createBill } from "@services/accounting/bill";
+import { createBill, updateBill } from "@services/accounting/bill";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchAllSuppliers } from "@services/supplier";
 import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import { fetchTenantDetails } from "@services/tenants";
+import { getCurrentTenantId } from "@services/tenants";
 import dayjs from "dayjs";
 
 const { TextArea } = Input;
@@ -23,13 +25,14 @@ interface Props {
     onClose: () => void;
     onSuccess?: () => void;
     defaultTab?: "expense" | "bill";
+    billToEdit?: any;
 }
 
 const numFormatter = (v: any) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const numParser = (v: any) => v!.replace(/,/g, "") as any;
 
 const ManualExpenseBillModal: React.FC<Props> = ({
-    open, onClose, onSuccess, defaultTab = "expense",
+    open, onClose, onSuccess, defaultTab = "expense", billToEdit,
 }) => {
     const [expenseForm] = Form.useForm();
     const [billForm] = Form.useForm();
@@ -44,16 +47,56 @@ const ManualExpenseBillModal: React.FC<Props> = ({
     const [billAddSupplierOpen, setBillAddSupplierOpen] = useState(false);
     const [addAccountOpen, setAddAccountOpen] = useState(false);
 
-    const shopId = localStorage.getItem("shopId") || "";
+    const shopId = localStorage.getItem("shopId") || undefined;
+    const tenantId = getCurrentTenantId();
 
     useEffect(() => {
         if (open) setActiveTab(defaultTab);
     }, [open, defaultTab]);
 
+    // ── Populate form for bill editing ───────────────────────────────────────────
+    useEffect(() => {
+        if (open && billToEdit && activeTab === "bill") {
+            billForm.setFieldsValue({
+                supplier_id: billToEdit.supplier_id?._id || billToEdit.supplier_id,
+                issue_date: dayjs(billToEdit.bill_date),
+                due_date: billToEdit.due_date ? dayjs(billToEdit.due_date) : null,
+                expense_account_id: billToEdit.bill_lines?.[0]?.account_id,
+                amount: billToEdit.subtotal || billToEdit.bill_lines?.[0]?.amount,
+                vat_amount: billToEdit.total_vat_amount || billToEdit.total_vat,
+                notes: billToEdit.notes,
+                description: billToEdit.bill_lines?.[0]?.description,
+            });
+        }
+    }, [open, billToEdit, activeTab, billForm]);
+
+    // ── Tenant VAT config ─────────────────────────────────────────────────────
+    const { data: tenantData } = useQuery({
+        queryKey: ["tenant", tenantId],
+        queryFn: () => fetchTenantDetails(tenantId || undefined),
+        enabled: !!tenantId && open,
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const tenant = tenantData?.data;
+    const vatEnabled = tenant?.is_vat_enabled ?? true;
+    const standardVatRate = tenant?.vat_standard_rate ?? 0.16;
+
+    // ── Auto-calculate VAT for bills ───────────────────────────────────────────
+    const amountValue = Form.useWatch("amount", billForm);
+    
+    useEffect(() => {
+        if (activeTab === "bill" && vatEnabled && amountValue) {
+            // Auto-calculate VAT for both new bills and when editing
+            const calculatedVat = parseFloat((amountValue * standardVatRate).toFixed(2));
+            billForm.setFieldsValue({ vat_amount: calculatedVat });
+        }
+    }, [activeTab, vatEnabled, standardVatRate, amountValue, billForm]);
+
     // ── Data ──────────────────────────────────────────────────────────────────
     const { data: accountsData } = useQuery({
         queryKey: ["chart-of-accounts"],
-        queryFn: () => getAllAccounts({}),
+        queryFn: () => getAllAccounts({ shop_id: shopId }),
         enabled: open,
     });
     const allAccounts = accountsData?.accounts || [];
@@ -163,19 +206,34 @@ const ManualExpenseBillModal: React.FC<Props> = ({
             message.error(err?.response?.data?.message || "Failed to post expense"),
     });
 
-    const billMutation = useMutation({
+    const createBillMutation = useMutation({
         mutationFn: createBill,
         onSuccess: (res: any) => {
             if (res?.warning) message.warning(res.warning);
             billForm.resetFields();
+            setBillSupplierSearch("");
+            queryClient.invalidateQueries({ queryKey: ["bills-dropdown-bill"] });
             queryClient.invalidateQueries({ queryKey: ["bills"] });
-            queryClient.invalidateQueries({ queryKey: ["bill-summary"] });
-            queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
             onSuccess?.();
             onClose();
         },
         onError: (err: any) =>
             message.error(err?.response?.data?.message || "Failed to create bill"),
+    });
+
+    const updateBillMutation = useMutation({
+        mutationFn: (data: any) => updateBill(billToEdit!._id, data),
+        onSuccess: (res: any) => {
+            if (res?.warning) message.warning(res.warning);
+            billForm.resetFields();
+            setBillSupplierSearch("");
+            queryClient.invalidateQueries({ queryKey: ["bills-dropdown-bill"] });
+            queryClient.invalidateQueries({ queryKey: ["bills"] });
+            onSuccess?.();
+            onClose();
+        },
+        onError: (err: any) =>
+            message.error(err?.response?.data?.message || "Failed to update bill"),
     });
 
     // ── Submit handlers ───────────────────────────────────────────────────────
@@ -217,29 +275,43 @@ const ManualExpenseBillModal: React.FC<Props> = ({
         const netAmount = v.amount as number;
         const vatAmount = (v.vat_amount as number) || 0;
 
-        billMutation.mutate({
-            supplier_id: v.supplier_id,
-            bill_date: v.issue_date?.toISOString(),
-            due_date: v.due_date?.toISOString(),
-            bill_lines: [
-                {
-                    account_id: v.expense_account_id,
-                    description: v.description,
-                    quantity: 1,
-                    unit_price: netAmount,
-                    amount: netAmount,
-                    vat_rate: vatAmount > 0
-                        ? parseFloat((vatAmount / netAmount).toFixed(4))
-                        : 0,
-                    vat_amount: vatAmount,
-                    vat_inclusive: false,
-                },
-            ],
-            notes: v.notes || undefined,
-            // Bills are deferred — Pending until paid via Record Payment
-            status: "Pending",
-            currency: "KES",
-        });
+        if (billToEdit) {
+            // Update existing bill - only send editable fields
+            updateBillMutation.mutate({
+                bill_date: v.issue_date?.toISOString(),
+                due_date: v.due_date?.toISOString(),
+                supplier_ref: v.supplier_id,
+                notes: v.notes || undefined,
+                terms: undefined,
+                internal_notes: undefined,
+                currency: v.currency,
+            });
+        } else {
+            // Create new bill
+            createBillMutation.mutate({
+                supplier_id: v.supplier_id,
+                bill_date: v.issue_date?.toISOString(),
+                due_date: v.due_date?.toISOString(),
+                bill_lines: [
+                    {
+                        account_id: v.expense_account_id,
+                        description: v.description,
+                        quantity: 1,
+                        unit_price: netAmount,
+                        amount: netAmount,
+                        vat_rate: vatAmount > 0
+                            ? parseFloat((vatAmount / netAmount).toFixed(4))
+                            : 0,
+                        vat_amount: vatAmount,
+                        vat_inclusive: false,
+                    },
+                ],
+                notes: v.notes || undefined,
+                // Bills are deferred — Pending until paid via Record Payment
+                status: "Pending",
+                currency: "KES",
+            });
+        }
     };
 
     const handleOk = () => {
@@ -255,7 +327,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
         onClose();
     };
 
-    const isLoading = expenseMutation.isPending || billMutation.isPending;
+    const isLoading = expenseMutation.isPending || createBillMutation.isPending || updateBillMutation.isPending;
 
     const handleTabChange = (key: string) => {
         if (key === "expense") billForm.resetFields();
@@ -276,7 +348,10 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                             ? <ArrowUpOutlined style={{ color: "#ff4d4f" }} />
                             : <FileTextOutlined style={{ color: "#8b5cf6" }} />
                         }
-                        {activeTab === "expense" ? "Post Expense" : "Create Supplier Bill"}
+                        {activeTab === "expense" 
+                            ? "Post Expense" 
+                            : billToEdit ? "Edit Supplier Bill" : "Create Supplier Bill"
+                        }
                     </Space>
                 }
                 width={620}
@@ -293,7 +368,10 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                                 : { background: "#8b5cf6", borderColor: "#8b5cf6" }
                         }
                     >
-                        {activeTab === "expense" ? "Post Expense" : "Create Bill"}
+                        {activeTab === "expense" 
+    ? "Post Expense" 
+    : billToEdit ? "Update Bill" : "Create Bill"
+}
                     </Button>,
                 ]}
                 destroyOnClose
@@ -511,7 +589,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                                 </Form.Item>
                             </Col>
                             <Col span={12}>
-                                <Form.Item name="due_date" label="Due Date" rules={[{ required: true }]}>
+                                <Form.Item name="due_date" label="Due Date" rules={[]}>
                                     <DatePicker style={{ width: "100%" }} format="DD MMM YYYY" />
                                 </Form.Item>
                             </Col>
@@ -546,7 +624,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                                 </Form.Item>
                             </Col>
                             <Col span={12}>
-                                <Form.Item name="vat_amount" label="VAT Amount (optional)">
+                                <Form.Item name="vat_amount" label={`VAT Amount (${(standardVatRate * 100).toFixed(0)}% - Auto-calculated)`}>
                                     <InputNumber
                                         style={{ width: "100%" }} min={0} precision={2}
                                         placeholder="0.00" formatter={numFormatter} parser={numParser}

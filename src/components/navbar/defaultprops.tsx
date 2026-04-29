@@ -27,6 +27,8 @@ import {
   NotificationOutlined,
   AimOutlined,
   RiseOutlined,
+  WalletOutlined,
+  SwapOutlined,
 } from "@ant-design/icons";
 import { PeopleOutlined } from "@mui/icons-material";
 import { useAppSelector } from "src/store";
@@ -90,6 +92,8 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/customers": "CUSTOMERS_VIEW",
   "/reports": "REPORTS_ITEM_SALES",
   "/documents": "DOCUMENTS_VIEW",
+  "/petty-cash": "ORDERS_VIEW_DASHBOARD",
+  "/refunds": "ORDERS_VIEW_DASHBOARD",
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/mteja": "CUSTOMERS_VIEW",
   "/currencies": "ACCOUNTING_COA_VIEW",
@@ -351,6 +355,8 @@ const useProLayoutNav = () => {
     ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
     { path: p("/reports"), name: "Business Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
+    { path: p("/petty-cash"), name: "Petty Cash", icon: <WalletOutlined />, _bare: "/petty-cash" },
+    { path: p("/refunds"), name: "Refunds", icon: <SwapOutlined />, _bare: "/refunds" },
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,

@@ -16,6 +16,7 @@ import {
   InvoiceForPrint,
   SystemDetails,
 } from "./InvoiceTemplates";
+import { usePrimaryColor } from "../../../context/PrimaryColorContext";
 
 const { Text } = Typography;
 
@@ -45,20 +46,23 @@ const TemplateThumbnail: React.FC<{
   tpl: (typeof TEMPLATES)[number];
   selected: boolean;
   onSelect: () => void;
-}> = ({ tpl, selected, onSelect }) => (
+}> = ({ tpl, selected, onSelect }) => {
+  const primaryColor = usePrimaryColor();
+  
+  return (
   <button
     onClick={onSelect}
     style={{
       flex: "0 0 110px",
       cursor: "pointer",
-      border: selected ? `2.5px solid ${C.primary}` : `1.5px solid ${C.border}`,
+      border: selected ? `2.5px solid ${primaryColor}` : `1.5px solid ${C.border}`,
       borderRadius: 10,
       overflow: "hidden",
       background: "#fff",
       padding: 0,
       transition: "border-color 0.15s, transform 0.12s",
       transform: selected ? "scale(1.04)" : "scale(1)",
-      boxShadow: selected ? `0 0 0 3px ${C.primaryLight}` : "none",
+      boxShadow: selected ? `0 0 0 3px ${primaryColor}20` : "none",
       position: "relative",
     }}
   >
@@ -66,7 +70,7 @@ const TemplateThumbnail: React.FC<{
     <div
       style={{
         height: 72,
-        background: tpl.thumbBg,
+        background: tpl.id === 1 ? primaryColor : tpl.thumbBg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -85,7 +89,7 @@ const TemplateThumbnail: React.FC<{
             position: "absolute",
             top: 5,
             right: 6,
-            background: C.primary,
+            background: primaryColor,
             borderRadius: "50%",
             width: 18,
             height: 18,
@@ -104,13 +108,12 @@ const TemplateThumbnail: React.FC<{
         style={{
           fontSize: 11,
           fontWeight: selected ? 700 : 500,
-          color: selected ? C.primary : C.darkText,
+          color: selected ? primaryColor : C.darkText,
           marginBottom: 1,
         }}
       >
         {tpl.name}
       </div>
-      <div style={{ fontSize: 10, color: C.subText, lineHeight: 1.3 }}>{tpl.description}</div>
     </div>
   </button>
 );

@@ -204,10 +204,10 @@ const INTEGRATIONS = [
         features: ["Automated Tax Invoice Generation", "Real-time KRA Submission", "VAT/PAYE Compliance", "Digital Receipts", "Audit Trail", "Integration with Pesa by Base & Duka by Base"],
         benefits: ["Full KRA compliance", "Zero manual filing", "Reduced audit risk", "Accurate tax records", "Auto VAT reconciliation"],
         setupTime: "N/A",
-        status: "coming_soon",
+        status: "available",
         icon: AuditOutlined,
         color: C.indigo,
-        tags: ["KRA", "Tax", "Compliance", "Coming Soon"],
+        tags: ["KRA", "Tax", "Compliance", "Beta"],
     },
     {
         id: "pesapal",
@@ -436,7 +436,7 @@ const IntegrationCard: React.FC<{
                         onClick={onEnable}
                         style={{ borderRadius: 8, background: isComingSoon ? undefined : integration.color, borderColor: isComingSoon ? undefined : integration.color }}
                     >
-                        {isComingSoon ? "Coming Soon" : "Enable"}
+                        {isComingSoon ? "Coming Soon" : integration.tags?.includes("Beta") ? "Beta Mode" : "Enable"}
                     </Button>
                 )}
                 <Button block icon={<InfoCircleOutlined />} onClick={onLearnMore} style={{ borderRadius: 8, borderColor: C.border }}>

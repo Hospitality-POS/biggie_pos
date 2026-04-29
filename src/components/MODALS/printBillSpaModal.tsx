@@ -60,6 +60,7 @@ import {
   type PrintStatusResult,
   type SavePrintResult,
 } from "../MODALS/Hooks/usePrintDocument";
+import DigiTaxInvoiceGenerator from "../DigiTaxInvoiceGenerator";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 interface PrintBillProps {
@@ -223,6 +224,8 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [useDigiTax, setUseDigiTax] = useState(false);
+  const [digiTaxData, setDigiTaxData] = useState<any>(null);
 
   const pendingPrintRef = useRef(false);
   const [printTrigger, setPrintTrigger] = useState(0);
@@ -608,6 +611,15 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           </div>
         </div>
 
+        {/* DigiTax ETR Toggle */}
+        <DigiTaxInvoiceGenerator
+          invoiceId={cartDetails?.order_no}
+          orderNo={cartDetails?.order_no}
+          onDigiTaxChange={setUseDigiTax}
+          onDigiTaxData={setDigiTaxData}
+          disabled={!canPrint}
+        />
+
         {/* ── THERMAL RECEIPT ─────────────────────────────────────────── */}
         <div
           ref={!isPdfView ? printableRef : undefined}
@@ -619,6 +631,21 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           <div style={{ textAlign: "center", marginBottom: 10 }}>
             <div style={S.shopName}>{BRAND_NAME1}</div>
             <div style={S.docType}>{docConfig.label}</div>
+            
+            {/* DigiTax ETR Information */}
+            {useDigiTax && digiTaxData?.success && (
+              <div style={{ marginBottom: 4, textAlign: "center" }}>
+                <div style={{ ...S.meta, fontSize: `${fontSize - 1}px`, color: "#52c41a", fontWeight: 700 }}>
+                  ETR RECEIPT
+                </div>
+                {digiTaxData.taxReceiptNumber && (
+                  <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#389e0d" }}>
+                    Tax Receipt: {digiTaxData.taxReceiptNumber}
+                  </div>
+                )}
+              </div>
+            )}
+            
             <SolidLine />
             <div style={S.meta}>Tel: {PHONE_NO}</div>
             {/* ── Always show payment details if Paybill or Till No exists ── */}
@@ -743,9 +770,24 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           {/* Footer */}
           <DashedLine />
           <div style={{ textAlign: "center", marginTop: 6 }}>
-            <div className="qrcoded" style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
-              <QRCodeCanvas value={QR_Code} size={90} className="qrcode" />
-            </div>
+            {/* ETR QR Code - replaces regular QR code when present */}
+            {useDigiTax && digiTaxData?.success && digiTaxData.qrCode ? (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: `${fontSize - 2}px`, color: "#52c41a", marginBottom: 2, fontWeight: 600 }}>
+                  ETR VERIFICATION
+                </div>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+                  <QRCodeCanvas value={digiTaxData.qrCode} size={60} className="etr-qrcode" />
+                </div>
+                <div style={{ fontSize: `${fontSize - 3}px`, color: "#666" }}>
+                  Scan to verify tax receipt
+                </div>
+              </div>
+            ) : (
+              <div className="qrcoded" style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+                <QRCodeCanvas value={QR_Code} size={90} className="qrcode" />
+              </div>
+            )}
             <div style={S.footer}>Thank you for your {documentType === "quotation" ? "interest" : "visit"}!</div>
             <div style={S.footer}>{EMAIL_URL}</div>
             <div style={S.footer}>Printed: {printDateStr} {printTimeStr}</div>
@@ -770,6 +812,20 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                   {docConfig.icon}
                   <Typography variant="h5" style={{ fontSize: "20px", fontWeight: 700, color: "#fff", margin: 0 }}>{docConfig.label}</Typography>
                 </Box>
+                
+                {/* DigiTax ETR Information */}
+                {useDigiTax && digiTaxData?.success && (
+                  <Box sx={{ mt: 1, p: 1, backgroundColor: "#f6ffed", border: "1px solid #b7eb8f", borderRadius: 1 }}>
+                    <Typography variant="body2" style={{ color: "#52c41a", fontWeight: 700, fontSize: "12px" }}>
+                      ETR RECEIPT
+                    </Typography>
+                    {digiTaxData.taxReceiptNumber && (
+                      <Typography variant="body2" style={{ color: "#389e0d", fontSize: "11px" }}>
+                        Tax Receipt: {digiTaxData.taxReceiptNumber}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
               </Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <Box>

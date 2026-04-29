@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Button, Form, Input, Modal, Typography, message } from "antd";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { Button, Form, Input, Modal, Typography, message, Row, Col, Checkbox, AutoComplete } from "antd";
 import {
     EditOutlined, EnvironmentOutlined, IdcardOutlined,
     MailOutlined, SaveOutlined, UserAddOutlined, UserOutlined,
@@ -51,11 +51,128 @@ function parsePhoneForInput(raw?: string) {
     return { code: 254, phone: local, short: "KE" };
 }
 
+// ── Google Places functionality ───────────────────────────────────────────────
+const useGooglePlacesAutocomplete = () => {
+    const [options, setOptions] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    const loadGoogleMaps = (): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            if ((window as any).google?.maps?.places) { resolve(); return; }
+            if (document.getElementById("gmap-script")) {
+                const check = setInterval(() => {
+                    if ((window as any).google?.maps?.places) { clearInterval(check); resolve(); }
+                }, 100);
+                setTimeout(() => { clearInterval(check); reject("timeout"); }, 10000);
+                return;
+            }
+            const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+            if (!key) { reject("no key"); return; }
+            const script = document.createElement("script");
+            script.id = "gmap-script";
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&loading=async`;
+            script.async = true;
+            script.defer = true;
+            script.onload = () => {
+                const check = setInterval(() => {
+                    if ((window as any).google?.maps?.places) { clearInterval(check); resolve(); }
+                }, 100);
+            };
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    };
+
+    useEffect(() => {
+        const init = async () => {
+            try {
+                await loadGoogleMaps();
+            } catch (error) {
+                console.log("Google Maps not available");
+            }
+        };
+        init();
+    }, []);
+
+    const getPlacePredictions = useCallback(async (input: string) => {
+        if (!input || !(window as any).google?.maps?.places) {
+            setOptions([]);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const service = new (window as any).google.maps.places.AutocompleteService();
+            const predictions = await new Promise<any[]>((resolve, reject) => {
+                service.getPlacePredictions(
+                    { input, componentRestrictions: { country: "KE" } },
+                    (results: any[], status: string) => {
+                        if (status === "OK") {
+                            resolve(results);
+                        } else {
+                            reject(status);
+                        }
+                    }
+                );
+            });
+            
+            setOptions(predictions.map(p => ({
+                value: p.description,
+                label: p.description,
+                place_id: p.place_id,
+            })));
+        } catch (error) {
+            setOptions([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const getPlaceDetails = useCallback(async (placeId: string) => {
+        if (!placeId || !(window as any).google?.maps?.places) {
+            return null;
+        }
+
+        try {
+            const service = new (window as any).google.maps.places.PlacesService(document.createElement("div"));
+            const details = await new Promise<any>((resolve, reject) => {
+                service.getDetails(
+                    { placeId, fields: ['address_components', 'formatted_address'] },
+                    (result: any, status: string) => {
+                        if (status === "OK") {
+                            resolve(result);
+                        } else {
+                            reject(status);
+                        }
+                    }
+                );
+            });
+
+            const getComponent = (type: string) =>
+                details.address_components?.find((c: any) => c.types.includes(type))?.long_name ?? null;
+
+            return {
+                street: getComponent("route") ? `${getComponent("street_number") || ""} ${getComponent("route")}`.trim() : null,
+                building: getComponent("establishment") || getComponent("point_of_interest"),
+                city: getComponent("locality") || getComponent("administrative_area_level_2"),
+                county: getComponent("administrative_area_level_1"),
+                postal_code: getComponent("postal_code"),
+                country: getComponent("country"),
+            };
+        } catch (error) {
+            return null;
+        }
+    }, []);
+
+    return { options, loading, getPlacePredictions, getPlaceDetails };
+};
+
 const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     visible, onClose, onSuccess, customer, mode = "add", leadPrefill,
 }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
+    const { options, loading: placesLoading, getPlacePredictions, getPlaceDetails } = useGooglePlacesAutocomplete();
 
     // leadPrefill always forces create mode regardless of mode prop
     const isFromLead = !!leadPrefill;
@@ -66,19 +183,25 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
 
         if (isFromLead) {
             form.setFieldsValue({
-                customer_name: leadPrefill!.customer_name ?? "",
-                email: leadPrefill!.email ?? "",
-                location: leadPrefill!.location ?? "",
-                kra_pin: "",
-                phoneNumber: parsePhoneForInput(leadPrefill!.phone),
+                customer_name: leadPrefill?.customer_name || "",
+                phoneNumber: leadPrefill?.phone ? parsePhoneForInput(leadPrefill.phone) : undefined,
+                email: leadPrefill?.email || "",
+                location: leadPrefill?.location || "",
             });
         } else if (isEdit && customer) {
             form.setFieldsValue({
-                customer_name: customer.customer_name,
-                email: customer.email ?? "",
-                location: customer.location ?? "",
-                kra_pin: customer.kra_pin ?? "",
+                customer_name: customer.customer_name || "",
                 phoneNumber: parsePhoneForInput(customer.phone),
+                email: customer.email || "",
+                location: customer.location || "",
+                kra_pin: customer.kra_pin || "",
+                address: customer.address || {},
+                type: customer.type || "individual",
+                company_name: customer.company_name || "",
+                payment_terms: customer.payment_terms,
+                credit_limit: customer.credit_limit,
+                assigned_to: customer.assigned_to || "",
+                notes: customer.notes || "",
             });
         } else {
             form.resetFields();
@@ -88,14 +211,43 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
     const handleSubmit = async (values: any) => {
         setLoading(true);
         try {
-            const { customer_name, email, phoneNumber, location, kra_pin } = values;
+            // Construct address object with all fields
+            const address = values.address ? {
+                street: values.address.street || undefined,
+                building: values.address.building || undefined,
+                floor: values.address.floor || undefined,
+                city: values.address.city || undefined,
+                county: values.address.county || undefined,
+                postal_code: values.address.postal_code || undefined,
+                country: values.address.country || undefined,
+                coordinates: values.address.coordinates || undefined,
+                address_type: values.address.address_type || "both",
+                is_primary: values.address.is_primary === "true" || values.address.is_primary === true,
+                landmark: values.address.landmark || undefined,
+                directions: values.address.directions || undefined,
+            } : undefined;
+
             const payload = {
-                customer_name,
-                phone: getPhoneNumber(phoneNumber),
-                ...(email && { email }),
-                ...(location && { location }),
-                ...(kra_pin && { kra_pin }),
+                customer_name: values.customer_name,
+                phone: values.phoneNumber?.phone ? parseInt(values.phoneNumber.phone) : undefined,
+                email: values.email || undefined,
+                address: address,
+                billing_addresses: [], // Can be extended for multiple addresses
+                type: values.type || "individual",
+                company_name: values.company_name || undefined,
+                kra_pin: values.kra_pin || undefined,
+                payment_terms: values.payment_terms ? parseInt(values.payment_terms) : undefined,
+                credit_limit: values.credit_limit ? parseFloat(values.credit_limit) : undefined,
+                assigned_to: values.assigned_to || undefined,
+                notes: values.notes || undefined,
             };
+
+            // Remove undefined fields to keep payload clean
+            Object.keys(payload).forEach(key => {
+                if (payload[key] === undefined) {
+                    delete payload[key];
+                }
+            });
 
             const response = isEdit && customer?._id
                 ? await updateCustomer(customer._id, payload)
@@ -140,7 +292,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             onCancel={handleCancel}
             destroyOnClose
             style={{ top: 20 }}
-            width="min(560px, 96vw)"
+            width="min(800px, 96vw)"
             footer={null}
             styles={{ body: { padding: "20px 24px 24px" } }}
             title={
@@ -171,32 +323,39 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
 
             <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 4 }}>
 
-                <Form.Item
-                    name="customer_name" label="Customer Name"
-                    rules={[
-                        { required: true, message: "Please enter customer name" },
-                        { min: 2, message: "Name must be at least 2 characters" },
-                    ]}
-                >
-                    <Input
-                        prefix={<UserOutlined style={{ color: C.subText }} />}
-                        placeholder="Enter customer full name"
-                        style={{ borderRadius: 8 }}
-                        autoFocus
+                {/* Basic Information Section */}
+                <div style={{
+                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
+                    padding: 16, marginBottom: 16
+                }}>
+                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
+                        Basic Information
+                    </Text>
+                    
+                    <Form.Item
+                        name="customer_name" label="Customer Name"
+                        rules={[
+                            { required: true, message: "Please enter customer name" },
+                            { min: 2, message: "Name must be at least 2 characters" },
+                        ]}
+                    >
+                        <Input
+                            prefix={<UserOutlined style={{ color: C.subText }} />}
+                            placeholder="Enter customer full name"
+                            style={{ borderRadius: 8 }}
+                            autoFocus
+                        />
+                    </Form.Item>
+
+                    <PhoneInput
+                        label="Phone Number"
+                        owner="phoneNumber"
+                        rules={[{ required: true, message: "Please enter phone number" }]}
                     />
-                </Form.Item>
 
-                <PhoneInput
-                    label="Phone Number"
-                    owner="phoneNumber"
-                    rules={[{ required: true, message: "Please enter phone number" }]}
-                />
-
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                     <Form.Item
                         name="email" label="Email Address"
                         rules={[{ type: "email", message: "Please enter a valid email" }]}
-                        style={{ flex: "1 1 200px", marginBottom: 16 }}
                     >
                         <Input
                             prefix={<MailOutlined style={{ color: C.subText }} />}
@@ -205,36 +364,199 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                             style={{ borderRadius: 8 }}
                         />
                     </Form.Item>
+                </div>
 
+                {/* Address Information Section */}
+                <div style={{
+                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
+                    padding: 16, marginBottom: 16
+                }}>
+                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
+                        Address Information
+                    </Text>
+                    
+                    <Form.Item name="address" label="">
+                        <Row gutter={[12, 8]}>
+                            <Col span={24}>
+                                <Form.Item name={["address", "street"]} label="Street Address" style={{ marginBottom: 8 }}>
+                                    <AutoComplete
+                                        options={options}
+                                        onSearch={getPlacePredictions}
+                                        onSelect={async (value: string, option: any) => {
+                                            const details = await getPlaceDetails(option.place_id);
+                                            if (details) {
+                                                form.setFieldsValue({
+                                                    address: {
+                                                        street: details.street,
+                                                        building: details.building,
+                                                        city: details.city,
+                                                        county: details.county,
+                                                        postal_code: details.postal_code,
+                                                        country: details.country,
+                                                    }
+                                                });
+                                            }
+                                        }}
+                                        placeholder="Start typing address for Google Places autocomplete..."
+                                        style={{ width: '100%' }}
+                                    >
+                                        <Input 
+                                            prefix={<EnvironmentOutlined style={{ color: C.subText }} />}
+                                            placeholder="e.g. 123 Main Street, Apartment 4B" 
+                                        />
+                                    </AutoComplete>
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item name={["address", "building"]} label="Building/Landmark" style={{ marginBottom: 8 }}>
+                                    <Input placeholder="e.g. Westgate Tower" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item name={["address", "city"]} label="City/Town" style={{ marginBottom: 8 }}>
+                                    <Input placeholder="e.g. Nairobi" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={8}>
+                                <Form.Item name={["address", "postal_code"]} label="Postal Code" style={{ marginBottom: 8 }}>
+                                    <Input placeholder="e.g. 00100" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={8}>
+                                <Form.Item name={["address", "county"]} label="County/State" style={{ marginBottom: 8 }}>
+                                    <Input placeholder="e.g. Nairobi" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={8}>
+                                <Form.Item name={["address", "country"]} label="Country" style={{ marginBottom: 8 }}>
+                                    <Input placeholder="e.g. Kenya" />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    </Form.Item>
+                </div>
+
+                {/* Additional Address Fields - Hidden */}
+                {/* <div style={{
+                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
+                    padding: 16, marginBottom: 16
+                }}>
+                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
+                        Additional Address Details
+                    </Text>
+                    
+                    <Row gutter={[12, 8]}>
+                        <Col span={8}>
+                            <Form.Item name={["address", "floor"]} label="Floor" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. 5th Floor" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name={["address", "address_type"]} label="Address Type" style={{ marginBottom: 8 }}>
+                                <Input placeholder="billing/shipping/both" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name={["address", "is_primary"]} label="Is Primary" style={{ marginBottom: 8 }}>
+                                <Input placeholder="true/false" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name={["address", "landmark"]} label="Landmark" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Near City Mall" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name={["address", "directions"]} label="Directions" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Take elevator to 5th floor" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </div> */}
+
+                {/* Business Information Section - Hidden */}
+                {/* <div style={{
+                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
+                    padding: 16, marginBottom: 16
+                }}>
+                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
+                        Business Information
+                    </Text>
+                    
+                    <Row gutter={[12, 8]}>
+                        <Col span={12}>
+                            <Form.Item name="type" label="Customer Type" style={{ marginBottom: 8 }}>
+                                <Input placeholder="individual/company" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name="company_name" label="Company Name" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Doe Enterprises" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name="payment_terms" label="Payment Terms (days)" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. 30" type="number" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name="credit_limit" label="Credit Limit (KES)" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. 50000" type="number" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name="assigned_to" label="Assigned To" style={{ marginBottom: 8 }}>
+                                <Input placeholder="User ID" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </div> */}
+
+                {/* Tax Information Section */}
+                <div style={{
+                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
+                    padding: 16, marginBottom: 16
+                }}>
+                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
+                        Tax Information
+                    </Text>
+                    
                     <Form.Item
-                        name="location" label="Location"
-                        style={{ flex: "1 1 200px", marginBottom: 16 }}
+                        name="kra_pin" label="KRA PIN"
+                        rules={[{
+                            pattern: /^[A-Z]\d{9}[A-Z]$/,
+                            message: "Invalid KRA PIN format. Expected: A123456789Z",
+                        }]}
                     >
                         <Input
-                            prefix={<EnvironmentOutlined style={{ color: C.subText }} />}
-                            placeholder="e.g. Nairobi, Westlands"
+                            prefix={<IdcardOutlined style={{ color: C.subText }} />}
+                            placeholder="e.g. A123456789Z (optional)"
+                            style={{ borderRadius: 8, textTransform: "uppercase" }}
+                            onChange={(e) => form.setFieldsValue({ kra_pin: e.target.value.toUpperCase() })}
+                        />
+                    </Form.Item>
+                </div>
+
+                {/* Notes Section */}
+                <div style={{
+                    background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 8,
+                    padding: 16, marginBottom: 16
+                }}>
+                    <Text strong style={{ fontSize: 13, color: C.darkText, marginBottom: 12, display: "block" }}>
+                        Notes
+                    </Text>
+                    
+                    <Form.Item name="notes" label="Customer Notes" style={{ marginBottom: 8 }}>
+                        <Input.TextArea 
+                            placeholder="Add any notes about customer preferences, special requirements, etc."
+                            rows={3}
                             style={{ borderRadius: 8 }}
                         />
                     </Form.Item>
                 </div>
 
-                <Form.Item
-                    name="kra_pin" label="KRA PIN"
-                    rules={[{
-                        pattern: /^[A-Z]\d{9}[A-Z]$/,
-                        message: "Invalid KRA PIN format. Expected: A123456789Z",
-                    }]}
-                >
-                    <Input
-                        prefix={<IdcardOutlined style={{ color: C.subText }} />}
-                        placeholder="e.g. A123456789Z (optional)"
-                        style={{ borderRadius: 8, textTransform: "uppercase" }}
-                        onChange={(e) => form.setFieldsValue({ kra_pin: e.target.value.toUpperCase() })}
-                    />
-                </Form.Item>
-
                 <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 20, marginTop: -8 }}>
-                    Email, location and KRA PIN are optional.
+                    Email, address and KRA PIN are optional.
                 </Text>
 
                 <div style={{ display: "flex", gap: 10 }}>

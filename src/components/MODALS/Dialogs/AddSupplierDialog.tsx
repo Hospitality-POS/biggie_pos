@@ -157,7 +157,6 @@ const AddSupplierDialog: React.FC<AddSupplierDialogProps> = ({
               name="email"
               control={control}
               rules={{
-                required: "Email is required",
                 pattern: {
                   value: /^\S+@\S+\.\S+$/,
                   message: "Invalid email format",
@@ -188,7 +187,7 @@ const AddSupplierDialog: React.FC<AddSupplierDialogProps> = ({
             <Controller
               name="phone"
               control={control}
-              rules={{ required: "Phone is required" }}
+              rules={{}}
               defaultValue={newSupplier.phone}
               render={({ field }) => (
                 <TextField

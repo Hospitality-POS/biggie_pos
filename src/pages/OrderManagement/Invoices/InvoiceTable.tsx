@@ -20,6 +20,7 @@ import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import InvoiceReprintModal from "./InvoiceReprintModal";
 import ManualInvoiceModal from "./ManualInvoiceModal";
+import NoteDetailDrawer from "../../Notes/NoteDetailDrawer";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -190,8 +191,9 @@ const MobileInvoiceCard: React.FC<{
   onPay: (r: any) => void;
   onEdit: (r: any) => void;
   onExpand: (r: any) => void;
+  onOpenNote: (noteId: string) => void;
   expanded: boolean;
-}> = ({ record, onConvert, onPay, onEdit, onExpand, expanded }) => {
+}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, expanded }) => {
   const isDraft = record.status === "Draft";
   const isPayable = ["Pending", "Partially_Paid", "Overdue"].includes(record.status);
 
@@ -279,7 +281,7 @@ const MobileInvoiceCard: React.FC<{
           style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}
           onClick={(e) => e.stopPropagation()}
         >
-          <ExpandedRowContent record={record} />
+          <ExpandedRowContent record={record} onOpenNote={handleOpenNote} />
         </div>
       )}
     </div>
@@ -476,12 +478,19 @@ const InvoicesTable = () => {
   const [mobileTotal, setMobileTotal] = useState(0);
   const [mobileFilters, setMobileFilters] = useState<any>({});
   const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [noteDetailOpen, setNoteDetailOpen] = useState(false);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
   const [queryParams, setQueryParams] = useState({
     page: 1, limit: 10,
     start_date: dayjs().startOf("day").toISOString(),
     end_date: dayjs().endOf("day").toISOString(),
   });
+
+  const handleOpenNote = (noteId: string) => {
+    setSelectedNoteId(noteId);
+    setNoteDetailOpen(true);
+  };
 
   const refreshTable = () => {
     queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
@@ -569,6 +578,59 @@ const InvoicesTable = () => {
           : <Text style={{ color: C.subText }}>—</Text>,
     },
     {
+      title: "Address", dataIndex: ["customer_id", "address"], hideInSearch: true,
+      render: (address: any, record: any) => {
+        const addr = address || record.customer_id?.address;
+        if (!addr) return <Text style={{ color: C.subText }}>—</Text>;
+        
+        return (
+          <div style={{ fontSize: 12 }}>
+            <div style={{ color: C.darkText }}>{addr.street || "—"}</div>
+            <div style={{ color: C.subText, fontSize: 11 }}>
+              {addr.city || ""}{addr.city && addr.county ? ", " : ""}{addr.county || ""}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: "Issue Date", dataIndex: "issue_date", hideInSearch: true, valueType: "dateTime",
+      render: (_, record: any) => {
+        const text = record.issue_date;
+        console.log('Issue Date text:', text, 'type:', typeof text);
+        if (!text) return <Text style={{ fontSize: 12, color: C.subText }}>—</Text>;
+        
+        const date = dayjs(text);
+        console.log('Issue Date parsed:', date, 'isValid:', date.isValid());
+        return (
+          <Text style={{ fontSize: 12, color: C.subText }}>
+            {date.isValid() ? date.format("DD MMM YYYY") : "Invalid date"}
+          </Text>
+        );
+      },
+      sorter: (a: any, b: any) => new Date(a.issue_date || 0).getTime() - new Date(b.issue_date || 0).getTime(),
+    },
+    {
+      title: "Due Date", dataIndex: "due_date", hideInSearch: true, valueType: "dateTime",
+      render: (_, record: any) => {
+        const text = record.due_date;
+        console.log('Due Date text:', text, 'type:', typeof text);
+        if (!text) return <Text style={{ color: C.subText }}>—</Text>;
+        
+        const date = dayjs(text);
+        console.log('Due Date parsed:', date, 'isValid:', date.isValid());
+        if (!date.isValid()) return <Text style={{ fontSize: 12, color: C.subText }}>Invalid date</Text>;
+        
+        const isOverdue = dayjs().isAfter(date) && record.status !== "Draft" && record.amount_due > 0;
+        return (
+          <Text style={{ fontSize: 12, color: isOverdue ? C.red : C.subText }}>
+            {date.format("DD MMM YYYY")}
+          </Text>
+        );
+      },
+      sorter: (a: any, b: any) => new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime(),
+    },
+    {
       title: "Table", dataIndex: ["table_id", "name"], key: "table",
       hideInSearch: false, fieldProps: { placeholder: "Enter table name" },
       render: (text: string) => <Text style={{ fontSize: 12 }}>{text || "—"}</Text>,
@@ -590,12 +652,20 @@ const InvoicesTable = () => {
     },
     {
       title: "Time Closed", dataIndex: "createdAt", hideInSearch: true, valueType: "dateTime",
-      render: (text: string) => (
-        <Text style={{ fontSize: 12, color: C.subText }}>
-          {text ? dayjs(text).format("DD MMM YYYY HH:mm") : "—"}
-        </Text>
-      ),
-      sorter: (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      render: (_, record: any) => {
+        const text = record.createdAt;
+        console.log('Time Closed text:', text, 'type:', typeof text);
+        if (!text) return <Text style={{ fontSize: 12, color: C.subText }}>—</Text>;
+        
+        const date = dayjs(text);
+        console.log('Time Closed parsed:', date, 'isValid:', date.isValid());
+        return (
+          <Text style={{ fontSize: 12, color: C.subText }}>
+            {date.isValid() ? date.format("DD MMM YYYY HH:mm") : "Invalid date"}
+          </Text>
+        );
+      },
+      sorter: (a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime(),
     },
     {
       title: "Actions", hideInSearch: true, key: "action", width: 60,
@@ -632,12 +702,7 @@ const InvoicesTable = () => {
           }}>
             <Text strong style={{ fontSize: 14, color: C.darkText }}>Invoices & Quotes</Text>
             <div style={{ display: "flex", gap: 8 }}>
-              <Button size="small" type="primary" icon={<FileDoneOutlined />}
-                onClick={() => setManualModalOpen(true)}
-                style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
-                New Invoice
-              </Button>
-              <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
+                            <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)}
                 style={{ borderRadius: 8, borderColor: C.border }}>
                 Filter
               </Button>
@@ -665,6 +730,7 @@ const InvoicesTable = () => {
                 onEdit={setEditTarget}
                 expanded={expandedId === record._id}
                 onExpand={(r) => setExpandedId(expandedId === r._id ? null : r._id)}
+                onOpenNote={handleOpenNote}
               />
             ))}
             {mobileData.length < mobileTotal && (
@@ -708,7 +774,13 @@ const InvoicesTable = () => {
         form={{
           onFinish: async (values) => {
             const { dateRange, ...rest } = values;
-            setQueryParams({ ...rest, page: 1, limit: queryParams.limit });
+            setQueryParams({ 
+              ...rest, 
+              page: 1, 
+              limit: queryParams.limit,
+              start_date: dateRange?.[0]?.toISOString() || queryParams.start_date,
+              end_date: dateRange?.[1]?.toISOString() || queryParams.end_date
+            });
             return true;
           },
           initialValues: { dateRange: [dayjs().startOf("day"), dayjs().endOf("day")] },
@@ -732,7 +804,7 @@ const InvoicesTable = () => {
         pagination={{
           pageSize: queryParams.limit, current: queryParams.page,
           showQuickJumper: true, showSizeChanger: true,
-          onChange: (page, pageSize) => setQueryParams((prev) => ({ ...prev, page, limit: pageSize })),
+          onChange: (page, pageSize) => setQueryParams((prev) => ({ ...prev, page, limit: pageSize, start_date: prev.start_date, end_date: prev.end_date })),
         }}
         columns={[
           {
@@ -784,7 +856,7 @@ const InvoicesTable = () => {
         options={{ fullScreen: true }}
         expandable={{
           // ── Invoice/receipt FIRST, then details ──
-          expandedRowRender: (record) => <ExpandedRowContent record={record} defaultTab="receipt" />,
+          expandedRowRender: (record) => <ExpandedRowContent record={record} defaultTab="receipt" onOpenNote={handleOpenNote} />,
           defaultExpandAllRows: false,
           expandIconColumnIndex: 1,
           columnTitle: " ",
@@ -805,6 +877,14 @@ const InvoicesTable = () => {
         open={manualModalOpen}
         onClose={() => setManualModalOpen(false)}
         onSuccess={refreshTable}
+      />
+
+      <NoteDetailDrawer
+        open={noteDetailOpen}
+        onClose={() => { setNoteDetailOpen(false); setSelectedNoteId(null); }}
+        noteId={selectedNoteId}
+        onSuccess={() => {}} // No refresh needed for notes from invoice view
+        onOpenInvoice={() => {}} // No need to navigate back to invoice from here
       />
     </>
   );

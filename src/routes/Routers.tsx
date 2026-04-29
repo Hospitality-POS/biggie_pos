@@ -75,6 +75,10 @@ const BankStatementPage = lazy(() => import("src/pages/Banking/BankStatementPage
 const BankReconciliationPage = lazy(() => import("src/pages/Reconciliation/BankReconciliationPage"));
 const AccountingReportsPage = lazy(() => import("src/pages/Report/AccountingReportsPage"));
 
+// Petty Cash & Refunds (Duka Only)
+const PettyCashListPage = lazy(() => import("src/pages/PettyCash/PettyCashListPage"));
+const RefundsListPage = lazy(() => import("src/pages/Refunds/RefundsListPage"));
+
 // ─── Expenses / Bills / Income ────────────────────────────────────────────────
 const ExpensesPage = lazy(() => import("@pages/OrderManagement/ExpensesPage"));
 const BillsPage = lazy(() => import("@pages/OrderManagement/BillsPage"));
@@ -298,6 +302,12 @@ const routes = createBrowserRouter(
         <Route path="documents" errorElement={<NotFound />}
           element={guardedPage(DocumentCenter, "DOCUMENTS_VIEW")} />
 
+        {/* Petty Cash & Refunds (Duka Only) */}
+        <Route path="petty-cash" errorElement={<NotFound />}
+          element={guardedPage(PettyCashListPage, "ORDERS_VIEW_DASHBOARD")} />
+        <Route path="refunds" errorElement={<NotFound />}
+          element={guardedPage(RefundsListPage, "ORDERS_VIEW_DASHBOARD")} />
+
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
 
@@ -342,7 +352,8 @@ const routes = createBrowserRouter(
             element={guardedPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
           <Route path="currencies" errorElement={<NotFound />}
             element={guardedPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
-        </Route>
+          
+          </Route>
 
         {/* ── CRM / Mteja — shop level (/crm/...) ───────────────────────────
             ALL routes here require hasMteja === true (MtejaRoute guard).

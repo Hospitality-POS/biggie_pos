@@ -38,6 +38,8 @@ import {
   FileDoneOutlined,
   AppstoreOutlined,
   GlobalOutlined,
+  WalletOutlined,
+  SwapOutlined,
   // ── CRM ──────────────────────────────────────────────────────────────────
   NotificationOutlined,
   AimOutlined,

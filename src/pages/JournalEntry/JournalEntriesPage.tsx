@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import { ProTable, ProCard, ActionType } from "@ant-design/pro-components";
 import {
     Button,
@@ -14,6 +14,7 @@ import {
     Select,
     Tooltip,
     Alert,
+    Tabs,
 } from "antd";
 import {
     PlusOutlined,
@@ -41,8 +42,7 @@ const { RangePicker } = DatePicker;
 
 const getShopId = (): string => {
     try {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
-        return user?.shop_id || user?.shopId || "";
+        return localStorage.getItem("shopId") || "";
     } catch {
         return "";
     }
@@ -101,7 +101,7 @@ const JournalEntriesPage: React.FC = () => {
 
     // ── Data ──────────────────────────────────────────────────────────────────
 
-    const { data, isLoading, refetch } = useQuery({
+    const { data, isLoading, refetch, error } = useQuery({
         queryKey: ["journal-entries", shopId, activeStatus, sourceFilter, page, pageSize, from, to],
         queryFn: () =>
             getAllJournalEntries({
@@ -113,13 +113,15 @@ const JournalEntriesPage: React.FC = () => {
                 page,
                 limit: pageSize,
             }),
-        enabled: !!shopId,
+        enabled: true,
+        retry: 2,
     });
 
     const { data: summaryData } = useQuery({
         queryKey: ["journal-entry-summary", shopId, dayjs().year(), dayjs().month() + 1],
         queryFn: () => getJournalEntrySummary(shopId, dayjs().year(), dayjs().month() + 1),
-        enabled: !!shopId,
+        enabled: true,
+        retry: 2,
     });
 
     const entries = data?.entries || [];
@@ -136,6 +138,16 @@ const JournalEntriesPage: React.FC = () => {
     const onFormSuccess = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
         queryClient.invalidateQueries({ queryKey: ["journal-entry-summary"] });
+    }, [queryClient]);
+
+    // ── Auto-refresh every 30 seconds ─────────────────────────────────────────
+    useEffect(() => {
+        const interval = setInterval(() => {
+            queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+            queryClient.invalidateQueries({ queryKey: ["journal-entry-summary"] });
+        }, 30000);
+
+        return () => clearInterval(interval);
     }, [queryClient]);
 
     // ── Tab counts from summary ────────────────────────────────────────────────
@@ -302,7 +314,7 @@ const JournalEntriesPage: React.FC = () => {
                 </Col>
             </Row>
 
-            {/* ── Main Table ── */}
+            {/* ── Main Table Card ── */}
             <ProCard
                 title={
                     <Space>
@@ -323,10 +335,16 @@ const JournalEntriesPage: React.FC = () => {
                     </Button>
                 }
                 bordered
-                tabs={{
-                    activeKey: activeStatus,
-                    onChange: (k) => { setActiveStatus(k as JournalEntryStatus | "ALL"); setPage(1); },
-                    items: ALL_STATUSES.map((s) => ({
+            >
+                {/* ── Status Tabs ── */}
+                <Tabs
+                    activeKey={activeStatus}
+                    onChange={(k) => {
+                        setActiveStatus(k as JournalEntryStatus | "ALL");
+                        setPage(1);
+                    }}
+                    style={{ marginBottom: 16 }}
+                    items={ALL_STATUSES.map((s) => ({
                         key: s,
                         label: (
                             <Space size={4}>
@@ -341,15 +359,18 @@ const JournalEntriesPage: React.FC = () => {
                                 )}
                             </Space>
                         ),
-                    })),
-                }}
-            >
+                    }))}
+                />
+
                 {/* ── Filters ── */}
                 <Space style={{ marginBottom: 16 }} wrap>
                     <FilterOutlined style={{ color: "#8c8c8c" }} />
                     <RangePicker
                         value={dateRange}
-                        onChange={(r) => { setDateRange(r as [Dayjs, Dayjs]); setPage(1); }}
+                        onChange={(r) => {
+                            setDateRange(r as [Dayjs, Dayjs]);
+                            setPage(1);
+                        }}
                         allowClear={false}
                         format="DD MMM YYYY"
                         presets={[
@@ -364,7 +385,10 @@ const JournalEntriesPage: React.FC = () => {
                         placeholder="Filter by source"
                         options={SOURCE_OPTIONS}
                         value={sourceFilter}
-                        onChange={(v) => { setSourceFilter(v); setPage(1); }}
+                        onChange={(v) => {
+                            setSourceFilter(v);
+                            setPage(1);
+                        }}
                         allowClear
                         style={{ width: 180 }}
                     />
@@ -388,7 +412,10 @@ const JournalEntriesPage: React.FC = () => {
                         total: totalEntries,
                         showSizeChanger: true,
                         showTotal: (total) => `${total} entries`,
-                        onChange: (p, ps) => { setPage(p); setPageSize(ps); },
+                        onChange: (p, ps) => {
+                            setPage(p);
+                            setPageSize(ps);
+                        },
                     }}
                     scroll={{ x: 1100 }}
                     size="small"
@@ -417,7 +444,10 @@ const JournalEntriesPage: React.FC = () => {
             {/* ── Detail / Post / Void Drawer ── */}
             <JournalEntryDetailDrawer
                 open={detailOpen}
-                onClose={() => { setDetailOpen(false); setSelectedEntryId(null); }}
+                onClose={() => {
+                    setDetailOpen(false);
+                    setSelectedEntryId(null);
+                }}
                 entryId={selectedEntryId}
                 onSuccess={onFormSuccess}
             />

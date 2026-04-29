@@ -8,6 +8,7 @@ import {
     EyeInvisibleOutlined,
     EyeOutlined,
     MailOutlined,
+    SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { verifyCompanyCode, verifyBusinessEmail } from "@services/users";
@@ -304,8 +305,8 @@ const StaffLoginPage = () => {
                         margin: "0 auto",
                     }}
                 >
-                    Your all-in-one platform for point-of-sale, accounting, and
-                    business operations — all in one place.
+                    Basepoint Cloud — POS, accounting, CRM, and team management,
+                    all unified in one smarter platform built for your business.
                 </p>
             )}
         </div>
@@ -518,6 +519,72 @@ const StaffLoginPage = () => {
                                         placeholder="••••"
                                         style={{ textAlign: "center", letterSpacing: "0.5em" }}
                                     />
+
+                                    {/* 2FA Alternative Divider */}
+                                    <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "4px 0" }}>
+                                        <div style={{ flex: 1, height: "1px", background: "#f0f0f0" }} />
+                                        <span style={{ fontSize: "12px", color: "#bbb", whiteSpace: "nowrap" }}>
+                                            or sign in another way
+                                        </span>
+                                        <div style={{ flex: 1, height: "1px", background: "#f0f0f0" }} />
+                                    </div>
+
+                                    {/* 2FA Coming Soon Card */}
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "12px",
+                                            padding: "12px 14px",
+                                            borderRadius: "10px",
+                                            border: "1.5px dashed #e8e8e8",
+                                            background: "#fafafa",
+                                            cursor: "not-allowed",
+                                            opacity: 0.75,
+                                            userSelect: "none",
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                width: "38px",
+                                                height: "38px",
+                                                borderRadius: "8px",
+                                                background: "linear-gradient(135deg, #e6f4ff 0%, #f0f5ff 100%)",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            <SafetyCertificateOutlined style={{ fontSize: "18px", color: "#91caff" }} />
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                                <span style={{ fontSize: "13px", fontWeight: 600, color: "#bbb" }}>
+                                                    Two-Factor Authentication
+                                                </span>
+                                                <span
+                                                    style={{
+                                                        fontSize: "10px",
+                                                        fontWeight: 700,
+                                                        letterSpacing: "0.5px",
+                                                        background: "linear-gradient(135deg, #e6f4ff, #f0f5ff)",
+                                                        color: "#91caff",
+                                                        border: "1px solid #bae0ff",
+                                                        borderRadius: "4px",
+                                                        padding: "1px 6px",
+                                                        lineHeight: "1.8",
+                                                        whiteSpace: "nowrap",
+                                                    }}
+                                                >
+                                                    COMING SOON
+                                                </span>
+                                            </div>
+                                            <p style={{ fontSize: "11px", color: "#ccc", margin: 0, marginTop: "2px" }}>
+                                                Verify with an authenticator app or SMS code
+                                            </p>
+                                        </div>
+                                    </div>
 
                                     <Row gutter={[10, 10]} justify="center">
                                         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => (

@@ -406,7 +406,7 @@ export const editInventory = async (params) => {
         shop_id: shopId
       });
 
-      message.success("Inventory updated successfully");
+      // message.success("Inventory updated successfully");
       return response.data;
     }
   } catch (error) {

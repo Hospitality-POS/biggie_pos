@@ -1,16 +1,11 @@
 import React, { useState, useMemo } from "react";
-import {
-  FileDoneOutlined,
-  OrderedListOutlined,
-  ShoppingCartOutlined,
-  FileAddOutlined,
-  LockOutlined,
-} from "@ant-design/icons";
-import { Button, Typography } from "antd";
+import { Typography } from "antd";
+import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined } from "@ant-design/icons";
 import OrdersTable from "./Orders/OrdersTable";
 import InvoiceTable from "./Invoices/InvoiceTable";
 import ManualInvoiceModal from "./Invoices/ManualInvoiceModal";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Text } = Typography;
 
@@ -46,7 +41,8 @@ const TabNav: React.FC<{
   tabs: { key: string; icon: React.ReactNode; iconColor: string; label: string; allowed: boolean }[];
   active: string;
   onChange: (k: string) => void;
-}> = ({ tabs, active, onChange }) => (
+  primaryColor: string;
+}> = ({ tabs, active, onChange, primaryColor }) => (
   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
     {tabs.map((t) => {
       const on = t.key === active;
@@ -56,9 +52,9 @@ const TabNav: React.FC<{
           onClick={() => t.allowed && onChange(t.key)}
           title={!t.allowed ? "You don't have permission to access this section" : undefined}
           style={{
-            background: on ? C.primary : C.bg,
+            background: on ? primaryColor : C.bg,
             color: on ? "#fff" : t.allowed ? C.subText : "#cbd5e1",
-            border: `1px solid ${on ? C.primary : C.border}`,
+            border: `1px solid ${on ? primaryColor : C.border}`,
             borderRadius: 8, padding: "7px 13px", fontSize: 12,
             fontWeight: on ? 700 : 500,
             cursor: t.allowed ? "pointer" : "not-allowed",
@@ -105,25 +101,14 @@ const getModules = () => {
   }
 };
 
-const AccountingInvoicesTab: React.FC<{ onNew: () => void; showNewButton: boolean }> = ({ onNew, showNewButton }) => (
+const AccountingInvoicesTab: React.FC = () => (
   <div>
-    {showNewButton && (
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-        <Button
-          type="primary"
-          icon={<FileAddOutlined />}
-          onClick={onNew}
-          style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, fontWeight: 600 }}
-        >
-          New Invoice
-        </Button>
-      </div>
-    )}
     <InvoiceTable />
   </div>
 );
 
 function MainOrders() {
+  const primaryColor = usePrimaryColor();
   const { hasPOS, hasAccounting } = getModules();
 
   // Admin users get can() === true for every key via makePermissionChecker
@@ -161,12 +146,7 @@ function MainOrders() {
       case "orders":
         return <OrdersTable />;
       case "invoices":
-        return (
-          <AccountingInvoicesTab
-            onNew={() => setInvoiceModalOpen(true)}
-            showNewButton={hasAccounting && can("ACCOUNTING_INVOICE_CREATE")}
-          />
-        );
+        return <AccountingInvoicesTab />;
       default:
         return null;
     }
@@ -189,7 +169,7 @@ function MainOrders() {
             </div>
             <Text strong style={{ fontSize: 14, color: C.darkText }}>Orders & Invoices</Text>
           </div>
-          <TabNav tabs={visibleTabs} active={activeTab} onChange={setActiveTab} />
+          <TabNav tabs={visibleTabs} active={activeTab} onChange={setActiveTab} primaryColor={primaryColor} />
         </div>
 
         <div style={{ padding: "16px 18px" }}>
