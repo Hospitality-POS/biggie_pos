@@ -213,25 +213,29 @@ const CartDrawer: React.FC = () => {
     return formatCartDate(createdAt);
   }, [cartDetails?.createdAt, cartDetails?.created_at]);
 
+
+
   const customerDetails = useMemo(() => {
     if (cartDetails?.customer_id) {
       return {
         customer_id: cartDetails.customer_id,
         customer_name: cartDetails.client_name || null,
-        customer_phone: cartDetails.client_pin || null,
+        customer_phone: cartDetails.client_phone || null,
         customer_email: cartDetails.client_email || null,
+        client_pin: cartDetails.client_pin || null,
       };
     }
     if (cartDetails?.client_name || cartDetails?.client_pin) {
       return {
         customer_id: null,
         customer_name: cartDetails.client_name || null,
-        customer_phone: cartDetails.client_pin || null,
+        customer_phone: cartDetails.client_phone || null,
         customer_email: cartDetails.client_email || null,
+        client_pin: cartDetails.client_pin || null,
       };
     }
     return null;
-  }, [cartDetails?.customer_id, cartDetails?.client_name, cartDetails?.client_pin, cartDetails?.client_email]);
+  }, [cartDetails?.customer_id, cartDetails?.client_name, cartDetails?.client_pin, cartDetails?.client_email, cartDetails?.client_phone]);
 
   const servedById = useMemo(() => {
     const cb = cartDetails?.served_by ?? cartDetails?.created_by;
