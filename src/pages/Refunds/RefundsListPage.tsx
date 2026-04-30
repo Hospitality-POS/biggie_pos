@@ -122,7 +122,6 @@ const RefundsListPage: React.FC = () => {
         let reason = "";
         modal.confirm({
             title: "Void this refund?",
-            content: "Please provide a reason for voiding this refund:",
             okText: "Void Refund",
             okButtonProps: { danger: true },
             content: (
