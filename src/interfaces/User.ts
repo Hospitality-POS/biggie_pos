@@ -7,5 +7,6 @@ export interface User {
   idNumber: string;
   isAdmin: string;
   role: any,
-  roleId: string
+  roleId: string;
+  preferredAuthMethod?: 'pin' | 'password' | '2fa' | 'otp';
 }
