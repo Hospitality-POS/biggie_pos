@@ -1,0 +1,326 @@
+import axiosInstance from "./request";
+import { BASE_URL } from "@utils/config";
+import { message } from "antd";
+
+const CURRENCY_URL = `${BASE_URL}/currencies`;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TYPES
+───────────────────────────────────────────────────────────────────────────── */
+
+export interface Currency {
+    _id: string;
+    code: string;                          // ISO-4217  e.g. "USD"
+    name: string;                          // "US Dollar"
+    symbol: string;                        // "$"
+    decimal_places: number;
+    symbol_position: "before" | "after";
+    thousands_separator: string;
+    decimal_separator: string;
+    is_active: boolean;
+    is_functional: boolean;               // true for the shop's base currency
+    shop_id: string;
+    created_by?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface ExchangeRate {
+    _id: string;
+    from_currency: string;
+    to_currency: string;
+    rate: number;
+    rate_date: string;                     // ISO date string
+    source: "manual" | "api" | "central_bank" | "fixed";
+    notes?: string;
+    shop_id: string;
+    created_by?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateCurrencyParams {
+    code: string;
+    name: string;
+    symbol: string;
+    decimal_places?: number;
+    symbol_position?: "before" | "after";
+    thousands_separator?: string;
+    decimal_separator?: string;
+    is_active?: boolean;
+    is_functional?: boolean;
+}
+
+export interface UpdateCurrencyParams extends Partial<Omit<CreateCurrencyParams, "code">> { }
+
+export interface CreateRateParams {
+    from_currency: string;
+    to_currency: string;
+    rate: number;
+    rate_date: string;
+    source?: "manual" | "api" | "central_bank" | "fixed";
+    notes?: string;
+}
+
+export interface UpdateRateParams {
+    rate?: number;
+    rate_date?: string;
+    source?: "manual" | "api" | "central_bank" | "fixed";
+    notes?: string;
+}
+
+export interface ConvertAmountParams {
+    amount: number;
+    from_currency: string;
+    to_currency: string;
+    date?: string;
+}
+
+export interface ConvertAmountResult {
+    from_currency: string;
+    to_currency: string;
+    amount: number;
+    converted_amount: number;
+    exchange_rate: number;
+    rate_date: string;
+}
+
+export interface ListRatesParams {
+    from_currency?: string;
+    to_currency?: string;
+    from_date?: string;
+    to_date?: string;
+    source?: string;
+    page?: number;
+    limit?: number;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CURRENCY API
+───────────────────────────────────────────────────────────────────────────── */
+
+export const listCurrencies = async (activeOnly = true): Promise<Currency[]> => {
+    try {
+        const res = await axiosInstance.get(CURRENCY_URL, {
+            params: { active_only: activeOnly ? "true" : "false" },
+        });
+        return res.data.currencies ?? [];
+    } catch (err: any) {
+        message.error(err?.response?.data?.message || "Failed to fetch currencies");
+        return [];
+    }
+};
+
+export const getFunctionalCurrency = async (): Promise<Currency | null> => {
+    try {
+        const res = await axiosInstance.get(`${CURRENCY_URL}/functional`);
+        return res.data.currency ?? null;
+    } catch (err: any) {
+        // 404 is expected on fresh setup — don't show a noisy error
+        if (err?.response?.status !== 404) {
+            message.error(err?.response?.data?.message || "Failed to fetch functional currency");
+        }
+        return null;
+    }
+};
+
+export const createCurrency = async (params: CreateCurrencyParams): Promise<Currency> => {
+    try {
+        const res = await axiosInstance.post(CURRENCY_URL, params);
+        message.success(res.data.message || "Currency created");
+        return res.data.currency;
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || "Failed to create currency";
+        message.error(msg);
+        throw new Error(msg);
+    }
+};
+
+export const updateCurrency = async (
+    code: string,
+    params: UpdateCurrencyParams
+): Promise<Currency> => {
+    try {
+        const res = await axiosInstance.put(`${CURRENCY_URL}/${code}`, params);
+        message.success("Currency updated");
+        return res.data.currency;
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || "Failed to update currency";
+        message.error(msg);
+        throw new Error(msg);
+    }
+};
+
+export const deactivateCurrency = async (code: string): Promise<Currency> => {
+    try {
+        const res = await axiosInstance.delete(`${CURRENCY_URL}/${code}`);
+        message.success("Currency deactivated");
+        return res.data.currency;
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || "Failed to deactivate currency";
+        message.error(msg);
+        throw new Error(msg);
+    }
+};
+
+export const setFunctionalCurrency = async (code: string): Promise<Currency> => {
+    try {
+        const res = await axiosInstance.patch(`${CURRENCY_URL}/${code}/set-functional`);
+        message.success(`${code} is now the functional currency`);
+        return res.data.currency;
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || "Failed to set functional currency";
+        message.error(msg);
+        throw new Error(msg);
+    }
+};
+
+export const seedCurrencies = async (): Promise<{ inserted: number }> => {
+    try {
+        const res = await axiosInstance.post(`${CURRENCY_URL}/seed`);
+        message.success(res.data.message || "Currencies seeded");
+        return { inserted: res.data.inserted };
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || "Failed to seed currencies";
+        message.error(msg);
+        throw new Error(msg);
+    }
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   EXCHANGE RATE API
+───────────────────────────────────────────────────────────────────────────── */
+
+export const listRates = async (
+    params: ListRatesParams = {}
+): Promise<{ rates: ExchangeRate[]; total: number; page: number; totalPages: number }> => {
+    try {
+        const res = await axiosInstance.get(`${CURRENCY_URL}/rates`, { params });
+        return res.data;
+    } catch (err: any) {
+        message.error(err?.response?.data?.message || "Failed to fetch rates");
+        return { rates: [], total: 0, page: 1, totalPages: 1 };
+    }
+};
+
+export const getLatestRates = async (): Promise<ExchangeRate[]> => {
+    try {
+        const res = await axiosInstance.get(`${CURRENCY_URL}/rates/latest`);
+        return res.data.rates ?? [];
+    } catch (err: any) {
+        message.error(err?.response?.data?.message || "Failed to fetch latest rates");
+        return [];
+    }
+};
+
+export const getRateForDate = async (
+    fromCurrency: string,
+    toCurrency: string,
+    date?: string
+): Promise<number> => {
+    try {
+        const res = await axiosInstance.get(`${CURRENCY_URL}/rates/for-date`, {
+            params: { from_currency: fromCurrency, to_currency: toCurrency, date },
+        });
+        return res.data.rate ?? 1;
+    } catch (err: any) {
+        // Silently return 1 — callers handle "no rate" gracefully
+        return 1;
+    }
+};
+
+export const createRate = async (params: CreateRateParams): Promise<ExchangeRate> => {
+    try {
+        const res = await axiosInstance.post(`${CURRENCY_URL}/rates`, params);
+        message.success("Exchange rate created");
+        return res.data.rate;
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || "Failed to create rate";
+        message.error(msg);
+        throw new Error(msg);
+    }
+};
+
+export const updateRate = async (
+    id: string,
+    params: UpdateRateParams
+): Promise<ExchangeRate> => {
+    try {
+        const res = await axiosInstance.put(`${CURRENCY_URL}/rates/${id}`, params);
+        message.success("Exchange rate updated");
+        return res.data.rate;
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || "Failed to update rate";
+        message.error(msg);
+        throw new Error(msg);
+    }
+};
+
+export const deleteRate = async (id: string): Promise<void> => {
+    try {
+        await axiosInstance.delete(`${CURRENCY_URL}/rates/${id}`);
+        message.success("Exchange rate deleted");
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || "Failed to delete rate";
+        message.error(msg);
+        throw new Error(msg);
+    }
+};
+
+export const bulkUpsertRates = async (
+    rates: CreateRateParams[]
+): Promise<{ upserted: number; modified: number }> => {
+    try {
+        const res = await axiosInstance.post(`${CURRENCY_URL}/rates/bulk`, { rates });
+        message.success(res.data.message || "Rates imported");
+        return res.data;
+    } catch (err: any) {
+        const msg = err?.response?.data?.message || "Failed to import rates";
+        message.error(msg);
+        throw new Error(msg);
+    }
+};
+
+export const convertAmount = async (
+    params: ConvertAmountParams
+): Promise<ConvertAmountResult | null> => {
+    try {
+        const res = await axiosInstance.post(`${CURRENCY_URL}/rates/convert`, params);
+        return res.data;
+    } catch (err: any) {
+        message.error(err?.response?.data?.message || "Conversion failed");
+        return null;
+    }
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UTILITY HELPERS  (pure, no API calls)
+───────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Format a numeric amount using a currency's display settings.
+ * Falls back to basic toLocaleString when no currency object is available.
+ */
+export const formatCurrencyAmount = (
+    amount: number,
+    currency?: Currency | null
+): string => {
+    if (!currency) {
+        return amount.toLocaleString("en-KE", { minimumFractionDigits: 2 });
+    }
+    const formatted = amount.toLocaleString("en-US", {
+        minimumFractionDigits: currency.decimal_places,
+        maximumFractionDigits: currency.decimal_places,
+        useGrouping: true,
+    });
+    return currency.symbol_position === "before"
+        ? `${currency.symbol}${formatted}`
+        : `${formatted}${currency.symbol}`;
+};
+
+/**
+ * Build a human-readable label for a currency option in a Select dropdown.
+ *  e.g.  "USD — US Dollar ($)"
+ */
+export const currencyLabel = (c: Currency): string =>
+    `${c.code} — ${c.name} (${c.symbol})`;

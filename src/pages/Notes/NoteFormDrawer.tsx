@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import dayjs from "dayjs";
 import {
     ProForm,
     ProFormSelect,
@@ -19,12 +20,15 @@ import {
     Divider,
     Segmented,
     Tag,
+    Alert,
+    message,
 } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     createNote,
     updateNote,
+    applyNote,
     Note,
     NoteType,
     NoteDirection,
@@ -32,6 +36,7 @@ import {
     CreateNoteParams,
     UpdateNoteParams,
 } from "@services/accounting/notes";
+import { getAllBills, Bill } from "@services/accounting/bill";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
 import { fetchAllCustomers } from "@services/customers";
 import { fetchAllSuppliers } from "@services/supplier";
@@ -75,7 +80,7 @@ const calcLineTotal = (l: LineItem, vatMode: "INCLUSIVE" | "EXCLUSIVE") => {
     const gross = l.quantity * l.unit_price;
     const disc = gross * ((l.discount || 0) / 100);
     const after = gross - disc;
-    const vatRate = l.vat_type === "STANDARD" ? 0.16 : 0;
+    const vatRate = l.vat_type === "STANDARD" ? 0.16 : 0; // OUT_OF_SCOPE, ZERO, EXEMPT, NONE all = 0
     if (vatMode === "INCLUSIVE" && vatRate > 0) {
         const net = after / (1 + vatRate);
         return { net, vat: after - net, lineTotal: after, disc };
@@ -98,6 +103,7 @@ const NoteFormDrawer: React.FC<Props> = ({
     const [submitting, setSubmitting] = useState(false);
     const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
     const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+    const [selectedInvoiceNo, setSelectedInvoiceNo] = useState<string | null>(null);
     const [customerSearch, setCustomerSearch] = useState("");
     const [supplierSearch, setSupplierSearch] = useState("");
 
@@ -109,7 +115,7 @@ const NoteFormDrawer: React.FC<Props> = ({
     // ── Queries ────────────────────────────────────────────────────────────────
     const { data: accountsData } = useQuery({
         queryKey: ["accounts-posting", shopId],
-        queryFn: () => getAllAccounts({ is_active: true }),
+        queryFn: () => getAllAccounts({ shop_id: shopId, is_active: true }),
     });
     const accounts: ChartOfAccount[] = accountsData?.accounts || [];
 
@@ -139,22 +145,32 @@ const NoteFormDrawer: React.FC<Props> = ({
     });
     const customerInvoices = customerInvoicesRaw || [];
 
-    const { data: supplierInvoicesRaw } = useQuery({
-        queryKey: ["invoices-for-supplier", selectedSupplierId],
-        queryFn: () => getAllInvoices({ direction: "supplier", supplier_id: selectedSupplierId }),
+    const { data: supplierBillsRaw } = useQuery({
+        queryKey: ["bills-for-supplier", selectedSupplierId],
+        queryFn: () => getAllBills({ supplier_id: selectedSupplierId }),
         enabled: !!selectedSupplierId,
-        select: (res: any) => res?.invoices || [],
+        select: (res: any) => res?.bills || [],
     });
-    const supplierInvoices = supplierInvoicesRaw || [];
+    const supplierBills = supplierBillsRaw || [];
 
-    const invoiceOptions = direction === "customer"
+    // Find selected invoice/bill from the lists to get its details
+    const allDocuments = direction === "customer" ? customerInvoices : supplierBills;
+    const selectedDocument = allDocuments.find((doc: any) => {
+        const docNo = direction === "customer" ? doc.order_no : doc.bill_no;
+        return docNo === selectedInvoiceNo;
+    });
+    
+    // Use selectedDocument for account filtering (works for both invoices and bills)
+    const selectedInvoice = selectedDocument;
+
+    const documentOptions = direction === "customer"
         ? customerInvoices.map((inv: any) => ({
-            label: `${inv.order_no} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
-            value: inv.order_no,
+            label: `${String(inv.order_no || "")} - KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
+            value: String(inv.order_no || ""),
         }))
-        : supplierInvoices.map((inv: any) => ({
-            label: `${inv.order_no} — ${inv.counterparty_name || "Supplier"} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
-            value: inv.order_no,
+        : supplierBills.map((bill: any) => ({
+            label: `${String(bill.bill_no || bill.order_no || "")} - ${bill.supplier_name || "Supplier"} - KES ${bill.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
+            value: String(bill.bill_no || bill.order_no || ""),
         }));
 
     // ── Populate on open ───────────────────────────────────────────────────────
@@ -174,30 +190,38 @@ const NoteFormDrawer: React.FC<Props> = ({
 
             setSelectedCustomerId(custId || null);
             setSelectedSupplierId(suppId || null);
+            setSelectedInvoiceNo(editingNote.original_invoice_no || null);
 
             form.setFieldsValue({
+                note_type: noteType,
                 direction: dir,
                 reason: editingNote.reason,
                 notes: editingNote.notes,
                 internal_notes: editingNote.internal_notes,
-                issue_date: editingNote.issue_date,
-                expiry_date: editingNote.expiry_date,
+                issue_date: editingNote.issue_date ? dayjs(editingNote.issue_date) : undefined,
+                expiry_date: editingNote.expiry_date ? dayjs(editingNote.expiry_date) : undefined,
                 original_invoice_no: editingNote.original_invoice_no,
-                customer_id: custId,
-                supplier_id: suppId,
+                customer_id: custId || undefined,
+                supplier_id: suppId || undefined,
             });
             setLines(
-                editingNote.lines.map((l) => ({
-                    key: crypto.randomUUID(),
-                    description: l.description,
-                    quantity: l.quantity,
-                    unit_price: l.unit_price,
-                    discount: l.discount || 0,
-                    vat_type: l.vat_type || "NONE",
-                    account_id: typeof l.account_id === "object"
-                        ? (l.account_id as any)?._id
-                        : (l.account_id as string),
-                }))
+                editingNote.lines.map((l) => {
+                    return {
+                        key: crypto.randomUUID(),
+                        description: l.description || 
+                        (typeof l.account_id === "object" 
+                            ? (l.account_id as any)?.account_name 
+                            : accounts.find(a => a._id === l.account_id)?.account_name) || 
+                        "Line item",
+                        quantity: l.quantity,
+                        unit_price: l.unit_price,
+                        discount: l.discount || 0,
+                        vat_type: l.vat_type || "NONE",
+                        account_id: typeof l.account_id === "object" && l.account_id && "_id" in l.account_id
+                            ? (l.account_id as any)?._id
+                            : (typeof l.account_id === "string" ? l.account_id : String(l.account_id || "")),
+                    };
+                })
             );
         } else {
             form.resetFields();
@@ -206,6 +230,7 @@ const NoteFormDrawer: React.FC<Props> = ({
             setVatMode("EXCLUSIVE");
             setSelectedCustomerId(null);
             setSelectedSupplierId(null);
+            setSelectedInvoiceNo(null);
         }
     }, [open, editingNote, isEdit, form]);
 
@@ -260,6 +285,24 @@ const NoteFormDrawer: React.FC<Props> = ({
     );
 
     // ── Submit ─────────────────────────────────────────────────────────────────
+    // Helper function to get bill ObjectId from bill number
+    const getBillObjectId = async (billNumber: string): Promise<string | null> => {
+        try {
+            const response = await getAllBills({
+                search: billNumber,
+                limit: 1
+            });
+            
+            if (response.bills.length > 0) {
+                return response.bills[0]._id;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error finding bill:', error);
+            return null;
+        }
+    };
+
     const handleSubmit = async (values: any) => {
         const validLines = lines.filter(
             (l) => l.description && l.account_id && l.unit_price > 0
@@ -281,40 +324,107 @@ const NoteFormDrawer: React.FC<Props> = ({
                     reason: values.reason,
                     notes: values.notes,
                     internal_notes: values.internal_notes,
-                    issue_date: values.issue_date,
-                    expiry_date: values.expiry_date,
+                    issue_date: values.issue_date ? 
+                        (typeof values.issue_date === 'object' && values.issue_date.toISOString ? 
+                            values.issue_date.toISOString() : 
+                            dayjs(values.issue_date).toISOString()) : 
+                        undefined,
+                    expiry_date: values.expiry_date ? 
+                        (typeof values.expiry_date === 'object' && values.expiry_date.toISOString ? 
+                            values.expiry_date.toISOString() : 
+                            dayjs(values.expiry_date).toISOString()) : 
+                        undefined,
                     vat_pricing_mode: vatMode,
                     original_invoice_no: values.original_invoice_no,
                     lines: linePayload,
                 } as UpdateNoteParams);
             } else {
-                await createNote({
+                const notePayload: any = {
                     shop_id: shopId,
                     note_type: noteType,
                     direction: values.direction,
                     reason: values.reason,
                     notes: values.notes,
                     internal_notes: values.internal_notes,
-                    issue_date: values.issue_date,
-                    expiry_date: values.expiry_date,
+                    issue_date: values.issue_date ? 
+                        (typeof values.issue_date === 'object' && values.issue_date.toISOString ? 
+                            values.issue_date.toISOString() : 
+                            dayjs(values.issue_date).toISOString()) : 
+                        undefined,
+                    expiry_date: values.expiry_date ? 
+                        (typeof values.expiry_date === 'object' && values.expiry_date.toISOString ? 
+                            values.expiry_date.toISOString() : 
+                            dayjs(values.expiry_date).toISOString()) : 
+                        undefined,
                     vat_pricing_mode: vatMode,
-                    original_invoice_no: values.original_invoice_no,
                     customer_id: direction === "customer" ? values.customer_id : undefined,
                     supplier_id: direction === "supplier" ? values.supplier_id : undefined,
                     lines: linePayload,
-                } as CreateNoteParams);
+                };
+
+                // For supplier credit notes, get the bill ObjectId from bill number
+                if (direction === "supplier") {
+                    if (values.original_invoice_no) {
+                        const billObjectId = await getBillObjectId(values.original_invoice_no);
+                        if (billObjectId) {
+                            notePayload.original_bill_id = billObjectId;
+                        } else {
+                            throw new Error(`Bill "${values.original_invoice_no}" not found. Please check the bill number.`);
+                        }
+                    }
+                } else {
+                    notePayload.original_invoice_no = values.original_invoice_no;
+                }
+
+                const createdNote = await createNote(notePayload as CreateNoteParams);
+                
+                // Auto-apply the note after creation for supplier credit notes
+                if (direction === "supplier") {
+                    try {
+                        await applyNote(createdNote.note._id);
+                    } catch (applyError) {
+                        console.warn("Supplier credit note created but auto-apply failed:", applyError);
+                        // Don't throw error, note was still created successfully
+                    }
+                }
             }
             onSuccess();
             onClose();
+        } catch (error: any) {
+            console.error('Error submitting note:', error);
+            // Show user-friendly error message
+            const errorMessage = error?.response?.data?.message || 
+                                error?.message || 
+                                'An error occurred while saving the note. Please try again.';
+            message.error(errorMessage);
         } finally {
             setSubmitting(false);
         }
     };
 
     // ── Account options ────────────────────────────────────────────────────────
-    const accountOptions = accounts
-        .filter((a) => a.allows_direct_posting !== false && a.is_active)
-        .map((a) => ({ label: `${a.account_code} — ${a.account_name}`, value: a._id }));
+    const accountOptions = (() => {
+        // If an invoice is selected, filter accounts to only those used in the journal entry
+        if (selectedInvoice && selectedInvoice.journal_entry_id && selectedInvoice.journal_entry_id.lines) {
+            const journalEntryAccountIds = selectedInvoice.journal_entry_id.lines
+                .map((line: any) => {
+                    // Handle both string and object formats for account_id
+                    if (typeof line.account_id === 'string') return line.account_id;
+                    if (typeof line.account_id === 'object' && line.account_id?._id) return line.account_id._id;
+                    return null;
+                })
+                .filter((id: string | null) => id !== null);
+            
+            return accounts
+                .filter((a) => journalEntryAccountIds.includes(a._id) && a.allows_direct_posting !== false && a.is_active)
+                .map((a) => ({ label: `${a.account_code} — ${a.account_name}`, value: a._id }));
+        }
+        
+        // Fallback to all accounts if no invoice is selected
+        return accounts
+            .filter((a) => a.allows_direct_posting !== false && a.is_active)
+            .map((a) => ({ label: `${a.account_code} — ${a.account_name}`, value: a._id }));
+    })();
 
     // ── Line table columns ─────────────────────────────────────────────────────
     const lineColumns = [
@@ -322,7 +432,8 @@ const NoteFormDrawer: React.FC<Props> = ({
             title: "Description", key: "description",
             render: (_: any, r: LineItem) => (
                 <Input placeholder="Item description" value={r.description} size="small"
-                    onChange={(e) => updateLine(r.key, "description", e.target.value)} />
+                    onChange={(e) => updateLine(r.key, "description", e.target.value)}
+                    disabled={isEdit && (!editingNote || editingNote.status !== "Draft")} />
             ),
         },
         {
@@ -330,7 +441,8 @@ const NoteFormDrawer: React.FC<Props> = ({
             render: (_: any, r: LineItem) => (
                 <InputNumber min={0.01} precision={2} value={r.quantity} size="small"
                     onChange={(v) => updateLine(r.key, "quantity", v || 1)}
-                    style={{ width: "100%" }} />
+                    style={{ width: "100%" }}
+                    disabled={isEdit && (!editingNote || editingNote.status !== "Draft")} />
             ),
         },
         {
@@ -338,7 +450,8 @@ const NoteFormDrawer: React.FC<Props> = ({
             render: (_: any, r: LineItem) => (
                 <InputNumber min={0} precision={2} value={r.unit_price} size="small"
                     onChange={(v) => updateLine(r.key, "unit_price", v || 0)}
-                    style={{ width: "100%" }} />
+                    style={{ width: "100%" }}
+                    disabled={isEdit && (!editingNote || editingNote.status !== "Draft")} />
             ),
         },
         {
@@ -346,7 +459,8 @@ const NoteFormDrawer: React.FC<Props> = ({
             render: (_: any, r: LineItem) => (
                 <InputNumber min={0} max={100} precision={1} value={r.discount} size="small"
                     onChange={(v) => updateLine(r.key, "discount", v || 0)}
-                    style={{ width: "100%" }} />
+                    style={{ width: "100%" }}
+                    disabled={isEdit && (!editingNote || editingNote.status !== "Draft")} />
             ),
         },
         {
@@ -354,11 +468,13 @@ const NoteFormDrawer: React.FC<Props> = ({
             render: (_: any, r: LineItem) => (
                 <Select size="small" value={r.vat_type} style={{ width: "100%" }}
                     onChange={(v) => updateLine(r.key, "vat_type", v)}
+                    disabled={isEdit && (!editingNote || editingNote.status !== "Draft")}
                     options={[
                         { label: "None", value: "NONE" },
                         { label: "16%", value: "STANDARD" },
-                        { label: "Zero", value: "ZERO" },
-                        { label: "Exempt", value: "EXEMPT" },
+                        { label: "Zero Rated", value: "ZERO" },
+                        { label: "Exempted", value: "EXEMPT" },
+                        { label: "Out of Scope", value: "OUT_OF_SCOPE" },
                     ]}
                 />
             ),
@@ -367,14 +483,16 @@ const NoteFormDrawer: React.FC<Props> = ({
             title: "Account", key: "account_id", width: 210,
             render: (_: any, r: LineItem) => (
                 <Select
-                    showSearch size="small" placeholder="Account…"
-                    value={r.account_id || undefined} style={{ width: "100%" }}
+                    showSearch size="small" placeholder="Account..."
+                    value={typeof r.account_id === 'string' ? r.account_id : String(r.account_id || '')}
+                    style={{ width: "100%" }}
                     onChange={(v) => updateLine(r.key, "account_id", v)}
+                    disabled={isEdit && (!editingNote || editingNote.status !== "Draft")}
                     optionFilterProp="label" options={accountOptions}
                     dropdownRender={(menu) => (
                         <>
                             {menu}
-                            {dropdownFooter("Add Account", () => setAddAccountOpen(true))}
+                            {!isEdit || editingNote?.status === "Draft" ? dropdownFooter("Add Account", () => setAddAccountOpen(true)) : null}
                         </>
                     )}
                 />
@@ -395,7 +513,8 @@ const NoteFormDrawer: React.FC<Props> = ({
             title: "", key: "remove", width: 36,
             render: (_: any, r: LineItem) => (
                 <Button icon={<DeleteOutlined />} size="small" danger type="text"
-                    onClick={() => removeLine(r.key)} disabled={lines.length <= 1} />
+                    onClick={() => removeLine(r.key)} 
+                    disabled={lines.length <= 1 || (isEdit && (!editingNote || editingNote.status !== "Draft"))} />
             ),
         },
     ];
@@ -444,17 +563,31 @@ const NoteFormDrawer: React.FC<Props> = ({
                             resetText: "Cancel",
                         },
                         onReset: onClose,
-                        submitButtonProps: { loading: submitting },
+                        submitButtonProps: { 
+                            loading: submitting,
+                            disabled: isEdit && editingNote && editingNote.status !== "Draft"
+                        },
                     }}
                     layout="vertical"
                 >
+                    {/* Warning for non-Draft notes */}
+                    {isEdit && editingNote && editingNote.status !== "Draft" && (
+                        <Alert
+                            message="This note cannot be edited"
+                            description={`Notes with status "${editingNote.status}" cannot be modified as they have already affected financial records. This form is in read-only mode for viewing purposes.`}
+                            type="warning"
+                            showIcon
+                            style={{ marginBottom: 16 }}
+                        />
+                    )}
+                    
                     {/* ── Header ── */}
                     <Row gutter={12}>
                         <Col span={8}>
                             <ProFormSelect
                                 name="direction"
                                 label="Direction"
-                                disabled={isEdit}
+                                disabled={isEdit && (!editingNote || editingNote.status !== "Draft")}
                                 initialValue="customer"
                                 rules={[{ required: true, message: "Required" }]}
                                 options={[
@@ -466,6 +599,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                         setDirection(v);
                                         setSelectedCustomerId(null);
                                         setSelectedSupplierId(null);
+                                        setSelectedInvoiceNo(null);
                                         form.setFieldsValue({
                                             customer_id: undefined,
                                             supplier_id: undefined,
@@ -511,6 +645,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                         allowClear: true,
                                         onChange: (val: string) => {
                                             setSelectedCustomerId(val || null);
+                                            setSelectedInvoiceNo(null);
                                             form.setFieldValue("original_invoice_no", undefined);
                                         },
                                         notFoundContent: customersFetching ? "Searching..." : "No customers found",
@@ -540,6 +675,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                         allowClear: true,
                                         onChange: (val: string) => {
                                             setSelectedSupplierId(val || null);
+                                            setSelectedInvoiceNo(null);
                                             form.setFieldValue("original_invoice_no", undefined);
                                         },
                                         notFoundContent: suppliersFetching ? "Searching..." : "No suppliers found",
@@ -565,7 +701,9 @@ const NoteFormDrawer: React.FC<Props> = ({
                                         ? "Select a customer first"
                                         : direction === "supplier" && !selectedSupplierId
                                             ? "Select a supplier first"
-                                            : "Select invoice…"
+                                            : direction === "customer" 
+                                                ? "Select invoice…" 
+                                                : "Select bill…"
                                 }
                                 fieldProps={{
                                     disabled:
@@ -573,8 +711,11 @@ const NoteFormDrawer: React.FC<Props> = ({
                                         (direction === "supplier" && !selectedSupplierId),
                                     optionFilterProp: "label",
                                     allowClear: true,
+                                    onChange: (value: string) => {
+                                        setSelectedInvoiceNo(value || null);
+                                    },
                                 }}
-                                options={invoiceOptions}
+                                options={documentOptions}
                             />
                         </Col>
                     </Row>
@@ -633,7 +774,8 @@ const NoteFormDrawer: React.FC<Props> = ({
                             <Table.Summary fixed>
                                 <Table.Summary.Row>
                                     <Table.Summary.Cell index={0} colSpan={5}>
-                                        <Button type="dashed" icon={<PlusOutlined />} size="small" onClick={addLine}>
+                                        <Button type="dashed" icon={<PlusOutlined />} size="small" onClick={addLine}
+                                            disabled={isEdit && (!editingNote || editingNote.status !== "Draft")}>
                                             Add Line
                                         </Button>
                                     </Table.Summary.Cell>

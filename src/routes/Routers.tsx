@@ -75,10 +75,25 @@ const BankStatementPage = lazy(() => import("src/pages/Banking/BankStatementPage
 const BankReconciliationPage = lazy(() => import("src/pages/Reconciliation/BankReconciliationPage"));
 const AccountingReportsPage = lazy(() => import("src/pages/Report/AccountingReportsPage"));
 
+// Petty Cash & Refunds (Duka Only)
+const PettyCashListPage = lazy(() => import("src/pages/PettyCash/PettyCashListPage"));
+const RefundsListPage = lazy(() => import("src/pages/Refunds/RefundsListPage"));
+
 // ─── Expenses / Bills / Income ────────────────────────────────────────────────
 const ExpensesPage = lazy(() => import("@pages/OrderManagement/ExpensesPage"));
 const BillsPage = lazy(() => import("@pages/OrderManagement/BillsPage"));
 const IncomePage = lazy(() => import("@pages/OrderManagement/IncomePage"));
+
+// ─── Currency ─────────────────────────────────────────────────────────────────
+const CurrencyPage = lazy(() => import("src/pages/Currency/CurrencyPage"));
+
+// ─── CRM / Mteja Module ───────────────────────────────────────────────────────
+// All CRM pages are lazy-loaded and only reachable when hasMteja === true.
+// The MtejaRoute guard below enforces this at runtime.
+const LeadsPage = lazy(() => import("src/pages/Lead/Leads"));
+const CampaignsPage = lazy(() => import("src/pages/Campaign/Campaigns"));
+const SalesTargetsPage = lazy(() => import("src/pages/SalesTargets/SalesTargets"));
+const SalesBudgetsPage = lazy(() => import("src/pages/Salesbudgets/Salesbudgets"));
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = (
@@ -134,12 +149,28 @@ const guardedAdminPage = (Component: React.ComponentType, permission: string) =>
   </PermissionRoute>
 );
 
+// ─── CRM page wrapper — private + Mteja guard ────────────────────────────────
+const mtejaPage = (Component: React.ComponentType, permission: string) => (
+  <MtejaRoute>
+    <PermissionRoute permission={permission}>
+      {privatePage(Component)}
+    </PermissionRoute>
+  </MtejaRoute>
+);
+
+const mtejaAdminPage = (Component: React.ComponentType, permission: string) => (
+  <AdminMtejaRoute>
+    <PermissionRoute permission={permission}>
+      {adminPage(Component)}
+    </PermissionRoute>
+  </AdminMtejaRoute>
+);
+
 // ─── Accounting layout wrapper ────────────────────────────────────────────────
-// A transparent pass-through that just renders <Outlet />.
-// Required so that nested routes like accounting/accounts resolve correctly
-// in React Router v6 — without this parent, RRv6 can't match sub-paths
-// when the parent route renders a page component instead of an Outlet.
 const AccountingLayout = () => <Outlet />;
+
+// ─── CRM layout wrapper ───────────────────────────────────────────────────────
+const CrmLayout = () => <Outlet />;
 
 // ─── Smart routers ────────────────────────────────────────────────────────────
 const SmartShopRouter = () => {
@@ -168,7 +199,9 @@ const SmartDashboardRouter = () => {
   return adminPage(DashboardAdminPage);
 };
 
-// ─── Router ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ROUTER
+// ─────────────────────────────────────────────────────────────────────────────
 const routes = createBrowserRouter(
   createRoutesFromElements(
     <>
@@ -269,6 +302,12 @@ const routes = createBrowserRouter(
         <Route path="documents" errorElement={<NotFound />}
           element={guardedPage(DocumentCenter, "DOCUMENTS_VIEW")} />
 
+        {/* Petty Cash & Refunds (Duka Only) */}
+        <Route path="petty-cash" errorElement={<NotFound />}
+          element={guardedPage(PettyCashListPage, "ORDERS_VIEW_DASHBOARD")} />
+        <Route path="refunds" errorElement={<NotFound />}
+          element={guardedPage(RefundsListPage, "ORDERS_VIEW_DASHBOARD")} />
+
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
 
@@ -284,10 +323,10 @@ const routes = createBrowserRouter(
           }
         />
 
-        {/* ── Accounting — shop level (/accounting/...) ──────────────────
-            AccountingLayout renders <Outlet /> so sub-routes resolve.
-            The index renders the dashboard; children render sub-pages.
-        ────────────────────────────────────────────────────────────────── */}
+        <Route path="currencies" errorElement={<NotFound />}
+          element={guardedPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
+
+        {/* ── Accounting — shop level (/accounting/...) ──────────────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
             element={guardedPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
@@ -311,6 +350,27 @@ const routes = createBrowserRouter(
             element={guardedPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
           <Route path="income" errorElement={<NotFound />}
             element={guardedPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
+          <Route path="currencies" errorElement={<NotFound />}
+            element={guardedPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
+          
+          </Route>
+
+        {/* ── CRM / Mteja — shop level (/crm/...) ───────────────────────────
+            ALL routes here require hasMteja === true (MtejaRoute guard).
+            Permission: CUSTOMERS_VIEW gates all CRM pages for now —
+            add dedicated CRM permissions when roles are extended.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="crm" element={<CrmLayout />}>
+          <Route index errorElement={<NotFound />}
+            element={mtejaPage(LeadsPage, "CUSTOMERS_VIEW")} />
+          <Route path="leads" errorElement={<NotFound />}
+            element={mtejaPage(LeadsPage, "CUSTOMERS_VIEW")} />
+          <Route path="campaigns" errorElement={<NotFound />}
+            element={mtejaPage(CampaignsPage, "CUSTOMERS_VIEW")} />
+          <Route path="sales-targets" errorElement={<NotFound />}
+            element={mtejaPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
+          <Route path="sales-budgets" errorElement={<NotFound />}
+            element={mtejaPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
@@ -462,10 +522,10 @@ const routes = createBrowserRouter(
           }
         />
 
-        {/* ── Accounting — admin level (/admin/accounting/...) ───────────
-            Same AccountingLayout <Outlet /> pattern as shop level.
-            index → dashboard, children → sub-pages.
-        ────────────────────────────────────────────────────────────────── */}
+        <Route path="currencies" errorElement={<NotFound />}
+          element={guardedAdminPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
+
+        {/* ── Accounting — admin level (/admin/accounting/...) ───────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
             element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
@@ -489,6 +549,25 @@ const routes = createBrowserRouter(
             element={guardedAdminPage(BillsPage, "ACCOUNTING_INVOICE_VIEW")} />
           <Route path="income" errorElement={<NotFound />}
             element={guardedAdminPage(IncomePage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
+          <Route path="currencies" errorElement={<NotFound />}
+            element={guardedAdminPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
+        </Route>
+
+        {/* ── CRM / Mteja — admin level (/admin/crm/...) ────────────────────
+            Mirrors the shop-level CRM routes above.
+            All gated behind AdminMtejaRoute so non-CRM tenants can't access.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="crm" element={<CrmLayout />}>
+          <Route index errorElement={<NotFound />}
+            element={mtejaAdminPage(LeadsPage, "CUSTOMERS_VIEW")} />
+          <Route path="leads" errorElement={<NotFound />}
+            element={mtejaAdminPage(LeadsPage, "CUSTOMERS_VIEW")} />
+          <Route path="campaigns" errorElement={<NotFound />}
+            element={mtejaAdminPage(CampaignsPage, "CUSTOMERS_VIEW")} />
+          <Route path="sales-targets" errorElement={<NotFound />}
+            element={mtejaAdminPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
+          <Route path="sales-budgets" errorElement={<NotFound />}
+            element={mtejaAdminPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

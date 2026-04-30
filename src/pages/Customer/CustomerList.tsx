@@ -13,6 +13,7 @@ import ConsultationTable from "./ConsultationTable";
 import SubscriptionPackagesTable from "./SubscriptionPackagesTable";
 import CustomerSubscriptionsTable from "./CustomerSubscriptionsTable";
 import AddCustomerModal from "./AddCustomerModal";
+import Leads from "@pages/Lead/Leads";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 
 const { Text } = Typography;
@@ -60,9 +61,7 @@ type TabItem = {
     key: string;
     label: string;
     icon: React.ReactNode;
-    /** Permission required to view this tab. Admins always pass. */
     permissionKey: string;
-    /** Optional: show coming soon badge */
     comingSoon?: boolean;
 };
 
@@ -80,11 +79,11 @@ const getTabConfig = (): TabItem[] => {
         ];
     }
 
-    // When BOTH hasMteja AND hasPOS are active → show everything
     if (hasMteja && hasPOS) {
         return [
             { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
-            { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CUSTOMERS_VIEW", comingSoon: true },
+            // Leads tab is LIVE when Mteja enabled — no comingSoon
+            { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CRM_LEADS_VIEW" },
             { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             { key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" },
@@ -94,16 +93,14 @@ const getTabConfig = (): TabItem[] => {
         ];
     }
 
-    // Mteja only (no POS) → CRM-light view
     if (hasMteja) {
         return [
             { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
-            { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CUSTOMERS_VIEW", comingSoon: true },
+            { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CRM_LEADS_VIEW" },
             { key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" },
         ];
     }
 
-    // Default (POS only, no Mteja)
     return [
         { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
         { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
@@ -114,58 +111,39 @@ const getTabConfig = (): TabItem[] => {
         { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
     ];
 };
+
 // ── Locked tab placeholder ─────────────────────────────────────────────────
 const LockedTab = ({ label }: { label: string }) => (
-    <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center",
-        justifyContent: "center", padding: "60px 24px", gap: 12,
-        color: "#94a3b8", textAlign: "center",
-    }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 24px", gap: 12, color: "#94a3b8", textAlign: "center" }}>
         <LockOutlined style={{ fontSize: 32, color: "#cbd5e1" }} />
         <Text style={{ fontSize: 14, color: "#94a3b8" }}>
             You don't have permission to access <strong>{label}</strong>.
         </Text>
-        <Text style={{ fontSize: 12, color: "#cbd5e1" }}>
-            Contact your administrator to request access.
-        </Text>
+        <Text style={{ fontSize: 12, color: "#cbd5e1" }}>Contact your administrator to request access.</Text>
     </div>
 );
 
-// ── Coming Soon placeholder ─────────────────────────────────────────────────
+// ── Coming Soon placeholder ────────────────────────────────────────────────
 const ComingSoon = ({ label }: { label: string }) => (
-    <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center",
-        justifyContent: "center", padding: "60px 24px", gap: 12,
-        color: "#94a3b8", textAlign: "center",
-    }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 24px", gap: 12, textAlign: "center" }}>
         <StarOutlined style={{ fontSize: 32, color: "#cbd5e1" }} />
-        <Text style={{ fontSize: 16, fontWeight: 500, color: "#64748b" }}>
-            Coming Soon!
-        </Text>
+        <Text style={{ fontSize: 16, fontWeight: 500, color: "#64748b" }}>Coming Soon!</Text>
         <Text style={{ fontSize: 13, color: "#94a3b8" }}>
             The <strong>{label}</strong> feature is currently under development.
         </Text>
-        <Text style={{ fontSize: 12, color: "#cbd5e1" }}>
-            We're working hard to bring this to you as soon as possible.
-        </Text>
+        <Text style={{ fontSize: 12, color: "#cbd5e1" }}>We're working hard to bring this to you as soon as possible.</Text>
     </div>
 );
 
 // ── TabNav ─────────────────────────────────────────────────────────────────
 const TabNav = ({
-    tabs,
-    active,
-    onChange,
+    tabs, active, onChange,
 }: {
     tabs: (TabItem & { allowed: boolean })[];
     active: string;
     onChange: (key: string) => void;
 }) => (
-    <div style={{
-        display: "flex", flexWrap: "wrap", gap: 6,
-        padding: "0 0 16px", borderBottom: `1px solid ${C.border}`,
-        marginBottom: 20,
-    }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "0 0 16px", borderBottom: `1px solid ${C.border}`, marginBottom: 20 }}>
         {tabs.map((tab) => {
             const isActive = tab.key === active;
             const isDisabled = !tab.allowed || tab.comingSoon;
@@ -178,30 +156,19 @@ const TabNav = ({
                         display: "inline-flex", alignItems: "center", gap: 6,
                         padding: "6px 14px", borderRadius: 20,
                         cursor: isDisabled ? "not-allowed" : "pointer",
-                        fontSize: 13, fontWeight: isActive ? 600 : 400,
+                        fontSize: 13, fontWeight: isActive ? 600 : 400, outline: "none",
                         border: isActive ? `1.5px solid ${C.primary}` : `1px solid ${C.border}`,
                         background: isActive ? C.primary : "#fff",
                         color: isActive ? "#fff" : isDisabled ? "#cbd5e1" : C.subText,
                         transition: "all 0.15s",
-                        outline: "none",
                         opacity: isDisabled ? 0.5 : 1,
                         position: "relative",
                     }}
                 >
-                    <span style={{ fontSize: 13, lineHeight: 1 }}>
-                        {tab.icon}
-                    </span>
+                    <span style={{ fontSize: 13, lineHeight: 1 }}>{tab.icon}</span>
                     {tab.label}
                     {tab.comingSoon && (
-                        <span style={{
-                            fontSize: 9,
-                            marginLeft: 4,
-                            background: "#f0f0f0",
-                            padding: "2px 4px",
-                            borderRadius: 4,
-                            color: "#666",
-                            fontWeight: 400,
-                        }}>
+                        <span style={{ fontSize: 9, marginLeft: 4, background: "#f0f0f0", padding: "2px 4px", borderRadius: 4, color: "#666", fontWeight: 400 }}>
                             Soon
                         </span>
                     )}
@@ -211,17 +178,20 @@ const TabNav = ({
     </div>
 );
 
+// ── LeadPrefill type ───────────────────────────────────────────────────────
+type LeadPrefill = {
+    customer_name?: string;
+    phone?: string;
+    email?: string;
+    location?: string;
+};
+
 // ── Main ───────────────────────────────────────────────────────────────────
 function Customers() {
     const isMobile = useIsMobile();
     const { hasPOS, hasAccounting, hasMteja } = getTenantFlags();
-
-    // Admin users bypass all checks via makePermissionChecker(isAdmin=true)
     const can = useMemo(() => getPermissionChecker(), []);
-
     const ALL_TABS = useMemo(() => getTabConfig(), []);
-
-    // Attach allowed flag to each tab
     const tabsWithAccess = useMemo(
         () => ALL_TABS.map((t) => ({ ...t, allowed: can(t.permissionKey) })),
         [ALL_TABS, can]
@@ -230,64 +200,95 @@ function Customers() {
     const isHospital = getPosMode() === "hospital";
     const showOnlyCustomers = !isHospital && ((hasAccounting && !hasPOS) || !hasMteja);
 
-    // Default to first tab the user can actually access (and not coming soon)
     const defaultTab = useMemo(() => {
         const first = tabsWithAccess.find((t) => t.allowed && !t.comingSoon);
         return first?.key ?? "customers";
     }, [tabsWithAccess]);
 
-    const [addCustomerModalVisible, setAddCustomerModalVisible] = useState(false);
+    // ── State ──────────────────────────────────────────────────────────────
+    const [addCustomerVisible, setAddCustomerVisible] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<any>(null);
     const [modalMode, setModalMode] = useState<"add" | "edit">("add");
+    const [leadPrefill, setLeadPrefill] = useState<LeadPrefill | undefined>(undefined);
     const [activeTab, setActiveTab] = useState(defaultTab);
     const customerTableRef = useRef<any>(null);
 
-    const handleCustomerAdded = () => customerTableRef.current?.reload();
-
+    // ── Customer modal handlers ────────────────────────────────────────────
     const handleAddCustomer = () => {
         setModalMode("add");
         setEditingCustomer(null);
-        setAddCustomerModalVisible(true);
+        setLeadPrefill(undefined);
+        setAddCustomerVisible(true);
     };
 
     const handleEditCustomer = (customer: any) => {
         setModalMode("edit");
         setEditingCustomer(customer);
-        setAddCustomerModalVisible(true);
+        setLeadPrefill(undefined);
+        setAddCustomerVisible(true);
     };
 
     const handleCloseModal = () => {
-        setAddCustomerModalVisible(false);
+        setAddCustomerVisible(false);
         setEditingCustomer(null);
+        setLeadPrefill(undefined);
         setModalMode("add");
     };
 
+    const handleCustomerAdded = () => customerTableRef.current?.reload();
+
+    /**
+     * Called by the Leads page → LeadDetailDrawer when user clicks
+     * "Convert to Customer". Receives pre-filled data from the lead,
+     * opens AddCustomerModal in lead-conversion mode.
+     */
+    const handleConvertLeadToCustomer = (prefill: LeadPrefill) => {
+        setLeadPrefill(prefill);
+        setEditingCustomer(null);
+        setModalMode("add");
+        setAddCustomerVisible(true);
+    };
+
+    /**
+     * Called after AddCustomerModal successfully saves a customer that
+     * was created from a lead. Switches to the customers tab and reloads.
+     */
+    const handleCustomerCreatedFromLead = () => {
+        setActiveTab("customers");
+        setTimeout(() => customerTableRef.current?.reload(), 300);
+    };
+
+    // ── Tab renderer ──────────────────────────────────────────────────────
     const activeTabCfg = tabsWithAccess.find((t) => t.key === activeTab);
 
     const renderTab = () => {
-        // Permission check before rendering content
-        if (!activeTabCfg?.allowed) {
-            return <LockedTab label={activeTabCfg?.label ?? activeTab} />;
-        }
-
-        // Coming soon check
-        if (activeTabCfg?.comingSoon) {
-            return <ComingSoon label={activeTabCfg.label} />;
-        }
+        if (!activeTabCfg?.allowed) return <LockedTab label={activeTabCfg?.label ?? activeTab} />;
+        if (activeTabCfg?.comingSoon) return <ComingSoon label={activeTabCfg.label} />;
 
         switch (activeTab) {
-            case "customers": return <CustomerTable ref={customerTableRef} onEditCustomer={handleEditCustomer} />;
-            case "packages": return <SubscriptionPackagesTable />;
-            case "subscriptions": return <CustomerSubscriptionsTable />;
-            case "schedule": return <Schedule />;
-            case "consultations": return <ConsultationTable />;
-            case "feedback": return <FeedbackTable />;
-            case "giftCards": return <AdminCustomersTable nonCustomerEnabled={true} />;
-            default: return null;
+            case "customers":
+                return <CustomerTable ref={customerTableRef} onEditCustomer={handleEditCustomer} />;
+            case "leads":
+                // Pass the convert callback so LeadDetailDrawer can trigger AddCustomerModal
+                return <Leads onConvertWithForm={handleConvertLeadToCustomer} />;
+            case "packages":
+                return <SubscriptionPackagesTable />;
+            case "subscriptions":
+                return <CustomerSubscriptionsTable />;
+            case "schedule":
+                return <Schedule />;
+            case "consultations":
+                return <ConsultationTable />;
+            case "feedback":
+                return <FeedbackTable />;
+            case "giftCards":
+                return <AdminCustomersTable nonCustomerEnabled={true} />;
+            default:
+                return null;
         }
     };
 
-    // ── Shared header ────────────────────────────────────────────────────
+    // ── Shared header ──────────────────────────────────────────────────────
     const Header = ({ showAdd }: { showAdd: boolean }) => (
         <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -309,7 +310,6 @@ function Customers() {
                                 : "Customers, subscriptions, bookings & more"}
                 </Text>
             </div>
-            {/* Add button: only shown if user can create customers */}
             {showAdd && can("CUSTOMERS_CREATE") && (
                 <Button
                     type="primary" icon={<UserAddOutlined />} onClick={handleAddCustomer}
@@ -324,14 +324,9 @@ function Customers() {
         </div>
     );
 
-    // ── Wrapper card ─────────────────────────────────────────────────────
+    // ── Wrapper card ───────────────────────────────────────────────────────
     const wrap = (content: React.ReactNode, showAdd = true) => (
-        <div style={{
-            background: "#fff",
-            border: `1px solid ${C.border}`,
-            borderRadius: 12,
-            overflow: "hidden",
-        }}>
+        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
             <Header showAdd={showAdd} />
             <div style={{ padding: isMobile ? "14px 14px" : "16px 20px" }}>
                 {content}
@@ -339,27 +334,33 @@ function Customers() {
         </div>
     );
 
-    // ── Customers only view ──────────────────────────────────────────────
+    // ── Shared AddCustomerModal — used for both normal add/edit and lead conversion
+    const customerModal = (
+        <AddCustomerModal
+            visible={addCustomerVisible}
+            onClose={handleCloseModal}
+            onSuccess={leadPrefill ? handleCustomerCreatedFromLead : handleCustomerAdded}
+            customer={editingCustomer}
+            mode={modalMode}
+            leadPrefill={leadPrefill}
+        />
+    );
+
+    // ── Customers-only view ────────────────────────────────────────────────
     if (showOnlyCustomers) {
         return (
             <>
                 {wrap(
                     can("CUSTOMERS_VIEW")
                         ? <CustomerTable ref={customerTableRef} onEditCustomer={handleEditCustomer} />
-                        : <LockedTab label="Customers" />,
+                        : <LockedTab label="Customers" />
                 )}
-                <AddCustomerModal
-                    visible={addCustomerModalVisible}
-                    onClose={handleCloseModal}
-                    onSuccess={handleCustomerAdded}
-                    customer={editingCustomer}
-                    mode={modalMode}
-                />
+                {customerModal}
             </>
         );
     }
 
-    // ── Mteja enabled: full tabs ─────────────────────────────────────────
+    // ── Full tabbed view ───────────────────────────────────────────────────
     return (
         <>
             {wrap(
@@ -367,15 +368,10 @@ function Customers() {
                     <TabNav tabs={tabsWithAccess} active={activeTab} onChange={setActiveTab} />
                     {renderTab()}
                 </>,
+                // Only show "Add Customer" button when on the customers tab
                 activeTab === "customers",
             )}
-            <AddCustomerModal
-                visible={addCustomerModalVisible}
-                onClose={handleCloseModal}
-                onSuccess={handleCustomerAdded}
-                customer={editingCustomer}
-                mode={modalMode}
-            />
+            {customerModal}
         </>
     );
 }

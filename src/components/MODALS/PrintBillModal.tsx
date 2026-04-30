@@ -62,6 +62,7 @@ import {
   type PrintStatusResult,
   type SavePrintResult,
 } from "../MODALS/Hooks/usePrintDocument";
+import DigiTaxInvoiceGenerator from "../DigiTaxInvoiceGenerator";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 interface PrintBillProps {
@@ -172,17 +173,22 @@ async function attemptSave(
 }
 
 // ── Receipt styles helper — supports font size and weight ─────────────────
+// fontSize is clamped at 14px for thermal so large UI selections don't
+// cause right-side overflow on the 80mm roll. The UI slider still shows
+// the user's chosen value; only the printed output is clamped.
 const makeReceiptStyles = (bold: boolean, fontSize: number) => {
+  // Hard-clamp: 80mm roll can't safely render beyond ~14px Courier New
+  const clampedSize = Math.min(fontSize, 14);
   const weight = bold ? 700 : 400;
   const headerWeight = bold ? 900 : 600;
   const base = { fontFamily: "'Courier New', Courier, monospace", color: "#000000" };
-  const baseFontSize = `${fontSize}px`;
-  const smallFontSize = `${fontSize - 1}px`;
-  const smallerFontSize = `${fontSize - 1.5}px`;
+  const baseFontSize = `${clampedSize}px`;
+  const smallFontSize = `${clampedSize - 1}px`;
+  const smallerFontSize = `${clampedSize - 1.5}px`;
 
   return {
-    shopName: { ...base, fontSize: `${fontSize + 1}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
-    docType: { ...base, fontSize: `${fontSize + 3}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
+    shopName: { ...base, fontSize: `${clampedSize + 1}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
+    docType: { ...base, fontSize: `${clampedSize + 3}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
     meta: { ...base, fontSize: smallFontSize, fontWeight: weight },
     label: { ...base, fontSize: baseFontSize, fontWeight: bold ? 700 : 500 },
     value: { ...base, fontSize: baseFontSize, fontWeight: weight },
@@ -191,7 +197,7 @@ const makeReceiptStyles = (bold: boolean, fontSize: number) => {
     tblData: { padding: "3px 2px", fontWeight: weight, fontSize: smallerFontSize, color: "#000" },
     tblSub: { ...base, fontSize: smallerFontSize, fontWeight: weight, color: "#555" },
     // ── totals ───────────────────────────────────────────────────────────
-    total: { ...base, fontSize: `${fontSize + 2}px`, fontWeight: headerWeight },
+    total: { ...base, fontSize: `${clampedSize + 2}px`, fontWeight: headerWeight },
     footer: { ...base, fontSize: smallerFontSize, fontWeight: weight, textAlign: "center" as const },
   };
 };
@@ -240,6 +246,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [useDigiTax, setUseDigiTax] = useState(false);
+  const [digiTaxData, setDigiTaxData] = useState<any>(null);
 
   const pendingPrintRef = useRef(false);
   const [printTrigger, setPrintTrigger] = useState(0);
@@ -298,16 +306,22 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     pageStyle: isPdfView
       ? `@page { size: A4; margin: 20mm; }
          @media print { * { color-adjust: exact !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } body { margin: 0; padding: 0; } }`
-      : `@page { size: 80mm auto; margin: 4mm; }
+      : `@page { size: 80mm auto; margin: 4mm 4mm 24mm 4mm; }
          @media print {
            * {
              color-adjust: exact !important;
              -webkit-print-color-adjust: exact !important;
              print-color-adjust: exact !important;
              color: black !important;
+             box-sizing: border-box !important;
+             max-width: 100% !important;
+             word-break: break-word !important;
+             overflow-wrap: break-word !important;
              ${isBold ? "font-weight: bold !important;" : ""}
            }
-           body { margin: 0; padding: 0; }
+           body { margin: 0; padding: 0; width: 100%; }
+           table { width: 100% !important; table-layout: fixed !important; }
+           td, th { overflow: hidden !important; }
          }`,
   });
 
@@ -412,22 +426,14 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const customerAddress = cartDetails?.client_address || cartDetails?.clientAddress || "";
   const customerKraPin = cartDetails?.client_kra_pin || cartDetails?.clientKraPin || cartDetails?.client_pin || "";
 
-  // ── Thermal column widths (px) — keeps table stable at 80 mm ──────────
-  const COL = {
-    idx: "18px",
-    qty: "24px",
-    desc: "auto",   // flex remainder
-    price: "52px",
-    vat: "40px",
-    total: "52px",
-  } as const;
-
-  // Font size presets
+  // ── Font size presets — extended for larger options ────────────────────
   const fontSizes = [
     { value: 9, label: "Small" },
     { value: 11, label: "Normal" },
     { value: 13, label: "Large" },
     { value: 15, label: "X-Large" },
+    { value: 17, label: "XX-Large" },
+    { value: 20, label: "Huge" },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -562,18 +568,28 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 <div style={{ width: 1, height: 24, background: "#e5e7eb" }} />
 
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                  <Tooltip title="Font Size">
-                    <ZoomInOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  <Tooltip title="Decrease Font Size">
+                    <ZoomOutOutlined style={{ fontSize: 16, color: "#6b7280" }} />
                   </Tooltip>
                   <AntSlider
                     min={8}
-                    max={16}
+                    max={20}
                     value={fontSize}
                     onChange={setFontSize}
-                    style={{ width: 120, margin: 0 }}
+                    style={{ width: 130, margin: 0 }}
                     tooltip={{ formatter: (v) => `${v}px` }}
+                    marks={{
+                      8: "",
+                      11: "",
+                      13: "",
+                      15: "",
+                      17: "",
+                      20: "",
+                    }}
                   />
-                  <ZoomOutOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  <Tooltip title="Increase Font Size">
+                    <ZoomInOutlined style={{ fontSize: 16, color: "#6b7280" }} />
+                  </Tooltip>
                   <span style={{ fontSize: 12, color: "#6b7280", minWidth: 45 }}>
                     {fontSize}px
                   </span>
@@ -581,8 +597,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     value={fontSize}
                     onChange={setFontSize}
                     size="small"
-                    style={{ width: 100 }}
-                    options={fontSizes.map(fs => ({ label: fs.label, value: fs.value }))}
+                    style={{ width: 110 }}
+                    options={fontSizes.map((fs) => ({ label: fs.label, value: fs.value }))}
                   />
                 </div>
               </>
@@ -626,7 +642,24 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           </div>
         </div>
 
+        {/* DigiTax ETR Toggle */}
+        <DigiTaxInvoiceGenerator
+          invoiceId={cartDetails?.order_no}
+          orderNo={cartDetails?.order_no}
+          onDigiTaxChange={setUseDigiTax}
+          onDigiTaxData={setDigiTaxData}
+          disabled={!canPrint}
+        />
+
         {/* ── THERMAL RECEIPT ─────────────────────────────────────────── */}
+        {/*
+          FIX: Replaced fixed <table> with colgroup approach using a two-row layout.
+          The items table now uses a stacked layout:
+            Row 1: # | Qty | Description (full width, wraps naturally)
+            Row 2: (empty) | (empty) | Price | VAT | Total  (right-aligned numerics)
+          This prevents column header overlap on the narrow 80mm roll.
+          No description shown on thermal (desc only on PDF).
+        */}
         <div
           ref={!isPdfView ? printableRef : undefined}
           className="receipt"
@@ -634,15 +667,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           style={{
             color: "#000000",
             display: isPdfView ? "none" : "block",
-            // Mimic 80 mm roll width in preview — removes need for manual centering
             maxWidth: "300px",
+            width: "100%",
+            boxSizing: "border-box",
+            overflowX: "hidden",
             margin: "0 auto",
             fontFamily: "'Courier New', Courier, monospace",
           }}
         >
           {/* ── HEADER ───────────────────────────────────────────────── */}
           <div style={{ marginBottom: 8 }}>
-            {/* Company name — centered */}
             <div style={{ textAlign: "center", marginBottom: 4 }}>
               <div style={S.shopName}>{BRAND_NAME1}</div>
               {PIN && <div style={S.meta}>PIN: {PIN}</div>}
@@ -652,10 +686,22 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
             <SolidLine />
 
-            {/* Document type — centered, prominent */}
             <div style={{ ...S.docType, marginBottom: 4 }}>{docConfig.label}</div>
 
-            {/* Order number + date block — two columns */}
+            {/* DigiTax ETR Information */}
+            {useDigiTax && digiTaxData?.success && (
+              <div style={{ marginBottom: 4, textAlign: "center" }}>
+                <div style={{ ...S.meta, fontSize: `${fontSize - 1}px`, color: "#52c41a", fontWeight: 700 }}>
+                  ETR RECEIPT
+                </div>
+                {digiTaxData.taxReceiptNumber && (
+                  <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#389e0d" }}>
+                    Tax Receipt: {digiTaxData.taxReceiptNumber}
+                  </div>
+                )}
+              </div>
+            )}
+
             <MetaRow
               left={<span style={S.meta}>
                 {documentType === "receipt" ? "Receipt No" :
@@ -702,59 +748,87 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
           <DashedLine />
 
-          {/* ── ITEMS TABLE ──────────────────────────────────────────── */}
-          <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
-            <colgroup>
-              <col style={{ width: COL.idx }} />
-              <col style={{ width: COL.qty }} />
-              <col style={{ width: COL.desc }} />
-              <col style={{ width: COL.price }} />
-              <col style={{ width: COL.vat }} />
-              <col style={{ width: COL.total }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th style={{ ...S.tblHdr, textAlign: "left" }}>#</th>
-                <th style={{ ...S.tblHdr, textAlign: "left" }}>Qty</th>
-                <th style={{ ...S.tblHdr, textAlign: "left" }}>Description</th>
-                <th style={{ ...S.tblHdr, textAlign: "right" }}>Price</th>
-                <th style={{ ...S.tblHdr, textAlign: "right" }}>VAT</th>
-                <th style={{ ...S.tblHdr, textAlign: "right" }}>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data?.map((item: any, index: number) => {
-                const displayPrice = getDisplayPrice(item);
-                const itemVat = item.vat_amount || (item.price * item.quantity * (item.vat_rate || 0) / 100);
-                return (
-                  <tr key={item._id || index}>
-                    <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top" }}>{index + 1}</td>
-                    <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top" }}>{item.quantity}</td>
-                    <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top", wordBreak: "break-word", overflowWrap: "break-word" }}>
-                      {item?.product_id?.name}
-                      {item.quantity > 1 && (
-                        <div style={S.tblSub}>@ {displayPrice.toFixed(2)} ea</div>
-                      )}
-                    </td>
-                    <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top" }}>
-                      {displayPrice.toFixed(2)}
-                    </td>
-                    <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top" }}>
-                      {itemVat.toFixed(2)}
-                    </td>
-                    <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top" }}>
-                      {(displayPrice * item.quantity).toFixed(2)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {/* ── ITEMS LIST (THERMAL) ──────────────────────────────────
+              Replaced multi-column table with simple div rows.
+              - Header: one flex row, all labels on one line, no wrapping
+              - Each item:
+                  Line 1 (flex): "#  Qty  Name..." — name wraps freely, 
+                                 numbers stay right-aligned and never squeeze
+                  Line 2 (flex, right-aligned): Price | VAT | Total
+              No table columns = no Qty wrapping, no right-side overflow.
+              Name can be as long as needed; it just wraps to more lines.
+          ──────────────────────────────────────────────────────────── */}
+          <div style={{ width: "100%" }}>
+            {/* Header row */}
+            <div style={{
+              display: "flex",
+              borderBottom: "1px solid #000",
+              paddingBottom: 3,
+              marginBottom: 2,
+            }}>
+              {/* # column — commented out for now */}
+              {/* <span style={{ ...S.tblHdr, width: 16, flexShrink: 0 }}>#</span> */}
+              <span style={{ ...S.tblHdr, width: 24, flexShrink: 0 }}>Qty</span>
+              <span style={{ ...S.tblHdr, flex: 1 }}>Item</span>
+              <span style={{ ...S.tblHdr, width: 52, flexShrink: 0, textAlign: "right" }}>Price</span>
+              {/* VAT column — commented out for now */}
+              {/* <span style={{ ...S.tblHdr, width: 40, flexShrink: 0, textAlign: "right" }}>VAT</span> */}
+              <span style={{ ...S.tblHdr, width: 52, flexShrink: 0, textAlign: "right" }}>Total</span>
+            </div>
+
+            {data?.map((item: any, index: number) => {
+              const displayPrice = getDisplayPrice(item);
+              const itemVat = item.vat_amount || (item.price * item.quantity * (item.vat_rate || 0) / 100);
+              const lineTotal = displayPrice * item.quantity;
+
+              return (
+                /* Single flex row — all columns together, name wraps, numbers stay top-right */
+                <div key={item._id || index} style={{ display: "flex", alignItems: "flex-start", marginBottom: 4, paddingTop: 2 }}>
+                  {/* # column — commented out for now */}
+                  {/* <span style={{ ...S.tblData, width: 16, flexShrink: 0 }}>{index + 1}</span> */}
+
+                  {/* Qty */}
+                  <span style={{ ...S.tblData, width: 24, flexShrink: 0 }}>{item.quantity}</span>
+
+                  {/* Name — flex:1 so it takes all remaining space and wraps */}
+                  <span style={{
+                    ...S.tblData,
+                    flex: 1,
+                    minWidth: 0,
+                    wordBreak: "break-word",
+                    overflowWrap: "break-word",
+                    whiteSpace: "normal",
+                  }}>
+                    {item?.product_id?.name}
+                    {item.quantity > 1 && (
+                      <span style={{ ...S.tblSub, display: "block" }}>@ {displayPrice.toFixed(2)} ea</span>
+                    )}
+                  </span>
+
+                  {/* Price */}
+                  <span style={{ ...S.tblData, width: 52, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>
+                    {displayPrice.toFixed(2)}
+                  </span>
+
+                  {/* VAT column — commented out for now */}
+                  {/* <span style={{ ...S.tblData, width: 40, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>
+                    {itemVat.toFixed(2)}
+                  </span> */}
+
+                  {/* Total */}
+                  <span style={{ ...S.tblData, width: 52, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>
+                    {lineTotal.toFixed(2)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
 
           <DashedLine />
 
           {/* ── TOTALS ───────────────────────────────────────────────── */}
-          <table style={{ width: "58%", marginLeft: "42%", borderCollapse: "collapse" }}>
+          {/* Totals — full width so large fonts never overflow the roll */}
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <tbody>
               {(showDiscount || discountAmount === 0) && (
                 <tr>
@@ -785,7 +859,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             </tbody>
           </table>
           <DoubleLine />
-          <table style={{ width: "58%", marginLeft: "42%", borderCollapse: "collapse" }}>
+          {/* Grand total — full width, amount right-aligned */}
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <tbody>
               <tr>
                 <td style={S.total}>{docConfig.amountLabel.toUpperCase()}</td>
@@ -797,23 +872,20 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           </table>
 
           {/* ── PAYMENT INFO ─────────────────────────────────────────── */}
-          {Paybill_bs && documentType === "receipt" && (
+          {(Paybill_bs || TILL_NO) && (
             <>
               <DashedLine />
               <div style={{ textAlign: "center" }}>
                 <div style={S.label}>Payment Details</div>
-                <div style={S.meta}>Paybill: {Paybill_bs}</div>
-                {Paybill_ac && <div style={S.meta}>Account: {Paybill_ac}</div>}
-              </div>
-            </>
-          )}
-
-          {TILL_NO && documentType === "receipt" && (
-            <>
-              <DashedLine />
-              <div style={{ textAlign: "center" }}>
-                <div style={S.label}>Payment Details</div>
-                <div style={S.meta}>Till No: {TILL_NO}</div>
+                {Paybill_bs && (
+                  <>
+                    <div style={S.meta}>Paybill: {Paybill_bs}</div>
+                    {Paybill_ac && <div style={S.meta}>Account: {Paybill_ac}</div>}
+                  </>
+                )}
+                {TILL_NO && (
+                  <div style={S.meta}>Till No: {TILL_NO}</div>
+                )}
               </div>
             </>
           )}
@@ -850,23 +922,45 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
           {/* ── FOOTER ───────────────────────────────────────────────── */}
           <DashedLine />
-          <div style={{ textAlign: "center", marginTop: 4 }}>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
-              <QRCodeCanvas value={QR_Code} size={80} className="qrcode" />
-            </div>
+          {/* paddingBottom: the physical distance from the last printed line
+              to where the printer's cutter blade sits. Most 80mm thermal
+              printers need 15-20mm of feed after the last character so the
+              cut lands below "Powered By BasePoint Cloud", not through it. */}
+          <div style={{ textAlign: "center", marginTop: 4, paddingBottom: "20mm" }}>
+            {/* ETR QR Code - replaces regular QR code when present */}
+            {useDigiTax && digiTaxData?.success && digiTaxData.qrCode ? (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: `${fontSize - 2}px`, color: "#52c41a", marginBottom: 2, fontWeight: 600 }}>
+                  ETR VERIFICATION
+                </div>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+                  <QRCodeCanvas value={digiTaxData.qrCode} size={60} className="etr-qrcode" />
+                </div>
+                <div style={{ fontSize: `${fontSize - 3}px`, color: "#666" }}>
+                  Scan to verify tax receipt
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+                <QRCodeCanvas value={QR_Code} size={80} className="qrcode" />
+              </div>
+            )}
             <div style={S.footer}>
               Thank you for your {documentType === "quotation" ? "interest" : "business"}!
             </div>
             <div style={S.footer}>{EMAIL_URL}</div>
             <div style={S.footer}>Printed: {printDateStr} {printTimeStr}</div>
-            <div style={{ ...S.footer, marginTop: 4, fontSize: `${fontSize - 1.5}px`, color: "#555" }}>
-              Powered By BasePoint Cloud
-            </div>
           </div>
         </div>
         {/* ── END THERMAL ─────────────────────────────────────────────── */}
 
         {/* ── PDF / A4 VIEW ────────────────────────────────────────────── */}
+        {/*
+          FIX: Added "Description" column to the PDF items table.
+          Shows item.product_id?.desc (or item.desc) below the product name
+          in a subtle smaller style. Only rendered in PDF mode — thermal
+          receipt is unchanged and does not show descriptions.
+        */}
         {isPdfView && (
           <div
             ref={printableRef}
@@ -890,10 +984,38 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                   <Typography variant="body1" style={pdfNorm}>Date: {printDateStr}</Typography>
                   <Typography variant="body1" style={pdfNorm}>Invoice No: {cartDetails?.order_no || "N/A"}</Typography>
                   <Typography variant="body1" style={pdfNorm}>LPO No: {cartDetails?.lpo_no || "N/A"}</Typography>
+                  
+                  {/* DigiTax ETR Information */}
+                  {useDigiTax && digiTaxData?.success && (
+                    <Box sx={{ mt: 1, p: 1, backgroundColor: "#f6ffed", border: "1px solid #b7eb8f", borderRadius: 1 }}>
+                      <Typography variant="body2" style={{ color: "#52c41a", fontWeight: 700, fontSize: "12px" }}>
+                        ETR RECEIPT
+                      </Typography>
+                      {digiTaxData.taxReceiptNumber && (
+                        <Typography variant="body2" style={{ color: "#389e0d", fontSize: "11px" }}>
+                          Tax Receipt: {digiTaxData.taxReceiptNumber}
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
                 </Box>
               </Box>
               <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-                <QRCodeCanvas value={QR_Code} size={100} />
+                {/* ETR QR Code - replaces regular QR code when present */}
+                {useDigiTax && digiTaxData?.success && digiTaxData.qrCode ? (
+                  <Box sx={{ textAlign: "center" }}>
+                    <Typography variant="body2" style={{ color: "#52c41a", fontWeight: 600, fontSize: "10px", marginBottom: 1 }}>
+                      ETR VERIFICATION
+                    </Typography>
+                    <QRCodeCanvas value={digiTaxData.qrCode} size={100} />
+                    <Typography variant="body2" style={{ color: "#666", fontSize: "8px", marginTop: 1 }}>
+                      Scan to verify tax receipt
+                    </Typography>
+                  </Box>
+                ) : (
+                  /* Regular QR Code - only shown when ETR is not enabled */
+                  <QRCodeCanvas value={QR_Code} size={100} />
+                )}
               </Box>
             </Box>
 
@@ -924,28 +1046,47 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Box>
             </Box>
 
-            {/* Items table */}
+            {/* ── PDF Items table — includes Description column ───────── */}
             <TableContainer component={Paper} elevation={0} sx={{ mb: 3 }}>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ ...pdfTH, width: "6%" }}>#</TableCell>
-                    <TableCell sx={{ ...pdfTH, width: "8%" }}>Qty</TableCell>
-                    <TableCell sx={pdfTH}>Description</TableCell>
-                    <TableCell sx={{ ...pdfTH, textAlign: "right", width: "14%" }}>Unit Price</TableCell>
+                    <TableCell sx={{ ...pdfTH, width: "5%" }}>#</TableCell>
+                    <TableCell sx={{ ...pdfTH, width: "7%" }}>Qty</TableCell>
+                    {/* Description column added — wider to accommodate both name + desc */}
+                    <TableCell sx={{ ...pdfTH }}>Item &amp; Description</TableCell>
+                    <TableCell sx={{ ...pdfTH, textAlign: "right", width: "13%" }}>Unit Price</TableCell>
                     <TableCell sx={{ ...pdfTH, textAlign: "right", width: "10%" }}>VAT</TableCell>
-                    <TableCell sx={{ ...pdfTH, textAlign: "right", width: "13%" }}>Total</TableCell>
+                    <TableCell sx={{ ...pdfTH, textAlign: "right", width: "12%" }}>Total</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {data?.map((item: any, index: number) => {
                     const displayPrice = getDisplayPrice(item);
                     const itemVat = item.vat_amount || (item.price * item.quantity * (item.vat_rate || 0) / 100);
+                    // Support both nested product_id.desc and flat item.desc
+                    const itemDesc = item?.product_id?.desc || item?.product_id?.description || item?.desc || item?.description || "";
                     return (
                       <TableRow key={item._id || index}>
                         <TableCell sx={pdfTD}>{index + 1}</TableCell>
                         <TableCell sx={pdfTD}>{item.quantity}</TableCell>
-                        <TableCell sx={pdfTD}>{item?.product_id?.name}</TableCell>
+                        {/* Name + description stacked in one cell */}
+                        <TableCell sx={pdfTD}>
+                          <div style={{ fontWeight: 600, color: "#1a1a1a", fontSize: "14px" }}>
+                            {item?.product_id?.name}
+                          </div>
+                          {itemDesc && (
+                            <div style={{
+                              fontSize: "12px",
+                              color: "#6b7280",
+                              marginTop: "3px",
+                              lineHeight: "1.4",
+                              fontStyle: "italic",
+                            }}>
+                              {itemDesc}
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{displayPrice.toFixed(2)}</TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{itemVat.toFixed(2)}</TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{(displayPrice * item.quantity).toFixed(2)}</TableCell>
@@ -985,12 +1126,20 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Box>
             </Box>
 
-            {/* Payment Details */}
-            {(Paybill_bs || TILL_NO) && documentType === "receipt" && (
+            {/* Payment Details — PDF: always show if Paybill or Till No exists */}
+            {(Paybill_bs || TILL_NO) && (
               <Box sx={{ mt: 3, mb: 2, backgroundColor: "#f0f9ff", borderRadius: 2, padding: 2, border: "1px solid #bae6fd" }}>
                 <Typography variant="h6" style={pdfSub} sx={{ textAlign: "center" }}>Payment Details</Typography>
-                {Paybill_bs && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Paybill: {Paybill_bs}{Paybill_ac && ` | Account: ${Paybill_ac}`}</Typography>}
-                {TILL_NO && <Typography style={pdfNorm} sx={{ textAlign: "center" }}>Till No: {TILL_NO}</Typography>}
+                {Paybill_bs && (
+                  <Typography style={pdfNorm} sx={{ textAlign: "center" }}>
+                    Paybill: {Paybill_bs}{Paybill_ac && ` | Account: ${Paybill_ac}`}
+                  </Typography>
+                )}
+                {TILL_NO && (
+                  <Typography style={pdfNorm} sx={{ textAlign: "center" }}>
+                    Till No: {TILL_NO}
+                  </Typography>
+                )}
               </Box>
             )}
 
@@ -1037,7 +1186,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Typography>
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Email: {EMAIL_URL}</Typography>
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Printed: {printDateStr} {printTimeStr}</Typography>
-              <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By BasePoint Cloud</Typography>
             </Box>
           </div>
         )}

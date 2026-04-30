@@ -84,7 +84,15 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
       }
       initialValues={edit ? { ...data, phoneNumber: reversePhoneNumber(data?.phone) } : {}}
       onFinish={async (values) => {
-        const phoneNumber = getPhoneNumber(values?.phoneNumber);
+        let phoneNumber = null;
+        if (values?.phoneNumber && (values.phoneNumber.phone || values.phoneNumber.code)) {
+          try {
+            phoneNumber = getPhoneNumber(values?.phoneNumber);
+          } catch (error) {
+            console.error('Phone number parsing error:', error);
+            phoneNumber = null;
+          }
+        }
         const value = { ...values, phone: phoneNumber };
         const confirmed = await ShowConfirm({
           title: `Are you sure you want to ${edit ? "update this" : "add new"} Supplier?`,
@@ -120,10 +128,10 @@ const AddProSupplierModal: React.FC<AddSupplierDialogProps> = ({
           width="md"
           name="email"
           label="Email"
-          rules={[{ required: true, pattern: /^\S+@\S+\.\S+$/, message: "Invalid email format" }]}
-          placeholder="Enter supplier email"
+          rules={[{ pattern: /^\S+@\S+\.\S+$/, message: "Invalid email format" }]}
+          placeholder="Enter supplier email (optional)"
         />
-        <PhoneInput label="Phone" owner="phoneNumber" />
+        <PhoneInput label="Phone" owner="phoneNumber" required={false} />
       </ProForm.Group>
     </ModalForm>
   );

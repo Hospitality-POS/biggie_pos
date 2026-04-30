@@ -1,16 +1,16 @@
 /**
  * useTenantModules.ts
  *
- * Reads the active tenant's module flags (hr, accounting, etc.) from the
- * best available source, trying in order:
+ * Reads the active tenant's module flags from the best available source,
+ * trying in order:
  *
  *  1. Redux — tries every common slice path the app might use
  *  2. localStorage "tenant" — always the most up-to-date value (set on login)
  *
- * Returns { hasHR, hasAccounting } as stable booleans.
+ * Returns { hasHR, hasAccounting, hasMteja } as stable booleans.
  *
  * Usage:
- *   const { hasHR, hasAccounting } = useTenantModules();
+ *   const { hasHR, hasAccounting, hasMteja } = useTenantModules();
  */
 
 import { useMemo } from "react";
@@ -19,12 +19,12 @@ import { useAppSelector } from "src/store";
 interface TenantModules {
     hasHR: boolean;
     hasAccounting: boolean;
+    hasMteja: boolean;  // tenant.modules.crm === true  →  Mteja CRM module
 }
 
 // ── Try to pluck the tenant object from any known Redux shape ─────────────────
 function selectTenantFromRedux(state: any): any {
     return (
-        // most common shapes — add more here if your slices change
         state?.auth?.user?.tenant ||
         state?.auth?.tenant ||
         state?.auth?.currentUser?.tenant ||
@@ -35,29 +35,42 @@ function selectTenantFromRedux(state: any): any {
     );
 }
 
+// ── Normalise a single flag value ─────────────────────────────────────────────
+const isEnabled = (v: any): boolean => {
+    if (typeof v === "boolean") return v;
+    if (typeof v === "number") return v !== 0;
+    if (typeof v === "string") return v === "true" || v === "1" || v === "enabled";
+    if (typeof v === "object" && v !== null)
+        return !!(v.enabled ?? v.active ?? v.is_active ?? true);
+    return false;
+};
+
 // ── Parse module flags from a raw tenant object ───────────────────────────────
 function parseModules(tenant: any): TenantModules {
-    if (!tenant) return { hasHR: false, hasAccounting: false };
+    if (!tenant) return { hasHR: false, hasAccounting: false, hasMteja: false };
 
     const mods = tenant.modules ?? tenant.module_flags ?? tenant.features ?? {};
 
-    // Normalise — the flag might be true/false, "true"/"false", 1/0, or an object
-    const isEnabled = (v: any): boolean => {
-        if (typeof v === "boolean") return v;
-        if (typeof v === "number") return v !== 0;
-        if (typeof v === "string") return v === "true" || v === "1" || v === "enabled";
-        if (typeof v === "object" && v !== null) return !!(v.enabled ?? v.active ?? v.is_active ?? true);
-        return false;
-    };
-
     return {
-        hasHR: isEnabled(mods.hr ?? mods.HR ?? mods.hrm ?? mods.human_resources),
+        hasHR: isEnabled(
+            mods.hr ??
+            mods.HR ??
+            mods.hrm ??
+            mods.payroll ??  // Bandu by Base uses modules.payroll
+            mods.human_resources
+        ),
         hasAccounting: isEnabled(
             mods.accounting ??
             mods.ACCOUNTING ??
             mods.finance ??
             mods.accounts ??
             mods.financial
+        ) || isEnabled(tenant?.accounting_database?.enabled), // legacy shape
+        hasMteja: isEnabled(
+            mods.crm ??  // canonical key — tenant.modules.crm
+            mods.CRM ??
+            mods.mteja ??
+            mods.customer_engagement
         ),
     };
 }
@@ -75,17 +88,16 @@ function readFromLocalStorage(): any {
 
 // ── The hook ──────────────────────────────────────────────────────────────────
 export function useTenantModules(): TenantModules {
-    // Read from Redux — will re-render on store change
     const reduxTenant = useAppSelector(selectTenantFromRedux);
 
     return useMemo(() => {
-        // 1. Try Redux first (reactive)
+        // 1. Try Redux first (reactive — re-renders on store change)
         if (reduxTenant) {
             const parsed = parseModules(reduxTenant);
-            // If either flag is true, we have good data — use it
-            if (parsed.hasHR || parsed.hasAccounting) return parsed;
-            // If both are false it MIGHT be a legit "no modules" tenant, but
-            // also might be a stale/empty redux slice — fall through to localStorage
+            // If any flag is true we have good data — use it.
+            // If all are false it might be legit OR an empty redux slice,
+            // so fall through to localStorage to be sure.
+            if (parsed.hasHR || parsed.hasAccounting || parsed.hasMteja) return parsed;
         }
 
         // 2. localStorage fallback (always fresh after login)
@@ -93,13 +105,14 @@ export function useTenantModules(): TenantModules {
         if (lsTenant) return parseModules(lsTenant);
 
         // 3. No data at all
-        return { hasHR: false, hasAccounting: false };
+        return { hasHR: false, hasAccounting: false, hasMteja: false };
     }, [reduxTenant]);
 }
 
 /**
- * Non-hook version for use outside components (e.g. in utility functions).
- * Reads only from localStorage.
+ * Non-hook version for use outside components (e.g. utility functions,
+ * route guards, permission helpers called before the component tree mounts).
+ * Reads only from localStorage — no reactivity.
  */
 export function getTenantModulesSync(): TenantModules {
     return parseModules(readFromLocalStorage());

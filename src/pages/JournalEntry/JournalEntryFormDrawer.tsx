@@ -65,13 +65,12 @@ const emptyLine = (): LineItem => ({
     description: "",
 });
 
-// Generate a unique reference number
 const generateReferenceNumber = (): string => {
     const now = new Date();
     const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
     return `JE-${year}${month}${day}-${random}`;
 };
 
@@ -86,9 +85,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
     const [reference, setReference] = useState<string>("");
 
     // ── Accounts ───────────────────────────────────────────────────────────────
-    // Fetch ALL active accounts — filter allows_direct_posting client-side.
-    // Passing it as a query param only works if the backend supports it;
-    // doing it here guarantees the dropdown is never empty.
+
     const { data: accountsData, isLoading: accountsLoading } = useQuery({
         queryKey: ["chart-of-accounts-je", shopId],
         queryFn: () => getAllAccounts({ is_active: true }),
@@ -98,13 +95,10 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
 
     const allAccounts: ChartOfAccount[] = accountsData?.accounts || [];
 
-    // Only show accounts that allow direct posting (exclude header/parent accounts)
     const postableAccounts = allAccounts.filter(
         (a) => a.is_active && a.allows_direct_posting !== false
     );
 
-    // Plain string label so optionFilterProp="label" works correctly.
-    // The tag is rendered via tagRender / optionRender instead.
     const accountOptions = postableAccounts.map((a) => ({
         label: `${a.account_code} — ${a.account_name} (${a.account_type})`,
         value: a._id,
@@ -126,6 +120,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
     }, [open, form]);
 
     // ── Generate new reference ─────────────────────────────────────────────────
+
     const handleGenerateNewReference = () => {
         const newReference = generateReferenceNumber();
         setReference(newReference);
@@ -133,9 +128,9 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
     };
 
     // ── Account added callback ─────────────────────────────────────────────────
+
     const handleAccountAdded = () => {
         queryClient.invalidateQueries({ queryKey: ["chart-of-accounts-je", shopId] });
-        // Also invalidate the global COA query so AccountFormDrawer's parent lists refresh
         queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
     };
 
@@ -158,7 +153,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
             prev.map((l) => (l.key === key ? { ...l, [field]: value } : l))
         );
 
-    // ── Submit: Manual Entry ───────────────────────────────────────────────────
+    // ── Submit ─────────────────────────────────────────────────────────────────
 
     const handleManualSubmit = async (values: any) => {
         if (!isBalanced) return;
@@ -171,7 +166,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
             const payload: CreateManualEntryParams = {
                 shop_id: shopId,
                 description: values.description,
-                reference: values.reference, // Use the edited or auto-generated reference
+                reference: values.reference,
                 entry_date: values.entry_date
                     ? dayjs(values.entry_date).toISOString()
                     : undefined,
@@ -185,16 +180,21 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
             };
 
             await createManualEntry(payload);
-            onSuccess();
+
+            // Close drawer first, then refresh list after drawer animation completes
             onClose();
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+                queryClient.invalidateQueries({ queryKey: ["journal-entry-summary"] });
+                onSuccess();
+            }, 300);
         } finally {
             setSubmitting(false);
         }
     };
 
-    // ── Account dropdown with "+ Add Account" footer ──────────────────────────
-    // Uses plain string labels so search works correctly.
-    // The type tag is rendered via optionRender for visual clarity.
+    // ── Account dropdown footer ────────────────────────────────────────────────
+
     const accountDropdownRender = (menu: React.ReactNode) => (
         <>
             {menu}
@@ -204,7 +204,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                 icon={<PlusOutlined />}
                 style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
                 onMouseDown={(e) => {
-                    e.preventDefault(); // prevent Select blur before state fires
+                    e.preventDefault();
                     setAddAccountOpen(true);
                 }}
             >
@@ -374,7 +374,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                                 fieldProps={{
                                     style: { width: 180 },
                                     value: reference,
-                                    onChange: (e) => setReference(e.target.value)
+                                    onChange: (e) => setReference(e.target.value),
                                 }}
                             />
                             <Button
@@ -391,7 +391,7 @@ const JournalEntryFormDrawer: React.FC<Props> = ({ open, onClose, onSuccess, sho
                     <ProFormSwitch
                         name="auto_post"
                         label="Post immediately (skip Draft)"
-                        initialValue={false}
+                        initialValue={true}
                     />
 
                     {/* ── Lines ── */}

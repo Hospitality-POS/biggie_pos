@@ -14,6 +14,7 @@ import {
     AccountBalancesResponse, CustomerStatementResponse, SupplierStatementResponse,
     ARAgingResponse, APAgingResponse, TrialBalanceRow, GeneralLedgerAccount,
 } from "@services/accounting/reports";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
@@ -63,13 +64,55 @@ const printSection = (html: string, title: string) => {
 };
 
 // ── Export helpers ─────────────────────────────────────────────────────────────
-const exportToExcel = async (filename: string, rows: Record<string, any>[]) => {
+const exportToExcel = async (filename: string, rows: Record<string, any>[], options?: { title?: string; period?: string; boldRows?: number[] }) => {
     const XLSX = await import("xlsx");
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const { title, period, boldRows = [] } = options || {};
+    
+    // Add header rows if title or period provided
+    let finalRows = rows;
+    if (title || period) {
+        const headerRows: Record<string, any>[] = [];
+        if (title) {
+            headerRows.push({ [Object.keys(rows[0] || {})[0]]: title });
+        }
+        if (period) {
+            headerRows.push({ [Object.keys(rows[0] || {})[0]]: period });
+        }
+        if (headerRows.length > 0) {
+            headerRows.push(BLANK_ROW(Object.keys(rows[0] || {})));
+            finalRows = [...headerRows, ...rows];
+        }
+    }
+    
+    const ws = XLSX.utils.json_to_sheet(finalRows);
     const colWidths = Object.keys(rows[0] || {}).map((k) => ({
         wch: Math.max(k.length, ...rows.map((r) => String(r[k] ?? "").length)) + 2,
     }));
     ws["!cols"] = colWidths;
+    
+    // Apply bold formatting to specified rows
+    boldRows.forEach(rowIndex => {
+        const actualRowIndex = (title ? 2 : 0) + rowIndex; // Account for header rows
+        Object.keys(ws).forEach(cellKey => {
+            if (cellKey.startsWith(actualRowIndex.toString()) && !cellKey.includes('!')) {
+                if (!ws[cellKey].s) ws[cellKey].s = {};
+                ws[cellKey].s.font = { bold: true };
+            }
+        });
+    });
+    
+    // Apply bold to title and period headers
+    if (title) {
+        const titleCell = `A1`;
+        if (!ws[titleCell].s) ws[titleCell].s = {};
+        ws[titleCell].s.font = { bold: true, sz: 14 };
+    }
+    if (period) {
+        const periodCell = `A${title ? 2 : 1}`;
+        if (!ws[periodCell].s) ws[periodCell].s = {};
+        ws[periodCell].s.font = { bold: true };
+    }
+    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Report");
     XLSX.writeFile(wb, `${filename}_${dayjs().format("YYYYMMDD")}.xlsx`);
@@ -126,31 +169,17 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
                 <Space size={4}><Text>{v}</Text><Tag color={TYPE_COLORS[r.account_type]} style={{ fontSize: 10, padding: "0 4px" }}>{r.account_type}</Tag></Space>
             )
         },
-        { title: "Opening Balance", dataIndex: "opening_balance", key: "ob", width: 130, align: "right" as const, render: (v: number) => <Text style={{ fontSize: 12 }}>{fmt(v)}</Text> },
-        { title: "Period Debit", dataIndex: "period_debit", key: "pd", width: 120, align: "right" as const, render: (v: number) => v > 0 ? <Text style={{ color: "#cf1322" }}>{fmt(v)}</Text> : "—" },
-        { title: "Period Credit", dataIndex: "period_credit", key: "pc", width: 120, align: "right" as const, render: (v: number) => v > 0 ? <Text style={{ color: "#389e0d" }}>{fmt(v)}</Text> : "—" },
-        {
-            title: "Closing Balance", dataIndex: "closing_balance", key: "cb", width: 130, align: "right" as const, render: (v: number) => (
-                <Text strong style={{ color: (v ?? 0) >= 0 ? "#1d39c4" : "#cf1322", fontSize: 12 }}>
-                    {fmt(Math.abs(v ?? 0))}{(v ?? 0) < 0 ? " Cr" : ""}
-                </Text>
-            )
-        },
         { title: "Closing Debit", dataIndex: "closing_debit", key: "cd", width: 120, align: "right" as const, render: (v: number) => v > 0 ? <Text strong style={{ color: "#cf1322" }}>{fmt(v)}</Text> : "—" },
         { title: "Closing Credit", dataIndex: "closing_credit", key: "cc", width: 120, align: "right" as const, render: (v: number) => v > 0 ? <Text strong style={{ color: "#389e0d" }}>{fmt(v)}</Text> : "—" },
     ];
 
-    const COLS = ["Code", "Account", "Type", "Opening Balance", "Period Debit", "Period Credit", "Closing Balance", "Closing Debit", "Closing Credit"];
+    const COLS = ["Code", "Account", "Type", "Closing Debit", "Closing Credit"];
 
     const handlePrint = () => {
         const rows = data.rows.map((r) => `
             <tr>
                 <td><code>${r.account_code}</code></td>
                 <td>${r.account_name} <small>[${r.account_type}]</small></td>
-                <td class="num">${fmt(r.opening_balance)}</td>
-                <td class="num dr">${r.period_debit > 0 ? fmt(r.period_debit) : "—"}</td>
-                <td class="num cr">${r.period_credit > 0 ? fmt(r.period_credit) : "—"}</td>
-                <td class="num" style="color:${(r.closing_balance ?? 0) >= 0 ? "#1d39c4" : "#cf1322"}">${fmt(Math.abs(r.closing_balance ?? 0))}${(r.closing_balance ?? 0) < 0 ? " Cr" : ""}</td>
                 <td class="num dr">${r.closing_debit > 0 ? fmt(r.closing_debit) : "—"}</td>
                 <td class="num cr">${r.closing_credit > 0 ? fmt(r.closing_credit) : "—"}</td>
             </tr>`).join("");
@@ -167,15 +196,11 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
             <table>
                 <thead><tr>
                     <th>Code</th><th>Account</th>
-                    <th class="num">Opening Bal</th><th class="num">Period DR</th><th class="num">Period CR</th>
-                    <th class="num">Closing Bal</th><th class="num">Closing DR</th><th class="num">Closing CR</th>
+                    <th class="num">Closing DR</th><th class="num">Closing CR</th>
                 </tr></thead>
                 <tbody>${rows}</tbody>
                 <tfoot><tr class="total-row">
-                    <td colspan="2">Totals</td><td></td>
-                    <td class="num dr">${fmt(data.totals.total_debit)}</td>
-                    <td class="num cr">${fmt(data.totals.total_credit)}</td>
-                    <td></td>
+                    <td colspan="2">Totals</td>
                     <td class="num dr">${fmt(data.totals.total_debit)}</td>
                     <td class="num cr">${fmt(data.totals.total_credit)}</td>
                 </tr></tfoot>
@@ -184,20 +209,27 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
     };
 
     const handleExcel = () => {
+        const period = data.period?.from && data.period?.to 
+            ? `${dayjs(data.period.from).format("DD MMM YYYY")} - ${dayjs(data.period.to).format("DD MMM YYYY")}`
+            : "All time";
         exportToExcel("trial_balance", [
-            ...data.rows.map((r) => ({ "Code": r.account_code, "Account": r.account_name, "Type": r.account_type, "Opening Balance": r.opening_balance, "Period Debit": r.period_debit, "Period Credit": r.period_credit, "Closing Balance": r.closing_balance, "Closing Debit": r.closing_debit, "Closing Credit": r.closing_credit })),
+            ...data.rows.map((r) => ({ "Code": r.account_code, "Account": r.account_name, "Type": r.account_type, "Closing Debit": r.closing_debit, "Closing Credit": r.closing_credit })),
             BLANK_ROW(COLS),
-            { "Code": "TOTALS", "Account": data.is_balanced ? "Balanced" : `Unbalanced — Diff: KES ${fmt(data.totals.difference)}`, "Type": "", "Opening Balance": "", "Period Debit": data.totals.total_debit, "Period Credit": data.totals.total_credit, "Closing Balance": "", "Closing Debit": data.totals.total_debit, "Closing Credit": data.totals.total_credit },
-        ]);
+            { "Code": "TOTALS", "Account": data.is_balanced ? "Balanced" : `Unbalanced — Diff: KES ${fmt(data.totals.difference)}`, "Type": "", "Closing Debit": data.totals.total_debit, "Closing Credit": data.totals.total_credit },
+        ], {
+            title: "Trial Balance",
+            period: period,
+            boldRows: [data.rows.length + 1] // Totals row
+        });
     };
 
     const handlePdf = () => {
         exportToPdf("trial_balance", "Trial Balance",
             `Period: ${data.period?.from || "all time"} to ${data.period?.to || "all time"}  |  DR: KES ${fmt(data.totals.total_debit)}  |  CR: KES ${fmt(data.totals.total_credit)}`,
-            ["Code", "Account", "Type", "Opening", "Period DR", "Period CR", "Closing Bal", "Closing DR", "Closing CR"],
+            ["Code", "Account", "Type", "Closing DR", "Closing CR"],
             [
-                ...data.rows.map((r) => [r.account_code, r.account_name, r.account_type, fmt(r.opening_balance), fmt(r.period_debit), fmt(r.period_credit), fmt(r.closing_balance ?? 0), fmt(r.closing_debit), fmt(r.closing_credit)]),
-                [{ content: "TOTALS", styles: { fontStyle: "bold" } }, { content: data.is_balanced ? "Balanced" : `Diff: KES ${fmt(data.totals.difference)}`, styles: { fontStyle: "bold", textColor: data.is_balanced ? [56, 158, 13] : [207, 19, 34] } }, "", "", { content: fmt(data.totals.total_debit), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }, { content: fmt(data.totals.total_credit), styles: { fontStyle: "bold", textColor: [56, 158, 13] } }, "", { content: fmt(data.totals.total_debit), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }, { content: fmt(data.totals.total_credit), styles: { fontStyle: "bold", textColor: [56, 158, 13] } }],
+                ...data.rows.map((r) => [r.account_code, r.account_name, r.account_type, fmt(r.closing_debit), fmt(r.closing_credit)]),
+                [{ content: "TOTALS", styles: { fontStyle: "bold" } }, { content: data.is_balanced ? "Balanced" : `Diff: KES ${fmt(data.totals.difference)}`, styles: { fontStyle: "bold", textColor: data.is_balanced ? [56, 158, 13] : [207, 19, 34] } }, "", { content: fmt(data.totals.total_debit), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }, { content: fmt(data.totals.total_credit), styles: { fontStyle: "bold", textColor: [56, 158, 13] } }],
             ]
         );
     };
@@ -224,12 +256,8 @@ export const TrialBalanceTable: React.FC<{ data: TrialBalanceResponse }> = ({ da
                     <Table.Summary fixed>
                         <Table.Summary.Row style={{ background: "#fafafa" }}>
                             <Table.Summary.Cell index={0} colSpan={2}><Text strong>Totals</Text></Table.Summary.Cell>
-                            <Table.Summary.Cell index={2} />
                             <Table.Summary.Cell index={3} align="right"><Text strong style={{ color: "#cf1322" }}>{fmt(data.totals.total_debit)}</Text></Table.Summary.Cell>
                             <Table.Summary.Cell index={4} align="right"><Text strong style={{ color: "#389e0d" }}>{fmt(data.totals.total_credit)}</Text></Table.Summary.Cell>
-                            <Table.Summary.Cell index={5} />
-                            <Table.Summary.Cell index={6} align="right"><Text strong style={{ color: "#cf1322" }}>{fmt(data.totals.total_debit)}</Text></Table.Summary.Cell>
-                            <Table.Summary.Cell index={7} align="right"><Text strong style={{ color: "#389e0d" }}>{fmt(data.totals.total_credit)}</Text></Table.Summary.Cell>
                         </Table.Summary.Row>
                     </Table.Summary>
                 )}
@@ -386,35 +414,81 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse }> = ({ 
     };
 
     // ── Excel ────────────────────────────────────────────────────────────────
-    const handleExcel = () => exportToExcel("profit_loss", [
-        { Section: "Operating Income", Code: "", Account: "", "Amount (KES)": "" },
-        ...(opIncRows.length ? opIncRows : revenueRows).map((r) => ({
-            Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount,
-        })),
-        { Section: "", Code: "", Account: "Total for Operating Income", "Amount (KES)": totalOpInc },
-        BLANK_ROW(PL_COLS),
-        { Section: "Cost of Goods Sold", Code: "", Account: "", "Amount (KES)": "" },
-        ...cogsRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
-        { Section: "", Code: "", Account: "Total for Cost of Goods Sold", "Amount (KES)": totalCogs },
-        { Section: "", Code: "", Account: "Gross Profit", "Amount (KES)": grossProfit },
-        BLANK_ROW(PL_COLS),
-        { Section: "Operating Expense", Code: "", Account: "", "Amount (KES)": "" },
-        ...(opExpRows.length ? opExpRows : expenseRows).map((r) => ({
-            Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount,
-        })),
-        { Section: "", Code: "", Account: "Total for Operating Expense", "Amount (KES)": totalOpExp },
-        { Section: "", Code: "", Account: "Operating Profit", "Amount (KES)": opProfit },
-        BLANK_ROW(PL_COLS),
-        { Section: "Non Operating Income", Code: "", Account: "", "Amount (KES)": "" },
-        ...nonOpIncRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
-        { Section: "", Code: "", Account: "Total for Non Operating Income", "Amount (KES)": totalNonOpInc },
-        BLANK_ROW(PL_COLS),
-        { Section: "Non Operating Expense", Code: "", Account: "", "Amount (KES)": "" },
-        ...nonOpExpRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
-        { Section: "", Code: "", Account: "Total for Non Operating Expense", "Amount (KES)": totalNonOpExp },
-        BLANK_ROW(PL_COLS),
-        { Section: "", Code: "", Account: netProfit >= 0 ? "NET PROFIT" : "NET LOSS", "Amount (KES)": netProfit },
-    ]);
+    const handleExcel = () => {
+        const period = (data as any).period
+            ? `${dayjs((data as any).period.from).format("DD MMM YYYY")} – ${dayjs((data as any).period.to).format("DD MMM YYYY")}`
+            : dayjs().format("MMM YYYY");
+        
+        const rows = [
+            { Section: "Operating Income", Code: "", Account: "", "Amount (KES)": "" },
+            ...(opIncRows.length ? opIncRows : revenueRows).map((r) => ({
+                Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount,
+            })),
+            { Section: "", Code: "", Account: "Total for Operating Income", "Amount (KES)": totalOpInc },
+            BLANK_ROW(PL_COLS),
+            { Section: "Cost of Goods Sold", Code: "", Account: "", "Amount (KES)": "" },
+            ...cogsRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
+            { Section: "", Code: "", Account: "Total for Cost of Goods Sold", "Amount (KES)": totalCogs },
+            { Section: "", Code: "", Account: "Gross Profit", "Amount (KES)": grossProfit },
+            BLANK_ROW(PL_COLS),
+            { Section: "Operating Expense", Code: "", Account: "", "Amount (KES)": "" },
+            ...(opExpRows.length ? opExpRows : expenseRows).map((r) => ({
+                Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount,
+            })),
+            { Section: "", Code: "", Account: "Total for Operating Expense", "Amount (KES)": totalOpExp },
+            { Section: "", Code: "", Account: "Operating Profit", "Amount (KES)": opProfit },
+            BLANK_ROW(PL_COLS),
+            { Section: "Non Operating Income", Code: "", Account: "", "Amount (KES)": "" },
+            ...nonOpIncRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
+            { Section: "", Code: "", Account: "Total for Non Operating Income", "Amount (KES)": totalNonOpInc },
+            BLANK_ROW(PL_COLS),
+            { Section: "Non Operating Expense", Code: "", Account: "", "Amount (KES)": "" },
+            ...nonOpExpRows.map((r) => ({ Section: "", Code: r.account_code, Account: r.account_name, "Amount (KES)": r.amount })),
+            { Section: "", Code: "", Account: "Total for Non Operating Expense", "Amount (KES)": totalNonOpExp },
+            BLANK_ROW(PL_COLS),
+            { Section: "", Code: "", Account: netProfit >= 0 ? "NET PROFIT" : "NET LOSS", "Amount (KES)": netProfit },
+        ];
+        
+        // Calculate indices for bold rows (all total/profit rows)
+        const boldRows = [];
+        let currentIndex = 1; // Start after section header
+        
+        // Total for Operating Income
+        currentIndex += (opIncRows.length ? opIncRows : revenueRows).length;
+        boldRows.push(currentIndex);
+        currentIndex += 2; // Skip blank row
+        
+        // Total for Cost of Goods Sold + Gross Profit
+        currentIndex += cogsRows.length;
+        boldRows.push(currentIndex); // Total for COGS
+        boldRows.push(currentIndex + 1); // Gross Profit
+        currentIndex += 3; // Skip blank row
+        
+        // Total for Operating Expense + Operating Profit
+        currentIndex += (opExpRows.length ? opExpRows : expenseRows).length;
+        boldRows.push(currentIndex); // Total for Operating Expense
+        boldRows.push(currentIndex + 1); // Operating Profit
+        currentIndex += 3; // Skip blank row
+        
+        // Total for Non Operating Income
+        currentIndex += nonOpIncRows.length;
+        boldRows.push(currentIndex);
+        currentIndex += 2; // Skip blank row
+        
+        // Total for Non Operating Expense
+        currentIndex += nonOpExpRows.length;
+        boldRows.push(currentIndex);
+        currentIndex += 2; // Skip blank row
+        
+        // Net Profit/Loss
+        boldRows.push(currentIndex);
+        
+        exportToExcel("profit_loss", rows, {
+            title: "Profit and Loss",
+            period: period,
+            boldRows: boldRows
+        });
+    };
 
     // ── PDF ──────────────────────────────────────────────────────────────────
     const handlePdf = () => exportToPdf(
@@ -535,6 +609,7 @@ export const ProfitAndLossTable: React.FC<{ data: ProfitAndLossResponse }> = ({ 
 
 // ── 3. Balance Sheet — Print-ready layout ─────────────────────────────────────
 export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ data }) => {
+    const primaryColor = usePrimaryColor();
     const bsCols = (color: string) => [
         { title: "Code", dataIndex: "account_code", width: 90, render: (v: string) => v === "NET-INCOME" ? <Tag color="purple" style={{ fontSize: 10 }}>AUTO</Tag> : <Text code style={{ fontSize: 11 }}>{v}</Text> },
         { title: "Account", dataIndex: "account_name", render: (v: string, r: any) => r.is_synthetic ? <Text italic style={{ color: "#722ed1" }}>{v}</Text> : <Text>{v}</Text> },
@@ -579,48 +654,142 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
             <div class="summary-box">
                 <div class="summary-item"><span class="summary-label">Total Assets</span><span class="summary-value" style="color:#1d39c4">KES ${fmt(data.totals.total_assets)}</span></div>
                 <div class="summary-item"><span class="summary-label">Total Liabilities + Equity</span><span class="summary-value" style="color:#722ed1">KES ${fmt(data.totals.total_liabilities_and_equity)}</span></div>
-                <div class="summary-item"><span class="summary-label">Status</span><span class="summary-value ${data.is_balanced ? "balanced" : "unbalanced"}">${data.is_balanced ? "✓ Balanced" : "✗ Diff: KES " + fmt(data.totals.difference)}</span></div>
+                <div class="summary-item"><span class="summary-label">Status</span><span class="summary-value ${data.is_balanced ? "balanced" : "unbalanced"}">${data.is_balanced ? "" : "✗ Diff: KES " + fmt(data.totals.difference)}</span></div>
                 ${data.current_net_income !== undefined ? `<div class="summary-item"><span class="summary-label">Net Income</span><span class="summary-value" style="color:#722ed1">KES ${fmt(data.current_net_income)}</span></div>` : ""}
             </div>
             ${section("Assets", data.assets.accounts, data.assets.total_assets, "#1d39c4")}
             ${section("Liabilities", data.liabilities.accounts, data.liabilities.total_liabilities, "#cf1322")}
-            ${section("Equity", data.equity.accounts, data.equity.total_equity, "#722ed1")}
+            <h2>Equity</h2>
+            <table>
+                <thead><tr><th>Code</th><th>Account</th><th class="num">Balance (KES)</th></tr></thead>
+                <tbody>
+                    ${data.equity.accounts.map((r) => `<tr><td>${r.account_code === "NET-INCOME" ? "AUTO" : `<code>${r.account_code}</code>`}</td><td>${r.account_name}</td><td class="num" style="color:${r.balance < 0 ? "#cf1322" : "#722ed1"}">${fmt(r.balance)}</td></tr>`).join("")}
+                </tbody>
+                <tfoot><tr class="total-row"><td colspan="2">Total Equity</td><td class="num" style="color:#722ed1">KES ${fmt(data.equity.total_equity)}</td></tr></tfoot>
+            </table>
             <table><tbody>
+                <tr class="total-row" style="border-top:2px solid #722ed1"><td colspan="2"><strong>Total Liabilities + Equity</strong></td><td class="num" style="color:#722ed1"><strong>KES ${fmt(data.totals.total_liabilities_and_equity)}</strong></td></tr>
                 <tr class="check-row"><td colspan="2"><strong>Total Assets</strong></td><td class="num" style="color:#1d39c4"><strong>KES ${fmt(data.totals.total_assets)}</strong></td></tr>
-                <tr class="check-row"><td colspan="2"><strong>Total Liabilities + Equity</strong></td><td class="num" style="color:#722ed1"><strong>KES ${fmt(data.totals.total_liabilities_and_equity)}</strong></td></tr>
-                <tr class="check-row"><td colspan="2"><strong>Balance Check</strong></td><td class="num ${data.is_balanced ? "balanced" : "unbalanced"}"><strong>${data.is_balanced ? "✓ Balanced" : "✗ KES " + fmt(data.totals.difference) + " off"}</strong></td></tr>
+                <tr class="check-row"><td colspan="2"><strong>Balance Check</strong></td><td class="num ${data.is_balanced ? "balanced" : "unbalanced"}"><strong>${data.is_balanced ? "" : "✗ KES " + fmt(data.totals.difference) + " off"}</strong></td></tr>
             </tbody></table>`;
         printSection(html, "Balance Sheet");
     };
 
     const BS_COLS = ["Section", "Code", "Account", "Balance (KES)"];
-    const handleExcel = () => exportToExcel("balance_sheet", [
-        ...data.assets.accounts.map((a) => ({ Section: "Assets", Code: a.account_code, Account: a.account_name, "Balance (KES)": a.balance })),
-        { Section: "", Code: "", Account: "Total Assets", "Balance (KES)": data.assets.total_assets },
-        BLANK_ROW(BS_COLS),
-        ...data.liabilities.accounts.map((a) => ({ Section: "Liabilities", Code: a.account_code, Account: a.account_name, "Balance (KES)": a.balance })),
-        { Section: "", Code: "", Account: "Total Liabilities", "Balance (KES)": data.liabilities.total_liabilities },
-        BLANK_ROW(BS_COLS),
-        ...data.equity.accounts.map((a) => ({ Section: "Equity", Code: a.account_code, Account: a.account_name, "Balance (KES)": a.balance })),
-        { Section: "", Code: "", Account: "Total Equity", "Balance (KES)": data.equity.total_equity },
-        BLANK_ROW(BS_COLS),
-        { Section: "CHECK", Code: "", Account: "Total Assets", "Balance (KES)": data.totals.total_assets },
-        { Section: "CHECK", Code: "", Account: "Total Liab + Equity", "Balance (KES)": data.totals.total_liabilities_and_equity },
-        { Section: "CHECK", Code: "", Account: data.is_balanced ? "BALANCED" : `DIFF: KES ${fmt(data.totals.difference)}`, "Balance (KES)": data.totals.difference },
-    ]);
-    const handlePdf = () => exportToPdf("balance_sheet", "Balance Sheet",
-        `As of: ${dayjs(data.as_of).format("DD MMM YYYY")}  |  ${data.is_balanced ? "BALANCED" : "UNBALANCED — Diff: KES " + fmt(data.totals.difference)}`,
-        ["Section", "Code", "Account", "Balance (KES)"],
-        [
-            ...data.assets.accounts.map((a) => ["Assets", a.account_code, a.account_name, fmt(a.balance)]),
-            ["", "", { content: "Total Assets", styles: { fontStyle: "bold" } }, { content: fmt(data.assets.total_assets), styles: { fontStyle: "bold", textColor: [29, 57, 196] } }],
-            ...data.liabilities.accounts.map((a) => ["Liabilities", a.account_code, a.account_name, fmt(a.balance)]),
-            ["", "", { content: "Total Liabilities", styles: { fontStyle: "bold" } }, { content: fmt(data.liabilities.total_liabilities), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }],
-            ...data.equity.accounts.map((a) => ["Equity", a.account_code, a.account_name, fmt(a.balance)]),
-            ["", "", { content: "Total Equity", styles: { fontStyle: "bold" } }, { content: fmt(data.equity.total_equity), styles: { fontStyle: "bold", textColor: [114, 46, 209] } }],
-            ["", "", { content: data.is_balanced ? "BALANCED" : `DIFF: KES ${fmt(data.totals.difference)}`, styles: { fontStyle: "bold", textColor: data.is_balanced ? [56, 158, 13] : [207, 19, 34], colSpan: 2 } }, ""],
-        ]
-    );
+    const handleExcel = () => {
+        const rows = [
+            // Assets section header
+            { Section: "Assets", Code: "Code", Account: "Account", "Balance (KES)": "Balance (KES)" },
+            ...data.assets.accounts.map((a) => ({ Section: "", Code: a.account_code, Account: a.account_name, "Balance (KES)": a.balance })),
+            { Section: "", Code: "", Account: "Total Assets", "Balance (KES)": data.assets.total_assets },
+            BLANK_ROW(BS_COLS),
+            // Liabilities section header
+            { Section: "Liabilities", Code: "Code", Account: "Account", "Balance (KES)": "Balance (KES)" },
+            ...data.liabilities.accounts.map((a) => ({ Section: "", Code: a.account_code, Account: a.account_name, "Balance (KES)": a.balance })),
+            { Section: "", Code: "", Account: "Total Liabilities", "Balance (KES)": data.liabilities.total_liabilities },
+            BLANK_ROW(BS_COLS),
+            // Equity section header
+            { Section: "Equity", Code: "Code", Account: "Account", "Balance (KES)": "Balance (KES)" },
+            ...data.equity.accounts.map((a) => ({ Section: "", Code: a.account_code, Account: a.account_name, "Balance (KES)": a.balance })),
+            { Section: "", Code: "", Account: "Total Equity", "Balance (KES)": data.equity.total_equity },
+            { Section: "", Code: "", Account: "Total Liabilities + Equity", "Balance (KES)": data.totals.total_liabilities_and_equity },
+            BLANK_ROW(BS_COLS),
+            // Final summary
+            { Section: "", Code: "", Account: "Total Assets:", "Balance (KES)": `KES ${fmt(data.totals.total_assets)}` },
+        ];
+        
+        // Calculate indices for bold rows (matching UI structure)
+        const boldRows = [];
+        let currentIndex = 0;
+        
+        // Section headers
+        boldRows.push(currentIndex); // Assets header
+        currentIndex += 1;
+        
+        // Total Assets
+        currentIndex += data.assets.accounts.length;
+        boldRows.push(currentIndex);
+        currentIndex += 3; // Skip blank row and Liabilities header
+        
+        // Total Liabilities
+        currentIndex += data.liabilities.accounts.length;
+        boldRows.push(currentIndex);
+        currentIndex += 3; // Skip blank row and Equity header
+        
+        // Total Equity + Total Liabilities + Equity (both in Equity section)
+        currentIndex += data.equity.accounts.length;
+        boldRows.push(currentIndex); // Total Equity
+        boldRows.push(currentIndex + 1); // Total Liabilities + Equity
+        currentIndex += 3; // Skip blank row
+        
+        // Final Total Assets summary
+        boldRows.push(currentIndex);
+        
+        exportToExcel("balance_sheet", rows, {
+            title: "Balance Sheet",
+            period: `As of ${dayjs(data.as_of).format("DD MMM YYYY")}`,
+            boldRows: boldRows
+        });
+    };
+    const handlePdf = () => {
+        // Convert hex color to RGB for PDF
+        const hexToRgb = (hex: string) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [
+                parseInt(result[1], 16),
+                parseInt(result[2], 16),
+                parseInt(result[3], 16)
+            ] : [0, 0, 0];
+        };
+        
+        const primaryRgb = hexToRgb(primaryColor);
+        
+        exportToPdf("balance_sheet", "Balance Sheet",
+            `As of: ${dayjs(data.as_of).format("DD MMM YYYY")}${data.is_balanced ? "" : "  |  UNBALANCED — Diff: KES " + fmt(data.totals.difference)}`,
+            ["Code", "Account", "Balance (KES)"],
+            [
+                // Assets section header
+                [{ content: "Assets", colSpan: 3, styles: { fontStyle: "bold", fillColor: [...primaryRgb.map(c => Math.round(c * 0.9)), 255], textColor: [255, 255, 255] } }],
+                // Assets column headers
+                [{ content: "Code", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255 } }, 
+                 { content: "Account", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255 } }, 
+                 { content: "Balance (KES)", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255, halign: "right" } }],
+                // Assets data
+                ...data.assets.accounts.map((a) => [a.account_code, a.account_name, { content: fmt(a.balance), styles: { halign: "right" } }]),
+                // Assets total
+                [{ content: "Total Assets", colSpan: 2, styles: { fontStyle: "bold" } }, { content: fmt(data.assets.total_assets), styles: { fontStyle: "bold", textColor: primaryRgb, halign: "right" } }],
+                // Empty row separator
+                ["", "", ""],
+                // Liabilities section header
+                [{ content: "Liabilities", colSpan: 3, styles: { fontStyle: "bold", fillColor: [...primaryRgb.map(c => Math.round(c * 0.9)), 255], textColor: [255, 255, 255] } }],
+                // Liabilities column headers
+                [{ content: "Code", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255 } }, 
+                 { content: "Account", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255 } }, 
+                 { content: "Balance (KES)", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255, halign: "right" } }],
+                // Liabilities data
+                ...data.liabilities.accounts.map((a) => [a.account_code, a.account_name, { content: fmt(a.balance), styles: { halign: "right" } }]),
+                // Liabilities total
+                [{ content: "Total Liabilities", colSpan: 2, styles: { fontStyle: "bold" } }, { content: fmt(data.liabilities.total_liabilities), styles: { fontStyle: "bold", textColor: primaryRgb, halign: "right" } }],
+                // Empty row separator
+                ["", "", ""],
+                // Equity section header
+                [{ content: "Equity", colSpan: 3, styles: { fontStyle: "bold", fillColor: [...primaryRgb.map(c => Math.round(c * 0.9)), 255], textColor: [255, 255, 255] } }],
+                // Equity column headers
+                [{ content: "Code", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255 } }, 
+                 { content: "Account", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255 } }, 
+                 { content: "Balance (KES)", styles: { fontStyle: "bold", fillColor: primaryRgb, textColor: 255, halign: "right" } }],
+                // Equity data
+                ...data.equity.accounts.map((a) => [a.account_code, a.account_name, { content: fmt(a.balance), styles: { halign: "right" } }]),
+                // Equity totals
+                [{ content: "Total Equity", colSpan: 2, styles: { fontStyle: "bold" } }, { content: fmt(data.equity.total_equity), styles: { fontStyle: "bold", textColor: primaryRgb, halign: "right" } }],
+                [{ content: "Total Liabilities + Equity", colSpan: 2, styles: { fontStyle: "bold" } }, { content: fmt(data.totals.total_liabilities_and_equity), styles: { fontStyle: "bold", textColor: primaryRgb, halign: "right" } }],
+                // Empty row separator
+                ["", "", ""],
+                // Final summary
+                [{ content: "Total Assets:", colSpan: 2, styles: { fontStyle: "bold" } }, { content: `KES ${fmt(data.totals.total_assets)}`, styles: { fontStyle: "bold", textColor: primaryRgb, halign: "right" } }],
+            ]
+        );
+    };
 
     return (
         <>
@@ -629,7 +798,7 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
                     <Tag color="blue" style={{ fontSize: 12, padding: "2px 10px" }}>Assets: KES {fmt(data.totals.total_assets)}</Tag>
                     <Tag color="default" style={{ fontSize: 12, padding: "2px 10px" }}>Liab+Equity: KES {fmt(data.totals.total_liabilities_and_equity)}</Tag>
                     <Tag color={data.is_balanced ? "success" : "error"} style={{ fontSize: 12, padding: "2px 10px" }}>
-                        {data.is_balanced ? "✓ Balanced" : `✗ Diff: KES ${fmt(data.totals.difference)}`}
+                        {data.is_balanced ? "" : `✗ Diff: KES ${fmt(data.totals.difference)}`}
                     </Tag>
                     {data.current_net_income !== undefined && (
                         <Tag color="purple" style={{ fontSize: 12, padding: "2px 10px" }}>Net Income: KES {fmt(data.current_net_income)}</Tag>
@@ -645,11 +814,36 @@ export const BalanceSheetTable: React.FC<{ data: BalanceSheetResponse }> = ({ da
             )}
             {sectionTable("Assets", data.assets.accounts, data.assets.total_assets, "#1d39c4")}
             {sectionTable("Liabilities", data.liabilities.accounts, data.liabilities.total_liabilities, "#cf1322")}
-            {sectionTable("Equity", data.equity.accounts, data.equity.total_equity, "#722ed1")}
+            <div style={{ marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 12px", background: "#722ed112", borderLeft: "4px solid #722ed1", borderRadius: "0 6px 6px 0" }}>
+                    <Text strong style={{ fontSize: 13, color: "#722ed1" }}>Equity</Text>
+                </div>
+                <Table rowKey="account_code" dataSource={data.equity.accounts} pagination={false} size="small" columns={bsCols("#722ed1")}
+                    summary={() => (
+                        <Table.Summary fixed>
+                            <Table.Summary.Row style={{ background: "#722ed108" }}>
+                                <Table.Summary.Cell index={0} colSpan={2}>
+                                    <Text strong style={{ color: "#722ed1" }}>Total Equity</Text>
+                                </Table.Summary.Cell>
+                                <Table.Summary.Cell index={2} align="right">
+                                    <Text strong style={{ color: "#722ed1", fontSize: 13 }}>KES {fmt(data.equity.total_equity)}</Text>
+                                </Table.Summary.Cell>
+                            </Table.Summary.Row>
+                            <Table.Summary.Row style={{ background: "#f0f0f0", borderTop: "2px solid #722ed1" }}>
+                                <Table.Summary.Cell index={0} colSpan={2}>
+                                    <Text strong style={{ color: "#722ed1", fontSize: 14 }}>Total Liabilities + Equity</Text>
+                                </Table.Summary.Cell>
+                                <Table.Summary.Cell index={2} align="right">
+                                    <Text strong style={{ color: "#722ed1", fontSize: 14 }}>KES {fmt(data.totals.total_liabilities_and_equity)}</Text>
+                                </Table.Summary.Cell>
+                            </Table.Summary.Row>
+                        </Table.Summary>
+                    )}
+                />
+            </div>
             <div style={{ background: data.is_balanced ? "#f6ffed" : "#fff2f0", border: `1px solid ${data.is_balanced ? "#b7eb8f" : "#ffa39e"}`, borderRadius: 8, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <Text strong>Total Assets: <Text strong style={{ color: "#1d39c4", fontSize: 14 }}>KES {fmt(data.totals.total_assets)}</Text></Text>
-                <Text strong>Total Liabilities + Equity: <Text strong style={{ color: "#722ed1", fontSize: 14 }}>KES {fmt(data.totals.total_liabilities_and_equity)}</Text></Text>
-                <Tag color={data.is_balanced ? "success" : "error"} style={{ fontSize: 12 }}>{data.is_balanced ? "✓ Balanced" : `✗ KES ${fmt(data.totals.difference)} off`}</Tag>
+                <Tag color={data.is_balanced ? "success" : "error"} style={{ fontSize: 12 }}>{data.is_balanced ? "" : `✗ KES ${fmt(data.totals.difference)} off`}</Tag>
             </div>
         </>
     );
@@ -679,7 +873,21 @@ export const GeneralLedgerTable: React.FC<{ data: GeneralLedgerResponse; period?
                 rows.push({ "Account": "Account Totals", "Date": "", "Entry No.": "", "Description": `Closing: KES ${fmt(acc.closing_balance)}`, "Source": "", "Debit (KES)": acc.total_debit, "Credit (KES)": acc.total_credit, "Balance (KES)": acc.closing_balance });
                 rows.push(BLANK_ROW(GL_COLS));
             }
-            await exportToExcel("general_ledger", rows);
+            // Calculate indices for bold rows (opening and closing balances for each account)
+            const boldRows = [];
+            let currentIndex = 0;
+            for (const acc of data.accounts) {
+                boldRows.push(currentIndex); // Opening balance
+                currentIndex += acc.lines.length + 1; // Skip all lines
+                boldRows.push(currentIndex); // Closing balance
+                currentIndex += 2; // Skip blank row
+            }
+            
+            await exportToExcel("general_ledger", rows, {
+                title: "General Ledger",
+                period: period ? `${dayjs(period.from).format("DD MMM YYYY")} - ${dayjs(period.to).format("DD MMM YYYY")}` : "All time",
+                boldRows: boldRows
+            });
         } finally { setExporting(false); }
     };
     const handlePdf = async () => {
@@ -727,7 +935,15 @@ export const VATReportTable: React.FC<{ data: VATReportResponse }> = ({ data }) 
     const { summary, by_source, transactions } = data;
     const sourceRows = Object.entries(by_source).map(([src, vals]) => ({ source: src, collected: vals.collected, paid: vals.paid, net: vals.collected - vals.paid }));
     const VAT_COLS = ["Date", "Entry No.", "Description", "Source", "VAT Collected", "VAT Paid"];
-    const handleExcel = () => exportToExcel("vat_report", [...transactions.map((t) => ({ "Date": dayjs(t.entry_date).format("DD MMM YYYY"), "Entry No.": t.entry_no, "Description": t.description || "", "Source": t.source || "", "VAT Collected": t.vat_collected, "VAT Paid": t.vat_paid })), BLANK_ROW(VAT_COLS), { "Date": "TOTALS", "Entry No.": "", "Description": "", "Source": "", "VAT Collected": summary.vat_collected, "VAT Paid": summary.vat_paid }, { "Date": "NET VAT PAYABLE", "Entry No.": "", "Description": "", "Source": "", "VAT Collected": summary.net_vat_payable, "VAT Paid": "" }]);
+    const handleExcel = () => {
+        const rows = [...transactions.map((t) => ({ "Date": dayjs(t.entry_date).format("DD MMM YYYY"), "Entry No.": t.entry_no, "Description": t.description || "", "Source": t.source || "", "VAT Collected": t.vat_collected, "VAT Paid": t.vat_paid })), BLANK_ROW(VAT_COLS), { "Date": "TOTALS", "Entry No.": "", "Description": "", "Source": "", "VAT Collected": summary.vat_collected, "VAT Paid": summary.vat_paid }, { "Date": "NET VAT PAYABLE", "Entry No.": "", "Description": "", "Source": "", "VAT Collected": summary.net_vat_payable, "VAT Paid": "" }];
+        
+        exportToExcel("vat_report", rows, {
+            title: "VAT Report",
+            period: `Period: ${dayjs(transactions[0]?.entry_date || new Date()).format("DD MMM YYYY")} - ${dayjs(transactions[transactions.length - 1]?.entry_date || new Date()).format("DD MMM YYYY")}`,
+            boldRows: [transactions.length + 1, transactions.length + 2] // TOTALS and NET VAT PAYABLE rows
+        });
+    };
     const handlePdf = () => exportToPdf("vat_report", "VAT Report", `Collected: KES ${fmt(summary.vat_collected)}  |  Paid: KES ${fmt(summary.vat_paid)}  |  Net Payable: KES ${fmt(summary.net_vat_payable)}`, ["Date", "Entry No.", "Description", "Source", "VAT Collected", "VAT Paid"], [...transactions.map((t) => [dayjs(t.entry_date).format("DD MMM YYYY"), t.entry_no, t.description || "", t.source || "", fmt(t.vat_collected), fmt(t.vat_paid)]), [{ content: "TOTALS", styles: { fontStyle: "bold" } }, "", "", "", { content: fmt(summary.vat_collected), styles: { fontStyle: "bold", textColor: [56, 158, 13] } }, { content: fmt(summary.vat_paid), styles: { fontStyle: "bold", textColor: [250, 140, 22] } }]]);
     return (
         <>
@@ -751,7 +967,15 @@ export const VATReportTable: React.FC<{ data: VATReportResponse }> = ({ data }) 
 // ── 6. Cash Flow ──────────────────────────────────────────────────────────────
 export const CashFlowTable: React.FC<{ data: CashFlowResponse }> = ({ data }) => {
     const CF_COLS = ["Code", "Account", "Opening (KES)", "Inflows (KES)", "Outflows (KES)", "Net Cash Flow (KES)", "Closing (KES)"];
-    const handleExcel = () => exportToExcel("cash_flow", [...data.accounts.map((a) => ({ "Code": a.account_code, "Account": a.account_name, "Opening (KES)": a.opening_balance, "Inflows (KES)": a.inflows, "Outflows (KES)": a.outflows, "Net Cash Flow (KES)": a.net_cash_flow, "Closing (KES)": a.closing_balance })), BLANK_ROW(CF_COLS), { "Code": "TOTALS", "Account": "", "Opening (KES)": "", "Inflows (KES)": data.totals.total_inflows, "Outflows (KES)": data.totals.total_outflows, "Net Cash Flow (KES)": data.totals.net_cash_flow, "Closing (KES)": "" }]);
+    const handleExcel = () => {
+        const rows = [...data.accounts.map((a) => ({ "Code": a.account_code, "Account": a.account_name, "Opening (KES)": a.opening_balance, "Inflows (KES)": a.inflows, "Outflows (KES)": a.outflows, "Net Cash Flow (KES)": a.net_cash_flow, "Closing (KES)": a.closing_balance })), BLANK_ROW(CF_COLS), { "Code": "TOTALS", "Account": "", "Opening (KES)": "", "Inflows (KES)": data.totals.total_inflows, "Outflows (KES)": data.totals.total_outflows, "Net Cash Flow (KES)": data.totals.net_cash_flow, "Closing (KES)": "" }];
+        
+        exportToExcel("cash_flow", rows, {
+            title: "Cash Flow Summary",
+            period: `Period: ${dayjs().format("DD MMM YYYY")}`,
+            boldRows: [data.accounts.length + 1] // TOTALS row
+        });
+    };
     const handlePdf = () => exportToPdf("cash_flow", "Cash Flow Summary", `Inflows: KES ${fmt(data.totals.total_inflows)}  |  Outflows: KES ${fmt(data.totals.total_outflows)}  |  Net: KES ${fmt(data.totals.net_cash_flow)}`, ["Code", "Account", "Opening", "Inflows", "Outflows", "Net", "Closing"], [...data.accounts.map((a) => [a.account_code, a.account_name, fmt(a.opening_balance), fmt(a.inflows), fmt(a.outflows), fmt(a.net_cash_flow), fmt(a.closing_balance)]), [{ content: "TOTALS", styles: { fontStyle: "bold" } }, "", "", { content: fmt(data.totals.total_inflows), styles: { fontStyle: "bold", textColor: [56, 158, 13] } }, { content: fmt(data.totals.total_outflows), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }, { content: fmt(data.totals.net_cash_flow), styles: { fontStyle: "bold" } }, ""]]);
     return (
         <>
@@ -770,7 +994,10 @@ export const CashFlowTable: React.FC<{ data: CashFlowResponse }> = ({ data }) =>
 
 // ── 7. Account Balances ───────────────────────────────────────────────────────
 export const AccountBalancesTable: React.FC<{ data: AccountBalancesResponse }> = ({ data }) => {
-    const handleExcel = () => exportToExcel("account_balances", data.accounts.map((a) => ({ Code: a.account_code, Account: a.account_name, Type: a.account_type, Normal: a.normal_balance, "Opening (KES)": a.opening_balance, "Total DR (KES)": a.total_debit, "Total CR (KES)": a.total_credit, "Balance (KES)": a.balance })));
+    const handleExcel = () => exportToExcel("account_balances", data.accounts.map((a) => ({ Code: a.account_code, Account: a.account_name, Type: a.account_type, Normal: a.normal_balance, "Opening (KES)": a.opening_balance, "Total DR (KES)": a.total_debit, "Total CR (KES)": a.total_credit, "Balance (KES)": a.balance })), {
+        title: "Account Balances",
+        period: `As of ${dayjs().format("DD MMM YYYY")}`
+    });
     const handlePdf = () => exportToPdf("account_balances", "Account Balances", `As of: ${dayjs().format("DD MMM YYYY")}`, ["Code", "Account", "Type", "Opening", "DR", "CR", "Balance"], data.accounts.map((a) => [a.account_code, a.account_name, a.account_type, fmt(a.opening_balance), fmt(a.total_debit), fmt(a.total_credit), fmt(a.balance)]));
     return (
         <>

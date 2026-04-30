@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { ProDescriptions } from "@ant-design/pro-components";
 import {
   Badge, Button, ColorPicker, DatePicker, Empty,
-  Form, Input, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography,
+  Form, Input, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography, Modal, Row, Col,
 } from "antd";
 import {
   ArrowRightOutlined, CheckCircleOutlined, CreditCardOutlined,
@@ -17,6 +17,7 @@ import useSystemDetails from "@hooks/useSystemDetails";
 import {
   TEMPLATES, TemplateId, InvoiceForPrint, SystemDetails,
 } from "./InvoiceTemplates";
+import { usePrimaryColor } from "../../../context/PrimaryColorContext";
 
 const { Text } = Typography;
 
@@ -142,9 +143,27 @@ const resolveParty = (record: InvoiceDetailsInterface) => {
   }
   const cid = record.customer_id;
   if (cid && typeof cid === "object") {
-    return { label: "Customer", name: cid.customer_name || cid.name || "—", phone: cid.phone || cid.customer_phone || "", email: cid.email || cid.customer_email || "", location: cid.location || "", kra_pin: cid.kra_pin || "", ref: "" };
+    return { 
+      label: "Customer", 
+      name: cid.customer_name || cid.name || "—", 
+      phone: cid.phone || cid.customer_phone || "", 
+      email: cid.email || cid.customer_email || "", 
+      location: cid.location || "",
+      address: cid.address || null,
+      kra_pin: cid.kra_pin || "", 
+      ref: "" 
+    };
   }
-  return { label: "Customer", name: record.counterparty_name || "—", phone: record.counterparty_phone || "", email: record.counterparty_email || "", location: "", kra_pin: record.counterparty_kra_pin || "", ref: "" };
+  return { 
+    label: "Customer", 
+    name: record.counterparty_name || "—", 
+    phone: record.counterparty_phone || "", 
+    email: record.counterparty_email || "", 
+    location: "",
+    address: null,
+    kra_pin: record.counterparty_kra_pin || "", 
+    ref: "" 
+  };
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -152,19 +171,22 @@ const resolveParty = (record: InvoiceDetailsInterface) => {
 // ═══════════════════════════════════════════════════════════════
 
 const TemplateThumbnail: React.FC<{
-  tpl: (typeof TEMPLATES)[number]; selected: boolean; onSelect: () => void;
-}> = ({ tpl, selected, onSelect }) => (
+  tpl: (typeof TEMPLATES)[number]; selected: boolean; onSelect: () => void; invoiceColor: string;
+}> = ({ tpl, selected, onSelect, invoiceColor }) => {
+  const primaryColor = usePrimaryColor();
+  
+  return (
   <button onClick={onSelect} style={{
     flex: "0 0 96px", cursor: "pointer",
-    border: selected ? `2.5px solid ${C.primary}` : `1.5px solid ${C.border}`,
+    border: selected ? `2.5px solid ${primaryColor}` : `1.5px solid ${C.border}`,
     borderRadius: 9, overflow: "hidden", background: "#fff", padding: 0,
     transition: "border-color 0.15s, transform 0.12s",
     transform: selected ? "scale(1.05)" : "scale(1)",
-    boxShadow: selected ? `0 0 0 3px ${C.primaryLight}` : "none",
+    boxShadow: selected ? `0 0 0 3px ${primaryColor}20` : "none",
     position: "relative",
   }}>
     <div style={{
-      height: 54, background: tpl.thumbBg,
+      height: 54, background: tpl.id === 1 ? primaryColor : tpl.id === 6 ? invoiceColor : tpl.thumbBg,
       display: "flex", alignItems: "center", justifyContent: "center", position: "relative",
     }}>
       <div style={{ width: "68%", opacity: 0.42 }}>
@@ -175,7 +197,7 @@ const TemplateThumbnail: React.FC<{
       {selected && (
         <div style={{
           position: "absolute", top: 4, right: 5,
-          background: C.primary, borderRadius: "50%", width: 15, height: 15,
+          background: primaryColor, borderRadius: "50%", width: 15, height: 15,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <CheckCircleOutlined style={{ color: "#fff", fontSize: 9 }} />
@@ -185,25 +207,28 @@ const TemplateThumbnail: React.FC<{
     <div style={{ padding: "5px 6px", borderTop: `1px solid ${C.border}` }}>
       <div style={{
         fontSize: 10, fontWeight: selected ? 700 : 500,
-        color: selected ? C.primary : C.darkText,
+        color: selected ? primaryColor : C.darkText,
         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       }}>
         {tpl.name}
       </div>
     </div>
   </button>
-);
+  );
+};
 
 const ReceiptTab = ({
   record,
   sys,
   invoiceColor,
   onColorChange,
+  primaryColor,
 }: {
   record: InvoiceDetailsInterface;
   sys: SystemDetails;
   invoiceColor: string;
   onColorChange: (color: string) => void;
+  primaryColor: string;
 }) => {
   const [selected, setSelected] = useState<TemplateId>(1);
   const inv = record as unknown as InvoiceForPrint;
@@ -213,7 +238,8 @@ const ReceiptTab = ({
   const ref3 = useRef<HTMLDivElement>(null);
   const ref4 = useRef<HTMLDivElement>(null);
   const ref5 = useRef<HTMLDivElement>(null);
-  const allRefs: Record<TemplateId, React.RefObject<HTMLDivElement>> = { 1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5 };
+  const ref6 = useRef<HTMLDivElement>(null);
+  const allRefs: Record<TemplateId, React.RefObject<HTMLDivElement>> = { 1: ref1, 2: ref2, 3: ref3, 4: ref4, 5: ref5, 6: ref6 };
 
   const PAGE = `@page { size: A4 portrait; margin: 12mm; } @media print { * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }`;
   const title = `Invoice-${record.order_no || record._id}`;
@@ -223,7 +249,8 @@ const ReceiptTab = ({
   const p3 = useReactToPrint({ content: () => ref3.current, documentTitle: title, pageStyle: PAGE });
   const p4 = useReactToPrint({ content: () => ref4.current, documentTitle: title, pageStyle: PAGE });
   const p5 = useReactToPrint({ content: () => ref5.current, documentTitle: title, pageStyle: PAGE });
-  const printMap: Record<TemplateId, () => void> = { 1: p1, 2: p2, 3: p3, 4: p4, 5: p5 };
+  const p6 = useReactToPrint({ content: () => ref6.current, documentTitle: title, pageStyle: PAGE });
+  const printMap: Record<TemplateId, () => void> = { 1: p1, 2: p2, 3: p3, 4: p4, 5: p5, 6: p6 };
 
   return (
     <div style={{ padding: 16 }}>
@@ -246,23 +273,6 @@ const ReceiptTab = ({
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* Color picker */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Text style={{ fontSize: 11, color: C.subText }}>Invoice color:</Text>
-            <ColorPicker
-              value={invoiceColor}
-              onChange={(color) => onColorChange(color.toHexString())}
-              size="small"
-              presets={[{
-                label: "Presets",
-                colors: [
-                  "#6c1c2c", "#1e40af", "#065f46", "#7c3aed",
-                  "#b45309", "#0f766e", "#be185d", "#1d4ed8",
-                  "#374151", "#0369a1",
-                ],
-              }]}
-            />
-          </div>
           <Button type="primary" icon={<PrinterOutlined />}
             onClick={() => printMap[selected]()}
             style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}>
@@ -284,9 +294,48 @@ const ReceiptTab = ({
           {TEMPLATES.map((tpl) => (
             <TemplateThumbnail key={tpl.id} tpl={tpl}
               selected={selected === tpl.id}
-              onSelect={() => setSelected(tpl.id as TemplateId)} />
+              onSelect={() => setSelected(tpl.id as TemplateId)}
+              invoiceColor={invoiceColor} />
           ))}
         </div>
+        
+        {/* Color picker for Custom template */}
+        {selected === 6 && (
+          <div style={{ 
+            marginTop: 12, 
+            padding: 8, 
+            background: "#f8fafc", 
+            borderRadius: 6, 
+            border: `1px solid ${C.border}` 
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <Text style={{ fontSize: 11, color: C.subText, fontWeight: 500 }}>
+                Custom color:
+              </Text>
+              <ColorPicker
+                value={invoiceColor}
+                onChange={(color) => onColorChange(color.toHexString())}
+                size="small"
+                presets={[{
+                  label: "Presets",
+                  colors: [
+                    primaryColor, // Primary color as first option
+                    "#6c1c2c", "#1e40af", "#065f46", "#7c3aed",
+                    "#b45309", "#0f766e", "#be185d", "#1d4ed8",
+                    "#374151", "#0369a1",
+                  ],
+                }]}
+              />
+              <Button 
+                size="small" 
+                onClick={() => onColorChange(primaryColor)}
+                style={{ fontSize: 10, height: 24, padding: "0 8px" }}
+              >
+                Reset to Primary
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Live preview */}
@@ -295,7 +344,7 @@ const ReceiptTab = ({
         maxHeight: 520, overflowY: "auto",
         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
       }}>
-        {([1, 2, 3, 4, 5] as TemplateId[]).map((id) => {
+        {([1, 2, 3, 4, 5, 6] as TemplateId[]).map((id) => {
           const Tpl = TEMPLATES[id - 1].component;
           return (
             <div key={id} style={{ display: id === selected ? "block" : "none" }}>
@@ -322,6 +371,8 @@ const DetailsTab = ({
 }) => {
   const [editing, setEditing] = useState(false);
   const [form] = Form.useForm();
+  const [addressForm] = Form.useForm();
+  const [addressEditOpen, setAddressEditOpen] = useState(false);
 
   const {
     items = [], served_by, created_by, subtotal, total_vat_amount,
@@ -508,12 +559,37 @@ const DetailsTab = ({
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>{editBtn}</div>
       <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
         <ProDescriptions column={2} bordered size="small"
-          title={<Text strong style={{ fontSize: 12, padding: "8px 12px", display: "block" }}>{party.label} Information</Text>}
+          title={
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px" }}>
+              <Text strong style={{ fontSize: 12 }}>{party.label} Information</Text>
+              {party.address && (
+                <Button 
+                  size="small" 
+                  icon={<EditOutlined />} 
+                  onClick={() => {
+                    addressForm.setFieldsValue(party.address);
+                    setAddressEditOpen(true);
+                  }}
+                >
+                  Edit Address
+                </Button>
+              )}
+            </div>
+          }
         >
           <ProDescriptions.Item label="Name"><Text strong style={{ fontSize: 12 }}>{party.name}</Text></ProDescriptions.Item>
           <ProDescriptions.Item label="Phone"><Text style={{ fontSize: 12 }}>{party.phone || "—"}</Text></ProDescriptions.Item>
           <ProDescriptions.Item label="Email"><Text style={{ fontSize: 12, color: C.subText }}>{party.email || "—"}</Text></ProDescriptions.Item>
           <ProDescriptions.Item label="Location"><Text style={{ fontSize: 12 }}>{party.location || "—"}</Text></ProDescriptions.Item>
+          {party.address && (
+            <>
+              <ProDescriptions.Item label="Street Address"><Text style={{ fontSize: 12 }}>{party.address.street || "—"}</Text></ProDescriptions.Item>
+              <ProDescriptions.Item label="City"><Text style={{ fontSize: 12 }}>{party.address.city || "—"}</Text></ProDescriptions.Item>
+              <ProDescriptions.Item label="County"><Text style={{ fontSize: 12 }}>{party.address.county || "—"}</Text></ProDescriptions.Item>
+              <ProDescriptions.Item label="Country"><Text style={{ fontSize: 12 }}>{party.address.country || "—"}</Text></ProDescriptions.Item>
+              {party.address.postal_code && <ProDescriptions.Item label="Postal Code"><Text style={{ fontSize: 12 }}>{party.address.postal_code}</Text></ProDescriptions.Item>}
+            </>
+          )}
           {party.kra_pin && <ProDescriptions.Item label="KRA PIN" span={2}><Text style={{ fontSize: 12 }}>{party.kra_pin}</Text></ProDescriptions.Item>}
           {party.ref && <ProDescriptions.Item label="Supplier Ref" span={2}><Text style={{ fontSize: 12 }}>{party.ref}</Text></ProDescriptions.Item>}
         </ProDescriptions>
@@ -767,7 +843,8 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
   const isMobile = useIsMobile();
   const sys: SystemDetails = useSystemDetails();
   const [activeTab, setActiveTab] = useState(defaultTab);
-  const [invoiceColor, setInvoiceColor] = useState(C.primary);
+  const primaryColor = usePrimaryColor();
+  const [invoiceColor, setInvoiceColor] = useState(primaryColor);
 
   // Persist color per invoice
   useEffect(() => {
@@ -790,7 +867,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
 
   const { data: notesData } = useQuery({
     queryKey: ["notes-by-invoice", record._id],
-    queryFn: () => getNotesByInvoice(record._id, shopId),
+    queryFn: () => getNotesByInvoice(record.invoice_no || record._id, shopId),
     enabled: !!record._id && !!shopId,
     staleTime: 30_000,
   });
@@ -813,6 +890,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
           sys={sys}
           invoiceColor={invoiceColor}
           onColorChange={handleColorChange}
+          primaryColor={primaryColor}
         />
       ),
     },
@@ -865,7 +943,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
       ),
       children: (
         <div style={{ padding: "12px 16px" }}>
-          <NotesTab invoiceId={record._id} shopId={shopId} onOpenNote={(id) => onOpenNote?.(id)} />
+          <NotesTab invoiceId={record.invoice_no || record._id} shopId={shopId} onOpenNote={(id) => onOpenNote?.(id)} />
         </div>
       ),
     },
@@ -884,6 +962,139 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
         }}
       />
     </div>
+  );
+
+  return (
+    <>
+      <div style={{ padding: 16, background: C.bg }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>{editBtn}</div>
+        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
+          <ProDescriptions column={2} bordered size="small"
+            title={
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px" }}>
+                <Text strong style={{ fontSize: 12 }}>{party.label} Information</Text>
+                {party.address && (
+                  <Button 
+                    size="small" 
+                    icon={<EditOutlined />} 
+                    onClick={() => {
+                      addressForm.setFieldsValue(party.address);
+                      setAddressEditOpen(true);
+                    }}
+                  >
+                    Edit Address
+                  </Button>
+                )}
+              </div>
+            }
+          >
+            <ProDescriptions.Item label="Name"><Text strong style={{ fontSize: 12 }}>{party.name}</Text></ProDescriptions.Item>
+            <ProDescriptions.Item label="Phone"><Text style={{ fontSize: 12 }}>{party.phone || "—"}</Text></ProDescriptions.Item>
+            <ProDescriptions.Item label="Email"><Text style={{ fontSize: 12, color: C.subText }}>{party.email || "—"}</Text></ProDescriptions.Item>
+            <ProDescriptions.Item label="Location"><Text style={{ fontSize: 12 }}>{party.location || "—"}</Text></ProDescriptions.Item>
+            {party.address && (
+              <>
+                <ProDescriptions.Item label="Street Address"><Text style={{ fontSize: 12 }}>{party.address.street || "—"}</Text></ProDescriptions.Item>
+                <ProDescriptions.Item label="City"><Text style={{ fontSize: 12 }}>{party.address.city || "—"}</Text></ProDescriptions.Item>
+                <ProDescriptions.Item label="County"><Text style={{ fontSize: 12 }}>{party.address.county || "—"}</Text></ProDescriptions.Item>
+                <ProDescriptions.Item label="Country"><Text style={{ fontSize: 12 }}>{party.address.country || "—"}</Text></ProDescriptions.Item>
+                {party.address.postal_code && <ProDescriptions.Item label="Postal Code"><Text style={{ fontSize: 12 }}>{party.address.postal_code}</Text></ProDescriptions.Item>}
+              </>
+            )}
+            {party.kra_pin && <ProDescriptions.Item label="KRA PIN" span={2}><Text style={{ fontSize: 12 }}>{party.kra_pin}</Text></ProDescriptions.Item>}
+            {party.ref && <ProDescriptions.Item label="Supplier Ref" span={2}><Text style={{ fontSize: 12 }}>{party.ref}</Text></ProDescriptions.Item>}
+          </ProDescriptions>
+        </div>
+        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+          <ProDescriptions column={2} bordered size="small"
+            title={<Text strong style={{ fontSize: 12, padding: "8px 12px", display: "block" }}>Invoice Details</Text>}
+          >
+            <ProDescriptions.Item label="Invoice Number"><Text strong style={{ fontSize: 12 }}>{order_no}</Text></ProDescriptions.Item>
+            <ProDescriptions.Item label="Date"><Text style={{ fontSize: 12, color: C.subText }}>{dayjs(issue_date || createdAt).format("DD MMM YYYY HH:mm")}</Text></ProDescriptions.Item>
+            {due_date && <ProDescriptions.Item label="Due Date"><Text style={{ fontSize: 12, color: C.red }}>{dayjs(due_date).format("DD MMM YYYY")}</Text></ProDescriptions.Item>}
+            <ProDescriptions.Item label="Status">
+              <span style={{ background: statusBg, color: statusColor, border: `1px solid ${statusColor}30`, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>{status || "—"}</span>
+            </ProDescriptions.Item>
+            <ProDescriptions.Item label="Pricing Mode"><Text style={{ fontSize: 12 }}>{vat_pricing_mode || "—"}</Text></ProDescriptions.Item>
+            {served_by && <ProDescriptions.Item label="Served By"><Text style={{ fontSize: 12 }}>{served_by.username}</Text></ProDescriptions.Item>}
+            {created_by && <ProDescriptions.Item label="Created By"><Text style={{ fontSize: 12 }}>{created_by.username}</Text></ProDescriptions.Item>}
+            {terms && <ProDescriptions.Item label="Terms" span={2}><Text style={{ fontSize: 12 }}>{terms}</Text></ProDescriptions.Item>}
+            {notes && <ProDescriptions.Item label="Notes" span={2}><Text style={{ fontSize: 12 }}>{notes}</Text></ProDescriptions.Item>}
+            <ProDescriptions.Item label="Items" span={2}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
+                {items.map((item) => <ItemRow key={item._id} item={item} />)}
+              </div>
+            </ProDescriptions.Item>
+            <ProDescriptions.Item label="Subtotal" span={2}><Text strong style={{ fontSize: 12 }}>KES {fmt(subtotal)}</Text></ProDescriptions.Item>
+            {vatRows.map((r, i) => <ProDescriptions.Item key={i} label={r.label}><Text style={{ fontSize: 12 }}>{r.value}</Text></ProDescriptions.Item>)}
+            {total_vat_amount > 0 && (
+              <ProDescriptions.Item label="Total VAT" span={2}>
+                <span style={{ background: "#eff6ff", color: C.blue, border: "1px solid #bfdbfe", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>
+                  KES {fmt(total_vat_amount)}
+                </span>
+              </ProDescriptions.Item>
+            )}
+            {discount_amount > 0 && (
+              <ProDescriptions.Item label="Discount" span={2}>
+                <span style={{ background: "#fffbeb", color: C.orange, border: "1px solid #fde68a", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>
+                  −KES {fmt(discount_amount)}
+                </span>
+              </ProDescriptions.Item>
+            )}
+            <ProDescriptions.Item label="Grand Total" span={2}><Text strong style={{ fontSize: 14, color: C.primary }}>KES {fmt(grand_total)}</Text></ProDescriptions.Item>
+            {(amount_paid || 0) > 0 && (
+              <>
+                <ProDescriptions.Item label="Amount Paid"><Text strong style={{ fontSize: 12, color: C.green }}>KES {fmt(amount_paid || 0)}</Text></ProDescriptions.Item>
+                <ProDescriptions.Item label="Balance Due"><Text strong style={{ fontSize: 12, color: (amount_due || 0) > 0 ? C.orange : C.green }}>KES {fmt(amount_due || 0)}</Text></ProDescriptions.Item>
+              </>
+            )}
+          </ProDescriptions>
+        </div>
+      </div>
+
+      {/* Address Edit Modal */}
+      <Modal
+        title="Edit Customer Address"
+        open={addressEditOpen}
+        onCancel={() => setAddressEditOpen(false)}
+        onOk={() => {
+          // TODO: Implement address update functionality
+          console.log('Address update:', addressForm.getFieldsValue());
+          setAddressEditOpen(false);
+        }}
+        width={600}
+      >
+        <Form form={addressForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={24}>
+              <Form.Item name="street" label="Street Address">
+                <Input placeholder="e.g. 123 Main Street" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="city" label="City">
+                <Input placeholder="e.g. Nairobi" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="county" label="County">
+                <Input placeholder="e.g. Nairobi County" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="country" label="Country">
+                <Input placeholder="e.g. Kenya" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="postal_code" label="Postal Code">
+                <Input placeholder="e.g. 00100" />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+    </>
   );
 };
 

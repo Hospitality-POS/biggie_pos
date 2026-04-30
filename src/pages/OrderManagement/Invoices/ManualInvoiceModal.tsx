@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
     Modal, Form, Input, InputNumber, Select, DatePicker,
     Button, Space, Table, Divider, App, Row, Col, Tag,
-    Typography, Alert, Segmented, Steps, Card, Statistic, Tooltip,
+    Typography, Alert, Segmented, Steps, Card, Statistic, Tooltip, Checkbox,
 } from "antd";
 import {
     PlusOutlined, DeleteOutlined,
@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { createInvoice, convertQuoteToInvoice, recordInvoicePayment } from "@services/accounting/invoice";
 import { fetchAllCustomers } from "@services/customers";
+import { fetchAllInventoryItems, getAllProducts } from "@services/products";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchTenantDetails, getCurrentTenantId } from "@services/tenants";
 import AddCustomerModal from "@pages/Customer/AddCustomerModal";
@@ -55,9 +56,12 @@ interface Props {
 
 interface LineItem {
     key: string;
+    item_type: "inventory" | "service" | "custom";
+    item_id?: string;
     description: string;
     quantity: number;
     unit_price: number;
+    discount_amount: number;
     vat_rate: number;
     account_id: string;
 }
@@ -66,9 +70,11 @@ type DocType = "quote" | "invoice";
 
 const newLine = (defaultVatRate = 0): LineItem => ({
     key: `${Date.now()}-${Math.random()}`,
+    item_type: "custom",
     description: "",
     quantity: 1,
     unit_price: 0,
+    discount_amount: 0,
     vat_rate: defaultVatRate,
     account_id: "",
 });
@@ -86,6 +92,14 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     const [savedInvoice, setSavedInvoice] = useState<any>(null);
     const [customerSearch, setCustomerSearch] = useState("");
     const [customTermInput, setCustomTermInput] = useState("");
+    const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+    const [services, setServices] = useState<any[]>([]);
+    
+    // Discount state
+    const [discountType, setDiscountType] = useState<"fixed" | "percentage">("fixed");
+    const [discountAmount, setDiscountAmount] = useState<number>(0);
+    const [discountPercentage, setDiscountPercentage] = useState<number>(0);
+    const [discountReason, setDiscountReason] = useState<string>("");
 
     // Track whether we've had a successful save so closing always triggers refresh
     const [didSave, setDidSave] = useState(false);
@@ -150,6 +164,82 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             Array.isArray(res) ? res : (res?.customers || res?.data || []),
         staleTime: 30_000,
     });
+
+    // ── Inventory Items & Services ─────────────────────────────────────────────
+    // Products (used as inventory items)
+    const { data: inventoryData, isFetching: inventoryFetching } = useQuery({
+        queryKey: ["inventory-items"],
+        queryFn: () => fetchAllInventoryItems({}),
+        enabled: open,
+        select: (res: any) => {
+            const items = Array.isArray(res) ? res : (res?.data || res?.inventory || []);
+            return items.map((item: any) => ({
+                id: item._id || item.id,
+                name: item.name || item.product_name,
+                price: item.price || item.selling_price || 0,
+                type: 'inventory',
+                account_id: item.account_id || 'acc_4100',
+                sku: item.sku,
+                stock_quantity: item.quantity || item.stock_quantity || 0,
+                description: item.description,
+            }));
+        },
+        staleTime: 30_000,
+    });
+   
+    // Services (using products endpoint)
+    const { data: servicesData, isFetching: servicesFetching } = useQuery({
+        queryKey: ["services"],
+        queryFn: () => getAllProducts(),
+        enabled: open,
+        select: (res: any) => {
+            console.log('API Response:', res);
+            
+            // Handle nested structure: categories -> products array
+            const categories = Array.isArray(res) ? res : (res?.data || res?.categories || []);
+            const allProducts: any[] = [];
+            
+            categories.forEach((category: any) => {
+                if (category.products && Array.isArray(category.products)) {
+                    category.products.forEach((product: any) => {
+                        allProducts.push({
+                            ...product,
+                            category_name: category.name, // Add category name for reference
+                        });
+                    });
+                }
+            });
+            
+            console.log('Extracted products:', allProducts);
+            
+            return allProducts.map((product: any) => ({
+                id: product._id || product.id,
+                name: product.name || product.product_name,
+                price: product.price || product.selling_price || 0,
+                type: 'service',
+                account_id: product.account_id || 'acc_4100',
+                description: product.description,
+                category_name: product.category_name,
+                activateInventory: product.activateInventory,
+                quantity: product.quantity,
+            }));
+        },
+        staleTime: 30_000,
+    });
+
+    // Update state when data changes
+    useEffect(() => {
+        if (inventoryData) {
+            setInventoryItems(inventoryData);
+        }
+    }, [inventoryData]);
+
+    useEffect(() => {
+        if (servicesData) {
+            setServices(servicesData);
+        }
+    }, [servicesData]);
+
     const customerOptions = (customersData || []).map((c: any) => ({
         label: `${c.customer_name}${c.phone ? ` — ${c.phone}` : ""}`,
         value: c._id,
@@ -209,16 +299,20 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
 
     // ── Totals ────────────────────────────────────────────────────────────────
     const lineNet = (l: LineItem) => {
+        const grossAmount = l.quantity * l.unit_price;
+        const discountedAmount = grossAmount - l.discount_amount;
+        
         if (vatPricingMode === "INCLUSIVE" && l.vat_rate > 0) {
-            return (l.quantity * l.unit_price) / (1 + l.vat_rate);
+            return discountedAmount / (1 + l.vat_rate);
         }
-        return l.quantity * l.unit_price;
+        return discountedAmount;
     };
     const lineVAT = (l: LineItem) => {
         if (!vatEnabled || l.vat_rate === 0) return 0;
         if (vatPricingMode === "INCLUSIVE") {
             const gross = l.quantity * l.unit_price;
-            return gross - gross / (1 + l.vat_rate);
+            const discountedGross = gross - l.discount_amount;
+            return discountedGross - discountedGross / (1 + l.vat_rate);
         }
         return lineNet(l) * l.vat_rate;
     };
@@ -229,7 +323,13 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
 
     const subtotal = lines.reduce((s, l) => s + lineNet(l), 0);
     const totalVAT = lines.reduce((s, l) => s + lineVAT(l), 0);
-    const grandTotal = subtotal + totalVAT;
+    
+    // Calculate invoice-level discount
+    const invoiceDiscount = discountType === "percentage" 
+        ? (subtotal * discountPercentage) / 100 
+        : discountAmount;
+    
+    const grandTotal = subtotal + totalVAT - invoiceDiscount;
 
     const fmt = (n: number) =>
         n.toLocaleString("en-KE", { minimumFractionDigits: 2 });
@@ -308,13 +408,19 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         notes: values.notes,
         terms: values.terms,
         status,
+        discount_type: invoiceDiscount > 0 ? discountType : undefined,
+        discount_amount: invoiceDiscount > 0 ? invoiceDiscount : undefined,
+        discount_percentage: invoiceDiscount > 0 && discountType === "percentage" ? discountPercentage : undefined,
+        discount_reason: invoiceDiscount > 0 ? discountReason : undefined,
         lines: lines.map((l) => ({
             description: l.description,
             account_id: l.account_id,
             quantity: l.quantity,
             price: l.unit_price,
+            discount_amount: l.discount_amount,
             vat_rate: vatEnabled ? l.vat_rate : 0,
             vat_amount: parseFloat(lineVAT(l).toFixed(2)),
+            item_type: l.item_type,
         })),
     } as any);
 
@@ -362,20 +468,69 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     // ── Line items columns ────────────────────────────────────────────────────
     const lineColumns = [
         {
-            title: "Description",
+            title: "Item",
             dataIndex: "description",
+            width: 300,
             render: (_: any, r: LineItem) => (
-                <Input
-                    size="small" placeholder="Item / service"
-                    value={r.description}
-                    onChange={(e) => updateLine(r.key, "description", e.target.value)}
+                <Select
+                    size="small"
+                    placeholder={inventoryFetching || servicesFetching ? "Loading items..." : "Select item or service"}
+                    value={r.item_id}
+                    onChange={(value: string) => {
+                        if (value === "custom") {
+                            // Handle custom item selection
+                            updateLine(r.key, "item_id" as keyof LineItem, null);
+                            updateLine(r.key, "item_type" as keyof LineItem, "custom");
+                            updateLine(r.key, "description" as keyof LineItem, "");
+                            updateLine(r.key, "unit_price" as keyof LineItem, 0);
+                            return;
+                        }
+
+                        const selectedItem = [...inventoryItems, ...services].find(item => item.id === value);
+                        if (selectedItem) {
+                            updateLine(r.key, "item_id" as keyof LineItem, value);
+                            updateLine(r.key, "item_type" as keyof LineItem, selectedItem.type);
+                            updateLine(r.key, "description" as keyof LineItem, selectedItem.name);
+                            updateLine(r.key, "unit_price" as keyof LineItem, selectedItem.price);
+                            updateLine(r.key, "account_id" as keyof LineItem, selectedItem.account_id || "");
+                        }
+                    }}
+                    allowClear
+                    showSearch
+                    loading={inventoryFetching || servicesFetching}
+                    filterOption={(input, option) =>
+                        (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                    }
+                    options={[
+                        ...(inventoryItems.length > 0 ? [{
+                            label: "Inventory Items",
+                            options: inventoryItems.map(item => ({
+                                label: `${item.name}${item.sku ? ` (${item.sku})` : ""} - KES${item.price}`,
+                                value: item.id,
+                            })),
+                        }] : []),
+                        ...(services.length > 0 ? [{
+                            label: "Services",
+                            options: services.map(service => ({
+                                label: `${service.name} - KES${service.price}`,
+                                value: service.id,
+                            })),
+                        }] : []),
+                        {
+                            label: "Custom Item",
+                            options: [{
+                                label: "Create custom item...",
+                                value: "custom",
+                            }],
+                        },
+                    ]}
                 />
             ),
         },
         {
             title: "Revenue Account",
             dataIndex: "account_id",
-            width: 200,
+            width: 250,
             render: (_: any, r: LineItem) => (
                 <Select
                     size="small" style={{ width: "100%" }}
@@ -399,7 +554,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         {
             title: "Qty",
             dataIndex: "quantity",
-            width: 65,
+            width: 80,
             render: (_: any, r: LineItem) => (
                 <InputNumber
                     size="small" min={1} value={r.quantity} style={{ width: "100%" }}
@@ -410,12 +565,25 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         {
             title: vatPricingMode === "INCLUSIVE" ? "Unit Price (incl. VAT)" : "Unit Price",
             dataIndex: "unit_price",
-            width: 125,
+            width: 150,
             render: (_: any, r: LineItem) => (
                 <InputNumber
                     size="small" min={0} precision={2} value={r.unit_price}
                     style={{ width: "100%" }}
                     onChange={(v) => updateLine(r.key, "unit_price", v || 0)}
+                />
+            ),
+        },
+        {
+            title: "Discount",
+            dataIndex: "discount_amount",
+            width: 120,
+            render: (_: any, r: LineItem) => (
+                <InputNumber
+                    size="small" min={0} precision={2} value={r.discount_amount}
+                    placeholder="0"
+                    style={{ width: "100%" }}
+                    onChange={(v) => updateLine(r.key, "discount_amount", v || 0)}
                 />
             ),
         },
@@ -430,7 +598,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                     </Space>
                 ),
                 dataIndex: "vat_rate",
-                width: 120,
+                width: 140,
                 render: (_: any, r: LineItem) => (
                     <Select
                         size="small" style={{ width: "100%" }}
@@ -445,7 +613,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         {
             title: "Total",
             key: "gross",
-            width: 110,
+            width: 130,
             align: "right" as const,
             render: (_: any, r: LineItem) => (
                 <Text strong>{fmt(lineGross(r))}</Text>
@@ -454,7 +622,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         {
             title: "",
             key: "del",
-            width: 36,
+            width: 45,
             render: (_: any, r: LineItem) => (
                 <Button
                     type="text" danger size="small" icon={<DeleteOutlined />}
@@ -483,6 +651,52 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                             ? <Tag color="blue">KES {fmt(totalVAT)}</Tag>
                             : <Tag color="default">Exempt</Tag>
                         }
+                    </div>
+                    <div style={{ marginBottom: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                            <Text type="secondary">Discount</Text>
+                            <Select
+                                value={discountType}
+                                onChange={setDiscountType}
+                                size="small"
+                                style={{ width: 100 }}
+                            >
+                                <Select.Option value="fixed">Fixed</Select.Option>
+                                <Select.Option value="percentage">Percentage</Select.Option>
+                            </Select>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <InputNumber
+                                value={discountType === "fixed" ? discountAmount : discountPercentage}
+                                onChange={(value) => {
+                                    if (discountType === "fixed") {
+                                        setDiscountAmount(value || 0);
+                                    } else {
+                                        setDiscountPercentage(value || 0);
+                                    }
+                                }}
+                                placeholder={discountType === "fixed" ? "Amount" : "Percentage"}
+                                size="small"
+                                min={0}
+                                max={discountType === "percentage" ? 100 : undefined}
+                                precision={discountType === "percentage" ? 2 : 0}
+                                style={{ flex: 1 }}
+                            />
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                {discountType === "percentage" ? "%" : "KES"}
+                            </Text>
+                        </div>
+                        <Input
+                            value={discountReason}
+                            onChange={(e) => setDiscountReason(e.target.value)}
+                            placeholder="Discount reason (optional)"
+                            size="small"
+                            style={{ marginTop: 4, fontSize: 12 }}
+                        />
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <Text type="secondary">Discount Amount</Text>
+                        <Text type="secondary">-KES {fmt(invoiceDiscount)}</Text>
                     </div>
                     <Divider style={{ margin: "8px 0" }} />
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -565,6 +779,32 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                                 loading={customersFetching}
                                 options={customerOptions}
                                 notFoundContent={customersFetching ? "Searching..." : "No customers found"}
+                                onChange={(value: string) => {
+                                    const customer = customersData?.find((c: any) => c._id === value);
+                                    if (customer?.address) {
+                                        form.setFieldsValue({
+                                            billing_address: {
+                                                use_customer_address: true,
+                                                street: customer.address.street || "",
+                                                building: customer.address.building || "",
+                                                city: customer.address.city || "",
+                                                postal_code: customer.address.postal_code || "",
+                                                country: customer.address.country || "",
+                                            }
+                                        });
+                                    } else {
+                                        form.setFieldsValue({
+                                            billing_address: {
+                                                use_customer_address: false,
+                                                street: "",
+                                                building: "",
+                                                city: "",
+                                                postal_code: "",
+                                                country: "",
+                                            }
+                                        });
+                                    }
+                                }}
                                 dropdownRender={(menu) => (
                                     <>
                                         {menu}
@@ -574,6 +814,43 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                             />
                         </Form.Item>
                     </Col>
+                </Row>
+
+                <Row gutter={16}>
+                    <Col span={24}>
+                        <Form.Item name="billing_address" label="Billing Address">
+                            <Row gutter={8}>
+                                <Col span={6}>
+                                    <Form.Item name={["billing_address", "use_customer_address"]} valuePropName="checked" style={{ marginBottom: 0 }}>
+                                        <Checkbox>Use Customer Address</Checkbox>
+                                    </Form.Item>
+                                </Col>
+                                <Col span={6}>
+                                    <Form.Item name={["billing_address", "street"]} style={{ marginBottom: 0 }}>
+                                        <Input placeholder="Street" />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={4}>
+                                    <Form.Item name={["billing_address", "building"]} style={{ marginBottom: 0 }}>
+                                        <Input placeholder="Building" />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={4}>
+                                    <Form.Item name={["billing_address", "city"]} style={{ marginBottom: 0 }}>
+                                        <Input placeholder="City" />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={4}>
+                                    <Form.Item name={["billing_address", "postal_code"]} style={{ marginBottom: 0 }}>
+                                        <Input placeholder="Postal Code" />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                <Row gutter={16}>
                     <Col span={8}>
                         <Form.Item
                             name="issue_date"
@@ -679,9 +956,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                         <Form.Item
                             name="due_date"
                             label="Due Date"
-                            rules={docType === "invoice"
-                                ? [{ required: true, message: "Required for invoices" }]
-                                : []}
+                            rules={[]}
                             tooltip={
                                 docType === "quote"
                                     ? "Optional for quotes — auto-set when payment terms are selected"
@@ -926,7 +1201,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                         {step === 2 && "Record Payment"}
                     </Space>
                 }
-                width={940}
+                width={1200}
                 footer={renderFooter()}
                 destroyOnClose
             >

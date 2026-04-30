@@ -32,6 +32,7 @@ export interface InvoiceLineItem {
     account_id?: string | { _id: string; account_code: string; account_name: string };
     quantity: number;
     price: number;
+    discount_amount?: number;
     vat_type?: "STANDARD" | "ZERO" | "EXEMPT";
     vat_rate?: number;
     vat_amount?: number;
@@ -64,6 +65,9 @@ export interface Invoice {
     // Financials
     subtotal: number;
     discount_amount: number;
+    discount_type?: "fixed" | "percentage";
+    discount_percentage?: number;
+    discount_reason?: string;
     total_vat_amount: number;
     grand_total: number;
     amount_paid: number;

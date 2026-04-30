@@ -8,6 +8,9 @@ import {
   HomeFilled,
   PaperClipOutlined,
   ShopOutlined,
+  WalletOutlined,
+  SwapOutlined,
+  FileDoneOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 import AdminDashboard from "src/AdminDashboard/AdminDashboardLayout";
@@ -66,6 +69,15 @@ function Layout() {
               </Breadcrumb.Item>
               <Breadcrumb.Item onClick={() => navigate("/reports")} key="reports">
                 <PaperClipOutlined /> <span>Reports</span>
+              </Breadcrumb.Item>
+              <Breadcrumb.Item onClick={() => navigate("/documents")} key="documents">
+                <FileDoneOutlined /> <span>Documents</span>
+              </Breadcrumb.Item>
+              <Breadcrumb.Item onClick={() => navigate("/petty-cash")} key="petty-cash">
+                <WalletOutlined /> <span>Petty Cash</span>
+              </Breadcrumb.Item>
+              <Breadcrumb.Item onClick={() => navigate("/refunds")} key="refunds">
+                <SwapOutlined /> <span>Refunds</span>
               </Breadcrumb.Item>
             </>
           )}

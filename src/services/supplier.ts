@@ -41,6 +41,15 @@ export const editSupplier = async (params: ParamsType) => {
   }
 };
 
+export const getSupplierById = async (id: string) => {
+  try {
+    const response = await axiosInstance.get(`${supplierUrl}/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
 export const deleteSupplier = async (params: ParamsType) => {
   try {
     const response = await axiosInstance.delete(`${supplierUrl}/${params}`);
