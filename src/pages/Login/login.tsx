@@ -10,7 +10,7 @@ import {
     MailOutlined,
     SafetyCertificateOutlined,
 } from "@ant-design/icons";
-import { sendOtp } from "../../services/authentication";
+import { sendOtp, loginWithMethod } from "../../services/authentication";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { verifyCompanyCode, verifyBusinessEmail } from "@services/users";
 import { useLogin } from "@components/staffCard/hook/useLogin";
@@ -317,57 +317,34 @@ const StaffLoginPage = () => {
             } else {
                 // For password and 2FA, use enhanced authentication
                 try {
-                    // Get company code from localStorage for tenant authentication
-                    const companyCode = localStorage.getItem('companyCode');
-                    const headers: Record<string, string> = {
-                        'Content-Type': 'application/json',
-                    };
-                    
-                    // Add company code to headers if available
-                    if (companyCode) {
-                        headers['companyCode'] = companyCode;
+                    const user = await loginWithMethod(loginData);
+                    console.log('OTP Login Success - User data:', user);
+
+                    // Store user data in localStorage (like loginUser action does)
+                    localStorage.setItem('user', JSON.stringify(user));
+
+                    // Also store shopId in localStorage (like loginUser action does)
+                    if (user?.shopId) {
+                        localStorage.setItem("shopId", user.shopId);
                     }
 
-                    const response = await fetch('http://localhost:3002/users/login', {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify(loginData),
+                    // Update Redux state manually (like loginUser action does)
+                    dispatch({
+                        type: 'authUser/loginUser/fulfilled',
+                        payload: user
                     });
 
-                    if (response.ok) {
-                        const user = await response.json();
-                        console.log('OTP Login Success - User data:', user);
-                        
-                        // Store user data in localStorage (like loginUser action does)
-                        localStorage.setItem('user', JSON.stringify(user));
-                        
-                        // Also store shopId in localStorage (like loginUser action does)
-                        if (user?.shopId) {
-                            localStorage.setItem("shopId", user.shopId);
-                        }
-                        
-                        // Update Redux state manually (like loginUser action does)
-                        dispatch({
-                            type: 'authUser/loginUser/fulfilled',
-                            payload: user
-                        });
-                        
-                        // Navigate based on user role
-                        if (user?.role === "admin") {
-                            console.log('Navigating to admin dashboard');
-                            navigate("/admin/dashboard");
-                        } else {
-                            console.log('Navigating to tables');
-                            navigate("/tables");
-                        }
+                    // Navigate based on user role
+                    if (user?.role === "admin") {
+                        console.log('Navigating to admin dashboard');
+                        navigate("/admin/dashboard");
                     } else {
-                        const errorData = await response.json();
-                        console.error('OTP Login Failed:', errorData);
-                        setError(errorData.message || "Authentication failed");
+                        console.log('Navigating to tables');
+                        navigate("/tables");
                     }
                 } catch (fetchError) {
-                    console.error('OTP Login Network Error:', fetchError);
-                    setError("Network error. Please try again.");
+                    console.error('OTP Login Error:', fetchError);
+                    setError(fetchError?.response?.data?.message || "Authentication failed. Please try again.");
                 }
             }
         } catch (error: any) {
