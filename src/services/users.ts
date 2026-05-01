@@ -206,7 +206,7 @@ export const updateUsers = async (data: ParamsType) => {
         throw new Error(responseData.message || "Failed to update user");
       }
 
-      message.success("User updated successfully");
+     // message.success("User updated successfully");
       return responseData;
     } else {
       // No file to upload, use regular JSON request
@@ -234,7 +234,7 @@ export const updateUsers = async (data: ParamsType) => {
         }
       });
 
-      message.success("User updated successfully");
+      //message.success("User updated successfully");
       return response.data;
     }
   } catch (error: any) {

@@ -34,14 +34,14 @@ export const PhoneInput = (props) => {
         rules={[
           {
             validator: async (_, value) => {
-              if (
+              if (value && (value.phone || value.code) && 
                 !isValidPhoneNumber(`${value.code}${value.phone}`, value.short)
               )
                 throw new Error("Invalid Phone Number");
             },
           },
         ]}
-        required
+        required={props.required !== false}
       >
          <CountryPhoneInput
           inline

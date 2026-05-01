@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
+  ApartmentOutlined,
   CalendarOutlined,
   DollarOutlined,
   LockOutlined,
@@ -9,13 +10,13 @@ import {
   UsergroupAddOutlined,
 } from "@ant-design/icons";
 import { Badge, Space, Tag, Typography } from "antd";
-import { useAppSelector } from "src/store";
 import UsersTable from "./UsersTable";
 import RoleSettings from "./RoleSettings";
 import PermissionSettings from "./PermissionSettings";
 import LeaveManagement, { fetchPendingLeaveCount } from "./LeaveManagement";
 import LeaveBalanceSetup from "./LeaveBalanceSetup";
 import HRAnalytics from "./HRAnalytics";
+import Departments from "./Departments";
 
 const { Text } = Typography;
 
@@ -25,6 +26,7 @@ const C = {
   blue: "#3b82f6",
   indigo: "#6366f1",
   orange: "#f59e0b",
+  purple: "#8b5cf6",
   darkText: "#0f172a",
 };
 
@@ -40,13 +42,15 @@ const useIsMobile = () => {
 
 const isBanduEnabled = (): boolean => {
   try {
-    const stored = localStorage.getItem("tenant");
-    if (!stored) return false;
-    const tenant = JSON.parse(stored);
-    return tenant?.modules?.payroll === true && tenant?.bandu_settings?.accepted_terms === true;
-  } catch {
-    return false;
-  }
+    const t = JSON.parse(localStorage.getItem("tenant") || "{}");
+    return t?.modules?.payroll === true && t?.bandu_settings?.accepted_terms === true;
+  } catch { return false; }
+};
+
+const isMtejaEnabled = (): boolean => {
+  try {
+    return JSON.parse(localStorage.getItem("tenant") || "{}")?.modules?.crm === true;
+  } catch { return false; }
 };
 
 const TabLabel: React.FC<{
@@ -59,9 +63,7 @@ const TabLabel: React.FC<{
   <Space size={6}>
     <span style={{ color, fontSize: 13, lineHeight: 1, display: "flex" }}>{icon}</span>
     <Text style={{ fontSize: 13, fontWeight: 500, color: C.darkText }}>{label}</Text>
-    {badge != null && badge > 0 && (
-      <Badge count={badge} size="small" style={{ background: C.primary }} />
-    )}
+    {badge != null && badge > 0 && <Badge count={badge} size="small" style={{ background: C.primary }} />}
     {comingSoon && (
       <Tag style={{
         background: "#f0f9ff", color: C.blue, border: "none",
@@ -82,26 +84,16 @@ const TabContent: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 const PayrollComingSoon: React.FC = () => (
-  <div style={{
-    display: "flex", flexDirection: "column", alignItems: "center",
-    justifyContent: "center", padding: "60px 24px", textAlign: "center",
-  }}>
-    <div style={{
-      width: 64, height: 64, borderRadius: 16, background: "#f0fdf4",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 28, color: C.green, marginBottom: 20,
-    }}>
+  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 24px", textAlign: "center" }}>
+    <div style={{ width: 64, height: 64, borderRadius: 16, background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: C.green, marginBottom: 20 }}>
       <DollarOutlined />
     </div>
-    <Text strong style={{ fontSize: 16, color: C.darkText, display: "block", marginBottom: 8 }}>
-      Payroll is coming soon
-    </Text>
+    <Text strong style={{ fontSize: 16, color: C.darkText, display: "block", marginBottom: 8 }}>Payroll is coming soon</Text>
     <Text style={{ fontSize: 13, color: "#64748b", maxWidth: 340, lineHeight: 1.6 }}>
-      Salary calculations, payslips, deductions, and tax summaries —
-      all linked to your shifts and attendance data.
+      Salary calculations, payslips, deductions, and tax summaries — all linked to your shifts and attendance data.
     </Text>
     <div style={{ display: "flex", gap: 8, marginTop: 20, flexWrap: "wrap", justifyContent: "center" }}>
-      {["Salary calculations", "Payslips", "Deductions", "Tax summaries"].map((f) => (
+      {["Salary calculations", "Payslips", "Deductions", "Tax summaries"].map(f => (
         <Tag key={f} style={{ background: "#f8fafc", color: "#64748b", border: "1px solid #e2e8f0", borderRadius: 6, fontSize: 11, padding: "3px 10px" }}>
           {f}
         </Tag>
@@ -110,11 +102,11 @@ const PayrollComingSoon: React.FC = () => (
   </div>
 );
 
-
 function UsersMainSettings() {
   const isMobile = useIsMobile();
-  const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
   const banduEnabled = isBanduEnabled();
+  const mtejaEnabled = isMtejaEnabled();
+  const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
 
   useEffect(() => {
     if (banduEnabled) {
@@ -136,6 +128,7 @@ function UsersMainSettings() {
           style: { marginBottom: 0 },
         }}
       >
+        {/* Users */}
         <ProCard.TabPane
           key="users"
           tab={<TabLabel icon={<UserOutlined />} label="Users" color={C.green} />}
@@ -143,6 +136,7 @@ function UsersMainSettings() {
           <TabContent><UsersTable /></TabContent>
         </ProCard.TabPane>
 
+        {/* Roles */}
         <ProCard.TabPane
           key="roles"
           tab={<TabLabel icon={<UsergroupAddOutlined />} label="Roles" color={C.blue} />}
@@ -150,6 +144,7 @@ function UsersMainSettings() {
           <TabContent><RoleSettings /></TabContent>
         </ProCard.TabPane>
 
+        {/* Permissions */}
         <ProCard.TabPane
           key="permissions"
           tab={<TabLabel icon={<LockOutlined />} label="Permissions" color={C.indigo} />}
@@ -157,22 +152,25 @@ function UsersMainSettings() {
           <TabContent><PermissionSettings /></TabContent>
         </ProCard.TabPane>
 
+        {/* Departments — visible when Mteja (CRM) is enabled */}
+        {mtejaEnabled && (
+          <ProCard.TabPane
+            key="departments"
+            tab={<TabLabel icon={<ApartmentOutlined />} label="Departments" color={C.purple} />}
+          >
+            <TabContent><Departments /></TabContent>
+          </ProCard.TabPane>
+        )}
+
+        {/* Bandu tabs */}
         {banduEnabled && (
           <ProCard.TabPane
             key="leave"
-            tab={
-              <TabLabel
-                icon={<CalendarOutlined />}
-                label="Leave Requests"
-                color={C.primary}
-                badge={pendingLeaveCount}
-              />
-            }
+            tab={<TabLabel icon={<CalendarOutlined />} label="Leave Requests" color={C.primary} badge={pendingLeaveCount} />}
           >
             <TabContent><LeaveManagement /></TabContent>
           </ProCard.TabPane>
         )}
-
         {banduEnabled && (
           <ProCard.TabPane
             key="entitlements"
@@ -181,18 +179,10 @@ function UsersMainSettings() {
             <TabContent><LeaveBalanceSetup /></TabContent>
           </ProCard.TabPane>
         )}
-
         {banduEnabled && (
           <ProCard.TabPane
             key="payroll"
-            tab={
-              <TabLabel
-                icon={<DollarOutlined />}
-                label="Payroll"
-                color={C.green}
-                comingSoon
-              />
-            }
+            tab={<TabLabel icon={<DollarOutlined />} label="Payroll" color={C.green} comingSoon />}
           >
             <TabContent><PayrollComingSoon /></TabContent>
           </ProCard.TabPane>

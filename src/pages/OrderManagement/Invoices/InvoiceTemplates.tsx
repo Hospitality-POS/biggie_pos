@@ -1,9 +1,10 @@
 import React from "react";
 import dayjs from "dayjs";
+import { usePrimaryColor } from "../../../context/PrimaryColorContext";
 
 // ── Palette ────────────────────────────────────────────────────────────────
 const C = {
-    primary: "#6c1c2c",
+    primary: "#dc2626",
     green: "#10b981",
     red: "#ef4444",
     orange: "#f59e0b",
@@ -71,6 +72,16 @@ export interface InvoiceForPrint {
         email?: string;
         customer_email?: string;
         location?: string;
+        address?: {
+            street?: string;
+            building?: string;
+            city?: string;
+            county?: string;
+            country?: string;
+            postal_code?: string;
+            address_type?: string;
+            is_primary?: boolean;
+        };
         kra_pin?: string;
         code?: string;
     } | string;
@@ -162,6 +173,7 @@ export const resolveParty = (inv: InvoiceForPrint) => {
             phone: c.phone || c.customer_phone || "",
             email: c.email || c.customer_email || "",
             location: c.location || "",
+            address: c.address || null,
             kra_pin: c.kra_pin || "",
             ref: "",
         };
@@ -182,6 +194,7 @@ export const resolveParty = (inv: InvoiceForPrint) => {
 interface SharedProps {
     inv: InvoiceForPrint;
     sys: SystemDetails;
+    accentColor?: string;
 }
 
 const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
@@ -545,9 +558,15 @@ const Footer = ({ sys, borderColor = C.border }: { sys: SystemDetails; borderCol
         <div style={{ fontSize: 11, color: C.subText }}>
             {sys.EMAIL_URL && <span>{sys.EMAIL_URL} · </span>}
             {sys.PHONE_NO && <span>{sys.PHONE_NO}</span>}
+            {sys.PIN && <span> · KRA PIN: {sys.PIN}</span>}
         </div>
         <div style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>Thank you for your business!</div>
-        <div style={{ fontSize: 11, color: C.subText }}>Printed {new Date().toLocaleDateString("en-KE")}</div>
+        <div style={{ fontSize: 11, color: C.subText }}>
+            {sys.Paybill_bs && sys.Paybill_ac && (
+                <span>Paybill: {sys.Paybill_bs} · Acc: {sys.Paybill_ac} · </span>
+            )}
+            Printed {new Date().toLocaleDateString("en-KE")}
+        </div>
     </div>
 );
 
@@ -592,7 +611,7 @@ const LogoOrText = ({
 // ═══════════════════════════════════════════════════════════════
 // TEMPLATE 1 — Classic (Dark Red Header)
 // ═══════════════════════════════════════════════════════════════
-export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys }, ref) => {
+export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({ inv, sys, accentColor = "#dc2626" }, ref) => {
     const party = resolveParty(inv);
     const docLabel = inv.status === "Draft" ? "QUOTE" : inv.direction === "supplier" ? "BILL" : "TAX INVOICE";
 
@@ -610,7 +629,7 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
             {/* Header */}
             <div
                 style={{
-                    background: C.primary,
+                    background: accentColor,
                     color: "#fff",
                     margin: "-32px -32px 24px",
                     padding: "20px 32px",
@@ -654,6 +673,7 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
                                 marginTop: 4,
                                 display: "inline-block",
                                 background: inv.status === "Paid" ? "#10b981" : "rgba(255,255,255,0.15)",
+                                border: inv.status !== "Paid" ? `1px solid ${accentColor}` : "none",
                                 borderRadius: 4,
                                 padding: "2px 8px",
                                 fontSize: 10,
@@ -693,6 +713,20 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
                     <div style={{ fontSize: 14, fontWeight: 700 }}>{party.name}</div>
                     {party.phone && <div style={{ fontSize: 12, color: C.subText, marginTop: 2 }}>{party.phone}</div>}
                     {party.email && <div style={{ fontSize: 12, color: C.subText }}>{party.email}</div>}
+                    {party.address && (
+                        <div style={{ fontSize: 12, color: C.subText, marginTop: 2 }}>
+                            {party.address.street && <div>{party.address.street}</div>}
+                            {(party.address.city || party.address.county) && (
+                                <div>
+                                    {party.address.city && party.address.city}
+                                    {party.address.city && party.address.county && ", "}
+                                    {party.address.county && party.address.county}
+                                </div>
+                            )}
+                            {party.address.country && <div>{party.address.country}</div>}
+                            {party.address.postal_code && <div>Postal: {party.address.postal_code}</div>}
+                        </div>
+                    )}
                     {party.location && <div style={{ fontSize: 12, color: C.subText }}>{party.location}</div>}
                     {party.kra_pin && <div style={{ fontSize: 11, color: C.subText }}>KRA: {party.kra_pin}</div>}
                     {party.ref && <div style={{ fontSize: 11, color: C.subText }}>Ref: {party.ref}</div>}
@@ -820,6 +854,20 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
                     <div style={{ fontWeight: 700, fontSize: 13 }}>{party.name}</div>
                     {party.phone && <div style={{ fontSize: 12, color: C.subText }}>{party.phone}</div>}
                     {party.email && <div style={{ fontSize: 12, color: C.subText }}>{party.email}</div>}
+                    {party.address && (
+                        <div style={{ fontSize: 12, color: C.subText }}>
+                            {party.address.street && <div>{party.address.street}</div>}
+                            {(party.address.city || party.address.county) && (
+                                <div>
+                                    {party.address.city && party.address.city}
+                                    {party.address.city && party.address.county && ", "}
+                                    {party.address.county && party.address.county}
+                                </div>
+                            )}
+                            {party.address.country && <div>{party.address.country}</div>}
+                            {party.address.postal_code && <div>Postal: {party.address.postal_code}</div>}
+                        </div>
+                    )}
                     {party.location && <div style={{ fontSize: 12, color: C.subText }}>{party.location}</div>}
                     {party.kra_pin && <div style={{ fontSize: 11, color: C.subText }}>KRA: {party.kra_pin}</div>}
                 </div>
@@ -915,6 +963,20 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
                         <div style={{ fontWeight: 700, fontSize: 14 }}>{party.name}</div>
                         {party.phone && <div style={{ fontSize: 12, color: C.subText }}>{party.phone}</div>}
                         {party.email && <div style={{ fontSize: 12, color: C.subText }}>{party.email}</div>}
+                        {party.address && (
+                            <div style={{ fontSize: 12, color: C.subText }}>
+                                {party.address.street && <div>{party.address.street}</div>}
+                                {(party.address.city || party.address.county) && (
+                                    <div>
+                                        {party.address.city && party.address.city}
+                                        {party.address.city && party.address.county && ", "}
+                                        {party.address.county && party.address.county}
+                                    </div>
+                                )}
+                                {party.address.country && <div>{party.address.country}</div>}
+                                {party.address.postal_code && <div>Postal: {party.address.postal_code}</div>}
+                            </div>
+                        )}
                         {party.location && <div style={{ fontSize: 12, color: C.subText }}>{party.location}</div>}
                         {party.kra_pin && <div style={{ fontSize: 11, color: C.subText }}>KRA: {party.kra_pin}</div>}
                     </div>
@@ -1035,6 +1097,20 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{party.name}</div>
                     {party.phone && <div style={{ fontSize: 12, color: C.subText }}>{party.phone}</div>}
                     {party.email && <div style={{ fontSize: 12, color: C.subText }}>{party.email}</div>}
+                    {party.address && (
+                        <div style={{ fontSize: 12, color: C.subText }}>
+                            {party.address.street && <div>{party.address.street}</div>}
+                            {(party.address.city || party.address.county) && (
+                                <div>
+                                    {party.address.city && party.address.city}
+                                    {party.address.city && party.address.county && ", "}
+                                    {party.address.county && party.address.county}
+                                </div>
+                            )}
+                            {party.address.country && <div>{party.address.country}</div>}
+                            {party.address.postal_code && <div>Postal: {party.address.postal_code}</div>}
+                        </div>
+                    )}
                     {party.location && <div style={{ fontSize: 12, color: C.subText }}>{party.location}</div>}
                     {party.kra_pin && <div style={{ fontSize: 11, color: C.subText }}>KRA: {party.kra_pin}</div>}
                 </div>
@@ -1154,6 +1230,20 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
                         <div style={{ fontWeight: 700, fontSize: 13 }}>{party.name}</div>
                         {party.phone && <div style={{ fontSize: 12, color: "#064e3b" }}>{party.phone}</div>}
                         {party.email && <div style={{ fontSize: 12, color: "#064e3b" }}>{party.email}</div>}
+                        {party.address && (
+                            <div style={{ fontSize: 12, color: "#064e3b" }}>
+                                {party.address.street && <div>{party.address.street}</div>}
+                                {(party.address.city || party.address.county) && (
+                                    <div>
+                                        {party.address.city && party.address.city}
+                                        {party.address.city && party.address.county && ", "}
+                                        {party.address.county && party.address.county}
+                                    </div>
+                                )}
+                                {party.address.country && <div>{party.address.country}</div>}
+                                {party.address.postal_code && <div>Postal: {party.address.postal_code}</div>}
+                            </div>
+                        )}
                         {party.location && <div style={{ fontSize: 12, color: "#064e3b" }}>{party.location}</div>}
                         {party.kra_pin && <div style={{ fontSize: 11, color: "#064e3b" }}>KRA: {party.kra_pin}</div>}
                     </div>
@@ -1205,7 +1295,7 @@ export const TEMPLATES = [
         name: "Classic",
         description: "Dark red header, bold & professional",
         component: Template1Classic,
-        thumbBg: "#6c1c2c",
+        thumbBg: "#dc2626", // Will be dynamically overridden by primary color
         thumbAccent: "#fff",
     },
     {
@@ -1235,11 +1325,19 @@ export const TEMPLATES = [
     {
         id: 5,
         name: "Forest",
-        description: "Deep green, tinted card sections",
+        description: "Deep green, tinted cards",
         component: Template5Forest,
         thumbBg: "#065f46",
         thumbAccent: "#fff",
     },
+    {
+        id: 6,
+        name: "Custom",
+        description: "Your custom color scheme",
+        component: Template1Classic, // Uses Classic template with custom accent color
+        thumbBg: "#6366f1", // Will be dynamically overridden by invoice color
+        thumbAccent: "#fff",
+    },
 ] as const;
 
-export type TemplateId = 1 | 2 | 3 | 4 | 5;
+export type TemplateId = 1 | 2 | 3 | 4 | 5 | 6;

@@ -1,19 +1,19 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   UserOutlined,
   MailOutlined,
-  PhoneOutlined,
-  IdcardOutlined,
-  CalendarOutlined,
   LockOutlined,
   EyeOutlined,
   EyeInvisibleOutlined,
+  SafetyOutlined,
+  ClockCircleOutlined,
+  EditOutlined,
+  SaveOutlined,
 } from "@ant-design/icons";
-import { ActionType, PageContainer, ProCard } from "@ant-design/pro-components";
+import { PageContainer, ProCard } from "@ant-design/pro-components";
 import {
   Avatar,
   Tag,
-  Descriptions,
   Row,
   Col,
   Space,
@@ -22,11 +22,13 @@ import {
   message,
   Skeleton,
   Result,
+  Divider,
+  Input,
 } from "antd";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchUserById } from "@services/users";
-import AddEditProUserModal from "@components/MODALS/pro/AddEditProUserModal";
+import { fetchUserById, updateUsers } from "@services/users";
+import AuthenticationSettings from "@components/Settings/AuthenticationSettings";
 
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 
@@ -35,15 +37,17 @@ const { Title, Text } = Typography;
 function Profile() {
   const [isPinVisible, setIsPinVisible] = useState(false);
   const [pin, setPin] = useState("*********");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedFields, setEditedFields] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEditPinVisible, setIsEditPinVisible] = useState(false);
   const params = useParams();
-
-  const userRef = useRef<ActionType>();
 
   const primaryColor = usePrimaryColor();
 
   const { id } = params;
 
-  const { data: userDetails, isLoading } = useQuery(
+  const { data: userDetails, isLoading, refetch } = useQuery(
     {
       queryKey: ["user", id],
       queryFn: () => fetchUserById(id),
@@ -65,6 +69,44 @@ function Profile() {
       setPin("*********");
       setIsPinVisible(false);
     }
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditedFields({
+      fullname: userDetails?.fullname || "",
+      email: userDetails?.email || "",
+      phone: userDetails?.phone || "",
+      idNumber: userDetails?.idNumber || "",
+      pin: userDetails?.pin || "",
+    });
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditedFields({});
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateUsers({
+        _id: userDetails?._id,
+        value: editedFields,
+      });
+      message.success("Profile updated successfully");
+      setIsEditing(false);
+      setEditedFields({});
+      refetch();
+    } catch (error) {
+      message.error("Failed to update profile");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleFieldChange = (field: string, value: string) => {
+    setEditedFields((prev) => ({ ...prev, [field]: value }));
   };
 
   if (!userDetails) {
@@ -99,128 +141,275 @@ function Profile() {
       content="Review and manage your personal information"
       style={{ padding: "24px" }}
     >
-      <ProCard>
-        <Row gutter={[16, 16]} align="middle">
-          <Col
-            xs={24}
-            sm={8}
-            md={6}
-            lg={5}
-            xl={4}
-            style={{ textAlign: "center" }}
+      <Row gutter={[24, 24]}>
+        {/* Profile Card - Left Column */}
+        <Col xs={24} lg={8} xl={6}>
+          <ProCard
+            style={{ 
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+              height: "fit-content"
+            }}
+            bodyStyle={{ padding: "32px 24px" }}
           >
-            <Avatar
-              size={100}
-              icon={<UserOutlined />}
-              style={{ border: `2px solid ${primaryColor}` }}
-              src={userDetails?.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"}
-              alt={userDetails?.fullname || "User Avatar"}
-              aria-label="User Avatar"
-            />
-          </Col>
-          <Col xs={24} sm={16} md={18} lg={19} xl={20}>
-            <Space direction="vertical" size="small" style={{ width: "100%" }}>
-              <Space align="center">
-                <Title level={3} style={{ marginBottom: 0 }}>
+            <div style={{ textAlign: "center", marginBottom: "24px" }}>
+              <Avatar
+                size={120}
+                icon={<UserOutlined />}
+                style={{ 
+                  border: `4px solid ${primaryColor}`,
+                  marginBottom: "16px"
+                }}
+                src={userDetails?.thumbnail || "https://gw.alipayobjects.com/zos/antfincdn/efFD%24IOql2/weixintupian_20170331104822.jpg"}
+                alt={userDetails?.fullname || "User Avatar"}
+              />
+              {isEditing ? (
+                <Input
+                  value={editedFields.fullname}
+                  onChange={(e) => handleFieldChange("fullname", e.target.value)}
+                  style={{ marginBottom: "8px", textAlign: "center" }}
+                />
+              ) : (
+                <Title level={3} style={{ marginBottom: "8px" }}>
                   {userDetails.fullname}
                 </Title>
+              )}
+              <Text type="secondary" style={{ fontSize: "14px" }}>
+                @{userDetails.username}
+              </Text>
+            </div>
 
-                {/* edit user modal */}
-                <AddEditProUserModal
-                  edit={true}
-                  actionRef={userRef}
-                  data={userDetails}
-                  isProfile={true}
-                  userId={userDetails?._id}
+            <Divider style={{ margin: "20px 0" }} />
+
+            <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+              <div style={{ textAlign: "center" }}>
+                <Space size="small">
+                  <Tag 
+                    color={userDetails.status === "Active" ? "green" : "red"}
+                    style={{ fontSize: "13px", padding: "4px 12px", borderRadius: "6px" }}
+                  >
+                    {userDetails.status}
+                  </Tag>
+                  <Tag 
+                    color={primaryColor}
+                    style={{ fontSize: "13px", padding: "4px 12px", borderRadius: "6px" }}
+                  >
+                    {userDetails.role.role_type.toUpperCase()}
+                  </Tag>
+                </Space>
+              </div>
+
+              {isEditing ? (
+                <Space direction="vertical" size="small" style={{ width: "100%" }}>
+                  <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    onClick={handleSave}
+                    loading={isSaving}
+                    style={{ width: "100%" }}
+                  >
+                    Save Changes
+                  </Button>
+                  <Button
+                    onClick={handleCancel}
+                    style={{ width: "100%" }}
+                  >
+                    Cancel
+                  </Button>
+                </Space>
+              ) : (
+                <Button
+                  type="primary"
+                  icon={<EditOutlined />}
+                  onClick={handleEdit}
+                  style={{ width: "100%" }}
+                >
+                  Edit Profile
+                </Button>
+              )}
+            </Space>
+          </ProCard>
+        </Col>
+
+        {/* Details Cards - Right Column */}
+        <Col xs={24} lg={16} xl={18}>
+          <Row gutter={[16, 16]}>
+            {/* Contact Information Card */}
+            <Col xs={24} md={12}>
+              <ProCard
+                title={
+                  <Space>
+                    <MailOutlined style={{ color: primaryColor }} />
+                    <span>Contact Information</span>
+                  </Space>
+                }
+                style={{ 
+                  borderRadius: "12px",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                  height: "100%"
+                }}
+              >
+                <Space direction="vertical" size="large" style={{ width: "100%" }}>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: "12px", display: "block", marginBottom: "4px" }}>
+                      Email Address
+                    </Text>
+                    {isEditing ? (
+                      <Input
+                        value={editedFields.email}
+                        onChange={(e) => handleFieldChange("email", e.target.value)}
+                      />
+                    ) : (
+                      <Text strong style={{ fontSize: "14px" }}>
+                        {userDetails.email}
+                      </Text>
+                    )}
+                  </div>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: "12px", display: "block", marginBottom: "4px" }}>
+                      Phone Number
+                    </Text>
+                    {isEditing ? (
+                      <Input
+                        value={editedFields.phone}
+                        onChange={(e) => handleFieldChange("phone", e.target.value)}
+                      />
+                    ) : (
+                      <Text strong style={{ fontSize: "14px" }}>
+                        {userDetails.phone}
+                      </Text>
+                    )}
+                  </div>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: "12px", display: "block", marginBottom: "4px" }}>
+                      National ID
+                    </Text>
+                    {isEditing ? (
+                      <Input
+                        value={editedFields.idNumber}
+                        onChange={(e) => handleFieldChange("idNumber", e.target.value)}
+                      />
+                    ) : (
+                      <Text strong style={{ fontSize: "14px" }}>
+                        {userDetails.idNumber || "N/A"}
+                      </Text>
+                    )}
+                  </div>
+                </Space>
+              </ProCard>
+            </Col>
+
+            {/* Account Activity Card */}
+            <Col xs={24} md={12}>
+              <ProCard
+                title={
+                  <Space>
+                    <ClockCircleOutlined style={{ color: primaryColor }} />
+                    <span>Account Activity</span>
+                  </Space>
+                }
+                style={{ 
+                  borderRadius: "12px",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                  height: "100%"
+                }}
+              >
+                <Space direction="vertical" size="large" style={{ width: "100%" }}>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: "12px", display: "block", marginBottom: "4px" }}>
+                      Account Created
+                    </Text>
+                    <Text strong style={{ fontSize: "14px" }}>
+                      {new Date(userDetails.createdAt).toLocaleString()}
+                    </Text>
+                  </div>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: "12px", display: "block", marginBottom: "4px" }}>
+                      Last Modified
+                    </Text>
+                    <Text strong style={{ fontSize: "14px" }}>
+                      {new Date(userDetails.updatedAt).toLocaleString()}
+                    </Text>
+                  </div>
+                </Space>
+              </ProCard>
+            </Col>
+
+            {/* Security Card */}
+            <Col xs={24}>
+              <ProCard
+                title={
+                  <Space>
+                    <SafetyOutlined style={{ color: primaryColor }} />
+                    <span>Security</span>
+                  </Space>
+                }
+                style={{ 
+                  borderRadius: "12px",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)"
+                }}
+              >
+                <div>
+                  <Text type="secondary" style={{ fontSize: "12px", display: "block", marginBottom: "8px" }}>
+                    Security PIN
+                  </Text>
+                  {isEditing ? (
+                    <Input
+                      value={editedFields.pin}
+                      onChange={(e) => handleFieldChange("pin", e.target.value)}
+                      type={isEditPinVisible ? "text" : "password"}
+                      style={{ letterSpacing: "2px" }}
+                      suffix={
+                        <Button
+                          type="text"
+                          icon={isEditPinVisible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                          onClick={() => setIsEditPinVisible(!isEditPinVisible)}
+                          style={{ color: primaryColor }}
+                        />
+                      }
+                    />
+                  ) : (
+                    <Space>
+                      <Text strong style={{ fontSize: "16px", letterSpacing: "2px" }}>
+                        {pin}
+                      </Text>
+                      <Button
+                        type="text"
+                        icon={isPinVisible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                        onClick={togglePinVisibility}
+                        style={{ color: primaryColor }}
+                      />
+                    </Space>
+                  )}
+                </div>
+              </ProCard>
+            </Col>
+
+            {/* Authentication Settings */}
+            <Col xs={24}>
+              <ProCard
+                title={
+                  <Space>
+                    <LockOutlined style={{ color: primaryColor }} />
+                    <span>Authentication Settings</span>
+                  </Space>
+                }
+                style={{ 
+                  borderRadius: "12px",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)"
+                }}
+              >
+                <AuthenticationSettings 
+                  userId={id || ''} 
+                  userEmail={userDetails?.email}
+                  userData={userDetails}
+                  onAuthMethodChange={refetch}
                 />
-              </Space>
-              <Text
-                type="secondary"
-                style={{ marginBottom: 8 }}
-              >{`@${userDetails.username}`}</Text>
-              <Space>
-                <Tag color={userDetails.status === "Active" ? "green" : "red"}>
-                  {userDetails.status}
-                </Tag>
-                <Tag color={primaryColor}>
-                  {userDetails.role.role_type.toUpperCase()}
-                </Tag>
-              </Space>
-            </Space>
-          </Col>
-        </Row>
-
-        <Descriptions
-          bordered
-          column={{ xs: 1, sm: 2 }}
-          style={{ marginTop: "24px" }}
-          labelStyle={{ fontWeight: "bold" }}
-          size="small"
-        >
-          <Descriptions.Item
-            label={
-              <Space>
-                <MailOutlined /> Email Address
-              </Space>
-            }
-          >
-            {userDetails.email}
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <PhoneOutlined /> Phone Number
-              </Space>
-            }
-          >
-            {userDetails.phone}
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <IdcardOutlined /> National ID
-              </Space>
-            }
-          >
-            {userDetails.idNumber}
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <LockOutlined /> Security PIN
-              </Space>
-            }
-          >
-            <Space>
-              {pin}
-              <Button
-                type="text"
-                icon={isPinVisible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-                onClick={togglePinVisibility}
-                aria-label={isPinVisible ? "Hide PIN" : "Show PIN"}
-              />
-            </Space>
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <CalendarOutlined /> Account Created
-              </Space>
-            }
-          >
-            {new Date(userDetails.createdAt).toLocaleString()}
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <CalendarOutlined /> Last Modified
-              </Space>
-            }
-          >
-            {new Date(userDetails.updatedAt).toLocaleString()}
-          </Descriptions.Item>
-        </Descriptions>
-      </ProCard>
+              </ProCard>
+            </Col>
+          </Row>
+        </Col>
+      </Row>
     </PageContainer>
   );
 }

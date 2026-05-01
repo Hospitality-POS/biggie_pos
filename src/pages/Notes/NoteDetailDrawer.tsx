@@ -1,81 +1,41 @@
-import React, { useEffect, useState } from "react";
-import {
-    ProForm,
-    ProFormSelect,
-    ProFormDatePicker,
-    ProFormTextArea,
-    ProFormSwitch,
-} from "@ant-design/pro-components";
+import React, { useState } from "react";
 import {
     Drawer,
-    Button,
-    Space,
-    Select,
-    InputNumber,
-    Input,
-    Table,
     Typography,
     Row,
     Col,
     Divider,
-    Segmented,
     Tag,
-    Alert,
+    Table,
+    Space,
+    Badge,
+    Descriptions,
+    Button,
 } from "antd";
-import { PlusOutlined, DeleteOutlined, CheckCircleOutlined } from "@ant-design/icons";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-    createNote,
-    updateNote,
-    applyNote,
-    Note,
-    NoteType,
-    NoteDirection,
-    VatType,
-    CreateNoteParams,
-    UpdateNoteParams,
-} from "@services/accounting/notes";
-import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
-import { fetchAllCustomers } from "@services/customers";
-import { fetchAllSuppliers } from "@services/supplier";
-import { getAllInvoices } from "@services/accounting/invoice";
+import { EyeOutlined, EditOutlined, ArrowRightOutlined } from "@ant-design/icons";
+import { useQuery } from "@tanstack/react-query";
+import { getNoteById, Note } from "@services/accounting/notes";
+import NoteFormDrawer from "./NoteFormDrawer";
+import InvoiceDetailDrawer from "../OrderManagement/Invoices/InvoiceDetailDrawer";
+import BillDetailDrawer from "../OrderManagement/BillDetailDrawer";
+import dayjs, { Dayjs } from "dayjs";
 
-const { Text } = Typography;
-
-interface LineItem {
-    key: string;
-    description: string;
-    quantity: number;
-    unit_price: number;
-    discount: number;
-    vat_type: VatType;
-    account_id: string;
-}
+const { Text, Title } = Typography;
 
 interface Props {
     open: boolean;
     onClose: () => void;
+    noteId: string | null;
     onSuccess: () => void;
-    editingNote?: Note | null;
-    shopId: string;
-    noteType: NoteType;
+    onEdit?: (note: Note) => void;
+    onOpenInvoice?: (invoiceId: string) => void;
 }
 
-const emptyLine = (): LineItem => ({
-    key: crypto.randomUUID(),
-    description: "",
-    quantity: 1,
-    unit_price: 0,
-    discount: 0,
-    vat_type: "NONE",
-    account_id: "",
-});
-
-const calcLineTotal = (l: LineItem, vatMode: "INCLUSIVE" | "EXCLUSIVE") => {
-    const gross = l.quantity * l.unit_price;
-    const disc = gross * ((l.discount || 0) / 100);
+const calcLineTotal = (line: any, vatMode: "INCLUSIVE" | "EXCLUSIVE") => {
+    const gross = line.quantity * line.unit_price;
+    const disc = gross * ((line.discount || 0) / 100);
     const after = gross - disc;
-    const vatRate = l.vat_type === "STANDARD" ? 0.16 : 0;
+    const vatRate = line.vat_type === "STANDARD" ? 0.16 : 0;
     if (vatMode === "INCLUSIVE" && vatRate > 0) {
         const net = after / (1 + vatRate);
         return { net, vat: after - net, lineTotal: after, disc };
@@ -84,136 +44,116 @@ const calcLineTotal = (l: LineItem, vatMode: "INCLUSIVE" | "EXCLUSIVE") => {
     return { net: after, vat, lineTotal: after + vat, disc };
 };
 
-const NoteFormDrawer: React.FC<Props> = ({
-    open, onClose, onSuccess, editingNote, shopId, noteType,
+const NoteDetailDrawer: React.FC<Props> = ({
+    open, onClose, noteId, onSuccess, onEdit, onOpenInvoice,
 }) => {
-    const [form] = ProForm.useForm();
-    const queryClient = useQueryClient();
-    const isEdit = !!editingNote;
-    const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
-    const [direction, setDirection] = useState<NoteDirection>("customer");
-    const [vatMode, setVatMode] = useState<"INCLUSIVE" | "EXCLUSIVE">("EXCLUSIVE");
-    const [applyNow, setApplyNow] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-    const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-    const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
-    const [customerSearch, setCustomerSearch] = useState("");
-    const [supplierSearch, setSupplierSearch] = useState("");
+    const [billDetailOpen, setBillDetailOpen] = useState(false);
+    const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
 
-    const isCredit = noteType === "CREDIT_NOTE";
-
-    const { data: accountsData } = useQuery({
-        queryKey: ["accounts-posting", shopId],
-        queryFn: () => getAllAccounts({ is_active: true }),
+    const { data: noteData, isLoading, error } = useQuery<{ note: Note }>({
+        queryKey: ["note", noteId],
+        queryFn: () => getNoteById(noteId!),
+        enabled: !!noteId,
     });
-    const accounts: ChartOfAccount[] = accountsData?.accounts || [];
 
-    const { data: customersRaw, isFetching: customersFetching } = useQuery({
-        queryKey: ["customers-select", customerSearch],
-        queryFn: () => fetchAllCustomers({ shop_id: shopId, customer_name: customerSearch }),
-        enabled: open && direction === "customer",
-        select: (res: any) => Array.isArray(res) ? res : (res?.customers || res?.data || []),
-        staleTime: 30_000,
-    });
-    const customers = customersRaw || [];
+    const note = noteData?.note;
 
-    const { data: suppliersRaw, isFetching: suppliersFetching } = useQuery({
-        queryKey: ["suppliers-select", supplierSearch],
-        queryFn: () => fetchAllSuppliers({ name: supplierSearch }),
-        enabled: open && direction === "supplier",
-        select: (res: any) => Array.isArray(res) ? res : (res?.suppliers || res?.data || []),
-        staleTime: 30_000,
-    });
-    const suppliers = suppliersRaw || [];
+    const handleOpenBill = (billId: string) => {
+        setSelectedBillId(billId);
+        setBillDetailOpen(true);
+    };
 
-    const { data: customerInvoicesRaw } = useQuery({
-        queryKey: ["invoices-for-customer", selectedCustomerId],
-        queryFn: () => getAllInvoices({ direction: "customer", customer_id: selectedCustomerId }),
-        enabled: !!selectedCustomerId,
-        select: (res: any) => res?.invoices || [],
-    });
-    const customerInvoices = customerInvoicesRaw || [];
+    const handleCloseBill = () => {
+        setBillDetailOpen(false);
+        setSelectedBillId(null);
+    };
 
-    const { data: supplierInvoicesRaw } = useQuery({
-        queryKey: ["invoices-for-supplier", selectedSupplierId],
-        queryFn: () => getAllInvoices({ direction: "supplier", supplier_id: selectedSupplierId }),
-        enabled: !!selectedSupplierId,
-        select: (res: any) => res?.invoices || [],
-    });
-    const supplierInvoices = supplierInvoicesRaw || [];
+    const isCredit = note?.note_type === "CREDIT_NOTE";
 
-    const invoiceOptions = direction === "customer"
-        ? customerInvoices.map((inv: any) => ({
-            label: `${inv.invoice_no || inv.order_no} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
-            value: inv.invoice_no || inv.order_no,
-        }))
-        : supplierInvoices.map((inv: any) => ({
-            label: `${inv.invoice_no || inv.order_no} — ${inv.counterparty_name || "Supplier"} — KES ${inv.grand_total?.toLocaleString("en-KE", { minimumFractionDigits: 2 })}`,
-            value: inv.invoice_no || inv.order_no,
-        }));
+    const lineColumns = [
+        {
+            title: "Description",
+            dataIndex: "description",
+            key: "description",
+            render: (text: string) => <Text>{text}</Text>,
+        },
+        {
+            title: "Quantity",
+            dataIndex: "quantity",
+            key: "quantity",
+            width: 100,
+            align: "right" as const,
+            render: (value: number) => value.toLocaleString("en-KE", { minimumFractionDigits: 2 }),
+        },
+        {
+            title: "Unit Price",
+            dataIndex: "unit_price",
+            key: "unit_price",
+            width: 120,
+            align: "right" as const,
+            render: (value: number) => (
+                <Text>KES {value.toLocaleString("en-KE", { minimumFractionDigits: 2 })}</Text>
+            ),
+        },
+        {
+            title: "Discount %",
+            dataIndex: "discount",
+            key: "discount",
+            width: 100,
+            align: "right" as const,
+            render: (value: number) => value ? `${value}%` : "—",
+        },
+        {
+            title: "VAT",
+            dataIndex: "vat_type",
+            key: "vat_type",
+            width: 80,
+            render: (type: string) => {
+                const vatLabels: Record<string, string> = {
+                    NONE: "None",
+                    STANDARD: "16%",
+                    ZERO: "Zero",
+                    EXEMPT: "Exempt",
+                    OUT_OF_SCOPE: "Out of Scope",
+                };
+                return <Text>{vatLabels[type] || type}</Text>;
+            },
+        },
+        {
+            title: "Line Total",
+            key: "total",
+            width: 120,
+            align: "right" as const,
+            render: (_: any, record: any) => {
+                const { lineTotal } = calcLineTotal(record, note?.vat_pricing_mode || "EXCLUSIVE");
+                return (
+                    <Text strong>
+                        KES {lineTotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                    </Text>
+                );
+            },
+        },
+    ];
 
-    useEffect(() => {
-        if (!open) return;
-        if (isEdit && editingNote) {
-            const dir = editingNote.direction;
-            setDirection(dir);
-            setVatMode(editingNote.vat_pricing_mode || "EXCLUSIVE");
-            setApplyNow(false); // Can't change application on edit
+    if (isLoading || !note) {
+        return (
+            <Drawer
+                title="Loading..."
+                open={open}
+                onClose={onClose}
+                width={800}
+                destroyOnClose
+            >
+                <div style={{ textAlign: 'center', padding: '50px' }}>
+                    Loading note details...
+                </div>
+            </Drawer>
+        );
+    }
 
-            const custId = typeof editingNote.customer_id === "object"
-                ? (editingNote.customer_id as any)?._id
-                : editingNote.customer_id;
-            const suppId = typeof editingNote.supplier_id === "object"
-                ? (editingNote.supplier_id as any)?._id
-                : editingNote.supplier_id;
-
-            setSelectedCustomerId(custId || null);
-            setSelectedSupplierId(suppId || null);
-
-            form.setFieldsValue({
-                direction: dir,
-                reason: editingNote.reason,
-                notes: editingNote.notes,
-                internal_notes: editingNote.internal_notes,
-                issue_date: editingNote.issue_date,
-                expiry_date: editingNote.expiry_date,
-                original_invoice_no: editingNote.original_invoice_no,
-                customer_id: custId,
-                supplier_id: suppId,
-            });
-            setLines(
-                editingNote.lines.map((l) => ({
-                    key: crypto.randomUUID(),
-                    description: l.description,
-                    quantity: l.quantity,
-                    unit_price: l.unit_price,
-                    discount: l.discount || 0,
-                    vat_type: l.vat_type || "NONE",
-                    account_id: typeof l.account_id === "object"
-                        ? (l.account_id as any)?._id
-                        : (l.account_id as string),
-                }))
-            );
-        } else {
-            form.resetFields();
-            setLines([emptyLine()]);
-            setDirection("customer");
-            setVatMode("EXCLUSIVE");
-            setApplyNow(false);
-            setSelectedCustomerId(null);
-            setSelectedSupplierId(null);
-        }
-    }, [open, editingNote, isEdit, form]);
-
-    const addLine = () => setLines((p) => [...p, emptyLine()]);
-    const removeLine = (key: string) =>
-        setLines((p) => p.length > 1 ? p.filter((l) => l.key !== key) : p);
-    const updateLine = (key: string, field: keyof LineItem, value: any) =>
-        setLines((p) => p.map((l) => l.key === key ? { ...l, [field]: value } : l));
-
-    const totals = lines.reduce(
-        (acc, l) => {
-            const c = calcLineTotal(l, vatMode);
+    const totals = (note.lines || []).reduce(
+        (acc, line) => {
+            const c = calcLineTotal(line, note.vat_pricing_mode || "EXCLUSIVE");
             return {
                 subtotal: acc.subtotal + c.net,
                 totalVat: acc.totalVat + c.vat,
@@ -224,438 +164,199 @@ const NoteFormDrawer: React.FC<Props> = ({
         { subtotal: 0, totalVat: 0, grandTotal: 0, totalDisc: 0 }
     );
 
-    const handleSubmit = async (values: any) => {
-        const validLines = lines.filter((l) => l.description && l.account_id && l.unit_price > 0);
-        if (!validLines.length) {
-            return;
-        }
-        setSubmitting(true);
-        try {
-            const linePayload = validLines.map((l) => ({
-                description: l.description,
-                quantity: l.quantity,
-                unit_price: l.unit_price,
-                discount: l.discount || undefined,
-                vat_type: l.vat_type,
-                account_id: l.account_id,
-            }));
-
-            let createdNote: Note | null = null;
-
-            if (isEdit && editingNote) {
-                // Editing a draft note - cannot apply immediately
-                await updateNote(editingNote._id, {
-                    reason: values.reason,
-                    notes: values.notes,
-                    internal_notes: values.internal_notes,
-                    issue_date: values.issue_date,
-                    expiry_date: values.expiry_date,
-                    vat_pricing_mode: vatMode,
-                    original_invoice_no: values.original_invoice_no,
-                    lines: linePayload,
-                } as UpdateNoteParams);
-            } else {
-                // Create new note with option to apply immediately
-                const createPayload: CreateNoteParams = {
-                    shop_id: shopId,
-                    note_type: noteType,
-                    direction: values.direction,
-                    reason: values.reason,
-                    notes: values.notes,
-                    internal_notes: values.internal_notes,
-                    issue_date: values.issue_date,
-                    expiry_date: values.expiry_date,
-                    vat_pricing_mode: vatMode,
-                    original_invoice_no: values.original_invoice_no,
-                    customer_id: direction === "customer" ? values.customer_id : undefined,
-                    supplier_id: direction === "supplier" ? values.supplier_id : undefined,
-                    lines: linePayload,
-                    status: applyNow ? "Applied" : "Draft",
-                    apply_now: applyNow,
-                } as CreateNoteParams;
-
-                createdNote = await createNote(createPayload);
-            }
-
-            // Invalidate queries to refresh data
-            queryClient.invalidateQueries({ queryKey: ["notes"] });
-            if (applyNow || isEdit) {
-                queryClient.invalidateQueries({ queryKey: ["invoices"] });
-            }
-
-            onSuccess();
-            onClose();
-        } catch (error: any) {
-            console.error("Submit error:", error);
-            // Error is already handled by the mutation/API
-        } finally {
-            setSubmitting(false);
-        }
+    const getStatusBadge = (status: string) => {
+        const statusConfig: Record<string, { status: "success" | "processing" | "warning" | "error"; text: string }> = {
+            Draft: { status: "warning", text: "Draft" },
+            Approved: { status: "processing", text: "Approved" },
+            Applied: { status: "success", text: "Applied" },
+            Voided: { status: "error", text: "Voided" },
+        };
+        const config = statusConfig[status] || statusConfig.Draft;
+        return <Badge status={config.status as any} text={config.text} />;
     };
 
-    const accountOptions = accounts
-        .filter((a) => a.allows_direct_posting !== false && a.is_active)
-        .map((a) => ({ label: `${a.account_code} — ${a.account_name}`, value: a._id }));
-
-    const lineColumns = [
-        {
-            title: "Description", key: "description",
-            render: (_: any, r: LineItem) => (
-                <Input placeholder="Item description" value={r.description} size="small"
-                    onChange={(e) => updateLine(r.key, "description", e.target.value)} />
-            ),
-        },
-        {
-            title: "Qty", key: "quantity", width: 70,
-            render: (_: any, r: LineItem) => (
-                <InputNumber min={0.01} precision={2} value={r.quantity} size="small"
-                    onChange={(v) => updateLine(r.key, "quantity", v || 1)}
-                    style={{ width: "100%" }} />
-            ),
-        },
-        {
-            title: "Unit Price", key: "unit_price", width: 110,
-            render: (_: any, r: LineItem) => (
-                <InputNumber min={0} precision={2} value={r.unit_price} size="small"
-                    onChange={(v) => updateLine(r.key, "unit_price", v || 0)}
-                    style={{ width: "100%" }} />
-            ),
-        },
-        {
-            title: "Disc %", key: "discount", width: 72,
-            render: (_: any, r: LineItem) => (
-                <InputNumber min={0} max={100} precision={1} value={r.discount} size="small"
-                    onChange={(v) => updateLine(r.key, "discount", v || 0)}
-                    style={{ width: "100%" }} />
-            ),
-        },
-        {
-            title: "VAT", key: "vat_type", width: 95,
-            render: (_: any, r: LineItem) => (
-                <Select size="small" value={r.vat_type} style={{ width: "100%" }}
-                    onChange={(v) => updateLine(r.key, "vat_type", v)}
-                    options={[
-                        { label: "None", value: "NONE" },
-                        { label: "16%", value: "STANDARD" },
-                        { label: "Zero", value: "ZERO" },
-                        { label: "Exempt", value: "EXEMPT" },
-                    ]}
-                />
-            ),
-        },
-        {
-            title: "Account", key: "account_id", width: 200,
-            render: (_: any, r: LineItem) => (
-                <Select showSearch size="small" placeholder="Account…"
-                    value={r.account_id || undefined} style={{ width: "100%" }}
-                    onChange={(v) => updateLine(r.key, "account_id", v)}
-                    optionFilterProp="label" options={accountOptions}
-                />
-            ),
-        },
-        {
-            title: "Line Total", key: "total", width: 105, align: "right" as const,
-            render: (_: any, r: LineItem) => {
-                const { lineTotal } = calcLineTotal(r, vatMode);
-                return (
-                    <Text style={{ fontSize: 12 }}>
-                        {lineTotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                    </Text>
-                );
-            },
-        },
-        {
-            title: "", key: "remove", width: 36,
-            render: (_: any, r: LineItem) => (
-                <Button icon={<DeleteOutlined />} size="small" danger type="text"
-                    onClick={() => removeLine(r.key)} disabled={lines.length <= 1} />
-            ),
-        },
-    ];
-
-    const drawerTitle = isEdit
-        ? `Edit ${isCredit ? "Credit" : "Debit"} Note — ${editingNote?.note_no}`
-        : `Create ${isCredit ? "Credit" : "Debit"} Note`;
-
-    const canApplyNow = !isEdit && direction &&
-        ((direction === "customer" && selectedCustomerId) ||
-            (direction === "supplier" && selectedSupplierId)) &&
-        totals.grandTotal > 0;
-
     return (
-        <Drawer
+        <>
+            <Drawer
             title={
                 <Space>
-                    {drawerTitle}
+                    <Title level={4} style={{ margin: 0 }}>
+                        {note.note_no}
+                    </Title>
                     <Tag color={isCredit ? "green" : "orange"}>
                         {isCredit ? "Credit Note" : "Debit Note"}
                     </Tag>
+                    {getStatusBadge(note.status)}
                 </Space>
             }
             open={open}
             onClose={onClose}
-            width={920}
+            width={800}
             destroyOnClose
-            footer={null}
+            extra={
+                note.status === "Draft" && onEdit && (
+                    <Button
+                        type="primary"
+                        icon={<EditOutlined />}
+                        onClick={() => onEdit(note)}
+                    >
+                        Edit
+                    </Button>
+                )
+            }
         >
-            {!isEdit && applyNow && (
-                <Alert
-                    message="This note will be applied immediately upon creation"
-                    description="Journal entries will be created and the linked invoice will be updated. This action cannot be undone."
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                />
-            )}
-
-            <ProForm
-                form={form}
-                onFinish={handleSubmit}
-                submitter={{
-                    searchConfig: {
-                        submitText: isEdit ? "Save Changes" : (applyNow ? "Create & Apply" : `Create ${isCredit ? "Credit" : "Debit"} Note`),
-                        resetText: "Cancel",
-                    },
-                    onReset: onClose,
-                    submitButtonProps: { loading: submitting },
-                }}
-                layout="vertical"
-            >
-                {/* ── Header ── */}
-                <Row gutter={12}>
-                    <Col span={8}>
-                        <ProFormSelect
-                            name="direction"
-                            label="Direction"
-                            disabled={isEdit}
-                            initialValue="customer"
-                            rules={[{ required: true, message: "Required" }]}
-                            options={[
-                                { label: "Customer", value: "customer" },
-                                { label: "Supplier", value: "supplier" },
-                            ]}
-                            fieldProps={{
-                                onChange: (v: NoteDirection) => {
-                                    setDirection(v);
-                                    setSelectedCustomerId(null);
-                                    setSelectedSupplierId(null);
-                                    setApplyNow(false);
-                                    form.setFieldsValue({
-                                        customer_id: undefined,
-                                        supplier_id: undefined,
-                                        original_invoice_no: undefined,
-                                    });
-                                },
-                            }}
-                        />
-                    </Col>
-                    <Col span={8}>
-                        <ProFormDatePicker
-                            name="issue_date"
-                            label="Issue Date"
-                            fieldProps={{ style: { width: "100%" } }}
-                        />
-                    </Col>
-                    <Col span={8}>
-                        <ProFormDatePicker
-                            name="expiry_date"
-                            label="Expiry Date"
-                            fieldProps={{ style: { width: "100%" } }}
-                        />
-                    </Col>
-                </Row>
-
-                {/* ── Contact + Invoice ── */}
-                <Row gutter={12}>
-                    {direction === "customer" && (
-                        <Col span={12}>
-                            <ProFormSelect
-                                name="customer_id"
-                                label="Customer"
-                                showSearch
-                                placeholder="Search customer…"
-                                rules={[{ required: true, message: "Customer is required" }]}
-                                fieldProps={{
-                                    filterOption: false,
-                                    onSearch: setCustomerSearch,
-                                    loading: customersFetching,
-                                    allowClear: true,
-                                    onChange: (val: string) => {
-                                        setSelectedCustomerId(val || null);
-                                        setApplyNow(false);
-                                        form.setFieldValue("original_invoice_no", undefined);
-                                    },
-                                    notFoundContent: customersFetching ? "Searching..." : "No customers found",
-                                }}
-                                options={customers.map((c: any) => ({
-                                    label: `${c.customer_name}${c.customer_phone ? ` — ${c.customer_phone}` : ""}`,
-                                    value: c._id,
-                                }))}
-                            />
-                        </Col>
-                    )}
-
-                    {direction === "supplier" && (
-                        <Col span={12}>
-                            <ProFormSelect
-                                name="supplier_id"
-                                label="Supplier"
-                                showSearch
-                                placeholder="Search supplier…"
-                                rules={[{ required: true, message: "Supplier is required" }]}
-                                fieldProps={{
-                                    filterOption: false,
-                                    onSearch: setSupplierSearch,
-                                    loading: suppliersFetching,
-                                    allowClear: true,
-                                    onChange: (val: string) => {
-                                        setSelectedSupplierId(val || null);
-                                        setApplyNow(false);
-                                        form.setFieldValue("original_invoice_no", undefined);
-                                    },
-                                    notFoundContent: suppliersFetching ? "Searching..." : "No suppliers found",
-                                }}
-                                options={suppliers.map((s: any) => ({
-                                    label: `${s.name}${s.phone ? ` — ${s.phone}` : ""}`,
-                                    value: s._id,
-                                }))}
-                            />
-                        </Col>
-                    )}
-
-                    <Col span={12}>
-                        <ProFormSelect
-                            name="original_invoice_no"
-                            label="Original Invoice / Reference No."
-                            placeholder={
-                                direction === "customer" && !selectedCustomerId
-                                    ? "Select a customer first"
-                                    : direction === "supplier" && !selectedSupplierId
-                                        ? "Select a supplier first"
-                                        : "Select invoice…"
-                            }
-                            rules={[{ required: true, message: "Invoice reference is required" }]}
-                            fieldProps={{
-                                disabled:
-                                    (direction === "customer" && !selectedCustomerId) ||
-                                    (direction === "supplier" && !selectedSupplierId),
-                                optionFilterProp: "label",
-                                allowClear: true,
-                                onChange: () => setApplyNow(false),
-                            }}
-                            options={invoiceOptions}
-                        />
-                    </Col>
-                </Row>
-
-                <ProFormTextArea
-                    name="reason"
-                    label="Reason"
-                    placeholder="Reason for this note (required)"
-                    rules={[{ required: true, message: "Required" }]}
-                    fieldProps={{ rows: 2 }}
-                />
-
-                <Row gutter={12}>
-                    <Col span={12}>
-                        <ProFormTextArea
-                            name="notes"
-                            label="Notes (visible to customer/supplier)"
-                            fieldProps={{ rows: 2 }}
-                        />
-                    </Col>
-                    <Col span={12}>
-                        <ProFormTextArea
-                            name="internal_notes"
-                            label="Internal Notes"
-                            fieldProps={{ rows: 2 }}
-                        />
-                    </Col>
-                </Row>
-
-                {/* ── Apply Now Option (only for new notes) ── */}
-                {!isEdit && (
-                    <Row gutter={12} style={{ marginTop: 8, marginBottom: 8 }}>
-                        <Col span={24}>
-                            <ProFormSwitch
-                                name="apply_now"
-                                label="Apply immediately"
-                                checkedChildren="Will be applied"
-                                unCheckedChildren="Save as Draft"
-                                fieldProps={{
-                                    checked: applyNow,
-                                    onChange: (checked) => setApplyNow(checked),
-                                    disabled: !canApplyNow,
-                                }}
-                                extra={
-                                    !canApplyNow && !applyNow
-                                        ? "Select a contact, invoice, and add valid line items to enable immediate application"
-                                        : "Journal entries will be created and invoice will be updated"
-                                }
-                            />
-                        </Col>
-                    </Row>
+            <Descriptions column={2} bordered size="small">
+                <Descriptions.Item label="Direction">
+                    <Tag color={note.direction === "customer" ? "blue" : "purple"}>
+                        {note.direction === "customer" ? "CUSTOMER" : "SUPPLIER"}
+                    </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Issue Date">
+                    {dayjs(note.issue_date).format("DD MMM YYYY")}
+                </Descriptions.Item>
+                {note.expiry_date && (
+                    <Descriptions.Item label="Expiry Date">
+                        {dayjs(note.expiry_date).format("DD MMM YYYY")}
+                    </Descriptions.Item>
                 )}
+                <Descriptions.Item label="Original Invoice">
+                    {note.direction === "customer" && note.original_invoice_no ? (
+                        onOpenInvoice ? (
+                            <Button 
+                                type="link" 
+                                size="small"
+                                icon={<ArrowRightOutlined />}
+                                onClick={() => {
+                                const invoiceId = typeof note.original_invoice_id === 'object' 
+                                    ? note.original_invoice_id._id 
+                                    : note.original_invoice_no;
+                                if (invoiceId) onOpenInvoice(invoiceId);
+                            }}
+                                style={{ padding: 0, height: 'auto' }}
+                            >
+                                <Text code>{note.original_invoice_no}</Text>
+                            </Button>
+                        ) : (
+                            <Text code>{note.original_invoice_no}</Text>
+                        )
+                    ) : note.direction === "supplier" && note.original_bill_id?.bill_no ? (
+                        <Button 
+                            type="link" 
+                            size="small"
+                            icon={<ArrowRightOutlined />}
+                            onClick={() => {
+                                if (note.original_bill_id?._id) {
+                                    handleOpenBill(note.original_bill_id._id);
+                                }
+                            }}
+                            style={{ padding: 0, height: 'auto' }}
+                        >
+                            <Text code>{note.original_bill_id.bill_no}</Text>
+                        </Button>
+                    ) : (
+                        <Text type="secondary">-</Text>
+                    )}
+                </Descriptions.Item>
+                <Descriptions.Item label="Contact">
+                    {note.direction === "customer" && note.customer_id ? (
+                        typeof note.customer_id === "object"
+                            ? (note.customer_id as any)?.customer_name || (note.customer_id as any)?.name
+                            : note.customer_id
+                    ) : note.direction === "supplier" && note.supplier_id ? (
+                        typeof note.supplier_id === "object"
+                            ? (note.supplier_id as any)?.supplier_name || (note.supplier_id as any)?.name
+                            : note.supplier_id
+                    ) : (
+                        "—"
+                    )}
+                </Descriptions.Item>
+                <Descriptions.Item label="Reason" span={2}>
+                    {note.reason}
+                </Descriptions.Item>
+                {note.notes && (
+                    <Descriptions.Item label="Notes" span={2}>
+                        {note.notes}
+                    </Descriptions.Item>
+                )}
+                {note.internal_notes && (
+                    <Descriptions.Item label="Internal Notes" span={2}>
+                        {note.internal_notes}
+                    </Descriptions.Item>
+                )}
+            </Descriptions>
 
-                {/* ── VAT Mode + Lines ── */}
-                <Divider orientation="left" plain>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Lines</Text>
-                </Divider>
+            <Divider orientation="left">Line Items</Divider>
 
-                <Space style={{ marginBottom: 12 }} align="center">
-                    <Text type="secondary" style={{ fontSize: 12 }}>VAT pricing:</Text>
-                    <Segmented
-                        size="small"
-                        value={vatMode}
-                        onChange={(v) => setVatMode(v as "INCLUSIVE" | "EXCLUSIVE")}
-                        options={[
-                            { label: "Tax Exclusive", value: "EXCLUSIVE" },
-                            { label: "Tax Inclusive", value: "INCLUSIVE" },
-                        ]}
-                    />
-                </Space>
-
-                <Table
-                    rowKey="key"
-                    dataSource={lines}
-                    columns={lineColumns}
-                    pagination={false}
-                    size="small"
-                    scroll={{ x: 800 }}
-                    summary={() => (
-                        <Table.Summary fixed>
+            <Table
+                dataSource={note.lines || []}
+                columns={lineColumns}
+                pagination={false}
+                size="small"
+                scroll={{ x: 600 }}
+                summary={() => (
+                    <Table.Summary fixed>
+                        <Table.Summary.Row>
+                            <Table.Summary.Cell index={0} colSpan={4}>
+                                <Space direction="vertical" size={0}>
+                                    {totals.totalDisc > 0 && (
+                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                            Discount: -KES {totals.totalDisc.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                        </Text>
+                                    )}
+                                    <Text strong>Subtotal:</Text>
+                                </Space>
+                            </Table.Summary.Cell>
+                            <Table.Summary.Cell index={4} />
+                            <Table.Summary.Cell index={5} align="right">
+                                <Text strong>
+                                    KES {totals.subtotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                </Text>
+                            </Table.Summary.Cell>
+                        </Table.Summary.Row>
+                        {totals.totalVat > 0 && (
                             <Table.Summary.Row>
                                 <Table.Summary.Cell index={0} colSpan={5}>
-                                    <Button type="dashed" icon={<PlusOutlined />} size="small" onClick={addLine}>
-                                        Add Line
-                                    </Button>
+                                    <Text style={{ color: "#1890ff" }}>VAT:</Text>
                                 </Table.Summary.Cell>
-                                <Table.Summary.Cell index={5} />
-                                <Table.Summary.Cell index={6} align="right">
-                                    <Space direction="vertical" size={2} style={{ textAlign: "right" }}>
-                                        {totals.totalDisc > 0 && (
-                                            <Text type="secondary" style={{ fontSize: 11 }}>
-                                                Disc: -{totals.totalDisc.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                                            </Text>
-                                        )}
-                                        {totals.totalVat > 0 && (
-                                            <Text style={{ fontSize: 11, color: "#1890ff" }}>
-                                                VAT: {totals.totalVat.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                                            </Text>
-                                        )}
-                                        <Text strong style={{ fontSize: 13 }}>
-                                            KES {totals.grandTotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
-                                        </Text>
-                                    </Space>
+                                <Table.Summary.Cell index={5} align="right">
+                                    <Text style={{ color: "#1890ff" }}>
+                                        KES {totals.totalVat.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                    </Text>
                                 </Table.Summary.Cell>
-                                <Table.Summary.Cell index={7} />
                             </Table.Summary.Row>
-                        </Table.Summary>
-                    )}
-                />
-            </ProForm>
+                        )}
+                        <Table.Summary.Row>
+                            <Table.Summary.Cell index={0} colSpan={5}>
+                                <Title level={5} style={{ margin: 0, color: isCredit ? "#389e0d" : "#cf1322" }}>
+                                    Grand Total:
+                                </Title>
+                            </Table.Summary.Cell>
+                            <Table.Summary.Cell index={5} align="right">
+                                <Title level={5} style={{ margin: 0, color: isCredit ? "#389e0d" : "#cf1322" }}>
+                                    KES {totals.grandTotal.toLocaleString("en-KE", { minimumFractionDigits: 2 })}
+                                </Title>
+                            </Table.Summary.Cell>
+                        </Table.Summary.Row>
+                    </Table.Summary>
+                )}
+            />
         </Drawer>
+        <BillDetailDrawer
+            open={billDetailOpen}
+            onClose={handleCloseBill}
+            billId={selectedBillId}
+            onOpenNote={(clickedNoteId) => {
+                // Handle opening note from bill detail
+                // If it's the same note, don't do anything
+                if (clickedNoteId === noteId) return;
+                
+                // Open the note in a new drawer or navigate to it
+                // For now, we'll just log it since we're already in a note drawer
+                console.log('Open note from bill:', clickedNoteId);
+            }}
+        />
+        </>
     );
 };
 
-export default NoteFormDrawer;
+export default NoteDetailDrawer;

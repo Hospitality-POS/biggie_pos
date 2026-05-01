@@ -1,9 +1,9 @@
 // ShopManagementTable.tsx
 import React, { useRef, useMemo, useEffect, useState, useCallback } from "react";
-import { ActionType, ProTable } from "@ant-design/pro-components";
+import { ActionType, ProTable, ProCard } from "@ant-design/pro-components";
 import {
   Tooltip, Button, Space, Popconfirm, message, Tag,
-  Typography, Card, Skeleton, Empty, Tabs, Row, Col,
+  Typography, Card, Skeleton, Empty, Tabs,
 } from "antd";
 import {
   DeleteOutlined, ShopOutlined, ArrowRightOutlined,
@@ -13,8 +13,8 @@ import {
 } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import {
-  deleteShop, fetchAllShops, locationDisplay,
-  GOOGLE_MAPS_API_KEY, ShopLocation,
+  deleteShop, fetchAllShops,
+  GOOGLE_MAPS_API_KEY,
 } from "@services/shops";
 import AddEditShopModal from "@components/MODALS/pro/AddEditShopModal";
 import { useNavigate } from "react-router-dom";
@@ -120,13 +120,14 @@ const buildInfoHtml = (shop: any): string => {
   const modeHtml = shop.pos_mode
     ? `<div style="display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${cfg.bg};color:${cfg.color};margin-bottom:6px">${cfg.label}</div>`
     : "";
+  const address = getLocationDisplay(shop.location);
   return `
     <div style="padding:8px 4px;min-width:190px;font-family:system-ui,sans-serif">
       <div style="font-weight:700;font-size:13px;color:#0f172a;margin-bottom:3px">${shop.name}</div>
-      <div style="font-size:11px;color:#64748b;line-height:1.4;margin-bottom:4px">${getLocationDisplay(shop.location)}</div>
+      <div style="font-size:11px;color:#64748b;line-height:1.4;margin-bottom:4px">${address}</div>
       ${shop.location?.city ? `<div style="font-size:10px;color:#94a3b8;margin-bottom:4px">${[shop.location.city, shop.location.country].filter(Boolean).join(", ")}</div>` : ""}
       ${modeHtml}
-      ${shop.location?.maps_url ? `<a href="${shop.location.maps_url}" target="_blank" style="font-size:11px;color:#3b82f6;text-decoration:none;display:block">Open in Maps ↗</a>` : ""}
+      ${address ? `<button onclick="navigator.clipboard.writeText('${address.replace(/'/g, "\\'")}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Address',1500)" style="font-size:11px;color:#3b82f6;background:none;border:none;padding:0;cursor:pointer;text-decoration:underline">Copy Address</button>` : ""}
     </div>
   `;
 };
@@ -138,7 +139,7 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
   const markersRef = useRef<any[]>([]);
   const infoWinRef = useRef<any>(null);
   const shopsRef = useRef<any[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [sdkLoaded, setSdkLoaded] = useState(false);
 
   const located = shops.filter(s => s.location && getLocationDisplay(s.location));
   const withCoords = located.filter(s => hasCoords(s.location));
@@ -146,9 +147,42 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
 
   const shopKey = withCoords.map(s => s._id).join(",");
 
+  // Load Google Maps SDK
+  useEffect(() => {
+    const loadGoogleMaps = () => {
+      if ((window as any).google?.maps) {
+        setSdkLoaded(true);
+        return;
+      }
+      if (document.getElementById("gmap-script")) {
+        const check = setInterval(() => {
+          if ((window as any).google?.maps) {
+            clearInterval(check);
+            setSdkLoaded(true);
+          }
+        }, 100);
+        return;
+      }
+      const key = GOOGLE_MAPS_API_KEY;
+      if (!key) {
+        setSdkLoaded(false);
+        return;
+      }
+      const script = document.createElement("script");
+      script.id = "gmap-script";
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => setSdkLoaded(true);
+      script.onerror = () => setSdkLoaded(false);
+      document.head.appendChild(script);
+    };
+    loadGoogleMaps();
+  }, []);
+
   useEffect(() => {
     const g = (window as any).google?.maps;
-    if (!g || !mapRef.current || withCoords.length === 0) return;
+    if (!g || !mapRef.current || withCoords.length === 0 || !sdkLoaded) return;
 
     if (!mapObjRef.current) {
       mapObjRef.current = new g.Map(mapRef.current, {
@@ -165,21 +199,31 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
     markersRef.current = [];
 
     withCoords.forEach((shop, idx) => {
+      const cfg = POS_MODE_CONFIG[shop.pos_mode] ?? POS_MODE_CONFIG.restaurant;
       const marker = new g.Marker({
         position: { lat: shop.location.lat, lng: shop.location.lng },
         map: mapObjRef.current,
         title: shop.name,
-        label: { text: String(idx + 1), color: "#fff", fontSize: "11px", fontWeight: "700" },
+        label: { 
+          text: String(idx + 1), 
+          color: "#fff", 
+          fontSize: "12px", 
+          fontWeight: "700",
+          className: "map-marker-label"
+        },
         icon: {
           path: g.SymbolPath.CIRCLE,
-          scale: 14, fillColor: "#6c1c2c", fillOpacity: 1,
-          strokeColor: "#fff", strokeWeight: 2,
+          scale: 18, 
+          fillColor: cfg.color, 
+          fillOpacity: 1,
+          strokeColor: "#fff", 
+          strokeWeight: 3,
         },
+        animation: g.Animation.DROP,
       });
 
       marker.addListener("click", () => {
         openInfo(g, shop, marker);
-        setActiveId(shop._id);
       });
 
       markersRef.current.push(marker);
@@ -194,7 +238,7 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
       mapObjRef.current.setZoom(15);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shopKey]);
+  }, [shopKey, sdkLoaded]);
 
   const openInfo = (g: any, shop: any, marker: any) => {
     if (!infoWinRef.current || !mapObjRef.current) return;
@@ -202,19 +246,6 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
     infoWinRef.current.open(mapObjRef.current, marker);
   };
 
-  const handleCardSelect = useCallback((id: string) => {
-    setActiveId(id);
-    const g = (window as any).google?.maps;
-    if (!g || !mapObjRef.current) return;
-    const idx = shopsRef.current.findIndex(s => s._id === id);
-    if (idx === -1) return;
-    const shop = shopsRef.current[idx];
-    const marker = markersRef.current[idx];
-    if (!marker) return;
-    mapObjRef.current.panTo({ lat: shop.location.lat, lng: shop.location.lng });
-    mapObjRef.current.setZoom(16);
-    openInfo(g, shop, marker);
-  }, []);
 
   if (!located.length) {
     return (
@@ -234,89 +265,21 @@ const MapView: React.FC<{ shops: any[]; height?: number }> = ({ shops, height = 
       ? `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${q}`
       : `https://maps.google.com/maps?q=${q}&output=embed`;
     return (
-      <div>
-        <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0", marginBottom: 14 }}>
-          <iframe title="shops-map" width="100%" height={height}
-            style={{ border: 0, display: "block" }} loading="lazy" allowFullScreen
-            referrerPolicy="no-referrer-when-downgrade" src={embedUrl} />
-        </div>
-        <LocationChips shops={located} activeId={activeId} onSelect={setActiveId} />
+      <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+        <iframe title="shops-map" width="100%" height={height}
+          style={{ border: 0, display: "block" }} loading="lazy" allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade" src={embedUrl} />
       </div>
     );
   }
 
   return (
-    <div>
-      <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0", marginBottom: 14 }}>
-        <div ref={mapRef} style={{ width: "100%", height }} />
-      </div>
-      <LocationChips shops={located} activeId={activeId} onSelect={handleCardSelect} />
+    <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+      <div ref={mapRef} style={{ width: "100%", height }} />
     </div>
   );
 };
 
-// ── Location chips ────────────────────────────────────────────────────────────
-const LocationChips: React.FC<{
-  shops: any[];
-  activeId?: string | null;
-  onSelect?: (id: string) => void;
-}> = ({ shops, activeId, onSelect }) => (
-  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-    {shops.map((shop, idx) => {
-      const isActive = activeId === shop._id;
-      return (
-        <div
-          key={shop._id}
-          onClick={() => onSelect?.(shop._id)}
-          style={{
-            background: isActive ? "#fff7ed" : "#fff",
-            border: `1px solid ${isActive ? "#f97316" : "#e2e8f0"}`,
-            borderRadius: 10, padding: "10px 14px",
-            display: "flex", alignItems: "center", gap: 10,
-            flex: "1 1 220px", minWidth: 200,
-            boxShadow: isActive ? "0 2px 8px rgba(249,115,22,0.15)" : "0 1px 3px rgba(0,0,0,0.05)",
-            transition: "all 0.15s",
-            cursor: onSelect ? "pointer" : "default",
-          }}
-        >
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: isActive ? "#6c1c2c" : "#fff7ed",
-            color: isActive ? "#fff" : "#f97316",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 13, fontWeight: 700, flexShrink: 0,
-            transition: "all 0.15s",
-          }}>
-            {hasCoords(shop.location) ? idx + 1 : <ShopOutlined />}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Text strong style={{ fontSize: 13, color: "#0f172a", display: "block" }}>{shop.name}</Text>
-            <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {getLocationDisplay(shop.location)}
-            </Text>
-            {shop.location?.city && (
-              <Text style={{ fontSize: 10, color: "#cbd5e1" }}>
-                {[shop.location.city, shop.location.country].filter(Boolean).join(", ")}
-              </Text>
-            )}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
-            {shop.location?.maps_url && (
-              <Tooltip title="Open in Google Maps">
-                <a href={shop.location.maps_url} target="_blank" rel="noreferrer"
-                  onClick={e => e.stopPropagation()}>
-                  <Button type="text" size="small" icon={<LinkOutlined />}
-                    style={{ color: "#3b82f6", padding: 0, height: 20 }} />
-                </a>
-              </Tooltip>
-            )}
-            {shop.pos_mode && <PosModeTag mode={shop.pos_mode} />}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-);
 
 // ── Summary strip ─────────────────────────────────────────────────────────────
 const SummaryStrip: React.FC<{ shops: any[]; isMtejaOnly?: boolean }> = ({ shops, isMtejaOnly }) => {
@@ -374,11 +337,18 @@ const ShopCard: React.FC<{
               <Space size={3} style={{ marginTop: 2 }}>
                 <EnvironmentOutlined style={{ fontSize: 10, color: "#94a3b8" }} />
                 <Text style={{ fontSize: 12, color: "#94a3b8" }}>{locDisplay}</Text>
-                {record.location?.maps_url && (
-                  <a href={record.location.maps_url} target="_blank" rel="noreferrer">
-                    <LinkOutlined style={{ fontSize: 10, color: "#3b82f6" }} />
-                  </a>
-                )}
+                <Tooltip title="Copy address">
+                  <Button 
+                    type="text" 
+                    size="small" 
+                    icon={<LinkOutlined />}
+                    onClick={() => {
+                      navigator.clipboard.writeText(locDisplay);
+                      message.success("Address copied to clipboard");
+                    }}
+                    style={{ color: "#3b82f6", padding: 0, height: 20 }} 
+                  />
+                </Tooltip>
               </Space>
             )}
           </div>
@@ -415,7 +385,7 @@ const ShopCard: React.FC<{
         <AddEditShopModal edit={true} actionRef={tableRef} data={record} />
         <Popconfirm title="Delete this shop?" description="This action cannot be undone."
           onConfirm={() => onDelete(record._id)} okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel" placement="topRight">
-          <Button danger icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: 8, width: 38, padding: 0 }} />
+          <Button danger icon={<DeleteOutlined />} loading={deleting} style={{ borderRadius: 8 }}>Delete</Button>
         </Popconfirm>
       </div>
     </Card>
@@ -469,7 +439,9 @@ const MobileShopList: React.FC<{
       label: <Space size={4}><BranchesOutlined />Branches</Space>,
       children: (
         <>
-          <SummaryStrip shops={shops} isMtejaOnly={isMtejaOnly} />
+          <div style={{ marginTop: 16 }}>
+            <SummaryStrip shops={shops} isMtejaOnly={isMtejaOnly} />
+          </div>
           {loading
             ? Array.from({ length: 3 }).map((_, i) => (
               <Card key={i} style={{ borderRadius: 12, marginBottom: 10, border: "1px solid #e2e8f0" }} bodyStyle={{ padding: 16 }}>
@@ -557,6 +529,7 @@ const ShopManagementTable: React.FC = () => {
       title: "Branch Name",
       dataIndex: "name",
       key: "name",
+      width: 250,
       copyable: true,
       ellipsis: true,
       render: (_: any, record: any) => {
@@ -579,39 +552,12 @@ const ShopManagementTable: React.FC = () => {
         );
       },
     },
-    {
-      title: "Location",
-      dataIndex: "location",
-      hideInSearch: false,
-      render: (val: any) => {
-        const display = getLocationDisplay(val);
-        if (!display) return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>;
-        return (
-          <Space size={4}>
-            <EnvironmentOutlined style={{ color: "#94a3b8", fontSize: 12 }} />
-            <Text style={{ fontSize: 13, color: "#374151" }}>{display}</Text>
-            {val?.maps_url && (
-              <a href={val.maps_url} target="_blank" rel="noreferrer">
-                <Tooltip title="Open in Google Maps">
-                  <LinkOutlined style={{ fontSize: 11, color: "#3b82f6" }} />
-                </Tooltip>
-              </a>
-            )}
-            {val?.city && (
-              <Tag style={{ fontSize: 10, padding: "0 5px", background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 4 }}>
-                {val.city}
-              </Tag>
-            )}
-          </Space>
-        );
-      },
-    },
     // POS Mode column — hidden for accounting-only and mteja-only tenants
     ...(showPosMode ? [{
       title: "Mode",
       dataIndex: "pos_mode",
       hideInSearch: false,
-      width: 150,
+      width: 120,
       valueEnum: {
         restaurant: { text: "Duka Services" },
         retail: { text: "Retail" },
@@ -625,7 +571,7 @@ const ShopManagementTable: React.FC = () => {
       title: "Today Revenue",
       dataIndex: "daily_revenue",
       hideInSearch: true,
-      width: 140,
+      width: 130,
       sorter: (a: any, b: any) => (a.daily_revenue || 0) - (b.daily_revenue || 0),
       render: (_: any, record: any) => (
         <Text strong style={{ color: "#10b981", fontSize: 13 }}>Ksh {fmtK(record?.daily_revenue || 0)}</Text>
@@ -635,7 +581,7 @@ const ShopManagementTable: React.FC = () => {
       title: "Staff",
       dataIndex: "staff_count",
       hideInSearch: true,
-      width: 90,
+      width: 100,
       sorter: (a: any, b: any) => (a.staff_count || 0) - (b.staff_count || 0),
       render: (_: any, record: any) => (
         <Space size={4}>
@@ -648,7 +594,7 @@ const ShopManagementTable: React.FC = () => {
       title: "Actions",
       dataIndex: "actions",
       hideInSearch: true,
-      width: 180,
+      width: 200,
       render: (_: any, record: any) => (
         <Space size={6}>
           <Tooltip title="Open shop">
@@ -663,7 +609,7 @@ const ShopManagementTable: React.FC = () => {
             onConfirm={() => DeleteShopMutation.mutate(record._id)}
             okText="Delete" okButtonProps={{ danger: true }} cancelText="Cancel">
             <Tooltip title="Delete shop">
-              <Button danger size="small" icon={<DeleteOutlined />} style={{ borderRadius: 6, height: 28, width: 28, padding: 0 }} />
+              <Button danger size="small" icon={<DeleteOutlined />} style={{ borderRadius: 6, height: 28 }}>Delete</Button>
             </Tooltip>
           </Popconfirm>
         </Space>
@@ -690,7 +636,9 @@ const ShopManagementTable: React.FC = () => {
       label: <Space size={4}><BranchesOutlined />All Branches</Space>,
       children: (
         <>
-          <SummaryStrip shops={allShops} isMtejaOnly={isMtejaOnly} />
+          <div style={{ marginTop: 16 }}>
+            <SummaryStrip shops={allShops} isMtejaOnly={isMtejaOnly} />
+          </div>
           <ProTable
             rowKey="_id"
             cardBordered={false}
@@ -747,7 +695,7 @@ const ShopManagementTable: React.FC = () => {
         </Space>
       ),
       children: (
-        <div style={{ padding: 16, backgroundColor: "#fafafa", borderRadius: "8px" }}>
+        <div style={{ padding: 16 }}>
           <PrintSettingsTab />
         </div>
       ),
@@ -755,9 +703,10 @@ const ShopManagementTable: React.FC = () => {
   ];
 
   return (
-    <Card
-      style={{ borderRadius: 12, border: "1px solid #e2e8f0" }}
-      bodyStyle={{ padding: 0 }}
+    <ProCard
+      bordered
+      style={{ borderRadius: 12 }}
+      headerBordered
       title={
         <Space size={8} align="center">
           <BranchesOutlined style={{ color: "#f97316", fontSize: 16 }} />
@@ -772,7 +721,7 @@ const ShopManagementTable: React.FC = () => {
         style={{ padding: "0 16px" }}
         tabBarStyle={{ marginBottom: 0, borderBottom: "1px solid #f1f5f9" }}
       />
-    </Card>
+    </ProCard>
   );
 };
 

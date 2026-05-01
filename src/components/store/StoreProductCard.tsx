@@ -205,8 +205,6 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
             zIndex: 10,
             borderRadius: 10,
             cursor: "not-allowed",
-            bottom: 53,
-            top: 36,
           }}
         />
       )}

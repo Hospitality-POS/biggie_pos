@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import {
-    Space, Typography, Alert, Spin, Select, App, Empty, Card, Tabs, Tag, Table,
+    Space, Typography, Alert, Spin, Select, App, Empty, Card, Tabs, Tag, Table, Button,
     ArrowUpOutlined, ArrowDownOutlined,
 } from "antd";
+
+const { Option } = Select;
 import { BarChartOutlined } from "@ant-design/icons";
 import { ArrowUpOutlined as Up, ArrowDownOutlined as Down } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +15,7 @@ import {
 } from "@services/accounting/reports";
 import { fetchAllCustomers } from "@services/customers";
 import { fetchAllSuppliers } from "@services/supplier";
+import { fetchAllShops } from "@services/shops";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import {
     PeriodFilter, AsOfFilter, GLPeriodFilter, ExportButton, exportToCSV,
@@ -174,6 +177,9 @@ const makeDefaultGLPeriod = (): GLPeriodValue => ({
 const AccountingReportsPage: React.FC = () => {
     const primaryColor = usePrimaryColor();
     const [activeTab, setActiveTab] = useState<ReportTab>("profit-loss");
+    
+    // Check if we're on the admin route (show branch filter) or branch route (hide branch filter)
+    const isAdminRoute = window.location.pathname.startsWith('/admin/accounting/reports');
 
     // ── Filter state ──────────────────────────────────────────────────────────
     const [plPeriod, setPlPeriod] = useState<ComparativePeriod>(makeDefaultPeriod());
@@ -194,6 +200,9 @@ const AccountingReportsPage: React.FC = () => {
     const [supplierId, setSupplierId] = useState<string | undefined>();
     const [compareCustomerId, setCompareCustomerId] = useState<string | undefined>();
     const [compareSupplierId, setCompareSupplierId] = useState<string | undefined>();
+    
+    // Branch filter state
+    const [selectedBranchId, setSelectedBranchId] = useState<string | undefined>();
 
     const [runKey, setRunKey] = useState<Record<ReportTab, number>>({
         "profit-loss": 0, "balance-sheet": 0, "trial-balance": 0,
@@ -206,42 +215,53 @@ const AccountingReportsPage: React.FC = () => {
     const cp = (obj: Record<string, any>) =>
         Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null));
 
+    // Helper to build query parameters with branch filter
+    const buildQueryParams = (params: Record<string, any>) => {
+        const cleanParams = cp(params);
+        if (selectedBranchId) {
+            cleanParams.shop_id = selectedBranchId;
+        }
+        return cleanParams;
+    };
+
     // ── Primary queries ───────────────────────────────────────────────────────
-    const plQ = useQuery({ queryKey: ["rpt-pl", plPeriod.primary, runKey["profit-loss"]], queryFn: () => getProfitAndLoss(cp({ from: plPeriod.primary[0]?.toISOString(), to: plPeriod.primary[1]?.toISOString() })), enabled: isReady("profit-loss"), retry: 1 });
-    const bsQ = useQuery({ queryKey: ["rpt-bs", bsAsOf.primary, runKey["balance-sheet"]], queryFn: () => getBalanceSheet(bsAsOf.primary?.toISOString()), enabled: isReady("balance-sheet"), retry: 1 });
-    const tbQ = useQuery({ queryKey: ["rpt-tb", tbPeriod.primary, runKey["trial-balance"]], queryFn: () => getTrialBalance(cp({ from: tbPeriod.primary[0]?.toISOString(), to: tbPeriod.primary[1]?.toISOString() })), enabled: isReady("trial-balance"), retry: 1 });
-    const abQ = useQuery({ queryKey: ["rpt-ab", abAsOf.primary, runKey["account-balances"]], queryFn: () => getAccountBalances(cp({ as_of: abAsOf.primary?.toISOString() })), enabled: isReady("account-balances"), retry: 1 });
-    const vatQ = useQuery({ queryKey: ["rpt-vat", vatPeriod.primary, runKey["vat"]], queryFn: () => getVATReport(cp({ from: vatPeriod.primary[0]?.toISOString(), to: vatPeriod.primary[1]?.toISOString() })), enabled: isReady("vat"), retry: 1 });
-    const cfQ = useQuery({ queryKey: ["rpt-cf", cfPeriod.primary, runKey["cash-flow"]], queryFn: () => getCashFlowSummary(cp({ from: cfPeriod.primary[0]?.toISOString(), to: cfPeriod.primary[1]?.toISOString() })), enabled: isReady("cash-flow"), retry: 1 });
-    const custQ = useQuery({ queryKey: ["rpt-cust", customerId, custPeriod.primary, runKey["customer-statement"]], queryFn: () => getCustomerStatement(customerId!, cp({ from: custPeriod.primary[0]?.toISOString(), to: custPeriod.primary[1]?.toISOString() })), enabled: !!customerId && isReady("customer-statement"), retry: 1 });
-    const suppQ = useQuery({ queryKey: ["rpt-supp", supplierId, suppPeriod.primary, runKey["supplier-statement"]], queryFn: () => getSupplierStatement(supplierId!, cp({ from: suppPeriod.primary[0]?.toISOString(), to: suppPeriod.primary[1]?.toISOString() })), enabled: !!supplierId && isReady("supplier-statement"), retry: 1 });
-    const arQ = useQuery({ queryKey: ["rpt-ar", arPeriod.primary, runKey["ar-aging"]], queryFn: () => getARAgingReport(cp({ as_of_date: arPeriod.primary[1]?.toISOString() })), enabled: isReady("ar-aging"), retry: 1 });
-    const apQ = useQuery({ queryKey: ["rpt-ap", apPeriod.primary, runKey["ap-aging"]], queryFn: () => getAPAgingReport(cp({ as_of_date: apPeriod.primary[1]?.toISOString() })), enabled: isReady("ap-aging"), retry: 1 });
+    const plQ = useQuery({ queryKey: ["rpt-pl", plPeriod.primary, selectedBranchId, runKey["profit-loss"]], queryFn: () => getProfitAndLoss(buildQueryParams({ from: plPeriod.primary[0]?.toISOString(), to: plPeriod.primary[1]?.toISOString() })), enabled: isReady("profit-loss"), retry: 1 });
+    const bsQ = useQuery({ queryKey: ["rpt-bs", bsAsOf.primary, selectedBranchId, runKey["balance-sheet"]], queryFn: () => getBalanceSheet(buildQueryParams({ as_of: bsAsOf.primary?.toISOString() })), enabled: isReady("balance-sheet"), retry: 1 });
+    const tbQ = useQuery({ queryKey: ["rpt-tb", tbPeriod.primary, selectedBranchId, runKey["trial-balance"]], queryFn: () => getTrialBalance(buildQueryParams({ from: tbPeriod.primary[0]?.toISOString(), to: tbPeriod.primary[1]?.toISOString() })), enabled: isReady("trial-balance"), retry: 1 });
+    const abQ = useQuery({ queryKey: ["rpt-ab", abAsOf.primary, selectedBranchId, runKey["account-balances"]], queryFn: () => getAccountBalances(buildQueryParams({ as_of: abAsOf.primary?.toISOString() })), enabled: isReady("account-balances"), retry: 1 });
+    const vatQ = useQuery({ queryKey: ["rpt-vat", vatPeriod.primary, selectedBranchId, runKey["vat"]], queryFn: () => getVATReport(buildQueryParams({ from: vatPeriod.primary[0]?.toISOString(), to: vatPeriod.primary[1]?.toISOString() })), enabled: isReady("vat"), retry: 1 });
+    const cfQ = useQuery({ queryKey: ["rpt-cf", cfPeriod.primary, selectedBranchId, runKey["cash-flow"]], queryFn: () => getCashFlowSummary(buildQueryParams({ from: cfPeriod.primary[0]?.toISOString(), to: cfPeriod.primary[1]?.toISOString() })), enabled: isReady("cash-flow"), retry: 1 });
+    const custQ = useQuery({ queryKey: ["rpt-cust", customerId, custPeriod.primary, selectedBranchId, runKey["customer-statement"]], queryFn: () => getCustomerStatement(customerId!, buildQueryParams({ from: custPeriod.primary[0]?.toISOString(), to: custPeriod.primary[1]?.toISOString() })), enabled: !!customerId && isReady("customer-statement"), retry: 1 });
+    const suppQ = useQuery({ queryKey: ["rpt-supp", supplierId, suppPeriod.primary, selectedBranchId, runKey["supplier-statement"]], queryFn: () => getSupplierStatement(supplierId!, buildQueryParams({ from: suppPeriod.primary[0]?.toISOString(), to: suppPeriod.primary[1]?.toISOString() })), enabled: !!supplierId && isReady("supplier-statement"), retry: 1 });
+    const arQ = useQuery({ queryKey: ["rpt-ar", arPeriod.primary, selectedBranchId, runKey["ar-aging"]], queryFn: () => getARAgingReport(buildQueryParams({ as_of_date: arPeriod.primary[1]?.toISOString() })), enabled: isReady("ar-aging"), retry: 1 });
+    const apQ = useQuery({ queryKey: ["rpt-ap", apPeriod.primary, selectedBranchId, runKey["ap-aging"]], queryFn: () => getAPAgingReport(buildQueryParams({ as_of_date: apPeriod.primary[1]?.toISOString() })), enabled: isReady("ap-aging"), retry: 1 });
 
     // GL — simple query, no compare
     const glQ = useQuery({
-        queryKey: ["rpt-gl", glPeriod.from, glPeriod.to, runKey["general-ledger"]],
-        queryFn: () => getGeneralLedger({ from: glPeriod.from, to: glPeriod.to }),
+        queryKey: ["rpt-gl", glPeriod.from, glPeriod.to, selectedBranchId, runKey["general-ledger"]],
+        queryFn: () => getGeneralLedger(buildQueryParams({ from: glPeriod.from, to: glPeriod.to })),
         enabled: isReady("general-ledger"),
         retry: 1,
     });
 
     // ── Compare queries (all reports except GL) ───────────────────────────────
-    const plQC = useQuery({ queryKey: ["rpt-pl-c", plPeriod.compare, runKey["profit-loss"]], queryFn: () => getProfitAndLoss(cp({ from: plPeriod.compare[0]?.toISOString(), to: plPeriod.compare[1]?.toISOString() })), enabled: plPeriod.enabled && isReady("profit-loss") && !!plPeriod.compare[0], retry: 1 });
-    const bsQC = useQuery({ queryKey: ["rpt-bs-c", bsAsOf.compare, runKey["balance-sheet"]], queryFn: () => getBalanceSheet(bsAsOf.compare?.toISOString()), enabled: bsAsOf.enabled && isReady("balance-sheet") && !!bsAsOf.compare, retry: 1 });
-    const tbQC = useQuery({ queryKey: ["rpt-tb-c", tbPeriod.compare, runKey["trial-balance"]], queryFn: () => getTrialBalance(cp({ from: tbPeriod.compare[0]?.toISOString(), to: tbPeriod.compare[1]?.toISOString() })), enabled: tbPeriod.enabled && isReady("trial-balance") && !!tbPeriod.compare[0], retry: 1 });
-    const abQC = useQuery({ queryKey: ["rpt-ab-c", abAsOf.compare, runKey["account-balances"]], queryFn: () => getAccountBalances(cp({ as_of: abAsOf.compare?.toISOString() })), enabled: abAsOf.enabled && isReady("account-balances") && !!abAsOf.compare, retry: 1 });
-    const vatQC = useQuery({ queryKey: ["rpt-vat-c", vatPeriod.compare, runKey["vat"]], queryFn: () => getVATReport(cp({ from: vatPeriod.compare[0]?.toISOString(), to: vatPeriod.compare[1]?.toISOString() })), enabled: vatPeriod.enabled && isReady("vat") && !!vatPeriod.compare[0], retry: 1 });
-    const cfQC = useQuery({ queryKey: ["rpt-cf-c", cfPeriod.compare, runKey["cash-flow"]], queryFn: () => getCashFlowSummary(cp({ from: cfPeriod.compare[0]?.toISOString(), to: cfPeriod.compare[1]?.toISOString() })), enabled: cfPeriod.enabled && isReady("cash-flow") && !!cfPeriod.compare[0], retry: 1 });
-    const custQC = useQuery({ queryKey: ["rpt-cust-c", compareCustomerId ?? customerId, custPeriod.compare, runKey["customer-statement"]], queryFn: () => getCustomerStatement((compareCustomerId ?? customerId)!, cp({ from: custPeriod.compare[0]?.toISOString(), to: custPeriod.compare[1]?.toISOString() })), enabled: custPeriod.enabled && !!(compareCustomerId ?? customerId) && isReady("customer-statement") && !!custPeriod.compare[0], retry: 1 });
-    const suppQC = useQuery({ queryKey: ["rpt-supp-c", compareSupplierId ?? supplierId, suppPeriod.compare, runKey["supplier-statement"]], queryFn: () => getSupplierStatement((compareSupplierId ?? supplierId)!, cp({ from: suppPeriod.compare[0]?.toISOString(), to: suppPeriod.compare[1]?.toISOString() })), enabled: suppPeriod.enabled && !!(compareSupplierId ?? supplierId) && isReady("supplier-statement") && !!suppPeriod.compare[0], retry: 1 });
-    const arQC = useQuery({ queryKey: ["rpt-ar-c", arPeriod.compare, runKey["ar-aging"]], queryFn: () => getARAgingReport(cp({ as_of_date: arPeriod.compare[1]?.toISOString() })), enabled: arPeriod.enabled && isReady("ar-aging") && !!arPeriod.compare[0], retry: 1 });
-    const apQC = useQuery({ queryKey: ["rpt-ap-c", apPeriod.compare, runKey["ap-aging"]], queryFn: () => getAPAgingReport(cp({ as_of_date: apPeriod.compare[1]?.toISOString() })), enabled: apPeriod.enabled && isReady("ap-aging") && !!apPeriod.compare[0], retry: 1 });
+    const plQC = useQuery({ queryKey: ["rpt-pl-c", plPeriod.compare, selectedBranchId, runKey["profit-loss"]], queryFn: () => getProfitAndLoss(buildQueryParams({ from: plPeriod.compare[0]?.toISOString(), to: plPeriod.compare[1]?.toISOString() })), enabled: plPeriod.enabled && isReady("profit-loss") && !!plPeriod.compare[0], retry: 1 });
+    const bsQC = useQuery({ queryKey: ["rpt-bs-c", bsAsOf.compare, selectedBranchId, runKey["balance-sheet"]], queryFn: () => getBalanceSheet(buildQueryParams({ as_of: bsAsOf.compare?.toISOString() })), enabled: bsAsOf.enabled && isReady("balance-sheet") && !!bsAsOf.compare, retry: 1 });
+    const tbQC = useQuery({ queryKey: ["rpt-tb-c", tbPeriod.compare, selectedBranchId, runKey["trial-balance"]], queryFn: () => getTrialBalance(buildQueryParams({ from: tbPeriod.compare[0]?.toISOString(), to: tbPeriod.compare[1]?.toISOString() })), enabled: tbPeriod.enabled && isReady("trial-balance") && !!tbPeriod.compare[0], retry: 1 });
+    const abQC = useQuery({ queryKey: ["rpt-ab-c", abAsOf.compare, selectedBranchId, runKey["account-balances"]], queryFn: () => getAccountBalances(buildQueryParams({ as_of: abAsOf.compare?.toISOString() })), enabled: abAsOf.enabled && isReady("account-balances") && !!abAsOf.compare, retry: 1 });
+    const vatQC = useQuery({ queryKey: ["rpt-vat-c", vatPeriod.compare, selectedBranchId, runKey["vat"]], queryFn: () => getVATReport(buildQueryParams({ from: vatPeriod.compare[0]?.toISOString(), to: vatPeriod.compare[1]?.toISOString() })), enabled: vatPeriod.enabled && isReady("vat") && !!vatPeriod.compare[0], retry: 1 });
+    const cfQC = useQuery({ queryKey: ["rpt-cf-c", cfPeriod.compare, selectedBranchId, runKey["cash-flow"]], queryFn: () => getCashFlowSummary(buildQueryParams({ from: cfPeriod.compare[0]?.toISOString(), to: cfPeriod.compare[1]?.toISOString() })), enabled: cfPeriod.enabled && isReady("cash-flow") && !!cfPeriod.compare[0], retry: 1 });
+    const custQC = useQuery({ queryKey: ["rpt-cust-c", compareCustomerId ?? customerId, custPeriod.compare, selectedBranchId, runKey["customer-statement"]], queryFn: () => getCustomerStatement((compareCustomerId ?? customerId)!, buildQueryParams({ from: custPeriod.compare[0]?.toISOString(), to: custPeriod.compare[1]?.toISOString() })), enabled: custPeriod.enabled && !!(compareCustomerId ?? customerId) && isReady("customer-statement") && !!custPeriod.compare[0], retry: 1 });
+    const suppQC = useQuery({ queryKey: ["rpt-supp-c", compareSupplierId ?? supplierId, suppPeriod.compare, selectedBranchId, runKey["supplier-statement"]], queryFn: () => getSupplierStatement((compareSupplierId ?? supplierId)!, buildQueryParams({ from: suppPeriod.compare[0]?.toISOString(), to: suppPeriod.compare[1]?.toISOString() })), enabled: suppPeriod.enabled && !!(compareSupplierId ?? supplierId) && isReady("supplier-statement") && !!suppPeriod.compare[0], retry: 1 });
+    const arQC = useQuery({ queryKey: ["rpt-ar-c", arPeriod.compare, selectedBranchId, runKey["ar-aging"]], queryFn: () => getARAgingReport(buildQueryParams({ as_of_date: arPeriod.compare[1]?.toISOString() })), enabled: arPeriod.enabled && isReady("ar-aging") && !!arPeriod.compare[0], retry: 1 });
+    const apQC = useQuery({ queryKey: ["rpt-ap-c", apPeriod.compare, selectedBranchId, runKey["ap-aging"]], queryFn: () => getAPAgingReport(buildQueryParams({ as_of_date: apPeriod.compare[1]?.toISOString() })), enabled: apPeriod.enabled && isReady("ap-aging") && !!apPeriod.compare[0], retry: 1 });
 
     const { data: customersRaw } = useQuery({ queryKey: ["customers-select-rpt"], queryFn: () => fetchAllCustomers({}), enabled: activeTab === "customer-statement" || activeTab === "ar-aging" });
     const { data: suppliersRaw } = useQuery({ queryKey: ["suppliers-select-rpt"], queryFn: () => fetchAllSuppliers({}), enabled: activeTab === "supplier-statement" || activeTab === "ap-aging" });
+    const { data: shopsRaw } = useQuery({ queryKey: ["shops-select-rpt"], queryFn: () => fetchAllShops({}) });
     const customers = Array.isArray(customersRaw) ? customersRaw : [];
     const suppliers = Array.isArray(suppliersRaw) ? suppliersRaw : [];
+    const shops = Array.isArray(shopsRaw) ? shopsRaw : [];
 
     const Loading = () => <div style={{ textAlign: "center", padding: 60 }}><Spin size="large" /></div>;
     const EmptyState = () => <Empty description="Run the report to see results" style={{ padding: 40 }} />;
@@ -538,6 +558,54 @@ const AccountingReportsPage: React.FC = () => {
             <Card bordered styles={{ body: { padding: 0 } }}
                 title={<Space><BarChartOutlined style={{ fontSize: 18, color: primaryColor }} /><Text strong style={{ fontSize: 16 }}>Accounting Reports</Text></Space>}
             >
+                {isAdminRoute && (
+                <div style={{ padding: "16px 16px 0 16px" }}>
+                    <Space size={12} align="center">
+                        <Text strong style={{ fontSize: 14 }}>Filter by Branch:</Text>
+                        <Select
+                            placeholder="All Branches"
+                            value={selectedBranchId}
+                            onChange={(value) => {
+                                setSelectedBranchId(value);
+                                // Reset all reports to force re-run with new branch filter
+                                setRunKey({
+                                    "profit-loss": 0, "balance-sheet": 0, "trial-balance": 0,
+                                    "general-ledger": 0, "account-balances": 0, "vat": 0, "cash-flow": 0,
+                                    "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0,
+                                });
+                            }}
+                            allowClear
+                            style={{ width: 200 }}
+                            showSearch
+                            filterOption={(input, option) =>
+                                (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                            }
+                        >
+                            {shops.map((shop: any) => (
+                                <Option key={shop._id} value={shop._id}>
+                                    {shop.name}
+                                </Option>
+                            ))}
+                        </Select>
+                        {selectedBranchId && (
+                            <Button
+                                size="small"
+                                onClick={() => {
+                                    setSelectedBranchId(undefined);
+                                    // Reset all reports to force re-run
+                                    setRunKey({
+                                        "profit-loss": 0, "balance-sheet": 0, "trial-balance": 0,
+                                        "general-ledger": 0, "account-balances": 0, "vat": 0, "cash-flow": 0,
+                                        "customer-statement": 0, "supplier-statement": 0, "ar-aging": 0, "ap-aging": 0,
+                                    });
+                                }}
+                            >
+                                Clear Branch
+                            </Button>
+                        )}
+                    </Space>
+                </div>
+            )}
                 <Tabs activeKey={activeTab} onChange={(k) => setActiveTab(k as ReportTab)} type="card" size="small" items={TAB_ITEMS} style={{ padding: "0 16px" }} tabBarStyle={{ marginBottom: 0 }} />
                 <div style={{ padding: 16 }}>{renderContent()}</div>
             </Card>

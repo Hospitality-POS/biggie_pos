@@ -157,6 +157,7 @@ export interface CreateBillParams {
 export interface RecordBillPaymentParams {
     amount: number;
     method_id: string;
+    account_id?: string; // Payment account
     reference?: string;
     notes?: string;
 }
