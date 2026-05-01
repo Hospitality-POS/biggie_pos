@@ -21,11 +21,12 @@ export const getAllOrders = async (data: ParamsType) => {
   }
 };
 
-export const getDashboardAnalysis = async (startDate: string, endDate: string) => {
+export const getDashboardAnalysis = async (startDate: string, endDate: string, shopId?: string) => {
   try {
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
+    if (shopId) params.append('shop_id', shopId);
 
     const queryString = params.toString();
     const url = `${BASE_URL}/orders/dashboard/summary${queryString ? `?${queryString}` : ''}`;
