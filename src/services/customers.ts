@@ -325,11 +325,34 @@ export const createSchedule = createAsyncThunk(
   }
 );
 
-export const fetchAllSchedules = async (date?: string) => {
+export const fetchAllSchedules = async (params?: {
+  date?: string;
+  keyword?: string;
+  customer_id?: string;
+  staff_id?: string;
+  service_id?: string;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+  shop_id?: string;
+  booking_type?: string;
+}) => {
   try {
+    const queryParams: any = {};
+    if (params?.date) queryParams.date = params.date;
+    if (params?.keyword) queryParams.keyword = params.keyword;
+    if (params?.customer_id) queryParams.customer_id = params.customer_id;
+    if (params?.staff_id) queryParams.staff_id = params.staff_id;
+    if (params?.service_id) queryParams.service_id = params.service_id;
+    if (params?.status) queryParams.status = params.status;
+    if (params?.start_date) queryParams.start_date = params.start_date;
+    if (params?.end_date) queryParams.end_date = params.end_date;
+    if (params?.shop_id) queryParams.shop_id = params.shop_id;
+    if (params?.booking_type) queryParams.booking_type = params.booking_type;
+    
     const response = await axiosInstance.get(
       `${categ_url}/all-schedules`,
-      { params: date ? { date } : {} }
+      { params: queryParams }
     );
     return response;
   } catch (error: any) {

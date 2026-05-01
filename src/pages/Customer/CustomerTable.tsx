@@ -621,7 +621,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
 
         const columns = [
             {
-                title: "Code", dataIndex: "code", copyable: true,
+                title: "Code", dataIndex: "code",
                 fieldProps: { placeholder: "Customer Code" },
                 render: (text: string) => <Text copyable strong style={{ fontSize: 12 }}>{text}</Text>,
             },

@@ -19,9 +19,9 @@ import {
     CheckOutlined,
     DeleteOutlined,
     ExclamationCircleOutlined,
+    EyeOutlined,
     FilterOutlined,
     MailOutlined,
-    MoreOutlined,
     ReloadOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -110,13 +110,16 @@ const TypeTag: React.FC<{ type: string }> = ({ type }) => {
 };
 
 // ── Unread dot ────────────────────────────────────────────────────────────────
-const UnreadDot: React.FC = () => (
-    <span style={{
-        display: "inline-block", width: 7, height: 7,
-        borderRadius: "50%", background: C.blue,
-        flexShrink: 0, marginTop: 2,
-    }} />
-);
+const UnreadDot: React.FC<{ priority?: string }> = ({ priority }) => {
+    const cfg = PRIORITY_CFG[priority?.toLowerCase() as keyof typeof PRIORITY_CFG] || { color: C.blue };
+    return (
+        <span style={{
+            display: "inline-block", width: 5, height: 18,
+            borderRadius: 2, background: cfg.color,
+            flexShrink: 0, marginTop: 2,
+        }} />
+    );
+};
 
 // ── Detail drawer (mobile) ────────────────────────────────────────────────────
 const DetailDrawer: React.FC<{
@@ -182,7 +185,7 @@ const DetailDrawer: React.FC<{
                     <Space wrap size={6}>
                         <TypeTag type={notification.type} />
                         <PriorityTag priority={notification.priority} />
-                        {!notification.read && <UnreadDot />}
+                        {!notification.read && <UnreadDot priority={notification.priority} />}
                     </Space>
                 </div>
 
@@ -225,53 +228,76 @@ const NotificationCard: React.FC<{
     onDelete: (id: string) => void;
     onViewDetails: (record: any) => void;
 }> = ({ record, onMarkRead, onDelete, onViewDetails }) => {
-    const menuItems = [
-        { key: "details", label: "View Details" },
-        ...(record.read ? [] : [{
-            key: "mark",
-            icon: <CheckCircleOutlined style={{ color: C.green }} />,
-            label: <span style={{ color: C.green }}>Mark as Read</span>,
-        }]),
-        {
-            key: "delete",
-            icon: <DeleteOutlined style={{ color: C.red }} />,
-            danger: true,
-            label: <span style={{ color: C.red }}>Delete</span>,
-        },
-    ];
 
     return (
-        <div style={{
-            background: !record.read ? `${C.blue}05` : "#fff",
-            border: `1px solid ${!record.read ? C.blue + "30" : C.border}`,
-            borderLeft: `3px solid ${!record.read ? C.blue : C.border}`,
-            borderRadius: 10, padding: "12px 14px", marginBottom: 10,
-        }}>
+        <div
+            onClick={() => onViewDetails(record)}
+            style={{
+                background: !record.read ? `${C.blue}05` : "#fff",
+                border: `1px solid ${!record.read ? C.blue + "30" : C.border}`,
+                borderLeft: `3px solid ${!record.read ? C.blue : C.border}`,
+                borderRadius: 10, padding: "12px 14px", marginBottom: 10,
+                cursor: "pointer",
+            }}>
             {/* Header row */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flex: 1, minWidth: 0 }}>
-                    {!record.read && <UnreadDot />}
+                    {!record.read && <UnreadDot priority={record.priority} />}
                     <Text strong={!record.read} style={{ fontSize: 13, color: C.darkText, lineHeight: 1.3 }}>
                         {record.title}
                     </Text>
                 </div>
-                <Dropdown
-                    menu={{
-                        items: menuItems,
-                        onClick: ({ key }) => {
-                            if (key === "mark") onMarkRead(record._id);
-                            else if (key === "delete") onDelete(record._id);
-                            else if (key === "details") onViewDetails(record);
-                        },
-                    }}
-                    trigger={["click"]}
-                >
-                    <Button type="text" icon={<MoreOutlined />} style={{
-                        width: 28, height: 28, padding: 0, flexShrink: 0,
-                        border: `1px solid ${C.border}`, borderRadius: 6,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                    }} />
-                </Dropdown>
+                <Space size={4}>
+                        {!record.read && (
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={<CheckCircleOutlined style={{ color: C.green }} />}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMarkRead(record._id);
+                                }}
+                                style={{
+                                    width: 28, height: 28, padding: 0, flexShrink: 0,
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                }}
+                            />
+                        )}
+                        <Popconfirm
+                            title="Delete this notification?"
+                            onConfirm={(e) => {
+                                e?.stopPropagation();
+                                onDelete(record._id);
+                            }}
+                            okText="Delete" cancelText="Cancel"
+                            okButtonProps={{ danger: true }}
+                        >
+                            <Button
+                                type="text"
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                    width: 28, height: 28, padding: 0, flexShrink: 0,
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                }}
+                            />
+                        </Popconfirm>
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={<EyeOutlined style={{ color: C.blue }} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onViewDetails(record);
+                            }}
+                            style={{
+                                width: 28, height: 28, padding: 0, flexShrink: 0,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                            }}
+                        />
+                    </Space>
             </div>
 
             {/* Message */}
@@ -587,17 +613,18 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                 showActions="hover"
                 showExtra="hover"
                 actionRef={actionRef}
+                onRow={(record) => ({
+                    onClick: () => handleViewDetails(record),
+                    style: { cursor: "pointer" },
+                })}
                 metas={{
                     title: {
                         search: false,
                         dataIndex: "title",
                         render: (_, record) => (
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                {!record.read && <UnreadDot />}
-                                <Text strong={!record.read} style={{ fontSize: 13, color: C.darkText }}>
-                                    {record.title}
-                                </Text>
-                            </div>
+                            <Text strong={!record.read} style={{ fontSize: 13, color: C.darkText }}>
+                                {record.title}
+                            </Text>
                         ),
                     },
                     description: {
@@ -618,15 +645,18 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                     },
                     avatar: {
                         search: notificationtype !== "unread",
-                        title: <span style={{ color: C.primary }}><MailOutlined /> Status</span>,
-                        dataIndex: "read",
-                        render: (_, record) => (
-                            <span style={{
-                                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                                width: 10, height: 10, borderRadius: "50%",
-                                background: record.read ? C.border : C.blue,
-                            }} />
-                        ),
+                        title: <span style={{ color: C.primary }}><MailOutlined /> Priority</span>,
+                        dataIndex: "priority",
+                        render: (_, record) => {
+                            const cfg = PRIORITY_CFG[record.priority?.toLowerCase()] || { color: C.subText };
+                            return (
+                                <span style={{
+                                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                    width: 5, height: 18, borderRadius: 2,
+                                    background: record.read ? C.border : cfg.color,
+                                }} />
+                            );
+                        },
                         valueType: "select",
                         valueEnum: { "": "All", false: "Unread", true: "Read" },
                     },
@@ -638,37 +668,39 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                                     <Button type="text" size="small"
                                         icon={<CheckCircleOutlined style={{ color: C.green }} />}
                                         title="Mark as Read"
-                                        onClick={() => markAsReadMutation.mutate(record._id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            markAsReadMutation.mutate(record._id);
+                                        }}
                                     />
                                 )}
                                 <Popconfirm
                                     title="Delete this notification?"
-                                    onConfirm={() => deleteNotificationMutation.mutate(record._id)}
+                                    onConfirm={(e) => {
+                                        e?.stopPropagation();
+                                        deleteNotificationMutation.mutate(record._id);
+                                    }}
                                     okText="Delete" cancelText="Cancel"
                                     okButtonProps={{ danger: true }}
                                 >
-                                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        danger
+                                        icon={<DeleteOutlined />}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
                                 </Popconfirm>
-                                <Dropdown
-                                    menu={{
-                                        items: [
-                                            { key: "details", label: "View Details" },
-                                            ...(!record.read ? [{
-                                                key: "mark",
-                                                icon: <CheckCircleOutlined style={{ color: C.green }} />,
-                                                label: <span style={{ color: C.green }}>Mark as Read</span>,
-                                            }] : []),
-                                        ],
-                                        onClick: ({ key }) => {
-                                            if (key === "mark") markAsReadMutation.mutate(record._id);
-                                            else if (key === "details") handleViewDetails(record);
-                                        },
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    icon={<EyeOutlined style={{ color: C.blue }} />}
+                                    title="View Details"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewDetails(record);
                                     }}
-                                    trigger={["click"]}
-                                >
-                                    <Button type="text" size="small" icon={<MoreOutlined />}
-                                        style={{ border: `1px solid ${C.border}`, borderRadius: 6 }} />
-                                </Dropdown>
+                                />
                             </Space>
                         ),
                     },

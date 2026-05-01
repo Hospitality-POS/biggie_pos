@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
-import { CalendarOutlined, UnorderedListOutlined } from "@ant-design/icons";
+import { CalendarOutlined, UnorderedListOutlined, TeamOutlined, BarChartOutlined } from "@ant-design/icons";
 import { Typography } from "antd";
 import BookingsList from "./BookingsList";
 import CalendarView from "./CalendarView";
+import AnalyticsPanel from "./AnalyticsPanel";
+import StaffClasses from "./StaffClasses";
 
 const { Text } = Typography;
 
@@ -17,11 +19,13 @@ const C = {
 };
 
 // ── Tab definition ─────────────────────────────────────────────────────────
-type TabKey = "calendar" | "list";
+type TabKey = "calendar" | "list" | "classes" | "analytics";
 
 const TABS: { key: TabKey; icon: React.ReactNode; label: string }[] = [
-  { key: "calendar", icon: <CalendarOutlined />, label: "Calendar View" },
-  { key: "list", icon: <UnorderedListOutlined />, label: "Bookings List" },
+  { key: "calendar", icon: <CalendarOutlined />, label: "Calendar" },
+  { key: "list", icon: <UnorderedListOutlined />, label: "Booking List" },
+  { key: "classes", icon: <TeamOutlined />, label: "Classes" },
+  { key: "analytics", icon: <BarChartOutlined />, label: "Analytics" },
 ];
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -110,6 +114,16 @@ const SpaReservationSystem = () => {
         {/* Bookings list — rendered when active */}
         {activeTab === "list" && (
           <BookingsList onEditBooking={handleEditFromList} />
+        )}
+
+        {/* Classes view — rendered when active */}
+        {activeTab === "classes" && (
+          <StaffClasses />
+        )}
+
+        {/* Analytics view — rendered when active */}
+        {activeTab === "analytics" && (
+          <AnalyticsPanel />
         )}
       </div>
     </div>
