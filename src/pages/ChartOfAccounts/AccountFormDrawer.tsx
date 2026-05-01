@@ -311,17 +311,13 @@ const AccountFormDrawer: React.FC<Props> = ({
                         </Space>
                     }
                     name="account_code"
-                    rules={
-                        autoCode
-                            ? []
-                            : [{ required: true, message: "Account code is required" }]
-                    }
+                    rules={[]}
                 >
                     <AutoComplete
                         placeholder={
                             autoCode
                                 ? "Auto-suggested — pick a parent first"
-                                : "e.g. 1150"
+                                : "Optional — e.g. 1150"
                         }
                         disabled={isEdit && editingAccount?.is_system_account}
                         options={

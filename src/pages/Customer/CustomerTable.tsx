@@ -621,7 +621,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
 
         const columns = [
             {
-                title: "Code", dataIndex: "code", copyable: true,
+                title: "Code", dataIndex: "code",
                 fieldProps: { placeholder: "Customer Code" },
                 render: (text: string) => <Text copyable strong style={{ fontSize: 12 }}>{text}</Text>,
             },
@@ -642,15 +642,29 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                 fieldProps: { placeholder: "Search by phone..." },
                 render: (phone: string) => <Text style={{ fontSize: 12 }}>{phone || "—"}</Text>,
             },
+                        {
+                title: "Street Address", dataIndex: ["address", "street"], search: false,
+                render: (street: string) => (
+                    <Text style={{ fontSize: 12, color: C.subText }}>
+                        {street || "—"}
+                    </Text>
+                ),
+            },
             {
-                title: "Location", dataIndex: "location", search: false,
-                render: (location: string) =>
-                    location ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <EnvironmentOutlined style={{ color: C.subText, fontSize: 11 }} />
-                            <Text style={{ fontSize: 12 }}>{location}</Text>
-                        </div>
-                    ) : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
+                title: "City", dataIndex: ["address", "city"], search: false,
+                render: (city: string) => (
+                    <Text style={{ fontSize: 12, color: C.subText }}>
+                        {city || "—"}
+                    </Text>
+                ),
+            },
+            {
+                title: "County", dataIndex: ["address", "county"], search: false,
+                render: (county: string) => (
+                    <Text style={{ fontSize: 12, color: C.subText }}>
+                        {county || "—"}
+                    </Text>
+                ),
             },
             {
                 title: "KRA PIN", dataIndex: "kra_pin", search: false,

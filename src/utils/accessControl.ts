@@ -1,4 +1,4 @@
-export type ModuleScope = "core" | "hr" | "accounting";
+export type ModuleScope = "core" | "hr" | "accounting" | "crm";
 
 // ─── Feature module names (UI grouping labels) ────────────────────────────────
 
@@ -49,6 +49,13 @@ export const MODULES = {
     ACCOUNTING_BANK_STATEMENTS: "Accounting · Bank Statements",
     ACCOUNTING_RECONCILIATION: "Accounting · Bank Reconciliation",
     ACCOUNTING_REPORTS: "Accounting · Financial Reports",
+    // ── CRM / Mteja module ───────────────────────────────────────────────────
+    CRM_LEADS: "CRM · Leads",
+    CRM_CAMPAIGNS: "CRM · Campaigns",
+    CRM_SALES_TARGETS: "CRM · Sales Targets",
+    CRM_SALES_BUDGETS: "CRM · Sales Budgets",
+    CRM_LEAD_ACTIVITIES: "CRM · Lead Activities",
+    CRM_LEAD_WORKFLOWS: "CRM · Lead Workflows",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -152,32 +159,18 @@ export const PERMISSIONS: Record<string, Permission> = {
     DOCUMENTS_EMBED: { key: "DOCUMENTS_EMBED", label: "Generate AI Embeddings (Single & Batch)", module: MODULES.DOCUMENTS, action: "special", moduleScope: "core" },
 
     // ── EMAIL REPORTS ─────────────────────────────────────────────────────────
-    // Maps 1-to-1 with every sendXxxEmail() function in email.ts.
-    // All are "special" actions — they trigger outbound email delivery.
 
-    /** sendSalesReportEmail() */
     EMAIL_SEND_SALES_REPORT: { key: "EMAIL_SEND_SALES_REPORT", label: "Send Sales Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
-    /** sendPurchaseReportEmail() */
     EMAIL_SEND_PURCHASE_REPORT: { key: "EMAIL_SEND_PURCHASE_REPORT", label: "Send Purchase Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
-    /** sendPurchaseOrderEmail() — single PO */
     EMAIL_SEND_PURCHASE_ORDER: { key: "EMAIL_SEND_PURCHASE_ORDER", label: "Send Purchase Order Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
-    /** sendPurchaseOrderEmail() — isBulk=true */
     EMAIL_SEND_PURCHASE_ORDER_BULK: { key: "EMAIL_SEND_PURCHASE_ORDER_BULK", label: "Send Bulk Purchase Order Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
-    /** sendDeliveryNoteEmail() */
     EMAIL_SEND_DELIVERY_NOTE: { key: "EMAIL_SEND_DELIVERY_NOTE", label: "Send Delivery Note Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
-    /** sendInventoryReportEmail() */
     EMAIL_SEND_INVENTORY_REPORT: { key: "EMAIL_SEND_INVENTORY_REPORT", label: "Send Inventory Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
-    /** sendFinancialReportEmail() — lives in core scope; accounting scope has its own reports */
     EMAIL_SEND_FINANCIAL_REPORT: { key: "EMAIL_SEND_FINANCIAL_REPORT", label: "Send Financial Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "core" },
-    /** sendAttendanceReportEmail() */
     EMAIL_SEND_ATTENDANCE_REPORT: { key: "EMAIL_SEND_ATTENDANCE_REPORT", label: "Send Attendance Report Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "hr" },
-    /** sendLeaveApplicationEmail() — staff self-service confirmation */
     EMAIL_SEND_LEAVE_APPLICATION: { key: "EMAIL_SEND_LEAVE_APPLICATION", label: "Send Leave Application Confirmation Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "hr" },
-    /** sendLeaveHrNotificationEmail() — HR receives new leave alert */
     EMAIL_SEND_LEAVE_HR_NOTIFICATION: { key: "EMAIL_SEND_LEAVE_HR_NOTIFICATION", label: "Send Leave HR Notification Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "hr" },
-    /** sendLeaveApprovalEmail() */
     EMAIL_SEND_LEAVE_APPROVAL: { key: "EMAIL_SEND_LEAVE_APPROVAL", label: "Send Leave Approval Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "hr" },
-    /** sendLeaveRejectionEmail() */
     EMAIL_SEND_LEAVE_REJECTION: { key: "EMAIL_SEND_LEAVE_REJECTION", label: "Send Leave Rejection Email", module: MODULES.EMAIL_REPORTS, action: "special", moduleScope: "hr" },
 
     // ── FAQ ───────────────────────────────────────────────────────────────────
@@ -269,9 +262,6 @@ export const PERMISSIONS: Record<string, Permission> = {
     NOTIFICATIONS_VIEW_ANALYTICS: { key: "NOTIFICATIONS_VIEW_ANALYTICS", label: "View Notification Analytics", module: MODULES.NOTIFICATIONS, action: "read", moduleScope: "core" },
 
     // ── OMNICHANNEL (Conversations) ───────────────────────────────────────────
-    // Accessible only to tenants with the Conversations (omnichannel) feature.
-    // The internal permission key prefix stays OMNICHANNEL_ for backward
-    // compatibility with existing role assignments and API guards.
 
     OMNICHANNEL_VIEW: { key: "OMNICHANNEL_VIEW", label: "View Conversations", module: MODULES.OMNICHANNEL, action: "read", moduleScope: "core" },
     OMNICHANNEL_SEND_MESSAGE: { key: "OMNICHANNEL_SEND_MESSAGE", label: "Send Message", module: MODULES.OMNICHANNEL, action: "create", moduleScope: "core" },
@@ -429,8 +419,6 @@ export const PERMISSIONS: Record<string, Permission> = {
     // Visible / assignable only when tenant.modules.hr === true
     // ══════════════════════════════════════════════════════════════════════════
 
-    // ── Leave Management ──────────────────────────────────────────────────────
-
     HR_LEAVE_APPLY: { key: "HR_LEAVE_APPLY", label: "Apply for Leave", module: MODULES.HR_LEAVE, action: "create", moduleScope: "hr" },
     HR_LEAVE_VIEW: { key: "HR_LEAVE_VIEW", label: "View Leave Requests", module: MODULES.HR_LEAVE, action: "read", moduleScope: "hr" },
     HR_LEAVE_VIEW_ONE: { key: "HR_LEAVE_VIEW_ONE", label: "View Leave Request Details", module: MODULES.HR_LEAVE, action: "read", moduleScope: "hr" },
@@ -439,8 +427,6 @@ export const PERMISSIONS: Record<string, Permission> = {
     HR_LEAVE_CANCEL: { key: "HR_LEAVE_CANCEL", label: "Cancel Leave Request", module: MODULES.HR_LEAVE, action: "special", moduleScope: "hr" },
     HR_LEAVE_VIEW_BALANCE: { key: "HR_LEAVE_VIEW_BALANCE", label: "View Leave Balance", module: MODULES.HR_LEAVE, action: "read", moduleScope: "hr" },
     HR_LEAVE_SEED_BALANCE: { key: "HR_LEAVE_SEED_BALANCE", label: "Seed / Reset Leave Entitlements", module: MODULES.HR_LEAVE, action: "special", moduleScope: "hr" },
-
-    // ── Attendance ────────────────────────────────────────────────────────────
 
     HR_ATTENDANCE_CLOCK_IN: { key: "HR_ATTENDANCE_CLOCK_IN", label: "Clock In", module: MODULES.HR_ATTENDANCE, action: "special", moduleScope: "hr" },
     HR_ATTENDANCE_CLOCK_OUT: { key: "HR_ATTENDANCE_CLOCK_OUT", label: "Clock Out", module: MODULES.HR_ATTENDANCE, action: "special", moduleScope: "hr" },
@@ -456,11 +442,7 @@ export const PERMISSIONS: Record<string, Permission> = {
     // Visible / assignable only when tenant.modules.accounting === true
     // ══════════════════════════════════════════════════════════════════════════
 
-    // ── Accounting Dashboard ──────────────────────────────────────────────────
-
     ACCOUNTING_DASHBOARD_VIEW: { key: "ACCOUNTING_DASHBOARD_VIEW", label: "View Accounting Dashboard", module: MODULES.ACCOUNTING_DASHBOARD, action: "read", moduleScope: "accounting" },
-
-    // ── Chart of Accounts ─────────────────────────────────────────────────────
 
     ACCOUNTING_COA_VIEW: { key: "ACCOUNTING_COA_VIEW", label: "View Chart of Accounts", module: MODULES.ACCOUNTING_COA, action: "read", moduleScope: "accounting" },
     ACCOUNTING_COA_VIEW_ONE: { key: "ACCOUNTING_COA_VIEW_ONE", label: "View Account Details", module: MODULES.ACCOUNTING_COA, action: "read", moduleScope: "accounting" },
@@ -475,8 +457,6 @@ export const PERMISSIONS: Record<string, Permission> = {
     ACCOUNTING_COA_DELETE: { key: "ACCOUNTING_COA_DELETE", label: "Delete Account", module: MODULES.ACCOUNTING_COA, action: "delete", moduleScope: "accounting" },
     ACCOUNTING_COA_SEED_DEFAULTS: { key: "ACCOUNTING_COA_SEED_DEFAULTS", label: "Seed Default Chart of Accounts", module: MODULES.ACCOUNTING_COA, action: "special", moduleScope: "accounting" },
 
-    // ── Journal Entries ───────────────────────────────────────────────────────
-
     ACCOUNTING_JOURNAL_VIEW: { key: "ACCOUNTING_JOURNAL_VIEW", label: "View Journal Entries", module: MODULES.ACCOUNTING_JOURNALS, action: "read", moduleScope: "accounting" },
     ACCOUNTING_JOURNAL_VIEW_ONE: { key: "ACCOUNTING_JOURNAL_VIEW_ONE", label: "View Journal Entry Details", module: MODULES.ACCOUNTING_JOURNALS, action: "read", moduleScope: "accounting" },
     ACCOUNTING_JOURNAL_VIEW_SUMMARY: { key: "ACCOUNTING_JOURNAL_VIEW_SUMMARY", label: "View Journal Entry Summary", module: MODULES.ACCOUNTING_JOURNALS, action: "read", moduleScope: "accounting" },
@@ -485,8 +465,6 @@ export const PERMISSIONS: Record<string, Permission> = {
     ACCOUNTING_JOURNAL_CREATE_EXPENSE: { key: "ACCOUNTING_JOURNAL_CREATE_EXPENSE", label: "Create Direct Expense Journal Entry", module: MODULES.ACCOUNTING_JOURNALS, action: "create", moduleScope: "accounting" },
     ACCOUNTING_JOURNAL_POST: { key: "ACCOUNTING_JOURNAL_POST", label: "Post Journal Entry (Draft → Posted)", module: MODULES.ACCOUNTING_JOURNALS, action: "special", moduleScope: "accounting" },
     ACCOUNTING_JOURNAL_VOID: { key: "ACCOUNTING_JOURNAL_VOID", label: "Void Journal Entry", module: MODULES.ACCOUNTING_JOURNALS, action: "special", moduleScope: "accounting" },
-
-    // ── Invoices & Bills ──────────────────────────────────────────────────────
 
     ACCOUNTING_INVOICE_VIEW: { key: "ACCOUNTING_INVOICE_VIEW", label: "View Invoices & Bills", module: MODULES.ACCOUNTING_INVOICES, action: "read", moduleScope: "accounting" },
     ACCOUNTING_INVOICE_VIEW_ONE: { key: "ACCOUNTING_INVOICE_VIEW_ONE", label: "View Invoice / Bill Details", module: MODULES.ACCOUNTING_INVOICES, action: "read", moduleScope: "accounting" },
@@ -497,14 +475,10 @@ export const PERMISSIONS: Record<string, Permission> = {
     ACCOUNTING_INVOICE_RECORD_PAYMENT: { key: "ACCOUNTING_INVOICE_RECORD_PAYMENT", label: "Record Payment Against Invoice", module: MODULES.ACCOUNTING_INVOICES, action: "special", moduleScope: "accounting" },
     ACCOUNTING_INVOICE_CONVERT_QUOTE: { key: "ACCOUNTING_INVOICE_CONVERT_QUOTE", label: "Convert Quote to Invoice", module: MODULES.ACCOUNTING_INVOICES, action: "special", moduleScope: "accounting" },
 
-    // ── Income & Expenses ─────────────────────────────────────────────────────
-
     ACCOUNTING_INCOME_POST_DIRECT: { key: "ACCOUNTING_INCOME_POST_DIRECT", label: "Post Direct Income", module: MODULES.ACCOUNTING_INCOME, action: "create", moduleScope: "accounting" },
     ACCOUNTING_INCOME_POST_EXPENSE: { key: "ACCOUNTING_INCOME_POST_EXPENSE", label: "Post Direct Expense", module: MODULES.ACCOUNTING_INCOME, action: "create", moduleScope: "accounting" },
     ACCOUNTING_INCOME_SETTLE_INVOICE: { key: "ACCOUNTING_INCOME_SETTLE_INVOICE", label: "Settle Invoice Payment", module: MODULES.ACCOUNTING_INCOME, action: "special", moduleScope: "accounting" },
     ACCOUNTING_INCOME_VIEW_HISTORY: { key: "ACCOUNTING_INCOME_VIEW_HISTORY", label: "View Income / Expense Payment History", module: MODULES.ACCOUNTING_INCOME, action: "read", moduleScope: "accounting" },
-
-    // ── Credit & Debit Notes ──────────────────────────────────────────────────
 
     ACCOUNTING_NOTES_VIEW: { key: "ACCOUNTING_NOTES_VIEW", label: "View Credit / Debit Notes", module: MODULES.ACCOUNTING_NOTES, action: "read", moduleScope: "accounting" },
     ACCOUNTING_NOTES_VIEW_ONE: { key: "ACCOUNTING_NOTES_VIEW_ONE", label: "View Note Details", module: MODULES.ACCOUNTING_NOTES, action: "read", moduleScope: "accounting" },
@@ -517,8 +491,6 @@ export const PERMISSIONS: Record<string, Permission> = {
     ACCOUNTING_NOTES_APPLY: { key: "ACCOUNTING_NOTES_APPLY", label: "Apply Note Against Invoice", module: MODULES.ACCOUNTING_NOTES, action: "special", moduleScope: "accounting" },
     ACCOUNTING_NOTES_VOID: { key: "ACCOUNTING_NOTES_VOID", label: "Void Note", module: MODULES.ACCOUNTING_NOTES, action: "special", moduleScope: "accounting" },
     ACCOUNTING_NOTES_DELETE: { key: "ACCOUNTING_NOTES_DELETE", label: "Delete Draft Note", module: MODULES.ACCOUNTING_NOTES, action: "delete", moduleScope: "accounting" },
-
-    // ── Bank Statements ───────────────────────────────────────────────────────
 
     ACCOUNTING_BANK_STMT_VIEW: { key: "ACCOUNTING_BANK_STMT_VIEW", label: "View Bank Statement Imports", module: MODULES.ACCOUNTING_BANK_STATEMENTS, action: "read", moduleScope: "accounting" },
     ACCOUNTING_BANK_STMT_VIEW_ONE: { key: "ACCOUNTING_BANK_STMT_VIEW_ONE", label: "View Bank Statement Import Details", module: MODULES.ACCOUNTING_BANK_STATEMENTS, action: "read", moduleScope: "accounting" },
@@ -538,8 +510,6 @@ export const PERMISSIONS: Record<string, Permission> = {
     ACCOUNTING_BANK_STMT_CAT_MAP_VIEW: { key: "ACCOUNTING_BANK_STMT_CAT_MAP_VIEW", label: "View Category Mappings", module: MODULES.ACCOUNTING_BANK_STATEMENTS, action: "read", moduleScope: "accounting" },
     ACCOUNTING_BANK_STMT_CAT_MAP_MANAGE: { key: "ACCOUNTING_BANK_STMT_CAT_MAP_MANAGE", label: "Create / Update / Delete Category Mappings", module: MODULES.ACCOUNTING_BANK_STATEMENTS, action: "special", moduleScope: "accounting" },
 
-    // ── Bank Reconciliation ───────────────────────────────────────────────────
-
     ACCOUNTING_RECON_VIEW: { key: "ACCOUNTING_RECON_VIEW", label: "View Reconciliations", module: MODULES.ACCOUNTING_RECONCILIATION, action: "read", moduleScope: "accounting" },
     ACCOUNTING_RECON_VIEW_ONE: { key: "ACCOUNTING_RECON_VIEW_ONE", label: "View Reconciliation Details", module: MODULES.ACCOUNTING_RECONCILIATION, action: "read", moduleScope: "accounting" },
     ACCOUNTING_RECON_VIEW_UNRECONCILED: { key: "ACCOUNTING_RECON_VIEW_UNRECONCILED", label: "View Unreconciled Journal Entry Lines", module: MODULES.ACCOUNTING_RECONCILIATION, action: "read", moduleScope: "accounting" },
@@ -555,8 +525,6 @@ export const PERMISSIONS: Record<string, Permission> = {
     ACCOUNTING_RECON_COMPLETE: { key: "ACCOUNTING_RECON_COMPLETE", label: "Complete Reconciliation", module: MODULES.ACCOUNTING_RECONCILIATION, action: "special", moduleScope: "accounting" },
     ACCOUNTING_RECON_VOID: { key: "ACCOUNTING_RECON_VOID", label: "Void Reconciliation", module: MODULES.ACCOUNTING_RECONCILIATION, action: "special", moduleScope: "accounting" },
 
-    // ── Financial Reports ─────────────────────────────────────────────────────
-
     ACCOUNTING_REPORT_TRIAL_BALANCE: { key: "ACCOUNTING_REPORT_TRIAL_BALANCE", label: "View Trial Balance", module: MODULES.ACCOUNTING_REPORTS, action: "read", moduleScope: "accounting" },
     ACCOUNTING_REPORT_PROFIT_LOSS: { key: "ACCOUNTING_REPORT_PROFIT_LOSS", label: "View Profit & Loss Statement", module: MODULES.ACCOUNTING_REPORTS, action: "read", moduleScope: "accounting" },
     ACCOUNTING_REPORT_BALANCE_SHEET: { key: "ACCOUNTING_REPORT_BALANCE_SHEET", label: "View Balance Sheet", module: MODULES.ACCOUNTING_REPORTS, action: "read", moduleScope: "accounting" },
@@ -568,6 +536,71 @@ export const PERMISSIONS: Record<string, Permission> = {
     ACCOUNTING_REPORT_SUPPLIER_STATEMENT: { key: "ACCOUNTING_REPORT_SUPPLIER_STATEMENT", label: "View Supplier Statement", module: MODULES.ACCOUNTING_REPORTS, action: "read", moduleScope: "accounting" },
     ACCOUNTING_REPORT_AR_AGING: { key: "ACCOUNTING_REPORT_AR_AGING", label: "View AR Aging Report", module: MODULES.ACCOUNTING_REPORTS, action: "read", moduleScope: "accounting" },
     ACCOUNTING_REPORT_AP_AGING: { key: "ACCOUNTING_REPORT_AP_AGING", label: "View AP Aging Report", module: MODULES.ACCOUNTING_REPORTS, action: "read", moduleScope: "accounting" },
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // CRM / MTEJA MODULE  (moduleScope: "crm")
+    // Visible / assignable only when tenant.modules.crm === true
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // ── Leads ─────────────────────────────────────────────────────────────────
+
+    CRM_LEADS_VIEW: { key: "CRM_LEADS_VIEW", label: "View Leads", module: MODULES.CRM_LEADS, action: "read", moduleScope: "crm" },
+    CRM_LEADS_VIEW_ONE: { key: "CRM_LEADS_VIEW_ONE", label: "View Lead Details", module: MODULES.CRM_LEADS, action: "read", moduleScope: "crm" },
+    CRM_LEADS_CREATE: { key: "CRM_LEADS_CREATE", label: "Create Lead", module: MODULES.CRM_LEADS, action: "create", moduleScope: "crm" },
+    CRM_LEADS_UPDATE: { key: "CRM_LEADS_UPDATE", label: "Update Lead", module: MODULES.CRM_LEADS, action: "update", moduleScope: "crm" },
+    CRM_LEADS_UPDATE_STAGE: { key: "CRM_LEADS_UPDATE_STAGE", label: "Update Lead Stage", module: MODULES.CRM_LEADS, action: "special", moduleScope: "crm" },
+    CRM_LEADS_CONVERT: { key: "CRM_LEADS_CONVERT", label: "Convert Lead to Customer", module: MODULES.CRM_LEADS, action: "special", moduleScope: "crm" },
+    CRM_LEADS_DELETE: { key: "CRM_LEADS_DELETE", label: "Delete Lead", module: MODULES.CRM_LEADS, action: "delete", moduleScope: "crm" },
+    CRM_LEADS_VIEW_PIPELINE: { key: "CRM_LEADS_VIEW_PIPELINE", label: "View Pipeline Summary", module: MODULES.CRM_LEADS, action: "read", moduleScope: "crm" },
+
+    // ── Lead Activities ───────────────────────────────────────────────────────
+
+    CRM_ACTIVITIES_VIEW: { key: "CRM_ACTIVITIES_VIEW", label: "View Lead Activities", module: MODULES.CRM_LEAD_ACTIVITIES, action: "read", moduleScope: "crm" },
+    CRM_ACTIVITIES_CREATE: { key: "CRM_ACTIVITIES_CREATE", label: "Log Lead Activity", module: MODULES.CRM_LEAD_ACTIVITIES, action: "create", moduleScope: "crm" },
+    CRM_ACTIVITIES_UPDATE: { key: "CRM_ACTIVITIES_UPDATE", label: "Update Lead Activity", module: MODULES.CRM_LEAD_ACTIVITIES, action: "update", moduleScope: "crm" },
+    CRM_ACTIVITIES_DELETE: { key: "CRM_ACTIVITIES_DELETE", label: "Delete Lead Activity", module: MODULES.CRM_LEAD_ACTIVITIES, action: "delete", moduleScope: "crm" },
+    CRM_ACTIVITIES_VIEW_SUMMARY: { key: "CRM_ACTIVITIES_VIEW_SUMMARY", label: "View Activity Summary", module: MODULES.CRM_LEAD_ACTIVITIES, action: "read", moduleScope: "crm" },
+
+    // ── Lead Workflows ────────────────────────────────────────────────────────
+
+    CRM_WORKFLOWS_VIEW: { key: "CRM_WORKFLOWS_VIEW", label: "View Lead Workflows", module: MODULES.CRM_LEAD_WORKFLOWS, action: "read", moduleScope: "crm" },
+    CRM_WORKFLOWS_CREATE: { key: "CRM_WORKFLOWS_CREATE", label: "Create Lead Workflow", module: MODULES.CRM_LEAD_WORKFLOWS, action: "create", moduleScope: "crm" },
+    CRM_WORKFLOWS_UPDATE: { key: "CRM_WORKFLOWS_UPDATE", label: "Update Lead Workflow", module: MODULES.CRM_LEAD_WORKFLOWS, action: "update", moduleScope: "crm" },
+    CRM_WORKFLOWS_DELETE: { key: "CRM_WORKFLOWS_DELETE", label: "Delete Lead Workflow", module: MODULES.CRM_LEAD_WORKFLOWS, action: "delete", moduleScope: "crm" },
+    CRM_WORKFLOWS_TOGGLE: { key: "CRM_WORKFLOWS_TOGGLE", label: "Activate / Deactivate Workflow", module: MODULES.CRM_LEAD_WORKFLOWS, action: "special", moduleScope: "crm" },
+    CRM_WORKFLOWS_TRIGGER: { key: "CRM_WORKFLOWS_TRIGGER", label: "Manually Trigger Workflow for Lead", module: MODULES.CRM_LEAD_WORKFLOWS, action: "special", moduleScope: "crm" },
+    CRM_WORKFLOWS_VIEW_LOGS: { key: "CRM_WORKFLOWS_VIEW_LOGS", label: "View Workflow Execution Logs", module: MODULES.CRM_LEAD_WORKFLOWS, action: "read", moduleScope: "crm" },
+
+    // ── Campaigns ────────────────────────────────────────────────────────────
+
+    CRM_CAMPAIGNS_VIEW: { key: "CRM_CAMPAIGNS_VIEW", label: "View Campaigns", module: MODULES.CRM_CAMPAIGNS, action: "read", moduleScope: "crm" },
+    CRM_CAMPAIGNS_VIEW_ONE: { key: "CRM_CAMPAIGNS_VIEW_ONE", label: "View Campaign Details", module: MODULES.CRM_CAMPAIGNS, action: "read", moduleScope: "crm" },
+    CRM_CAMPAIGNS_CREATE: { key: "CRM_CAMPAIGNS_CREATE", label: "Create Campaign", module: MODULES.CRM_CAMPAIGNS, action: "create", moduleScope: "crm" },
+    CRM_CAMPAIGNS_UPDATE: { key: "CRM_CAMPAIGNS_UPDATE", label: "Update Campaign", module: MODULES.CRM_CAMPAIGNS, action: "update", moduleScope: "crm" },
+    CRM_CAMPAIGNS_UPDATE_STATUS: { key: "CRM_CAMPAIGNS_UPDATE_STATUS", label: "Update Campaign Status", module: MODULES.CRM_CAMPAIGNS, action: "special", moduleScope: "crm" },
+    CRM_CAMPAIGNS_UPDATE_ACTUALS: { key: "CRM_CAMPAIGNS_UPDATE_ACTUALS", label: "Update Campaign Actuals (Spend / Revenue)", module: MODULES.CRM_CAMPAIGNS, action: "special", moduleScope: "crm" },
+    CRM_CAMPAIGNS_DELETE: { key: "CRM_CAMPAIGNS_DELETE", label: "Delete Campaign", module: MODULES.CRM_CAMPAIGNS, action: "delete", moduleScope: "crm" },
+
+    // ── Sales Targets ─────────────────────────────────────────────────────────
+
+    CRM_TARGETS_VIEW: { key: "CRM_TARGETS_VIEW", label: "View Sales Targets", module: MODULES.CRM_SALES_TARGETS, action: "read", moduleScope: "crm" },
+    CRM_TARGETS_VIEW_ONE: { key: "CRM_TARGETS_VIEW_ONE", label: "View Sales Target Details", module: MODULES.CRM_SALES_TARGETS, action: "read", moduleScope: "crm" },
+    CRM_TARGETS_VIEW_LEADERBOARD: { key: "CRM_TARGETS_VIEW_LEADERBOARD", label: "View Sales Leaderboard", module: MODULES.CRM_SALES_TARGETS, action: "read", moduleScope: "crm" },
+    CRM_TARGETS_CREATE: { key: "CRM_TARGETS_CREATE", label: "Create Sales Target", module: MODULES.CRM_SALES_TARGETS, action: "create", moduleScope: "crm" },
+    CRM_TARGETS_UPDATE: { key: "CRM_TARGETS_UPDATE", label: "Update Sales Target", module: MODULES.CRM_SALES_TARGETS, action: "update", moduleScope: "crm" },
+    CRM_TARGETS_UPDATE_ACTUAL: { key: "CRM_TARGETS_UPDATE_ACTUAL", label: "Update Target Actual Value", module: MODULES.CRM_SALES_TARGETS, action: "special", moduleScope: "crm" },
+    CRM_TARGETS_DELETE: { key: "CRM_TARGETS_DELETE", label: "Delete Sales Target", module: MODULES.CRM_SALES_TARGETS, action: "delete", moduleScope: "crm" },
+
+    // ── Sales Budgets ─────────────────────────────────────────────────────────
+
+    CRM_BUDGETS_VIEW: { key: "CRM_BUDGETS_VIEW", label: "View Sales Budgets", module: MODULES.CRM_SALES_BUDGETS, action: "read", moduleScope: "crm" },
+    CRM_BUDGETS_VIEW_ONE: { key: "CRM_BUDGETS_VIEW_ONE", label: "View Sales Budget Details", module: MODULES.CRM_SALES_BUDGETS, action: "read", moduleScope: "crm" },
+    CRM_BUDGETS_CREATE: { key: "CRM_BUDGETS_CREATE", label: "Create Sales Budget", module: MODULES.CRM_SALES_BUDGETS, action: "create", moduleScope: "crm" },
+    CRM_BUDGETS_UPDATE: { key: "CRM_BUDGETS_UPDATE", label: "Update Sales Budget", module: MODULES.CRM_SALES_BUDGETS, action: "update", moduleScope: "crm" },
+    CRM_BUDGETS_SUBMIT: { key: "CRM_BUDGETS_SUBMIT", label: "Submit Budget for Approval", module: MODULES.CRM_SALES_BUDGETS, action: "special", moduleScope: "crm" },
+    CRM_BUDGETS_APPROVE: { key: "CRM_BUDGETS_APPROVE", label: "Approve / Reject Budget", module: MODULES.CRM_SALES_BUDGETS, action: "special", moduleScope: "crm" },
+    CRM_BUDGETS_UPDATE_ACTUALS: { key: "CRM_BUDGETS_UPDATE_ACTUALS", label: "Update Budget Actuals", module: MODULES.CRM_SALES_BUDGETS, action: "special", moduleScope: "crm" },
+    CRM_BUDGETS_DELETE: { key: "CRM_BUDGETS_DELETE", label: "Delete Sales Budget", module: MODULES.CRM_SALES_BUDGETS, action: "delete", moduleScope: "crm" },
 
 } as const;
 
@@ -584,23 +617,29 @@ export const HR_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
 export const ACCOUNTING_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
     (k) => PERMISSIONS[k].moduleScope === "accounting"
 );
+export const CRM_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
+    (k) => PERMISSIONS[k].moduleScope === "crm"
+);
 
 // ─── Tenant-aware helpers ─────────────────────────────────────────────────────
 
 export const getPermissionsForTenant = (options: {
     hasHR?: boolean;
     hasAccounting?: boolean;
+    hasCRM?: boolean;
 }): Permission[] =>
     Object.values(PERMISSIONS).filter((p) => {
         if (p.moduleScope === "core") return true;
         if (p.moduleScope === "hr") return !!options.hasHR;
         if (p.moduleScope === "accounting") return !!options.hasAccounting;
+        if (p.moduleScope === "crm") return !!options.hasCRM;
         return false;
     });
 
 export const getPermissionsGroupedByModuleForTenant = (options: {
     hasHR?: boolean;
     hasAccounting?: boolean;
+    hasCRM?: boolean;
 }): Record<string, Permission[]> =>
     getPermissionsForTenant(options).reduce<Record<string, Permission[]>>((acc, p) => {
         if (!acc[p.module]) acc[p.module] = [];
@@ -655,6 +694,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "ACCOUNTING_COA_SEED_DEFAULTS",
         "HR_ATTENDANCE_RECONCILE",
         "HR_LEAVE_SEED_BALANCE",
+        "CRM_BUDGETS_APPROVE",  // budget approval is senior management only
     ].includes(k)),
 
     /** CASHIER — POS / front-of-house operations only */
@@ -671,7 +711,6 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "PAYMENT_METHODS_VIEW", "MODIFIERS_VIEW", "ADDONS_VIEW",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ", "NOTIFICATIONS_MARK_ALL_READ",
         "GIFT_CARDS_VIEW_ONE",
-        // ── Conversations: read-only for cashiers ─────────────────────────────
         "OMNICHANNEL_VIEW",
     ],
 
@@ -690,9 +729,7 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "SUPPLIERS_VIEW",
         "PURCHASE_ORDERS_VIEW", "PURCHASE_ORDERS_VIEW_ONE", "PURCHASE_ORDERS_CREATE",
         "PURCHASE_ORDERS_UPDATE", "PURCHASE_ORDERS_VIEW_PENDING_ITEMS", "PURCHASE_ORDERS_VIEW_DELIVERIES",
-        // ── Email: delivery notes and POs ──────────────────────────────────────
         "EMAIL_SEND_DELIVERY_NOTE", "EMAIL_SEND_PURCHASE_ORDER", "EMAIL_SEND_PURCHASE_ORDER_BULK",
-        // ──────────────────────────────────────────────────────────────────────
         "TRANSFERS_VIEW", "TRANSFERS_VIEW_ONE", "TRANSFERS_CREATE", "TRANSFERS_VIEW_PENDING",
         "UOM_VIEW",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
@@ -706,10 +743,14 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "INVENTORY_VIEW", "INVENTORY_VIEW_USAGE_BY_DATE",
         "PRODUCTS_VIEW", "CUSTOMERS_VIEW",
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_SEARCH",
-        // ── Email: sales and inventory reports ────────────────────────────────
         "EMAIL_SEND_SALES_REPORT", "EMAIL_SEND_PURCHASE_REPORT", "EMAIL_SEND_INVENTORY_REPORT",
-        // ──────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+        // CRM read access for analysts
+        "CRM_LEADS_VIEW", "CRM_LEADS_VIEW_ONE", "CRM_LEADS_VIEW_PIPELINE",
+        "CRM_CAMPAIGNS_VIEW", "CRM_CAMPAIGNS_VIEW_ONE",
+        "CRM_TARGETS_VIEW", "CRM_TARGETS_VIEW_ONE", "CRM_TARGETS_VIEW_LEADERBOARD",
+        "CRM_BUDGETS_VIEW", "CRM_BUDGETS_VIEW_ONE",
+        "CRM_ACTIVITIES_VIEW", "CRM_ACTIVITIES_VIEW_SUMMARY",
     ],
 
     /** HR_MANAGER — full HR module including all HR-scoped emails */
@@ -718,26 +759,22 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "USERS_VIEW", "USERS_VIEW_ONE",
         "SHIFTS_VIEW", "SHIFTS_CREATE", "SHIFTS_UPDATE",
         "SCHEDULES_VIEW", "SCHEDULES_CREATE", "SCHEDULES_UPDATE",
-        // ── Email: all HR-scoped emails ────────────────────────────────────────
         "EMAIL_SEND_ATTENDANCE_REPORT",
         "EMAIL_SEND_LEAVE_APPLICATION", "EMAIL_SEND_LEAVE_HR_NOTIFICATION",
         "EMAIL_SEND_LEAVE_APPROVAL", "EMAIL_SEND_LEAVE_REJECTION",
-        // ──────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
-    /** HR_STAFF — self-service only; can trigger their own leave confirmation email */
+    /** HR_STAFF — self-service only */
     HR_STAFF: [
         "HR_LEAVE_APPLY", "HR_LEAVE_VIEW", "HR_LEAVE_VIEW_ONE", "HR_LEAVE_CANCEL", "HR_LEAVE_VIEW_BALANCE",
         "HR_ATTENDANCE_CLOCK_IN", "HR_ATTENDANCE_CLOCK_OUT",
         "HR_ATTENDANCE_VIEW_STATUS", "HR_ATTENDANCE_VIEW_MY",
-        // ── Email: staff-facing leave email only ──────────────────────────────
         "EMAIL_SEND_LEAVE_APPLICATION",
-        // ──────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 
-    /** ACCOUNTANT — full accounting operations including AI document search + financial report emails */
+    /** ACCOUNTANT — full accounting operations */
     ACCOUNTANT: [
         "ACCOUNTING_DASHBOARD_VIEW",
         "ACCOUNTING_COA_VIEW", "ACCOUNTING_COA_VIEW_ONE", "ACCOUNTING_COA_VIEW_TREE",
@@ -771,19 +808,19 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "ACCOUNTING_REPORT_CUSTOMER_STATEMENT", "ACCOUNTING_REPORT_SUPPLIER_STATEMENT",
         "ACCOUNTING_REPORT_AR_AGING", "ACCOUNTING_REPORT_AP_AGING",
         "SUPPLIERS_VIEW", "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "PAYMENT_METHODS_VIEW",
-        // ── Documents (full access + AI embedding) ────────────────────────────
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_CREATE", "DOCUMENTS_UPDATE",
         "DOCUMENTS_DELETE", "DOCUMENTS_MANAGE_FOLDERS", "DOCUMENTS_UPLOAD_ATTACHMENTS",
         "DOCUMENTS_UPDATE_STATUS", "DOCUMENTS_SEARCH", "DOCUMENTS_EMBED",
-        // ── Email: financial report only ──────────────────────────────────────
         "EMAIL_SEND_FINANCIAL_REPORT",
-        // ── Conversations: read + send for accountants ────────────────────────
         "OMNICHANNEL_VIEW", "OMNICHANNEL_SEND_MESSAGE", "OMNICHANNEL_MANAGE_CONVERSATIONS",
-        // ──────────────────────────────────────────────────────────────────────
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+        // CRM read access for accountants (budget tracking)
+        "CRM_BUDGETS_VIEW", "CRM_BUDGETS_VIEW_ONE", "CRM_BUDGETS_UPDATE_ACTUALS",
+        "CRM_TARGETS_VIEW", "CRM_TARGETS_VIEW_ONE", "CRM_TARGETS_VIEW_LEADERBOARD",
+        "CRM_CAMPAIGNS_VIEW", "CRM_CAMPAIGNS_VIEW_ONE",
     ],
 
-    /** ACCOUNTING_VIEWER — read-only (auditor / board member); no embedding, no email send */
+    /** ACCOUNTING_VIEWER — read-only */
     ACCOUNTING_VIEWER: [
         "ACCOUNTING_DASHBOARD_VIEW",
         "ACCOUNTING_COA_VIEW", "ACCOUNTING_COA_VIEW_ONE", "ACCOUNTING_COA_VIEW_TREE",
@@ -802,11 +839,66 @@ export const ROLE_PRESETS: Record<string, string[]> = {
         "ACCOUNTING_REPORT_VAT", "ACCOUNTING_REPORT_CASH_FLOW",
         "ACCOUNTING_REPORT_CUSTOMER_STATEMENT", "ACCOUNTING_REPORT_SUPPLIER_STATEMENT",
         "ACCOUNTING_REPORT_AR_AGING", "ACCOUNTING_REPORT_AP_AGING",
-        // ── Documents (read-only, no embedding) ───────────────────────────────
         "DOCUMENTS_VIEW", "DOCUMENTS_VIEW_ONE", "DOCUMENTS_SEARCH",
-        // ── Conversations: read-only for viewers ──────────────────────────────
         "OMNICHANNEL_VIEW",
-        // ── No email send permissions for read-only role ──────────────────────
+        "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+    ],
+
+    // ── CRM / Mteja role presets ───────────────────────────────────────────────
+
+    /** CRM_MANAGER — full CRM access including budget approval and workflow management */
+    CRM_MANAGER: [
+        // Customers (base)
+        "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_UPDATE",
+        // Leads — full
+        ...CRM_PERMISSION_KEYS.filter(k => k.startsWith("CRM_LEADS_")),
+        // Activities — full
+        ...CRM_PERMISSION_KEYS.filter(k => k.startsWith("CRM_ACTIVITIES_")),
+        // Workflows — full
+        ...CRM_PERMISSION_KEYS.filter(k => k.startsWith("CRM_WORKFLOWS_")),
+        // Campaigns — full
+        ...CRM_PERMISSION_KEYS.filter(k => k.startsWith("CRM_CAMPAIGNS_")),
+        // Targets — full
+        ...CRM_PERMISSION_KEYS.filter(k => k.startsWith("CRM_TARGETS_")),
+        // Budgets — full including approve
+        ...CRM_PERMISSION_KEYS.filter(k => k.startsWith("CRM_BUDGETS_")),
+        // Conversations
+        "OMNICHANNEL_VIEW", "OMNICHANNEL_SEND_MESSAGE", "OMNICHANNEL_MANAGE_CONVERSATIONS",
+        "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+    ],
+
+    /** CRM_AGENT — sales rep; create/update leads and activities, no budget approval or workflow management */
+    CRM_AGENT: [
+        // Customers (base)
+        "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE", "CUSTOMERS_CREATE", "CUSTOMERS_UPDATE",
+        // Leads
+        "CRM_LEADS_VIEW", "CRM_LEADS_VIEW_ONE", "CRM_LEADS_CREATE", "CRM_LEADS_UPDATE",
+        "CRM_LEADS_UPDATE_STAGE", "CRM_LEADS_CONVERT", "CRM_LEADS_VIEW_PIPELINE",
+        // Activities
+        "CRM_ACTIVITIES_VIEW", "CRM_ACTIVITIES_CREATE", "CRM_ACTIVITIES_UPDATE",
+        "CRM_ACTIVITIES_VIEW_SUMMARY",
+        // Campaigns — read only
+        "CRM_CAMPAIGNS_VIEW", "CRM_CAMPAIGNS_VIEW_ONE",
+        // Targets — read + update own actual
+        "CRM_TARGETS_VIEW", "CRM_TARGETS_VIEW_ONE", "CRM_TARGETS_VIEW_LEADERBOARD",
+        "CRM_TARGETS_UPDATE_ACTUAL",
+        // Budgets — read only
+        "CRM_BUDGETS_VIEW", "CRM_BUDGETS_VIEW_ONE",
+        // Conversations
+        "OMNICHANNEL_VIEW", "OMNICHANNEL_SEND_MESSAGE",
+        "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
+    ],
+
+    /** CRM_VIEWER — read-only CRM access (auditor / board) */
+    CRM_VIEWER: [
+        "CUSTOMERS_VIEW", "CUSTOMERS_VIEW_ONE",
+        "CRM_LEADS_VIEW", "CRM_LEADS_VIEW_ONE", "CRM_LEADS_VIEW_PIPELINE",
+        "CRM_ACTIVITIES_VIEW", "CRM_ACTIVITIES_VIEW_SUMMARY",
+        "CRM_CAMPAIGNS_VIEW", "CRM_CAMPAIGNS_VIEW_ONE",
+        "CRM_TARGETS_VIEW", "CRM_TARGETS_VIEW_ONE", "CRM_TARGETS_VIEW_LEADERBOARD",
+        "CRM_BUDGETS_VIEW", "CRM_BUDGETS_VIEW_ONE",
+        "CRM_WORKFLOWS_VIEW", "CRM_WORKFLOWS_VIEW_LOGS",
+        "OMNICHANNEL_VIEW",
         "NOTIFICATIONS_VIEW_MY", "NOTIFICATIONS_MARK_READ",
     ],
 };

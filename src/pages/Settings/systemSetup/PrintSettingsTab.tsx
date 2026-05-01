@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import {
-    Alert, Button, Card, Col, Divider, Form,
+    Alert, Button, Col, Divider, Form,
     InputNumber, Row, Select, Skeleton, Space,
     Switch, Tag, Tooltip, Typography,
 } from "antd";
+import { ProCard } from "@ant-design/pro-components";
 import {
     PrinterOutlined, SaveOutlined, InfoCircleOutlined,
     LockOutlined, ReloadOutlined, CheckCircleOutlined,
@@ -154,9 +155,9 @@ const PrintSettingsTab: React.FC = () => {
         <div style={{ padding: "16px 0" }}>
             {/* ── Shop selector ──────────────────────────────────────────────── */}
             {shops.length > 1 && (
-                <Card
-                    size="small"
-                    style={{ marginBottom: 16, borderRadius: 10, border: `1px solid ${C.border}` }}
+                <ProCard
+                    bordered
+                    style={{ marginBottom: 16 }}
                     bodyStyle={{ padding: "12px 16px" }}
                 >
                     <Space align="center">
@@ -172,7 +173,7 @@ const PrintSettingsTab: React.FC = () => {
                             options={shops.map((s) => ({ label: s.name, value: s._id }))}
                         />
                     </Space>
-                </Card>
+                </ProCard>
             )}
 
             {loading ? (
@@ -186,9 +187,9 @@ const PrintSettingsTab: React.FC = () => {
             ) : (
                 <Form form={form} layout="vertical" initialValues={DEFAULT_SETTINGS}>
                     {/* ── Master switch ─────────────────────────────────────────── */}
-                    <Card
-                        size="small"
-                        style={{ marginBottom: 16, borderRadius: 10, border: `1px solid ${C.border}` }}
+                    <ProCard
+                        bordered
+                        style={{ marginBottom: 16 }}
                         bodyStyle={{ padding: "14px 16px" }}
                     >
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -208,14 +209,14 @@ const PrintSettingsTab: React.FC = () => {
                                 />
                             </Form.Item>
                         </div>
-                    </Card>
+                    </ProCard>
 
                     {enabled && (
                         <>
                             {/* ── Save on print ──────────────────────────────────────── */}
-                            <Card
-                                size="small"
-                                style={{ marginBottom: 16, borderRadius: 10, border: `1px solid ${C.border}` }}
+                            <ProCard
+                                bordered
+                                style={{ marginBottom: 16 }}
                                 bodyStyle={{ padding: "14px 16px" }}
                             >
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -230,11 +231,11 @@ const PrintSettingsTab: React.FC = () => {
                                         <Switch checkedChildren="Yes" unCheckedChildren="No" style={{ background: undefined }} />
                                     </Form.Item>
                                 </div>
-                            </Card>
+                            </ProCard>
 
                             {/* ── Print limits ───────────────────────────────────────── */}
-                            <Card
-                                size="small"
+                            <ProCard
+                                bordered
                                 title={
                                     <Space>
                                         <PrinterOutlined style={{ color: C.primary }} />
@@ -244,7 +245,7 @@ const PrintSettingsTab: React.FC = () => {
                                         </Tooltip>
                                     </Space>
                                 }
-                                style={{ marginBottom: 16, borderRadius: 10, border: `1px solid ${C.border}` }}
+                                style={{ marginBottom: 16 }}
                                 bodyStyle={{ padding: "14px 16px" }}
                             >
                                 <Form.Item
@@ -276,18 +277,18 @@ const PrintSettingsTab: React.FC = () => {
                                         </Col>
                                     ))}
                                 </Row>
-                            </Card>
+                            </ProCard>
 
                             {/* ── Reprint settings ───────────────────────────────────── */}
-                            <Card
-                                size="small"
+                            <ProCard
+                                bordered
                                 title={
                                     <Space>
                                         <LockOutlined style={{ color: C.primary }} />
                                         <Text strong style={{ fontSize: 13 }}>Reprint Controls</Text>
                                     </Space>
                                 }
-                                style={{ marginBottom: 16, borderRadius: 10, border: `1px solid ${C.border}` }}
+                                style={{ marginBottom: 16 }}
                                 bodyStyle={{ padding: "14px 16px" }}
                             >
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
@@ -329,7 +330,7 @@ const PrintSettingsTab: React.FC = () => {
                                         </div>
                                     </>
                                 )}
-                            </Card>
+                            </ProCard>
                         </>
                     )}
 

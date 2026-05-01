@@ -5,7 +5,7 @@ import {
 } from "antd";
 import {
     FileTextOutlined, PlusOutlined, DollarOutlined,
-    StopOutlined, MoreOutlined, EyeOutlined,
+    StopOutlined, MoreOutlined, EyeOutlined, EditOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -14,6 +14,8 @@ import {
     getAllBills, getBillSummary, recordBillPayment, voidBill,
     type Bill, type BillStatus,
 } from "@services/accounting/bill";
+import BillDetailDrawer from "./BillDetailDrawer";
+import NoteDetailDrawer from "../Notes/NoteDetailDrawer";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { getAllAccounts } from "@services/accounting/accounts";
 
@@ -65,6 +67,7 @@ const STATUS_CFG: Record<BillStatus, { color: string; label: string }> = {
 
 const PAYABLE_STATUSES: BillStatus[] = ["Pending", "Partially_Paid", "Overdue"];
 const VOIDABLE_STATUSES: BillStatus[] = ["Pending", "Partially_Paid", "Overdue", "Draft"];
+const EDITABLE_STATUSES: BillStatus[] = ["Pending", "Draft"];
 
 // ── Payment modal ─────────────────────────────────────────────────────────────
 const BillPaymentModal: React.FC<{
@@ -102,6 +105,7 @@ const BillPaymentModal: React.FC<{
             recordBillPayment(bill!._id, {
                 amount: values.amount,
                 method_id: values.method_id,
+                account_id: values.account_id,
                 reference: values.reference,
                 notes: values.notes,
             }),
@@ -151,6 +155,10 @@ const BillPaymentModal: React.FC<{
                 <Form.Item name="method_id" label="Payment Method" rules={[{ required: true }]}>
                     <Select showSearch placeholder="M-Pesa / Bank / Cash"
                         options={methodOptions} optionFilterProp="label" />
+                </Form.Item>
+                <Form.Item name="account_id" label="Payment Account" rules={[{ required: true, message: "Select payment account" }]}>
+                    <Select showSearch placeholder="Bank / Cash account"
+                        options={assetAccountOptions} optionFilterProp="label" />
                 </Form.Item>
                 <Form.Item
                     name="amount" label="Amount (KES)"
@@ -231,6 +239,10 @@ function BillsPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [payTarget, setPayTarget] = useState<Bill | null>(null);
     const [voidTarget, setVoidTarget] = useState<Bill | null>(null);
+    const [editTarget, setEditTarget] = useState<Bill | null>(null);
+    const [viewTarget, setViewTarget] = useState<Bill | null>(null);
+    const [noteDetailOpen, setNoteDetailOpen] = useState(false);
+    const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
     const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
         dayjs().startOf("month"),
         dayjs().endOf("month"),
@@ -341,7 +353,7 @@ function BillsPage() {
                 : <Text style={{ color: C.subText }}>—</Text>,
         },
         {
-            title: "JE", dataIndex: "journal_entry_id", width: 100,
+            title: "JE", dataIndex: "journal_entry_id", width: 150,
             render: (je: any) => je ? (
                 <span style={{
                     background: je.status === "Posted" ? "#f0fdf4" : "#fffbeb",
@@ -354,12 +366,30 @@ function BillsPage() {
             ) : <span style={{ color: C.subText, fontSize: 12 }}>—</span>,
         },
         {
-            title: "Actions", key: "actions", width: 130, fixed: "right" as const,
+            title: "Actions", key: "actions", width: 250, fixed: "right" as const,
             render: (_: any, row: Bill) => {
                 const canPay = PAYABLE_STATUSES.includes(row.status);
                 const canVoid = VOIDABLE_STATUSES.includes(row.status);
+                const canEdit = EDITABLE_STATUSES.includes(row.status);
                 return (
                     <Space size={4}>
+                        <Tooltip title="View Bill Details">
+                            <Button
+                                size="small"
+                                icon={<EyeOutlined />}
+                                onClick={() => setViewTarget(row)}
+                            />
+                        </Tooltip>
+                        {canEdit && (
+                            <Tooltip title="Edit Bill">
+                                <Button
+                                    size="small"
+                                    icon={<EditOutlined />}
+                                    style={{ background: "#1890ff", borderColor: "#1890ff", color: "#fff" }}
+                                    onClick={() => setEditTarget(row)}
+                                />
+                            </Tooltip>
+                        )}
                         {canPay && (
                             <Tooltip title="Record Payment">
                                 <Button
@@ -379,7 +409,7 @@ function BillsPage() {
                                 />
                             </Tooltip>
                         )}
-                        {!canPay && !canVoid && (
+                        {!canPay && !canVoid && !canEdit && (
                             <Text style={{ fontSize: 11, color: C.subText }}>
                                 {row.status}
                             </Text>
@@ -470,6 +500,14 @@ function BillsPage() {
                 defaultTab="bill"
             />
 
+            <ManualIncomeModal
+                open={!!editTarget}
+                onClose={() => setEditTarget(null)}
+                onSuccess={refresh}
+                defaultTab="bill"
+                billToEdit={editTarget}
+            />
+
             <BillPaymentModal
                 bill={payTarget}
                 open={!!payTarget}
@@ -482,6 +520,29 @@ function BillsPage() {
                 open={!!voidTarget}
                 onClose={() => setVoidTarget(null)}
                 onSuccess={refresh}
+            />
+
+            <BillDetailDrawer
+                open={!!viewTarget}
+                onClose={() => setViewTarget(null)}
+                billId={viewTarget?._id || null}
+                onOpenNote={(noteId) => {
+                    setSelectedNoteId(noteId);
+                    setNoteDetailOpen(true);
+                }}
+            />
+
+            <NoteDetailDrawer
+                open={noteDetailOpen}
+                onClose={() => {
+                    setNoteDetailOpen(false);
+                    setSelectedNoteId(null);
+                }}
+                noteId={selectedNoteId}
+                onSuccess={() => {
+                    // Refresh the data when note is updated
+                    refresh();
+                }}
             />
         </App>
     );

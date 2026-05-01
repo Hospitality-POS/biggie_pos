@@ -9,7 +9,7 @@ import axiosInstance from "../request";
 export type NoteType = "CREDIT_NOTE" | "DEBIT_NOTE";
 export type NoteDirection = "customer" | "supplier";
 export type NoteStatus = "Draft" | "Approved" | "Applied" | "Voided";
-export type VatType = "STANDARD" | "ZERO" | "EXEMPT" | "NONE";
+export type VatType = "STANDARD" | "ZERO" | "EXEMPT" | "NONE" | "OUT_OF_SCOPE";
 
 export interface NoteLine {
     _id?: string;
@@ -35,6 +35,8 @@ export interface Note {
     direction: NoteDirection;
     original_invoice_id?: string | { _id: string; invoice_no: string; grand_total: number; status: string };
     original_invoice_no?: string;
+    original_bill_id?: { _id: string; bill_no: string; bill_date: string; due_date: string; grand_total: number; amount_paid: number; amount_due: number; status: string };
+    original_bill_no?: string;
     customer_id?: string | { _id: string; customer_name: string; phone: string; email: string; code: string };
     supplier_id?: string | { _id: string; name: string; phone: string; email: string };
     issue_date: string;
@@ -84,6 +86,7 @@ export interface CreateNoteParams {
     note_type: NoteType;
     direction: NoteDirection;
     reason: string;
+    status?: NoteStatus; // Optional for auto-approval control
     lines: Array<{
         description: string;
         quantity: number;
@@ -205,6 +208,55 @@ export const getNotesByCustomer = async (
 };
 
 /**
+ * Get all notes (credit + debit) linked to a specific bill.
+ * Includes net adjustment summary.
+ */
+export const getNotesByBill = async (bill_id: string) => {
+    try {
+        // Get all notes and filter client-side for now
+        const response = await axiosInstance.get(
+            `${BASE_URL}/accounting/notes`,
+            { 
+                params: { 
+                    limit: 200 // Get more results to find all notes for this bill
+                } 
+            }
+        );
+        
+        const allNotes = response.data.notes || [];
+        
+        // Filter notes that reference this bill
+        const notesForBill = allNotes.filter((note: Note) => {
+            // Check if original_bill_id matches (could be string or object)
+            if (typeof note.original_bill_id === 'string') {
+                return note.original_bill_id === bill_id;
+            }
+            if (typeof note.original_bill_id === 'object' && note.original_bill_id?._id) {
+                return note.original_bill_id._id === bill_id;
+            }
+            return false;
+        });
+        
+        const creditNotes = notesForBill.filter((note: Note) => note.note_type === "CREDIT_NOTE");
+        const debitNotes = notesForBill.filter((note: Note) => note.note_type === "DEBIT_NOTE");
+        
+        const totalCreditNotes = creditNotes.reduce((sum: number, note: Note) => sum + (note.grand_total || 0), 0);
+        const totalDebitNotes = debitNotes.reduce((sum: number, note: Note) => sum + (note.grand_total || 0), 0);
+        const netAdjustment = totalCreditNotes - totalDebitNotes;
+        
+        return {
+            notes: notesForBill,
+            count: notesForBill.length,
+            total_credit_notes: totalCreditNotes,
+            total_debit_notes: totalDebitNotes,
+            net_adjustment: netAdjustment,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
  * Get all debit notes for a specific supplier.
  */
 export const getNotesBySupplier = async (
@@ -228,21 +280,27 @@ export const getNotesBySupplier = async (
 };
 
 /**
- * Create a note in Draft status.
+ * Create a note with auto-approval (defaults to Approved status).
  */
 export const createNote = async (data: CreateNoteParams) => {
     try {
+        // Auto-approve by default - set status to Approved unless explicitly Draft
+        const payload = {
+            ...data,
+            status: data.status === "Draft" ? "Draft" : "Approved"
+        };
+        
         const response = await axiosInstance.post(
             `${BASE_URL}/accounting/notes`,
-            data
+            payload
         );
-        message.success("Note created successfully");
+        message.success("Credit note created and auto-approved");
         return response.data as { note: Note };
     } catch (error) {
         if (error?.response?.data?.message) {
             message.error(error.response.data.message);
         } else {
-            message.error("Error creating note");
+            message.error("Error creating credit note");
         }
         throw error;
     }

@@ -872,25 +872,45 @@ const MessageThread: React.FC<Props> = ({
                         <Tooltip title="Send as template">
                             <Button
                                 icon={<ThunderboltOutlined />}
-                                size="small"
+                                size="large"
                                 type="text"
                                 onClick={() => setTemplateModalOpen(true)}
-                                style={{ color: "#faad14", marginBottom: 2 }}
+                                style={{ color: "#faad14", height: 48 }}
                             />
                         </Tooltip>
 
-                        <TextArea
-                            value={text}
-                            onChange={(e) => setText(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder={
-                                isWhatsApp && !windowOpen
-                                    ? "Type your message... (will be sent as template)"
-                                    : "Type a message… (Enter to send, Shift+Enter for new line)"
-                            }
-                            autoSize={{ minRows: 1, maxRows: 5 }}
-                            style={{ flex: 1, borderRadius: 8, resize: "none" }}
-                        />
+                        <div style={{ position: "relative", flex: 1 }}>
+                            <TextArea
+                                value={text}
+                                onChange={(e) => setText(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder=""
+                                autoSize={{ minRows: 2, maxRows: 4 }}
+                                style={{ 
+                                    flex: 1, 
+                                    borderRadius: 8, 
+                                    resize: "none"
+                                }}
+                            />
+                            {!text && (
+                                <div style={{
+                                    position: "absolute",
+                                    top: "50%",
+                                    left: "50%",
+                                    transform: "translate(-50%, -50%)",
+                                    pointerEvents: "none",
+                                    color: "#bfbfbf",
+                                    fontSize: 14,
+                                    userSelect: "none",
+                                    width: "100%",
+                                    textAlign: "center"
+                                }}>
+                                    {isWhatsApp && !windowOpen
+                                        ? "Type your message... (will be sent as template)"
+                                        : "Type a message… (Enter to send, Shift+Enter for new line)"}
+                                </div>
+                            )}
+                        </div>
 
                         <Button
                             type="primary"
@@ -898,11 +918,12 @@ const MessageThread: React.FC<Props> = ({
                             onClick={handleSend}
                             loading={sendMutation.isPending || customTemplateMutation.isPending}
                             disabled={!text.trim()}
+                            size="large"
                             style={{
                                 background: cfg?.color || primaryColor,
                                 borderColor: cfg?.color || primaryColor,
                                 borderRadius: 8,
-                                marginBottom: 2,
+                                height: 48,
                             }}
                         >
                             Send

@@ -45,10 +45,10 @@ const exportLedgerToExcel = async (
 ) => {
     const XLSX = await import("xlsx");
 
-    const period = `${dateRange[0]?.format("DD MMM YYYY")} – ${dateRange[1]?.format("DD MMM YYYY")}`;
+    const period = `${dateRange[0]?.format("DD-MM-YYYY")} – ${dateRange[1]?.format("DD-MM-YYYY")}`;
 
     const rows = ledger.map((l) => ({
-        Date: dayjs(l.entry_date).format("DD MMM YYYY"),
+        Date: dayjs(l.entry_date).format("DD-MM-YYYY"),
         "Entry No.": l.entry_no,
         Description: l.description || "",
         Source: l.source?.replace(/_/g, " ").toUpperCase() || "",
@@ -78,9 +78,13 @@ const exportLedgerToExcel = async (
 
     // Header meta rows above the data (insert before data)
     XLSX.utils.sheet_add_aoa(ws, [
-        [`Account Ledger — ${account.account_code} ${account.account_name}`],
+        [`Account Ledger Report`],
+        [`${account.account_code} ${account.account_name}`],
         [`Period: ${period}`],
+        [`Generated: ${dayjs().format("DD-MM-YYYY HH:mm")}`],
+        [`Company: Biggie POS System`],
         [],
+        ["Date", "Entry No.", "Description", "Source", "Debit (KES)", "Credit (KES)", "Balance (KES)"],
     ], { origin: "A1" });
 
     // Shift data down by 3 rows to make room for the header
@@ -105,7 +109,7 @@ const exportLedgerToPdf = async (
     const { default: autoTable } = await import("jspdf-autotable");
 
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const period = `${dateRange[0]?.format("DD MMM YYYY")} – ${dateRange[1]?.format("DD MMM YYYY")}`;
+    const period = `${dateRange[0]?.format("DD-MM-YYYY")} – ${dateRange[1]?.format("DD-MM-YYYY")}`;
 
     // Header
     doc.setFont("helvetica", "bold");
@@ -136,7 +140,7 @@ const exportLedgerToPdf = async (
         head: [["Date", "Entry No.", "Description", "Source", "Debit (KES)", "Credit (KES)", "Balance (KES)"]],
         body: [
             ...ledger.map((l) => [
-                dayjs(l.entry_date).format("DD MMM YYYY"),
+                dayjs(l.entry_date).format("DD-MM-YYYY"),
                 l.entry_no,
                 l.description || "",
                 (l.source || "").replace(/_/g, " ").toUpperCase(),
@@ -243,7 +247,7 @@ const AccountLedgerDrawer: React.FC<Props> = ({ open, onClose, account, shopId }
             dataIndex: "entry_date",
             key: "entry_date",
             width: 110,
-            render: (d: string) => dayjs(d).format("DD MMM YYYY"),
+            render: (d: string) => dayjs(d).format("DD-MM-YYYY"),
         },
         {
             title: "Entry No.",

@@ -8,7 +8,9 @@ import {
     EyeInvisibleOutlined,
     EyeOutlined,
     MailOutlined,
+    SafetyCertificateOutlined,
 } from "@ant-design/icons";
+import { sendOtp, loginWithMethod } from "../../services/authentication";
 import { useAppDispatch, useAppSelector } from "src/store";
 import { verifyCompanyCode, verifyBusinessEmail } from "@services/users";
 import { useLogin } from "@components/staffCard/hook/useLogin";
@@ -22,8 +24,8 @@ type LoginMethod = "companyCode" | "businessEmail";
 
 const StaffLoginPage = () => {
     const { handleLogin } = useLogin();
-    const dispatch = useAppDispatch();
     const navigate = useNavigate();
+    const dispatch = useAppDispatch();
     const { user } = useAppSelector((state) => state.auth);
     const refreshPrimaryColor = useRefreshPrimaryColor();
 
@@ -40,12 +42,37 @@ const StaffLoginPage = () => {
     // New state for email login
     const [loginMethod, setLoginMethod] = useState<LoginMethod>("companyCode");
     const [businessEmail, setBusinessEmail] = useState<string>("");
+    
+    // New state for enhanced authentication
+    const [authMethod, setAuthMethod] = useState<'pin' | 'password' | '2fa' | 'otp'>('pin');
+    const [email, setEmail] = useState<string>("");
+    const [password, setPassword] = useState<string>("");
+    const [totpCode, setTotpCode] = useState<string>("");
+    const [otpCode, setOtpCode] = useState<string>("");
+    const [otpSent, setOtpSent] = useState<boolean>(false);
+    const [otpExpiresIn, setOtpExpiresIn] = useState<number>(0);
+    const [showPasswordOptions, setShowPasswordOptions] = useState<boolean>(false);
+    const [currentAuthMethod, setCurrentAuthMethod] = useState<'pin' | 'password' | '2fa' | 'otp'>('pin');
+    const [authMethodLoading, setAuthMethodLoading] = useState(false);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
     }, []);
+
+    // Auto-focus first OTP input when OTP is sent
+    useEffect(() => {
+        if (otpSent) {
+            // Small delay to ensure the DOM is updated
+            setTimeout(() => {
+                const firstInput = document.getElementById('otp-input-0');
+                if (firstInput) {
+                    firstInput.focus();
+                }
+            }, 100);
+        }
+    }, [otpSent]);
 
     useEffect(() => {
         const storedCode = localStorage.getItem("companyCode");
@@ -59,11 +86,38 @@ const StaffLoginPage = () => {
                 setTenant(parsedTenant);
                 setStep("pin");
                 refreshPrimaryColor();
+                
+                // Fetch current authentication method
+                fetchCurrentAuthMethod();
             } catch (error) {
                 console.error("Error parsing tenant:", error);
             }
         }
     }, [refreshPrimaryColor]);
+
+    const fetchCurrentAuthMethod = async () => {
+        // Only fetch auth methods if we have a valid user context
+        // For login page, we don't have a user ID yet, so we'll skip this
+        // and default to PIN authentication
+        try {
+            setAuthMethodLoading(true);
+            
+            // For login page, we don't fetch auth methods since we don't have a user yet
+            // Users will select their preferred auth method from the UI
+            // This prevents the "Failed to fetch auth method" error
+            
+            // Default to PIN authentication for login page
+            setCurrentAuthMethod('pin');
+            setAuthMethod('pin');
+            
+        } catch (error) {
+            // Silently handle any errors and default to PIN
+            setCurrentAuthMethod('pin');
+            setAuthMethod('pin');
+        } finally {
+            setAuthMethodLoading(false);
+        }
+    };
 
     const handleCompanyCodeSubmit = async (code: string) => {
         setError(null);
@@ -173,6 +227,131 @@ const StaffLoginPage = () => {
         }
 
         setLoading(false);
+    };
+
+    const handleSendOtp = async () => {
+        if (!email) {
+            setError("Please enter your email address first");
+            return;
+        }
+
+        setAuthMethodLoading(true);
+        setError(null);
+
+        try {
+            const response = await sendOtp({ email });
+            setOtpSent(true);
+            setOtpExpiresIn(response.expiresIn);
+            
+            // Start countdown timer
+            let countdown = response.expiresIn;
+            const timer = setInterval(() => {
+                countdown--;
+                setOtpExpiresIn(countdown);
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    setOtpSent(false);
+                }
+            }, 1000);
+
+        } catch (error: any) {
+            setError(error.response?.data?.message || "Failed to send OTP. Please try again.");
+        } finally {
+            setAuthMethodLoading(false);
+        }
+    };
+
+    const handleEnhancedLogin = async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            let loginData: any = {};
+
+            switch (currentAuthMethod) {
+                case 'pin':
+                    if (!pin || pin.length !== 4) {
+                        setError("Please enter a 4-digit PIN");
+                        setLoading(false);
+                        return;
+                    }
+                    loginData = { pin };
+                    break;
+                case 'password':
+                    if (!email || !password) {
+                        setError("Please enter email and password");
+                        setLoading(false);
+                        return;
+                    }
+                    loginData = { method: 'password', email, credential: password };
+                    break;
+                case '2fa':
+                    if (!totpCode) {
+                        setError("Please enter authenticator code");
+                        setLoading(false);
+                        return;
+                    }
+                    loginData = { method: '2fa', credential: totpCode };
+                    break;
+                case 'otp':
+                    if (!email || !otpCode) {
+                        setError("Please enter email and OTP code");
+                        setLoading(false);
+                        return;
+                    }
+                    loginData = { method: 'otp', email, credential: otpCode };
+                    console.log('OTP Login Data being sent:', loginData);
+                    break;
+            }
+
+            // Use existing login hook for PIN, or enhanced login for other methods
+            if (currentAuthMethod === 'pin') {
+                const { success, error: loginError, user: userPayload } = await handleLogin(pin);
+                if (success && userPayload?.role === "admin") {
+                    navigate("/admin/dashboard");
+                } else if (success) {
+                    navigate("/tables");
+                } else {
+                    setError(loginError);
+                }
+            } else {
+                // For password and 2FA, use enhanced authentication
+                try {
+                    const user = await loginWithMethod(loginData);
+                    console.log('OTP Login Success - User data:', user);
+
+                    // Store user data in localStorage (like loginUser action does)
+                    localStorage.setItem('user', JSON.stringify(user));
+
+                    // Also store shopId in localStorage (like loginUser action does)
+                    if (user?.shopId) {
+                        localStorage.setItem("shopId", user.shopId);
+                    }
+
+                    // Update Redux state manually (like loginUser action does)
+                    dispatch({
+                        type: 'authUser/loginUser/fulfilled',
+                        payload: user
+                    });
+
+                    // Navigate based on user role
+                    if (user?.role === "admin") {
+                        console.log('Navigating to admin dashboard');
+                        navigate("/admin/dashboard");
+                    } else {
+                        console.log('Navigating to tables');
+                        navigate("/tables");
+                    }
+                } catch (fetchError) {
+                    console.error('OTP Login Error:', fetchError);
+                    setError(fetchError?.response?.data?.message || "Authentication failed. Please try again.");
+                }
+            }
+        } catch (error: any) {
+            setError(error.message || "Login failed. Please try again.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleVerifySubmit = () => {
@@ -304,8 +483,8 @@ const StaffLoginPage = () => {
                         margin: "0 auto",
                     }}
                 >
-                    Your all-in-one platform for point-of-sale, accounting, and
-                    business operations — all in one place.
+                    Basepoint Cloud — POS, accounting, CRM, and team management,
+                    all unified in one smarter platform built for your business.
                 </p>
             )}
         </div>
@@ -476,8 +655,7 @@ const StaffLoginPage = () => {
                                                         onClick={() => setVisible(true)}
                                                         style={{ cursor: "pointer" }}
                                                     />
-                                                )
-                                            }
+                                                )}
                                         />
                                     ) : (
                                         <Input
@@ -507,21 +685,479 @@ const StaffLoginPage = () => {
                                     >
                                         {loading ? "Verifying..." : "Continue"}
                                     </Button>
-                                </Space>
-                            ) : (
-                                <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                                    <Input.Password
-                                        prefix={<KeyOutlined />}
-                                        value={pin}
-                                        size="large"
-                                        readOnly
-                                        placeholder="••••"
-                                        style={{ textAlign: "center", letterSpacing: "0.5em" }}
-                                    />
+                            </Space>
+                        ) : (
+                            <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+                                
+                                    {/* Dynamic Authentication Input */}
+                                    {currentAuthMethod === 'pin' && (
+                                        <Input.Password
+                                            prefix={<KeyOutlined />}
+                                            value={pin}
+                                            size="large"
+                                            readOnly
+                                            placeholder="····"
+                                            style={{ textAlign: "center", letterSpacing: "0.5em" }}
+                                        />
+                                    )}
 
-                                    <Row gutter={[10, 10]} justify="center">
-                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => (
-                                            <Col key={number} span={8}>
+                                    {currentAuthMethod === 'password' && (
+                                        <div>
+                                            <Input
+                                                prefix={<MailOutlined />}
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                size="large"
+                                                placeholder="Enter your email"
+                                                style={{ marginBottom: "12px" }}
+                                            />
+                                            <Input.Password
+                                                prefix={<KeyOutlined />}
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                size="large"
+                                                placeholder="Enter your password"
+                                                onPressEnter={() => handleEnhancedLogin()}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {currentAuthMethod === '2fa' && (
+                                        <div>
+                                            <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                                                {[0, 1, 2, 3, 4, 5].map((index) => (
+                                                    <Input
+                                                        key={index}
+                                                        value={totpCode[index] || ''}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            if (value.length <= 1) {
+                                                                const newTotpCode = totpCode.split('');
+                                                                newTotpCode[index] = value;
+                                                                const updatedCode = newTotpCode.join('');
+                                                                setTotpCode(updatedCode);
+                                                            
+                                                                // Auto-focus next input
+                                                                if (value && index < 5) {
+                                                                    const nextInput = document.getElementById(`totp-input-${index + 1}`);
+                                                                    if (nextInput) {
+                                                                        nextInput.focus();
+                                                                    }
+                                                                }
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            // Handle backspace
+                                                            if (e.key === 'Backspace' && !totpCode[index] && index > 0) {
+                                                                const prevInput = document.getElementById(`totp-input-${index - 1}`);
+                                                                if (prevInput) {
+                                                                    prevInput.focus();
+                                                                }
+                                                            }
+                                                        }}
+                                                        onPaste={(e) => {
+                                                            e.preventDefault();
+                                                            const pastedData = e.clipboardData.getData('text');
+                                                            const totpNumbers = pastedData.replace(/\D/g, '').slice(0, 6);
+                                                            if (totpNumbers.length === 6) {
+                                                                setTotpCode(totpNumbers);
+                                                            }
+                                                        }}
+                                                        size="large"
+                                                        style={{ 
+                                                            width: "48px", 
+                                                            textAlign: "center",
+                                                            fontSize: "18px",
+                                                            fontWeight: "bold"
+                                                        }}
+                                                        maxLength={1}
+                                                        id={`totp-input-${index}`}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {currentAuthMethod === 'otp' && (
+                                        <div>
+                                            {!otpSent ? (
+                                                // Show email input and send button first
+                                                <div>
+                                                    <Input
+                                                        prefix={<MailOutlined />}
+                                                        value={email}
+                                                        onChange={(e) => setEmail(e.target.value)}
+                                                        size="large"
+                                                        placeholder="Enter your email"
+                                                        style={{ marginBottom: "12px" }}
+                                                        onPressEnter={() => email && handleSendOtp()}
+                                                    />
+                                                    <Button
+                                                        type="primary"
+                                                        block
+                                                        size="large"
+                                                        onClick={handleSendOtp}
+                                                        loading={authMethodLoading}
+                                                        disabled={!email}
+                                                    >
+                                                        {authMethodLoading ? "Sending..." : "Send OTP"}
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                // Show OTP input after sending
+                                                <div>
+                                                    <div style={{ fontSize: "12px", color: "#52c41a", marginBottom: "12px" }}>
+                                                        ✓ OTP sent to {email}. Valid for 5 minutes.
+                                                    </div>
+                                                    <div style={{ marginBottom: "12px" }}>
+                                                        <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginBottom: "12px" }}>
+                                                            {[0, 1, 2, 3, 4, 5].map((index) => (
+                                                                <Input
+                                                                    key={index}
+                                                                    value={otpCode[index] || ''}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+                                                                        if (value.length <= 1) {
+                                                                            const newOtpCode = otpCode.split('');
+                                                                            newOtpCode[index] = value;
+                                                                            const updatedCode = newOtpCode.join('');
+                                                                            setOtpCode(updatedCode);
+                                                                            
+                                                                            // Auto-focus next input
+                                                                            if (value && index < 5) {
+                                                                                const nextInput = document.getElementById(`otp-input-${index + 1}`);
+                                                                                if (nextInput) {
+                                                                                    nextInput.focus();
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    onKeyDown={(e) => {
+                                                                        // Handle backspace
+                                                                        if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
+                                                                            const prevInput = document.getElementById(`otp-input-${index - 1}`);
+                                                                            if (prevInput) {
+                                                                                prevInput.focus();
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    onPaste={(e) => {
+                                                                        e.preventDefault();
+                                                                        const pastedData = e.clipboardData.getData('text');
+                                                                        const otpNumbers = pastedData.replace(/\D/g, '').slice(0, 6);
+                                                                        if (otpNumbers.length === 6) {
+                                                                            setOtpCode(otpNumbers);
+                                                                        }
+                                                                    }}
+                                                                    size="large"
+                                                                    style={{ 
+                                                                        width: "48px", 
+                                                                        textAlign: "center",
+                                                                        fontSize: "18px",
+                                                                        fontWeight: "bold"
+                                                                    }}
+                                                                    maxLength={1}
+                                                                    id={`otp-input-${index}`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                        <div style={{ display: "flex", justifyContent: "center" }}>
+                                                            <Button
+                                                                type="default"
+                                                                size="large"
+                                                                onClick={handleSendOtp}
+                                                                loading={authMethodLoading}
+                                                                style={{ minWidth: "120px" }}
+                                                            >
+                                                                {otpSent ? `Resend (${Math.floor(otpExpiresIn / 60)}:${(otpExpiresIn % 60).toString().padStart(2, '0')})` : 'Resend'}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Alternative Authentication Methods Divider */}
+                                    {currentAuthMethod !== 'pin' && (
+                                        <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "4px 0" }}>
+                                            <div style={{ flex: 1, height: "1px", background: "#f0f0f0" }} />
+                                            <span style={{ fontSize: "12px", color: "#bbb", whiteSpace: "nowrap" }}>
+                                                or sign in another way
+                                            </span>
+                                            <div style={{ flex: 1, height: "1px", background: "#f0f0f0" }} />
+                                        </div>
+                                    )}
+
+                                    {/* Alternative Authentication Methods - Side by Side */}
+                                    <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                                        {/* PIN Login Option */}
+                                        {currentAuthMethod !== 'pin' && (
+                                            <div
+                                                style={{
+                                                    flex: 1,
+                                                    display: "flex",
+                                                    flexDirection: "column",
+                                                    alignItems: "center",
+                                                    gap: "8px",
+                                                    padding: "16px 12px",
+                                                    borderRadius: "10px",
+                                                    border: "1px solid #1890ff",
+                                                    background: "#f0f9ff",
+                                                    cursor: "pointer",
+                                                    transition: "all 0.2s ease",
+                                                    textAlign: "center",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.transform = "translateY(-2px)";
+                                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.transform = "translateY(0)";
+                                                    e.currentTarget.style.boxShadow = "none";
+                                                }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    console.log('PIN option clicked');
+                                                    setCurrentAuthMethod('pin');
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        width: "40px",
+                                                        height: "40px",
+                                                        borderRadius: "8px",
+                                                        background: "linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 100%)",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                    }}
+                                                >
+                                                    <KeyOutlined style={{ fontSize: "20px", color: "#1890ff" }} />
+                                                </div>
+                                                <div>
+                                                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#1890ff", display: "block" }}>
+                                                        PIN
+                                                    </span>
+                                                    <span style={{ fontSize: "10px", color: "#8c8c8c", display: "block" }}>
+                                                        4-Digit Code
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Password Login Option */}
+                                        {currentAuthMethod !== 'password' && (
+                                            <div
+                                                style={{
+                                                    flex: 1,
+                                                    display: "flex",
+                                                    flexDirection: "column",
+                                                    alignItems: "center",
+                                                    gap: "8px",
+                                                    padding: "16px 12px",
+                                                    borderRadius: "10px",
+                                                    border: "1px solid #d9f7be",
+                                                    background: "#f6ffed",
+                                                    cursor: "pointer",
+                                                    transition: "all 0.2s ease",
+                                                    textAlign: "center",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.transform = "translateY(-2px)";
+                                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.transform = "translateY(0)";
+                                                    e.currentTarget.style.boxShadow = "none";
+                                                }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    console.log('Password option clicked');
+                                                    setCurrentAuthMethod('password');
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        width: "40px",
+                                                        height: "40px",
+                                                        borderRadius: "8px",
+                                                        background: "linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%)",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                    }}
+                                                >
+                                                    <MailOutlined style={{ fontSize: "20px", color: "#52c41a" }} />
+                                                </div>
+                                                <div>
+                                                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#52c41a", display: "block" }}>
+                                                        Password
+                                                    </span>
+                                                    <span style={{ fontSize: "10px", color: "#8c8c8c", display: "block" }}>
+                                                        Email & Password
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 2FA Login Option */}
+                                        {currentAuthMethod !== '2fa' && (
+                                            <div
+                                                style={{
+                                                    flex: 1,
+                                                    display: "flex",
+                                                    flexDirection: "column",
+                                                    alignItems: "center",
+                                                    gap: "8px",
+                                                    padding: "16px 12px",
+                                                    borderRadius: "10px",
+                                                    border: "1px solid #f9f0ff",
+                                                    background: "#faf5ff",
+                                                    cursor: "pointer",
+                                                    transition: "all 0.2s ease",
+                                                    textAlign: "center",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.transform = "translateY(-2px)";
+                                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.transform = "translateY(0)";
+                                                    e.currentTarget.style.boxShadow = "none";
+                                                }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    console.log('2FA option clicked');
+                                                    setCurrentAuthMethod('2fa');
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        width: "40px",
+                                                        height: "40px",
+                                                        borderRadius: "8px",
+                                                        background: "linear-gradient(135deg, #faf5ff 0%, #f9f0ff 100%)",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                    }}
+                                                >
+                                                    <SafetyCertificateOutlined style={{ fontSize: "20px", color: "#722ed1" }} />
+                                                </div>
+                                                <div>
+                                                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#722ed1", display: "block" }}>
+                                                        2FA
+                                                    </span>
+                                                    <span style={{ fontSize: "10px", color: "#8c8c8c", display: "block" }}>
+                                                        Authenticator App
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* OTP Login Option */}
+                                        {currentAuthMethod !== 'otp' && (
+                                            <div
+                                                style={{
+                                                    flex: 1,
+                                                    display: "flex",
+                                                    flexDirection: "column",
+                                                    alignItems: "center",
+                                                    gap: "8px",
+                                                    padding: "16px 12px",
+                                                    borderRadius: "10px",
+                                                    border: "1px solid #ff7a45",
+                                                    background: "#fff2e8",
+                                                    cursor: "pointer",
+                                                    transition: "all 0.2s ease",
+                                                    textAlign: "center",
+                                                    position: "relative",
+                                                    zIndex: 10,
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.transform = "translateY(-2px)";
+                                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.transform = "translateY(0)";
+                                                    e.currentTarget.style.boxShadow = "none";
+                                                }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    console.log('OTP option clicked');
+                                                    setCurrentAuthMethod('otp');
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        width: "40px",
+                                                        height: "40px",
+                                                        borderRadius: "8px",
+                                                        background: "linear-gradient(135deg, #fff2e8 0%, #ffe7d6 100%)",
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                    }}
+                                                >
+                                                    <SafetyCertificateOutlined style={{ fontSize: "20px", color: "#ff7a45" }} />
+                                                </div>
+                                                <div>
+                                                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#ff7a45", display: "block" }}>
+                                                        OTP
+                                                    </span>
+                                                    <span style={{ fontSize: "10px", color: "#8c8c8c", display: "block" }}>
+                                                        Email OTP Code
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* PIN Keypad - Only show for PIN authentication */}
+                                    {currentAuthMethod === 'pin' && (
+                                        <Row gutter={[10, 10]} justify="center">
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => (
+                                                <Col key={number} span={8}>
+                                                    <Button
+                                                        size="large"
+                                                        style={{
+                                                            width: "100%",
+                                                            height: isMobile ? "52px" : "48px",
+                                                            fontSize: isMobile ? "18px" : "16px",
+                                                            fontWeight: 500,
+                                                        }}
+                                                        onClick={() => handlePinClick(number)}
+                                                        disabled={pin.length >= 4}
+                                                    >
+                                                        {number}
+                                                    </Button>
+                                                </Col>
+                                            ))}
+                                            <Col span={8}>
+                                                <Button
+                                                    size="large"
+                                                    style={{
+                                                        width: "100%",
+                                                        height: isMobile ? "52px" : "48px",
+                                                    }}
+                                                    onClick={handleClearPin}
+                                                    danger
+                                                >
+                                                    <DeleteOutlined />
+                                                </Button>
+                                            </Col>
+                                            <Col span={8}>
                                                 <Button
                                                     size="large"
                                                     style={{
@@ -530,67 +1166,81 @@ const StaffLoginPage = () => {
                                                         fontSize: isMobile ? "18px" : "16px",
                                                         fontWeight: 500,
                                                     }}
-                                                    onClick={() => handlePinClick(number)}
+                                                    onClick={() => handlePinClick(0)}
                                                     disabled={pin.length >= 4}
                                                 >
-                                                    {number}
+                                                    0
                                                 </Button>
                                             </Col>
-                                        ))}
-                                        <Col span={8}>
-                                            <Button
-                                                size="large"
-                                                style={{
-                                                    width: "100%",
-                                                    height: isMobile ? "52px" : "48px",
-                                                }}
-                                                onClick={handleClearPin}
-                                                danger
-                                            >
-                                                <DeleteOutlined />
-                                            </Button>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Button
-                                                size="large"
-                                                style={{
-                                                    width: "100%",
-                                                    height: isMobile ? "52px" : "48px",
-                                                    fontSize: isMobile ? "18px" : "16px",
-                                                    fontWeight: 500,
-                                                }}
-                                                onClick={() => handlePinClick(0)}
-                                                disabled={pin.length >= 4}
-                                            >
-                                                0
-                                            </Button>
-                                        </Col>
-                                        <Col span={8}>
-                                            <Button
-                                                size="large"
-                                                style={{
-                                                    width: "100%",
-                                                    height: isMobile ? "52px" : "48px",
-                                                    fontSize: "18px",
-                                                }}
-                                                onClick={handleBackspace}
-                                                disabled={pin.length === 0}
-                                            >
-                                                ←
-                                            </Button>
-                                        </Col>
-                                    </Row>
+                                            <Col span={8}>
+                                                <Button
+                                                    size="large"
+                                                    style={{
+                                                        width: "100%",
+                                                        height: isMobile ? "52px" : "48px",
+                                                        fontSize: "18px",
+                                                    }}
+                                                    onClick={handleBackspace}
+                                                    disabled={pin.length === 0}
+                                                >
+                                                    ←
+                                                </Button>
+                                            </Col>
+                                        </Row>
+                                    )}
 
-                                    <Button
-                                        type="primary"
-                                        block
-                                        size="large"
-                                        onClick={() => handleLoginWithNavigation(pin)}
-                                        disabled={pin.length !== 4 || loading}
-                                        loading={loading}
-                                    >
-                                        {loading ? "Logging in..." : "Login"}
-                                    </Button>
+                                    {/* Dynamic Login Button */}
+                                    {currentAuthMethod === 'pin' && (
+                                        <Button
+                                            type="primary"
+                                            block
+                                            size="large"
+                                            onClick={() => handleLoginWithNavigation(pin)}
+                                            disabled={pin.length !== 4 || loading}
+                                            loading={loading}
+                                        >
+                                            {loading ? "Logging in..." : "Login"}
+                                        </Button>
+                                    )}
+
+                                    {currentAuthMethod === 'password' && (
+                                        <Button
+                                            type="primary"
+                                            block
+                                            size="large"
+                                            onClick={() => handleEnhancedLogin()}
+                                            disabled={!email || !password || loading}
+                                            loading={loading}
+                                        >
+                                            {loading ? "Logging in..." : "Login with Password"}
+                                        </Button>
+                                    )}
+
+                                    {currentAuthMethod === '2fa' && (
+                                        <Button
+                                            type="primary"
+                                            block
+                                            size="large"
+                                            onClick={() => handleEnhancedLogin()}
+                                            disabled={!totpCode || totpCode.length !== 6 || loading}
+                                            loading={loading}
+                                        >
+                                            {loading ? "Verifying..." : "Verify Code"}
+                                        </Button>
+                                    )}
+
+                                    {currentAuthMethod === 'otp' && otpSent && (
+                                        <Button
+                                            type="primary"
+                                            block
+                                            size="large"
+                                            onClick={() => handleEnhancedLogin()}
+                                            disabled={!otpCode || otpCode.length !== 6 || loading}
+                                            loading={loading}
+                                        >
+                                            {loading ? "Verifying..." : "Verify OTP"}
+                                        </Button>
+                                    )}
                                 </Space>
                             )}
                         </div>

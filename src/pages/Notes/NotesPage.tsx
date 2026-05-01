@@ -32,14 +32,17 @@ import {
     getAllNotes,
     deleteNote,
     applyNote,
-    Note,
-    NoteType,
-    NoteStatus,
-    NoteDirection,
+    getNotes,
+    type Note,
+    type NoteStatus,
+    type NoteType,
 } from "@services/accounting/notes";
+import { getAllAccounts } from "@services/accounting/accounts";
+import { getSupplierById } from "@services/supplier";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import NoteFormDrawer from "./NoteFormDrawer";
 import NoteDetailDrawer from "./NoteDetailDrawer";
+import InvoiceDetailDrawer from "../OrderManagement/Invoices/InvoiceDetailDrawer";
 import dayjs, { Dayjs } from "dayjs";
 
 const { Text } = Typography;
@@ -47,14 +50,14 @@ const { RangePicker } = DatePicker;
 
 const getShopId = (): string => localStorage.getItem("shopId") || "";
 
-// Updated status config - no more "Approved" state
 const STATUS_CONFIG: Record<NoteStatus, { badge: "success" | "processing" | "warning" | "error" | "default"; color: string }> = {
     Draft: { badge: "warning", color: "orange" },
+    Approved: { badge: "processing", color: "blue" },
     Applied: { badge: "success", color: "green" },
     Voided: { badge: "error", color: "red" },
 };
 
-const ALL_STATUSES: (NoteStatus | "ALL")[] = ["ALL", "Draft", "Applied", "Voided"];
+const ALL_STATUSES: (NoteStatus | "ALL")[] = ["ALL", "Draft", "Approved", "Applied", "Voided"];
 
 // ── Shared table for a given note type ───────────────────────────────────────
 interface NoteTableProps {
@@ -84,6 +87,30 @@ const NoteTable: React.FC<NoteTableProps> = ({
 
     const from = dateRange[0]?.startOf("day").toISOString();
     const to = dateRange[1]?.endOf("day").toISOString();
+
+    const [supplierNames, setSupplierNames] = useState<Record<string, string>>({});
+
+    // Supplier name lookup function
+    const getSupplierName = async (supplierId: string): Promise<string> => {
+        // Check cache first
+        if (supplierNames[supplierId]) {
+            return supplierNames[supplierId];
+        }
+
+        try {
+            const supplierData = await getSupplierById(supplierId);
+            const supplier = supplierData?.supplier || supplierData;
+            const name = supplier?.name || `Supplier #${supplierId.slice(-8)}`;
+            
+            // Cache the result
+            setSupplierNames(prev => ({ ...prev, [supplierId]: name }));
+            return name;
+        } catch (error) {
+            const fallbackName = `Supplier #${supplierId.slice(-8)}`;
+            setSupplierNames(prev => ({ ...prev, [supplierId]: fallbackName }));
+            return fallbackName;
+        }
+    };
 
     const { data, isLoading, refetch } = useQuery({
         queryKey: ["notes", shopId, noteType, activeStatus, direction, page, pageSize, from, to],
@@ -138,23 +165,50 @@ const NoteTable: React.FC<NoteTableProps> = ({
             render: (_: any, r: Note) => {
                 if (r.direction === "customer" && r.customer_id) {
                     const c = r.customer_id as any;
-                    return <Text style={{ fontSize: 12 }}>{c?.customer_name || c?.name || c}</Text>;
+                    const name = c?.customer_name || c?.name || (typeof c === 'string' ? c : '');
+                    return <Text style={{ fontSize: 12 }}>{name || '-'}</Text>;
                 }
                 if (r.direction === "supplier" && r.supplier_id) {
                     const s = r.supplier_id as any;
-                    return <Text style={{ fontSize: 12 }}>{s?.supplier_name || s?.name || s}</Text>;
+                    const supplierId = typeof s === 'string' ? s : s?._id;
+                    
+                    // Return cached name or fetch it
+                    if (supplierNames[supplierId]) {
+                        return <Text style={{ fontSize: 12 }}>{supplierNames[supplierId]}</Text>;
+                    }
+                    
+                    // If supplier object has name, use it and cache it
+                    if (s?.name) {
+                        if (!supplierNames[supplierId]) {
+                            setSupplierNames(prev => ({ ...prev, [supplierId]: s.name }));
+                        }
+                        return <Text style={{ fontSize: 12 }}>{s.name}</Text>;
+                    }
+                    
+                    // Fetch supplier name asynchronously
+                    getSupplierName(supplierId).then(name => {
+                        // Component will re-render with cached name
+                    });
+                    
+                    // Show fallback while loading
+                    return <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Supplier #{supplierId?.slice(-8) || 'Unknown'}</Text>;
                 }
-                return <Text type="secondary">—</Text>;
+                return <Text type="secondary">-</Text>;
             },
         },
         {
             title: "Invoice Ref",
-            dataIndex: "original_invoice_no",
-            key: "original_invoice_no",
+            key: "invoice_ref",
             width: 130,
-            render: (v: string) => v
-                ? <Text code style={{ fontSize: 11 }}>{v}</Text>
-                : <Text type="secondary">—</Text>,
+            render: (_: any, r: Note) => {
+                if (r.direction === "customer" && r.original_invoice_no) {
+                    return <Text code style={{ fontSize: 11 }}>{r.original_invoice_no}</Text>;
+                }
+                if (r.direction === "supplier" && r.original_bill_id?.bill_no) {
+                    return <Text code style={{ fontSize: 11 }}>{r.original_bill_id.bill_no}</Text>;
+                }
+                return <Text type="secondary">-</Text>;
+            },
         },
         {
             title: "Issue Date",
@@ -191,6 +245,9 @@ const NoteTable: React.FC<NoteTableProps> = ({
                 if (s === "Draft") {
                     return <Badge status="warning" text="Draft" />;
                 }
+                if (s === "Approved") {
+                    return <Badge status="processing" text="Approved" />;
+                }
                 if (s === "Applied") {
                     return <Badge status="success" text="Applied" />;
                 }
@@ -208,12 +265,13 @@ const NoteTable: React.FC<NoteTableProps> = ({
                         <Button icon={<EyeOutlined />} size="small"
                             onClick={() => onOpenDetail(record._id)} />
                     </Tooltip>
-                    {record.status === "Draft" && (
-                        <Tooltip title="Edit">
-                            <Button icon={<EditOutlined />} size="small"
-                                onClick={() => onOpenEdit(record)} />
-                        </Tooltip>
-                    )}
+                    <Tooltip title="Edit Note">
+                        <Button 
+                            icon={<EditOutlined />} 
+                            size="small"
+                            onClick={() => onOpenEdit(record)} 
+                        />
+                    </Tooltip>
                     {record.status === "Draft" && (
                         <Tooltip title="Apply Note">
                             <Button
@@ -378,6 +436,8 @@ const NotesPage: React.FC = () => {
 
     const [formOpen, setFormOpen] = useState(false);
     const [detailOpen, setDetailOpen] = useState(false);
+    const [invoiceOpen, setInvoiceOpen] = useState(false);
+    const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
     const [editingNote, setEditingNote] = useState<Note | null>(null);
     const [formNoteType, setFormNoteType] = useState<NoteType>("CREDIT_NOTE");
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -425,6 +485,11 @@ const NotesPage: React.FC = () => {
 
     const handleApply = (id: string) => {
         applyMutation.mutate(id);
+    };
+
+    const handleOpenInvoice = (invoiceId: string) => {
+        setSelectedInvoiceId(invoiceId);
+        setInvoiceOpen(true);
     };
 
     const onSuccess = useCallback(() => {
@@ -506,6 +571,19 @@ const NotesPage: React.FC = () => {
                 onClose={() => { setDetailOpen(false); setSelectedNoteId(null); }}
                 noteId={selectedNoteId}
                 onSuccess={onSuccess}
+                onEdit={(note) => {
+                    setDetailOpen(false);
+                    setEditingNote(note);
+                    setFormNoteType(note.note_type);
+                    setFormOpen(true);
+                }}
+                onOpenInvoice={handleOpenInvoice}
+            />
+
+            <InvoiceDetailDrawer
+                open={invoiceOpen}
+                onClose={() => { setInvoiceOpen(false); setSelectedInvoiceId(null); }}
+                invoiceId={selectedInvoiceId}
             />
         </>
     );

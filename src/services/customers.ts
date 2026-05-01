@@ -15,10 +15,18 @@ export const fetchAllCustomers = async (data: ParamsType = {}) => {
   try {
     const response = await axiosInstance.get(categ_url, {
       params: {
+        // original filters
         customer_name: data.customer_name,
         email: data.email,
         phone: data.phone,
         code: data.code,
+        search: data.search,
+        // new CRM filters
+        lifecycle_stage: data.lifecycle_stage,
+        assigned_to: data.assigned_to,
+        source: data.source,
+        type: data.type,
+        tag: data.tag,
       },
     });
     return response.data;
@@ -34,10 +42,18 @@ export const fetchAdminAllCustomers = async (data: ParamsType = {}) => {
   try {
     const response = await axiosInstance.get(categ_url, {
       params: {
+        // original filters
         customer_name: data.customer_name,
         email: data.email,
         phone: data.phone,
         code: data.code,
+        search: data.search,
+        // new CRM filters
+        lifecycle_stage: data.lifecycle_stage,
+        assigned_to: data.assigned_to,
+        source: data.source,
+        type: data.type,
+        tag: data.tag,
       },
     });
     return response.data;
@@ -309,11 +325,34 @@ export const createSchedule = createAsyncThunk(
   }
 );
 
-export const fetchAllSchedules = async (date?: string) => {
+export const fetchAllSchedules = async (params?: {
+  date?: string;
+  keyword?: string;
+  customer_id?: string;
+  staff_id?: string;
+  service_id?: string;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+  shop_id?: string;
+  booking_type?: string;
+}) => {
   try {
+    const queryParams: any = {};
+    if (params?.date) queryParams.date = params.date;
+    if (params?.keyword) queryParams.keyword = params.keyword;
+    if (params?.customer_id) queryParams.customer_id = params.customer_id;
+    if (params?.staff_id) queryParams.staff_id = params.staff_id;
+    if (params?.service_id) queryParams.service_id = params.service_id;
+    if (params?.status) queryParams.status = params.status;
+    if (params?.start_date) queryParams.start_date = params.start_date;
+    if (params?.end_date) queryParams.end_date = params.end_date;
+    if (params?.shop_id) queryParams.shop_id = params.shop_id;
+    if (params?.booking_type) queryParams.booking_type = params.booking_type;
+    
     const response = await axiosInstance.get(
       `${categ_url}/all-schedules`,
-      { params: date ? { date } : {} }
+      { params: queryParams }
     );
     return response;
   } catch (error: any) {
@@ -361,18 +400,122 @@ export const removeSchedule = async (scheduleId: string) => {
    TYPES
 ============================ */
 
+export type CustomerType = "individual" | "business" | "government" | "ngo" | "other";
+
+export type CustomerLifecycleStage =
+  | "lead"
+  | "customer"
+  | "repeat"
+  | "vip"
+  | "at_risk"
+  | "churned";
+
+export type CustomerSource =
+  | "walk_in"
+  | "referral"
+  | "social_media"
+  | "website"
+  | "cold_call"
+  | "email_campaign"
+  | "exhibition"
+  | "partner"
+  | "lead_conversion"
+  | "other";
+
+export interface CustomerAddress {
+  street?: string;
+  building?: string;
+  floor?: string; // New
+  city?: string;
+  county?: string;
+  postal_code?: string;
+  country?: string;
+  coordinates?: { lat: number; lng: number };
+  address_type?: 'billing' | 'shipping' | 'both'; // New
+  is_primary?: boolean; // New
+  landmark?: string; // New
+  directions?: string; // New
+}
+
+export interface CustomerContactPerson {
+  name?: string;
+  title?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface CustomerSocial {
+  twitter?: string;
+  linkedin?: string;
+  facebook?: string;
+  instagram?: string;
+  whatsapp?: string;
+}
+
+export interface CustomerVisit {
+  _id: string;
+  createdAt: string;
+  visit_date: string;
+}
+
 export interface Customer {
   _id: string;
+
+  // ── Original POS fields ────────────────────────────────────────────────────
   code: string;
   customer_name: string;
   email?: string;
   phone: string;
+  location?: string;
+  kra_pin?: string;
   shop_id: string;
-  visits?: Array<{
-    _id: string;
-    createdAt: string;
-    visit_date: string;
-  }>;
+  tenant_id?: string;
+  created_by?: { _id: string; username: string; name: string };
+  updated_by?: string;
+  is_active?: boolean;
+  notes?: string;
+  visits?: CustomerVisit[];
   createdAt: string;
   updatedAt: string;
+
+  // ── Accounting fields ──────────────────────────────────────────────────────
+  payment_terms?: number;
+  credit_limit?: number;
+  account_id?: string;
+  opening_balance?: number;
+  opening_balance_date?: string;
+  current_balance?: number;
+
+  // ── Address (new) ──────────────────────────────────────────────────────────
+  address?: CustomerAddress;
+  billing_addresses?: CustomerAddress[]; // Multiple addresses support
+
+  // ── CRM fields (new) ──────────────────────────────────────────────────────
+  type?: CustomerType;
+  company_name?: string;
+  industry?: string;
+  website?: string;
+  vat_number?: string;
+  alt_phone?: string;
+  alt_email?: string;
+  contact_person?: CustomerContactPerson;
+  social?: CustomerSocial;
+  assigned_to?: { _id: string; name: string; username: string };
+  source?: CustomerSource;
+  converted_from?: { _id: string; lead_name: string; stage: string };
+  campaign_id?: { _id: string; name: string; type: string };
+  lifecycle_stage?: CustomerLifecycleStage;
+  first_purchase_date?: string;
+  last_purchase_date?: string;
+  lifetime_value?: number;
+  total_orders?: number;
+  last_contacted_at?: string;
+  next_follow_up?: string;
+  loyalty_points?: number;
+  tags?: string[];
+  date_of_birth?: string;
+  gender?: "male" | "female" | "other" | "prefer_not_to_say";
+
+  // ── Attached by getById ────────────────────────────────────────────────────
+  activities?: any[];
 }

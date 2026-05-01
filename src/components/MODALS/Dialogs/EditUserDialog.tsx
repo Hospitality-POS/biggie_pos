@@ -291,14 +291,12 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
               <Controller
                 name="isAdmin"
                 control={control}
-                defaultValue={
-                  selected?.isAdmin || ""
-                }
+                defaultValue={selected?.isAdmin?.toString() || "false"}
                 render={({ field }) => (
                   <TextField
                     label="isAdmin"
-                    variant="outlined"
                     select
+                    variant="outlined"
                     {...field}
                     fullWidth
                     margin="dense"
@@ -307,7 +305,7 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
-                          <AccountCircleIcon />
+                          <CreditCardIcon />
                         </InputAdornment>
                       ),
                     }}
@@ -320,28 +318,32 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ open, onClose, userId }
             </Grid>
             <Grid item xs={12} sm={6}>
               <Controller
-                name="idNumber"
+                name="preferredAuthMethod"
                 control={control}
-                defaultValue={selected?.idNumber || ""}
-                rules={{ required: "ID Number is required" }}
+                defaultValue={selected?.preferredAuthMethod || "pin"}
                 render={({ field }) => (
                   <TextField
-                    label="ID Number"
-                    type="number"
+                    label="Authentication Method"
+                    select
                     variant="outlined"
                     {...field}
                     fullWidth
                     margin="dense"
-                    error={!!errors.idNumber}
-                    helperText={errors.idNumber?.message}
+                    error={!!errors.preferredAuthMethod}
+                    helperText={errors.preferredAuthMethod?.message}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
-                          <CreditCardIcon />
+                          <VpnKeyIcon />
                         </InputAdornment>
                       ),
                     }}
-                  />
+                  >
+                    <MenuItem value="pin">PIN Login</MenuItem>
+                    <MenuItem value="password">Password Login</MenuItem>
+                    <MenuItem value="2fa">2FA Login</MenuItem>
+                    <MenuItem value="otp">OTP Login</MenuItem>
+                  </TextField>
                 )}
               />
             </Grid>
