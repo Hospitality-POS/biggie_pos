@@ -80,12 +80,13 @@ interface OrderItem {
 }
 interface OrderPayment { _id: string; name: string; amount: number; payment_status: string }
 interface UserReference { _id: string; username: string }
-interface CustomerReference { _id: string; customer_name: string; code: string; email?: string; phone: number | string; }
 interface VATDetail { rate: number; amount: number; net: number }
 interface OrderDetailsInterface {
   _id: string; order_no: string; order_type: string; createdAt: string;
   served_by?: UserReference; order_items?: OrderItem[]; order_payments?: OrderPayment[];
-  customer_id?: CustomerReference;
+  customer_name?: string;
+  customer_phone?: string | number;
+  customer_email?: string;
   discount?: number; discount_type?: string; discount_amount?: number;
   subtotal: number; total_cart_amount?: number;
   total_vat_amount: number; vat_breakdown?: Record<string, VATDetail>; order_amount: number;
@@ -215,7 +216,7 @@ const ExpandedRowContent = ({
   const {
     _id: orderId, order_no, order_type, createdAt,
     served_by, order_items = [], order_payments = [],
-    customer_id,
+    customer_name, customer_phone, customer_email,
     discount = 0, discount_type, discount_amount,
     subtotal, total_cart_amount,
     total_vat_amount, vat_breakdown, order_amount,
@@ -626,22 +627,19 @@ const ExpandedRowContent = ({
           </>,
         )}
 
-        {customer_id && card(
+        {customer_name && card(
           <>
             <SectionLabel>Customer</SectionLabel>
             <MetaRow label="Name">
-              <Text strong style={{ fontSize: 12 }}>{customer_id.customer_name}</Text>
+              <Text strong style={{ fontSize: 12 }}>{customer_name}</Text>
             </MetaRow>
-            <MetaRow label="Code">
-              <Text style={{ fontSize: 12 }}>{customer_id.code}</Text>
-            </MetaRow>
-            {customer_id.email && (
+            {customer_email && (
               <MetaRow label="Email">
-                <Text style={{ fontSize: 12 }}>{customer_id.email}</Text>
+                <Text style={{ fontSize: 12 }}>{customer_email}</Text>
               </MetaRow>
             )}
             <MetaRow label="Phone">
-              <Text style={{ fontSize: 12 }}>{customer_id.phone}</Text>
+              <Text style={{ fontSize: 12 }}>{customer_phone}</Text>
             </MetaRow>
           </>,
         )}
@@ -741,21 +739,18 @@ const ExpandedRowContent = ({
             <Text style={{ fontSize: 12 }}>{served_by?.username || "N/A"}</Text>
           </ProDescriptions.Item>
 
-          {customer_id && (
+          {customer_name && (
             <>
               <ProDescriptions.Item label="Customer Name">
-                <Text strong style={{ fontSize: 12 }}>{customer_id.customer_name}</Text>
+                <Text strong style={{ fontSize: 12 }}>{customer_name}</Text>
               </ProDescriptions.Item>
-              <ProDescriptions.Item label="Customer Code">
-                <Text style={{ fontSize: 12 }}>{customer_id.code}</Text>
-              </ProDescriptions.Item>
-              {customer_id.email && (
+              {customer_email && (
                 <ProDescriptions.Item label="Customer Email">
-                  <Text style={{ fontSize: 12 }}>{customer_id.email}</Text>
+                  <Text style={{ fontSize: 12 }}>{customer_email}</Text>
                 </ProDescriptions.Item>
               )}
               <ProDescriptions.Item label="Customer Phone">
-                <Text style={{ fontSize: 12 }}>{customer_id.phone}</Text>
+                <Text style={{ fontSize: 12 }}>{customer_phone}</Text>
               </ProDescriptions.Item>
             </>
           )}
