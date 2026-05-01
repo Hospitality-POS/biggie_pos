@@ -65,13 +65,15 @@ const safeFormatDate = (raw: any, format = "DD MMM YYYY HH:mm"): string => {
 };
 
 const OrderTypeTag: React.FC<{ type: string }> = ({ type }) => {
+  const typeStr = typeof type === 'string' ? type : 'Regular';
   const cfg: Record<string, { bg: string; color: string; border: string; icon: string }> = {
     Regular: { bg: "#f0fdf4", color: C.green, border: "#bbf7d0", icon: "🛒" },
     Subscription_Visit: { bg: "#faf5ff", color: C.purple, border: "#e9d5ff", icon: "📋" },
     Subscription_Purchase: { bg: "#eff6ff", color: C.blue, border: "#bfdbfe", icon: "💳" },
   };
-  const s = cfg[type] ?? cfg.Regular;
-  return <span style={badge(s.bg, s.color, s.border)}>{s.icon} {type?.replace(/_/g, " ")}</span>;
+  const s = cfg[typeStr] ?? cfg.Regular;
+  const displayType = typeStr.replace(/_/g, " ");
+  return <span style={badge(s.bg, s.color, s.border)}>{s.icon} {displayType}</span>;
 };
 
 const PaymentStatusTag: React.FC<{ payments: any[]; orderType: string; orderAmount: any }> = ({
@@ -200,12 +202,14 @@ const fmtKES = (v: number) => {
 const AnalyticsStrip: React.FC<{ orders: any[]; loading: boolean; isMobile: boolean }> = ({
   orders, loading, isMobile,
 }) => {
-  const stats = useMemo(() => computeAnalytics(orders), [orders]);
+  const stats = useMemo(() => {
+    return computeAnalytics(orders);
+  }, [orders]);
 
   const cards = [
     { label: "Total Revenue", value: fmtKES(stats.totalRevenue), sub: `${stats.totalOrders} orders`, icon: <RiseOutlined />, iconBg: "#fdf2f4", iconColor: C.primary, accent: C.primary },
     { label: "Avg Order Value", value: fmtKES(stats.avgOrderValue), sub: "per order", icon: <ShoppingCartOutlined />, iconBg: "#eff6ff", iconColor: C.blue, accent: C.blue },
-    { label: "Paid Orders", value: stats.paidOrders.toString(), sub: `${stats.totalOrders > 0 ? Math.round((stats.paidOrders / stats.totalOrders) * 100) : 0}% of total`, icon: <CheckCircleOutlined />, iconBg: "#f0fdf4", iconColor: C.green, accent: C.green },
+    { label: "All Orders", value: stats.totalOrders.toString(), sub: `${stats.paidOrders} paid`, icon: <CheckCircleOutlined />, iconBg: "#f0fdf4", iconColor: C.green, accent: C.green },
     { label: "Missing Payments", value: stats.missingPayments.toString(), sub: stats.missingPayments > 0 ? "needs attention" : "all clear", icon: <WarningOutlined />, iconBg: stats.missingPayments > 0 ? "#fef2f2" : "#f0fdf4", iconColor: stats.missingPayments > 0 ? C.red : C.green, accent: stats.missingPayments > 0 ? C.red : C.green },
     { label: "Subscriptions", value: stats.subscriptionOrders.toString(), sub: `${stats.regularOrders} regular`, icon: <CreditCardOutlined />, iconBg: "#faf5ff", iconColor: C.purple, accent: C.purple },
     { label: "Top Cashier", value: stats.topClosedBy, sub: "most closed orders", icon: <UserOutlined />, iconBg: "#fff7ed", iconColor: C.orange, accent: C.orange },
@@ -282,6 +286,14 @@ const MobileFilterDrawer: React.FC<{
               { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
             ]}
           />
+        </Form.Item>
+        <Form.Item name="order_type" label="Order Type">
+          <select style={{ width: "100%", height: 36, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 11px", fontSize: 13, outline: "none", color: C.darkText }}>
+            <option value="">All Types</option>
+            <option value="Regular">Regular</option>
+            <option value="Subscription_Visit">Subscription Visit</option>
+            <option value="Subscription_Purchase">Subscription Purchase</option>
+          </select>
         </Form.Item>
         <Form.Item name="order_no" label="Order No.">
           <input placeholder="Enter order number" style={{ width: "100%", height: 36, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 11px", fontSize: 13, outline: "none", color: C.darkText }} />
@@ -406,26 +418,44 @@ const OrdersTable = () => {
 
   const [queryParams, setQueryParams] = useState({
     page: 1, limit: 10,
-    start_date: dayjs().startOf("day").toISOString(),
-    end_date: dayjs().endOf("day").toISOString(),
+    start_date: dayjs().format('YYYY-MM-DD'),
+    end_date: dayjs().format('YYYY-MM-DD'),
   });
 
   const [analyticsData, setAnalyticsData] = useState<any[]>([]);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [selectedOrderType, setSelectedOrderType] = useState<string>("");
+
+  const filteredAnalyticsData = useMemo(() => {
+    if (!selectedOrderType) return analyticsData;
+    return analyticsData.filter((order: any) => order.order_type === selectedOrderType);
+  }, [analyticsData, selectedOrderType]);
+
+  const filteredMobileData = useMemo(() => {
+    if (!selectedOrderType) return mobileData;
+    return mobileData.filter((order: any) => order.order_type === selectedOrderType);
+  }, [mobileData, selectedOrderType]);
 
   const loadMobileData = async (page: number, filters: any = {}) => {
     setMobileLoading(true);
+    setAnalyticsLoading(true);
     try {
-      const { dateRange, ...rest } = filters;
-      const response = await getAllOrders({
+      const { dateRange, order_type, ...rest } = filters;
+      const startDate = dateRange?.[0] ? dayjs(dateRange[0]).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+      const endDate = dateRange?.[1] ? dayjs(dateRange[1]).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+      const apiParams: any = {
         ...rest, page, limit: 15,
-        start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
-        end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
-      });
+        start_date: startDate,
+        end_date: endDate,
+      };
+      const response = await getAllOrders(apiParams);
       setMobileData(page === 1 ? (response || []) : (prev: any[]) => [...prev, ...(response || [])]);
       setMobileTotal(response.pagination?.total || 0);
+      setAnalyticsData(response || []);
+      setSelectedOrderType(order_type || "");
     } finally {
       setMobileLoading(false);
+      setAnalyticsLoading(false);
     }
   };
 
@@ -501,8 +531,14 @@ const OrdersTable = () => {
       fieldProps: { placeholder: "Enter Order number" },
     },
     {
-      title: "Order Type", dataIndex: "order_type", key: "order_type", hideInSearch: true,
-      render: (text: string) => <OrderTypeTag type={text} />,
+      title: "Order Type", dataIndex: "order_type", key: "order_type", hideInSearch: false,
+      valueType: "select",
+      valueEnum: {
+        Regular: { text: "Regular" },
+        Subscription_Visit: { text: "Subscription Visit" },
+        Subscription_Purchase: { text: "Subscription Purchase" },
+      },
+      render: (_: any, record: any) => <OrderTypeTag type={record.order_type} />,
     },
     {
       title: "Table", dataIndex: ["table_id", "name"], key: "name",
@@ -628,7 +664,7 @@ const OrdersTable = () => {
   if (isMobile) {
     return (
       <>
-        <AnalyticsStrip orders={mobileData} loading={mobileLoading} isMobile={true} />
+        <AnalyticsStrip orders={filteredAnalyticsData} loading={analyticsLoading} isMobile={true} />
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 12, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "12px 14px", background: C.bg, borderBottom: `1px solid ${C.border}` }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
@@ -649,14 +685,14 @@ const OrdersTable = () => {
 
         {mobileLoading && mobilePage === 1 ? (
           <div style={{ textAlign: "center", padding: "48px 0", color: C.subText }}>Loading…</div>
-        ) : mobileData.length === 0 ? (
+        ) : filteredMobileData.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px 16px", background: "#fff", borderRadius: 10, border: `1px solid ${C.border}` }}>
             <Text style={{ color: C.subText, fontSize: 13 }}>No orders found.</Text><br />
             <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)} style={{ marginTop: 12, borderRadius: 8 }}>Adjust Filters</Button>
           </div>
         ) : (
           <>
-            {mobileData.map((record) => (
+            {filteredMobileData.map((record) => (
               <MobileOrderCard key={record._id} record={record} isAdmin={isAdmin}
                 repostingPaymentId={repostingPaymentId}
                 onEditDate={handleEditOrderDate} onRepost={handleRepostOrderPayment}
@@ -683,7 +719,7 @@ const OrdersTable = () => {
   // ── Desktop render ─────────────────────────────────────────────────────
   return (
     <>
-      <AnalyticsStrip orders={analyticsData} loading={analyticsLoading} isMobile={false} />
+      <AnalyticsStrip orders={filteredAnalyticsData} loading={analyticsLoading} isMobile={false} />
       <ProTable
         rowKey="_id"
         cardBordered
@@ -691,10 +727,12 @@ const OrdersTable = () => {
         form={{
           onFinish: async (values) => {
             const { dateRange, ...rest } = values;
-            setQueryParams({ ...rest, page: 1, limit: queryParams.limit });
+            const startDate = dateRange?.[0] ? dayjs(dateRange[0]).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+            const endDate = dateRange?.[1] ? dayjs(dateRange[1]).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+            setQueryParams({ ...rest, page: 1, limit: queryParams.limit, start_date: startDate, end_date: endDate });
             return true;
           },
-          initialValues: { dateRange: [dayjs().startOf("day"), dayjs().endOf("day")] },
+          initialValues: { dateRange: [dayjs(), dayjs()] },
         }}
         search={{
           labelWidth: "auto", defaultCollapsed: false,
@@ -728,18 +766,24 @@ const OrdersTable = () => {
           ...desktopColumns,
         ]}
         request={async (params) => {
-          const { current, pageSize, dateRange, _timestamp, ...rest } = params;
+          const { current, pageSize, dateRange, _timestamp, order_type, ...rest } = params;
+          const startDate = dateRange?.[0] ? dayjs(dateRange[0]).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+          const endDate = dateRange?.[1] ? dayjs(dateRange[1]).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
           setAnalyticsLoading(true);
+          setSelectedOrderType(order_type || "");
           try {
-            const response = await getAllOrders({
+            const apiParams: any = {
               ...rest, page: current, limit: pageSize,
-              start_date: dateRange?.[0] ? dayjs(dateRange[0]).startOf("day").toISOString() : dayjs().startOf("day").toISOString(),
-              end_date: dateRange?.[1] ? dayjs(dateRange[1]).endOf("day").toISOString() : dayjs().endOf("day").toISOString(),
-            });
+              start_date: startDate,
+              end_date: endDate,
+            };
+            const response = await getAllOrders(apiParams);
             setExportOrderData(response);
             setAnalyticsData(response || []);
             setAnalyticsLoading(false);
-            return { data: response, success: true, total: response.pagination?.total || 0 };
+            // Filter data locally since backend doesn't support order_type
+            const filteredData = order_type ? (response || []).filter((order: any) => order.order_type === order_type) : response;
+            return { data: filteredData, success: true, total: filteredData.length };
           } catch {
             setAnalyticsLoading(false);
             return { data: [], success: false, total: 0 };

@@ -691,7 +691,7 @@ const Dashboard: React.FC = () => {
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["dashBoardAnalysis", startDate.format(), endDate.format()],
-    queryFn: () => getDashboardAnalysis(startDate.toISOString(), endDate.toISOString()),
+    queryFn: () => getDashboardAnalysis(startDate.format('YYYY-MM-DD'), endDate.format('YYYY-MM-DD')),
     networkMode: "always",
     refetchOnWindowFocus: false,
     staleTime: 30000,
@@ -703,13 +703,13 @@ const Dashboard: React.FC = () => {
 
   const { data: chartData, isLoading: chartLoading } = useQuery({
     queryKey: ["salesChartData", periodFilter, startDate.format(), endDate.format(), shopId],
-    queryFn: () => getSalesChartData({ period: periodFilter, startDate: startDate.toISOString(), endDate: endDate.toISOString(), shop_id: shopId }),
+    queryFn: () => getSalesChartData({ period: periodFilter, startDate: startDate.format('YYYY-MM-DD'), endDate: endDate.format('YYYY-MM-DD'), shop_id: shopId }),
     networkMode: "always", refetchOnWindowFocus: false, staleTime: 30000, retry: 2,
   });
 
   const { data: bestSellersData, isLoading: bestSellersLoading } = useQuery({
     queryKey: ["bestSellers", startDate.format(), endDate.format(), shopId],
-    queryFn: () => getBestSellers({ startDate: startDate.toISOString(), endDate: endDate.toISOString(), shop_id: shopId, limit: 10 }),
+    queryFn: () => getBestSellers({ startDate: startDate.format('YYYY-MM-DD'), endDate: endDate.format('YYYY-MM-DD'), shop_id: shopId, limit: 10 }),
     networkMode: "always", refetchOnWindowFocus: false, staleTime: 30000, retry: 2,
   });
 
