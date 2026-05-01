@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Typography } from "antd";
-import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined } from "@ant-design/icons";
+import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined , LockOutlined } from "@ant-design/icons";
 import OrdersTable from "./Orders/OrdersTable";
 import InvoiceTable from "./Invoices/InvoiceTable";
 import ManualInvoiceModal from "./Invoices/ManualInvoiceModal";

@@ -14,7 +14,6 @@ export const getAllOrders = async (data: ParamsType) => {
         shop_id: data?.shop_id,
       },
     });
-    console.log('man min', response);
     return Array.isArray(response.data) ? response.data : [];
   } catch (error) {
     return [];
