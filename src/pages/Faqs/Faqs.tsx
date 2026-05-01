@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { Input, Collapse, Card, Typography, Tabs, Button, Space, Tooltip, Table } from "antd";
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
-import { PageContainer } from "@ant-design/pro-components";
+import { useState, useEffect, useRef } from "react";
+import { Button, Space, Tag, Typography, message, Popconfirm } from "antd";
+import { PlusOutlined, EditOutlined, DeleteOutlined, QuestionCircleOutlined } from "@ant-design/icons";
+import { PageContainer, ProCard, ProTable, ProDescriptions } from "@ant-design/pro-components";
 import {
   fetchAllFaqs,
   fetchAllFaqCategories,
@@ -11,14 +11,12 @@ import {
 import FaqModal from "../../components/MODALS/pro/AddFaqModal";
 import FaqCategoryModal from "../../components/MODALS/pro/AddFaqCategoryModal";
 
-const { Panel } = Collapse;
-const { Title, Text } = Typography;
-const { TabPane } = Tabs;
+const { Text } = Typography;
 
 const FAQPage = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [faqs, setFaqs] = useState([]);
-  const [faqCategories, setFaqCategories] = useState([]);
+  const [activeTab, setActiveTab] = useState("faqs");
+  const [faqs, setFaqs] = useState<any[]>([]);
+  const [faqCategories, setFaqCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [categoryLoading, setCategoryLoading] = useState(false);
 
@@ -27,15 +25,19 @@ const FAQPage = () => {
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [currentFaq, setCurrentFaq] = useState(null);
   const [currentCategory, setCurrentCategory] = useState(null);
+  
+  const actionRef = useRef();
+  const categoryActionRef = useRef();
 
   // Fetch FAQs and categories
   const fetchData = async () => {
     setLoading(true);
     try {
       const faqData = await fetchAllFaqs({});
-      setFaqs(faqData);
+      setFaqs(Array.isArray(faqData) ? faqData : []);
     } catch (error) {
       console.error("Error fetching FAQs:", error);
+      message.error("Failed to fetch FAQs");
     } finally {
       setLoading(false);
     }
@@ -45,9 +47,10 @@ const FAQPage = () => {
     setCategoryLoading(true);
     try {
       const categoryData = await fetchAllFaqCategories({});
-      setFaqCategories(categoryData);
+      setFaqCategories(Array.isArray(categoryData) ? categoryData : []);
     } catch (error) {
       console.error("Error fetching FAQ categories:", error);
+      message.error("Failed to fetch FAQ categories");
     } finally {
       setCategoryLoading(false);
     }
@@ -58,20 +61,13 @@ const FAQPage = () => {
     fetchCategories();
   }, []);
 
-  // Filter FAQs based on search term
-  const filteredFaqs = faqs.filter(
-    (faq) =>
-      faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      faq.answer.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   // Modal handlers
   const handleAddFaq = () => {
     setCurrentFaq(null);
     setFaqModalVisible(true);
   };
 
-  const handleEditFaq = (faq) => {
+  const handleEditFaq = (faq: any) => {
     setCurrentFaq(faq);
     setFaqModalVisible(true);
   };
@@ -81,56 +77,141 @@ const FAQPage = () => {
     setCategoryModalVisible(true);
   };
 
-  const handleEditCategory = (category) => {
+  const handleEditCategory = (category: any) => {
     setCurrentCategory(category);
     setCategoryModalVisible(true);
   };
 
-  const handleDeleteFaq = async (id) => {
+  const handleDeleteFaq = async (id: string) => {
     try {
       await deleteFaq(id);
+      message.success("FAQ deleted successfully");
       fetchData();
     } catch (error) {
       console.error("Error deleting FAQ:", error);
+      message.error("Failed to delete FAQ");
     }
   };
 
-  const handleDeleteCategory = async (id) => {
+  const handleDeleteCategory = async (id: string) => {
     try {
       await deleteFaqCategory(id);
+      message.success("Category deleted successfully");
       fetchCategories();
     } catch (error) {
       console.error("Error deleting category:", error);
+      message.error("Failed to delete category");
     }
   };
 
   // Category table columns
   const categoryColumns = [
     {
-      title: 'Name',
+      title: 'Category Name',
       dataIndex: 'name',
       key: 'name',
+      ellipsis: true,
+    },
+    {
+      title: 'FAQ Count',
+      dataIndex: '_id',
+      key: 'faqCount',
+      render: (_: any, record: any) => {
+        const count = faqs.filter(faq => faq.faq_category_id?._id === record._id).length;
+        return <Tag color="blue">{count}</Tag>;
+      },
+      sorter: (a: any, b: any) => {
+        const countA = faqs.filter(faq => faq.faq_category_id?._id === a._id).length;
+        const countB = faqs.filter(faq => faq.faq_category_id?._id === b._id).length;
+        return countA - countB;
+      },
     },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_, record) => (
-        <Space size="middle">
-          <Tooltip title="Edit">
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => handleEditCategory(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Delete">
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDeleteCategory(record._id)}
-            />
-          </Tooltip>
+      width: 120,
+      render: (_: any, record: any) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEditCategory(record)}
+          >
+            Edit
+          </Button>
+          <Popconfirm
+            title="Delete this category?"
+            description="This will also delete all FAQs in this category."
+            onConfirm={() => handleDeleteCategory(record._id)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  // FAQ columns for ProTable
+  const faqColumns = [
+    {
+      title: 'Question',
+      dataIndex: 'question',
+      key: 'question',
+      ellipsis: true,
+      render: (text: any) => <Text strong>{text}</Text>,
+    },
+    {
+      title: 'Category',
+      dataIndex: 'faq_category_id',
+      key: 'category',
+      render: (_: any, record: any) => {
+        const category = faqCategories.find(cat => cat._id === record.faq_category_id?._id);
+        return category ? <Tag color="geekblue">{category.name}</Tag> : <Tag>Uncategorized</Tag>;
+      },
+      filters: faqCategories.map(cat => ({
+        text: cat.name,
+        value: cat._id,
+      })),
+      onFilter: (value: any, record: any) => record.faq_category_id?._id === value,
+    },
+    {
+      title: 'Answer',
+      dataIndex: 'answer',
+      key: 'answer',
+      ellipsis: true,
+      search: false,
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 150,
+      search: false,
+      render: (_: any, record: any) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEditFaq(record)}
+          >
+            Edit
+          </Button>
+          <Popconfirm
+            title="Delete this FAQ?"
+            description="This action cannot be undone."
+            onConfirm={() => handleDeleteFaq(record._id)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              Delete
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -139,103 +220,120 @@ const FAQPage = () => {
   return (
     <PageContainer
       title="Frequently Asked Questions"
-      header={{
-        title: <Title level={2}>Frequently Asked Questions</Title>,
-      }}
+      subTitle="Manage your FAQs and help customers find answers quickly"
+      extra={[
+        <Button
+          key="addFaq"
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleAddFaq}
+        >
+          Add FAQ
+        </Button>,
+      ]}
     >
-      <Card bordered={false} style={{ margin: "0 auto" }}>
-        <Tabs defaultActiveKey="1">
-          <TabPane tab="FAQs" key="1">
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <Input
-                size="large"
-                placeholder="Search FAQs..."
-                prefix={<SearchOutlined />}
-                style={{ width: 300 }}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                value={searchTerm}
-              />
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAddFaq}
-              >
-                Add FAQ
-              </Button>
-            </div>
-
-            <Collapse accordion bordered={false} className="faq-collapse">
-              {filteredFaqs.map((faq) => (
-                <Panel
-                  header={faq.question}
-                  key={faq._id}
-                  className="faq-panel"
-                  extra={
-                    <Space>
-                      <Tooltip title="Edit">
-                        <Button
-                          type="text"
-                          icon={<EditOutlined />}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditFaq(faq);
-                          }}
-                        />
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <Button
-                          type="text"
-                          danger
-                          icon={<DeleteOutlined />}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteFaq(faq._id);
-                          }}
-                        />
-                      </Tooltip>
-                    </Space>
-                  }
-                >
-                  <p>{faq.answer}</p>
-                  <div style={{ marginTop: 8 }}>
-                    <Text type="secondary">
-                      Category: {faq.faq_category_id?.name || "Uncategorized"}
-                    </Text>
-                  </div>
-                </Panel>
-              ))}
-            </Collapse>
-
-            {filteredFaqs.length === 0 && !loading && (
-              <Typography.Text
-                type="secondary"
-                style={{ display: "block", textAlign: "center", margin: 24 }}
-              >
-                No FAQs found matching your search.
-              </Typography.Text>
-            )}
-          </TabPane>
-
-          <TabPane tab="FAQ Categories" key="2">
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAddCategory}
-              >
-                Add Category
-              </Button>
-            </div>
-
-            <Table
-              columns={categoryColumns}
-              dataSource={faqCategories}
-              rowKey="_id"
-              loading={categoryLoading}
-            />
-          </TabPane>
-        </Tabs>
-      </Card>
+      <ProCard
+        tabs={{
+          activeKey: activeTab,
+          onChange: setActiveTab,
+          items: [
+            {
+              label: (
+                <span>
+                  <QuestionCircleOutlined />
+                  FAQs
+                </span>
+              ),
+              key: 'faqs',
+              children: (
+                <ProCard bordered={false}>
+                  <ProTable
+                    actionRef={actionRef}
+                    columns={faqColumns}
+                    dataSource={faqs}
+                    rowKey="_id"
+                    loading={loading}
+                    search={{
+                      labelWidth: 'auto',
+                    }}
+                    pagination={{
+                      defaultPageSize: 10,
+                      showSizeChanger: true,
+                      showTotal: (total) => `Total ${total} FAQs`,
+                    }}
+                    dateFormatter="string"
+                    headerTitle="All FAQs"
+                    options={{
+                      density: true,
+                      fullScreen: true,
+                      reload: true,
+                      setting: true,
+                    }}
+                    expandable={{
+                      expandedRowRender: (record: any) => (
+                        <ProDescriptions
+                          column={1}
+                          title="FAQ Details"
+                          bordered
+                        >
+                          <ProDescriptions.Item label="Question">
+                            {record.question}
+                          </ProDescriptions.Item>
+                          <ProDescriptions.Item label="Answer">
+                            {record.answer}
+                          </ProDescriptions.Item>
+                          <ProDescriptions.Item label="Category">
+                            {record.faq_category_id?.name || "Uncategorized"}
+                          </ProDescriptions.Item>
+                        </ProDescriptions>
+                      ),
+                      rowExpandable: (record: any) => record.question && record.answer,
+                    }}
+                  />
+                </ProCard>
+              ),
+            },
+            {
+              label: 'Categories',
+              key: 'categories',
+              children: (
+                <ProCard bordered={false}>
+                  <ProTable
+                    actionRef={categoryActionRef}
+                    columns={categoryColumns}
+                    dataSource={faqCategories}
+                    rowKey="_id"
+                    loading={categoryLoading}
+                    pagination={{
+                      defaultPageSize: 10,
+                      showSizeChanger: true,
+                      showTotal: (total) => `Total ${total} categories`,
+                    }}
+                    toolBarRender={() => [
+                      <Button
+                        key="add"
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={handleAddCategory}
+                      >
+                        Add Category
+                      </Button>,
+                    ]}
+                    search={false}
+                    headerTitle="FAQ Categories"
+                    options={{
+                      density: true,
+                      fullScreen: true,
+                      reload: true,
+                      setting: true,
+                    }}
+                  />
+                </ProCard>
+              ),
+            },
+          ],
+        }}
+      />
 
       {/* FAQ Modal */}
       <FaqModal
@@ -263,29 +361,4 @@ const FAQPage = () => {
   );
 };
 
-// Add custom styles
-const styles = `
-  .faq-collapse .ant-collapse-item {
-    margin-bottom: 16px;
-    background: #ffffff;
-    border-radius: 8px;
-    border: 1px solid #f0f0f0;
-  }
-
-  .faq-collapse .ant-collapse-header {
-    padding: 16px 24px !important;
-    font-weight: 500;
-  }
-
-  .faq-collapse .ant-collapse-content-box {
-    padding: 16px 24px;
-  }
-
-  .faq-panel:last-child {
-    margin-bottom: 0;
-  }
-`;
-
-// Export both the component and styles
-export { FAQPage, styles };
 export default FAQPage;
