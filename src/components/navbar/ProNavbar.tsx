@@ -157,6 +157,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const [quickCreateModal, setQuickCreateModal] = useState<QuickCreateModal>(null);
 
   const isAdmin = user?.role === "admin";
+  const isAdminRoute = location.pathname.startsWith("/admin");
 
   // ── Module flags ──────────────────────────────────────────────────────────
   const getModuleFlags = () => {
@@ -231,7 +232,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
     setMobileDrawerOpen(false);
   };
 
-  const notificationsPath = isAdmin ? "/admin/notifications" : "/notifications";
+  const notificationsPath = isAdminRoute ? "/admin/notifications" : "/notifications";
 
   const closeQuickCreate = () => setQuickCreateModal(null);
 
