@@ -111,7 +111,6 @@ const PettyCashListPage: React.FC = () => {
         let reason = "";
         modal.confirm({
             title: "Void this transaction?",
-            content: "Please provide a reason for voiding this transaction:",
             okText: "Void Transaction",
             okButtonProps: { danger: true },
             content: (
