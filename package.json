@@ -63,7 +63,8 @@
     "workbox-webpack-plugin": "^7.0.0",
     "world_countries_lists": "^2.9.0",
     "xlsx": "^0.18.5",
-    "yup": "^1.2.0"
+    "yup": "^1.2.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@types/react": "^18.0.37",

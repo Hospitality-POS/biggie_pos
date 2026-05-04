@@ -21,6 +21,7 @@ import {
     CheckOutlined,
     CreditCardOutlined,
     FileProtectOutlined,
+    HomeOutlined,
     InfoCircleOutlined,
     LockOutlined,
     PoweroffOutlined,
@@ -48,6 +49,11 @@ import {
     disableBandu,
     enableMteja,
     disableMteja,
+    enableDala,
+    disableDala,
+    enableEtims,
+    disableEtims,
+    updateEtimsConfig,
     getCurrentTenantId,
 } from "@services/tenants";
 import pesapalApi from "@services/pesapalApi";
@@ -196,6 +202,40 @@ const INTEGRATIONS = [
         tags: ["Base Suite", "CRM", "Leads", "Loyalty", "Conversations"],
     },
     {
+        id: "dala",
+        name: "Dala by Base",
+        category: "Property Management",
+        description: "Complete real-estate management system for properties, units, sales, rentals, and commissions.",
+        longDescription: "Dala by Base is a comprehensive property management solution that handles everything from property and unit management to sales tracking, rental management, and commission calculations. Perfect for real estate developers, property managers, and landlords.",
+        features: [
+            "Property & Unit Management",
+            "Block & Floor Organization", 
+            "Phase-Based Pricing",
+            "Sales Pipeline & Tracking",
+            "Commission Management",
+            "Payment Plan Processing",
+            "Rental & Lease Management",
+            "Tenant Screening",
+            "Rent Collection & Invoicing",
+            "Document Management",
+            "Financial Reporting",
+        ],
+        benefits: [
+            "Centralized property operations",
+            "Automated sales commission tracking", 
+            "Flexible pricing phases",
+            "Complete rental workflow",
+            "Integrated payment processing",
+            "Professional documentation",
+            "Real-time financial insights",
+        ],
+        setupTime: "5 minutes",
+        status: "available",
+        icon: HomeOutlined,
+        color: C.teal,
+        tags: ["Base Suite", "Property", "Real Estate", "Sales", "Rental"],
+    },
+    {
         id: "etims",
         name: "eTIMS",
         category: "KRA Tax Compliance",
@@ -207,7 +247,7 @@ const INTEGRATIONS = [
         status: "available",
         icon: AuditOutlined,
         color: C.indigo,
-        tags: ["KRA", "Tax", "Compliance", "Beta"],
+        tags: ["KRA", "Tax", "Compliance", "Test Mode"],
     },
     {
         id: "pesapal",
@@ -503,6 +543,8 @@ const DiscoverPage: React.FC = () => {
     const [posModalOpen, setPosModalOpen] = useState(false);
     const [banduModalOpen, setBanduModalOpen] = useState(false);
     const [mtejaModalOpen, setMtejaModalOpen] = useState(false);
+    const [dalaModalOpen, setDalaModalOpen] = useState(false);
+    const [etimsModalOpen, setEtimsModalOpen] = useState(false);
     const [isUpdatingPesapal, setIsUpdatingPesapal] = useState(false);
 
     const [pesapalForm] = Form.useForm();
@@ -510,6 +552,8 @@ const DiscoverPage: React.FC = () => {
     const [posForm] = Form.useForm();
     const [banduForm] = Form.useForm();
     const [mtejaForm] = Form.useForm();
+    const [dalaForm] = Form.useForm();
+    const [etimsForm] = Form.useForm();
 
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -538,6 +582,8 @@ const DiscoverPage: React.FC = () => {
         if (id === "relia_accounting") return t.modules?.accounting === true ? "enabled" : "not_enabled";
         if (id === "relia_payroll") return t.modules?.payroll === true ? "enabled" : "not_enabled";
         if (id === "mteja") return t.modules?.crm === true ? "enabled" : "not_enabled";
+        if (id === "dala") return t.modules?.dala === true ? "enabled" : "not_enabled";
+        if (id === "etims") return t.etims_config?.enabled === true ? "enabled" : "not_enabled";
         if (id === "pesapal") return t.use_pesapal === true || pesapalConfig?.data?.enabled === true ? "enabled" : "not_enabled";
         return "not_enabled";
     };
@@ -622,6 +668,38 @@ const DiscoverPage: React.FC = () => {
         onError: (e: any) => notification.error({ message: "Failed to disable Mteja by Base", description: e.message, style: { borderRadius: 12 } }),
     });
 
+    const enableDalaMutation = useMutation({
+        mutationFn: (values: any) => enableDala(tenantId, values),
+        onSuccess: () => {
+            setDalaModalOpen(false);
+            dalaForm.resetFields();
+            triggerAppRefresh(queryClient, "Dala by Base enabled successfully");
+        },
+        onError: (e: any) => notification.error({ message: "Failed to enable Dala by Base", description: e.message, style: { borderRadius: 12 } }),
+    });
+
+    const disableDalaMutation = useMutation({
+        mutationFn: () => disableDala(tenantId),
+        onSuccess: () => triggerAppRefresh(queryClient, "Dala by Base disabled"),
+        onError: (e: any) => notification.error({ message: "Failed to disable Dala by Base", description: e.message, style: { borderRadius: 12 } }),
+    });
+
+    const enableEtimsMutation = useMutation({
+        mutationFn: (values: any) => enableEtims(tenantId, values),
+        onSuccess: () => {
+            setEtimsModalOpen(false);
+            etimsForm.resetFields();
+            triggerAppRefresh(queryClient, "eTIMS enabled successfully");
+        },
+        onError: (e: any) => notification.error({ message: "Failed to enable eTIMS", description: e.message, style: { borderRadius: 12 } }),
+    });
+
+    const disableEtimsMutation = useMutation({
+        mutationFn: () => disableEtims(tenantId),
+        onSuccess: () => triggerAppRefresh(queryClient, "eTIMS disabled"),
+        onError: (e: any) => notification.error({ message: "Failed to disable eTIMS", description: e.message, style: { borderRadius: 12 } }),
+    });
+
     const handleEnable = (integration: (typeof INTEGRATIONS)[0]) => {
         if (getStatus(integration.id) === "enabled") {
             notification.info({ message: `${integration.name} is already enabled`, style: { borderRadius: 12 } });
@@ -631,6 +709,8 @@ const DiscoverPage: React.FC = () => {
         if (integration.id === "relia_accounting") { setAccountingModalOpen(true); return; }
         if (integration.id === "relia_payroll") { setBanduModalOpen(true); return; }
         if (integration.id === "mteja") { setMtejaModalOpen(true); return; }
+        if (integration.id === "dala") { setDalaModalOpen(true); return; }
+        if (integration.id === "etims") { setEtimsModalOpen(true); return; }
         if (integration.id === "pesapal") { setPesapalModalOpen(true); setIsUpdatingPesapal(false); return; }
         notification.info({ message: "Coming soon", description: "This integration will be available soon.", style: { borderRadius: 12 } });
     };
@@ -656,6 +736,16 @@ const DiscoverPage: React.FC = () => {
                 title: "Disable Mteja by Base?",
                 content: "This will hide the CRM, leads, campaigns, sales targets, conversations, and loyalty features. Your customer and lead data will be preserved.",
                 onOk: () => disableMtejaMutation.mutateAsync(),
+            },
+            dala: {
+                title: "Disable Dala by Base?",
+                content: "This will hide the property management, sales tracking, and rental features. All property and transaction data will be preserved.",
+                onOk: () => disableDalaMutation.mutateAsync(),
+            },
+            etims: {
+                title: "Disable eTIMS?",
+                content: "This will stop KRA tax invoice submissions and compliance reporting. Are you sure?",
+                onOk: () => disableEtimsMutation.mutateAsync(),
             },
             pesapal: {
                 title: "Disable Pesapal?",
@@ -724,7 +814,9 @@ const DiscoverPage: React.FC = () => {
                                     (integration.id === "relia_accounting" && disableAccountingMutation.isPending) ||
                                     (integration.id === "relia_pos" && disablePosMutation.isPending) ||
                                     (integration.id === "relia_payroll" && disableBanduMutation.isPending) ||
-                                    (integration.id === "mteja" && disableMtejaMutation.isPending)
+                                    (integration.id === "mteja" && disableMtejaMutation.isPending) ||
+                                    (integration.id === "dala" && disableDalaMutation.isPending) ||
+                                    (integration.id === "etims" && disableEtimsMutation.isPending)
                                 }
                             />
                         </Col>
@@ -942,6 +1034,107 @@ const DiscoverPage: React.FC = () => {
                     <ModalFooter onCancel={() => { setMtejaModalOpen(false); mtejaForm.resetFields(); }}
                         submitLabel="Enable Mteja by Base" loading={enableMtejaMutation.isPending}
                         cancelDisabled={enableMtejaMutation.isPending} color={C.primary} icon={<CheckCircleOutlined />} />
+                </Form>
+            </Modal>
+
+            {/* Dala by Base Modal */}
+            <Modal open={dalaModalOpen}
+                onCancel={() => { setDalaModalOpen(false); dalaForm.resetFields(); }}
+                footer={null} style={{ top: 20 }} width="min(580px, 96vw)" destroyOnClose
+                title={<ModalTitle icon={<HomeOutlined />} color={C.teal} title="Enable Dala by Base" />}
+            >
+                <Form form={dalaForm} layout="vertical" onFinish={v => enableDalaMutation.mutate(v)}
+                    initialValues={{ accept_terms: false, accept_charges: false }} style={{ paddingTop: 4 }}>
+                    <Alert
+                        message="Complete property management system for real estate developers, property managers, and landlords."
+                        type="info" showIcon style={{ marginBottom: 14, borderRadius: 8 }}
+                    />
+                    <FormSection>
+                        <SectionLabel>Features Included</SectionLabel>
+                        <FeatureList
+                            items={[
+                                "Property & Unit Management",
+                                "Block & Floor Organization",
+                                "Phase-Based Pricing",
+                                "Sales Pipeline & Tracking",
+                                "Commission Management",
+                                "Payment Plan Processing",
+                                "Rental & Lease Management",
+                                "Tenant Screening",
+                                "Rent Collection & Invoicing",
+                                "Document Management",
+                                "Financial Reporting",
+                            ]}
+                            color={C.teal}
+                        />
+                    </FormSection>
+                    <div style={{ background: C.teal + "18", border: `1px solid ${C.teal}30`, borderRadius: 10, padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+                        <PhoneOutlined style={{ color: C.teal, fontSize: 16, flexShrink: 0 }} />
+                        <div>
+                            <Text strong style={{ fontSize: 13, color: C.teal, display: "block" }}>Pricing available on request</Text>
+                            <Text style={{ fontSize: 12, color: C.subText }}>Contact our support team for a tailored quote.</Text>
+                        </div>
+                    </div>
+                    <FormSection>
+                        <SectionLabel>Agreement</SectionLabel>
+                        <Form.Item name="accept_terms" valuePropName="checked"
+                            rules={[{ validator: (_, v) => v ? Promise.resolve() : Promise.reject("Required") }]}
+                            style={{ marginBottom: 10 }}>
+                            <Checkbox style={{ fontSize: 12 }}>
+                                I accept the <a href="/terms" target="_blank" rel="noreferrer">terms and conditions</a>
+                            </Checkbox>
+                        </Form.Item>
+                        <Form.Item name="accept_charges" valuePropName="checked"
+                            rules={[{ validator: (_, v) => v ? Promise.resolve() : Promise.reject("Required") }]}
+                            style={{ marginBottom: 6 }}>
+                            <Checkbox style={{ fontSize: 12 }}>I acknowledge that additional charges may apply</Checkbox>
+                        </Form.Item>
+                    </FormSection>
+                    <ModalFooter onCancel={() => { setDalaModalOpen(false); dalaForm.resetFields(); }}
+                        submitLabel="Enable Dala by Base" loading={enableDalaMutation.isPending}
+                        cancelDisabled={enableDalaMutation.isPending} color={C.teal} icon={<CheckCircleOutlined />} />
+                </Form>
+            </Modal>
+
+            {/* eTIMS Modal */}
+            <Modal open={etimsModalOpen}
+                onCancel={() => { setEtimsModalOpen(false); etimsForm.resetFields(); }}
+                footer={null} style={{ top: 20 }} width="min(520px, 96vw)" destroyOnClose
+                title={<ModalTitle icon={<AuditOutlined />} color={C.indigo} title="Enable eTIMS Integration" />}
+            >
+                <Form form={etimsForm} layout="vertical" onFinish={v => enableEtimsMutation.mutate(v)}
+                    initialValues={{ environment: 'sandbox' }} style={{ paddingTop: 4 }}>
+                    <Alert
+                        message="Kenya Revenue Authority electronic Tax Invoice Management System integration for tax compliance."
+                        type="info" showIcon style={{ marginBottom: 14, borderRadius: 8 }}
+                    />
+                    <FormSection>
+                        <SectionLabel>Configuration</SectionLabel>
+                        <Form.Item name="environment" label="Environment" style={{ marginBottom: 12 }}>
+                            <Switch checkedChildren="Production" unCheckedChildren="Sandbox" />
+                        </Form.Item>
+                        <Form.Item name="tin_number" label="TIN Number" rules={[{ required: true, message: "TIN number is required" }]} style={{ marginBottom: 12 }}>
+                            <Input placeholder="Enter your KRA TIN number" style={{ borderRadius: 8 }} />
+                        </Form.Item>
+                        <Form.Item name="kra_pin" label="KRA PIN" style={{ marginBottom: 12 }}>
+                            <Input placeholder="Enter your KRA PIN (optional)" style={{ borderRadius: 8 }} />
+                        </Form.Item>
+                        <Form.Item name="bhf_id" label="Branch Fiscal ID" style={{ marginBottom: 12 }}>
+                            <Input placeholder="Branch Fiscal ID (default: 00)" style={{ borderRadius: 8 }} />
+                        </Form.Item>
+                        <Form.Item name="device_serial" label="Device Serial Number" style={{ marginBottom: 6 }}>
+                            <Input placeholder="Device serial number for eTIMS" style={{ borderRadius: 8 }} />
+                        </Form.Item>
+                    </FormSection>
+                    <div style={{ background: "#f0f5ff", border: `1px solid ${C.indigo}30`, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                        <InfoCircleOutlined style={{ color: C.indigo, fontSize: 14, marginRight: 8 }} />
+                        <Text style={{ fontSize: 12, color: C.subText }}>
+                            eTIMS integration starts in test mode. You can switch to production when ready.
+                        </Text>
+                    </div>
+                    <ModalFooter onCancel={() => { setEtimsModalOpen(false); etimsForm.resetFields(); }}
+                        submitLabel="Enable eTIMS" loading={enableEtimsMutation.isPending}
+                        cancelDisabled={enableEtimsMutation.isPending} color={C.indigo} icon={<CheckCircleOutlined />} />
                 </Form>
             </Modal>
         </div>

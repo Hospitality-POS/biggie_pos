@@ -43,6 +43,15 @@ import {
   // ── CRM ──────────────────────────────────────────────────────────────────
   NotificationOutlined,
   AimOutlined,
+  // ── Dala ───────────────────────────────────────────────────────────────────
+  HomeOutlined,
+  AccountBookOutlined,
+  ReconciliationOutlined,
+  BuildOutlined,
+  ApartmentOutlined,
+  FileProtectOutlined,
+  UsergroupAddOutlined,
+  MoneyCollectOutlined,
 } from "@ant-design/icons";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "src/store";
@@ -163,20 +172,21 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const getModuleFlags = () => {
     try {
       const storedTenant = localStorage.getItem("tenant");
-      if (!storedTenant) return { hasPOS: true, hasAccounting: false, hasMteja: false, hasBandu: false };
+      if (!storedTenant) return { hasPOS: true, hasAccounting: false, hasMteja: false, hasBandu: false, hasDala: false };
       const tenantData = JSON.parse(storedTenant);
       return {
         hasPOS: tenantData?.pos_integration?.enabled === true,
         hasAccounting: !!(tenantData?.accounting_database?.enabled || tenantData?.modules?.accounting),
         hasMteja: tenantData?.modules?.crm === true,   // ← CRM gate
         hasBandu: tenantData?.modules?.payroll === true,
+        hasDala: tenantData?.modules?.dala === true,    // ← Real Estate gate
       };
     } catch {
-      return { hasPOS: true, hasAccounting: false, hasMteja: false, hasBandu: false };
+      return { hasPOS: true, hasAccounting: false, hasMteja: false, hasBandu: false, hasDala: false };
     }
   };
 
-  const { hasPOS, hasAccounting, hasMteja, hasBandu } = getModuleFlags();
+  const { hasPOS, hasAccounting, hasMteja, hasBandu, hasDala } = getModuleFlags();
 
   useEffect(() => {
     const storedTenant = localStorage.getItem("tenant");
@@ -253,6 +263,20 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   };
 
   const fakeActionRef = { current: { reload: invalidateAll, reset: invalidateAll } };
+
+  // ── Calculate selected key for navigation ─────────────────────────────────
+  const selectedKey = (() => {
+    const routes = navRoutes?.route?.routes || [];
+    const matchingRoutes = routes.filter((route: any) => 
+      location.pathname === route.path ||
+      (route.path !== "/" && location.pathname.startsWith(route.path + "/"))
+    );
+    if (matchingRoutes.length === 0) return location.pathname;
+    const mostSpecific = matchingRoutes.reduce((longest: any, current: any) => 
+      current.path.length > longest.path.length ? current : longest
+    );
+    return mostSpecific.path;
+  })();
 
   // ── Quick Create menu items ───────────────────────────────────────────────
   const getQuickCreateItems = () => {
@@ -432,6 +456,50 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             icon: <FileTextOutlined style={{ color: "#10b981" }} />,
             label: <span style={{ fontSize: 13 }}>Process Payroll</span>,
             onClick: () => navigate(isAdmin ? "/admin/bandu/payroll" : "/bandu/payroll"),
+          },
+        ],
+      });
+    }
+
+    // ── Dala Real Estate — only when hasDala ─────────────────────────────
+    if (hasDala) {
+      items.push({
+        type: "group" as const,
+        label: (
+          <Text type="secondary" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+            Real Estate
+          </Text>
+        ),
+        children: [
+          {
+            key: "property",
+            icon: <BuildOutlined style={{ color: "#6c1c2c" }} />,
+            label: <span style={{ fontSize: 13 }}>New Property</span>,
+            onClick: () => navigate(isAdmin ? "/admin/dala/properties" : "/dala/properties"),
+          },
+          {
+            key: "unit",
+            icon: <ApartmentOutlined style={{ color: "#0891b2" }} />,
+            label: <span style={{ fontSize: 13 }}>Add Unit</span>,
+            onClick: () => navigate(isAdmin ? "/admin/dala/units" : "/dala/units"),
+          },
+          {
+            key: "sale",
+            icon: <MoneyCollectOutlined style={{ color: "#16a34a" }} />,
+            label: <span style={{ fontSize: 13 }}>Property Sale</span>,
+            onClick: () => navigate(isAdmin ? "/admin/dala/sales" : "/dala/sales"),
+          },
+          {
+            key: "lease",
+            icon: <FileProtectOutlined style={{ color: "#7c3aed" }} />,
+            label: <span style={{ fontSize: 13 }}>Create Lease</span>,
+            onClick: () => navigate(isAdmin ? "/admin/dala/leases" : "/dala/leases"),
+          },
+          {
+            key: "tenant",
+            icon: <UsergroupAddOutlined style={{ color: "#f59e0b" }} />,
+            label: <span style={{ fontSize: 13 }}>Add Tenant</span>,
+            onClick: () => navigate(isAdmin ? "/admin/dala/tenants" : "/dala/tenants"),
           },
         ],
       });
@@ -800,9 +868,15 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
         {mobileNavItems.map((item: any) => {
-          const isActive =
-            location.pathname === item.path ||
-            location.pathname.startsWith(item.path + "/");
+          // Find the most specific path match to avoid multiple active states
+          const matchingItems = mobileNavItems.filter(navItem => 
+            location.pathname === navItem.path ||
+            (navItem.path !== "/" && location.pathname.startsWith(navItem.path + "/"))
+          );
+          const mostSpecificMatch = matchingItems.reduce((longest, current) => 
+            current.path.length > longest.path.length ? current : longest
+          , matchingItems[0]);
+          const isActive = mostSpecificMatch?.path === item.path;
           return (
             <NavLink key={item.path || item.key} to={item.path || "/"} style={{ textDecoration: "none" }}>
               <div style={{
@@ -1000,6 +1074,10 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             : undefined
         }
         {...navRoutes}
+        location={{
+          pathname: location.pathname,
+        }}
+        selectedKeys={[selectedKey]}
         token={{
           bgLayout: "#f6ffed",
           colorPrimary: primaryColor,

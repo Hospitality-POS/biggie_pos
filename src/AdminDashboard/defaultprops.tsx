@@ -9,6 +9,7 @@ import {
   ShopOutlined,
   UsergroupAddOutlined,
   CustomerServiceOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
 
 /**
@@ -18,6 +19,8 @@ import {
  *  - Duka (POS) only         → Dashboard, Branch, Staff, POS Reports, Documents, Help
  *  - Pesa (Accounting) only  → Accounting Dashboard, Branch, Staff, CoA, Financial Reports, Documents, Help
  *  - Duka + Pesa both        → Dashboard, Branch, Staff, POS Reports, Accounting Dashboard, CoA, Financial Reports, Documents, Help
+ *  - Dala ONLY              → Dala Dashboard, Properties, Units, Sales, Leases, Branch, Staff, Help
+ *  - Dala + any other       → Dala routes shown alongside other modules
  *  - Mteja ONLY              → Mteja Dashboard, Branch, Staff, Help
  *  - Mteja + any other       → Mteja routes hidden; only the other module(s) show
  *
@@ -28,6 +31,14 @@ import {
  *  /admin/accounting                 ← Accounting dashboard
  *  /admin/accounting/accounts        ← Chart of Accounts  (was /admin/accounts — 404)
  *  /admin/accounting/reports         ← Financial reports   (was /admin/reports — conflict with POS)
+ *  /admin/dala                       ← Dala dashboard
+ *  /admin/dala/properties            ← Properties management
+ *  /admin/dala/units                 ← Units management
+ *  /admin/dala/sales                 ← Sales management
+ *  /admin/dala/leases                ← Lease management
+ *  /admin/dala/commissions           ← Commission management
+ *  /admin/dala/rent-collection        ← Rent collection
+ *  /admin/dala/reports               ← Dala reports
  *  /admin/shop-management
  *  /admin/staff-management
  *  /admin/mteja
@@ -45,16 +56,19 @@ const useAdminProLayoutNav = () => {
   const hasDuka = tenant?.pos_integration?.enabled === true;
   const hasPesa = tenant?.modules?.accounting === true;
   const hasMteja = tenant?.modules?.crm === true;
+  const hasDala = tenant?.modules?.dala === true;
 
-  const isMtejaOnly = hasMteja && !hasDuka && !hasPesa;
+  const isMtejaOnly = hasMteja && !hasDuka && !hasPesa && !hasDala;
 
   console.log("[AdminNav] Module check:", {
     "Duka (POS)": tenant?.pos_integration?.enabled,
     "Pesa (Accounting)": tenant?.modules?.accounting,
     "Mteja (CRM)": tenant?.modules?.crm,
+    "Dala (Real Estate)": tenant?.modules?.dala,
     hasDuka,
     hasPesa,
     hasMteja,
+    hasDala,
     isMtejaOnly,
   });
 
@@ -89,6 +103,12 @@ const useAdminProLayoutNav = () => {
     { path: "/admin/mteja", name: "Mteja Dashboard", icon: <CustomerServiceOutlined /> },
   ];
 
+  // ── Dala (Real Estate) routes ─────────────────────────────────────────────
+  const dalaRoutes = [
+    { path: "/admin/dala", name: "Dala Dashboard", icon: <HomeOutlined /> },
+    { path: "/admin/dala/reports", name: "Dala Reports", icon: <FileTextOutlined /> },
+  ];
+
   // ── Help Center (always last) ─────────────────────────────────────────────
   const helpRoute = {
     path: "/admin/help-center",
@@ -108,7 +128,7 @@ const useAdminProLayoutNav = () => {
   }
 
   // ── CASE 2: Duka only ─────────────────────────────────────────────────────
-  if (hasDuka && !hasPesa) {
+  if (hasDuka && !hasPesa && !hasDala) {
     console.log("[AdminNav] ✅ Duka only (POS)");
     return {
       route: {
@@ -119,7 +139,7 @@ const useAdminProLayoutNav = () => {
   }
 
   // ── CASE 3: Pesa only ─────────────────────────────────────────────────────
-  if (hasPesa && !hasDuka) {
+  if (hasPesa && !hasDuka && !hasDala) {
     console.log("[AdminNav] ✅ Pesa only (Accounting)");
     return {
       route: {
@@ -129,16 +149,68 @@ const useAdminProLayoutNav = () => {
     };
   }
 
-  // ── CASE 4: Duka + Pesa ───────────────────────────────────────────────────
+  // ── CASE 4: Dala only ─────────────────────────────────────────────────────
+  if (hasDala && !hasDuka && !hasPesa) {
+    console.log("[AdminNav] ✅ Dala only (Real Estate)");
+    return {
+      route: {
+        path: "/admin",
+        routes: [
+          { path: "/admin/dala", name: "Dala Dashboard", icon: <HomeOutlined /> },
+          { path: "/admin/dala/reports", name: "Dala Reports", icon: <FileTextOutlined /> },
+          { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
+          { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
+          helpRoute,
+        ],
+      },
+    };
+  }
+
+  // ── CASE 5: Duka + Pesa ───────────────────────────────────────────────────
   // FIX: deduplicate Document Center — appears in both dukaRoutes and pesaRoutes.
   // When combined, filter it out of pesaRoutes to avoid two identical nav items.
-  if (hasDuka && hasPesa) {
+  if (hasDuka && hasPesa && !hasDala) {
     console.log("[AdminNav] ✅ Duka + Pesa (POS + Accounting)");
     const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
     return {
       route: {
         path: "/admin",
         routes: [...dukaRoutes, ...commonRoutes, ...pesaWithoutDocs, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 6: Duka + Dala ───────────────────────────────────────────────────
+  if (hasDuka && hasDala && !hasPesa) {
+    console.log("[AdminNav] ✅ Duka + Dala (POS + Real Estate)");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...dukaRoutes, ...dalaRoutes, ...commonRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 7: Pesa + Dala ───────────────────────────────────────────────────
+  if (hasPesa && hasDala && !hasDuka) {
+    console.log("[AdminNav] ✅ Pesa + Dala (Accounting + Real Estate)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...pesaWithoutDocs, ...dalaRoutes, ...commonRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 8: Duka + Pesa + Dala ─────────────────────────────────────────────
+  if (hasDuka && hasPesa && hasDala) {
+    console.log("[AdminNav] ✅ Duka + Pesa + Dala (POS + Accounting + Real Estate)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...dukaRoutes, ...pesaWithoutDocs, ...dalaRoutes, ...commonRoutes, helpRoute],
       },
     };
   }

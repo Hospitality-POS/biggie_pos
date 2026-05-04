@@ -95,6 +95,22 @@ const CampaignsPage = lazy(() => import("src/pages/Campaign/Campaigns"));
 const SalesTargetsPage = lazy(() => import("src/pages/SalesTargets/SalesTargets"));
 const SalesBudgetsPage = lazy(() => import("src/pages/Salesbudgets/Salesbudgets"));
 
+// ─── Dala Real Estate Module ───────────────────────────────────────────────────
+// All Dala pages are lazy-loaded and only reachable when hasDala === true.
+const DalaDashboard = lazy(() => import("src/pages/dala/Dashboard"));
+const PropertiesList = lazy(() => import("src/pages/dala/properties/PropertiesList"));
+const PropertyDetail = lazy(() => import("src/pages/dala/properties/PropertyDetail"));
+const PropertyTypesList = lazy(() => import("src/pages/dala/property-types/PropertyTypesList"));
+const UnitsList = lazy(() => import("src/pages/dala/units/UnitsList"));
+const UnitDetail = lazy(() => import("src/pages/dala/units/UnitDetail"));
+const SalesManagement = lazy(() => import("src/pages/dala/sales/SalesManagement"));
+const SaleDetail = lazy(() => import("src/pages/dala/sales/SaleDetail"));
+const CommissionManagement = lazy(() => import("src/pages/dala/commissions/CommissionManagement"));
+const LeaseManagement = lazy(() => import("src/pages/dala/leases/LeaseManagement"));
+const LeaseDetail = lazy(() => import("src/pages/dala/leases/LeaseDetail"));
+const RentCollection = lazy(() => import("src/pages/dala/rent/RentCollection"));
+const DalaReports = lazy(() => import("src/pages/dala/reports/Reports"));
+
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = (
   <Spin size="large" fullscreen style={{ color: getPrimaryColor() }} />
@@ -117,6 +133,26 @@ const MtejaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const AdminMtejaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!getMtejaEnabled()) return <Navigate to="/admin/customers" replace />;
+  return <>{children}</>;
+};
+
+// ─── Dala guard ─────────────────────────────────────────────────────────────
+const getDalaEnabled = (): boolean => {
+  try {
+    const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
+    return tenant?.modules?.dala === true;
+  } catch {
+    return false;
+  }
+};
+
+const DalaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!getDalaEnabled()) return <Navigate to="/customers" replace />;
+  return <>{children}</>;
+};
+
+const AdminDalaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!getDalaEnabled()) return <Navigate to="/admin/customers" replace />;
   return <>{children}</>;
 };
 
@@ -166,6 +202,23 @@ const mtejaAdminPage = (Component: React.ComponentType, permission: string) => (
   </AdminMtejaRoute>
 );
 
+// ─── Dala page wrapper — private + Dala guard ───────────────────────────────────
+const dalaPage = (Component: React.ComponentType, permission: string) => (
+  <DalaRoute>
+    <PermissionRoute permission={permission}>
+      {privatePage(Component)}
+    </PermissionRoute>
+  </DalaRoute>
+);
+
+const dalaAdminPage = (Component: React.ComponentType, permission: string) => (
+  <AdminDalaRoute>
+    <PermissionRoute permission={permission}>
+      {adminPage(Component)}
+    </PermissionRoute>
+  </AdminDalaRoute>
+);
+
 // ─── Accounting layout wrapper ────────────────────────────────────────────────
 const AccountingLayout = () => <Outlet />;
 
@@ -178,7 +231,9 @@ const SmartShopRouter = () => {
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
   const hasMteja = tenant?.modules?.crm === true;
+  const hasDala = tenant?.modules?.dala === true;
 
+  if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/dala" replace />;
   if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/mteja" replace />;
   if (hasAccounting && !hasPOS) return <Navigate to="/accounting" replace />;
   return privatePage(Table);
@@ -193,7 +248,9 @@ const SmartDashboardRouter = () => {
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
   const hasMteja = tenant?.modules?.crm === true;
+  const hasDala = tenant?.modules?.dala === true;
 
+  if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/admin/dala" replace />;
   if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/admin/mteja" replace />;
   if (hasAccounting && !hasPOS) return <Navigate to="/admin/accounting" replace />;
   return adminPage(DashboardAdminPage);
@@ -371,6 +428,42 @@ const routes = createBrowserRouter(
             element={mtejaPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
           <Route path="sales-budgets" errorElement={<NotFound />}
             element={mtejaPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
+        </Route>
+
+        {/* ── Dala Real Estate — shop level (/dala/...) ───────────────────────
+            ALL routes here require hasDala === true (DalaRoute guard).
+            Permission: DALA_PROPERTIES_VIEW gates all Dala pages for now —
+            add dedicated Dala permissions when roles are extended.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="dala" element={<Outlet />}>
+          <Route index errorElement={<NotFound />}
+            element={dalaPage(DalaDashboard, "DALA_DASHBOARD_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={dalaPage(DalaDashboard, "DALA_DASHBOARD_VIEW")} />
+          <Route path="properties" errorElement={<NotFound />}
+            element={dalaPage(PropertiesList, "DALA_PROPERTIES_VIEW")} />
+          <Route path="properties/:id" errorElement={<NotFound />}
+            element={dalaPage(PropertyDetail, "DALA_PROPERTIES_VIEW")} />
+          <Route path="property-types" errorElement={<NotFound />}
+            element={dalaPage(PropertyTypesList, "DALA_PROPERTY_TYPES_VIEW")} />
+          <Route path="units" errorElement={<NotFound />}
+            element={dalaPage(UnitsList, "DALA_UNITS_VIEW")} />
+          <Route path="units/:id" errorElement={<NotFound />}
+            element={dalaPage(UnitDetail, "DALA_UNITS_VIEW")} />
+          <Route path="sales" errorElement={<NotFound />}
+            element={dalaPage(SalesManagement, "DALA_SALES_VIEW")} />
+          <Route path="sales/:id" errorElement={<NotFound />}
+            element={dalaPage(SaleDetail, "DALA_SALES_VIEW")} />
+          <Route path="commissions" errorElement={<NotFound />}
+            element={dalaPage(CommissionManagement, "DALA_COMMISSIONS_VIEW")} />
+          <Route path="leases" errorElement={<NotFound />}
+            element={dalaPage(LeaseManagement, "DALA_LEASES_VIEW")} />
+          <Route path="leases/:id" errorElement={<NotFound />}
+            element={dalaPage(LeaseDetail, "DALA_LEASES_VIEW")} />
+          <Route path="rent-collection" errorElement={<NotFound />}
+            element={dalaPage(RentCollection, "DALA_RENT_COLLECTION_VIEW")} />
+          <Route path="reports" errorElement={<NotFound />}
+            element={dalaPage(DalaReports, "DALA_REPORTS_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
@@ -568,6 +661,41 @@ const routes = createBrowserRouter(
             element={mtejaAdminPage(SalesTargetsPage, "CUSTOMERS_VIEW")} />
           <Route path="sales-budgets" errorElement={<NotFound />}
             element={mtejaAdminPage(SalesBudgetsPage, "CUSTOMERS_VIEW")} />
+        </Route>
+
+        {/* ── Dala Real Estate — admin level (/admin/dala/...) ───────────────
+            Mirrors the shop-level Dala routes above.
+            All gated behind AdminDalaRoute so non-Dala tenants can't access.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="dala" element={<Outlet />}>
+          <Route index errorElement={<NotFound />}
+            element={dalaAdminPage(DalaDashboard, "DALA_DASHBOARD_VIEW")} />
+          <Route path="dashboard" errorElement={<NotFound />}
+            element={dalaAdminPage(DalaDashboard, "DALA_DASHBOARD_VIEW")} />
+          <Route path="properties" errorElement={<NotFound />}
+            element={dalaAdminPage(PropertiesList, "DALA_PROPERTIES_VIEW")} />
+          <Route path="properties/:id" errorElement={<NotFound />}
+            element={dalaAdminPage(PropertyDetail, "DALA_PROPERTIES_VIEW")} />
+          <Route path="property-types" errorElement={<NotFound />}
+            element={dalaAdminPage(PropertyTypesList, "DALA_PROPERTY_TYPES_VIEW")} />
+          <Route path="units" errorElement={<NotFound />}
+            element={dalaAdminPage(UnitsList, "DALA_UNITS_VIEW")} />
+          <Route path="units/:id" errorElement={<NotFound />}
+            element={dalaAdminPage(UnitDetail, "DALA_UNITS_VIEW")} />
+          <Route path="sales" errorElement={<NotFound />}
+            element={dalaAdminPage(SalesManagement, "DALA_SALES_VIEW")} />
+          <Route path="sales/:id" errorElement={<NotFound />}
+            element={dalaAdminPage(SaleDetail, "DALA_SALES_VIEW")} />
+          <Route path="commissions" errorElement={<NotFound />}
+            element={dalaAdminPage(CommissionManagement, "DALA_COMMISSIONS_VIEW")} />
+          <Route path="leases" errorElement={<NotFound />}
+            element={dalaAdminPage(LeaseManagement, "DALA_LEASES_VIEW")} />
+          <Route path="leases/:id" errorElement={<NotFound />}
+            element={dalaAdminPage(LeaseDetail, "DALA_LEASES_VIEW")} />
+          <Route path="rent-collection" errorElement={<NotFound />}
+            element={dalaAdminPage(RentCollection, "DALA_RENT_COLLECTION_VIEW")} />
+          <Route path="reports" errorElement={<NotFound />}
+            element={dalaAdminPage(DalaReports, "DALA_REPORTS_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

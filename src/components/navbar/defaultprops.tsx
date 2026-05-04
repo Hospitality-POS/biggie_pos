@@ -16,7 +16,6 @@ import {
   AccountBookOutlined,
   ArrowUpOutlined,
   DollarOutlined,
-  UsergroupAddOutlined,
   MedicineBoxOutlined,
   ExperimentOutlined,
   FileDoneOutlined,
@@ -29,6 +28,13 @@ import {
   RiseOutlined,
   WalletOutlined,
   SwapOutlined,
+  // ── Dala ───────────────────────────────────────────────────────────────────
+  HomeOutlined,
+  BuildOutlined,
+  ApartmentOutlined,
+  FileProtectOutlined,
+  UsergroupAddOutlined,
+  MoneyCollectOutlined,
 } from "@ant-design/icons";
 import { PeopleOutlined } from "@mui/icons-material";
 import { useAppSelector } from "src/store";
@@ -78,6 +84,12 @@ const ICONS = {
   campaigns: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z',
   target: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
   budget: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z',
+  // ── Dala icons ─────────────────────────────────────────────────────────────
+  property: 'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
+  unit: 'M17 2H7c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-5 12c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm0-4c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z',
+  sale: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z',
+  lease: 'M9 2v2H7c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-2V2H9zm9 18H7V6h2v2h6V6h2v14z',
+  tenant: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
 };
 
 // ─── Route → permission gate maps ────────────────────────────────────────────
@@ -180,19 +192,31 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/crm/sales-budgets": "CRM_BUDGETS_VIEW",
 };
 
+const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
+  "/dala": "DALA_DASHBOARD_VIEW",
+  "/dala/properties": "DALA_PROPERTIES_VIEW",
+  "/dala/property-types": "DALA_PROPERTY_TYPES_VIEW",
+  "/dala/sales": "DALA_SALES_VIEW",
+  "/dala/leases": "DALA_LEASES_VIEW",
+  "/dala/commissions": "DALA_COMMISSIONS_VIEW",
+  "/dala/rent-collection": "DALA_RENT_COLLECTION_VIEW",
+  "/dala/reports": "DALA_REPORTS_VIEW",
+};
+
 // ─── Tenant feature flags ─────────────────────────────────────────────────────
 const getTenantFlags = () => {
   try {
     const stored = localStorage.getItem("tenant");
-    if (!stored) return { hasPOS: true, hasAccounting: false, hasMteja: false };
+    if (!stored) return { hasPOS: true, hasAccounting: false, hasMteja: false, hasDala: false };
     const tenant = JSON.parse(stored);
     return {
       hasPOS: tenant?.pos_integration?.enabled === true,
       hasAccounting: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting),
       hasMteja: tenant?.modules?.crm === true,
+      hasDala: tenant?.modules?.dala === true,
     };
   } catch {
-    return { hasPOS: true, hasAccounting: false, hasMteja: false };
+    return { hasPOS: true, hasAccounting: false, hasMteja: false, hasDala: false };
   }
 };
 
@@ -227,8 +251,8 @@ const useProLayoutNav = () => {
   const homeRouteName = "POS";
   const homeRouteIcon = isHospitalMode ? <MedicineBoxOutlined /> : <HomeFilled />;
 
-  const { hasPOS, hasAccounting, hasMteja } = getTenantFlags();
-  const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting;
+  const { hasPOS, hasAccounting, hasMteja, hasDala } = getTenantFlags();
+  const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting && !hasDala;
 
   const inventoryBarePath = "/inventory";
   const inventoryRoute = {
@@ -423,6 +447,26 @@ const useProLayoutNav = () => {
   const accountingRoutes = buildAccountingRoutes(true);
   const accountingRoutesStaff = buildAccountingRoutes(false);
 
+  // ── Dala routes ───────────────────────────────────────────────────────────
+  const buildDalaRoutes = () => {
+    const routesBase = [
+      { path: p("/dala"), name: "Dala Dashboard", icon: <HomeOutlined />, _bare: "/dala" },
+      { path: p("/dala/properties"), name: "Portfolio", icon: <HomeOutlined />, _bare: "/dala/properties" },
+      { path: p("/dala/property-types"), name: "Property Types", icon: <ApartmentOutlined />, _bare: "/dala/property-types" },
+      { path: p("/dala/sales"), name: "Sales", icon: <ReconciliationOutlined />, _bare: "/dala/sales" },
+      { path: p("/dala/leases"), name: "Leases", icon: <FileTextOutlined />, _bare: "/dala/leases" },
+      { path: p("/dala/commissions"), name: "Commissions", icon: <ReconciliationOutlined />, _bare: "/dala/commissions" },
+      { path: p("/dala/rent-collection"), name: "Rent Collection", icon: <AccountBookOutlined />, _bare: "/dala/rent-collection" },
+      { path: p("/dala/reports"), name: "Dala Reports", icon: <FileTextOutlined />, _bare: "/dala/reports" },
+    ];
+
+    return routesBase
+      .filter((r) => canSee(r._bare, DALA_ROUTE_PERMISSIONS))
+      .map(({ _bare: _b, ...rest }) => rest);
+  };
+
+  const dalaRoutes = buildDalaRoutes();
+
   // ── App tiles ─────────────────────────────────────────────────────────────
   // const currencyTile = {
   //   icon: makeTile("#0d9488", ICONS.currency),
@@ -534,7 +578,17 @@ const useProLayoutNav = () => {
   const posRoutes = isAdminOrCashier ? posRoutesFullAccess : posRoutesStaff;
 
   // ════════════════════════════════════════════════════════════════════════════
-  // CASE 1: Mteja ONLY
+  // CASE 1: Dala ONLY
+  // ════════════════════════════════════════════════════════════════════════════
+  if (hasDala && !hasPOS && !hasAccounting && !hasMteja) {
+    return {
+      route: { path: "/", routes: dalaRoutes },
+      appList: [], // TODO: Add Dala app tiles
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 2: Mteja ONLY
   // ════════════════════════════════════════════════════════════════════════════
   if (isMtejaOnly) {
     return {
@@ -544,24 +598,24 @@ const useProLayoutNav = () => {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // CASE 2: Accounting only (no POS)
+  // CASE 3: Accounting only (no POS)
   // ════════════════════════════════════════════════════════════════════════════
-  if (hasAccounting && !hasPOS) {
+  if (hasAccounting && !hasPOS && !hasDala) {
     const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
     return { route: { path: "/", routes: accRoutes }, appList: accountingAppList };
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // CASE 3: POS only
+  // CASE 4: POS only
   // ════════════════════════════════════════════════════════════════════════════
-  if (hasPOS && !hasAccounting) {
+  if (hasPOS && !hasAccounting && !hasDala) {
     return { route: { path: "/", routes: posRoutes }, appList: posAppList };
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // CASE 4: POS + Accounting
+  // CASE 5: POS + Accounting
   // ════════════════════════════════════════════════════════════════════════════
-  if (hasPOS && hasAccounting) {
+  if (hasPOS && hasAccounting && !hasDala) {
     const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
     return {
       route: {
@@ -584,6 +638,103 @@ const useProLayoutNav = () => {
         ],
       },
       appList: [...posAppList, ...accountingAppList],
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 6: POS + Dala
+  // ════════════════════════════════════════════════════════════════════════════
+  if (hasPOS && hasDala && !hasAccounting) {
+    return {
+      route: {
+        path: "/",
+        routes: [
+          ...posRoutes,
+          {
+            path: p("/dala"),
+            name: "Real Estate",
+            icon: <HomeOutlined />,
+            routes: dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          },
+          // CRM as a top-level nav group — only when hasMteja
+          ...(hasMteja && crmRoutes.length > 0 ? [{
+            path: p("/crm/leads"),
+            name: "CRM",
+            icon: <TeamOutlined />,
+            routes: crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          }] : []),
+        ],
+      },
+      appList: [...posAppList], // TODO: Add Dala app tiles
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 7: Accounting + Dala
+  // ════════════════════════════════════════════════════════════════════════════
+  if (hasAccounting && hasDala && !hasPOS) {
+    const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
+    return {
+      route: {
+        path: "/",
+        routes: [
+          {
+            path: p("/accounting"),
+            name: "Accounting",
+            icon: <AccountBookOutlined />,
+            routes: accRoutes,
+          },
+          {
+            path: p("/dala"),
+            name: "Real Estate",
+            icon: <HomeOutlined />,
+            routes: dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          },
+          // CRM as a top-level nav group — only when hasMteja
+          ...(hasMteja && crmRoutes.length > 0 ? [{
+            path: p("/crm/leads"),
+            name: "CRM",
+            icon: <TeamOutlined />,
+            routes: crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          }] : []),
+        ],
+      },
+      appList: [...accountingAppList], // TODO: Add Dala app tiles
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 8: POS + Accounting + Dala
+  // ════════════════════════════════════════════════════════════════════════════
+  if (hasPOS && hasAccounting && hasDala) {
+    const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
+    return {
+      route: {
+        path: "/",
+        routes: [
+          ...posRoutes,
+          {
+            path: p("/accounting"),
+            name: "Accounting",
+            icon: <AccountBookOutlined />,
+            routes: accRoutes,
+          },
+          {
+            path: p("/dala"),
+            name: "Real Estate",
+            icon: <HomeOutlined />,
+            routes: dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          },
+          // CRM as a top-level nav group — only when hasMteja
+          ...(hasMteja && crmRoutes.length > 0 ? [{
+            path: p("/crm/leads"),
+            name: "CRM",
+            icon: <TeamOutlined />,
+            routes: crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          }] : []),
+        ],
+      },
+      appList: [...posAppList, ...accountingAppList], // TODO: Add Dala app tiles
     };
   }
 
