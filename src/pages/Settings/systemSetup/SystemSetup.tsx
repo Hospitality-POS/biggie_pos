@@ -5,10 +5,12 @@ import {
   UserOutlined,
   SettingOutlined,
   DollarCircleOutlined,
+  PrinterOutlined,
 } from "@ant-design/icons";
 import { Space, Typography } from "antd";
 import Profile from "./Profile";
 import PaymentDetailsSettings from "../paymentMethodLevel/PaymentDetailsSettings";
+import PrinterSettings from "./PrinterSettings";
 
 const SystemSetup: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("payment-detail");
@@ -52,6 +54,20 @@ const SystemSetup: React.FC = () => {
       >
         <div style={{ padding: "0", backgroundColor: "#fafafa", borderRadius: "8px" }}>
           <PaymentDetailsSettings />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
+        key="printer-settings"
+        tab={
+          <Space>
+            <PrinterOutlined style={{ color: "#6c1c2c" }} />
+            <Typography.Text>Printer Settings</Typography.Text>
+          </Space>
+        }
+      >
+        <div style={{ padding: "0", backgroundColor: "#fafafa", borderRadius: "8px" }}>
+          <PrinterSettings />
         </div>
       </ProCard.TabPane>
 

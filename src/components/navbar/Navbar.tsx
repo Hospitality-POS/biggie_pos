@@ -33,6 +33,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { Avatar, Badge, Space, Typography as AntTypography } from "antd";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Text } = AntTypography;
 
@@ -75,7 +76,6 @@ const getNavItems = (dispatch: any): NavItem[] => [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const PRIMARY_BG = "#6c1c2c";
 const PRIMARY_LIGHT = "rgba(255,255,255,0.12)";
 const PRIMARY_BORDER = "rgba(255,255,255,0.2)";
 
@@ -89,6 +89,9 @@ function Navbar() {
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  
+  // Use primary color context
+  const primaryColor = usePrimaryColor() || '#6c1c2c';
 
   const navItems = getNavItems(dispatch);
 
@@ -128,7 +131,7 @@ function Navbar() {
       {/* Drawer header */}
       <Box
         sx={{
-          background: `linear-gradient(135deg, ${PRIMARY_BG} 0%, #8b2035 100%)`,
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%)`,
           padding: "20px 16px 16px",
           position: "relative",
         }}
@@ -218,15 +221,15 @@ function Navbar() {
                 sx={{
                   borderRadius: "10px",
                   py: "10px",
-                  background: isActive ? `${PRIMARY_BG}12` : "transparent",
-                  borderLeft: isActive ? `3px solid ${PRIMARY_BG}` : "3px solid transparent",
-                  "&:hover": { background: `${PRIMARY_BG}08` },
+                  background: isActive ? `${primaryColor}12` : "transparent",
+                  borderLeft: isActive ? `3px solid ${primaryColor}` : "3px solid transparent",
+                  "&:hover": { background: `${primaryColor}08` },
                 }}
               >
                 <ListItemIcon
                   sx={{
                     minWidth: 34,
-                    color: isActive ? PRIMARY_BG : "#64748b",
+                    color: isActive ? primaryColor : "#64748b",
                   }}
                 >
                   {item.icon}
@@ -236,7 +239,7 @@ function Navbar() {
                   primaryTypographyProps={{
                     fontSize: "14px",
                     fontWeight: isActive ? 600 : 400,
-                    color: isActive ? PRIMARY_BG : "#1e293b",
+                    color: isActive ? primaryColor : "#1e293b",
                   }}
                 />
               </ListItemButton>
@@ -291,8 +294,8 @@ function Navbar() {
       <AppBar
         position="static"
         sx={{
-          background: `linear-gradient(135deg, ${PRIMARY_BG} 0%, #8b2035 100%)`,
-          boxShadow: "0 2px 12px rgba(108,28,44,0.3)",
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}dd 100%)`,
+          boxShadow: `0 2px 12px ${primaryColor}4d`,
         }}
       >
         <Toolbar
