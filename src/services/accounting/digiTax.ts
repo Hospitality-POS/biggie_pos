@@ -1,5 +1,14 @@
 import { getRequest, postRequest } from '../request';
 
+// Explicit permission keys for DigiTax operations
+const DIGITAX_PERMISSIONS = {
+  CONFIG: 'ACCOUNTING_DIGITAX_VIEW_CONFIG',
+  SHOP_SETTINGS: 'ACCOUNTING_DIGITAX_MANAGE_SETTINGS',
+  GENERATE_INVOICE: 'ACCOUNTING_DIGITAX_GENERATE_INVOICE',
+  INVOICE_STATUS: 'ACCOUNTING_DIGITAX_VIEW_INVOICE_STATUS',
+  CANCEL_INVOICE: 'ACCOUNTING_DIGITAX_CANCEL_INVOICE',
+} as const;
+
 export interface DigiTaxConfig {
   enabled: boolean;
   test_mode: boolean;
@@ -66,7 +75,9 @@ export interface CancelInvoiceResponse {
 export const digiTaxService = {
   // Check service availability
   async getConfig(): Promise<DigiTaxConfig> {
-    const response = await getRequest('/accounting/digi-tax/config');
+    const response = await getRequest('/accounting/digi-tax/config', {
+      headers: { 'x-permission': DIGITAX_PERMISSIONS.CONFIG }
+    });
     return response.data;
   },
 
@@ -75,13 +86,17 @@ export const digiTaxService = {
     const url = shopId 
       ? `/accounting/digi-tax/shop-settings?shop_id=${shopId}`
       : '/accounting/digi-tax/shop-settings';
-    const response = await getRequest(url);
+    const response = await getRequest(url, {
+      headers: { 'x-permission': DIGITAX_PERMISSIONS.CONFIG }
+    });
     return response.data;
   },
 
   // Toggle shop DigiTax settings
   async toggleShopSettings(enabled: boolean): Promise<{ message: string; digi_tax_enabled: boolean }> {
-    const response = await postRequest('/accounting/digi-tax/shop-settings', { enabled });
+    const response = await postRequest('/accounting/digi-tax/shop-settings', { enabled }, {
+      headers: { 'x-permission': DIGITAX_PERMISSIONS.SHOP_SETTINGS }
+    });
     return response.data;
   },
 
@@ -89,14 +104,19 @@ export const digiTaxService = {
   async generateTaxInvoice(invoiceId: string, useDigiTax: boolean): Promise<TaxInvoiceResponse> {
     const response = await postRequest(
       `/accounting/digi-tax/invoices/${invoiceId}/generate`,
-      { use_digi_tax: useDigiTax }
+      { use_digi_tax: useDigiTax },
+      {
+        headers: { 'x-permission': DIGITAX_PERMISSIONS.GENERATE_INVOICE }
+      }
     );
     return response.data;
   },
 
   // Get invoice status
   async getInvoiceStatus(invoiceNumber: string): Promise<InvoiceStatusResponse> {
-    const response = await getRequest(`/accounting/digi-tax/invoices/${invoiceNumber}/status`);
+    const response = await getRequest(`/accounting/digi-tax/invoices/${invoiceNumber}/status`, {
+      headers: { 'x-permission': DIGITAX_PERMISSIONS.INVOICE_STATUS }
+    });
     return response.data;
   },
 
@@ -104,10 +124,18 @@ export const digiTaxService = {
   async cancelInvoice(invoiceNumber: string, reason: string): Promise<CancelInvoiceResponse> {
     const response = await postRequest(
       `/accounting/digi-tax/invoices/${invoiceNumber}/cancel`,
-      { reason }
+      { reason },
+      {
+        headers: { 'x-permission': DIGITAX_PERMISSIONS.CANCEL_INVOICE }
+      }
     );
     return response.data;
   }
+};
+
+// Helper function to check if error is a permission error
+const isPermissionError = (error: any): boolean => {
+  return error?.isPermissionError || error?.message?.includes('Permission denied');
 };
 
 // Helper functions for frontend use
@@ -123,13 +151,17 @@ export const checkDigiTaxService = async () => {
       config
     };
   } catch (error) {
-    console.error('Failed to check DigiTax service:', error);
+    // Don't log permission errors as they're expected for users without access
+    if (!isPermissionError(error)) {
+      console.error('Failed to check DigiTax service:', error);
+    }
     return { 
       enabled: false, 
       testMode: false, 
       available: false, 
       canUse: false,
-      config: null
+      config: null,
+      permissionError: isPermissionError(error)
     };
   }
 };
@@ -145,12 +177,16 @@ export const getShopDigiTaxSettings = async (shopId?: string) => {
       settings
     };
   } catch (error) {
-    console.error('Failed to get shop DigiTax settings:', error);
+    // Don't log permission errors as they're expected for users without access
+    if (!isPermissionError(error)) {
+      console.error('Failed to get shop DigiTax settings:', error);
+    }
     return { 
       shopEnabled: false, 
       taxId: null, 
       canUse: false,
-      settings: null
+      settings: null,
+      permissionError: isPermissionError(error)
     };
   }
 };
@@ -201,7 +237,14 @@ export const generateTaxInvoice = async (invoiceId: string, useDigiTax: boolean)
       };
     }
   } catch (error) {
-    console.error('Failed to generate tax invoice:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    // Don't log permission errors as they're expected for users without access
+    if (!isPermissionError(error)) {
+      console.error('Failed to generate tax invoice:', error);
+    }
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      permissionError: isPermissionError(error)
+    };
   }
 };

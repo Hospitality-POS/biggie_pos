@@ -15,17 +15,11 @@ import CustomerSubscriptionsTable from "./CustomerSubscriptionsTable";
 import AddCustomerModal from "./AddCustomerModal";
 import Leads from "@pages/Lead/Leads";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Text } = Typography;
 
-const C = {
-    primary: "#6c1c2c",
-    primaryLight: "#f9f0f2",
-    subText: "#64748b",
-    darkText: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+// ── Dynamic colors will be generated from primary color context ──────────────────
 
 // ── Mobile hook ────────────────────────────────────────────────────────────
 const useIsMobile = () => {
@@ -137,13 +131,14 @@ const ComingSoon = ({ label }: { label: string }) => (
 
 // ── TabNav ─────────────────────────────────────────────────────────────────
 const TabNav = ({
-    tabs, active, onChange,
+    tabs, active, onChange, colors,
 }: {
     tabs: (TabItem & { allowed: boolean })[];
     active: string;
     onChange: (key: string) => void;
+    colors: any;
 }) => (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "0 0 16px", borderBottom: `1px solid ${C.border}`, marginBottom: 20 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "0 0 16px", borderBottom: `1px solid ${colors.border}`, marginBottom: 20 }}>
         {tabs.map((tab) => {
             const isActive = tab.key === active;
             const isDisabled = !tab.allowed || tab.comingSoon;
@@ -157,9 +152,9 @@ const TabNav = ({
                         padding: "6px 14px", borderRadius: 20,
                         cursor: isDisabled ? "not-allowed" : "pointer",
                         fontSize: 13, fontWeight: isActive ? 600 : 400, outline: "none",
-                        border: isActive ? `1.5px solid ${C.primary}` : `1px solid ${C.border}`,
-                        background: isActive ? C.primary : "#fff",
-                        color: isActive ? "#fff" : isDisabled ? "#cbd5e1" : C.subText,
+                        border: isActive ? `1.5px solid ${colors.primary}` : `1px solid ${colors.border}`,
+                        background: isActive ? colors.primary : "#fff",
+                        color: isActive ? "#fff" : isDisabled ? "#cbd5e1" : colors.subText,
                         transition: "all 0.15s",
                         opacity: isDisabled ? 0.5 : 1,
                         position: "relative",
@@ -196,6 +191,25 @@ function Customers() {
         () => ALL_TABS.map((t) => ({ ...t, allowed: can(t.permissionKey) })),
         [ALL_TABS, can]
     );
+
+    // Use primary color context instead of hardcoded colors
+    const contextResult = usePrimaryColor();
+    const primaryColor = contextResult?.primaryColor || '#6c1c2c';
+    
+    // Generate color palette based on primary color (same logic as CalendarView)
+    const generateColorPalette = (primary: string) => {
+        // Default to the primary color and generate complementary colors
+        return {
+            primary: primary,
+            primaryLight: primary + '20', // Add transparency for light variant
+            subText: '#64748b',
+            darkText: '#0f172a',
+            border: '#e2e8f0',
+            bg: '#f8fafc',
+        };
+    };
+    
+    const colors = generateColorPalette(primaryColor);
 
     const isHospital = getPosMode() === "hospital";
     const showOnlyCustomers = !isHospital && ((hasAccounting && !hasPOS) || !hasMteja);
@@ -294,15 +308,15 @@ function Customers() {
             display: "flex", alignItems: "center", justifyContent: "space-between",
             flexWrap: "wrap", gap: 8,
             padding: isMobile ? "14px 14px 12px" : "16px 20px 14px",
-            borderBottom: `1px solid ${C.border}`,
+            borderBottom: `1px solid ${colors.border}`,
         }}>
             <div>
-                <Text strong style={{ fontSize: isMobile ? 15 : 17, color: C.darkText, display: "block", lineHeight: 1.3 }}>
+                <Text strong style={{ fontSize: isMobile ? 15 : 17, color: colors.darkText, display: "block", lineHeight: 1.3 }}>
                     {isHospital ? "Patient Management" : "Customer Management"}
                 </Text>
-                <Text style={{ fontSize: 11, color: C.subText, lineHeight: 1.3 }}>
+                <Text style={{ fontSize: 11, color: colors.subText, lineHeight: 1.3 }}>
                     {showOnlyCustomers
-                        ? `Manage your ${isHospital ? "patients" : "customers"}`
+                        ? `Manage your ${isHospital ? "patients" : "customers"}` 
                         : hasMteja
                             ? "Customers, leads & bookings"
                             : isHospital
@@ -314,7 +328,7 @@ function Customers() {
                 <Button
                     type="primary" icon={<UserAddOutlined />} onClick={handleAddCustomer}
                     style={{
-                        background: C.primary, borderColor: C.primary, borderRadius: 8,
+                        background: colors.primary, borderColor: colors.primary, borderRadius: 8,
                         height: isMobile ? 34 : 36, fontSize: isMobile ? 12 : 13,
                     }}
                 >
@@ -326,7 +340,7 @@ function Customers() {
 
     // ── Wrapper card ───────────────────────────────────────────────────────
     const wrap = (content: React.ReactNode, showAdd = true) => (
-        <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ background: "#fff", border: `1px solid ${colors.border}`, borderRadius: 12, overflow: "hidden" }}>
             <Header showAdd={showAdd} />
             <div style={{ padding: isMobile ? "14px 14px" : "16px 20px" }}>
                 {content}
@@ -365,7 +379,7 @@ function Customers() {
         <>
             {wrap(
                 <>
-                    <TabNav tabs={tabsWithAccess} active={activeTab} onChange={setActiveTab} />
+                    <TabNav tabs={tabsWithAccess} active={activeTab} onChange={setActiveTab} colors={colors} />
                     {renderTab()}
                 </>,
                 // Only show "Add Customer" button when on the customers tab

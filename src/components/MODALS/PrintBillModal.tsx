@@ -2,7 +2,6 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Box,
-  Typography,
   TableContainer,
   Table,
   TableBody,
@@ -48,6 +47,7 @@ import {
   Tag,
   Alert,
   message,
+  Typography,
   Tooltip,
   Segmented,
   Slider as AntSlider,
@@ -63,6 +63,7 @@ import {
   type SavePrintResult,
 } from "../MODALS/Hooks/usePrintDocument";
 import DigiTaxInvoiceGenerator from "../DigiTaxInvoiceGenerator";
+import { useIPPrinter } from "../../hooks/useIPPrinter";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 interface PrintBillProps {
@@ -227,9 +228,11 @@ const MetaRow: React.FC<{ left: React.ReactNode; right?: React.ReactNode; style?
 // ── Main component ─────────────────────────────────────────────────────────
 const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
+  const { printHtmlContent, loading: ipPrinterLoading } = useIPPrinter();
 
   const componentRef = useRef<HTMLDivElement | null>(null);
   const [refReady, setRefReady] = useState(false);
+  const [useIPPrinterMode, setUseIPPrinterMode] = useState(false); // Disabled by default
 
   const printableRef = useCallback((node: HTMLDivElement | null) => {
     componentRef.current = node;
@@ -256,6 +259,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
 
+  // Get VAT mode from tenant settings
+  const vatMode: "INCLUSIVE" | "EXCLUSIVE" = tenant?.vat_pricing_mode || "EXCLUSIVE";
+
   const {
     BRAND_NAME1, EMAIL_URL, PHONE_NO, PO_BOX,
     QR_Code, Paybill_bs, Paybill_ac, TILL_NO, PIN, bank_details,
@@ -270,6 +276,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     cartDetails,
     data,
   });
+
+  // Calculate net subtotal for inclusive VAT
+  const netSubtotal = vatMode === "INCLUSIVE" ? subtotal - totalVatAmount : subtotal;
 
   // Derived discount amount
   const discountAmount =
@@ -347,26 +356,59 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
       message.error("Print limit reached. Printing is not allowed for this document.");
       return;
     }
-    if (!refReady || !componentRef.current) {
-      message.warning("Document is not ready yet. Please try again.");
-      return;
-    }
+    
     setIsPrinting(true);
+    
     try {
-      const printFormat: PrintFormat = isPdfView ? "pdf" : "thermal";
-      const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
-      if (blocked) { setIsPrinting(false); return; }
-      if (saved) {
-        message.success(`${printFormat === "pdf" ? "PDF" : "Print"} ${isReprint ? "reprinted" : "printed"} and recorded successfully`);
+      if (useIPPrinterMode) {
+        // Use IP printer - capture HTML content from thermal receipt
+        console.log('🔍 PrintBillModal - IP Printer Mode - Capturing HTML content');
+        
+        if (!componentRef.current) {
+          message.error("Receipt content not ready for IP printing");
+          setIsPrinting(false);
+          return;
+        }
+        
+        // Capture the HTML content from the thermal receipt section
+        const htmlContent = componentRef.current.innerHTML;
+        console.log('🔍 PrintBillModal - Captured HTML content length:', htmlContent.length);
+        
+        const result = await printHtmlContent(htmlContent, 'bill');
+        if (result.success) {
+          // Record the print if IP printing was successful
+          const printFormat: PrintFormat = "thermal";
+          const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
+          if (blocked) { setIsPrinting(false); return; }
+          if (saved) {
+            message.success(`Bill printed via IP printer and recorded successfully`);
+          }
+        } else {
+          message.error(result.message);
+        }
+      } else {
+        // Use browser printing
+        if (!refReady || !componentRef.current) {
+          message.warning("Document is not ready yet. Please try again.");
+          setIsPrinting(false);
+          return;
+        }
+        const printFormat: PrintFormat = isPdfView ? "pdf" : "thermal";
+        const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
+        if (blocked) { setIsPrinting(false); return; }
+        if (saved) {
+          message.success(`${printFormat === "pdf" ? "PDF" : "Print"} ${isReprint ? "reprinted" : "printed"} and recorded successfully`);
+        }
+        pendingPrintRef.current = true;
+        setPrintTrigger((n) => n + 1);
       }
-      pendingPrintRef.current = true;
-      setPrintTrigger((n) => n + 1);
     } catch (err) {
       console.error("executePrint error:", err);
       message.error("Failed to process print request");
+    } finally {
       setIsPrinting(false);
     }
-  }, [canPrint, isPdfView, refReady, recordPrint, isReprint]);
+  }, [canPrint, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, printHtmlContent, cartDetails]);
 
   const handleFinish = async () => {
     if (!canPrint) { message.error("Print limit reached."); return false; }
@@ -390,7 +432,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
         bannerLabel: `${docConfig.label} — ${cartDetails?.order_no ?? ""}`,
         bannerType: "Sales",
         summary: [
-          { label: "Subtotal", value: fmtAmt(subtotal), color: C.primary },
+          { label: "Subtotal", value: fmtAmt(netSubtotal), color: C.primary },
           { label: "VAT", value: fmtAmt(totalVatAmount), color: "#6366f1" },
           { label: docConfig.amountLabel, value: fmtAmt(grandTotal), color: "#10b981" },
         ],
@@ -459,8 +501,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           submitButtonProps: {
             icon: isPdfView ? <FilePdfOutlined /> : <PrinterFilled />,
             style: { background: C.primary, borderColor: C.primary },
-            disabled: !canPrint || isPrinting,
-            loading: isPrinting,
+            disabled: !canPrint || isPrinting || (useIPPrinterMode && ipPrinterLoading),
+            loading: isPrinting || (useIPPrinterMode && ipPrinterLoading),
           },
           searchConfig: {
             submitText: isPdfView ? "Save as PDF" : isReprint ? "Reprint Document" : "Print Document",
@@ -483,13 +525,34 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           />
         )}
         {isReprint && canPrint && printsRemaining !== null && (
-          <Alert type="warning" showIcon
-            message={`Reprint — ${printsRemaining} print${printsRemaining !== 1 ? "s" : ""} remaining`}
+          <Alert
+            type="warning"
+            showIcon
+            icon={<WarningOutlined />}
+            message={`Reprint allowed: ${printsRemaining} more print${printsRemaining === 1 ? "" : "s"} remaining`}
             style={{ marginBottom: 16, borderRadius: 8 }}
           />
         )}
 
-        {/* ── Toolbar ─────────────────────────────────────────────────── */}
+        {/* ── IP Printer Toggle ─────────────────────────────────────────────── */}
+        {/* <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <Typography.Text strong>Use IP Printer</Typography.Text>
+              <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                Print directly to configured thermal printer (currently disabled)
+              </div>
+            </div>
+            <Switch
+              checked={useIPPrinterMode}
+              onChange={setUseIPPrinterMode}
+              checkedChildren="IP"
+              unCheckedChildren="Browser"
+            />
+          </div>
+        </div> */}
+
+        {/* ── Print Controls ────────────────────────────────────────────────── */}
         <div style={{
           background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 10,
           padding: "12px 16px", marginBottom: 20,
@@ -834,7 +897,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 <tr>
                   <td style={{ ...S.value, paddingBottom: 2 }}>Subtotal</td>
                   <td style={{ ...S.value, paddingBottom: 2, textAlign: "right", whiteSpace: "nowrap" }}>
-                    {subtotal.toLocaleString()}
+                    {netSubtotal.toLocaleString()}
                   </td>
                 </tr>
               )}
@@ -1102,7 +1165,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               {(showDiscount || discountAmount === 0) && (
                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                   <Typography style={pdfNorm}>Subtotal</Typography>
-                  <Typography style={pdfNorm}>Ksh {subtotal.toLocaleString()}</Typography>
+                  <Typography style={pdfNorm}>Ksh {netSubtotal.toLocaleString()}</Typography>
                 </Box>
               )}
               {showDiscount && discountAmount > 0 && (
