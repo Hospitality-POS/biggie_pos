@@ -259,8 +259,24 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
 
-  // Get VAT mode from tenant settings
-  const vatMode: "INCLUSIVE" | "EXCLUSIVE" = tenant?.vat_pricing_mode || "EXCLUSIVE";
+  // Get VAT mode and rate from tenant settings (normalize to uppercase)
+  const rawVatMode = (tenant?.vat_pricing_mode || "EXCLUSIVE").toString().toUpperCase();
+  const VAT_RATE = (tenant?.is_vat_enabled ?? true) ? (tenant?.vat_standard_rate || 0.16) : 0;
+
+  // Detect effective VAT mode: prefer tenant setting, but also detect from
+  // actual store values when the setting is missing or doesn't match reality.
+  // In INCLUSIVE mode the store sets subtotal = grossTotal and
+  // totalVatAmount/subtotal ≈ VAT_RATE/(1+VAT_RATE).
+  let vatMode: "INCLUSIVE" | "EXCLUSIVE" = rawVatMode === "INCLUSIVE" ? "INCLUSIVE" : "EXCLUSIVE";
+  if (vatMode === "EXCLUSIVE" && subtotal > 0 && totalVatAmount > 0 && VAT_RATE > 0) {
+    const inclusiveRatio = VAT_RATE / (1 + VAT_RATE);
+    const actualRatio = totalVatAmount / subtotal;
+    if (Math.abs(actualRatio - inclusiveRatio) < 0.02) {
+      vatMode = "INCLUSIVE";
+    }
+  }
+
+  // debug removed
 
   const {
     BRAND_NAME1, EMAIL_URL, PHONE_NO, PO_BOX,
@@ -288,15 +304,28 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
         : cartDetails.discount
       : 0;
 
-  // ── Display price helper ───────────────────────────────────────────────
+  // ── Display price helper (always returns VAT-exclusive unit price) ─────
+  const getExclPrice = useCallback(
+    (item: any): number => {
+      let price = item.price;
+      if (vatMode === "INCLUSIVE" && VAT_RATE > 0) {
+        price = price / (1 + VAT_RATE);
+      }
+      return price;
+    },
+    [vatMode, VAT_RATE]
+  );
+
   const getDisplayPrice = useCallback(
     (item: any): number => {
-      if (showDiscount || discountAmount === 0) return item.price;
-      const itemTotal = item.price * item.quantity;
-      const discountRatio = discountAmount / subtotal;
+      const price = getExclPrice(item);
+      if (showDiscount || discountAmount === 0) return price;
+      const itemTotal = price * item.quantity;
+      const netSub = vatMode === "INCLUSIVE" ? subtotal - totalVatAmount : subtotal;
+      const discountRatio = netSub > 0 ? discountAmount / netSub : 0;
       return (itemTotal * (1 - discountRatio)) / item.quantity;
     },
-    [showDiscount, discountAmount, subtotal]
+    [showDiscount, discountAmount, subtotal, totalVatAmount, vatMode, getExclPrice]
   );
 
   const triggerPrint = useReactToPrint({
@@ -841,7 +870,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
             {data?.map((item: any, index: number) => {
               const displayPrice = getDisplayPrice(item);
-              const itemVat = item.vat_amount || (item.price * item.quantity * (item.vat_rate || 0) / 100);
+              const exclLine = getExclPrice(item) * item.quantity;
+              const itemVat = (vatMode === "INCLUSIVE" && VAT_RATE > 0) ? exclLine * VAT_RATE : 0;
               const lineTotal = displayPrice * item.quantity;
 
               return (
@@ -1125,8 +1155,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 </TableHead>
                 <TableBody>
                   {data?.map((item: any, index: number) => {
-                    const displayPrice = getDisplayPrice(item);
-                    const itemVat = item.vat_amount || (item.price * item.quantity * (item.vat_rate || 0) / 100);
+                    // Inline VAT-exclusive computation
+                    const rawPrice = typeof item.price === "string" ? parseFloat(item.price) : (item.price || 0);
+                    const unitExcl = (vatMode === "INCLUSIVE" && VAT_RATE > 0) ? rawPrice / (1 + VAT_RATE) : rawPrice;
+                    const lineExcl = unitExcl * (item.quantity || 1);
+                    const itemVat = (vatMode === "INCLUSIVE" && VAT_RATE > 0) ? lineExcl * VAT_RATE : 0;
+                    const lineTotal = lineExcl + itemVat;
                     // Support both nested product_id.desc and flat item.desc
                     const itemDesc = item?.product_id?.desc || item?.product_id?.description || item?.desc || item?.description || "";
                     return (
@@ -1150,9 +1184,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{displayPrice.toFixed(2)}</TableCell>
+                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{unitExcl.toFixed(2)}</TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{itemVat.toFixed(2)}</TableCell>
-                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{(displayPrice * item.quantity).toFixed(2)}</TableCell>
+                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{lineTotal.toFixed(2)}</TableCell>
                       </TableRow>
                     );
                   })}

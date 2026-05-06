@@ -17,6 +17,16 @@ import { PrimaryColorProvider, usePrimaryColor } from "./context/PrimaryColorCon
 import { POSModeProvider } from "./context/POSModeContext";
 import { RetailQueueProvider } from "./context/RetailQueueContext";  // ← ADD
 
+// Force-unregister stale service workers and clear caches in dev
+if (import.meta.env.DEV && "serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((r) => r.unregister());
+  });
+  caches.keys().then((names) => {
+    names.forEach((name) => caches.delete(name));
+  });
+}
+
 const theme = createTheme({
   typography: {
     fontFamily: "Inter, sans-serif",

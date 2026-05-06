@@ -64,7 +64,7 @@ interface unitType {
 interface CategoryType {
   name: string;
   _id: string;
-  sub_category?: string;
+  sub_category?: string | null | { _id: string; name: string };
 }
 interface SubCategoryType {
   name: string;
@@ -697,7 +697,7 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
     
     // Find the selected subcategory and get categories that point to it
     return categories.filter((c: CategoryType) => {
-      const subCategoryId = typeof c.sub_category === "object"
+      const subCategoryId = c.sub_category && typeof c.sub_category === "object"
         ? c.sub_category._id
         : c.sub_category;
       return subCategoryId === selectedCategory;
