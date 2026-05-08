@@ -11,12 +11,14 @@ import {
   RightOutlined,
   MedicineBoxOutlined,
   LockOutlined,
+  BarChartOutlined,
 } from "@ant-design/icons";
 import InventorySettings from "./InventorySettings";
 import DeliverySettings from "./DeliverySettings";
 import UomSettings from "./UomSettings";
 import PurchaseOrderSettings from "./purchaseOrders/PurchaseOrderSettings";
 import MaterialTransferSettings from "./MaterialTransferSettings";
+import TopSellersReport from "../../../components/Analytics/TopSellersReport";
 import { useSearchParams } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
 import React from "react";
@@ -90,6 +92,16 @@ const getTabConfig = (hospital: boolean) => [
     bg: "#fff7ed",
     component: <MaterialTransferSettings />,
     permissionKey: "TRANSFERS_VIEW",
+  },
+  {
+    key: "top-sellers",
+    label: "Top Sellers Report",
+    shortLabel: "Top Sellers",
+    icon: <BarChartOutlined />,
+    color: "#722ed1",
+    bg: "#f9f0ff",
+    component: <TopSellersReport />,
+    permissionKey: "INVENTORY_VIEW",
   },
 ];
 

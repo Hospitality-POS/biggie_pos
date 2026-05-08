@@ -626,3 +626,41 @@ export const fetchTransfersByDateRange = async (
     throw error;
   }
 };
+
+// ── TOP SELLERS REPORT ─────────────────────────────────────────────────────────
+export const fetchTopSellersReport = async (filters: {
+  shop_id: string;
+  start_date?: string;
+  end_date?: string;
+  category?: string;
+  sort_by?: string;
+  limit?: number;
+}) => {
+  try {
+    
+    // Filter out empty parameters
+    const cleanParams = Object.keys(filters).reduce((acc, key) => {
+      const value = filters[key];
+      if (value !== '' && value !== null && value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as any);
+    
+    const response = await axiosInstance.get(`${BASE_URL}/inventory/top-sellers`, { params: cleanParams });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching top sellers report:", error);
+    throw new Error("Failed to fetch top sellers report");
+  }
+};
+
+export const fetchInventoryCategories = async (shopId: string) => {
+  try {
+    const response = await axiosInstance.get(`${BASE_URL}/inventory/categories`, { params: { shop_id: shopId } });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching inventory categories:", error);
+    throw new Error("Failed to fetch inventory categories");
+  }
+};

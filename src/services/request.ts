@@ -201,7 +201,7 @@ axiosInstance.interceptors.request.use(
 
         const storedCode = localStorage.getItem("companyCode");
         if (storedCode || config.data?.companyCode) {
-            config.headers['companyCode'] = storedCode || config.data?.companyCode;
+            config.headers['companycode'] = storedCode || config.data?.companyCode;
         }
 
         return config;
