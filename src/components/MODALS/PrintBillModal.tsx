@@ -228,6 +228,7 @@ const MetaRow: React.FC<{ left: React.ReactNode; right?: React.ReactNode; style?
 // ── Main component ─────────────────────────────────────────────────────────
 const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
+  const { user } = useAppSelector((state) => state.auth);
   const { printHtmlContent, loading: ipPrinterLoading } = useIPPrinter();
 
   const componentRef = useRef<HTMLDivElement | null>(null);
@@ -258,6 +259,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
+  const clientLogoUrl = tenant?.tenant_logo?.url;
 
   // Get VAT mode and rate from tenant settings (normalize to uppercase)
   const rawVatMode = (tenant?.vat_pricing_mode || "EXCLUSIVE").toString().toUpperCase();
@@ -1054,7 +1056,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           in a subtle smaller style. Only rendered in PDF mode — thermal
           receipt is unchanged and does not show descriptions.
         */}
-        {isPdfView && (
+        {isPdfView && user ? (
           <div
             ref={printableRef}
             style={{ backgroundColor: "#fff", padding: "40px", maxWidth: "800px", margin: "0 auto", boxShadow: "0 0 10px rgba(0,0,0,0.1)" }}
@@ -1062,12 +1064,30 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             {/* PDF Header */}
             <Box sx={{ borderBottom: "3px solid #333", paddingBottom: 3, marginBottom: 3 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 2 }}>
-                <Box>
-                  <Typography variant="h3" style={pdfHdr}>{BRAND_NAME1}</Typography>
-                  <Typography variant="body1" style={pdfNorm}>PIN: {PIN || "N/A"}</Typography>
-                  <Typography variant="body1" style={pdfNorm}>P.O. Box {PO_BOX || "N/A"}</Typography>
-                  <Typography variant="body1" style={pdfNorm}>Tel: {PHONE_NO}</Typography>
-                  <Typography variant="body1" style={pdfNorm}>Email: {EMAIL_URL}</Typography>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
+                  {/* Client Logo */}
+                  {clientLogoUrl && user && (
+                    <Box sx={{ flexShrink: 0 }}>
+                      <img
+                        src={clientLogoUrl}
+                        alt="Client Logo"
+                        style={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: 8,
+                          objectFit: "contain",
+                          border: "1px solid #e2e8f0"
+                        }}
+                      />
+                    </Box>
+                  )}
+                  <Box>
+                    <Typography variant="h3" style={pdfHdr}>{BRAND_NAME1}</Typography>
+                    <Typography variant="body1" style={pdfNorm}>PIN: {PIN || "N/A"}</Typography>
+                    <Typography variant="body1" style={pdfNorm}>P.O. Box {PO_BOX || "N/A"}</Typography>
+                    <Typography variant="body1" style={pdfNorm}>Tel: {PHONE_NO}</Typography>
+                    <Typography variant="body1" style={pdfNorm}>Email: {EMAIL_URL}</Typography>
+                  </Box>
                 </Box>
                 <Box sx={{ textAlign: "right" }}>
                   <Box sx={{ backgroundColor: docConfig.color, color: "#fff", padding: "8px 20px", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: 1, mb: 2 }}>
@@ -1285,6 +1305,30 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Printed: {printDateStr} {printTimeStr}</Typography>
             </Box>
           </div>
+        ) : (
+          isPdfView && (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              minHeight: '400px',
+              backgroundColor: '#fff',
+              padding: '40px',
+              maxWidth: '800px',
+              margin: '0 auto',
+              boxShadow: '0 0 10px rgba(0,0,0,0.1)',
+              borderRadius: '8px'
+            }}>
+              <LockOutlined style={{ fontSize: '48px', color: '#6c1c2c', marginBottom: '16px' }} />
+              <Typography variant="h4" sx={{ color: '#6c1c2c', marginBottom: '8px', textAlign: 'center' }}>
+                Authentication Required
+              </Typography>
+              <Typography variant="body1" sx={{ color: '#666', textAlign: 'center', maxWidth: '400px' }}>
+                Please log in to view and print PDF documents. This feature requires user authentication for security purposes.
+              </Typography>
+            </Box>
+          )
         )}
 
         <Box sx={{ mt: 2 }} />

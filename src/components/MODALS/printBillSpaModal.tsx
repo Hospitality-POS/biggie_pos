@@ -206,6 +206,7 @@ const DoubleLine = () => (
 // ── Main component ─────────────────────────────────────────────────────────
 const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((state) => state.cart);
+  const { user } = useAppSelector((state) => state.auth);
   const { printHtmlContent, loading: ipPrinterLoading } = useIPPrinter();
 
   const componentRef = useRef<HTMLDivElement | null>(null);
@@ -242,6 +243,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const vatMode: "INCLUSIVE" | "EXCLUSIVE" = tenant?.vat_pricing_mode || "EXCLUSIVE";
+  const clientLogoUrl = tenant?.tenant_logo?.url;
 
   // Calculate net subtotal for inclusive VAT
   const netSubtotal = vatMode === "INCLUSIVE" ? subtotal - totalVatAmount : subtotal;
@@ -860,7 +862,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
         {/* ── END THERMAL ─────────────────────────────────────────────── */}
 
         {/* ── PDF / A4 VIEW ────────────────────────────────────────────── */}
-        {isPdfView && (
+        {isPdfView && user ? (
           <div
             ref={printableRef}
             style={{ backgroundColor: "#fff", padding: "40px", maxWidth: "800px", margin: "0 auto", boxShadow: "0 0 10px rgba(0,0,0,0.1)" }}
@@ -868,7 +870,27 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             {/* Header */}
             <Box sx={{ borderBottom: "3px solid #333", pb: 3, mb: 3 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                <Typography variant="h3" style={pdfHdr}>{BRAND_NAME1}</Typography>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
+                  {/* Client Logo */}
+                  {clientLogoUrl && user && (
+                    <Box sx={{ flexShrink: 0 }}>
+                      <img
+                        src={clientLogoUrl}
+                        alt="Client Logo"
+                        style={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: 8,
+                          objectFit: "contain",
+                          border: "1px solid #e2e8f0"
+                        }}
+                      />
+                    </Box>
+                  )}
+                  <Box>
+                    <Typography variant="h3" style={pdfHdr}>{BRAND_NAME1}</Typography>
+                  </Box>
+                </Box>
                 <Box sx={{ backgroundColor: docConfig.color, color: "#fff", padding: "8px 20px", borderRadius: "8px", display: "flex", alignItems: "center", gap: 1 }}>
                   {docConfig.icon}
                   <Typography variant="h5" style={{ fontSize: "20px", fontWeight: 700, color: "#fff", margin: 0 }}>{docConfig.label}</Typography>
@@ -1028,6 +1050,30 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By BasePoint Cloud</Typography>
             </Box>
           </div>
+        ) : (
+          isPdfView && (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              minHeight: '400px',
+              backgroundColor: '#fff',
+              padding: '40px',
+              maxWidth: '800px',
+              margin: '0 auto',
+              boxShadow: '0 0 10px rgba(0,0,0,0.1)',
+              borderRadius: '8px'
+            }}>
+              <LockOutlined style={{ fontSize: '48px', color: '#6c1c2c', marginBottom: '16px' }} />
+              <Typography variant="h4" sx={{ color: '#6c1c2c', marginBottom: '8px', textAlign: 'center' }}>
+                Authentication Required
+              </Typography>
+              <Typography variant="body1" sx={{ color: '#666', textAlign: 'center', maxWidth: '400px' }}>
+                Please log in to view and print PDF documents. This feature requires user authentication for security purposes.
+              </Typography>
+            </Box>
+          )
         )}
 
         <Box sx={{ mt: 2 }} />
