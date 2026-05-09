@@ -6,7 +6,7 @@ import {
 } from "antd";
 import {
     PlusOutlined, FileExcelOutlined, SettingOutlined,
-    EyeOutlined, StopOutlined, ReloadOutlined, BankOutlined,
+    EyeOutlined, StopOutlined, BankOutlined,
     ThunderboltOutlined, CheckCircleOutlined, ClockCircleOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,7 +20,7 @@ import {
 import { getCurrentTenantId } from "@services/tenants";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import dayjs from "dayjs";
-import ImportStatementDrawer from ".//ImportStatementDrawer";
+import ImportStatementDrawer from "./ImportStatementDrawer";
 import TransactionReviewDrawer from "./TransactionReviewDrawer";
 import CategorizationRulesDrawer from "./CategorizationRulesDrawer";
 
@@ -44,14 +44,14 @@ const BankStatementPage: React.FC = () => {
     const actionRef = useRef<ActionType>();
     const { modal } = App.useApp();
 
-    const shopId = getCurrentTenantId();
-
-    const [activeStatus, setActiveStatus] = useState<ImportStatus | "ALL">("ALL");
+    const [activeStatus, setActiveStatus] = useState<ImportStatus | "ALL">("Review");
     const [page, setPage] = useState(1);
     const [importOpen, setImportOpen] = useState(false);
     const [reviewOpen, setReviewOpen] = useState(false);
     const [rulesOpen, setRulesOpen] = useState(false);
     const [selectedImport, setSelectedImport] = useState<BankStatementImport | null>(null);
+
+    const shopId = getCurrentTenantId() || "";
 
     const { data, isLoading, refetch } = useQuery({
         queryKey: ["bank-imports", shopId, activeStatus, page],
@@ -64,12 +64,19 @@ const BankStatementPage: React.FC = () => {
             }),
         enabled: !!shopId,
         keepPreviousData: true,
+        refetchOnWindowFocus: false,
+        onError: (error: any) => {
+            console.error('Failed to fetch bank imports:', error);
+        },
     });
 
     const { data: summaryData } = useQuery({
         queryKey: ["bank-imports-summary", shopId],
         queryFn: () => getImportSummary(shopId),
         enabled: !!shopId,
+        onError: (error: any) => {
+            console.error('Failed to fetch import summary:', error);
+        },
     });
 
     const voidMutation = useMutation({
@@ -78,7 +85,20 @@ const BankStatementPage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ["bank-imports", shopId] });
             queryClient.invalidateQueries({ queryKey: ["bank-imports-summary", shopId] });
         },
+        onError: (error: any) => {
+            const errorMessage = error?.response?.data?.message || error?.message || 'Failed to void import';
+            console.error('Void import failed:', errorMessage);
+        },
     });
+
+    const onSuccess = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ["bank-imports", shopId] });
+        queryClient.invalidateQueries({ queryKey: ["bank-imports-summary", shopId] });
+    }, [queryClient, shopId]);
+
+    if (!shopId) {
+        return <div>Shop not selected. Please select a shop to view bank statements.</div>;
+    }
 
     const handleVoid = (record: BankStatementImport) => {
         modal.confirm({
@@ -95,18 +115,13 @@ const BankStatementPage: React.FC = () => {
         setReviewOpen(true);
     };
 
-    const onSuccess = useCallback(() => {
-        queryClient.invalidateQueries({ queryKey: ["bank-imports", shopId] });
-        queryClient.invalidateQueries({ queryKey: ["bank-imports-summary", shopId] });
-    }, [queryClient, shopId]);
-
     const imports = data?.imports || [];
     const totalImports = data?.total || 0;
     const byStatus = summaryData?.by_status || {};
 
     const summaryStats = {
         totalPending: (byStatus["Review"]?.uncategorized || 0),
-        totalImports: Object.values(byStatus).reduce((s, v: any) => s + (v.count || 0), 0),
+        totalImports: Object.values(byStatus).reduce((s, v: { count?: number }) => s + (v.count || 0), 0),
         pushed: byStatus["Fully Pushed"]?.count || 0,
         needsReview: byStatus["Review"]?.count || 0,
     };
@@ -123,7 +138,7 @@ const BankStatementPage: React.FC = () => {
             title: "Account",
             key: "account",
             width: 200,
-            render: (_: any, r: BankStatementImport) => {
+            render: (_: unknown, r: BankStatementImport) => {
                 const code = r.account_code || (typeof r.account_id === "object" ? r.account_id?.account_code : "");
                 const name = r.account_name || (typeof r.account_id === "object" ? r.account_id?.account_name : "");
                 return (
@@ -150,7 +165,7 @@ const BankStatementPage: React.FC = () => {
             title: "Period",
             key: "period",
             width: 200,
-            render: (_: any, r: BankStatementImport) => (
+            render: (_: unknown, r: BankStatementImport) => (
                 <Text style={{ fontSize: 12 }}>
                     {r.statement_from ? dayjs(r.statement_from).format("DD MMM YYYY") : "—"}
                     {" → "}
@@ -162,7 +177,7 @@ const BankStatementPage: React.FC = () => {
             title: "Transactions",
             key: "transactions",
             width: 180,
-            render: (_: any, r: BankStatementImport) => {
+            render: (_: unknown, r: BankStatementImport) => {
                 const total = r.imported_rows || 0;
                 const categorized = r.categorized_count || 0;
                 const pct = total > 0 ? Math.round((categorized / total) * 100) : 0;
@@ -186,7 +201,7 @@ const BankStatementPage: React.FC = () => {
             key: "amounts",
             width: 170,
             align: "right" as const,
-            render: (_: any, r: BankStatementImport) => (
+            render: (_: unknown, r: BankStatementImport) => (
                 <Space direction="vertical" size={0} style={{ textAlign: "right" }}>
                     <Text style={{ color: "#cf1322", fontSize: 12 }}>
                         DR {(r.total_debits || 0).toLocaleString("en-KE", { minimumFractionDigits: 2 })}
@@ -223,7 +238,7 @@ const BankStatementPage: React.FC = () => {
             key: "actions",
             width: 130,
             fixed: "right" as const,
-            render: (_: any, r: BankStatementImport) => (
+            render: (_: unknown, r: BankStatementImport) => (
                 <Space size={4}>
                     <Tooltip title="Review Transactions">
                         <Button icon={<EyeOutlined />} size="small" onClick={() => openReview(r)} />

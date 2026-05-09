@@ -14,8 +14,7 @@ import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchAllSuppliers } from "@services/supplier";
 import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
-import { fetchTenantDetails } from "@services/tenants";
-import { getCurrentTenantId } from "@services/tenants";
+import { getVATConfigSync, calculateVAT } from "@utils/vat";
 import dayjs from "dayjs";
 
 const { TextArea } = Input;
@@ -48,7 +47,6 @@ const ManualExpenseBillModal: React.FC<Props> = ({
     const [addAccountOpen, setAddAccountOpen] = useState(false);
 
     const shopId = localStorage.getItem("shopId") || undefined;
-    const tenantId = getCurrentTenantId();
 
     useEffect(() => {
         if (open) setActiveTab(defaultTab);
@@ -71,27 +69,32 @@ const ManualExpenseBillModal: React.FC<Props> = ({
     }, [open, billToEdit, activeTab, billForm]);
 
     // ── Tenant VAT config ─────────────────────────────────────────────────────
-    const { data: tenantData } = useQuery({
-        queryKey: ["tenant", tenantId],
-        queryFn: () => fetchTenantDetails(tenantId || undefined),
-        enabled: !!tenantId && open,
-        staleTime: 5 * 60 * 1000,
-    });
-
-    const tenant = tenantData?.data;
-    const vatEnabled = tenant?.is_vat_enabled ?? true;
-    const standardVatRate = tenant?.vat_standard_rate ?? 0.16;
+    // Get VAT config from localStorage for real-time updates
+    const vatConfig = getVATConfigSync();
+    const vatEnabled = vatConfig.is_vat_enabled;
+    const standardVatRate = vatConfig.vat_standard_rate;
 
     // ── Auto-calculate VAT for bills ───────────────────────────────────────────
     const amountValue = Form.useWatch("amount", billForm);
     
     useEffect(() => {
-        if (activeTab === "bill" && vatEnabled && amountValue) {
-            // Auto-calculate VAT for both new bills and when editing
-            const calculatedVat = parseFloat((amountValue * standardVatRate).toFixed(2));
-            billForm.setFieldsValue({ vat_amount: calculatedVat });
+        if (activeTab === "bill" && vatEnabled && amountValue && amountValue > 0) {
+            // Use the corrected VAT calculation
+            const vatCalculation = calculateVAT(amountValue, vatConfig);
+            billForm.setFieldsValue({ vat_amount: vatCalculation.vat_amount });
         }
-    }, [activeTab, vatEnabled, standardVatRate, amountValue, billForm]);
+    }, [activeTab, vatEnabled, amountValue, vatConfig, billForm]);
+
+    // ── Auto-calculate VAT for expenses ───────────────────────────────────────────
+    const expenseAmountValue = Form.useWatch("amount", expenseForm);
+    
+    useEffect(() => {
+        if (activeTab === "expense" && vatEnabled && expenseAmountValue && expenseAmountValue > 0) {
+            // Use the corrected VAT calculation
+            const vatCalculation = calculateVAT(expenseAmountValue, vatConfig);
+            expenseForm.setFieldsValue({ vat_amount: vatCalculation.vat_amount });
+        }
+    }, [activeTab, vatEnabled, expenseAmountValue, vatConfig, expenseForm]);
 
     // ── Data ──────────────────────────────────────────────────────────────────
     const { data: accountsData } = useQuery({
@@ -526,12 +529,14 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                             <Col span={12}>
                                 <Form.Item
                                     name="vat_amount"
-                                    label="Input VAT (optional)"
-                                    tooltip="VAT you can reclaim — auto-posted to VAT Input account (1350)"
+                                    label={`VAT Amount (${(standardVatRate * 100).toFixed(0)}% - Auto-calculated)`}
+                                    tooltip="VAT is automatically calculated based on the net amount and VAT settings"
                                 >
                                     <InputNumber
                                         style={{ width: "100%" }} min={0} precision={2}
                                         placeholder="0.00" formatter={numFormatter} parser={numParser}
+                                        readOnly
+                                        disabled
                                     />
                                 </Form.Item>
                             </Col>
@@ -628,6 +633,8 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                                     <InputNumber
                                         style={{ width: "100%" }} min={0} precision={2}
                                         placeholder="0.00" formatter={numFormatter} parser={numParser}
+                                        readOnly
+                                        disabled
                                     />
                                 </Form.Item>
                             </Col>
