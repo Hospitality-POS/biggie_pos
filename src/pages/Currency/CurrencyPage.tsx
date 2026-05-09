@@ -9,7 +9,7 @@ import {
     PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined,
     SwapOutlined, StarOutlined, StarFilled, PoweroffOutlined,
     DownloadOutlined, FileExcelOutlined, FilePdfOutlined,
-    DollarOutlined, ArrowRightOutlined, CheckCircleOutlined,
+    DollarOutlined, ArrowRightOutlined, CheckCircleOutlined, ReloadOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs, { Dayjs } from "dayjs";
@@ -596,6 +596,13 @@ const CurrencyPage: React.FC = () => {
                     <Space>
                         {activeTab === "currencies" && (
                             <>
+                                <Tooltip title="Refresh currencies data">
+                                    <Button 
+                                        icon={<ReloadOutlined />} 
+                                        onClick={() => refetchCurrencies()}
+                                        loading={loadingCurrencies}
+                                    />
+                                </Tooltip>
                                 <Tooltip title="Seed KES + 10 common currencies — safe to run multiple times">
                                     <Button icon={<ThunderboltOutlined />} onClick={handleSeed} loading={seeding}>
                                         Seed Defaults
@@ -611,6 +618,13 @@ const CurrencyPage: React.FC = () => {
                         )}
                         {activeTab === "rates" && (
                             <>
+                                <Tooltip title="Refresh exchange rates data">
+                                    <Button 
+                                        icon={<ReloadOutlined />} 
+                                        onClick={() => refetchRates()}
+                                        loading={loadingRates}
+                                    />
+                                </Tooltip>
                                 <Dropdown menu={{ items: exportMenuItems }} placement="bottomRight">
                                     <Button icon={<DownloadOutlined />}>Export</Button>
                                 </Dropdown>

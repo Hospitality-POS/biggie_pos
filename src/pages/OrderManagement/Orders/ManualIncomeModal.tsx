@@ -15,6 +15,7 @@ import { fetchAllSuppliers } from "@services/supplier";
 import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import { getVATConfigSync, calculateVAT } from "@utils/vat";
+import { CurrencySelector, useCurrency } from "@components/Currency";
 import dayjs from "dayjs";
 
 const { TextArea } = Input;
@@ -37,6 +38,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
     const [billForm] = Form.useForm();
     const { message } = App.useApp();
     const queryClient = useQueryClient();
+    const { functionalCurrency } = useCurrency();
 
     const [activeTab, setActiveTab] = useState<"expense" | "bill">(defaultTab);
     const [expenseSupplierSearch, setExpenseSupplierSearch] = useState("");
@@ -64,9 +66,10 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                 vat_amount: billToEdit.total_vat_amount || billToEdit.total_vat,
                 notes: billToEdit.notes,
                 description: billToEdit.bill_lines?.[0]?.description,
+                currency: billToEdit.currency || functionalCurrency?.code || 'KES',
             });
         }
-    }, [open, billToEdit, activeTab, billForm]);
+    }, [open, billToEdit, activeTab, billForm, functionalCurrency]);
 
     // ── Tenant VAT config ─────────────────────────────────────────────────────
     // Get VAT config from localStorage for real-time updates
@@ -269,7 +272,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                 : "Cash",
             notes: v.notes || undefined,
             status: "Approved",
-            currency: "KES",
+            currency: v.currency || functionalCurrency?.code || "KES",
         });
     };
 
@@ -312,7 +315,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                 notes: v.notes || undefined,
                 // Bills are deferred — Pending until paid via Record Payment
                 status: "Pending",
-                currency: "KES",
+                currency: v.currency || functionalCurrency?.code || "KES",
             });
         }
     };
@@ -513,11 +516,20 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                             </Col>
                         </Row>
 
+                        <Form.Item
+                            name="currency"
+                            label="Currency"
+                            rules={[{ required: true }]}
+                            initialValue={functionalCurrency?.code || "KES"}
+                        >
+                            <CurrencySelector placeholder="Select currency" />
+                        </Form.Item>
+
                         <Row gutter={16}>
                             <Col span={12}>
                                 <Form.Item
                                     name="amount"
-                                    label="Net Amount (KES)"
+                                    label="Net Amount"
                                     rules={[{ required: true }, { type: "number", min: 0.01 }]}
                                 >
                                     <InputNumber
@@ -615,11 +627,20 @@ const ManualExpenseBillModal: React.FC<Props> = ({
                             />
                         </Form.Item>
 
+                        <Form.Item
+                            name="currency"
+                            label="Currency"
+                            rules={[{ required: true }]}
+                            initialValue={functionalCurrency?.code || "KES"}
+                        >
+                            <CurrencySelector placeholder="Select currency" />
+                        </Form.Item>
+
                         <Row gutter={16}>
                             <Col span={12}>
                                 <Form.Item
                                     name="amount"
-                                    label="Net Amount (KES)"
+                                    label="Net Amount"
                                     rules={[{ required: true }, { type: "number", min: 0.01 }]}
                                 >
                                     <InputNumber
