@@ -5,6 +5,7 @@ import {
     Typography, Badge, Card, Tabs, App, Statistic, Row, Col,
     DatePicker, Select, Input, Form,
 } from "antd";
+import { CurrencyDisplay } from "@components/Currency";
 import {
     PlusOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined,
     StopOutlined, ReloadOutlined, DollarOutlined, WalletOutlined,
@@ -206,7 +207,12 @@ const PettyCashListPage: React.FC = () => {
             align: "right" as const,
             render: (amount: number, record: PettyCashTransaction) => (
                 <Text strong style={{ color: record.transaction_type === "Deposit" ? "#52c41a" : "#ff4d4f" }}>
-                    {record.transaction_type === "Deposit" ? "+" : "-"}KES {amount.toLocaleString()}
+                    {record.transaction_type === "Deposit" ? "+" : "-"}
+                    <CurrencyDisplay 
+                        amount={amount} 
+                        currency={record.currency || "KES"}
+                        showBaseCurrency={record.currency !== "KES"}
+                    />
                 </Text>
             ),
         },

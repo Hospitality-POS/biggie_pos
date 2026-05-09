@@ -18,6 +18,8 @@ import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchTenantDetails, getCurrentTenantId } from "@services/tenants";
 import AddCustomerModal from "@pages/Customer/AddCustomerModal";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import { useCurrency } from "@context/CurrencyContext";
+import { CurrencySelector } from "@components/Currency/CurrencySelector";
 import dayjs, { Dayjs } from "dayjs";
 
 const { TextArea } = Input;
@@ -85,6 +87,10 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     const [payForm] = Form.useForm();
     const { message } = App.useApp();
     const queryClient = useQueryClient();
+    
+    // Multi-currency support
+    const { functionalCurrency, currencies, formatAmount, convertToBase } = useCurrency();
+    const [selectedCurrency, setSelectedCurrency] = useState<string>(functionalCurrency?.code || "KES");
 
     const [lines, setLines] = useState<LineItem[]>([newLine()]);
     const [docType, setDocType] = useState<DocType>("invoice");

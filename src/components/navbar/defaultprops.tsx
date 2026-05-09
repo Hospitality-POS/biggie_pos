@@ -219,13 +219,13 @@ const useProLayoutNav = () => {
     icon: <FileDoneOutlined />,
   };
 
-  // const currencyBarePath = hasAccounting ? "/accounting/currencies" : "/currencies";
-  // const currencyRoute = {
-  //   path: p(currencyBarePath),
-  //   name: "Currencies",
-  //   icon: <GlobalOutlined />,
-  //   _bare: currencyBarePath,
-  // };
+  const currencyBarePath = hasAccounting ? "/accounting/currencies" : "/currencies";
+  const currencyRoute = {
+    path: p(currencyBarePath),
+    name: "Currencies",
+    icon: <GlobalOutlined />,
+    _bare: currencyBarePath,
+  };
 
   // ── Mteja Conversations ───────────────────────────────────────────────────
   const mtejaConversationsRoute = (hasMteja && can("OMNICHANNEL_VIEW")) ? [{
@@ -336,7 +336,7 @@ const useProLayoutNav = () => {
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,
-    // { ...currencyRoute },
+    { ...currencyRoute },
   ];
 
   const posRoutesFullAccess = posRoutesFullAccessBase
@@ -357,7 +357,7 @@ const useProLayoutNav = () => {
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,
-    // { ...currencyRoute },
+    { ...currencyRoute },
   ];
 
   const posRoutesStaff = posRoutesStaffBase
@@ -398,13 +398,13 @@ const useProLayoutNav = () => {
   const accountingRoutesStaff = buildAccountingRoutes();
 
   // ── App tiles ─────────────────────────────────────────────────────────────
-  // const currencyTile = {
-  //   icon: makeTile("#0d9488", ICONS.currency),
-  //   title: "Currencies",
-  //   desc: "Manage currencies, exchange rates and multi-currency settings.",
-  //   url: p(currencyBarePath),
-  //   _bare: currencyBarePath,
-  // };
+  const currencyTile = {
+    icon: makeTile("#0d9488", ICONS.currency),
+    title: "Currencies",
+    desc: "Manage currencies, exchange rates and multi-currency settings.",
+    url: p(currencyBarePath),
+    _bare: currencyBarePath,
+  };
 
   const posAppListBase = [
     { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize your products with clear categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
@@ -423,7 +423,7 @@ const useProLayoutNav = () => {
       url: p("/omnichannel"),
       _bare: "/omnichannel",
     }] : []),
-    // { ...currencyTile },
+    { ...currencyTile },
     // CRM tiles — appended only when hasMteja; already permission-filtered inside crmAppTiles
     ...crmAppTilesBase.map(t => ({ ...t })),
   ];
