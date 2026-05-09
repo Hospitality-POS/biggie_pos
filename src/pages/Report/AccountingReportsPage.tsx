@@ -556,7 +556,7 @@ const AccountingReportsPage: React.FC = () => {
     return (
         <App>
             <Card bordered styles={{ body: { padding: 0 } }}
-                title={<Space><BarChartOutlined style={{ fontSize: 18, color: primaryColor }} /><Text strong style={{ fontSize: 16 }}>Accounting Reports</Text></Space>}
+                title={<Space><BarChartOutlined style={{ fontSize: 18, color: primaryColor }} /><Text strong style={{ fontSize: 16 }}>Reports</Text></Space>}
             >
                 {isAdminRoute && (
                 <div style={{ padding: "16px 16px 0 16px" }}>

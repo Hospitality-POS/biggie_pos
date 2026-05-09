@@ -1,14 +1,7 @@
 import {
-  AccountBookOutlined,
-  AuditOutlined,
+  DashboardOutlined, AuditOutlined, FileDoneOutlined,
+  ReconciliationOutlined, ShopOutlined, UsergroupAddOutlined, CustomerServiceOutlined,
   CompassOutlined,
-  DashboardOutlined,
-  FileTextOutlined,
-  FileDoneOutlined,
-  ReconciliationOutlined,
-  ShopOutlined,
-  UsergroupAddOutlined,
-  CustomerServiceOutlined,
 } from "@ant-design/icons";
 
 /**
@@ -16,18 +9,18 @@ import {
  *
  * Module rules:
  *  - Duka (POS) only         → Dashboard, Branch, Staff, POS Reports, Documents, Help
- *  - Pesa (Accounting) only  → Accounting Dashboard, Branch, Staff, CoA, Financial Reports, Documents, Help
- *  - Duka + Pesa both        → Dashboard, Branch, Staff, POS Reports, Accounting Dashboard, CoA, Financial Reports, Documents, Help
+ *  - Pesa (Accounting) only  → Accounting Dashboard, Branch, Staff, CoA, Reports, Documents, Help
+ *  - Duka + Pesa both        → Dashboard, Branch, Staff, POS Reports, Accounting Dashboard, CoA, Reports, Documents, Help
  *  - Mteja ONLY              → Mteja Dashboard, Branch, Staff, Help
  *  - Mteja + any other       → Mteja routes hidden; only the other module(s) show
  *
  * Router paths (Routers.tsx) — must match exactly:
  *  /admin/dashboard
- *  /admin/reports                    ← POS business reports
+ *  /admin/reports                    ← Unified reports page
  *  /admin/documents
  *  /admin/accounting                 ← Accounting dashboard
  *  /admin/accounting/accounts        ← Chart of Accounts  (was /admin/accounts — 404)
- *  /admin/accounting/reports         ← Financial reports   (was /admin/reports — conflict with POS)
+ *  /admin/reports                    ← Unified reports page (includes POS, Accounting, CRM, HR)
  *  /admin/shop-management
  *  /admin/staff-management
  *  /admin/mteja
@@ -35,11 +28,7 @@ import {
  */
 const useAdminProLayoutNav = () => {
   const storedTenant = localStorage.getItem("tenant");
-  const storedUser = localStorage.getItem("user");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const user = storedUser ? JSON.parse(storedUser) : null;
-
-  const userRole = user?.role?.toLowerCase();
 
   // ── Module flags ──────────────────────────────────────────────────────────
   const hasDuka = tenant?.pos_integration?.enabled === true;
@@ -67,20 +56,17 @@ const useAdminProLayoutNav = () => {
   // ── Duka (POS) routes ─────────────────────────────────────────────────────
   const dukaRoutes = [
     { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
-    ...(userRole === "admin"
-      ? [{ path: "/admin/reports", name: "Business Reports", icon: <ReconciliationOutlined /> }]
-      : []),
+    { path: "/admin/reports", name: "Reports", icon: <ReconciliationOutlined /> },
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
   // ── Pesa (Accounting) routes ──────────────────────────────────────────────
   // FIX: paths now match router exactly
   //   /admin/accounts          → /admin/accounting/accounts  (was 404)
-  //   /admin/reports           → /admin/accounting/reports   (was clashing with POS reports)
+  //   /admin/dashboard         → Unified dashboard page (includes POS, Accounting, Mteja)
   const pesaRoutes = [
-    { path: "/admin/accounting", name: "Accounting Dashboard", icon: <AccountBookOutlined /> },
+    { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
     { path: "/admin/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
-    { path: "/admin/accounting/reports", name: "Financial Reports", icon: <FileTextOutlined /> },
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
@@ -130,15 +116,15 @@ const useAdminProLayoutNav = () => {
   }
 
   // ── CASE 4: Duka + Pesa ───────────────────────────────────────────────────
-  // FIX: deduplicate Document Center — appears in both dukaRoutes and pesaRoutes.
-  // When combined, filter it out of pesaRoutes to avoid two identical nav items.
+  // FIX: deduplicate Document Center and Dashboard — appears in both dukaRoutes and pesaRoutes.
+  // When combined, filter them out of pesaRoutes to avoid duplicate nav items.
   if (hasDuka && hasPesa) {
     console.log("[AdminNav] ✅ Duka + Pesa (POS + Accounting)");
-    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    const pesaWithoutDocsAndDashboard = pesaRoutes.filter((r) => r.path !== "/admin/documents" && r.path !== "/admin/dashboard");
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...commonRoutes, ...pesaWithoutDocs, helpRoute],
+        routes: [...dukaRoutes, ...commonRoutes, ...pesaWithoutDocsAndDashboard, helpRoute],
       },
     };
   }
