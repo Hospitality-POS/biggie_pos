@@ -42,23 +42,32 @@ interface CurrencyProviderProps {
 export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) => {
     const queryClient = useQueryClient();
 
-    // Queries
+    // Check if user is authenticated
+    const isAuthenticated = !!localStorage.getItem("user") && !!localStorage.getItem("token");
+
+    // Queries - only run if user is authenticated
     const { data: currencies = [], isLoading: loadingCurrencies, refetch: refetchCurrencies } = useQuery({
         queryKey: ['currencies'],
         queryFn: () => listCurrencies(true), // Only active currencies
         staleTime: 5 * 60 * 1000, // 5 minutes
+        enabled: isAuthenticated, // Only run when authenticated
+        retry: false, // Don't retry on authentication failure
     });
 
     const { data: functionalCurrency } = useQuery({
         queryKey: ['functional-currency'],
         queryFn: getFunctionalCurrency,
         staleTime: 10 * 60 * 1000, // 10 minutes
+        enabled: isAuthenticated, // Only run when authenticated
+        retry: false, // Don't retry on authentication failure
     });
 
     const { data: latestRates = [], isLoading: loadingRates, refetch: refetchRates } = useQuery({
         queryKey: ['latest-rates'],
         queryFn: getLatestRates,
         staleTime: 5 * 60 * 1000, // 5 minutes
+        enabled: isAuthenticated, // Only run when authenticated
+        retry: false, // Don't retry on authentication failure
     });
 
     const isLoading = loadingCurrencies || loadingRates;

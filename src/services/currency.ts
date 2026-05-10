@@ -101,6 +101,14 @@ export interface ListRatesParams {
 
 export const listCurrencies = async (activeOnly = true): Promise<Currency[]> => {
     try {
+        // Check if user is authenticated before making API call
+        const token = localStorage.getItem("token");
+        const user = localStorage.getItem("user");
+        if (!token || !user) {
+            console.warn("User not authenticated - skipping currency API call");
+            return [];
+        }
+
         const shopId = localStorage.getItem("shopId");
         const tenant = localStorage.getItem("tenant") ? JSON.parse(localStorage.getItem("tenant")!) : null;
         const companyCode = localStorage.getItem("companyCode");
@@ -144,6 +152,14 @@ export const listCurrencies = async (activeOnly = true): Promise<Currency[]> => 
 
 export const getFunctionalCurrency = async (): Promise<Currency | null> => {
     try {
+        // Check if user is authenticated before making API call
+        const token = localStorage.getItem("token");
+        const user = localStorage.getItem("user");
+        if (!token || !user) {
+            console.warn("User not authenticated - skipping functional currency API call");
+            return null;
+        }
+
         const shopId = localStorage.getItem("shopId");
         const tenant = localStorage.getItem("tenant") ? JSON.parse(localStorage.getItem("tenant")!) : null;
         const companyCode = localStorage.getItem("companyCode");
@@ -279,6 +295,14 @@ export const listRates = async (
 
 export const getLatestRates = async (): Promise<ExchangeRate[]> => {
     try {
+        // Check if user is authenticated before making API call
+        const token = localStorage.getItem("token");
+        const user = localStorage.getItem("user");
+        if (!token || !user) {
+            console.warn("User not authenticated - skipping latest rates API call");
+            return [];
+        }
+
         const shopId = localStorage.getItem("shopId");
         const tenant = localStorage.getItem("tenant") ? JSON.parse(localStorage.getItem("tenant")!) : null;
         const companyCode = localStorage.getItem("companyCode");
