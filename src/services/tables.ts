@@ -19,6 +19,14 @@ const isRestaurantMode = (): boolean => {
 
 export const getAllTables = async (data: ParamsType) => {
   try {
+    // Check if user is authenticated before making API call
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+    if (!token || !user) {
+      console.warn("User not authenticated - skipping tables API call");
+      return [];
+    }
+
     const response = await axiosInstance.get(tableUrl, {
       params: { name: data.name, locatedAt: data.locatedAt },
     });

@@ -28,6 +28,7 @@ import {
   Row,
   Col,
   Statistic,
+  Tabs,
 } from 'antd';
 import { useRef, useState } from 'react';
 import AddEditPropertyModal from './AddEditPropertyModal';
@@ -112,6 +113,46 @@ const PropertiesList: React.FC = () => {
               { text: 'Apartment', value: 'apartment' },
             ],
             onFilter: (value, record) => record.propertyType === value,
+          },
+          {
+            title: 'Purpose',
+            dataIndex: 'purpose',
+            key: 'purpose',
+            align: 'center',
+            search: false,
+            render: (purpose) => {
+              let color = 'blue';
+              if (purpose === 'sale') color = 'green';
+              if (purpose === 'rental' || purpose === 'rent') color = 'orange';
+              if (purpose === 'lease') color = 'orange';
+              if (purpose === 'mixed') color = 'purple';
+              return <Tag color={color}>{purpose || 'sale'}</Tag>;
+            },
+            filters: [
+              { text: 'Sale', value: 'sale' },
+              { text: 'Rental', value: 'rental' },
+              { text: 'Rent', value: 'rent' },
+              { text: 'Lease', value: 'lease' },
+              { text: 'Mixed', value: 'mixed' },
+            ],
+            onFilter: (value, record) => record.purpose === value,
+          },
+          {
+            title: 'Category',
+            dataIndex: 'category',
+            key: 'category',
+            align: 'center',
+            search: false,
+            render: (category) => {
+              const color = 'cyan';
+              return <Tag color={color} style={{ textTransform: 'capitalize' }}>{category || 'N/A'}</Tag>;
+            },
+            filters: [
+              { text: 'Residential', value: 'residential' },
+              { text: 'Commercial', value: 'commercial' },
+              { text: 'Industrial', value: 'industrial' },
+            ],
+            onFilter: (value, record) => record.category === value,
           },
           {
             title: 'Location',
@@ -203,7 +244,20 @@ const PropertiesList: React.FC = () => {
                           .filter((unit) => unit?.plotSize?.area)
                           .map(
                             (unit) =>
-                              `${unit.plotSize.area} ${unit.plotSize.unit || 'sqm'}` 
+                              `${unit.plotSize.area} ${unit.plotSize.unit || 'sqm'}`
+                          )
+                          .join(', ') || 'N/A'}
+                      </small>
+                    </div>
+                  )}
+                  {record.propertyType === 'apartment' && unitsArray.length > 0 && (
+                    <div>
+                      <small>
+                        {unitsArray
+                          .filter((unit) => unit?.areaSqm)
+                          .map(
+                            (unit) =>
+                              `${unit.areaSqm} sqm`
                           )
                           .join(', ') || 'N/A'}
                       </small>
@@ -237,11 +291,20 @@ const PropertiesList: React.FC = () => {
             title: 'Manager',
             key: 'manager',
             search: false,
-            render: (_, record) => record?.propertyManager?.name || 'N/A',
-            sorter: (a, b) =>
-              (a?.propertyManager?.name || '').localeCompare(
-                b?.propertyManager?.name || ''
-              ),
+            render: (_, record) => {
+              const manager = record?.propertyManager;
+              if (manager?.name) return manager.name;
+              if (manager?.email) return manager.email;
+              if (manager?.phone) return manager.phone;
+              return 'N/A';
+            },
+            sorter: (a, b) => {
+              const getManagerName = (record: any) => {
+                const manager = record?.propertyManager;
+                return manager?.name || manager?.email || manager?.phone || '';
+              };
+              return getManagerName(a).localeCompare(getManagerName(b));
+            },
           },
           {
             title: 'Total Value (KES)',
@@ -250,13 +313,33 @@ const PropertiesList: React.FC = () => {
             search: false,
             render: (_, record) => {
               const unitsArray = record?.units || record?.propertyUnits || [];
+              const propertyPurpose = record?.purpose || record?.propertyPurpose || 'sale';
 
               if (!Array.isArray(unitsArray) || unitsArray.length === 0) {
                 return <span>0</span>;
               }
 
               const totalValue = unitsArray.reduce((total, unit) => {
-                const currentPrice = getCurrentPrice(unit);
+                // If unit tracks individual apartments, sum their prices based on property purpose
+                if (unit?.trackIndividualUnits && Array.isArray(unit?.apartments) && unit.apartments.length > 0) {
+                  const apartmentsTotal = unit.apartments.reduce((aptTotal, apt) => {
+                    if (propertyPurpose === 'lease' || propertyPurpose === 'rent') {
+                      // For lease/rent, use monthlyRentOverride, monthlyRent, or fall back to saleListPrice
+                      return aptTotal + (apt?.monthlyRentOverride || apt?.monthlyRent || apt?.saleListPrice || 0);
+                    }
+                    return aptTotal + (apt?.saleListPrice || 0);
+                  }, 0);
+                  return total + apartmentsTotal;
+                }
+                
+                // Otherwise use unit price based on property purpose
+                if (propertyPurpose === 'lease' || propertyPurpose === 'rent') {
+                  // For lease/rent, use monthlyRent or fall back to listPrice/basePrice
+                  const rentPrice = unit?.monthlyRent || unit?.listPrice || unit?.basePrice || 0;
+                  return total + rentPrice * (unit?.totalUnits || 0);
+                }
+                
+                const currentPrice = unit?.basePrice || unit?.price || unit?.listPrice || 0;
                 return total + currentPrice * (unit?.totalUnits || 0);
               }, 0);
 
@@ -265,8 +348,28 @@ const PropertiesList: React.FC = () => {
             sorter: (a, b) => {
               const getPropertyValue = (property: any) => {
                 const unitsArray = property?.units || property?.propertyUnits || [];
+                const propertyPurpose = property?.purpose || property?.propertyPurpose || 'sale';
                 return unitsArray.reduce((total: number, unit: any) => {
-                  const currentPrice = getCurrentPrice(unit);
+                  // If unit tracks individual apartments, sum their prices based on property purpose
+                  if (unit?.trackIndividualUnits && Array.isArray(unit?.apartments) && unit.apartments.length > 0) {
+                    const apartmentsTotal = unit.apartments.reduce((aptTotal: number, apt: any) => {
+                      if (propertyPurpose === 'lease' || propertyPurpose === 'rent') {
+                        // For lease/rent, use monthlyRentOverride, monthlyRent, or fall back to saleListPrice
+                        return aptTotal + (apt?.monthlyRentOverride || apt?.monthlyRent || apt?.saleListPrice || 0);
+                      }
+                      return aptTotal + (apt?.saleListPrice || 0);
+                    }, 0);
+                    return total + apartmentsTotal;
+                  }
+                  
+                  // Otherwise use unit price based on property purpose
+                  if (propertyPurpose === 'lease' || propertyPurpose === 'rent') {
+                    // For lease/rent, use monthlyRent or fall back to listPrice/basePrice
+                    const rentPrice = unit?.monthlyRent || unit?.listPrice || unit?.basePrice || 0;
+                    return total + rentPrice * (unit?.totalUnits || 0);
+                  }
+                  
+                  const currentPrice = unit?.basePrice || unit?.price || unit?.listPrice || 0;
                   return total + currentPrice * (unit?.totalUnits || 0);
                 }, 0);
               };
@@ -402,169 +505,327 @@ const PropertiesList: React.FC = () => {
         styles={{ body: { padding: 24 } }}
       >
         {selectedProperty && (
-          <div>
-            {/* Property Overview Section */}
-            <div style={{ marginBottom: 24 }}>
-              <h4 style={{ margin: '0 0 16px 0', color: '#262626', fontSize: 16 }}>Property Overview</h4>
-              <Row gutter={[16, 16]}>
-                <Col span={12}>
-                  <Card size="small" style={{ height: '100%' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1890ff' }}>
-                        {selectedProperty.units?.length || selectedProperty.propertyUnits?.length || 0}
-                      </div>
-                      <div style={{ color: '#8c8c8c', fontSize: 12 }}>Total Units</div>
-                    </div>
-                  </Card>
-                </Col>
-                <Col span={12}>
-                  <Card size="small" style={{ height: '100%' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 24, fontWeight: 'bold', color: '#52c41a' }}>
-                        {selectedProperty.blocks?.length || 0}
-                      </div>
-                      <div style={{ color: '#8c8c8c', fontSize: 12 }}>Total Blocks</div>
-                    </div>
-                  </Card>
-                </Col>
-              </Row>
-            </div>
-
-            {/* Detailed Information */}
-            <Descriptions 
-              title={<span style={{ fontSize: 16 }}>Detailed Information</span>} 
-              bordered 
-              column={1}
-              size="small"
-              style={{ marginBottom: 24 }}
-            >
-              <Descriptions.Item label="Property Type">
-                <Tag color="blue" style={{ textTransform: 'capitalize' }}>
-                  {selectedProperty.propertyType}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Property Purpose">
-                <Tag color="purple" style={{ textTransform: 'capitalize' }}>
-                  {selectedProperty.purpose || 'sale'}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Status">
-                <Tag color={selectedProperty.status === 'available' ? 'green' : 'orange'}>
-                  {selectedProperty.status}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Location">
-                {selectedProperty.location && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <EnvironmentOutlined style={{ color: '#ff4d4f' }} />
-                    <span>
-                      <strong>{selectedProperty.location.name || 'Unknown Location'}</strong>
-                      {selectedProperty.location.description && (
-                        <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 4 }}>
-                          {selectedProperty.location.description}
+          <Tabs defaultActiveKey="overview">
+            {/* Overview Tab */}
+            <Tabs.TabPane tab="Overview" key="overview">
+              <div>
+                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                  <Col span={12}>
+                    <Card size="small" style={{ height: '100%' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1890ff' }}>
+                          {selectedProperty.units?.length || selectedProperty.propertyUnits?.length || 0}
                         </div>
-                      )}
-                    </span>
-                  </div>
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label="Property Manager">
-                {selectedProperty.propertyManager ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ 
-                      width: 32, 
-                      height: 32, 
-                      borderRadius: '50%', 
-                      background: '#f0f0f0', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      fontSize: 12,
-                      fontWeight: 'bold'
-                    }}>
-                      {selectedProperty.propertyManager.name?.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 'bold' }}>{selectedProperty.propertyManager.name}</div>
-                      {selectedProperty.propertyManager.email && (
-                        <div style={{ fontSize: 12, color: '#8c8c8c' }}>
-                          {selectedProperty.propertyManager.email}
+                        <div style={{ color: '#8c8c8c', fontSize: 12 }}>Total Units</div>
+                      </div>
+                    </Card>
+                  </Col>
+                  <Col span={12}>
+                    <Card size="small" style={{ height: '100%' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 24, fontWeight: 'bold', color: '#52c41a' }}>
+                          {selectedProperty.blocks?.length || 0}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <span style={{ color: '#8c8c8c' }}>Not assigned</span>
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label="Current Phase">
-                {selectedProperty.currentPhase ? (
-                  <Tag color="green" icon={<TagOutlined />}>
-                    {selectedProperty.currentPhase.name}
-                  </Tag>
-                ) : (
-                  <span style={{ color: '#8c8c8c' }}>No active phase</span>
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label="Created Date">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CalendarOutlined style={{ color: '#1890ff' }} />
-                  <span>{new Date(selectedProperty.createdAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}</span>
-                </div>
-              </Descriptions.Item>
-            </Descriptions>
+                        <div style={{ color: '#8c8c8c', fontSize: 12 }}>Total Blocks</div>
+                      </div>
+                    </Card>
+                  </Col>
+                </Row>
 
-            {/* Additional Information */}
-            {selectedProperty.phases && selectedProperty.phases.length > 0 && (
-              <div style={{ marginBottom: 24 }}>
-                <h4 style={{ margin: '0 0 16px 0', color: '#262626', fontSize: 16 }}>Pricing Phases</h4>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {selectedProperty.phases.map((phase: any) => (
-                    <Tag 
-                      key={phase._id}
-                      color={phase.active ? 'green' : 'default'}
-                      style={{ marginBottom: 4 }}
-                    >
-                      {phase.name} {phase.active && '(Active)'}
+                <Descriptions 
+                  bordered 
+                  column={1}
+                  size="small"
+                >
+                  <Descriptions.Item label="Property Type">
+                    <Tag color="blue" style={{ textTransform: 'capitalize' }}>
+                      {selectedProperty.propertyType}
                     </Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Property Purpose">
+                    <Tag color="purple" style={{ textTransform: 'capitalize' }}>
+                      {selectedProperty.purpose || 'sale'}
+                    </Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Status">
+                    <Tag color={selectedProperty.status === 'available' ? 'green' : 'orange'}>
+                      {selectedProperty.status}
+                    </Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Property Manager">
+                    {selectedProperty.propertyManager ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ 
+                          width: 32, 
+                          height: 32, 
+                          borderRadius: '50%', 
+                          background: '#f0f0f0', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          fontSize: 12,
+                          fontWeight: 'bold'
+                        }}>
+                          {selectedProperty.propertyManager.name?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 'bold' }}>{selectedProperty.propertyManager.name}</div>
+                          {selectedProperty.propertyManager.email && (
+                            <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+                              {selectedProperty.propertyManager.email}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#8c8c8c' }}>Not assigned</span>
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Current Phase">
+                    {selectedProperty.currentPhase ? (
+                      <Tag color="green" icon={<TagOutlined />}>
+                        {selectedProperty.currentPhase.name}
+                      </Tag>
+                    ) : (
+                      <span style={{ color: '#8c8c8c' }}>No active phase</span>
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Created Date">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CalendarOutlined style={{ color: '#1890ff' }} />
+                      <span>{new Date(selectedProperty.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}</span>
+                    </div>
+                  </Descriptions.Item>
+                </Descriptions>
+              </div>
+            </Tabs.TabPane>
+
+            {/* Location Tab */}
+            <Tabs.TabPane tab="Location" key="location">
+              <Descriptions 
+                bordered 
+                column={1}
+                size="small"
+              >
+                <Descriptions.Item label="Location Name">
+                  {selectedProperty.location?.name || 'N/A'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Description">
+                  {selectedProperty.location?.description || 'N/A'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Type">
+                  <Tag color="blue" style={{ textTransform: 'capitalize' }}>
+                    {selectedProperty.location?.type || 'N/A'}
+                  </Tag>
+                </Descriptions.Item>
+              </Descriptions>
+            </Tabs.TabPane>
+
+            {/* Blocks Tab */}
+            <Tabs.TabPane tab="Blocks" key="blocks">
+              {selectedProperty.blocks && selectedProperty.blocks.length > 0 ? (
+                <div>
+                  {selectedProperty.blocks.map((block: any) => (
+                    <Card 
+                      key={block._id} 
+                      size="small" 
+                      style={{ marginBottom: 16 }}
+                      title={`Block ${block.name}`}
+                    >
+                      <Descriptions column={1} size="small">
+                        <Descriptions.Item label="Total Floors">
+                          {block.totalFloors || 0}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Status">
+                          <Tag color={block.status === 'active' ? 'green' : 'orange'}>
+                            {block.status}
+                          </Tag>
+                        </Descriptions.Item>
+                        {block.floors && block.floors.length > 0 && (
+                          <Descriptions.Item label="Floors">
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                              {block.floors.map((floor: any) => (
+                                <Tag key={floor._id} color="blue">
+                                  {floor.name} (Floor {floor.floorNumber})
+                                </Tag>
+                              ))}
+                            </div>
+                          </Descriptions.Item>
+                        )}
+                      </Descriptions>
+                    </Card>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div style={{ textAlign: 'center', color: '#8c8c8c', padding: 24 }}>
+                  No blocks found
+                </div>
+              )}
+            </Tabs.TabPane>
 
-            {/* Statistics */}
-            <div>
-              <h4 style={{ margin: '0 0 16px 0', color: '#262626', fontSize: 16 }}>Statistics</h4>
-              <Row gutter={[16, 16]}>
-                <Col span={8}>
-                  <Statistic 
-                    title="Active Phases" 
-                    value={selectedProperty.phases?.filter((p: any) => p.active).length || 0}
-                    valueStyle={{ color: '#3f8600' }}
-                  />
-                </Col>
-                <Col span={8}>
-                  <Statistic 
-                    title="Occupancy Rate" 
-                    value={selectedProperty.occupancySummary?.occupancyRate || 0}
-                    suffix="%"
-                    valueStyle={{ color: '#1890ff' }}
-                  />
-                </Col>
-                <Col span={8}>
-                  <Statistic 
-                    title="Available Units" 
-                    value={selectedProperty.occupancySummary?.vacantUnits || 0}
-                    valueStyle={{ color: '#52c41a' }}
-                  />
-                </Col>
-              </Row>
-            </div>
-          </div>
+            {/* Phases Tab */}
+            <Tabs.TabPane tab="Phases" key="phases">
+              {selectedProperty.phases && selectedProperty.phases.length > 0 ? (
+                <div>
+                  {selectedProperty.phases.map((phase: any) => (
+                    <Card 
+                      key={phase._id} 
+                      size="small" 
+                      style={{ marginBottom: 16 }}
+                      title={
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span>{phase.name}</span>
+                          {phase.active && <Tag color="green">Active</Tag>}
+                        </div>
+                      }
+                    >
+                      <Descriptions column={1} size="small">
+                        <Descriptions.Item label="Description">
+                          {phase.description || 'N/A'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Start Date">
+                          {new Date(phase.startDate).toLocaleDateString()}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="End Date">
+                          {new Date(phase.endDate).toLocaleDateString()}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Price Multiplier">
+                          {phase.priceMultiplier}
+                        </Descriptions.Item>
+                      </Descriptions>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#8c8c8c', padding: 24 }}>
+                  No phases found
+                </div>
+              )}
+            </Tabs.TabPane>
+
+            {/* Units Tab */}
+            <Tabs.TabPane tab="Units" key="units">
+              {selectedProperty.units && selectedProperty.units.length > 0 ? (
+                <div>
+                  {selectedProperty.units.map((unit: any) => (
+                    <Card 
+                      key={unit._id} 
+                      size="small" 
+                      style={{ marginBottom: 16 }}
+                      title={unit.name || `Unit ${unit.unitNumber}`}
+                    >
+                      <Descriptions column={2} size="small">
+                        <Descriptions.Item label="Unit Number">
+                          {unit.unitNumber}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Unit Type">
+                          <Tag color="purple">{unit.unitType}</Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Area">
+                          {unit.areaSqm} {unit.areaUnit}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Total Units">
+                          {unit.totalUnits}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Track Individual">
+                          {unit.trackIndividualUnits ? <Tag color="green">Yes</Tag> : <Tag>No</Tag>}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Status">
+                          <Tag color={unit.status === 'available' ? 'green' : 'orange'}>
+                            {unit.status}
+                          </Tag>
+                        </Descriptions.Item>
+                        {unit.trackIndividualUnits && unit.apartments && unit.apartments.length > 0 && (
+                          <Descriptions.Item label="Apartments" span={2}>
+                            <div style={{ marginTop: 8 }}>
+                              {unit.apartments.map((apt: any) => (
+                                <Tag key={apt._id} color="blue" style={{ marginBottom: 4 }}>
+                                  {apt.apartmentName} - {apt.area?.value} {apt.area?.unit} - KES {apt.saleListPrice?.toLocaleString()}
+                                </Tag>
+                              ))}
+                            </div>
+                          </Descriptions.Item>
+                        )}
+                      </Descriptions>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#8c8c8c', padding: 24 }}>
+                  No units found
+                </div>
+              )}
+            </Tabs.TabPane>
+
+            {/* Pricing Tab */}
+            <Tabs.TabPane tab="Pricing" key="pricing">
+              <Descriptions 
+                bordered 
+                column={1}
+                size="small"
+              >
+                <Descriptions.Item label="Currency">
+                  <Tag color="blue">{selectedProperty.currency || 'KES'}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Category">
+                  <Tag color="purple" style={{ textTransform: 'capitalize' }}>
+                    {selectedProperty.category || 'N/A'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Default Price/Sqm">
+                  {selectedProperty.defaultPricePerSqm ? 
+                    `KES ${selectedProperty.defaultPricePerSqm.toLocaleString()}` : 'N/A'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Default Rent/Sqm">
+                  {selectedProperty.defaultRentPerSqm ? 
+                    `KES ${selectedProperty.defaultRentPerSqm.toLocaleString()}` : 'N/A'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Service Charge">
+                  {selectedProperty.defaultServiceCharge ? 
+                    `KES ${selectedProperty.defaultServiceCharge.toLocaleString()}` : 'N/A'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Deposit Months">
+                  {selectedProperty.defaultDepositMonths || 'N/A'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Rent Due Day">
+                  {selectedProperty.defaultRentDueDay || 'N/A'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Utilities">
+                  {selectedProperty.defaultUtilities ? (
+                    <Space size="small">
+                      {selectedProperty.defaultUtilities.water && <Tag color="blue">Water</Tag>}
+                      {selectedProperty.defaultUtilities.electricity && <Tag color="yellow">Electricity</Tag>}
+                      {selectedProperty.defaultUtilities.internet && <Tag color="green">Internet</Tag>}
+                      {selectedProperty.defaultUtilities.garbage && <Tag color="orange">Garbage</Tag>}
+                    </Space>
+                  ) : 'N/A'}
+                </Descriptions.Item>
+                <Descriptions.Item label="Total Value">
+                  {(() => {
+                    const unitsArray = selectedProperty?.units || selectedProperty?.propertyUnits || [];
+                    if (!Array.isArray(unitsArray) || unitsArray.length === 0) {
+                      return 'KES 0';
+                    }
+                    const totalValue = unitsArray.reduce((total: number, unit: any) => {
+                      if (unit?.trackIndividualUnits && Array.isArray(unit?.apartments) && unit.apartments.length > 0) {
+                        const apartmentsTotal = unit.apartments.reduce((aptTotal: number, apt: any) => {
+                          return aptTotal + (apt?.saleListPrice || 0);
+                        }, 0);
+                        return total + apartmentsTotal;
+                      }
+                      const currentPrice = unit?.basePrice || unit?.price || unit?.listPrice || 0;
+                      return total + currentPrice * (unit?.totalUnits || 0);
+                    }, 0);
+                    return `KES ${totalValue.toLocaleString()}`;
+                  })()}
+                </Descriptions.Item>
+              </Descriptions>
+            </Tabs.TabPane>
+          </Tabs>
         )}
       </Drawer>
     </>

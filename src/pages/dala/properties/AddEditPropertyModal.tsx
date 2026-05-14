@@ -20,8 +20,11 @@ interface Floor {
   key?: string;
   tempId?: string;
   blockTempId?: string;
+  propertyId?: string;
+  blockId?: string;
   name: string;
   floorNumber: number;
+  description?: string;
   status?: string;
 }
 
@@ -40,6 +43,7 @@ interface Apartment {
   key?: string;
   _id?: string;
   apartmentName: string;
+  area?: number;
   status: 'available' | 'sold' | 'reserved';
   soldTo?: string;
   soldDate?: string;
@@ -189,6 +193,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
     floorId: '',
     unitNumber: '',
     unitType: 'one_bedroom',
+    areaSqm: 0,
     priceStartPoint: 0,
     totalUnits: 1,
     trackIndividualUnits: false
@@ -200,6 +205,14 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
   const [namingPattern, setNamingPattern] = useState<'sequential' | 'letters' | 'custom'>('sequential');
   const [viewApartmentsModalVisible, setViewApartmentsModalVisible] = useState(false);
   const [selectedUnitForView, setSelectedUnitForView] = useState<Unit | null>(null);
+  const [editApartmentModalVisible, setEditApartmentModalVisible] = useState(false);
+  const [selectedApartmentForEdit, setSelectedApartmentForEdit] = useState<any>(null);
+  const [editApartmentForm, setEditApartmentForm] = useState({
+    apartmentName: '',
+    areaValue: 0,
+    saleListPrice: 0,
+    status: 'available'
+  });
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [undefinedFields, setUndefinedFields] = useState<any[]>([]);
 
@@ -210,14 +223,14 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
     baseUnitNumber: string,
     totalUnits: number,
     pattern: 'sequential' | 'letters' | 'custom',
-    unitType: string
+    unitType: string,
+    areaSqm = 0
   ): Apartment[] => {
-    const existingCount = units
-      .filter(u => u.unitType === unitType && u.trackIndividualUnits && u.apartments)
-      .reduce((total, u) => total + (u.apartments?.length || 0), 0);
+    const existingCount = units.reduce((count, unit) => {
+      return count + (unit.apartments?.length || 0);
+    }, 0);
 
     const apartments: Apartment[] = [];
-
     for (let i = 0; i < totalUnits; i++) {
       const globalIndex = existingCount + i;
       let apartmentName = '';
@@ -239,16 +252,40 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       apartments.push({
         key: `apt-${Date.now()}-${i}`,
         apartmentName,
-        status: 'available'
+        area: { value: areaSqm, unit: 'sqm' },
+        status: 'available',
+        saleListPrice: 0,
+        rentListPrice: 0,
       });
     }
 
     return apartments;
   };
 
+  // Auto-generate unitNumber based on block and floor
+  const generateUnitNumber = (blockId: string, floorId: string): string => {
+    const block = blocks.find(b => b.tempId === blockId);
+    const floor = floors.find(f => f.tempId === floorId);
+    
+    if (!block || !floor) return '';
+    
+    // Get existing units on this floor to determine the next number
+    const floorUnits = units.filter(u => u.floorId === floorId);
+    const nextNumber = floorUnits.length + 1;
+    
+    // Format: BlockName-FloorNumber-UnitNumber (e.g., A-0-1, B-1-2)
+    return `${block.name}-${floor.floorNumber}-${nextNumber}`;
+  };
+
   const handleApartmentNameChange = (index: number, value: string) => {
     const updated = [...apartmentNames];
     updated[index].apartmentName = value;
+    setApartmentNames(updated);
+  };
+
+  const handleApartmentAreaChange = (index: number, value: number) => {
+    const updated = [...apartmentNames];
+    updated[index].area = value;
     setApartmentNames(updated);
   };
 
@@ -274,6 +311,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       floorId: unitForm.floorId,
       unitNumber: '',
       unitType: 'one_bedroom',
+      areaSqm: unitForm.areaSqm,
       priceStartPoint: unitForm.priceStartPoint,
       totalUnits: 1,
       trackIndividualUnits: false
@@ -294,6 +332,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       floorId: unitForm.floorId,
       unitNumber: '',
       unitType: 'one_bedroom',
+      areaSqm: unitForm.areaSqm,
       priceStartPoint: unitForm.priceStartPoint,
       totalUnits: 1,
       trackIndividualUnits: false
@@ -375,10 +414,13 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
         setUnits(propertyUnits.map((unit: any, index: number) => ({
           ...unit,
           key: unit._id || `unit_${index}`,
+          priceStartPoint: unit.pricing?.basePrice || unit.basePrice || unit.priceStartPoint || unit.listPrice || 0,
+          basePrice: unit.pricing?.basePrice || unit.basePrice || unit.priceStartPoint || unit.listPrice || 0,
           phasePricing: unit.phasePricing?.map((pricing: any, pIndex: number) => ({
             ...pricing,
+            price: pricing.listPrice || pricing.price || 0,
             phaseId: pricing.phaseId || pricing._id,
-            key: pricing._id || `pricing_${index}_${pIndex}` 
+            key: pricing._id || `pricing_${index}_${pIndex}`
           })) || [],
           apartments: unit.apartments || undefined
         })));
@@ -435,6 +477,8 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
         key: `floor-${Date.now()}-${i}`,
         tempId: `temp-floor-${Date.now()}-${i}`,
         blockTempId: newBlock.tempId,
+        blockId: newBlock.tempId,
+        propertyId: data?._id || '',
         name: floorName,
         floorNumber: i,
         status: 'active'
@@ -532,13 +576,14 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
         unitNumber: unitForm.unitNumber,
         blockId: unitForm.blockId,
         floorId: unitForm.floorId,
+        areaSqm: unitForm.areaSqm,
         basePrice: unitForm.priceStartPoint,
         priceStartPoint: unitForm.priceStartPoint,
         totalUnits: unitForm.totalUnits,
         availableUnits: unitForm.totalUnits,
         status: 'available',
         phasePricing: requiresPhases ? phases.map(phase => ({
-          phaseName,
+          phaseName: phase.name,
           price: unitForm.priceStartPoint,
           active: phase.active,
           startDate: phase.startDate.toISOString(),
@@ -552,7 +597,8 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           unitForm.unitNumber || 'Unit',
           unitForm.totalUnits,
           namingPattern,
-          unitForm.unitType
+          unitForm.unitType,
+          unitForm.areaSqm
         ));
         setApartmentModalVisible(true);
       } else {
@@ -562,6 +608,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           floorId: unitForm.floorId,
           unitNumber: '',
           unitType: 'one_bedroom',
+          areaSqm: unitForm.areaSqm,
           priceStartPoint: unitForm.priceStartPoint,
           totalUnits: 1,
           trackIndividualUnits: false
@@ -824,7 +871,14 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
                 options={availableFloors.map(floor => ({ label: floor.name, value: floor.tempId }))}
                 fieldProps={{
                   value: unitForm.floorId,
-                  onChange: (value) => setUnitForm({ ...unitForm, floorId: value }),
+                  onChange: (value) => {
+                    const autoGeneratedUnitNumber = generateUnitNumber(unitForm.blockId, value);
+                    setUnitForm({ 
+                      ...unitForm, 
+                      floorId: value,
+                      unitNumber: autoGeneratedUnitNumber || unitForm.unitNumber
+                    });
+                  },
                   disabled: !unitForm.blockId,
                   placeholder: unitForm.blockId ? 'Select floor' : 'Select block first'
                 }}
@@ -863,6 +917,18 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
               />
             </div>
           </Col>
+          <Col span={6}>
+            <div style={{ marginBottom: 16 }}>
+              <label>Area (sqm) <span style={{ color: 'red' }}>*</span></label>
+              <InputNumber
+                style={{ width: '100%' }}
+                min={0}
+                placeholder="Enter area in sqm"
+                value={unitForm.areaSqm}
+                onChange={(value) => setUnitForm({ ...unitForm, areaSqm: value || 0 })}
+              />
+            </div>
+          </Col>
         </Row>
         <Row gutter={16}>
           <Col span={8}>
@@ -874,7 +940,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
                 value={unitForm.priceStartPoint}
                 onChange={(value) => setUnitForm({ ...unitForm, priceStartPoint: value || 0 })}
                 formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                parser={(value) => value ? Number(value.replace(/\$\s?|(,*)/g, '')) : 0}
                 placeholder={getPricePlaceholder()}
               />
             </div>
@@ -934,7 +1000,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
                   min={0}
                   placeholder="e.g., 50000"
                   formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                  parser={(value) => value ? Number(value.replace(/\$\s?|(,*)/g, '')) : 0}
                 />
               </div>
             </Col>
@@ -1007,7 +1073,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
               fieldProps={{
                 placeholder: getPricePlaceholder(),
                 formatter: (value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ','),
-                parser: (value) => value!.replace(/\$\s?|(,*)/g, ''),
+                parser: (value) => value ? Number(value.replace(/\$\s?|(,*)/g, '')) : 0,
               }}
             />
           </Col>
@@ -1040,7 +1106,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
                   min={0}
                   placeholder="e.g., 30000"
                   formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                  parser={(value) => value ? Number(value.replace(/\$\s?|(,*)/g, '')) : 0}
                 />
               </div>
             </Col>
@@ -1073,9 +1139,14 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAddPhase}>Add</Button>
         </Col>
       </Row>
-      <Form.Item name="phaseActive" valuePropName="checked" noStyle>
-        <Switch checkedChildren="Set as Active Phase" unCheckedChildren="Set as Active Phase" style={{ marginTop: 16 }} />
+      <Form.Item name="phaseActive" valuePropName="checked" initialValue={phases.length === 0} noStyle>
+        <Switch checkedChildren="Active" unCheckedChildren="Set as Active" style={{ marginTop: 16 }} />
       </Form.Item>
+      {phases.length === 0 && (
+        <div style={{ marginTop: 8, fontSize: 12, color: '#52c41a' }}>
+          ✓ First phase will be automatically set as active
+        </div>
+      )}
     </div>
   );
 
@@ -1162,12 +1233,10 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           return (
             <InputNumber
               value={pricingItem?.price || 0}
-              onChange={(value) => updateUnitPhasePrice(unitIdentifier!, phase.name, Number(value))}
+              onChange={(value) => updateUnitPhasePrice(unitIdentifier!, phase.name, Number(value || 0))}
               placeholder="Enter price"
               min={0}
               style={{ width: '100%' }}
-              formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
             />
           );
         },
@@ -1216,6 +1285,12 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       },
       { title: propertyType === 'land' ? 'Total Plots' : 'Total Units', dataIndex: 'totalUnits', key: 'totalUnits' },
       { title: propertyType === 'land' ? 'Available Plots' : 'Available Units', dataIndex: 'availableUnits', key: 'availableUnits' },
+      ...(propertyType === 'apartment' ? [{
+        title: 'Area (sqm)',
+        dataIndex: 'areaSqm',
+        key: 'areaSqm',
+        render: (area: number) => `${area?.toLocaleString() || 0} sqm`
+      }] : []),
       { title: 'Start Price (KES)', dataIndex: 'priceStartPoint', key: 'priceStartPoint', render: (price: number) => `${price?.toLocaleString() || 0}` },
       {
         title: 'Actions', key: 'actions',
@@ -1311,6 +1386,18 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
             )
           },
           {
+            title: 'Area (sqm)', key: 'area', width: 150,
+            render: (_, record, index) => (
+              <InputNumber
+                value={record.area}
+                onChange={(value) => handleApartmentAreaChange(index, value || 0)}
+                placeholder="Enter area"
+                min={0}
+                style={{ width: '100%' }}
+              />
+            )
+          },
+          {
             title: 'Status', dataIndex: 'status', key: 'status', width: 120,
             render: (status: string) => <Tag color="green">{status}</Tag>
           }
@@ -1332,7 +1419,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       title={`Apartments in ${selectedUnitForView ? getUnitLabel(selectedUnitForView) : ''}`}
       open={viewApartmentsModalVisible}
       onCancel={() => { setViewApartmentsModalVisible(false); setSelectedUnitForView(null); }}
-      width={700}
+      width={800}
       footer={[<Button key="close" onClick={() => setViewApartmentsModalVisible(false)}>Close</Button>]}
     >
       {selectedUnitForView?.apartments && (
@@ -1344,6 +1431,10 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
             { title: '#', key: 'index', width: 50, render: (_, __, index) => index + 1 },
             { title: 'Apartment Name', dataIndex: 'apartmentName', key: 'apartmentName', render: (text: string) => <strong>{text}</strong> },
             {
+              title: 'Area (sqm)', dataIndex: 'area', key: 'area',
+              render: (area: any) => `${area?.value || area || 0} sqm`
+            },
+            {
               title: 'Status', dataIndex: 'status', key: 'status',
               render: (status: string) => (
                 <Tag color={{ available: 'green', sold: 'red', reserved: 'orange' }[status]}>
@@ -1351,11 +1442,132 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
                 </Tag>
               )
             },
-            { title: 'Sold To', dataIndex: 'soldTo', key: 'soldTo', render: (text: string) => text || '-' }
+            {
+              title: 'Sale Price (KES)', dataIndex: 'saleListPrice', key: 'saleListPrice',
+              render: (price: number) => price ? `KES ${price.toLocaleString()}` : '-'
+            },
+            {
+              title: 'Action', key: 'action', width: 80,
+              render: (text: any, record: any, index: number) => (
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => handleEditApartment(record, index)}
+                >
+                  Edit
+                </Button>
+              )
+            }
           ]}
           rowKey={(record) => record.key || record._id!}
         />
       )}
+    </Modal>
+  );
+
+  const handleEditApartment = (apartment: any, index: number) => {
+    setSelectedApartmentForEdit({ ...apartment, index });
+    setEditApartmentForm({
+      apartmentName: apartment.apartmentName || '',
+      areaValue: apartment.area?.value || (typeof apartment.area === 'number' ? apartment.area : 0),
+      saleListPrice: apartment.saleListPrice || 0,
+      status: apartment.status || 'available'
+    });
+    setEditApartmentModalVisible(true);
+  };
+
+  const handleSaveApartmentEdit = () => {
+    if (!selectedUnitForView || !selectedApartmentForEdit) return;
+
+    setUnits(prevUnits => prevUnits.map(unit => {
+      if (unit.key === selectedUnitForView.key || unit._id === selectedUnitForView._id) {
+        const updatedApartments = unit.apartments?.map((apt, idx) => {
+          if (idx === selectedApartmentForEdit.index) {
+            return {
+              ...apt,
+              apartmentName: editApartmentForm.apartmentName,
+              area: {
+                value: editApartmentForm.areaValue,
+                unit: 'sqm'
+              },
+              // For lease/rent properties, set monthlyRent instead of saleListPrice
+              monthlyRent: (propertyPurpose === 'lease' || propertyPurpose === 'rent') ? editApartmentForm.saleListPrice : 0,
+              saleListPrice: (propertyPurpose === 'sale') ? editApartmentForm.saleListPrice : 0,
+              status: editApartmentForm.status
+            };
+          }
+          return apt;
+        });
+
+        // Update selectedUnitForView to reflect changes immediately
+        setSelectedUnitForView({
+          ...unit,
+          apartments: updatedApartments
+        });
+
+        return {
+          ...unit,
+          apartments: updatedApartments
+        };
+      }
+      return unit;
+    }));
+
+    setEditApartmentModalVisible(false);
+    setSelectedApartmentForEdit(null);
+    message.success('Apartment updated successfully');
+  };
+
+  const renderEditApartmentModal = () => (
+    <Modal
+      title="Edit Apartment"
+      open={editApartmentModalVisible}
+      onCancel={() => { setEditApartmentModalVisible(false); setSelectedApartmentForEdit(null); }}
+      width={500}
+      footer={[
+        <Button key="cancel" onClick={() => setEditApartmentModalVisible(false)}>Cancel</Button>,
+        <Button key="save" type="primary" onClick={handleSaveApartmentEdit}>Save</Button>
+      ]}
+    >
+      <Form layout="vertical">
+        <Form.Item label="Apartment Name">
+          <Input
+            value={editApartmentForm.apartmentName}
+            onChange={(e) => setEditApartmentForm({ ...editApartmentForm, apartmentName: e.target.value })}
+            placeholder="Enter apartment name"
+          />
+        </Form.Item>
+        <Form.Item label="Area (sqm)">
+          <InputNumber
+            value={editApartmentForm.areaValue}
+            onChange={(value) => setEditApartmentForm({ ...editApartmentForm, areaValue: value || 0 })}
+            placeholder="Enter area"
+            min={0}
+            style={{ width: '100%' }}
+          />
+        </Form.Item>
+        <Form.Item label={propertyPurpose === 'lease' || propertyPurpose === 'rent' ? 'Monthly Rent (KES)' : 'Sale Price (KES)'}>
+          <InputNumber
+            value={editApartmentForm.saleListPrice}
+            onChange={(value) => setEditApartmentForm({ ...editApartmentForm, saleListPrice: value || 0 })}
+            placeholder={propertyPurpose === 'lease' || propertyPurpose === 'rent' ? 'Enter monthly rent' : 'Enter sale price'}
+            min={0}
+            style={{ width: '100%' }}
+          />
+        </Form.Item>
+        <Form.Item label="Status">
+          <Select
+            value={editApartmentForm.status}
+            onChange={(value) => setEditApartmentForm({ ...editApartmentForm, status: value })}
+          >
+            <Select.Option value="available">Available</Select.Option>
+            <Select.Option value="reserved">Reserved</Select.Option>
+            <Select.Option value="sold">Sold</Select.Option>
+            <Select.Option value="occupied">Occupied</Select.Option>
+            <Select.Option value="under_construction">Under Construction</Select.Option>
+          </Select>
+        </Form.Item>
+      </Form>
     </Modal>
   );
 
@@ -1384,11 +1596,12 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           edit && data ? {
             name: data.name || '',
             propertyType: normalizePropertyType(data.propertyType || ''),
+            propertyPurpose: data.purpose || data.propertyPurpose || 'sale',
             status: data.status || 'available',
-            address: data.location?.address || '',
-            county: data.location?.county || '',
+            address: data.location?.description || data.location?.address || '',
+            county: data.location?.name || data.location?.county || '',
             constituency: data.location?.constituency || '',
-            propertyManager: { label: data.propertyManager?.name || '', value: data.propertyManager?._id || '' },
+            propertyManager: data.propertyManager?._id || data.propertyManager || '',
           } : {
             totalUnits: 1,
             phaseActive: false,
@@ -1414,33 +1627,63 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
               active: phase.active
             })),
             currentPhase: currentPhase || derivedCurrentPhase,
-            units: units.map(unit => ({
-              _id: unit._id,
-              unitType: unit.unitType,
-              unitNumber: unit.unitNumber,
-              blockId: unit.blockId,
-              floorId: unit.floorId,
-              plotSize: unit.plotSize,
-              totalUnits: unit.totalUnits,
-              availableUnits: unit.availableUnits,
-              status: unit.status,
-              basePrice: unit.basePrice || unit.priceStartPoint,
-              price: unit.price || unit.priceStartPoint,
-              priceStartPoint: unit.priceStartPoint,
-              trackIndividualUnits: unit.trackIndividualUnits || false,
-              apartments: unit.apartments || undefined,
-              phasePricing: (unit.phasePricing || []).map(pricing => {
-                const matchingPhase = phases.find(p => p.name === pricing.phaseName);
-                return {
-                  _id: pricing._id,
-                  phaseId: matchingPhase?._id || pricing.phaseId,
-                  phaseName: pricing.phaseName,
-                  price: pricing.price,
-                  active: pricing.active,
-                  startDate: pricing.startDate
-                };
-              })
-            }))
+            units: units.map(unit => {
+              const pricingItem = (unit.phasePricing || []).find(p => p.phaseName === currentPhase) || (unit.phasePricing || [])[0];
+              const price = pricingItem?.price || unit.basePrice || unit.priceStartPoint || 0;
+              const areaSqm = unit.areaSqm || 0;
+              const pricePerSqm = areaSqm > 0 ? price / areaSqm : 0;
+
+              return {
+                _id: unit._id,
+                unitType: unit.unitType,
+                unitNumber: unit.unitNumber,
+                blockId: unit.blockId,
+                floorId: unit.floorId,
+                plotSize: unit.plotSize,
+                totalUnits: unit.totalUnits,
+                availableUnits: unit.availableUnits,
+                status: unit.status,
+                basePrice: unit.basePrice || unit.priceStartPoint,
+                price: unit.price || unit.priceStartPoint,
+                priceStartPoint: unit.priceStartPoint,
+                areaSqm: unit.areaSqm,
+                trackIndividualUnits: unit.trackIndividualUnits || false,
+                apartments: unit.apartments ? unit.apartments.map(apt => ({
+                  ...apt,
+                  area: typeof apt.area === 'object' && apt.area !== null 
+                    ? apt.area 
+                    : {
+                        value: apt.area || unit.areaSqm || 0,
+                        unit: 'sqm'
+                      },
+                  // For lease/rent properties, set monthlyRent for apartments
+                  monthlyRent: (propertyPurpose === 'lease' || propertyPurpose === 'rent') ? (apt.saleListPrice || 0) : 0,
+                  saleListPrice: (propertyPurpose === 'sale') ? apt.saleListPrice : 0,
+                })) : undefined,
+                pricing: {
+                  basePrice: price,
+                  pricePerSqm,
+                  minPrice: price,
+                  maxPrice: price,
+                  currency: 'KES'
+                },
+                // For lease/rent properties, set monthlyRent instead of listPrice
+                monthlyRent: (propertyPurpose === 'lease' || propertyPurpose === 'rent') ? price : 0,
+                listPrice: (propertyPurpose === 'sale') ? price : 0,
+                phasePricing: (unit.phasePricing || []).map(pricing => {
+                  const matchingPhase = phases.find(p => p.name === pricing.phaseName);
+                  return {
+                    _id: pricing._id,
+                    phaseId: matchingPhase?._id || pricing.phaseId,
+                    phaseName: pricing.phaseName,
+                    price: pricing.price,
+                    listPrice: (propertyPurpose === 'sale') ? pricing.price : 0,
+                    active: pricing.active,
+                    startDate: pricing.startDate
+                  };
+                })
+              };
+            })
           };
 
           const resolvedType = normalizePropertyType(formRef.getFieldValue('propertyType') || propertyType);
@@ -1776,6 +2019,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
 
       {renderApartmentNamingModal()}
       {renderViewApartmentsModal()}
+      {renderEditApartmentModal()}
     </>
   );
 };

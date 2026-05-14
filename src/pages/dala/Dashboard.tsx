@@ -6,7 +6,6 @@ import {
   Typography,
   Space,
   Select,
-  Badge,
   Tag,
   Table,
   Spin,
@@ -19,30 +18,20 @@ import {
 import {
     HomeOutlined,
     DollarOutlined,
-    FileTextOutlined,
-    PlusOutlined,
-    EyeOutlined,
     CalendarOutlined,
     TrophyOutlined,
-    FireOutlined,
     ArrowUpOutlined,
     ArrowDownOutlined,
     SyncOutlined,
     DashboardOutlined,
-    RiseOutlined,
-    FallOutlined,
-    BankOutlined,
-    WarningOutlined,
+    BuildOutlined as ToolOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchDalaDashboard } from '@services/dala';
 import { useDalaDashboard } from '../../stores/dalaStore';
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -69,28 +58,10 @@ const fmtK = (v: number) => {
     return fmt(v);
 };
 
-const PROPERTY_COLORS = {
-    apartments: "#6366f1",
-    houses: "#3b82f6", 
-    commercial: "#06b6d4",
-    land: "#10b981",
-};
-
-const EXPENSE_PALETTE = ["#ef4444", "#f97316", "#eab308", "#84cc16", "#22c55e"];
-
 const MONTH_LABELS: string[] = [
     "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
-
-const PROPERTY_SOURCE_COLORS: Record<string, string> = {
-    direct_listing: "#6366f1",
-    agent_referral: "#3b82f6",
-    website: "#06b6d4",
-    social_media: "#10b981",
-    walk_in: "#f59e0b",
-    other: "#8b5cf6",
-};
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
@@ -172,7 +143,6 @@ const KPICard: React.FC<KPICardProps> = ({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const DalaDashboard: React.FC = () => {
-    const navigate = useNavigate();
     const { data: dashboard, setDashboard } = useDalaDashboard();
     const primaryColor = usePrimaryColor();
     const now = dayjs();
@@ -180,36 +150,97 @@ const DalaDashboard: React.FC = () => {
     const [fiscalYear, setFiscalYear] = useState(now.year());
     const [fiscalMonth, setFiscalMonth] = useState(now.month() + 1);
 
+    const normalizeDashboardData = (payload: any) => {
+        const source = payload?.data || payload || {};
+        const summary = source.summary || {};
+        const salesStats = source.salesStats || {};
+        const leaseStats = source.leaseStats || {};
+        const rentalStats = source.rentalStats || {};
+        const commissionStats = source.commissionStats || {};
+        const maintenanceStats = source.maintenanceStats || {};
+
+        return {
+            ...source,
+            summary,
+            salesStats,
+            leaseStats,
+            rentalStats,
+            commissionStats,
+            maintenanceStats,
+            totalProperties: source.totalProperties ?? summary.totalProperties ?? 0,
+            totalUnits: source.totalUnits ?? summary.totalUnits ?? 0,
+            availableUnits: source.availableUnits ?? summary.availableUnits ?? 0,
+            soldProperties: source.soldProperties ?? summary.soldUnits ?? 0,
+            leasedProperties: source.leasedProperties ?? summary.occupiedUnits ?? 0,
+            propertiesForSale: source.propertiesForSale ?? summary.availableUnits ?? 0,
+            propertiesForLease: source.propertiesForLease ?? summary.occupiedUnits ?? 0,
+            totalRevenue: source.totalRevenue ?? summary.totalRevenue ?? salesStats.totalRevenue ?? 0,
+            monthlySalesRevenue: source.monthlySalesRevenue ?? summary.totalSalesRevenue ?? salesStats.totalRevenue ?? 0,
+            monthlyRentCollected: source.monthlyRentCollected ?? summary.totalRentRevenue ?? rentalStats.totalCollected ?? 0,
+            monthlyRentBilled: source.monthlyRentBilled ?? rentalStats.totalBilled ?? leaseStats.totalRentAmount ?? 0,
+            rentOutstanding: source.rentOutstanding ?? rentalStats.outstandingBalance ?? 0,
+            pendingSalesRevenue: source.pendingSalesRevenue ?? salesStats.pendingRevenue ?? 0,
+            totalCommission: source.totalCommission ?? summary.totalCommission ?? commissionStats.totalCommission ?? 0,
+            monthlyCommission: source.monthlyCommission ?? commissionStats.totalCommission ?? summary.totalCommission ?? 0,
+            pendingSales: source.pendingSales ?? salesStats.pendingSales ?? 0,
+            completedSales: source.completedSales ?? salesStats.completedSales ?? 0,
+            cancelledSales: source.cancelledSales ?? salesStats.cancelledSales ?? 0,
+            totalSales: source.totalSales ?? salesStats.totalSales ?? 0,
+            activeLeases: source.activeLeases ?? leaseStats.activeLeases ?? 0,
+            pendingLeases: source.pendingLeases ?? leaseStats.pendingLeases ?? 0,
+            expiredLeases: source.expiredLeases ?? leaseStats.expiredLeases ?? 0,
+            totalLeases: source.totalLeases ?? leaseStats.totalLeases ?? 0,
+            totalMaintenanceTickets: source.totalMaintenanceTickets ?? summary.totalMaintenanceTickets ?? maintenanceStats.totalTickets ?? 0,
+            openMaintenanceTickets: source.openMaintenanceTickets ?? summary.openMaintenanceTickets ?? maintenanceStats.openTickets ?? 0,
+            occupancyRate: source.occupancyRate ?? summary.occupancyRate ?? 0,
+            recentSales: source.recentSales || [],
+            recentLeases: source.recentLeases || [],
+            recentRentPayments: source.recentRentPayments || [],
+            recentMaintenanceTickets: source.recentMaintenanceTickets || [],
+            propertyTypes: source.propertyTypes || [
+                {
+                    type: 'Available',
+                    count: summary.availableUnits || 0,
+                    occupancyRate: 0,
+                },
+                {
+                    type: 'Occupied',
+                    count: summary.occupiedUnits || 0,
+                    occupancyRate: summary.occupancyRate || 0,
+                },
+            ].filter((item) => item.count > 0),
+        };
+    };
+
     const { data, isLoading, isFetching, isError, refetch } = useQuery({
         queryKey: ['dala-dashboard'],
-        queryFn: fetchDalaDashboard,
+        queryFn: () => fetchDalaDashboard(),
         onSuccess: (data) => {
-            setDashboard(data.data);
+            setDashboard(normalizeDashboardData(data));
         },
     });
 
+    const dashboardData = normalizeDashboardData(data || dashboard);
+
     // Extract real data from dashboard API response
-    const revenueData = dashboard?.revenueTrend || [];
-    const occupancyData = dashboard?.occupancyData || [];
-    const propertyTypeData = dashboard?.propertyTypes || [];
-    const performanceMetrics = dashboard?.performanceMetrics || {};
+    const revenueData = dashboardData?.revenueTrend || [
+        {
+            month: MONTH_LABELS[fiscalMonth],
+            revenue: dashboardData?.summary?.totalSalesRevenue || 0,
+            rent: dashboardData?.summary?.totalRentRevenue || 0,
+            total: dashboardData?.summary?.totalRevenue || 0,
+        },
+    ];
+    const propertyTypeData = dashboardData?.propertyTypes || [];
 
     // ── Chart data ─────────────────────────────────────────────────────────────
 
     const plChartData = revenueData.map((m: any) => ({
         name: m.month,
-        Revenue: m.revenue || 0,
-        Expenses: m.expenses || 0,
-        "Net P/L": (m.revenue || 0) - (m.expenses || 0),
+        "Sales Revenue": m.revenue || 0,
+        "Rent Revenue": m.rent || 0,
+        "Total Revenue": m.total || (m.revenue || 0) + (m.rent || 0),
     }));
-
-    const propertySourceData = [
-        { name: "Direct Listing", value: dashboard?.propertySources?.direct_listing || 5, color: PROPERTY_SOURCE_COLORS.direct_listing },
-        { name: "Agent Referral", value: dashboard?.propertySources?.agent_referral || 3, color: PROPERTY_SOURCE_COLORS.agent_referral },
-        { name: "Website", value: dashboard?.propertySources?.website || 8, color: PROPERTY_SOURCE_COLORS.website },
-        { name: "Social Media", value: dashboard?.propertySources?.social_media || 2, color: PROPERTY_SOURCE_COLORS.social_media },
-        { name: "Walk In", value: dashboard?.propertySources?.walk_in || 1, color: PROPERTY_SOURCE_COLORS.walk_in },
-    ].filter(item => item.value > 0);
 
     // ── Year options ───────────────────────────────────────────────────────────
 
@@ -250,8 +281,15 @@ const DalaDashboard: React.FC = () => {
         );
     }
 
-    const recentSales = dashboard?.recentSales || [];
-    const upcomingRentPayments = dashboard?.upcomingRentPayments || [];
+    const recentSales = dashboardData?.recentSales || [];
+    const recentLeases = dashboardData?.recentLeases || [];
+    const recentRentPayments = dashboardData?.recentRentPayments || [];
+    const recentMaintenanceTickets = dashboardData?.recentMaintenanceTickets || [];
+    const unitStatusData = [
+        { name: "Available", value: dashboardData?.availableUnits || 0, color: "#10b981" },
+        { name: "Occupied", value: dashboardData?.leasedProperties || 0, color: "#3b82f6" },
+        { name: "Sold", value: dashboardData?.soldProperties || 0, color: "#f59e0b" },
+    ].filter(item => item.value > 0);
 
     return (
         <App>
@@ -310,9 +348,6 @@ const DalaDashboard: React.FC = () => {
                         >
                             Refresh
                         </Button>
-                        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dala/properties')}>
-                            Add Property
-                        </Button>
                     </Space>
                 </div>
 
@@ -321,7 +356,7 @@ const DalaDashboard: React.FC = () => {
                     <Col xs={24} sm={12} lg={6}>
                         <KPICard
                             title="Total Properties"
-                            value={dashboard?.totalProperties || 0}
+                            value={dashboardData?.totalProperties || 0}
                             icon={<HomeOutlined />}
                             color="#6366f1"
                             bg="#eef2ff"
@@ -331,8 +366,8 @@ const DalaDashboard: React.FC = () => {
                     </Col>
                     <Col xs={24} sm={12} lg={6}>
                         <KPICard
-                            title="Properties for Sale"
-                            value={dashboard?.propertiesForSale || 0}
+                            title="Available Units"
+                            value={dashboardData?.propertiesForSale || 0}
                             icon={<DollarOutlined />}
                             color="#10b981"
                             bg="#f0fdf4"
@@ -342,8 +377,8 @@ const DalaDashboard: React.FC = () => {
                     </Col>
                     <Col xs={24} sm={12} lg={6}>
                         <KPICard
-                            title="Properties for Lease"
-                            value={dashboard?.propertiesForLease || 0}
+                            title="Occupied Units"
+                            value={dashboardData?.propertiesForLease || 0}
                             icon={<CalendarOutlined />}
                             color="#3b82f6"
                             bg="#eff6ff"
@@ -353,8 +388,8 @@ const DalaDashboard: React.FC = () => {
                     </Col>
                     <Col xs={24} sm={12} lg={6}>
                         <KPICard
-                            title="Active Transactions"
-                            value={(dashboard?.activeLeases || 0) + (dashboard?.pendingSales || 0)}
+                            title="Total Revenue"
+                            value={dashboardData?.totalRevenue || 0}
                             icon={<TrophyOutlined />}
                             color="#f59e0b"
                             bg="#fff7ed"
@@ -364,11 +399,11 @@ const DalaDashboard: React.FC = () => {
                     </Col>
                 </Row>
 
-                {/* ── Section 2: Revenue Trend + Occupancy Pie ── */}
+                {/* ── Section 2: Revenue + Portfolio Mix ── */}
                 <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
                     <Col xs={24} lg={16}>
                         <ProCard
-                            title={<Text strong>Revenue Overview — Last 6 Months</Text>}
+                            title={<Text strong>Revenue Overview</Text>}
                             bordered
                             bodyStyle={{ paddingTop: 8 }}
                             size="small"
@@ -383,9 +418,9 @@ const DalaDashboard: React.FC = () => {
                                         contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
                                     />
                                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                                    <Line type="monotone" dataKey="Revenue" stroke="#10b981" strokeWidth={2.5} dot={false} name="Sales Revenue" />
-                                    <Line type="monotone" dataKey="Expenses" stroke="#3b82f6" strokeWidth={2.5} dot={false} name="Rental Income" />
-                                    <Line type="monotone" dataKey="Net P/L" stroke="#6366f1" strokeWidth={2} dot={false} strokeDasharray="4 4" name="Total Revenue" />
+                                    <Line type="monotone" dataKey="Sales Revenue" stroke="#10b981" strokeWidth={2.5} dot={false} />
+                                    <Line type="monotone" dataKey="Rent Revenue" stroke="#3b82f6" strokeWidth={2.5} dot={false} />
+                                    <Line type="monotone" dataKey="Total Revenue" stroke="#6366f1" strokeWidth={2} dot={false} strokeDasharray="4 4" />
                                 </LineChart>
                             </ResponsiveContainer>
                         </ProCard>
@@ -393,7 +428,7 @@ const DalaDashboard: React.FC = () => {
 
                     <Col xs={24} lg={8}>
                         <ProCard
-                            title={<Text strong>Property Types</Text>}
+                            title={<Text strong>Unit Status</Text>}
                             bordered
                             bodyStyle={{ paddingTop: 8 }}
                             size="small"
@@ -402,11 +437,8 @@ const DalaDashboard: React.FC = () => {
                                 <PieChart>
                                     <Pie
                                         data={[
-                                            { name: "For Sale", value: dashboard?.propertiesForSale || 0, color: "#10b981" },
-                                            { name: "For Lease", value: dashboard?.propertiesForLease || 0, color: "#3b82f6" },
-                                            { name: "Sold", value: dashboard?.soldProperties || 0, color: "#f59e0b" },
-                                            { name: "Leased", value: dashboard?.leasedProperties || 0, color: "#ef4444" },
-                                        ].filter(item => item.value > 0)}
+                                            ...unitStatusData
+                                        ]}
                                         dataKey="value"
                                         nameKey="name"
                                         cx="50%"
@@ -415,11 +447,8 @@ const DalaDashboard: React.FC = () => {
                                         innerRadius={30}
                                     >
                                         {[
-                                            { name: "For Sale", value: dashboard?.propertiesForSale || 0, color: "#10b981" },
-                                            { name: "For Lease", value: dashboard?.propertiesForLease || 0, color: "#3b82f6" },
-                                            { name: "Sold", value: dashboard?.soldProperties || 0, color: "#f59e0b" },
-                                            { name: "Leased", value: dashboard?.leasedProperties || 0, color: "#ef4444" },
-                                        ].filter(item => item.value > 0).map((entry, i) => (
+                                            ...unitStatusData
+                                        ].map((entry, i) => (
                                             <Cell key={i} fill={entry.color} />
                                         ))}
                                     </Pie>
@@ -431,11 +460,8 @@ const DalaDashboard: React.FC = () => {
                             </ResponsiveContainer>
                             <div style={{ marginTop: 8 }}>
                                 {[
-                                    { name: "For Sale", value: dashboard?.propertiesForSale || 0, color: "#10b981" },
-                                    { name: "For Lease", value: dashboard?.propertiesForLease || 0, color: "#3b82f6" },
-                                    { name: "Sold", value: dashboard?.soldProperties || 0, color: "#f59e0b" },
-                                    { name: "Leased", value: dashboard?.leasedProperties || 0, color: "#ef4444" },
-                                ].filter(item => item.value > 0).map((e, i) => (
+                                    ...unitStatusData
+                                ].map((e, i) => (
                                     <div
                                         key={i}
                                         style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}
@@ -477,19 +503,19 @@ const DalaDashboard: React.FC = () => {
                                         Monthly Rental Income
                                     </Text>
                                     <Text strong style={{ fontSize: 20, color: "#10b981" }}>
-                                        KES {fmtK(dashboard?.monthlyRentCollected || 0)}
+                                        KES {fmtK(dashboardData?.monthlyRentCollected || 0)}
                                     </Text>
                                     <div style={{ marginTop: 6, display: "flex", gap: 16 }}>
                                         <div>
                                             <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Expected</Text>
                                             <Text style={{ fontSize: 12, color: "#1d39c4" }}>
-                                                {fmtK(dashboard?.monthlyRentBilled || 0)}
+                                                {fmtK(dashboardData?.monthlyRentBilled || 0)}
                                             </Text>
                                         </div>
                                         <div>
                                             <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Outstanding</Text>
                                             <Text style={{ fontSize: 12, color: "#ef4444" }}>
-                                                {fmtK(dashboard?.rentOutstanding || 0)}
+                                                {fmtK(dashboardData?.rentOutstanding || 0)}
                                             </Text>
                                         </div>
                                     </div>
@@ -506,19 +532,19 @@ const DalaDashboard: React.FC = () => {
                                         Monthly Sales Revenue
                                     </Text>
                                     <Text strong style={{ fontSize: 20, color: "#3b82f6" }}>
-                                        KES {fmtK(dashboard?.monthlySalesRevenue || 0)}
+                                        KES {fmtK(dashboardData?.monthlySalesRevenue || 0)}
                                     </Text>
                                     <div style={{ marginTop: 6, display: "flex", gap: 16 }}>
                                         <div>
                                             <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Pending</Text>
                                             <Text style={{ fontSize: 12, color: "#f59e0b" }}>
-                                                {fmtK(dashboard?.pendingSalesRevenue || 0)}
+                                                {fmtK(dashboardData?.pendingSalesRevenue || 0)}
                                             </Text>
                                         </div>
                                         <div>
                                             <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Commission</Text>
                                             <Text style={{ fontSize: 12, color: "#10b981" }}>
-                                                {fmtK(dashboard?.monthlyCommission || 0)}
+                                                {fmtK(dashboardData?.monthlyCommission || 0)}
                                             </Text>
                                         </div>
                                     </div>
@@ -533,7 +559,7 @@ const DalaDashboard: React.FC = () => {
                             title={<Text strong>Property Status</Text>}
                             extra={
                                 <Text strong style={{ color: "#3b82f6", fontSize: 14 }}>
-                                    {dashboard?.totalProperties || 0} Properties
+                                    {dashboardData?.totalProperties || 0} Properties
                                 </Text>
                             }
                             bordered
@@ -582,15 +608,15 @@ const DalaDashboard: React.FC = () => {
                             <Space direction="vertical" size={10} style={{ width: "100%" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#f0fdf4", borderRadius: 8 }}>
                                     <Text style={{ fontSize: 12, color: "#64748b" }}>Active Leases</Text>
-                                    <Text strong style={{ color: "#10b981" }}>{dashboard?.activeLeases || 0}</Text>
+                                    <Text strong style={{ color: "#10b981" }}>{dashboardData?.activeLeases || 0}</Text>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#eff6ff", borderRadius: 8 }}>
                                     <Text style={{ fontSize: 12, color: "#64748b" }}>Pending Sales</Text>
-                                    <Text strong style={{ color: "#3b82f6" }}>{dashboard?.pendingSales || 0}</Text>
+                                    <Text strong style={{ color: "#3b82f6" }}>{dashboardData?.pendingSales || 0}</Text>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#fff7ed", borderRadius: 8 }}>
                                     <Text style={{ fontSize: 12, color: "#64748b" }}>Completed Sales</Text>
-                                    <Text strong style={{ color: "#f59e0b" }}>{dashboard?.completedSales || 0}</Text>
+                                    <Text strong style={{ color: "#f59e0b" }}>{dashboardData?.completedSales || 0}</Text>
                                 </div>
                                 <div
                                     style={{
@@ -607,7 +633,7 @@ const DalaDashboard: React.FC = () => {
                                         Total This Month
                                     </Text>
                                     <Text strong style={{ fontSize: 16, color: "#0f172a" }}>
-                                        {(dashboard?.activeLeases || 0) + (dashboard?.pendingSales || 0) + (dashboard?.completedSales || 0)}
+                                        {(dashboardData?.activeLeases || 0) + (dashboardData?.pendingSales || 0) + (dashboardData?.completedSales || 0)}
                                     </Text>
                                 </div>
 
@@ -615,12 +641,12 @@ const DalaDashboard: React.FC = () => {
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingTop: 4 }}>
                                     <Tooltip title="Lease renewal rate">
                                         <div style={{ background: "#f0fdf4", borderRadius: 6, padding: "4px 10px", fontSize: 11 }}>
-                                            🔄 {dashboard?.renewalRate || 0}% Renewal
+                                            🏠 {dashboardData?.occupancyRate || 0}% Occupancy
                                         </div>
                                     </Tooltip>
                                     <Tooltip title="Sales conversion rate">
                                         <div style={{ background: "#eff6ff", borderRadius: 6, padding: "4px 10px", fontSize: 11 }}>
-                                            💰 {dashboard?.salesConversionRate || 0}% Conversion
+                                            💰 {dashboardData?.completedSales || 0}/{dashboardData?.totalSales || 0} Completed
                                         </div>
                                     </Tooltip>
                                 </div>
@@ -629,22 +655,22 @@ const DalaDashboard: React.FC = () => {
                     </Col>
                 </Row>
 
-                {/* ── Section 4: Property Performance Metrics ── */}
+                {/* ── Section 4: Sales, Leases and Collections ── */}
                 <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
                     <Col xs={24} lg={8}>
-                        <ProCard title={<Text strong>Lease Activity</Text>} bordered size="small">
+                        <ProCard title={<Text strong>Sales Pipeline</Text>} bordered size="small">
                             <Space direction="vertical" size={10} style={{ width: "100%" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#f0fdf4", borderRadius: 8 }}>
-                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Active Leases</Text>
-                                    <Text strong style={{ color: "#10b981" }}>{dashboard?.activeLeases || 0}</Text>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Completed Revenue</Text>
+                                    <Text strong style={{ color: "#10b981" }}>KES {fmtK(dashboardData?.salesStats?.completedRevenue || 0)}</Text>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#fff7ed", borderRadius: 8 }}>
-                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Expiring This Month</Text>
-                                    <Text strong style={{ color: "#f59e0b" }}>{dashboard?.expiringLeases || 0}</Text>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Pending Revenue</Text>
+                                    <Text strong style={{ color: "#f59e0b" }}>KES {fmtK(dashboardData?.salesStats?.pendingRevenue || 0)}</Text>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#eff6ff", borderRadius: 8 }}>
-                                    <Text style={{ fontSize: 12, color: "#64748b" }}>New This Month</Text>
-                                    <Text strong style={{ color: "#3b82f6" }}>{dashboard?.newLeases || 0}</Text>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Cancelled Sales</Text>
+                                    <Text strong style={{ color: "#3b82f6" }}>{dashboardData?.cancelledSales || 0}</Text>
                                 </div>
                                 <div
                                     style={{
@@ -658,106 +684,54 @@ const DalaDashboard: React.FC = () => {
                                     }}
                                 >
                                     <Text style={{ fontSize: 12, fontWeight: 600 }}>
-                                        Avg Lease Duration
+                                        Total Sales
                                     </Text>
                                     <Text strong style={{ fontSize: 16, color: "#0f172a" }}>
-                                        {dashboard?.averageLeaseDuration || 0} months
+                                        {dashboardData?.totalSales || 0}
                                     </Text>
-                                </div>
-
-                                {/* Lease status pills */}
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingTop: 4 }}>
-                                    <Tooltip title="Renewal rate">
-                                        <div style={{ background: "#f0fdf4", borderRadius: 6, padding: "4px 10px", fontSize: 11 }}>
-                                            � {dashboard?.renewalRate || 0}% Renewal
-                                        </div>
-                                    </Tooltip>
-                                    <Tooltip title="Vacancy rate">
-                                        <div style={{ background: "#fff7ed", borderRadius: 6, padding: "4px 10px", fontSize: 11, color: "#f59e0b" }}>
-                                            🔑 {dashboard?.vacancyRate || 0}% Vacancy
-                                        </div>
-                                    </Tooltip>
                                 </div>
                             </Space>
                         </ProCard>
                     </Col>
 
                     <Col xs={24} lg={8}>
-                        <ProCard title={<Text strong>Tenant Satisfaction</Text>} bordered size="small">
-                            <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                                {/* Satisfaction Metrics */}
-                                <div>
-                                    <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 6 }}>
-                                        Satisfaction Scores
-                                    </Text>
-                                    {[
-                                        { metric: "Overall", score: dashboard?.tenantSatisfaction || 0, color: "#10b981" },
-                                        { metric: "Maintenance", score: dashboard?.maintenanceSatisfaction || 0, color: "#3b82f6" },
-                                        { metric: "Communication", score: dashboard?.communicationSatisfaction || 0, color: "#f59e0b" },
-                                    ].map((item) => (
-                                        <div key={item.metric} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                            <Space size={6}>
-                                                <div
-                                                    style={{
-                                                        width: 8, height: 8, borderRadius: "50%",
-                                                        background: item.color, flexShrink: 0,
-                                                    }}
-                                                />
-                                                <Text style={{ fontSize: 12 }}>{item.metric}</Text>
-                                            </Space>
-                                            <Space>
-                                                <Text strong style={{ fontSize: 12, color: item.color }}>
-                                                    {item.score}/5.0
-                                                </Text>
-                                            </Space>
-                                        </div>
-                                    ))}
-                                    <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 6, paddingTop: 6 }}>
-                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                            <Text style={{ fontSize: 11, color: "#64748b" }}>Response Rate</Text>
-                                            <Text strong style={{ color: "#0f172a", fontSize: 12 }}>
-                                                {dashboard?.surveyResponseRate || 0}%
-                                            </Text>
-                                        </div>
-                                    </div>
+                        <ProCard title={<Text strong>Lease Summary</Text>} bordered size="small">
+                            <Space direction="vertical" size={10} style={{ width: "100%" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#f0fdf4", borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Active Leases</Text>
+                                    <Text strong style={{ color: "#10b981" }}>{dashboardData?.activeLeases || 0}</Text>
                                 </div>
-
-                                {/* Recent complaints alert */}
-                                {(dashboard?.recentComplaints || 0) > 0 && (
-                                    <Alert
-                                        type="warning"
-                                        showIcon
-                                        icon={<WarningOutlined />}
-                                        message={`${dashboard?.recentComplaints || 0} complaint${(dashboard?.recentComplaints || 0) > 1 ? "s" : ""} this week`}
-                                        style={{ padding: "4px 10px", fontSize: 12 }}
-                                    />
-                                )}
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#eff6ff", borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Total Rent Amount</Text>
+                                    <Text strong style={{ color: "#3b82f6" }}>KES {fmtK(dashboardData?.leaseStats?.totalRentAmount || 0)}</Text>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#fff7ed", borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Deposits Paid</Text>
+                                    <Text strong style={{ color: "#f59e0b" }}>KES {fmtK(dashboardData?.leaseStats?.totalDepositPaid || 0)}</Text>
+                                </div>
+                                <Progress percent={dashboardData?.occupancyRate || 0} strokeColor={primaryColor} size="small" />
                             </Space>
                         </ProCard>
                     </Col>
 
                     <Col xs={24} lg={8}>
                         <ProCard
-                            title={<Text strong>Property Insights</Text>}
+                            title={<Text strong>Rental Collection</Text>}
                             bordered
                             size="small"
                         >
                             <Space direction="vertical" size={10} style={{ width: "100%" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#f0fdf4", borderRadius: 8 }}>
-                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Avg Rent/sq ft</Text>
-                                    <Text strong style={{ color: "#10b981" }}>KES {dashboard?.avgRentPerSqft || 0}</Text>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Collected</Text>
+                                    <Text strong style={{ color: "#10b981" }}>KES {fmtK(dashboardData?.rentalStats?.totalCollected || 0)}</Text>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#eff6ff", borderRadius: 8 }}>
-                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Time to Lease</Text>
-                                    <Text strong style={{ color: "#3b82f6" }}>
-                                        {dashboard?.timeToLease || 0} days
-                                    </Text>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Total Billed</Text>
+                                    <Text strong style={{ color: "#3b82f6" }}>KES {fmtK(dashboardData?.rentalStats?.totalBilled || 0)}</Text>
                                 </div>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#fff7ed", borderRadius: 8 }}>
-                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Turnover Rate</Text>
-                                    <Text strong style={{ color: "#f59e0b" }}>
-                                        {dashboard?.turnoverRate || 0}%
-                                    </Text>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Outstanding</Text>
+                                    <Text strong style={{ color: "#f59e0b" }}>KES {fmtK(dashboardData?.rentalStats?.outstandingBalance || 0)}</Text>
                                 </div>
                                 <div
                                     style={{
@@ -771,10 +745,10 @@ const DalaDashboard: React.FC = () => {
                                     }}
                                 >
                                     <Text style={{ fontSize: 12, fontWeight: 600 }}>
-                                        Net Operating Income
+                                        Paid Invoices
                                     </Text>
                                     <Text strong style={{ fontSize: 16, color: "#0f172a" }}>
-                                        KES {fmtK(dashboard?.netOperatingIncome || 0)}
+                                        {dashboardData?.rentalStats?.paidInvoices || 0}/{dashboardData?.rentalStats?.totalInvoices || 0}
                                     </Text>
                                 </div>
                             </Space>
@@ -783,8 +757,55 @@ const DalaDashboard: React.FC = () => {
                 </Row>
 
                 {/* ── Section 5: Recent Activities ── */}
+                <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+                    <Col xs={24} sm={12} lg={6}>
+                        <KPICard
+                            title="Maintenance Tickets"
+                            value={dashboardData?.totalMaintenanceTickets || 0}
+                            icon={<ToolOutlined />}
+                            color="#722ed1"
+                            bg="#f9f0ff"
+                            pctChange={null}
+                            prefix=""
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <KPICard
+                            title="Open Maintenance"
+                            value={dashboardData?.openMaintenanceTickets || 0}
+                            icon={<ToolOutlined />}
+                            color="#faad14"
+                            bg="#fffbe6"
+                            pctChange={null}
+                            prefix=""
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <KPICard
+                            title="Urgent Tickets"
+                            value={dashboardData?.maintenanceStats?.urgentTickets || 0}
+                            icon={<ToolOutlined />}
+                            color="#ff4d4f"
+                            bg="#fff1f0"
+                            pctChange={null}
+                            prefix=""
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <KPICard
+                            title="Maintenance Cost"
+                            value={dashboardData?.maintenanceStats?.actualCost || dashboardData?.maintenanceStats?.estimatedCost || 0}
+                            icon={<DollarOutlined />}
+                            color="#13c2c2"
+                            bg="#e6fffb"
+                            pctChange={null}
+                            prefix="KES"
+                        />
+                    </Col>
+                </Row>
+
                 <Row gutter={[16, 16]}>
-                    <Col xs={24} lg={12}>
+                    <Col xs={24} lg={8}>
                         <ProCard
                             title={<Text strong>Recent Sales</Text>}
                             bordered
@@ -797,36 +818,24 @@ const DalaDashboard: React.FC = () => {
                                 columns={[
                                     {
                                         title: "Property",
-                                        dataIndex: ["property", "name"],
+                                        dataIndex: "propertyName",
                                         width: 120,
                                         render: (v: string, record: any) => (
                                             <Space direction="vertical" size={0}>
-                                                <Text style={{ fontSize: 12, fontWeight: 600 }}>{v}</Text>
-                                                {record.property?.type && (
-                                                    <Text style={{ fontSize: 10, color: "#94a3b8" }}>{record.property.type}</Text>
-                                                )}
+                                                <Text style={{ fontSize: 12, fontWeight: 600 }}>{v || "N/A"}</Text>
+                                                <Text style={{ fontSize: 10, color: "#94a3b8" }}>{record.saleCode}</Text>
                                             </Space>
                                         ),
                                     },
                                     {
                                         title: "Client",
-                                        dataIndex: ["client", "name"],
+                                        dataIndex: "customerName",
                                         width: 100,
-                                        render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
-                                    },
-                                    {
-                                        title: "Date",
-                                        dataIndex: "createdAt",
-                                        width: 80,
-                                        render: (date: string) => (
-                                            <Text style={{ fontSize: 11, color: "#64748b" }}>
-                                                {dayjs(date).format("DD MMM")}
-                                            </Text>
-                                        ),
+                                        render: (v: string) => <Text style={{ fontSize: 12 }}>{v || "N/A"}</Text>,
                                     },
                                     {
                                         title: "Amount",
-                                        dataIndex: "sale_price",
+                                        dataIndex: "salePrice",
                                         align: "right" as const,
                                         width: 100,
                                         render: (v: number) => (
@@ -861,41 +870,33 @@ const DalaDashboard: React.FC = () => {
                         </ProCard>
                     </Col>
 
-                    <Col xs={24} lg={12}>
+                    <Col xs={24} lg={8}>
                         <ProCard
-                            title={<Text strong>Upcoming Rent Payments</Text>}
+                            title={<Text strong>Recent Leases</Text>}
                             bordered
                             size="small"
                             bodyStyle={{ padding: 0 }}
                         >
                             <Table
                                 rowKey="_id"
-                                dataSource={upcomingRentPayments}
+                                dataSource={recentLeases}
                                 columns={[
                                     {
-                                        title: "Unit",
-                                        dataIndex: ["unit", "name"],
-                                        width: 80,
+                                        title: "Property",
+                                        dataIndex: "propertyName",
+                                        width: 110,
                                         render: (v: string, record: any) => (
                                             <Space direction="vertical" size={0}>
-                                                <Text style={{ fontSize: 12, fontWeight: 600 }}>{v}</Text>
-                                                {record.unit?.type && (
-                                                    <Text style={{ fontSize: 10, color: "#94a3b8" }}>{record.unit.type}</Text>
-                                                )}
+                                                <Text style={{ fontSize: 12, fontWeight: 600 }}>{v || "N/A"}</Text>
+                                                <Text style={{ fontSize: 10, color: "#94a3b8" }}>{record.unitName || "-"}</Text>
                                             </Space>
                                         ),
                                     },
                                     {
-                                        title: "Tenant",
-                                        dataIndex: ["tenant", "name"],
-                                        width: 100,
-                                        render: (v: string) => <Text style={{ fontSize: 12 }}>{v}</Text>,
-                                    },
-                                    {
-                                        title: "Amount",
-                                        dataIndex: "amount",
+                                        title: "Rent",
+                                        dataIndex: "rentAmount",
                                         align: "right" as const,
-                                        width: 100,
+                                        width: 80,
                                         render: (v: number) => (
                                             <Text strong style={{ fontSize: 12, color: "#1d39c4" }}>
                                                 {fmtK(v)}
@@ -903,9 +904,9 @@ const DalaDashboard: React.FC = () => {
                                         ),
                                     },
                                     {
-                                        title: "Due",
-                                        dataIndex: "due_date",
-                                        width: 70,
+                                        title: "Ends",
+                                        dataIndex: "endDate",
+                                        width: 80,
                                         render: (date: string) => (
                                             <Text style={{ fontSize: 11, color: "#64748b" }}>
                                                 {dayjs(date).format("DD MMM")}
@@ -919,8 +920,8 @@ const DalaDashboard: React.FC = () => {
                                         render: (status: string) => (
                                             <Tag
                                                 style={{
-                                                    background: status === 'overdue' ? "#fef2f2" : status === 'pending' ? "#fff7ed" : "#f0fdf4",
-                                                    color: status === 'overdue' ? "#ef4444" : status === 'pending' ? "#f59e0b" : "#10b981",
+                                                    background: status === 'active' ? "#f0fdf4" : status === 'pending' ? "#fff7ed" : "#fef2f2",
+                                                    color: status === 'active' ? "#10b981" : status === 'pending' ? "#f59e0b" : "#ef4444",
                                                     border: "none",
                                                     fontSize: 10,
                                                     borderRadius: 4,
@@ -933,7 +934,162 @@ const DalaDashboard: React.FC = () => {
                                 ]}
                                 pagination={false}
                                 size="small"
-                                locale={{ emptyText: "No upcoming payments" }}
+                                locale={{ emptyText: "No recent leases" }}
+                            />
+                        </ProCard>
+                    </Col>
+                    <Col xs={24} lg={8}>
+                        <ProCard
+                            title={<Text strong>Recent Rent Payments</Text>}
+                            bordered
+                            size="small"
+                            bodyStyle={{ padding: 0 }}
+                        >
+                            <Table
+                                rowKey="_id"
+                                dataSource={recentRentPayments}
+                                columns={[
+                                    {
+                                        title: "Property",
+                                        dataIndex: "propertyName",
+                                        width: 110,
+                                        render: (v: string, record: any) => (
+                                            <Space direction="vertical" size={0}>
+                                                <Text style={{ fontSize: 12, fontWeight: 600 }}>{v || "N/A"}</Text>
+                                                <Text style={{ fontSize: 10, color: "#94a3b8" }}>{record.unitName || "-"}</Text>
+                                            </Space>
+                                        ),
+                                    },
+                                    {
+                                        title: "Amount",
+                                        dataIndex: "amount",
+                                        align: "right" as const,
+                                        width: 80,
+                                        render: (v: number) => (
+                                            <Text strong style={{ fontSize: 12, color: "#1d39c4" }}>
+                                                {fmtK(v)}
+                                            </Text>
+                                        ),
+                                    },
+                                    {
+                                        title: "Method",
+                                        dataIndex: "paymentMethod",
+                                        width: 80,
+                                        render: (method: string) => <Text style={{ fontSize: 12 }}>{method?.toUpperCase() || "-"}</Text>,
+                                    },
+                                    {
+                                        title: "Status",
+                                        dataIndex: "status",
+                                        width: 90,
+                                        render: (status: string) => (
+                                            <Tag
+                                                style={{
+                                                    background: status === 'confirmed' ? "#f0fdf4" : "#fff7ed",
+                                                    color: status === 'confirmed' ? "#10b981" : "#f59e0b",
+                                                    border: "none",
+                                                    fontSize: 10,
+                                                    borderRadius: 4,
+                                                }}
+                                            >
+                                                {status?.toUpperCase() || "-"}
+                                            </Tag>
+                                        ),
+                                    },
+                                ]}
+                                pagination={false}
+                                size="small"
+                                locale={{ emptyText: "No recent rent payments" }}
+                            />
+                        </ProCard>
+                    </Col>
+                </Row>
+
+                <Row gutter={[16, 16]} style={{ marginTop: 20 }}>
+                    <Col xs={24}>
+                        <ProCard
+                            title={<Text strong>Recent Maintenance Tickets</Text>}
+                            bordered
+                            size="small"
+                            bodyStyle={{ padding: 0 }}
+                        >
+                            <Table
+                                rowKey="_id"
+                                dataSource={recentMaintenanceTickets}
+                                columns={[
+                                    {
+                                        title: "Ticket",
+                                        dataIndex: "ticketNumber",
+                                        width: 140,
+                                        render: (ticketNumber: string, record: any) => (
+                                            <Space direction="vertical" size={0}>
+                                                <Text style={{ fontSize: 12, fontWeight: 600 }}>{ticketNumber || "-"}</Text>
+                                                <Text style={{ fontSize: 10, color: "#94a3b8" }}>{record.title || "-"}</Text>
+                                            </Space>
+                                        ),
+                                    },
+                                    {
+                                        title: "Type",
+                                        dataIndex: "ticketType",
+                                        width: 140,
+                                        render: (type: string) => (
+                                            <Tag color={type === "property_maintenance" ? "green" : "purple"}>
+                                                {type?.replace(/_/g, " ").toUpperCase() || "-"}
+                                            </Tag>
+                                        ),
+                                    },
+                                    {
+                                        title: "Property",
+                                        dataIndex: "propertyName",
+                                        render: (propertyName: string, record: any) => (
+                                            <Space direction="vertical" size={0}>
+                                                <Text style={{ fontSize: 12 }}>{propertyName || "-"}</Text>
+                                                <Text style={{ fontSize: 10, color: "#94a3b8" }}>{record.unitName || "-"}</Text>
+                                            </Space>
+                                        ),
+                                    },
+                                    {
+                                        title: "Priority",
+                                        dataIndex: "priority",
+                                        width: 100,
+                                        render: (priority: string) => (
+                                            <Tag color={priority === "urgent" ? "red" : priority === "high" ? "orange" : "blue"}>
+                                                {priority?.toUpperCase() || "-"}
+                                            </Tag>
+                                        ),
+                                    },
+                                    {
+                                        title: "Status",
+                                        dataIndex: "status",
+                                        width: 110,
+                                        render: (status: string) => (
+                                            <Tag color={status === "resolved" || status === "closed" ? "green" : status === "in_progress" ? "blue" : "orange"}>
+                                                {status?.replace(/_/g, " ").toUpperCase() || "-"}
+                                            </Tag>
+                                        ),
+                                    },
+                                    {
+                                        title: "Assigned",
+                                        dataIndex: "assignedTo",
+                                        width: 130,
+                                        render: (assignedTo: string) => assignedTo || "-",
+                                    },
+                                    {
+                                        title: "Est. Cost",
+                                        dataIndex: "estimatedCost",
+                                        align: "right" as const,
+                                        width: 110,
+                                        render: (amount: number) => `KES ${fmtK(amount || 0)}`,
+                                    },
+                                    {
+                                        title: "Created",
+                                        dataIndex: "createdAt",
+                                        width: 100,
+                                        render: (date: string) => date ? dayjs(date).format("DD MMM") : "-",
+                                    },
+                                ]}
+                                pagination={false}
+                                size="small"
+                                locale={{ emptyText: "No recent maintenance tickets" }}
                             />
                         </ProCard>
                     </Col>

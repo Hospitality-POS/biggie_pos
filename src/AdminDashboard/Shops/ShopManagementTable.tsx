@@ -71,7 +71,7 @@ const useTenantConfig = () => {
       ? "/accounting"
       : isDalaOnly
         ? "/dala"
-        : "/tables";
+        : "/home-dashboard";
 
   /** Whether the Print Settings tab should be visible */
   const showPrintSettings = hasPOS && !isMtejaOnly;

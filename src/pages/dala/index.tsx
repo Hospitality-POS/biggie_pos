@@ -13,6 +13,7 @@ import LeaseManagement from './leases/LeaseManagement';
 import LeaseDetail from './leases/LeaseDetail';
 import RentCollection from './rent/RentCollection';
 import Reports from './reports/Reports';
+import MaintenanceManagement from './maintenance/MaintenanceManagement';
 
 const { Content } = Layout;
 
@@ -32,6 +33,7 @@ const DalaPage: React.FC = () => {
         <Route path="/leases" element={<LeaseManagement />} />
         <Route path="/leases/:id" element={<LeaseDetail />} />
         <Route path="/rent-collection" element={<RentCollection />} />
+        <Route path="/maintenance" element={<MaintenanceManagement />} />
         <Route path="/reports" element={<Reports />} />
       </Routes>
     </Content>

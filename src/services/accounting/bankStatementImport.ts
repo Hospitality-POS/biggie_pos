@@ -314,28 +314,25 @@ export interface UploadStatementInput {
 // ============================================
 
 export const getColumnMappings = async (shop_id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bank-statements/column-mappings`,
-            { params: { shop_id } }
-        );
-        return response.data as { mappings: ColumnMapping[] };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/column-mappings`,
+        { params: { shop_id } }
+    );
+    return response.data as { mappings: ColumnMapping[] };
 };
 
 export const createColumnMapping = async (data: ColumnMappingInput) => {
     try {
         const response = await axiosInstance.post(
-            `${BASE_URL}/accounting/bank-statements/column-mappings`,
+            `${BASE_URL}/accounting/bank-reconciliations/column-mappings`,
             data
         );
         message.success("Column mapping created");
         return response.data as { mapping: ColumnMapping };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error creating column mapping");
         }
@@ -346,14 +343,15 @@ export const createColumnMapping = async (data: ColumnMappingInput) => {
 export const updateColumnMapping = async (id: string, data: Partial<ColumnMappingInput>) => {
     try {
         const response = await axiosInstance.put(
-            `${BASE_URL}/accounting/bank-statements/column-mappings/${id}`,
+            `${BASE_URL}/accounting/bank-reconciliations/column-mappings/${id}`,
             data
         );
         message.success("Column mapping updated");
         return response.data as { mapping: ColumnMapping };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error updating column mapping");
         }
@@ -364,13 +362,14 @@ export const updateColumnMapping = async (id: string, data: Partial<ColumnMappin
 export const deleteColumnMapping = async (id: string) => {
     try {
         await axiosInstance.delete(
-            `${BASE_URL}/accounting/bank-statements/column-mappings/${id}`
+            `${BASE_URL}/accounting/bank-reconciliations/column-mappings/${id}`
         );
         message.success("Column mapping deleted");
         return true;
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error deleting column mapping");
         }
@@ -383,28 +382,25 @@ export const deleteColumnMapping = async (id: string) => {
 // ============================================
 
 export const getCategorizationRules = async (shop_id: string, is_active?: boolean) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bank-statements/categorization-rules`,
-            { params: { shop_id, is_active } }
-        );
-        return response.data as { rules: CategorizationRule[] };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/categorization-rules`,
+        { params: { shop_id, is_active } }
+    );
+    return response.data as { rules: CategorizationRule[] };
 };
 
 export const createCategorizationRule = async (data: CategorizationRuleInput) => {
     try {
         const response = await axiosInstance.post(
-            `${BASE_URL}/accounting/bank-statements/categorization-rules`,
+            `${BASE_URL}/accounting/bank-reconciliations/categorization-rules`,
             data
         );
         message.success("Categorization rule created");
         return response.data as { rule: CategorizationRule };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error creating categorization rule");
         }
@@ -415,14 +411,15 @@ export const createCategorizationRule = async (data: CategorizationRuleInput) =>
 export const updateCategorizationRule = async (id: string, data: Partial<CategorizationRuleInput>) => {
     try {
         const response = await axiosInstance.put(
-            `${BASE_URL}/accounting/bank-statements/categorization-rules/${id}`,
+            `${BASE_URL}/accounting/bank-reconciliations/categorization-rules/${id}`,
             data
         );
         message.success("Categorization rule updated");
         return response.data as { rule: CategorizationRule };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error updating categorization rule");
         }
@@ -433,13 +430,14 @@ export const updateCategorizationRule = async (id: string, data: Partial<Categor
 export const deleteCategorizationRule = async (id: string) => {
     try {
         await axiosInstance.delete(
-            `${BASE_URL}/accounting/bank-statements/categorization-rules/${id}`
+            `${BASE_URL}/accounting/bank-reconciliations/categorization-rules/${id}`
         );
         message.success("Categorization rule deleted");
         return true;
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error deleting categorization rule");
         }
@@ -452,28 +450,25 @@ export const deleteCategorizationRule = async (id: string) => {
 // ============================================
 
 export const getCategoryMappings = async (shop_id: string, is_active?: boolean) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bank-statements/category-mappings`,
-            { params: { shop_id, is_active } }
-        );
-        return response.data as { mappings: CategoryMapping[] };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/category-mappings`,
+        { params: { shop_id, is_active } }
+    );
+    return response.data as { mappings: CategoryMapping[] };
 };
 
 export const createCategoryMapping = async (data: CategoryMappingInput) => {
     try {
         const response = await axiosInstance.post(
-            `${BASE_URL}/accounting/bank-statements/category-mappings`,
+            `${BASE_URL}/accounting/bank-reconciliations/category-mappings`,
             data
         );
         message.success("Category mapping created");
         return response.data as { mapping: CategoryMapping };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error creating category mapping");
         }
@@ -484,14 +479,15 @@ export const createCategoryMapping = async (data: CategoryMappingInput) => {
 export const updateCategoryMapping = async (id: string, data: Partial<CategoryMappingInput>) => {
     try {
         const response = await axiosInstance.put(
-            `${BASE_URL}/accounting/bank-statements/category-mappings/${id}`,
+            `${BASE_URL}/accounting/bank-reconciliations/category-mappings/${id}`,
             data
         );
         message.success("Category mapping updated");
         return response.data as { mapping: CategoryMapping };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error updating category mapping");
         }
@@ -502,13 +498,14 @@ export const updateCategoryMapping = async (id: string, data: Partial<CategoryMa
 export const deleteCategoryMapping = async (id: string) => {
     try {
         await axiosInstance.delete(
-            `${BASE_URL}/accounting/bank-statements/category-mappings/${id}`
+            `${BASE_URL}/accounting/bank-reconciliations/category-mappings/${id}`
         );
         message.success("Category mapping deleted");
         return true;
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error deleting category mapping");
         }
@@ -521,58 +518,46 @@ export const deleteCategoryMapping = async (id: string) => {
 // ============================================
 
 export const getAllImports = async (params: GetImportsParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bank-statements/bank-imports`,
-            { params }
-        );
-        return response.data as {
-            imports: BankStatementImport[];
-            totalPages: number;
-            currentPage: number;
-            total: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/bank-imports`,
+        { params }
+    );
+    return response.data as {
+        imports: BankStatementImport[];
+        totalPages: number;
+        currentPage: number;
+        total: number;
+    };
 };
 
 export const getImportById = async (id: string, params?: GetImportByIdParams) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/${id}`,
-            { params }
-        );
-        return response.data as {
-            import: BankStatementImport;
-            transaction_total: number;
-            totalPages: number;
-            currentPage: number;
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}`,
+        { params }
+    );
+    return response.data as {
+        import: BankStatementImport;
+        transaction_total: number;
+        totalPages: number;
+        currentPage: number;
+    };
 };
 
 export const getImportSummary = async (shop_id: string) => {
-    try {
-        const response = await axiosInstance.get(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/summary`,
-            { params: { shop_id } }
-        );
-        return response.data as {
-            by_status: Record<string, { count: number; total_txns: number; uncategorized: number; categorized: number }>;
-            by_account: { _id: string; account_name: string; account_code: string; import_count: number; total_txns: number; pending_categorization: number }[];
-        };
-    } catch (error) {
-        throw error;
-    }
+    const response = await axiosInstance.get(
+        `${BASE_URL}/accounting/bank-reconciliations/bank-imports/summary`,
+        { params: { shop_id } }
+    );
+    return response.data as {
+        by_status: Record<string, { count: number; total_txns: number; uncategorized: number; categorized: number }>;
+        by_account: { _id: string; account_name: string; account_code: string; import_count: number; total_txns: number; pending_categorization: number }[];
+    };
 };
 
 export const importStatement = async (data: ImportStatementInput) => {
     try {
         const response = await axiosInstance.post(
-            `${BASE_URL}/accounting/bank-statements/bank-imports`,
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports`,
             data
         );
         message.success("Statement imported successfully");
@@ -583,9 +568,10 @@ export const importStatement = async (data: ImportStatementInput) => {
             auto_categorized: number;
             uncategorized: number;
         };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error importing statement");
         }
@@ -604,7 +590,7 @@ export const importStatement = async (data: ImportStatementInput) => {
 export const uploadAndParseStatement = async (formData: FormData) => {
     try {
         const response = await axiosInstance.post(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/upload`,
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/upload`,
             formData,
             {
                 headers: {
@@ -616,6 +602,7 @@ export const uploadAndParseStatement = async (formData: FormData) => {
                         (progressEvent.loaded * 100) / (progressEvent.total || 1)
                     );
                     // Store or emit progress as needed
+                    console.log('Upload progress:', percentCompleted);
                 },
             }
         );
@@ -625,11 +612,12 @@ export const uploadAndParseStatement = async (formData: FormData) => {
         }
 
         return response.data as PDFParseResponse;
-    } catch (error: any) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
-        } else if (error?.message) {
-            message.error(`Upload failed: ${error.message}`);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else if (axiosError?.message) {
+            message.error(`Upload failed: ${axiosError.message}`);
         } else {
             message.error("Error parsing and importing statement");
         }
@@ -644,7 +632,7 @@ export const uploadAndParseStatement = async (formData: FormData) => {
 export const previewBankStatement = async (formData: FormData) => {
     try {
         const response = await axiosInstance.post(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/preview`,
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/preview`,
             formData,
             {
                 headers: {
@@ -653,9 +641,10 @@ export const previewBankStatement = async (formData: FormData) => {
             }
         );
         return response.data;
-    } catch (error: any) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error previewing statement");
         }
@@ -670,7 +659,7 @@ export const previewBankStatement = async (formData: FormData) => {
 export const reApplyRules = async (id: string, data?: ReApplyRulesInput) => {
     try {
         const response = await axiosInstance.patch(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/${id}/re-apply-rules`,
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/re-apply-rules`,
             data || {}
         );
         message.success(response.data.message || "Rules re-applied successfully");
@@ -679,9 +668,10 @@ export const reApplyRules = async (id: string, data?: ReApplyRulesInput) => {
             uncategorized: number;
             categorized: number;
         };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error re-applying rules");
         }
@@ -696,14 +686,15 @@ export const categorizeTransaction = async (
 ) => {
     try {
         const response = await axiosInstance.patch(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/${id}/transactions/${txn_id}/categorize`,
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/transactions/${txn_id}/categorize`,
             data
         );
         message.success("Transaction categorized");
         return response.data as { transaction: RawTransaction };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error categorizing transaction");
         }
@@ -714,7 +705,7 @@ export const categorizeTransaction = async (
 export const bulkCategorize = async (id: string, data: BulkCategorizeInput) => {
     try {
         const response = await axiosInstance.patch(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/${id}/transactions/bulk-categorize`,
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/transactions/bulk-categorize`,
             data
         );
         message.success(response.data.message || "Transactions categorized");
@@ -722,9 +713,10 @@ export const bulkCategorize = async (id: string, data: BulkCategorizeInput) => {
             categorized: number;
             uncategorized: number;
         };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error bulk categorizing transactions");
         }
@@ -735,14 +727,15 @@ export const bulkCategorize = async (id: string, data: BulkCategorizeInput) => {
 export const excludeTransaction = async (id: string, txn_id: string, notes?: string) => {
     try {
         const response = await axiosInstance.patch(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/${id}/transactions/${txn_id}/exclude`,
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/transactions/${txn_id}/exclude`,
             { notes }
         );
         message.success(response.data.message);
         return response.data as { transaction: RawTransaction };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error excluding transaction");
         }
@@ -753,7 +746,7 @@ export const excludeTransaction = async (id: string, txn_id: string, notes?: str
 export const pushToReconciliation = async (id: string, data: PushToReconciliationInput) => {
     try {
         const response = await axiosInstance.patch(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/${id}/push-to-reconciliation`,
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/push-to-reconciliation`,
             data
         );
         message.success(`${response.data.pushed_count} transactions pushed to reconciliation`);
@@ -761,9 +754,10 @@ export const pushToReconciliation = async (id: string, data: PushToReconciliatio
             pushed_count: number;
             reconciliation_id: string;
         };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error pushing to reconciliation");
         }
@@ -774,7 +768,7 @@ export const pushToReconciliation = async (id: string, data: PushToReconciliatio
 export const pushToJournalEntries = async (id: string, data: PushToJournalEntriesInput) => {
     try {
         const response = await axiosInstance.patch(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/${id}/push-to-journal-entries`,
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/push-to-journal-entries`,
             data
         );
         message.success(`${response.data.pushed_count} journal entries created`);
@@ -782,9 +776,10 @@ export const pushToJournalEntries = async (id: string, data: PushToJournalEntrie
             created_entries: string[];
             pushed_count: number;
         };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error pushing to journal entries");
         }
@@ -795,13 +790,14 @@ export const pushToJournalEntries = async (id: string, data: PushToJournalEntrie
 export const voidImport = async (id: string) => {
     try {
         const response = await axiosInstance.patch(
-            `${BASE_URL}/accounting/bank-statements/bank-imports/${id}/void`
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/${id}/void`
         );
         message.success("Import voided");
         return response.data as { message: string };
-    } catch (error) {
-        if (error?.response?.data?.message) {
-            message.error(error.response.data.message);
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
         } else {
             message.error("Error voiding import");
         }

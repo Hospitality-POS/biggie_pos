@@ -1,0 +1,1781 @@
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { Button, Form, Space, Upload, message, Divider, Tag, Alert, Steps, Tooltip, Modal, Select, Switch, Input, InputNumber } from "antd";
+import {
+  ModalForm,
+  ProFormText,
+  ProForm,
+  ProFormTextArea,
+  ProFormDigit,
+  ProFormSelect,
+  ProFormMoney,
+} from "@ant-design/pro-form";
+import {
+  EditOutlined,
+  ReconciliationOutlined,
+  InboxOutlined,
+  ShoppingCartOutlined,
+  ToolOutlined,
+  SwapOutlined,
+  InfoCircleOutlined,
+  DollarOutlined,
+  UserOutlined,
+  SettingOutlined,
+  PictureOutlined,
+  LeftOutlined,
+  RightOutlined,
+  BarcodeOutlined,
+  CameraOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
+import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
+import { fetchSubCategories as fetchAllCategories, fetchAllCategories as fetchSubCategories } from "@services/categories";
+import { fetchAllSuppliers } from "@services/supplier";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchAllUnits } from "@services/products";
+import ShowConfirm from "@utils/ConfirmUtil";
+import { addNewInventory, editInventory } from "@services/inventory";
+import { RcFile } from "antd/lib/upload";
+import { UploadFile, UploadProps } from "antd/lib";
+import { ProCard } from "@ant-design/pro-components";
+import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
+import SubCategoryModal from "@components/MODALS/pro/SubCategoryModal";
+import AddProCategoryModal from "@components/MODALS/pro/AddProCategoryModal";
+import UomModal from "@components/MODALS/pro/UomModal";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAMERA BARCODE SCANNER MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+interface BarcodeScannerModalProps {
+  open: boolean;
+  onClose: () => void;
+  onScan: (barcode: string) => void;
+}
+
+const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, onClose, onScan }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCamera, setSelectedCamera] = useState<string>("");
+  const [scanned, setScanned] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+
+  const stopScanner = useCallback(() => {
+    if (readerRef.current) { readerRef.current.reset(); readerRef.current = null; }
+    if (videoRef.current?.srcObject) {
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+      videoRef.current.srcObject = null;
+    }
+    setScanning(false);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    setScanned(null); setError(null); setLoading(true);
+    if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+      setError("Camera access requires HTTPS.");
+      setLoading(false);
+      return;
+    }
+    navigator.mediaDevices.enumerateDevices()
+      .then(devices => {
+        const videoDevices = devices.filter(d => d.kind === "videoinput");
+        setCameras(videoDevices);
+        const back = videoDevices.find(d => d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("rear") || d.label.toLowerCase().includes("environment"));
+        setSelectedCamera(back?.deviceId || videoDevices[0]?.deviceId || "");
+        setLoading(false);
+      })
+      .catch(() => {
+        navigator.mediaDevices.getUserMedia({ video: true })
+          .then(() => navigator.mediaDevices.enumerateDevices())
+          .then(devices => {
+            const videoDevices = devices.filter(d => d.kind === "videoinput");
+            setCameras(videoDevices);
+            const back = videoDevices.find(d => d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("rear") || d.label.toLowerCase().includes("environment"));
+            setSelectedCamera(back?.deviceId || videoDevices[0]?.deviceId || "");
+            setLoading(false);
+          })
+          .catch(() => { setError("Could not access camera. Allow camera permissions and try again."); setLoading(false); });
+      });
+    return () => { stopScanner(); };
+  }, [open, stopScanner]);
+
+  useEffect(() => {
+    if (!open || !selectedCamera || !videoRef.current || loading) return;
+    stopScanner();
+    setScanned(null); setError(null);
+    const reader = new BrowserMultiFormatReader();
+    readerRef.current = reader;
+    setScanning(true);
+    reader.decodeFromVideoDevice(selectedCamera, videoRef.current, (result, err) => {
+      if (result) { setScanned(result.getText()); stopScanner(); }
+      if (err && !(err instanceof NotFoundException)) console.warn("Scanner:", err);
+    }).catch(e => { setError("Failed to start camera: " + e.message); setScanning(false); });
+    return () => { stopScanner(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selectedCamera, loading]);
+
+  const handleConfirm = () => { if (scanned) { onScan(scanned); handleClose(); } };
+  const handleClose = () => { stopScanner(); setScanned(null); setError(null); onClose(); };
+  const handleRescan = () => {
+    setScanned(null); setError(null);
+    const cam = selectedCamera; setSelectedCamera(""); setTimeout(() => setSelectedCamera(cam), 50);
+  };
+
+  return (
+    <Modal open={open} onCancel={handleClose} footer={null} width={420} centered destroyOnClose
+      title={<Space><BarcodeOutlined style={{ color: "#6366f1", fontSize: 18 }} /><span style={{ fontWeight: 600, fontSize: 15 }}>Scan Barcode</span></Space>}
+      styles={{ body: { padding: "14px 20px 20px" } }}>
+      {cameras.length > 1 && (
+        <div style={{ marginBottom: 10 }}>
+          <select value={selectedCamera} onChange={e => setSelectedCamera(e.target.value)}
+            style={{ width: "100%", height: 32, borderRadius: 6, border: "1px solid #d1d5db", padding: "0 8px", fontSize: 13 }}>
+            {cameras.map((c, i) => <option key={c.deviceId} value={c.deviceId}>{c.label || `Camera ${i + 1}`}</option>)}
+          </select>
+        </div>
+      )}
+      <div style={{ position: "relative", width: "100%", aspectRatio: "4/3", borderRadius: 10, overflow: "hidden", background: "#0f172a", marginBottom: 12 }}>
+        <video ref={videoRef} style={{ width: "100%", height: "100%", objectFit: "cover", display: scanned ? "none" : "block" }} muted playsInline />
+        {loading && (<div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}><div style={{ width: 32, height: 32, border: "3px solid #6366f1", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /><span style={{ color: "#94a3b8", fontSize: 13 }}>Starting camera…</span><style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style></div>)}
+        {scanning && !scanned && !loading && (
+          <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+            {[{ top: "20%", left: "15%", borderTop: "3px solid #6366f1", borderLeft: "3px solid #6366f1" }, { top: "20%", right: "15%", borderTop: "3px solid #6366f1", borderRight: "3px solid #6366f1" }, { bottom: "20%", left: "15%", borderBottom: "3px solid #6366f1", borderLeft: "3px solid #6366f1" }, { bottom: "20%", right: "15%", borderBottom: "3px solid #6366f1", borderRight: "3px solid #6366f1" }].map((s, i) => <div key={i} style={{ position: "absolute", width: 20, height: 20, ...s as React.CSSProperties }} />)}
+            <div style={{ position: "absolute", left: "15%", right: "15%", top: "20%", height: 2, background: "linear-gradient(90deg, transparent, #6366f1, transparent)", animation: "scanline 2s ease-in-out infinite" }} />
+            <style>{`@keyframes scanline { 0%,100% { transform: translateY(0); } 50% { transform: translateY(120px); } }`}</style>
+            <div style={{ position: "absolute", bottom: 10, left: 0, right: 0, textAlign: "center" }}><span style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>Point camera at barcode</span></div>
+          </div>
+        )}
+        {scanned && (<div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(5,150,105,0.95)", flexDirection: "column", gap: 8 }}><div style={{ fontSize: 44, color: "#fff" }}>✓</div><span style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>Barcode detected!</span><div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 8, padding: "6px 16px" }}><code style={{ color: "#fff", fontSize: 14 }}>{scanned}</code></div></div>)}
+      </div>
+      {error && (<div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#dc2626" }}>{error}</div>)}
+      <div style={{ display: "flex", gap: 8 }}>
+        {scanned ? (<><Button onClick={handleRescan} style={{ flex: 1, borderRadius: 8, height: 38 }}>Scan Again</Button><Button type="primary" onClick={handleConfirm} style={{ flex: 2, borderRadius: 8, height: 38, background: "#059669", border: "none", fontWeight: 600 }}>Use This Barcode</Button></>) : (<Button onClick={handleClose} style={{ flex: 1, borderRadius: 8, height: 38 }}>Cancel</Button>)}
+      </div>
+    </Modal>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USB / BLUETOOTH SCANNER HOOK
+// ─────────────────────────────────────────────────────────────────────────────
+const useBarcodeScanner = ({ onScan, minLength = 3, maxKeystrokeGap = 50, enabled = true }: { onScan: (barcode: string) => void; minLength?: number; maxKeystrokeGap?: number; enabled?: boolean; }) => {
+  const bufferRef = useRef<string>("");
+  const lastKeyTime = useRef<number>(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const tag = target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) return;
+      if (["Shift", "Control", "Alt", "Meta", "CapsLock"].includes(e.key)) return;
+      const now = Date.now();
+      const gap = now - lastKeyTime.current;
+      lastKeyTime.current = now;
+      if (gap > maxKeystrokeGap && bufferRef.current.length > 0) bufferRef.current = "";
+      if (e.key === "Enter") { const code = bufferRef.current.trim(); if (code.length >= minLength) onScan(code); bufferRef.current = ""; return; }
+      if (e.key.length === 1) bufferRef.current += e.key;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => { const code = bufferRef.current.trim(); if (code.length >= minLength) onScan(code); bufferRef.current = ""; }, maxKeystrokeGap * 3);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => { window.removeEventListener("keydown", handleKeyDown); if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [enabled, minLength, maxKeystrokeGap, onScan]);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INTERFACES
+// ─────────────────────────────────────────────────────────────────────────────
+interface inventory { name: string; quantity: number; supplier_price: number; price: number; min_viable_quantity: number; category: string; subcategory_id: string; supplier_id: string; unit_id: string; desc: string; usage_type: 'selling' | 'internal' | 'both'; barcode?: string; location?: string; manufacturer?: string; status: 'active' | 'inactive' | 'discontinued'; dimensions?: { length: number; width: number; height: number; unit: string; }; weight?: { value: number; unit: string; }; vat_type: 'STANDARD' | 'ZERO' | 'EXEMPT'; }
+
+interface AddInventoryDialogProps {
+  data?: any;
+  actionRef?: any;
+  edit?: boolean;
+  externalOpen?: boolean;
+  onExternalClose?: () => void;
+}
+
+interface unitType { name: string; _id: string; }
+interface CategoryType { name: string; _id: string; sub_category?: string; }
+interface SubCategoryType { name: string; _id: string; sub_category: string | { _id: string; name: string }; category: string | { _id: string; name: string }; main_category: string | { _id: string; name: string }; }
+
+const { Step } = Steps;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED DROPDOWN FOOTER HELPER
+// ─────────────────────────────────────────────────────────────────────────────
+const dropdownAddButton = (label: string, onAdd: () => void) => (
+  <>
+    <Divider style={{ margin: "4px 0" }} />
+    <Button
+      type="link"
+      icon={<PlusOutlined />}
+      style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
+      onMouseDown={(e) => { e.preventDefault(); onAdd(); }}
+    >
+      {label}
+    </Button>
+  </>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPER — extract a plain string _id from either a raw string or a
+// {value, label} LabeledValue object that antd Select can produce.
+// ─────────────────────────────────────────────────────────────────────────────
+const extractId = (v: any): string | undefined => {
+  if (!v) return undefined;
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object' && v.value) return v.value;
+  return undefined;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+  const [form] = Form.useForm();
+  const queryClient = useQueryClient();
+
+  const [open, setOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  // Always a plain _id string — never a LabeledValue object
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [usageType, setUsageType] = useState<string>('internal');
+  const [hasVariants, setHasVariants] = useState<boolean>(false);
+  const [variants, setVariants] = useState<any[]>([]);
+  const [showVariantForm, setShowVariantForm] = useState<boolean>(false);
+  const [editingVariant, setEditingVariant] = useState<any | null>(null);
+  const [variantForm, setVariantForm] = useState({
+    name: '',
+    attributes: {} as Record<string, string>,
+    quantity: 0,
+    sku: '',
+    supplier_price: 0,
+    price: 0
+  });
+  const [attributeInputs, setAttributeInputs] = useState({
+    key: '',
+    value: ''
+  });
+  const [stepData, setStepData] = useState<{ [key: number]: any }>({ 0: {}, 1: {}, 2: {}, 3: {}, 4: {} });
+
+  // ── Inline add modal state ────────────────────────────────────────────────
+  const [addSupplierOpen, setAddSupplierOpen] = useState(false);
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+  const [addSubCategoryOpen, setAddSubCategoryOpen] = useState(false);
+  const [addUomOpen, setAddUomOpen] = useState(false);
+
+  // ── Sync external open prop ───────────────────────────────────────────────
+  useEffect(() => {
+    if (externalOpen !== undefined) setOpen(externalOpen);
+  }, [externalOpen]);
+
+  const steps = useMemo(() => [
+    { title: 'Basic Info', icon: <InfoCircleOutlined />, description: 'Product details' },
+    { title: 'Inventory', icon: <DollarOutlined />, description: 'Stock & pricing' },
+    { title: 'Supplier', icon: <UserOutlined />, description: 'Supplier details' },
+    { title: 'Advanced', icon: <SettingOutlined />, description: 'Optional settings' },
+    { title: 'Image', icon: <PictureOutlined />, description: 'Product image' },
+  ], []);
+
+  // ── Live queries — staleTime:0 ensures fresh data after invalidation ──────
+  const { data: categories, isLoading: categoriesLoading } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => fetchAllCategories({}),
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  const { data: allSubCategories, isLoading: subCategoriesLoading } = useQuery({
+    queryKey: ["subCategories"],
+    queryFn: () => fetchSubCategories({}),
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  const { data: units, isLoading: unitsLoading } = useQuery({
+    queryKey: ["units"],
+    queryFn: fetchAllUnits,
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  const { data: suppliers, isLoading: suppliersLoading } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: fetchAllSuppliers,
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  // ── Invalidation helpers ──────────────────────────────────────────────────
+  const refetchSuppliers = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+  }, [queryClient]);
+
+  const refetchCategories = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["categories"] });
+    queryClient.invalidateQueries({ queryKey: ["subCategories"] });
+    queryClient.invalidateQueries({ queryKey: ["mainCategories"] });
+  }, [queryClient]);
+
+  const refetchUnits = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["units"] });
+  }, [queryClient]);
+
+  useBarcodeScanner({
+    enabled: open && !scannerOpen,
+    onScan: useCallback((code: string) => {
+      form.setFieldValue("barcode", code);
+      if (currentStep !== 2) message.info(`Barcode scanned: ${code} — navigate to Supplier step to confirm`);
+      else message.success(`Barcode scanned: ${code}`);
+    }, [form, currentStep]),
+  });
+
+  // Always extract a plain _id before storing in state
+  const handleCategoryChange = useCallback((categoryId: string) => {
+    const id = extractId(categoryId) ?? categoryId;
+    setSelectedCategory(id);
+    form.setFieldValue('subcategory_id', undefined);
+  }, [form]);
+
+  const saveCurrentStepData = useCallback(() => {
+    try {
+      const v = form.getFieldsValue();
+      setStepData(prev => {
+        const next = { ...prev };
+        switch (currentStep) {
+          case 0: next[0] = { name: v.name, usage_type: v.usage_type, category: v.category, subcategory_id: v.subcategory_id, unit_id: v.unit_id, desc: v.desc, vat_type: v.vat_type }; break;
+          case 1: next[1] = { quantity: v.quantity, min_viable_quantity: v.min_viable_quantity, supplier_price: v.supplier_price, price: v.price, has_variants: v.has_variants }; break;
+          case 2: next[2] = { supplier_id: v.supplier_id, manufacturer: v.manufacturer, barcode: v.barcode, location: v.location }; break;
+          case 3: next[3] = { status: v.status, dimensions: v.dimensions, weight: v.weight }; break;
+          case 4: next[4] = { image: uploadedFile }; break;
+        }
+        return next;
+      });
+    } catch (e) { console.error('saveCurrentStepData:', e); }
+  }, [form, currentStep, uploadedFile]);
+
+  const getAllFormData = useCallback(() => {
+    const all = { ...stepData[0], ...stepData[1], ...stepData[2], ...stepData[3], ...stepData[4] };
+    Object.keys(all).forEach(k => { if (all[k] === undefined) delete all[k]; });
+    return all;
+  }, [stepData]);
+
+  const handleFieldChange = useCallback(() => {
+    const id = setTimeout(() => saveCurrentStepData(), 300);
+    return () => clearTimeout(id);
+  }, [saveCurrentStepData]);
+
+  const calculateProfitMargin = useCallback(() => {
+    const v = form.getFieldsValue();
+    if (v.supplier_price > 0 && v.price > 0) return `${(((v.price - v.supplier_price) / v.price) * 100).toFixed(1)}%`;
+    return 'N/A';
+  }, [form]);
+
+  const handleFormSubmit = async (values: any) => {
+    try {
+      saveCurrentStepData();
+      const finalValues = { ...getAllFormData(), ...form.getFieldsValue(true), ...values };
+      await form.validateFields();
+      const confirmed = await ShowConfirm({ title: `Are you sure you want to ${edit ? "update this" : "add new"} Inventory?`, position: true });
+      if (confirmed) {
+        const tv = {
+          ...finalValues,
+          // Always resolve to plain _id strings before sending to API
+          category: extractId(finalValues.category),
+          subcategory_id: extractId(finalValues.subcategory_id),
+          unit_id: extractId(finalValues.unit_id),
+          supplier_id: extractId(finalValues.supplier_id),
+          quantity: Number(finalValues.quantity) || 0,
+          supplier_price: finalValues.supplier_price ? Number(finalValues.supplier_price) : undefined,
+          price: finalValues.price ? Number(finalValues.price) : undefined,
+          min_viable_quantity: finalValues.min_viable_quantity ? Number(finalValues.min_viable_quantity) : undefined,
+        };
+        Object.keys(tv).forEach(k => { if (tv[k] === undefined || tv[k] === '') delete tv[k]; });
+        if (uploadedFile) tv.imageFile = uploadedFile;
+        edit ? await editInventory({ values: tv, _id: data?._id }) : await addNewInventory(tv);
+        actionRef?.current?.reload?.();
+        setOpen(false);
+        onExternalClose?.();
+        message.success(`Inventory ${edit ? 'updated' : 'added'} successfully`);
+        return true;
+      }
+      return false;
+    } catch (e) { console.error('Form submit error:', e); message.error("Please fill in all required fields"); return false; }
+  };
+
+  // Variant management functions
+  const handleAddVariant = useCallback(() => {
+    setEditingVariant(null);
+    setVariantForm({
+      name: '',
+      attributes: {},
+      quantity: 0,
+      sku: '',
+      supplier_price: 0,
+      price: 0
+    });
+    setAttributeInputs({ key: '', value: '' });
+    setShowVariantForm(true);
+  }, []);
+
+  const handleEditVariant = useCallback((variant: any) => {
+    setEditingVariant(variant);
+    // Pre-fill the form with variant data
+    const formData = {
+      name: variant.name || '',
+      attributes: variant.attributes || {},
+      quantity: variant.quantity || 0,
+      sku: variant.sku || '',
+      supplier_price: variant.supplier_price || 0,
+      price: variant.price || 0
+    };
+    setVariantForm(formData);
+    // Clear attribute inputs when editing
+    setAttributeInputs({ key: '', value: '' });
+    setShowVariantForm(true);
+  }, []);
+
+  const handleDeleteVariant = useCallback((variantId: string) => {
+    setVariants(prev => prev.filter(v => v._id !== variantId));
+    message.success('Variant deleted successfully');
+  }, []);
+
+  const handleSaveVariant = useCallback((variantData: any) => {
+    if (editingVariant) {
+      // Update existing variant
+      setVariants(prev => prev.map(v => 
+        v._id === editingVariant._id 
+          ? { ...v, ...variantData }
+          : v
+      ));
+      message.success('Variant updated successfully');
+    } else {
+      // Add new variant
+      const newVariant = {
+        _id: Date.now().toString(), // temporary ID
+        ...variantData,
+        status: 'active'
+      };
+      setVariants(prev => [...prev, newVariant]);
+      message.success('Variant added successfully');
+    }
+    setShowVariantForm(false);
+    setEditingVariant(null);
+    // Reset form after saving
+    setVariantForm({
+      name: '',
+      attributes: {},
+      quantity: 0,
+      sku: '',
+      supplier_price: 0,
+      price: 0
+    });
+    setAttributeInputs({ key: '', value: '' });
+  }, [editingVariant]);
+
+  const handleCancelVariant = useCallback(() => {
+    setShowVariantForm(false);
+    setEditingVariant(null);
+    // Reset form
+    setVariantForm({
+      name: '',
+      attributes: {},
+      quantity: 0,
+      sku: '',
+      supplier_price: 0,
+      price: 0
+    });
+    setAttributeInputs({ key: '', value: '' });
+  }, []);
+
+  // Attribute management functions
+  const handleAddAttribute = useCallback(() => {
+    if (attributeInputs.key.trim() && attributeInputs.value.trim()) {
+      setVariantForm(prev => ({
+        ...prev,
+        attributes: {
+          ...prev.attributes,
+          [attributeInputs.key.trim()]: attributeInputs.value.trim()
+        }
+      }));
+      setAttributeInputs({ key: '', value: '' });
+      message.success('Attribute added successfully');
+    } else {
+      message.error('Please fill in both attribute name and value');
+    }
+  }, [attributeInputs]);
+
+  const handleRemoveAttribute = useCallback((keyToRemove: string) => {
+    setVariantForm(prev => {
+      const newAttributes = { ...prev.attributes };
+      delete newAttributes[keyToRemove];
+      return {
+        ...prev,
+        attributes: newAttributes
+      };
+    });
+    message.success('Attribute removed successfully');
+  }, []);
+
+  const handleVariantFormChange = useCallback((field: string, value: any) => {
+    setVariantForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
+
+  const handleAttributeInputChange = useCallback((field: 'key' | 'value', value: string) => {
+    setAttributeInputs(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
+
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields(); setFileList([]); setPreviewImage(null); setUploadedFile(null);
+      setUsageType('internal'); setHasVariants(false); setVariants([]); setShowVariantForm(false); setEditingVariant(null);
+    setVariantForm({
+      name: '',
+      attributes: {},
+      quantity: 0,
+      sku: '',
+      supplier_price: 0,
+      price: 0
+    });
+    setAttributeInputs({ key: '', value: '' });
+      setCurrentStep(0); setSelectedCategory(null);
+      setScannerOpen(false); setStepData({ 0: {}, 1: {}, 2: {}, 3: {}, 4: {} });
+      onExternalClose?.();
+    }
+  }, [form, onExternalClose]);
+
+  const getFieldsForStep = useCallback((stepIndex: number) => {
+    switch (stepIndex) {
+      case 0: return ['name', 'category', 'subcategory_id', 'unit_id', 'usage_type'];
+      case 1: { 
+    const f = ['has_variants']; 
+    // Only require quantity if variants are disabled
+    if (!hasVariants) f.push('quantity'); 
+    if (usageType === 'selling' || usageType === 'both') f.push('price'); 
+    return f; 
+  }
+      default: return [];
+    }
+  }, [usageType, hasVariants]);
+
+  const nextStep = useCallback(async () => {
+    try {
+      saveCurrentStepData();
+      const fields = getFieldsForStep(currentStep);
+      if (fields.length > 0) await form.validateFields(fields);
+      if (currentStep < steps.length - 1) setCurrentStep(p => p + 1);
+    } catch { message.error('Please fill in all required fields for this step'); }
+  }, [saveCurrentStepData, currentStep, form, steps.length, getFieldsForStep]);
+
+  const prevStep = useCallback(() => {
+    if (currentStep > 0) { saveCurrentStepData(); setCurrentStep(p => p - 1); }
+  }, [currentStep, saveCurrentStepData]);
+
+  const isStepValid = useCallback((idx: number) => {
+    try {
+      const d = getAllFormData();
+      const ut = d.usage_type || usageType;
+      
+      switch (idx) {
+        case 0: {
+          return !!(d.name?.trim() && extractId(d.category) && extractId(d.subcategory_id) && extractId(d.unit_id) && ut);
+        }
+        case 1: {
+          const quantityValid = d.has_variants ? true : d.quantity >= 0;
+          const priceValid = !(ut === 'selling' || ut === 'both') || d.has_variants || d.price > 0;
+          return !!(quantityValid && priceValid);
+        }
+        default: return true;
+      }
+    } catch (e) { 
+      console.error('Step validation error:', e);
+      return false; 
+    }
+  }, [getAllFormData, usageType]);
+
+  const canSubmit = useCallback(() => {
+    try {
+      const d = getAllFormData();
+      const ut = d.usage_type || usageType;
+      return !!(d.name?.trim() && extractId(d.category) && extractId(d.subcategory_id) && extractId(d.unit_id) && ut && (d.has_variants ? true : d.quantity >= 0) && (!(ut === 'selling' || ut === 'both') || d.has_variants || d.price > 0));
+    } catch { return false; }
+  }, [getAllFormData, usageType]);
+
+  // ── Prefill on edit — all relation fields set as plain _id strings ─────────
+  useEffect(() => {
+    if (!open) return;
+
+    if (edit && data) {
+      // Resolve each relation field to a plain _id string.
+      // "category" form field maps to subcategories (inverted alias in this codebase).
+      const categoryId = typeof data.category === 'object' ? data.category?._id :
+        typeof data.category === 'string' ? data.category : undefined;
+      const subcategoryId = typeof data.subcategory_id === 'object' ? data.subcategory_id?._id :
+        typeof data.subcategory_id === 'string' ? data.subcategory_id : undefined;
+      const unitId = typeof data.unit_id === 'object' ? data.unit_id?._id :
+        typeof data.unit_id === 'string' ? data.unit_id : undefined;
+      const supplierId = typeof data.supplier_id === 'object' ? data.supplier_id?._id :
+        typeof data.supplier_id === 'string' ? data.supplier_id : undefined;
+
+      const fv = {
+        ...data,
+        category: categoryId,
+        subcategory_id: subcategoryId,
+        unit_id: unitId,
+        supplier_id: supplierId,
+        usage_type: data?.usage_type || 'internal',
+        status: data?.status || 'active',
+        barcode: data?.barcode || '',
+      };
+
+      form.setFieldsValue({ ...fv, has_variants: data?.has_variants || false });
+      setUsageType(data?.usage_type || 'internal');
+      setHasVariants(data?.has_variants || false);
+
+      // Trigger subcategory filter by setting selectedCategory to the resolved _id
+      if (categoryId) setSelectedCategory(categoryId);
+
+      setStepData({
+        0: { name: fv.name, usage_type: fv.usage_type, category: fv.category, subcategory_id: fv.subcategory_id, unit_id: fv.unit_id, desc: fv.desc, vat_type: fv.vat_type },
+        1: { quantity: fv.quantity, min_viable_quantity: fv.min_viable_quantity, supplier_price: fv.supplier_price, price: fv.price, has_variants: fv.has_variants },
+        2: { supplier_id: fv.supplier_id, manufacturer: fv.manufacturer, barcode: fv.barcode, location: fv.location },
+        3: { status: fv.status, dimensions: fv.dimensions, weight: fv.weight },
+        4: { image: uploadedFile },
+      });
+    } else {
+      // New product: reset form and clear step data
+      form.resetFields();
+      form.setFieldsValue({ usage_type: 'internal', has_variants: false });
+      setUsageType('internal');
+      setHasVariants(false);
+      setCurrentStep(0);
+      setSelectedCategory(null);
+      setStepData({ 0: {}, 1: { has_variants: false }, 2: {}, 3: {}, 4: {} });
+    }
+  }, [open, edit, data, form, uploadedFile, setSelectedCategory]);
+
+  const UsageTypeOptions = useMemo(() => [
+    { label: <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><ToolOutlined /><span>Internal Use</span><Tag color="orange">INTERNAL</Tag></div>, value: 'internal' },
+    { label: <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><ShoppingCartOutlined /><span>For Sale</span><Tag color="green">SELLING</Tag></div>, value: 'selling' },
+    { label: <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><SwapOutlined /><span>Both</span><Tag color="blue">BOTH</Tag></div>, value: 'both' },
+  ], []);
+
+  const filteredSubCategories = useMemo(() => {
+    if (!selectedCategory || !allSubCategories) return [];
+    return allSubCategories.filter((sub: SubCategoryType) => {
+      const categoryId = typeof sub.category === 'object' ? sub.category?._id : sub.category;
+      return categoryId === selectedCategory;
+    });
+  }, [selectedCategory, allSubCategories]);
+
+  const renderStepContent = useCallback(() => {
+  const values = form.getFieldsValue();
+
+  switch (currentStep) {
+    case 0:
+      return (
+        <ProCard title="Basic Information" size="small">
+          <ProForm.Group>
+            <ProFormText width="lg" name="name" label="Product Name" rules={[{ required: true, message: "Product name is required" }]} placeholder="Enter product name" fieldProps={{ onChange: handleFieldChange }} />
+            <ProFormSelect width="lg" name="usage_type" label="Usage Type" rules={[{ required: true, message: "Usage type is required" }]} options={UsageTypeOptions}
+              fieldProps={{ onChange: (v) => { setUsageType(v); if (v === 'internal') form.setFieldValue('price', undefined); handleFieldChange(); } }} />
+          </ProForm.Group>
+
+          {/*
+           * DATA NOTE — import aliases are inverted in this codebase:
+           *   "category" field      → fetchSubCategories (aliased as fetchAllCategories) → loads SUBCATEGORIES
+           *   "subcategory_id" field → fetchAllCategories (aliased as fetchSubCategories) → loads CATEGORIES
+           * Both fields store plain _id strings so antd Select can match options by value.
+           */}
+          <Form.Item
+            name="category"
+            label="Category"
+            rules={[{ required: true, message: "Category is required" }]}
+            style={{ width: "100%" }}
+          >
+            <Select
+              showSearch
+              placeholder="Select category"
+              optionFilterProp="label"
+              loading={categoriesLoading}
+              options={categories?.map((c: CategoryType) => ({ label: c.name, value: c._id })) || []}
+              onChange={(v) => { handleCategoryChange(v); handleFieldChange(); }}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  {dropdownAddButton("Add New Category", () => setAddSubCategoryOpen(true))}
+                </>
+              )}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="subcategory_id"
+            // key forces remount when selectedCategory changes, clearing stale displayed value
+            key={selectedCategory ?? 'no-cat'}
+            label="Sub Category"
+            rules={[{ required: true, message: "Sub category is required" }]}
+            style={{ width: "100%" }}
+          >
+            <Select
+              showSearch
+              placeholder={selectedCategory ? "Select sub category" : "Select category first"}
+              optionFilterProp="label"
+              disabled={!selectedCategory}
+              loading={subCategoriesLoading}
+              onChange={handleFieldChange}
+              // filteredSubCategories updates automatically when allSubCategories refetches
+              options={filteredSubCategories.map((s: SubCategoryType) => ({ label: s.name, value: s._id }))}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  {dropdownAddButton("Add New Sub Category", () => setAddCategoryOpen(true))}
+                </>
+              )}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="unit_id"
+            label="Unit of Measure"
+            rules={[{ required: true, message: "Unit is required" }]}
+            style={{ width: "100%" }}
+          >
+            <Select
+              showSearch
+              placeholder="Select unit"
+              optionFilterProp="label"
+              loading={unitsLoading}
+              onChange={handleFieldChange}
+              options={units?.map((u: unitType) => ({ label: u.name, value: u._id })) || []}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  {dropdownAddButton("Add New Unit", () => setAddUomOpen(true))}
+                </>
+              )}
+            />
+          </Form.Item>
+
+          <ProForm.Group>
+            <ProFormSelect name="vat_type" showSearch width="lg" tooltip="VAT Type: Standard(16%), Zero Rated(0%) or Exempt(0%)" label="VAT Type" rules={[{ required: true, message: "VAT type is required" }]} placeholder="Select VAT type"
+              options={[{ label: "Standard", value: "STANDARD" }, { label: "Zero Rated", value: "ZERO" }, { label: "Exempt", value: "EXEMPT" }]} />
+            <ProFormTextArea width="lg" name="desc" label="Description" placeholder="Enter product description" fieldProps={{ rows: 3 }} />
+          </ProForm.Group>
+        </ProCard>
+      );
+
+    case 1:
+      return (
+        <ProCard title="Inventory & Pricing" size="small">
+          {/* Variant Toggle - Controls how quantity is tracked */}
+          <Form.Item label="Track Inventory by Variants" style={{ width: "100%", marginBottom: 24 }}>
+            <Space direction="vertical" size="small">
+              <Switch
+                checked={hasVariants}
+                onChange={(checked) => {
+                  setHasVariants(checked);
+                  form.setFieldValue('has_variants', checked);
+                  // Immediately save the has_variants field to step data
+                  setStepData(prev => ({
+                    ...prev,
+                    1: { ...prev[1], has_variants: checked }
+                  }));
+                  if (checked) {
+                    // When enabling variants, show warning about quantity reset
+                    message.warning('Enabling variants will reset the main product quantity. You will need to set quantities for each variant.');
+                    // Clear main quantity field
+                    form.setFieldValue('quantity', 0);
+                  } else {
+                    // When disabling variants, restore main quantity field
+                    form.setFieldValue('quantity', 0);
+                  }
+                  handleFieldChange();
+                }}
+                />
+              </Space>
+              <div style={{ fontSize: '12px', color: '#666' }}>
+                {hasVariants 
+                  ? "Track inventory quantities by variants (e.g., different colors, sizes)." 
+                  : "Track inventory at the main product level."
+                }
+              </div>
+            </Form.Item>
+          </ProCard>
+        );
+
+    case 2:
+      return (
+        <ProCard title="Supplier Information" size="small">
+          <ProForm.Group>
+            <ProFormSelect width="lg" name="supplier_id" label="Supplier" placeholder="Select supplier" 
+              options={suppliers?.map((s: any) => ({ label: s.name, value: s._id })) || []}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  {dropdownAddButton("Add New Supplier", () => setAddSupplierOpen(true))}
+                </>
+              )}
+            />
+            <ProFormText width="lg" name="manufacturer" label="Manufacturer" placeholder="Enter manufacturer name" />
+          </ProForm.Group>
+          <ProForm.Group>
+            <ProFormText width="lg" name="barcode" label="Barcode" placeholder="Enter barcode or scan with scanner"
+              fieldProps={{
+                suffix: (
+                  <Button 
+                    type="link" 
+                    icon={<CameraOutlined />}
+                    onClick={() => setScannerOpen(true)}
+                    style={{ padding: 0 }}
+                  >
+                    Scan
+                  </Button>
+                )
+              }}
+            />
+            <ProFormText width="lg" name="location" label="Storage Location" placeholder="Enter storage location" />
+          </ProForm.Group>
+        </ProCard>
+      );
+
+    case 3:
+      return (
+        <ProCard title="Advanced Settings" size="small">
+          <ProForm.Group>
+            <ProFormSelect width="lg" name="status" label="Status" 
+              options={[
+                { label: "Active", value: "active" },
+                { label: "Inactive", value: "inactive" },
+                { label: "Discontinued", value: "discontinued" }
+              ]}
+            />
+          </ProForm.Group>
+        </ProCard>
+      );
+
+    case 4:
+      return (
+        <ProCard title="Product Image" size="small">
+          <Form.Item name="image" label="Product Image">
+            <Upload
+              listType="picture-card"
+              fileList={fileList}
+              beforeUpload={(file) => {
+                if (!file.type.startsWith('image/')) {
+                  message.error('Images only!');
+                  return false;
+                }
+                if (file.size / 1024 / 1024 > 5) {
+                  message.error('Max 5MB!');
+                  return false;
+                }
+                setUploadedFile(file);
+                return false;
+              }}
+              onPreview={async (file) => {
+                if (!file.url && !file.preview) {
+                  file.preview = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.addEventListener('load', () => resolve(reader.result));
+                    reader.readAsDataURL(file.originFileObj as File);
+                  });
+                }
+                setPreviewImage(file.url || file.preview);
+              }}
+              onChange={({ fileList: newFileList }) => setFileList(newFileList)}
+              showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
+            >
+              {fileList.length === 0 && (
+                <div>
+                  <PlusOutlined />
+                  <div style={{ marginTop: 8 }}>Upload</div>
+                </div>
+              )}
+            </Upload>
+          </Form.Item>
+        </ProCard>
+      );
+
+    default:
+      return null;
+    }
+  }, [hasVariants, usageType, handleFieldChange, suppliers, fileList, scannerOpen, filteredSubCategories]);
+
+  // Modal component that's rendered separately
+const AddEditProInventoryModalContent: React.FC<AddInventoryDialogProps> = (props) => {
+  const [form] = Form.useForm();
+  const queryClient = useQueryClient();
+
+  const [open, setOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  // Always a plain _id string — never a LabeledValue object
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [usageType, setUsageType] = useState<string>('internal');
+  const [hasVariants, setHasVariants] = useState<boolean>(false);
+  const [variants, setVariants] = useState<any[]>([]);
+  const [showVariantForm, setShowVariantForm] = useState<boolean>(false);
+  const [editingVariant, setEditingVariant] = useState<any | null>(null);
+  const [variantForm, setVariantForm] = useState({
+    name: '',
+    attributes: {} as Record<string, string>,
+    quantity: 0,
+    sku: '',
+    supplier_price: 0,
+    price: 0
+  });
+  const [attributeInputs, setAttributeInputs] = useState({
+    key: '',
+    value: ''
+  });
+  const [stepData, setStepData] = useState<{ [key: number]: any }>({ 0: {}, 1: {}, 2: {}, 3: {}, 4: {} });
+
+  // ── Inline add modal state ────────────────────────────────────────────────
+  const [addSupplierOpen, setAddSupplierOpen] = useState(false);
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+  const [addSubCategoryOpen, setAddSubCategoryOpen] = useState(false);
+  const [addUomOpen, setAddUomOpen] = useState(false);
+
+  // ── Sync external open prop ───────────────────────────────────────────────
+  useEffect(() => {
+    if (props.externalOpen !== undefined) setOpen(props.externalOpen);
+  }, [props.externalOpen]);
+
+  const steps = useMemo(() => [
+    { title: 'Basic Info', icon: <InfoCircleOutlined />, description: 'Product details' },
+    { title: 'Inventory', icon: <DollarOutlined />, description: 'Stock & pricing' },
+    { title: 'Supplier', icon: <UserOutlined />, description: 'Supplier details' },
+    { title: 'Advanced', icon: <SettingOutlined />, description: 'Optional settings' },
+    { title: 'Image', icon: <PictureOutlined />, description: 'Product image' },
+  ], []);
+
+  // ── Live queries — staleTime:0 ensures fresh data after invalidation ──────
+  const { data: categories, isLoading: categoriesLoading } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => fetchAllCategories({}),
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  const { data: allSubCategories, isLoading: subCategoriesLoading } = useQuery({
+    queryKey: ["subCategories"],
+    queryFn: () => fetchSubCategories({}),
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  const { data: units, isLoading: unitsLoading } = useQuery({
+    queryKey: ["units"],
+    queryFn: fetchAllUnits,
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  const { data: suppliers, isLoading: suppliersLoading } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: fetchAllSuppliers,
+    retry: 3,
+    networkMode: "always",
+    enabled: open,
+    staleTime: 0,
+  });
+
+  // ── Invalidation helpers ──────────────────────────────────────────────────
+  const refetchSuppliers = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+  }, [queryClient]);
+
+  const refetchCategories = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["categories"] });
+    queryClient.invalidateQueries({ queryKey: ["subCategories"] });
+    queryClient.invalidateQueries({ queryKey: ["mainCategories"] });
+  }, [queryClient]);
+
+  const refetchUnits = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["units"] });
+  }, [queryClient]);
+
+  useBarcodeScanner({
+    enabled: open && !scannerOpen,
+    onScan: useCallback((code: string) => {
+      form.setFieldValue("barcode", code);
+      if (currentStep !== 2) message.info(`Barcode scanned: ${code} — navigate to Supplier step to confirm`);
+      else message.success(`Barcode scanned: ${code}`);
+    }, [form, currentStep]),
+  });
+
+  // Always extract a plain _id before storing in state
+  const handleCategoryChange = useCallback((categoryId: string) => {
+    const id = extractId(categoryId) ?? categoryId;
+    setSelectedCategory(id);
+    form.setFieldValue('subcategory_id', undefined);
+  }, [form]);
+
+  const saveCurrentStepData = useCallback(() => {
+    try {
+      const v = form.getFieldsValue();
+      setStepData(prev => {
+        const next = { ...prev };
+        switch (currentStep) {
+          case 0: next[0] = { name: v.name, usage_type: v.usage_type, category: v.category, subcategory_id: v.subcategory_id, unit_id: v.unit_id, desc: v.desc, vat_type: v.vat_type }; break;
+          case 1: next[1] = { quantity: v.quantity, min_viable_quantity: v.min_viable_quantity, supplier_price: v.supplier_price, price: v.price, has_variants: v.has_variants }; break;
+          case 2: next[2] = { supplier_id: v.supplier_id, manufacturer: v.manufacturer, barcode: v.barcode, location: v.location }; break;
+          case 3: next[3] = { status: v.status, dimensions: v.dimensions, weight: v.weight }; break;
+          case 4: next[4] = { image: uploadedFile }; break;
+        }
+        return next;
+      });
+    } catch (e) { console.error('saveCurrentStepData:', e); }
+  }, [form, currentStep, uploadedFile]);
+
+  const getAllFormData = useCallback(() => {
+    const all = { ...stepData[0], ...stepData[1], ...stepData[2], ...stepData[3], ...stepData[4] };
+    Object.keys(all).forEach(k => { if (all[k] === undefined) delete all[k]; });
+    return all;
+  }, [stepData]);
+
+  const handleFieldChange = useCallback(() => {
+    const id = setTimeout(() => saveCurrentStepData(), 300);
+    return () => clearTimeout(id);
+  }, [saveCurrentStepData]);
+
+  const calculateProfitMargin = useCallback(() => {
+    const v = form.getFieldsValue();
+    if (v.supplier_price > 0 && v.price > 0) return `${(((v.price - v.supplier_price) / v.price) * 100).toFixed(1)}%`;
+    return 'N/A';
+  }, [form]);
+
+  const handleFormSubmit = async (values: any) => {
+    try {
+      saveCurrentStepData();
+      const finalValues = { ...getAllFormData(), ...form.getFieldsValue(true), ...values };
+      await form.validateFields();
+      const confirmed = await ShowConfirm({ title: `Are you sure you want to ${props.edit ? "update this" : "add new"} Inventory?`, position: true });
+      if (confirmed) {
+        const tv = {
+          ...finalValues,
+          // Always resolve to plain _id strings before sending to API
+          category: extractId(finalValues.category),
+          subcategory_id: extractId(finalValues.subcategory_id),
+          unit_id: extractId(finalValues.unit_id),
+          supplier_id: extractId(finalValues.supplier_id),
+          quantity: Number(finalValues.quantity) || 0,
+          supplier_price: finalValues.supplier_price ? Number(finalValues.supplier_price) : undefined,
+          price: finalValues.price ? Number(finalValues.price) : undefined,
+          min_viable_quantity: finalValues.min_viable_quantity ? Number(finalValues.min_viable_quantity) : undefined,
+        };
+        Object.keys(tv).forEach(k => { if (tv[k] === undefined || tv[k] === '') delete tv[k]; });
+        if (uploadedFile) tv.imageFile = uploadedFile;
+        props.edit ? await editInventory({ values: tv, _id: props.data?._id }) : await addNewInventory(tv);
+        props.actionRef?.current?.reload?.();
+        setOpen(false);
+        props.onExternalClose?.();
+        message.success(`Inventory ${props.edit ? 'updated' : 'added'} successfully`);
+        return true;
+      }
+      return false;
+    } catch (e) { console.error('Form submit error:', e); message.error("Please fill in all required fields"); return false; }
+  };
+
+  // Variant management functions
+  const handleAddVariant = useCallback(() => {
+    setEditingVariant(null);
+    setVariantForm({
+      name: '',
+      attributes: {},
+      quantity: 0,
+      sku: '',
+      supplier_price: 0,
+      price: 0
+    });
+    setAttributeInputs({ key: '', value: '' });
+    setShowVariantForm(true);
+  }, []);
+
+  const handleEditVariant = useCallback((variant: any) => {
+    setEditingVariant(variant);
+    // Pre-fill the form with variant data
+    const formData = {
+      name: variant.name || '',
+      attributes: variant.attributes || {},
+      quantity: variant.quantity || 0,
+      sku: variant.sku || '',
+      supplier_price: variant.supplier_price || 0,
+      price: variant.price || 0
+    };
+    setVariantForm(formData);
+    // Clear attribute inputs when editing
+    setAttributeInputs({ key: '', value: '' });
+    setShowVariantForm(true);
+  }, []);
+
+  const handleDeleteVariant = useCallback((variantId: string) => {
+    setVariants(prev => prev.filter(v => v._id !== variantId));
+    message.success('Variant deleted successfully');
+  }, []);
+
+  const handleSaveVariant = useCallback((variantData: any) => {
+    if (editingVariant) {
+      // Update existing variant
+      setVariants(prev => prev.map(v => 
+        v._id === editingVariant._id 
+          ? { ...v, ...variantData }
+          : v
+      ));
+      message.success('Variant updated successfully');
+    } else {
+      // Add new variant
+      const newVariant = {
+        _id: Date.now().toString(), // temporary ID
+        ...variantData,
+        status: 'active'
+      };
+      setVariants(prev => [...prev, newVariant]);
+      message.success('Variant added successfully');
+    }
+    setShowVariantForm(false);
+    setEditingVariant(null);
+    // Reset form after saving
+    setVariantForm({
+      name: '',
+      attributes: {},
+      quantity: 0,
+      sku: '',
+      supplier_price: 0,
+      price: 0
+    });
+    setAttributeInputs({ key: '', value: '' });
+  }, [editingVariant]);
+
+  const handleCancelVariant = useCallback(() => {
+    setShowVariantForm(false);
+    setEditingVariant(null);
+    // Reset form
+    setVariantForm({
+      name: '',
+      attributes: {},
+      quantity: 0,
+      sku: '',
+      supplier_price: 0,
+      price: 0
+    });
+    setAttributeInputs({ key: '', value: '' });
+  }, []);
+
+  // Attribute management functions
+  const handleAddAttribute = useCallback(() => {
+    if (attributeInputs.key.trim() && attributeInputs.value.trim()) {
+      setVariantForm(prev => ({
+        ...prev,
+        attributes: {
+          ...prev.attributes,
+          [attributeInputs.key.trim()]: attributeInputs.value.trim()
+        }
+      }));
+      setAttributeInputs({ key: '', value: '' });
+      message.success('Attribute added successfully');
+    } else {
+      message.error('Please fill in both attribute name and value');
+    }
+  }, [attributeInputs]);
+
+  const handleRemoveAttribute = useCallback((keyToRemove: string) => {
+    setVariantForm(prev => {
+      const newAttributes = { ...prev.attributes };
+      delete newAttributes[keyToRemove];
+      return {
+        ...prev,
+        attributes: newAttributes
+      };
+    });
+    message.success('Attribute removed successfully');
+  }, []);
+
+  const handleVariantFormChange = useCallback((field: string, value: any) => {
+    setVariantForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
+
+  const handleAttributeInputChange = useCallback((field: 'key' | 'value', value: string) => {
+    setAttributeInputs(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
+
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      form.resetFields(); setFileList([]); setPreviewImage(null); setUploadedFile(null);
+      setUsageType('internal'); setHasVariants(false); setVariants([]); setShowVariantForm(false); setEditingVariant(null);
+    setVariantForm({
+      name: '',
+      attributes: {},
+      quantity: 0,
+      sku: '',
+      supplier_price: 0,
+      price: 0
+    });
+    setAttributeInputs({ key: '', value: '' });
+      setCurrentStep(0); setSelectedCategory(null);
+      setScannerOpen(false); setStepData({ 0: {}, 1: {}, 2: {}, 3: {}, 4: {} });
+      props.onExternalClose?.();
+    }
+  }, [form, props.onExternalClose]);
+
+  const getFieldsForStep = useCallback((stepIndex: number) => {
+    switch (stepIndex) {
+      case 0: return ['name', 'category', 'subcategory_id', 'unit_id', 'usage_type'];
+      case 1: { 
+    const f = ['has_variants']; 
+    // Only require quantity if variants are disabled
+    if (!hasVariants) f.push('quantity'); 
+    if (usageType === 'selling' || usageType === 'both') f.push('price'); 
+    return f; 
+  }
+      default: return [];
+    }
+  }, [usageType, hasVariants]);
+
+  const nextStep = useCallback(async () => {
+    try {
+      saveCurrentStepData();
+      const fields = getFieldsForStep(currentStep);
+      if (fields.length > 0) await form.validateFields(fields);
+      if (currentStep < steps.length - 1) setCurrentStep(p => p + 1);
+    } catch { message.error('Please fill in all required fields for this step'); }
+  }, [saveCurrentStepData, currentStep, form, steps.length, getFieldsForStep]);
+
+  const prevStep = useCallback(() => {
+    if (currentStep > 0) { saveCurrentStepData(); setCurrentStep(p => p - 1); }
+  }, [currentStep, saveCurrentStepData]);
+
+  const isStepValid = useCallback((idx: number) => {
+    try {
+      const d = getAllFormData();
+      const ut = d.usage_type || usageType;
+      
+      switch (idx) {
+        case 0: {
+          return !!(d.name?.trim() && extractId(d.category) && extractId(d.subcategory_id) && extractId(d.unit_id) && ut);
+        }
+        case 1: {
+          const quantityValid = d.has_variants ? true : d.quantity >= 0;
+          const priceValid = !(ut === 'selling' || ut === 'both') || d.has_variants || d.price > 0;
+          return !!(quantityValid && priceValid);
+        }
+        default: return true;
+      }
+    } catch (e) { 
+      console.error('Step validation error:', e);
+      return false; 
+    }
+  }, [getAllFormData, usageType]);
+
+  const canSubmit = useCallback(() => {
+    try {
+      const d = getAllFormData();
+      const ut = d.usage_type || usageType;
+      return !!(d.name?.trim() && extractId(d.category) && extractId(d.subcategory_id) && extractId(d.unit_id) && ut && (d.has_variants ? true : d.quantity >= 0) && (!(ut === 'selling' || ut === 'both') || d.has_variants || d.price > 0));
+    } catch { return false; }
+  }, [getAllFormData, usageType]);
+
+  // ── Prefill on edit — all relation fields set as plain _id strings ─────────
+  useEffect(() => {
+    if (!open) return;
+
+    if (props.edit && props.data) {
+      // Resolve each relation field to a plain _id string.
+      // "category" form field maps to subcategories (inverted alias in this codebase).
+      const categoryId = typeof props.data.category === 'object' ? props.data.category?._id :
+        typeof props.data.category === 'string' ? props.data.category : undefined;
+      const subcategoryId = typeof props.data.subcategory_id === 'object' ? props.data.subcategory_id?._id :
+        typeof props.data.subcategory_id === 'string' ? props.data.subcategory_id : undefined;
+      const unitId = typeof props.data.unit_id === 'object' ? props.data.unit_id?._id :
+        typeof props.data.unit_id === 'string' ? props.data.unit_id : undefined;
+      const supplierId = typeof props.data.supplier_id === 'object' ? props.data.supplier_id?._id :
+        typeof props.data.supplier_id === 'string' ? props.data.supplier_id : undefined;
+
+      const fv = {
+        ...props.data,
+        category: categoryId,
+        subcategory_id: subcategoryId,
+        unit_id: unitId,
+        supplier_id: supplierId,
+        usage_type: props.data?.usage_type || 'internal',
+        status: props.data?.status || 'active',
+        barcode: props.data?.barcode || '',
+      };
+
+      form.setFieldsValue({ ...fv, has_variants: props.data?.has_variants || false });
+      setUsageType(props.data?.usage_type || 'internal');
+      setHasVariants(props.data?.has_variants || false);
+
+      // Trigger subcategory filter by setting selectedCategory to the resolved _id
+      if (categoryId) setSelectedCategory(categoryId);
+
+      setStepData({
+        0: { name: fv.name, usage_type: fv.usage_type, category: fv.category, subcategory_id: fv.subcategory_id, unit_id: fv.unit_id, desc: fv.desc, vat_type: fv.vat_type },
+        1: { quantity: fv.quantity, min_viable_quantity: fv.min_viable_quantity, supplier_price: fv.supplier_price, price: fv.price, has_variants: fv.has_variants },
+        2: { supplier_id: fv.supplier_id, manufacturer: fv.manufacturer, barcode: fv.barcode, location: fv.location },
+        3: { status: fv.status, dimensions: fv.dimensions, weight: fv.weight },
+        4: { image: uploadedFile },
+      });
+    } else {
+      // New product: reset form and clear step data
+      form.resetFields();
+      form.setFieldsValue({ usage_type: 'internal', has_variants: false });
+      setUsageType('internal');
+      setHasVariants(false);
+      setCurrentStep(0);
+      setSelectedCategory(null);
+      setStepData({ 0: {}, 1: { has_variants: false }, 2: {}, 3: {}, 4: {} });
+    }
+  }, [open, props.edit, props.data, form, uploadedFile, setSelectedCategory]);
+
+  const UsageTypeOptions = useMemo(() => [
+    { label: <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><ToolOutlined /><span>Internal Use</span><Tag color="orange">INTERNAL</Tag></div>, value: 'internal' },
+    { label: <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><ShoppingCartOutlined /><span>For Sale</span><Tag color="green">SELLING</Tag></div>, value: 'selling' },
+    { label: <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><SwapOutlined /><span>Both</span><Tag color="blue">BOTH</Tag></div>, value: 'both' },
+  ], []);
+
+  const filteredSubCategories = useMemo(() => {
+    if (!selectedCategory || !allSubCategories) return [];
+    return allSubCategories.filter((sub: SubCategoryType) => {
+      const categoryId = typeof sub.category === 'object' ? sub.category?._id : sub.category;
+      return categoryId === selectedCategory;
+    });
+  }, [selectedCategory, allSubCategories]);
+
+  const renderStepContent = useCallback(() => {
+  const values = form.getFieldsValue();
+
+  switch (currentStep) {
+    case 0:
+      return (
+        <ProCard title="Basic Information" size="small">
+          <ProForm.Group>
+            <ProFormText width="lg" name="name" label="Product Name" rules={[{ required: true, message: "Product name is required" }]} placeholder="Enter product name" fieldProps={{ onChange: handleFieldChange }} />
+            <ProFormSelect width="lg" name="usage_type" label="Usage Type" rules={[{ required: true, message: "Usage type is required" }]} options={UsageTypeOptions}
+              fieldProps={{ onChange: (v) => { setUsageType(v); if (v === 'internal') form.setFieldValue('price', undefined); handleFieldChange(); } }} />
+          </ProForm.Group>
+
+          {/*
+           * DATA NOTE — import aliases are inverted in this codebase:
+           *   "category" field      → fetchSubCategories (aliased as fetchAllCategories) → loads SUBCATEGORIES
+           *   "subcategory_id" field → fetchAllCategories (aliased as fetchSubCategories) → loads CATEGORIES
+           * Both fields store plain _id strings so antd Select can match options by value.
+           */}
+          <Form.Item
+            name="category"
+            label="Category"
+            rules={[{ required: true, message: "Category is required" }]}
+            style={{ width: "100%" }}
+          >
+            <Select
+              showSearch
+              placeholder="Select category"
+              optionFilterProp="label"
+              loading={categoriesLoading}
+              options={categories?.map((c: CategoryType) => ({ label: c.name, value: c._id })) || []}
+              onChange={(v) => { handleCategoryChange(v); handleFieldChange(); }}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  {dropdownAddButton("Add New Category", () => setAddSubCategoryOpen(true))}
+                </>
+              )}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="subcategory_id"
+            // key forces remount when selectedCategory changes, clearing stale displayed value
+            key={selectedCategory ?? 'no-cat'}
+            label="Sub Category"
+            rules={[{ required: true, message: "Sub category is required" }]}
+            style={{ width: "100%" }}
+          >
+            <Select
+              showSearch
+              placeholder={selectedCategory ? "Select sub category" : "Select category first"}
+              optionFilterProp="label"
+              disabled={!selectedCategory}
+              loading={subCategoriesLoading}
+              onChange={handleFieldChange}
+              // filteredSubCategories updates automatically when allSubCategories refetches
+              options={filteredSubCategories.map((s: SubCategoryType) => ({ label: s.name, value: s._id }))}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  {dropdownAddButton("Add New Sub Category", () => setAddCategoryOpen(true))}
+                </>
+              )}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="unit_id"
+            label="Unit of Measure"
+            rules={[{ required: true, message: "Unit is required" }]}
+            style={{ width: "100%" }}
+          >
+            <Select
+              showSearch
+              placeholder="Select unit"
+              optionFilterProp="label"
+              loading={unitsLoading}
+              onChange={handleFieldChange}
+              options={units?.map((u: unitType) => ({ label: u.name, value: u._id })) || []}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  {dropdownAddButton("Add New Unit", () => setAddUomOpen(true))}
+                </>
+              )}
+            />
+          </Form.Item>
+
+          <ProForm.Group>
+            <ProFormSelect name="vat_type" showSearch width="lg" tooltip="VAT Type: Standard(16%), Zero Rated(0%) or Exempt(0%)" label="VAT Type" rules={[{ required: true, message: "VAT type is required" }]} placeholder="Select VAT type"
+              options={[{ label: "Standard", value: "STANDARD" }, { label: "Zero Rated", value: "ZERO" }, { label: "Exempt", value: "EXEMPT" }]} />
+            <ProFormTextArea width="lg" name="desc" label="Description" placeholder="Enter product description" fieldProps={{ rows: 3 }} />
+          </ProForm.Group>
+        </ProCard>
+      );
+
+    case 1:
+      return (
+        <ProCard title="Inventory & Pricing" size="small">
+          {/* Variant Toggle - Controls how quantity is tracked */}
+          <Form.Item label="Track Inventory by Variants" style={{ width: "100%", marginBottom: 24 }}>
+            <Space direction="vertical" size="small">
+              <Switch
+                checked={hasVariants}
+                onChange={(checked) => {
+                  setHasVariants(checked);
+                  form.setFieldValue('has_variants', checked);
+                  // Immediately save the has_variants field to step data
+                  setStepData(prev => ({
+                    ...prev,
+                    1: { ...prev[1], has_variants: checked }
+                  }));
+                  if (checked) {
+                    // When enabling variants, show warning about quantity reset
+                    message.warning('Enabling variants will reset the main product quantity. You will need to set quantities for each variant.');
+                    // Clear main quantity field
+                    form.setFieldValue('quantity', 0);
+                  } else {
+                    // When disabling variants, restore main quantity field
+                    form.setFieldValue('quantity', 0);
+                  }
+                  handleFieldChange();
+                }}
+                />
+              </Space>
+              <div style={{ fontSize: '12px', color: '#666' }}>
+                {hasVariants 
+                  ? "Track inventory quantities by variants (e.g., different colors, sizes)." 
+                  : "Track inventory at the main product level."
+                }
+              </div>
+            </Form.Item>
+          </ProCard>
+        );
+
+    case 2:
+      return (
+        <ProCard title="Supplier Information" size="small">
+          <ProForm.Group>
+            <ProFormSelect width="lg" name="supplier_id" label="Supplier" placeholder="Select supplier" 
+              options={suppliers?.map((s: any) => ({ label: s.name, value: s._id })) || []}
+              dropdownRender={(menu) => (
+                <>
+                  {menu}
+                  {dropdownAddButton("Add New Supplier", () => setAddSupplierOpen(true))}
+                </>
+              )}
+            />
+            <ProFormText width="lg" name="manufacturer" label="Manufacturer" placeholder="Enter manufacturer name" />
+          </ProForm.Group>
+          <ProForm.Group>
+            <ProFormText width="lg" name="barcode" label="Barcode" placeholder="Enter barcode or scan with scanner"
+              fieldProps={{
+                suffix: (
+                  <Button 
+                    type="link" 
+                    icon={<CameraOutlined />}
+                    onClick={() => setScannerOpen(true)}
+                    style={{ padding: 0 }}
+                  >
+                    Scan
+                  </Button>
+                )
+              }}
+            />
+            <ProFormText width="lg" name="location" label="Storage Location" placeholder="Enter storage location" />
+          </ProForm.Group>
+        </ProCard>
+      );
+
+    case 3:
+      return (
+        <ProCard title="Advanced Settings" size="small">
+          <ProForm.Group>
+            <ProFormSelect width="lg" name="status" label="Status" 
+              options={[
+                { label: "Active", value: "active" },
+                { label: "Inactive", value: "inactive" },
+                { label: "Discontinued", value: "discontinued" }
+              ]}
+            />
+          </ProForm.Group>
+        </ProCard>
+      );
+
+    case 4:
+      return (
+        <ProCard title="Product Image" size="small">
+          <Form.Item name="image" label="Product Image">
+            <Upload
+              listType="picture-card"
+              fileList={fileList}
+              beforeUpload={(file) => {
+                if (!file.type.startsWith('image/')) {
+                  message.error('Images only!');
+                  return false;
+                }
+                if (file.size / 1024 / 1024 > 5) {
+                  message.error('Max 5MB!');
+                  return false;
+                }
+                setUploadedFile(file);
+                return false;
+              }}
+              onPreview={async (file) => {
+                if (!file.url && !file.preview) {
+                  file.preview = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.addEventListener('load', () => resolve(reader.result));
+                    reader.readAsDataURL(file.originFileObj as File);
+                  });
+                }
+                setPreviewImage(file.url || file.preview);
+              }}
+              onChange={({ fileList: newFileList }) => setFileList(newFileList)}
+              showUploadList={{ showPreviewIcon: true, showRemoveIcon: true }}
+            >
+              {fileList.length === 0 && (
+                <div>
+                  <PlusOutlined />
+                  <div style={{ marginTop: 8 }}>Upload</div>
+                </div>
+              )}
+            </Upload>
+          </Form.Item>
+        </ProCard>
+      );
+
+    default:
+      return null;
+    }
+  }, [hasVariants, usageType, handleFieldChange, suppliers, fileList, scannerOpen, filteredSubCategories]);
+
+  return (
+    <>
+      <ModalForm
+        title={(
+          <Space>
+            <EditOutlined style={{ color: "#6366f1", fontSize: 18 }} />
+            <span style={{ fontWeight: 600, fontSize: 15 }}>
+              {props.edit ? "Edit Inventory" : "Add New Inventory"}
+            </span>
+          </Space>
+        )}
+        open={open}
+        onOpenChange={handleOpenChange}
+        form={form}
+        onFinish={handleFormSubmit}
+        submitter={{
+          searchConfig: {
+            submitText: props.edit ? 'Update Inventory' : 'Add Inventory',
+          },
+          resetButtonProps: {
+            style: { display: 'none' },
+          },
+        }}
+        width={900}
+        modalProps={{
+          destroyOnClose: true,
+          centered: true,
+        }}
+              >
+        <Steps current={currentStep} items={steps} style={{ marginBottom: 24 }} />
+        
+        {renderStepContent()}
+        
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24 }}>
+          <Button 
+            onClick={prevStep} 
+            disabled={currentStep === 0}
+            style={{ borderRadius: 8 }}
+          >
+            <LeftOutlined /> Previous
+          </Button>
+          <Space>
+            {currentStep < steps.length - 1 ? (
+              <Button 
+                type="primary" 
+                onClick={nextStep}
+                disabled={!isStepValid(currentStep)}
+                style={{ borderRadius: 8 }}
+              >
+                Next <RightOutlined />
+              </Button>
+            ) : (
+              <Button 
+                type="primary" 
+                htmlType="submit"
+                disabled={!canSubmit()}
+                style={{ borderRadius: 8 }}
+              >
+                {props.edit ? 'Update Inventory' : 'Add Inventory'}
+              </Button>
+            )}
+          </Space>
+        </div>
+      </ModalForm>
+
+      {/* Inline Add Modals */}
+      <AddProSupplierModal
+        externalOpen={addSupplierOpen}
+        onExternalClose={() => {
+          setAddSupplierOpen(false);
+          refetchSuppliers();
+        }}
+      />
+      <AddProCategoryModal
+        externalOpen={addCategoryOpen}
+        onExternalClose={() => {
+          setAddCategoryOpen(false);
+          refetchCategories();
+        }}
+        actionRef={props.actionRef}
+      />
+      <SubCategoryModal
+        externalOpen={addSubCategoryOpen}
+        onExternalClose={() => {
+          setAddSubCategoryOpen(false);
+          refetchCategories();
+        }}
+        actionRef={props.actionRef}
+      />
+      <UomModal
+        externalOpen={addUomOpen}
+        onExternalClose={() => {
+          setAddUomOpen(false);
+          refetchUnits();
+        }}
+        actionRef={props.actionRef}
+      />
+      
+      <BarcodeScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(code) => {
+          form.setFieldValue("barcode", code);
+          message.success(`Barcode scanned: ${code}`);
+        }}
+      />
+    </>
+  );
+};
+
+// Combined component that renders both button and modal
+const AddEditProInventoryModalWithModal: React.FC<AddInventoryDialogProps> = (props) => {
+  const [open, setOpen] = useState(false);
+
+  const handleClick = () => {
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    props.onExternalClose?.();
+  };
+
+  return (
+    <>
+      {props.edit && props.data ? (
+        <Button 
+          type="primary" 
+          icon={<EditOutlined />}
+          onClick={handleClick}
+          style={{ borderRadius: 8, width: '100%' }}
+        >
+          Edit
+        </Button>
+      ) : (
+        <Button 
+          type="primary" 
+          icon={<PlusOutlined />}
+          onClick={handleClick}
+          style={{ borderRadius: 8 }}
+        >
+          Add Inventory
+        </Button>
+      )}
+      
+      <AddEditProInventoryModalContent
+        {...props}
+        externalOpen={open}
+        onExternalClose={handleClose}
+      />
+    </>
+  );
+};
+
+// Use the combined component as default export
+const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = (props) => {
+  // If externalOpen is provided, render just the modal content
+  if (props.externalOpen !== undefined) {
+    return <AddEditProInventoryModalContent {...props} />;
+  }
+  
+  // Otherwise render the button with modal
+  return <AddEditProInventoryModalWithModal {...props} />;
+};
+export default AddEditProInventoryModal;

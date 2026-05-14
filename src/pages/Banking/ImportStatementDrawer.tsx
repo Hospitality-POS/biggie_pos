@@ -6,7 +6,7 @@ import {
 import {
     Drawer, Divider, Typography, Upload, Alert, Space,
     Tag, Table, Button, Steps, Card, Select, Form, Row, Col,
-    Tabs, Progress, Spin,
+    Tabs, Progress, Spin, message,
 } from "antd";
 import {
     InboxOutlined, FileExcelOutlined, CheckCircleOutlined,
@@ -100,6 +100,8 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
         },
         onError: (error: any) => {
             setUploadProgress(0);
+            const errorMessage = error?.response?.data?.message || error?.message || 'Upload failed. Please try again.';
+            message.error(errorMessage);
         },
     });
 
@@ -167,6 +169,9 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
         formData.append("shop_id", shopId);
         formData.append("bank_format", "auto");
 
+        // Reset progress
+        setUploadProgress(0);
+        
         // Simulate progress
         const interval = setInterval(() => {
             setUploadProgress((prev) => {
@@ -187,6 +192,13 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
     const handleFileUpload = (file: File) => {
         const isExcel = file.name.match(/\.(xlsx|xls|csv)$/i);
         const isPDF = file.name.match(/\.pdf$/i);
+        const fileSize = file.size / 1024 / 1024; // Size in MB
+
+        // Validate file size (10MB limit as per guide)
+        if (fileSize > 10) {
+            message.error(`File size (${fileSize.toFixed(2)}MB) exceeds 10MB limit`);
+            return false;
+        }
 
         if (isExcel && importMethod === "manual") {
             parseExcelFile(file);
@@ -194,6 +206,8 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
             parsePDFFile(file);
         } else {
             // Show error if method mismatch
+            const expectedFormat = importMethod === "manual" ? "Excel (.xlsx, .xls, .csv)" : "PDF (.pdf)";
+            message.error(`Invalid file format. Expected: ${expectedFormat}`);
             return false;
         }
         return false;

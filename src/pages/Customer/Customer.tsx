@@ -12,6 +12,7 @@ import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import { fetchTenantById } from "@services/users";
 import { useQuery } from "@tanstack/react-query";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -75,12 +76,12 @@ const Logo = ({ tenantCode, size = 160, filter }: { tenantCode?: string; size?: 
 );
 
 // ── Desktop sidebar ────────────────────────────────────────────────────────
-const DesktopSidebar = ({ tenantCode, clientName, randomMessage }: {
-  tenantCode?: string; clientName: string; randomMessage: string;
+const DesktopSidebar = ({ tenantCode, clientName, randomMessage, colors }: {
+  tenantCode?: string; clientName: string; randomMessage: string; colors: any;
 }) => (
   <div style={{
     position: "relative", height: "100%", minHeight: 560,
-    background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+    background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}dd 100%)`,
     padding: 24, borderRadius: "16px 0 0 16px", overflow: "hidden",
   }}>
     <RetailBg />
@@ -115,12 +116,12 @@ const DesktopSidebar = ({ tenantCode, clientName, randomMessage }: {
 );
 
 // ── Mobile header ──────────────────────────────────────────────────────────
-const MobileHeader = ({ tenantCode, clientName, randomMessage }: {
-  tenantCode?: string; clientName: string; randomMessage: string;
+const MobileHeader = ({ tenantCode, clientName, randomMessage, colors }: {
+  tenantCode?: string; clientName: string; randomMessage: string; colors: any;
 }) => (
   <div style={{
     padding: "24px 20px 20px", textAlign: "center",
-    background: "linear-gradient(135deg, #2c3e50 0%, #6c1c2c 100%)",
+    background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}dd 100%)`,
     borderRadius: "16px 16px 0 0",
   }}>
     <Logo tenantCode={tenantCode} size={120} />
@@ -266,6 +267,52 @@ const CustomerVisitTracker = () => {
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [visitType, setVisitType] = useState<string | null>(null);
 
+  // Use primary color context instead of hardcoded colors
+  const contextResult = usePrimaryColor();
+  const primaryColor = contextResult?.primaryColor || '#6c1c2c';
+  
+  // Generate color palette based on primary color (same logic as CalendarView)
+  const generateColorPalette = (primary: string) => {
+    // If primary color is the old red color, force green theme
+    if (primary === '#6c1c2c' || primary.includes('1c2c')) {
+      return {
+        primary: '#10b981', // green
+        primaryLight: '#d1fae5', // light green
+        green: '#10b981',
+        subText: '#64748b',
+        darkText: '#0f172a',
+        border: '#e2e8f0',
+        bg: '#f8fafc',
+      };
+    }
+    
+    // For green theme, create appropriate light and dark variants
+    if (primary.includes('10b981') || primary.includes('green')) {
+      return {
+        primary: '#10b981', // green
+        primaryLight: '#d1fae5', // light green
+        green: '#10b981',
+        subText: '#64748b',
+        darkText: '#0f172a',
+        border: '#e2e8f0',
+        bg: '#f8fafc',
+      };
+    }
+    
+    // Default to the primary color and generate complementary colors
+    return {
+      primary: primary,
+      primaryLight: primary + '20', // Add transparency for light variant
+      green: '#10b981',
+      subText: '#64748b',
+      darkText: '#0f172a',
+      border: '#e2e8f0',
+      bg: '#f8fafc',
+    };
+  };
+  
+  const colors = generateColorPalette(primaryColor);
+
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const tenantId = useMemo(() => params.get("tenant_id"), [params]);
   const shopId = useMemo(() => params.get("shop_id"), [params]);
@@ -391,10 +438,10 @@ const CustomerVisitTracker = () => {
         {/* Desktop sidebar — hidden on mobile via minWidth trick */}
         <div style={{ flex: "1 1 380px", minWidth: 0, display: "flex" }}>
           <div style={{ display: "none" }} className="mobile-header-slot">
-            <MobileHeader tenantCode={tenant?.tenant_code} clientName={clientName} randomMessage={randomMsg} />
+            <MobileHeader tenantCode={tenant?.tenant_code} clientName={clientName} randomMessage={randomMsg} colors={colors} />
           </div>
           <div className="desktop-sidebar-slot" style={{ flex: 1 }}>
-            <DesktopSidebar tenantCode={tenant?.tenant_code} clientName={clientName} randomMessage={randomMsg} />
+            <DesktopSidebar tenantCode={tenant?.tenant_code} clientName={clientName} randomMessage={randomMsg} colors={colors} />
           </div>
         </div>
 

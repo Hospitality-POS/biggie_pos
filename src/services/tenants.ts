@@ -56,6 +56,10 @@ interface Tenant {
         dala?: boolean;
         etims?: boolean;
     };
+    // VAT Configuration
+    is_vat_enabled?: boolean;
+    vat_standard_rate?: number;
+    vat_pricing_mode?: 'INCLUSIVE' | 'EXCLUSIVE';
     accounting_database?: {
         enabled?: boolean;
         db_name?: string;
@@ -120,6 +124,10 @@ interface UpdateTenantData {
         payroll?: boolean;
         crm?: boolean;
     };
+    // VAT Configuration
+    is_vat_enabled?: boolean;
+    vat_standard_rate?: number;
+    vat_pricing_mode?: 'INCLUSIVE' | 'EXCLUSIVE';
     accounting_database?: {
         enabled?: boolean;
         db_name?: string;

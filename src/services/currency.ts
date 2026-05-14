@@ -101,10 +101,49 @@ export interface ListRatesParams {
 
 export const listCurrencies = async (activeOnly = true): Promise<Currency[]> => {
     try {
+        // Check if user is authenticated before making API call
+        const token = localStorage.getItem("token");
+        const user = localStorage.getItem("user");
+        if (!token || !user) {
+            console.warn("User not authenticated - skipping currency API call");
+            return [];
+        }
+
+        const shopId = localStorage.getItem("shopId");
+        const tenant = localStorage.getItem("tenant") ? JSON.parse(localStorage.getItem("tenant")!) : null;
+        const companyCode = localStorage.getItem("companyCode");
+        
         const res = await axiosInstance.get(CURRENCY_URL, {
-            params: { active_only: activeOnly ? "true" : "false" },
+            params: { 
+                active_only: activeOnly ? "true" : "false",
+                shop_id: shopId,
+                role: "admin",
+                companycode: companyCode || (tenant ? tenant.tenant_code : null),
+                _: Date.now() // Cache-busting timestamp
+            },
         });
-        return res.data.currencies ?? [];
+
+        console.log('cyrrency info',res );
+        
+        // Transform API response to match Currency interface
+        const currencies = (res.data.data ?? []).map((apiCurrency: any) => ({
+            _id: apiCurrency._id || apiCurrency.id,
+            code: apiCurrency.code,
+            name: apiCurrency.name,
+            symbol: apiCurrency.symbol,
+            decimal_places: apiCurrency.decimal_places,
+            symbol_position: apiCurrency.symbol_position || apiCurrency.format?.symbol_position || "before",
+            thousands_separator: apiCurrency.thousands_separator || apiCurrency.format?.thousands_separator || ",",
+            decimal_separator: apiCurrency.decimal_separator || apiCurrency.format?.decimal_separator || ".",
+            is_active: apiCurrency.is_active,
+            is_functional: apiCurrency.is_functional || apiCurrency.is_base_currency || false,
+            shop_id: apiCurrency.shop_id,
+            created_by: apiCurrency.created_by,
+            createdAt: apiCurrency.createdAt,
+            updatedAt: apiCurrency.updatedAt,
+        }));
+        
+        return currencies;
     } catch (err: any) {
         message.error(err?.response?.data?.message || "Failed to fetch currencies");
         return [];
@@ -113,8 +152,48 @@ export const listCurrencies = async (activeOnly = true): Promise<Currency[]> => 
 
 export const getFunctionalCurrency = async (): Promise<Currency | null> => {
     try {
-        const res = await axiosInstance.get(`${CURRENCY_URL}/functional`);
-        return res.data.currency ?? null;
+        // Check if user is authenticated before making API call
+        const token = localStorage.getItem("token");
+        const user = localStorage.getItem("user");
+        if (!token || !user) {
+            console.warn("User not authenticated - skipping functional currency API call");
+            return null;
+        }
+
+        const shopId = localStorage.getItem("shopId");
+        const tenant = localStorage.getItem("tenant") ? JSON.parse(localStorage.getItem("tenant")!) : null;
+        const companyCode = localStorage.getItem("companyCode");
+        
+        const res = await axiosInstance.get(`${CURRENCY_URL}/functional`, {
+            params: {
+                shop_id: shopId,
+                role: "admin",
+                companycode: companyCode || (tenant ? tenant.tenant_code : null),
+                _: Date.now() // Cache-busting timestamp
+            },
+        });
+        
+        console.log('functional currency response', res.data);
+        
+        // Transform API response to match Currency interface
+        const functionalCurrency = res.data.data ? {
+            _id: res.data.data._id || res.data.data.id,
+            code: res.data.data.code,
+            name: res.data.data.name,
+            symbol: res.data.data.symbol,
+            decimal_places: res.data.data.decimal_places,
+            symbol_position: res.data.data.symbol_position || res.data.data.format?.symbol_position || "before",
+            thousands_separator: res.data.data.thousands_separator || res.data.data.format?.thousands_separator || ",",
+            decimal_separator: res.data.data.decimal_separator || res.data.data.format?.decimal_separator || ".",
+            is_active: res.data.data.is_active,
+            is_functional: res.data.data.is_functional || res.data.data.is_base_currency || false,
+            shop_id: res.data.data.shop_id,
+            created_by: res.data.data.created_by,
+            createdAt: res.data.data.createdAt,
+            updatedAt: res.data.data.updatedAt,
+        } : null;
+        
+        return functionalCurrency;
     } catch (err: any) {
         // 404 is expected on fresh setup — don't show a noisy error
         if (err?.response?.status !== 404) {
@@ -195,7 +274,18 @@ export const listRates = async (
     params: ListRatesParams = {}
 ): Promise<{ rates: ExchangeRate[]; total: number; page: number; totalPages: number }> => {
     try {
-        const res = await axiosInstance.get(`${CURRENCY_URL}/rates`, { params });
+        const shopId = localStorage.getItem("shopId");
+        const tenant = localStorage.getItem("tenant") ? JSON.parse(localStorage.getItem("tenant")!) : null;
+        const companyCode = localStorage.getItem("companyCode");
+        
+        const res = await axiosInstance.get(`${CURRENCY_URL}/rates`, { 
+            params: {
+                ...params,
+                shop_id: shopId,
+                role: "admin",
+                companycode: companyCode || (tenant ? tenant.tenant_code : null)
+            }
+        });
         return res.data;
     } catch (err: any) {
         message.error(err?.response?.data?.message || "Failed to fetch rates");
@@ -205,7 +295,26 @@ export const listRates = async (
 
 export const getLatestRates = async (): Promise<ExchangeRate[]> => {
     try {
-        const res = await axiosInstance.get(`${CURRENCY_URL}/rates/latest`);
+        // Check if user is authenticated before making API call
+        const token = localStorage.getItem("token");
+        const user = localStorage.getItem("user");
+        if (!token || !user) {
+            console.warn("User not authenticated - skipping latest rates API call");
+            return [];
+        }
+
+        const shopId = localStorage.getItem("shopId");
+        const tenant = localStorage.getItem("tenant") ? JSON.parse(localStorage.getItem("tenant")!) : null;
+        const companyCode = localStorage.getItem("companyCode");
+        
+        const res = await axiosInstance.get(`${CURRENCY_URL}/rates/latest`, {
+            params: {
+                shop_id: shopId,
+                role: "admin",
+                companycode: companyCode || (tenant ? tenant.tenant_code : null),
+                _: Date.now() // Cache-busting timestamp
+            },
+        });
         return res.data.rates ?? [];
     } catch (err: any) {
         message.error(err?.response?.data?.message || "Failed to fetch latest rates");
@@ -219,8 +328,19 @@ export const getRateForDate = async (
     date?: string
 ): Promise<number> => {
     try {
+        const shopId = localStorage.getItem("shopId");
+        const tenant = localStorage.getItem("tenant") ? JSON.parse(localStorage.getItem("tenant")!) : null;
+        const companyCode = localStorage.getItem("companyCode");
+        
         const res = await axiosInstance.get(`${CURRENCY_URL}/rates/for-date`, {
-            params: { from_currency: fromCurrency, to_currency: toCurrency, date },
+            params: { 
+                from_currency: fromCurrency, 
+                to_currency: toCurrency, 
+                date,
+                shop_id: shopId,
+                role: "admin",
+                companycode: companyCode || (tenant ? tenant.tenant_code : null)
+            },
         });
         return res.data.rate ?? 1;
     } catch (err: any) {

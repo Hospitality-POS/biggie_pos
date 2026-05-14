@@ -76,14 +76,14 @@ const UnitsList: React.FC = () => {
   };
 
   const filteredUnits = units.filter((unit) => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       unit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       unit.code.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = !statusFilter || unit.status === statusFilter;
     const matchesType = !typeFilter || unit.type === typeFilter;
-    const matchesProperty = !propertyFilter || unit.property_id === propertyFilter;
-    
+    const matchesProperty = !propertyFilter || unit.propertyId === propertyFilter;
+
     return matchesSearch && matchesStatus && matchesType && matchesProperty;
   });
 
@@ -107,7 +107,7 @@ const UnitsList: React.FC = () => {
     },
     {
       title: 'Property',
-      dataIndex: 'property_id',
+      dataIndex: 'propertyId',
       key: 'property',
       render: (propertyId: string) => {
         const property = properties.find(p => p._id === propertyId);
@@ -121,10 +121,10 @@ const UnitsList: React.FC = () => {
       render: (type: string) => <Tag color="blue">{type.toUpperCase()}</Tag>,
     },
     {
-      title: 'Size',
-      dataIndex: 'size_sqft',
-      key: 'size',
-      render: (size: number) => `${size.toLocaleString()} sqft`,
+      title: 'Area',
+      dataIndex: 'areaSqm',
+      key: 'areaSqm',
+      render: (area: number) => `${area?.toLocaleString() || 0} sqm`,
     },
     {
       title: 'Bedrooms',
@@ -140,9 +140,18 @@ const UnitsList: React.FC = () => {
     },
     {
       title: 'Price',
-      dataIndex: 'base_price',
       key: 'price',
-      render: (price: number) => `KES ${price.toLocaleString()}`,
+      render: (_: any, record: any) => {
+        // Check for new pricing structure first
+        if (record.pricing?.basePrice) {
+          return `${record.pricing.currency} ${record.pricing.basePrice.toLocaleString()}`;
+        }
+        // Fall back to legacy pricing
+        if (record.base_price) {
+          return `KES ${record.base_price.toLocaleString()}`;
+        }
+        return '-';
+      },
     },
     {
       title: 'Status',

@@ -2,13 +2,11 @@ import React, { useState } from "react";
 import {
     ProForm,
     ProFormSelect,
-    ProFormDatePicker,
     ProFormDigit,
     ProFormTextArea,
 } from "@ant-design/pro-components";
 import {
     Drawer,
-    Tabs,
     Button,
     Space,
     Table,
@@ -17,24 +15,19 @@ import {
     DatePicker,
     Typography,
     Alert,
-    Upload,
-    message as antdMessage,
 } from "antd";
 import {
     PlusOutlined,
     DeleteOutlined,
-    UploadOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import {
     openReconciliation,
-    addStatementLine,
     importStatementLines,
     OpenReconciliationParams,
     StatementLineInput,
 } from "@services/accounting/reconciliation";
 import { getBankAccounts } from "@services/accounting/accounts";
-import Papa from "papaparse";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -68,7 +61,6 @@ const OpenReconciliationDrawer: React.FC<Props> = ({
     const [form] = ProForm.useForm();
     const [lines, setLines] = useState<LineRow[]>([emptyRow()]);
     const [submitting, setSubmitting] = useState(false);
-    const [activeTab, setActiveTab] = useState<"manual" | "csv">("manual");
     const isAddMode = !!reconciliationId;
 
     // ── Bank accounts ──────────────────────────────────────────────────────────
@@ -85,43 +77,21 @@ const OpenReconciliationDrawer: React.FC<Props> = ({
     const addRow = () => setLines((p) => [...p, emptyRow()]);
     const removeRow = (key: string) =>
         setLines((p) => p.length > 1 ? p.filter((r) => r.key !== key) : p);
-    const updateRow = (key: string, field: keyof LineRow, value: any) =>
+    const updateRow = (key: string, field: keyof LineRow, value: unknown) =>
         setLines((p) => p.map((r) => r.key === key ? { ...r, [field]: value } : r));
-
-    // ── CSV Import ─────────────────────────────────────────────────────────────
-
-    const handleCSV = (file: File) => {
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (result) => {
-                const rows: LineRow[] = (result.data as any[]).map((row) => ({
-                    key: crypto.randomUUID(),
-                    transaction_date: row["Date"] || row["transaction_date"] || dayjs().format("YYYY-MM-DD"),
-                    description: row["Description"] || row["description"] || "",
-                    reference: row["Reference"] || row["reference"] || "",
-                    debit: parseFloat(row["Debit"] || row["debit"] || "0") || 0,
-                    credit: parseFloat(row["Credit"] || row["credit"] || "0") || 0,
-                    statement_balance: parseFloat(row["Balance"] || row["balance"] || "0") || 0,
-                    notes: row["Notes"] || row["notes"] || "",
-                }));
-                setLines(rows);
-                antdMessage.success(`${rows.length} rows parsed from CSV`);
-            },
-            error: () => antdMessage.error("Failed to parse CSV"),
-        });
-        return false; // prevent auto upload
-    };
 
     // ── Submit ─────────────────────────────────────────────────────────────────
 
-    const handleSubmit = async (values?: any) => {
+    const handleSubmit = async (values: any) => {
         const validLines = lines.filter((l) => l.description && (l.debit > 0 || l.credit > 0));
         setSubmitting(true);
         try {
             if (isAddMode) {
                 // Just add lines to existing reconciliation
-                await importStatementLines(reconciliationId!, validLines.map(({ key, ...l }) => l));
+                await importStatementLines(reconciliationId!, validLines.map((l) => {
+                    const { key, ...rest } = l;
+                    return rest;
+                }));
                 onSuccess(reconciliationId!);
             } else {
                 // Open new reconciliation
@@ -139,7 +109,10 @@ const OpenReconciliationDrawer: React.FC<Props> = ({
 
                 // Import lines if any provided
                 if (validLines.length > 0) {
-                    await importStatementLines(recoId, validLines.map(({ key, ...l }) => l));
+                    await importStatementLines(recoId, validLines.map((l) => {
+                        const { key, ...rest } = l;
+                        return rest;
+                    }));
                 }
                 onSuccess(recoId);
             }
@@ -229,38 +202,6 @@ const OpenReconciliationDrawer: React.FC<Props> = ({
 
     const linesSection = (
         <>
-            <Tabs
-                size="small"
-                activeKey={activeTab}
-                onChange={(k) => setActiveTab(k as "manual" | "csv")}
-                style={{ marginBottom: 12 }}
-                items={[
-                    { key: "manual", label: "Manual Entry" },
-                    { key: "csv", label: "Import CSV" },
-                ]}
-            />
-
-            {activeTab === "csv" && (
-                <Alert
-                    type="info"
-                    showIcon
-                    message='CSV columns: Date, Description, Reference, Debit, Credit, Balance, Notes'
-                    style={{ marginBottom: 12, padding: "4px 12px" }}
-                />
-            )}
-
-            {activeTab === "csv" ? (
-                <Upload.Dragger
-                    accept=".csv"
-                    beforeUpload={handleCSV}
-                    showUploadList={false}
-                    style={{ marginBottom: 12 }}
-                >
-                    <p><UploadOutlined style={{ fontSize: 24 }} /></p>
-                    <p>Click or drag a CSV file here to parse statement lines</p>
-                </Upload.Dragger>
-            ) : null}
-
             <Table
                 rowKey="key"
                 dataSource={lines}

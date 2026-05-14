@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import Routers from "@routes/Routers";
 import { db } from "../src/db/index";
+import { CurrencyProvider } from "@components/Currency";
 
 const App = () => {
   useEffect(() => {
@@ -32,9 +33,9 @@ const App = () => {
   }, []);
 
   return (
-    <>
+    <CurrencyProvider>
       <Routers />
-    </>
+    </CurrencyProvider>
   );
 };
 

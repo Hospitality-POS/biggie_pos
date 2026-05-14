@@ -344,7 +344,7 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             key: "currencies",
             icon: <GlobalOutlined style={{ color: "#0d9488" }} />,
             label: <span style={{ fontSize: 13 }}>Currency Settings</span>,
-            onClick: () => navigate(isAdmin ? "/admin/accounting/currencies" : "/accounting/currencies"),
+            onClick: () => navigate("/accounting/currencies"),
           },
         ],
       });

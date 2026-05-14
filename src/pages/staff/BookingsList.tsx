@@ -1,6 +1,6 @@
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ActionType, ProTable } from "@ant-design/pro-components";
+import { ActionType, ProTable, ProCard } from "@ant-design/pro-components";
 import {
   Button, Modal, Popconfirm, Space, Typography, message,
 } from "antd";
@@ -21,7 +21,6 @@ const { Text } = Typography;
 const C = {
   primary: "#6c1c2c",
   primaryLight: "#f9f0f2",
-  green: "#10b981",
   red: "#ef4444",
   blue: "#3b82f6",
   orange: "#f59e0b",
@@ -61,7 +60,7 @@ const getStatus = (appointmentDate: any): string => {
 const StatusBadge = ({ date }: { date: any }) => {
   const s = getStatus(date);
   const map: Record<string, [string, string, string, string]> = {
-    completed: ["#f0fdf4", C.green, "#bbf7d0", "Completed"],
+    completed: ["#f0fdf4", C.primary, "#bbf7d0", "Completed"],
     today: ["#fffbeb", C.orange, "#fde68a", "Today"],
     upcoming: ["#eff6ff", C.blue, "#bfdbfe", "Upcoming"],
     unknown: [C.bg, C.subText, C.border, "Unknown"],
@@ -240,7 +239,7 @@ const BookingDetailModal = ({ open, record, onClose, onEdit }: {
           <MetaRow label="Staff"><Text style={{ fontSize: 12 }}>{record.staff_id?.fullname || "Unassigned"}</Text></MetaRow>
           {record.service_id?.price && (
             <MetaRow label="Price">
-              <Text strong style={{ fontSize: 12, color: C.green }}>KES {fmt(record.service_id.price)}</Text>
+              <Text strong style={{ fontSize: 12, color: C.primary }}>KES {fmt(record.service_id.price)}</Text>
             </MetaRow>
           )}
           <MetaRow label="Type">
@@ -267,15 +266,23 @@ const BookingDetailModal = ({ open, record, onClose, onEdit }: {
 // ── Props ──────────────────────────────────────────────────────────────────
 interface BookingsListProps {
   onEditBooking?: (booking: any) => void;
+  refreshTrigger?: number;
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
-const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
+const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking, refreshTrigger }) => {
   const actionRef = useRef<ActionType>();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [allBookings, setAllBookings] = useState<any[]>([]);
+
+  // Reload data when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      actionRef.current?.reload();
+    }
+  }, [refreshTrigger]);
 
   // Fetch staff data using React Query
   const { data: staffData = [] } = useQuery({
@@ -479,7 +486,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking }) => {
         <div>
           <Text style={{ fontSize: 12 }}>{record.service_id?.name || "—"}</Text>
           {record.duration && <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>{record.duration}</Text>}
-          {record.service_id?.price && <Text style={{ fontSize: 11, color: C.green, display: "block", fontWeight: 600 }}>KES {fmt(record.service_id.price)}</Text>}
+          {record.service_id?.price && <Text style={{ fontSize: 11, color: C.primary, display: "block", fontWeight: 600 }}>KES {fmt(record.service_id.price)}</Text>}
         </div>
       ),
     },

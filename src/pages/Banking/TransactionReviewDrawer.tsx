@@ -154,6 +154,7 @@ const TransactionReviewDrawer: React.FC<Props> = ({
             }),
         enabled: open && !!importId,
         keepPreviousData: true,
+        refetchOnWindowFocus: false,
     });
 
     const { data: accountsData } = useQuery({

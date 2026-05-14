@@ -1,42 +1,13 @@
 import {
-  ApiFilled,
-  CalculatorFilled,
-  BarChartOutlined,
-  FolderFilled,
-  HomeFilled,
-  AuditOutlined,
-  BankOutlined,
-  FileTextOutlined,
-  FileSearchOutlined,
-  FileExcelOutlined,
-  DashboardOutlined,
-  ReconciliationOutlined,
-  SettingOutlined,
-  AppstoreOutlined,
-  AccountBookOutlined,
-  ArrowUpOutlined,
-  DollarOutlined,
-  MedicineBoxOutlined,
-  ExperimentOutlined,
-  FileDoneOutlined,
-  MessageOutlined,
-  CustomerServiceOutlined,
-  GlobalOutlined,
-  TeamOutlined,
-  NotificationOutlined,
-  AimOutlined,
-  RiseOutlined,
-  WalletOutlined,
-  SwapOutlined,
-  // ── Dala ───────────────────────────────────────────────────────────────────
-  HomeOutlined,
-  BuildOutlined,
-  ApartmentOutlined,
-  FileProtectOutlined,
-  UsergroupAddOutlined,
-  MoneyCollectOutlined,
+  ApiFilled, AppstoreOutlined, ApartmentOutlined, BarChartOutlined, CalculatorFilled, DashboardOutlined,
+  ExperimentOutlined, FileDoneOutlined, FileSearchOutlined, FileTextOutlined,
+  FolderFilled, GlobalOutlined, HomeFilled, HomeOutlined, UserOutlined, SettingOutlined,
+  SwapOutlined, UsergroupAddOutlined, WalletOutlined,
+  TeamOutlined, NotificationOutlined, AimOutlined, RiseOutlined,
+  MedicineBoxOutlined, MessageOutlined, ArrowUpOutlined, ArrowDownOutlined,
+  AuditOutlined, BankOutlined, CustomerServiceOutlined, AccountBookOutlined,
+  ReconciliationOutlined, BuildOutlined,
 } from "@ant-design/icons";
-import { PeopleOutlined } from "@mui/icons-material";
 import { useAppSelector } from "src/store";
 import React from "react";
 import { makePermissionChecker } from "@utils/accessControl";
@@ -127,7 +98,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting/expenses": "ACCOUNTING_INCOME_POST_EXPENSE",
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/income": "ACCOUNTING_INCOME_VIEW_HISTORY",
-  "/accounting/reports": "ACCOUNTING_REPORT_PROFIT_LOSS",
+  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS",
   "/accounting/currencies": "ACCOUNTING_COA_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/customers": "CUSTOMERS_VIEW",
@@ -175,7 +146,7 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/accounting/expenses": "ACCOUNTING_INCOME_POST_EXPENSE",
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/income": "ACCOUNTING_INCOME_VIEW_HISTORY",
-  "/accounting/reports": "ACCOUNTING_REPORT_PROFIT_LOSS",
+  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS",
   "/accounting/currencies": "ACCOUNTING_COA_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/customers": "CUSTOMERS_VIEW",
@@ -200,6 +171,7 @@ const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
   "/dala/leases": "DALA_LEASES_VIEW",
   "/dala/commissions": "DALA_COMMISSIONS_VIEW",
   "/dala/rent-collection": "DALA_RENT_COLLECTION_VIEW",
+  "/dala/maintenance": "DALA_MAINTENANCE_VIEW",
   "/dala/reports": "DALA_REPORTS_VIEW",
 };
 
@@ -242,9 +214,6 @@ const useProLayoutNav = () => {
     return can(gate);
   };
 
-  const storedTenant = localStorage.getItem("tenant");
-  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-
   const posMode = (localStorage.getItem("posMode") ?? "restaurant") as string;
   const isHospitalMode = posMode === "hospital";
 
@@ -267,13 +236,13 @@ const useProLayoutNav = () => {
     icon: <FileDoneOutlined />,
   };
 
-  // const currencyBarePath = hasAccounting ? "/accounting/currencies" : "/currencies";
-  // const currencyRoute = {
-  //   path: p(currencyBarePath),
-  //   name: "Currencies",
-  //   icon: <GlobalOutlined />,
-  //   _bare: currencyBarePath,
-  // };
+  const currencyBarePath = hasAccounting ? "/accounting/currencies" : "/currencies";
+  const currencyRoute = {
+    path: p(currencyBarePath),
+    name: "Currencies",
+    icon: <GlobalOutlined />,
+    _bare: currencyBarePath,
+  };
 
   // ── Mteja Conversations ───────────────────────────────────────────────────
   const mtejaConversationsRoute = (hasMteja && can("OMNICHANNEL_VIEW")) ? [{
@@ -295,7 +264,7 @@ const useProLayoutNav = () => {
   const mtejaCustomersRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
     path: p("/customers"),
     name: isHospitalMode ? "Patients" : "Customers",
-    icon: <PeopleOutlined />,
+    icon: <UserOutlined />,
     _bare: "/customers",
   }] : [];
 
@@ -376,15 +345,15 @@ const useProLayoutNav = () => {
       : []),
     { ...inventoryRoute, _bare: inventoryBarePath },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
-    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
-    { path: p("/reports"), name: "Business Reports", icon: <ApiFilled />, _bare: "/reports" },
+    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
+    { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
     { path: p("/petty-cash"), name: "Petty Cash", icon: <WalletOutlined />, _bare: "/petty-cash" },
     { path: p("/refunds"), name: "Refunds", icon: <SwapOutlined />, _bare: "/refunds" },
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,
-    // { ...currencyRoute },
+    { ...currencyRoute },
   ];
 
   const posRoutesFullAccess = posRoutesFullAccessBase
@@ -400,12 +369,12 @@ const useProLayoutNav = () => {
       : []),
     { ...inventoryRoute, _bare: inventoryBarePath },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
-    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
+    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
     { ...documentRoute, _bare: "/documents" },
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,
-    // { ...currencyRoute },
+    { ...currencyRoute },
   ];
 
   const posRoutesStaff = posRoutesStaffBase
@@ -413,9 +382,9 @@ const useProLayoutNav = () => {
     .map(({ _bare: _b, ...rest }) => rest);
 
   // ── Accounting routes ─────────────────────────────────────────────────────
-  const buildAccountingRoutes = (includeReports: boolean) => {
+  const buildAccountingRoutes = () => {
     const routesBase = [
-      { path: p("/accounting"), name: "Overview", icon: <DashboardOutlined />, _bare: "/accounting" },
+      { path: p("/accounting"), name: "Overview", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
       { path: p("/orders"), name: "Invoices", icon: <FileTextOutlined />, _bare: "/orders" },
       { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
       { path: p("/accounting/bills"), name: "Bills", icon: <FileTextOutlined />, _bare: "/accounting/bills" },
@@ -424,12 +393,10 @@ const useProLayoutNav = () => {
       { path: p("/accounting/bank-statements"), name: "Banking", icon: <BankOutlined />, _bare: "/accounting/bank-statements" },
       { path: p("/accounting/reconciliation"), name: "Bank Reconciliation", icon: <BankOutlined />, _bare: "/accounting/reconciliation" },
       { path: p("/accounting/accounts"), name: "Chart of Accounts", icon: <AuditOutlined />, _bare: "/accounting/accounts" },
-      ...(includeReports
-        ? [{ path: p("/accounting/reports"), name: "Reports", icon: <ReconciliationOutlined />, _bare: "/accounting/reports" }]
-        : []),
+      { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
       // { path: p("/accounting/currencies"), name: "Currencies", icon: <GlobalOutlined />, _bare: "/accounting/currencies" },
       { ...inventoryRoute, _bare: inventoryBarePath },
-      ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: "Customers", icon: <PeopleOutlined />, _bare: "/customers" }] : []),
+      ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
       { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
       { path: p("/payment-methods"), name: "Payment Methods", icon: <CalculatorFilled />, _bare: "/payment-methods" },
       { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
@@ -444,20 +411,19 @@ const useProLayoutNav = () => {
       .map(({ _bare: _b, ...rest }) => rest);
   };
 
-  const accountingRoutes = buildAccountingRoutes(true);
-  const accountingRoutesStaff = buildAccountingRoutes(false);
+  const accountingRoutes = buildAccountingRoutes();
+  const accountingRoutesStaff = buildAccountingRoutes();
 
   // ── Dala routes ───────────────────────────────────────────────────────────
   const buildDalaRoutes = () => {
     const routesBase = [
-      { path: p("/dala"), name: "Dala Dashboard", icon: <HomeOutlined />, _bare: "/dala" },
       { path: p("/dala/properties"), name: "Portfolio", icon: <HomeOutlined />, _bare: "/dala/properties" },
       { path: p("/dala/property-types"), name: "Property Types", icon: <ApartmentOutlined />, _bare: "/dala/property-types" },
       { path: p("/dala/sales"), name: "Sales", icon: <ReconciliationOutlined />, _bare: "/dala/sales" },
-      { path: p("/dala/leases"), name: "Leases", icon: <FileTextOutlined />, _bare: "/dala/leases" },
+      { path: p("/dala/leases"), name: "Leases & Rentals", icon: <FileTextOutlined />, _bare: "/dala/leases" },
       { path: p("/dala/commissions"), name: "Commissions", icon: <ReconciliationOutlined />, _bare: "/dala/commissions" },
       { path: p("/dala/rent-collection"), name: "Rent Collection", icon: <AccountBookOutlined />, _bare: "/dala/rent-collection" },
-      { path: p("/dala/reports"), name: "Dala Reports", icon: <FileTextOutlined />, _bare: "/dala/reports" },
+      { path: p("/dala/maintenance"), name: "Maintenance", icon: <BuildOutlined />, _bare: "/dala/maintenance" },
     ];
 
     return routesBase
@@ -468,13 +434,13 @@ const useProLayoutNav = () => {
   const dalaRoutes = buildDalaRoutes();
 
   // ── App tiles ─────────────────────────────────────────────────────────────
-  // const currencyTile = {
-  //   icon: makeTile("#0d9488", ICONS.currency),
-  //   title: "Currencies",
-  //   desc: "Manage currencies, exchange rates and multi-currency settings.",
-  //   url: p(currencyBarePath),
-  //   _bare: currencyBarePath,
-  // };
+  const currencyTile = {
+    icon: makeTile("#0d9488", ICONS.currency),
+    title: "Currencies",
+    desc: "Manage currencies, exchange rates and multi-currency settings.",
+    url: p(currencyBarePath),
+    _bare: currencyBarePath,
+  };
 
   const posAppListBase = [
     { icon: makeTile("#6366f1", ICONS.checklist), title: "Category", desc: "Organize your products with clear categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
@@ -493,7 +459,7 @@ const useProLayoutNav = () => {
       url: p("/omnichannel"),
       _bare: "/omnichannel",
     }] : []),
-    // { ...currencyTile },
+    { ...currencyTile },
     // CRM tiles — appended only when hasMteja; already permission-filtered inside crmAppTiles
     ...crmAppTilesBase.map(t => ({ ...t })),
   ];
@@ -512,9 +478,8 @@ const useProLayoutNav = () => {
     { icon: makeTile("#534AB7", ICONS.coa), title: "Chart of Accounts", desc: "Manage your account structure and codes.", url: p("/accounting/accounts"), _bare: "/accounting/accounts" },
     { icon: makeTile("#ef4444", ICONS.expense), title: "Expenses", desc: "Track and post direct business expenses.", url: p("/accounting/expenses"), _bare: "/accounting/expenses" },
     { icon: makeTile("#8b5cf6", ICONS.bill), title: "Supplier Bills", desc: "Manage outstanding bills owed to suppliers.", url: p("/accounting/bills"), _bare: "/accounting/bills" },
+    { icon: makeTile("#22c55e", ICONS.reports), title: "Reports", desc: "View financial reports and analytics.", url: p("/reports"), _bare: "/reports" },
     { icon: makeTile("#10b981", ICONS.income), title: "Income", desc: "View all inbound and outbound payments.", url: p("/accounting/income"), _bare: "/accounting/income" },
-    { icon: makeTile("#10b981", ICONS.reports), title: "Financial Reports", desc: "P&L, Balance Sheet, VAT, Aging and more.", url: p("/accounting/reports"), _bare: "/accounting/reports" },
-    // { ...currencyTile, url: p("/accounting/currencies"), _bare: "/accounting/currencies" },
     { icon: makeTile("#10b981", ICONS.inventory), title: "Inventory", desc: "Track and manage your stock levels.", url: p("/inventory"), _bare: "/inventory" },
     { icon: makeTile("#06b6d4", ICONS.customers), title: "Customers", desc: "Manage your customer relationships.", url: p("/customers"), _bare: "/customers" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: p("/suppliers"), _bare: "/suppliers" },
@@ -613,7 +578,27 @@ const useProLayoutNav = () => {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // CASE 5: POS + Accounting
+  // CASE 5: Mteja + Dala
+  // ════════════════════════════════════════════════════════════════════════════
+  if (hasMteja && hasDala && !hasPOS && !hasAccounting) {
+    return {
+      route: {
+        path: "/",
+        routes: [
+          { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
+          ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          { path: p("/customers"), name: "Customers", icon: <UserOutlined />, _bare: "/customers" },
+          ...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest),
+          ...crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
+        ],
+      },
+      appList: [...mtejaOnlyAppList], // TODO: Add Dala app tiles
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 6: POS + Accounting
   // ════════════════════════════════════════════════════════════════════════════
   if (hasPOS && hasAccounting && !hasDala) {
     const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
@@ -628,13 +613,9 @@ const useProLayoutNav = () => {
             icon: <AccountBookOutlined />,
             routes: accRoutes,
           },
-          // CRM as a top-level nav group — only when hasMteja
-          ...(hasMteja && crmRoutes.length > 0 ? [{
-            path: p("/crm/leads"),
-            name: "CRM",
-            icon: <TeamOutlined />,
-            routes: crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
-          }] : []),
+          // Mteja routes flattened — only when hasMteja
+          ...(hasMteja ? mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest) : []),
+          ...(hasMteja ? crmRoutes.map(({ _bare: _b, ...rest }: any) => rest) : []),
         ],
       },
       appList: [...posAppList, ...accountingAppList],
@@ -650,19 +631,10 @@ const useProLayoutNav = () => {
         path: "/",
         routes: [
           ...posRoutes,
-          {
-            path: p("/dala"),
-            name: "Real Estate",
-            icon: <HomeOutlined />,
-            routes: dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
-          },
-          // CRM as a top-level nav group — only when hasMteja
-          ...(hasMteja && crmRoutes.length > 0 ? [{
-            path: p("/crm/leads"),
-            name: "CRM",
-            icon: <TeamOutlined />,
-            routes: crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
-          }] : []),
+          ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          // Mteja routes flattened — only when hasMteja
+          ...(hasMteja ? mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest) : []),
+          ...(hasMteja ? crmRoutes.map(({ _bare: _b, ...rest }: any) => rest) : []),
         ],
       },
       appList: [...posAppList], // TODO: Add Dala app tiles
@@ -678,25 +650,19 @@ const useProLayoutNav = () => {
       route: {
         path: "/",
         routes: [
+          { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
+          { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
+          ...(hasMteja ? [{ path: p("/customers"), name: "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
           {
             path: p("/accounting"),
             name: "Accounting",
             icon: <AccountBookOutlined />,
             routes: accRoutes,
           },
-          {
-            path: p("/dala"),
-            name: "Real Estate",
-            icon: <HomeOutlined />,
-            routes: dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
-          },
-          // CRM as a top-level nav group — only when hasMteja
-          ...(hasMteja && crmRoutes.length > 0 ? [{
-            path: p("/crm/leads"),
-            name: "CRM",
-            icon: <TeamOutlined />,
-            routes: crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
-          }] : []),
+          ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          // Mteja routes flattened — only when hasMteja
+          ...(hasMteja ? mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest) : []),
+          ...(hasMteja ? crmRoutes.map(({ _bare: _b, ...rest }: any) => rest) : []),
         ],
       },
       appList: [...accountingAppList], // TODO: Add Dala app tiles
@@ -719,19 +685,10 @@ const useProLayoutNav = () => {
             icon: <AccountBookOutlined />,
             routes: accRoutes,
           },
-          {
-            path: p("/dala"),
-            name: "Real Estate",
-            icon: <HomeOutlined />,
-            routes: dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
-          },
-          // CRM as a top-level nav group — only when hasMteja
-          ...(hasMteja && crmRoutes.length > 0 ? [{
-            path: p("/crm/leads"),
-            name: "CRM",
-            icon: <TeamOutlined />,
-            routes: crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
-          }] : []),
+          ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          // Mteja routes flattened — only when hasMteja
+          ...(hasMteja ? mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest) : []),
+          ...(hasMteja ? crmRoutes.map(({ _bare: _b, ...rest }: any) => rest) : []),
         ],
       },
       appList: [...posAppList, ...accountingAppList], // TODO: Add Dala app tiles
@@ -739,9 +696,38 @@ const useProLayoutNav = () => {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // FALLBACK
+  // FALLBACK: unexpected combination
   // ════════════════════════════════════════════════════════════════════════════
-  return { route: { path: "/", routes: posRoutes }, appList: posAppList };
+  const baseRoutes = [...posRoutes];
+  if (hasDala) {
+    baseRoutes.push(...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest));
+  }
+  if (hasAccounting) {
+    const accRoutes = isAdminOrCashier ? accountingRoutes : accountingRoutesStaff;
+    baseRoutes.push({
+      path: p("/accounting"),
+      name: "Accounting",
+      icon: <AccountBookOutlined />,
+      routes: accRoutes,
+    });
+  }
+  // Mteja routes flattened — only when hasMteja
+  if (hasMteja) {
+    baseRoutes.push(...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest));
+    baseRoutes.push(...crmRoutes.map(({ _bare: _b, ...rest }: any) => rest));
+  }
+  // Add Dashboard and Reports if not already present
+  if (!hasPOS) {
+    baseRoutes.unshift(
+      { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined /> },
+      { path: p("/reports"), name: "Reports", icon: <FileTextOutlined /> }
+    );
+    // Add Customers if Mteja is enabled
+    if (hasMteja) {
+      baseRoutes.splice(2, 0, { path: p("/customers"), name: "Customers", icon: <UserOutlined /> });
+    }
+  }
+  return { route: { path: "/", routes: baseRoutes }, appList: posAppList };
 };
 
 export default useProLayoutNav;

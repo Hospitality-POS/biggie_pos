@@ -2,7 +2,6 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Box,
-  Typography,
   TableContainer,
   Table,
   TableBody,
@@ -48,6 +47,7 @@ import {
   Tag,
   Alert,
   message,
+  Typography,
   Tooltip,
   Segmented,
   Slider as AntSlider,
@@ -63,6 +63,7 @@ import {
   type SavePrintResult,
 } from "../MODALS/Hooks/usePrintDocument";
 import DigiTaxInvoiceGenerator from "../DigiTaxInvoiceGenerator";
+import { useIPPrinter } from "../../hooks/useIPPrinter";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 interface PrintBillProps {
@@ -227,9 +228,12 @@ const MetaRow: React.FC<{ left: React.ReactNode; right?: React.ReactNode; style?
 // ── Main component ─────────────────────────────────────────────────────────
 const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
+  const { user } = useAppSelector((state) => state.auth);
+  const { printHtmlContent, loading: ipPrinterLoading } = useIPPrinter();
 
   const componentRef = useRef<HTMLDivElement | null>(null);
   const [refReady, setRefReady] = useState(false);
+  const [useIPPrinterMode, setUseIPPrinterMode] = useState(false); // Disabled by default
 
   const printableRef = useCallback((node: HTMLDivElement | null) => {
     componentRef.current = node;
@@ -255,7 +259,26 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
-  const isEtimsEnabled = tenant?.etims_config?.enabled === true;
+  const clientLogoUrl = tenant?.tenant_logo?.url;
+
+  // Get VAT mode and rate from tenant settings (normalize to uppercase)
+  const rawVatMode = (tenant?.vat_pricing_mode || "EXCLUSIVE").toString().toUpperCase();
+  const VAT_RATE = (tenant?.is_vat_enabled ?? true) ? (tenant?.vat_standard_rate || 0.16) : 0;
+
+  // Detect effective VAT mode: prefer tenant setting, but also detect from
+  // actual store values when the setting is missing or doesn't match reality.
+  // In INCLUSIVE mode the store sets subtotal = grossTotal and
+  // totalVatAmount/subtotal ≈ VAT_RATE/(1+VAT_RATE).
+  let vatMode: "INCLUSIVE" | "EXCLUSIVE" = rawVatMode === "INCLUSIVE" ? "INCLUSIVE" : "EXCLUSIVE";
+  if (vatMode === "EXCLUSIVE" && subtotal > 0 && totalVatAmount > 0 && VAT_RATE > 0) {
+    const inclusiveRatio = VAT_RATE / (1 + VAT_RATE);
+    const actualRatio = totalVatAmount / subtotal;
+    if (Math.abs(actualRatio - inclusiveRatio) < 0.02) {
+      vatMode = "INCLUSIVE";
+    }
+  }
+
+  // debug removed
 
   const {
     BRAND_NAME1, EMAIL_URL, PHONE_NO, PO_BOX,
@@ -272,6 +295,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     data,
   });
 
+  // Calculate net subtotal for inclusive VAT
+  const netSubtotal = vatMode === "INCLUSIVE" ? subtotal - totalVatAmount : subtotal;
+
   // Derived discount amount
   const discountAmount =
     cartDetails?.discount > 0
@@ -280,15 +306,28 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
         : cartDetails.discount
       : 0;
 
-  // ── Display price helper ───────────────────────────────────────────────
+  // ── Display price helper (always returns VAT-exclusive unit price) ─────
+  const getExclPrice = useCallback(
+    (item: any): number => {
+      let price = item.price;
+      if (vatMode === "INCLUSIVE" && VAT_RATE > 0) {
+        price = price / (1 + VAT_RATE);
+      }
+      return price;
+    },
+    [vatMode, VAT_RATE]
+  );
+
   const getDisplayPrice = useCallback(
     (item: any): number => {
-      if (showDiscount || discountAmount === 0) return item.price;
-      const itemTotal = item.price * item.quantity;
-      const discountRatio = discountAmount / subtotal;
+      const price = getExclPrice(item);
+      if (showDiscount || discountAmount === 0) return price;
+      const itemTotal = price * item.quantity;
+      const netSub = vatMode === "INCLUSIVE" ? subtotal - totalVatAmount : subtotal;
+      const discountRatio = netSub > 0 ? discountAmount / netSub : 0;
       return (itemTotal * (1 - discountRatio)) / item.quantity;
     },
-    [showDiscount, discountAmount, subtotal]
+    [showDiscount, discountAmount, subtotal, totalVatAmount, vatMode, getExclPrice]
   );
 
   const triggerPrint = useReactToPrint({
@@ -348,26 +387,59 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
       message.error("Print limit reached. Printing is not allowed for this document.");
       return;
     }
-    if (!refReady || !componentRef.current) {
-      message.warning("Document is not ready yet. Please try again.");
-      return;
-    }
+    
     setIsPrinting(true);
+    
     try {
-      const printFormat: PrintFormat = isPdfView ? "pdf" : "thermal";
-      const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
-      if (blocked) { setIsPrinting(false); return; }
-      if (saved) {
-        message.success(`${printFormat === "pdf" ? "PDF" : "Print"} ${isReprint ? "reprinted" : "printed"} and recorded successfully`);
+      if (useIPPrinterMode) {
+        // Use IP printer - capture HTML content from thermal receipt
+        console.log('🔍 PrintBillModal - IP Printer Mode - Capturing HTML content');
+        
+        if (!componentRef.current) {
+          message.error("Receipt content not ready for IP printing");
+          setIsPrinting(false);
+          return;
+        }
+        
+        // Capture the HTML content from the thermal receipt section
+        const htmlContent = componentRef.current.innerHTML;
+        console.log('🔍 PrintBillModal - Captured HTML content length:', htmlContent.length);
+        
+        const result = await printHtmlContent(htmlContent, 'bill');
+        if (result.success) {
+          // Record the print if IP printing was successful
+          const printFormat: PrintFormat = "thermal";
+          const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
+          if (blocked) { setIsPrinting(false); return; }
+          if (saved) {
+            message.success(`Bill printed via IP printer and recorded successfully`);
+          }
+        } else {
+          message.error(result.message);
+        }
+      } else {
+        // Use browser printing
+        if (!refReady || !componentRef.current) {
+          message.warning("Document is not ready yet. Please try again.");
+          setIsPrinting(false);
+          return;
+        }
+        const printFormat: PrintFormat = isPdfView ? "pdf" : "thermal";
+        const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
+        if (blocked) { setIsPrinting(false); return; }
+        if (saved) {
+          message.success(`${printFormat === "pdf" ? "PDF" : "Print"} ${isReprint ? "reprinted" : "printed"} and recorded successfully`);
+        }
+        pendingPrintRef.current = true;
+        setPrintTrigger((n) => n + 1);
       }
-      pendingPrintRef.current = true;
-      setPrintTrigger((n) => n + 1);
     } catch (err) {
       console.error("executePrint error:", err);
       message.error("Failed to process print request");
+    } finally {
       setIsPrinting(false);
     }
-  }, [canPrint, isPdfView, refReady, recordPrint, isReprint]);
+  }, [canPrint, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, printHtmlContent, cartDetails]);
 
   const handleFinish = async () => {
     if (!canPrint) { message.error("Print limit reached."); return false; }
@@ -391,7 +463,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
         bannerLabel: `${docConfig.label} — ${cartDetails?.order_no ?? ""}`,
         bannerType: "Sales",
         summary: [
-          { label: "Subtotal", value: fmtAmt(subtotal), color: C.primary },
+          { label: "Subtotal", value: fmtAmt(netSubtotal), color: C.primary },
           { label: "VAT", value: fmtAmt(totalVatAmount), color: "#6366f1" },
           { label: docConfig.amountLabel, value: fmtAmt(grandTotal), color: "#10b981" },
         ],
@@ -460,8 +532,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           submitButtonProps: {
             icon: isPdfView ? <FilePdfOutlined /> : <PrinterFilled />,
             style: { background: C.primary, borderColor: C.primary },
-            disabled: !canPrint || isPrinting,
-            loading: isPrinting,
+            disabled: !canPrint || isPrinting || (useIPPrinterMode && ipPrinterLoading),
+            loading: isPrinting || (useIPPrinterMode && ipPrinterLoading),
           },
           searchConfig: {
             submitText: isPdfView ? "Save as PDF" : isReprint ? "Reprint Document" : "Print Document",
@@ -484,13 +556,34 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           />
         )}
         {isReprint && canPrint && printsRemaining !== null && (
-          <Alert type="warning" showIcon
-            message={`Reprint — ${printsRemaining} print${printsRemaining !== 1 ? "s" : ""} remaining`}
+          <Alert
+            type="warning"
+            showIcon
+            icon={<WarningOutlined />}
+            message={`Reprint allowed: ${printsRemaining} more print${printsRemaining === 1 ? "" : "s"} remaining`}
             style={{ marginBottom: 16, borderRadius: 8 }}
           />
         )}
 
-        {/* ── Toolbar ─────────────────────────────────────────────────── */}
+        {/* ── IP Printer Toggle ─────────────────────────────────────────────── */}
+        {/* <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <Typography.Text strong>Use IP Printer</Typography.Text>
+              <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+                Print directly to configured thermal printer (currently disabled)
+              </div>
+            </div>
+            <Switch
+              checked={useIPPrinterMode}
+              onChange={setUseIPPrinterMode}
+              checkedChildren="IP"
+              unCheckedChildren="Browser"
+            />
+          </div>
+        </div> */}
+
+        {/* ── Print Controls ────────────────────────────────────────────────── */}
         <div style={{
           background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 10,
           padding: "12px 16px", marginBottom: 20,
@@ -781,7 +874,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
             {data?.map((item: any, index: number) => {
               const displayPrice = getDisplayPrice(item);
-              const itemVat = item.vat_amount || (item.price * item.quantity * (item.vat_rate || 0) / 100);
+              const exclLine = getExclPrice(item) * item.quantity;
+              const itemVat = (vatMode === "INCLUSIVE" && VAT_RATE > 0) ? exclLine * VAT_RATE : 0;
               const lineTotal = displayPrice * item.quantity;
 
               return (
@@ -837,7 +931,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 <tr>
                   <td style={{ ...S.value, paddingBottom: 2 }}>Subtotal</td>
                   <td style={{ ...S.value, paddingBottom: 2, textAlign: "right", whiteSpace: "nowrap" }}>
-                    {subtotal.toLocaleString()}
+                    {netSubtotal.toLocaleString()}
                   </td>
                 </tr>
               )}
@@ -964,7 +1058,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           in a subtle smaller style. Only rendered in PDF mode — thermal
           receipt is unchanged and does not show descriptions.
         */}
-        {isPdfView && (
+        {isPdfView && user ? (
           <div
             ref={printableRef}
             style={{ backgroundColor: "#fff", padding: "40px", maxWidth: "800px", margin: "0 auto", boxShadow: "0 0 10px rgba(0,0,0,0.1)" }}
@@ -972,12 +1066,30 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             {/* PDF Header */}
             <Box sx={{ borderBottom: "3px solid #333", paddingBottom: 3, marginBottom: 3 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 2 }}>
-                <Box>
-                  <Typography variant="h3" style={pdfHdr}>{BRAND_NAME1}</Typography>
-                  <Typography variant="body1" style={pdfNorm}>PIN: {PIN || "N/A"}</Typography>
-                  <Typography variant="body1" style={pdfNorm}>P.O. Box {PO_BOX || "N/A"}</Typography>
-                  <Typography variant="body1" style={pdfNorm}>Tel: {PHONE_NO}</Typography>
-                  <Typography variant="body1" style={pdfNorm}>Email: {EMAIL_URL}</Typography>
+                <Box sx={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
+                  {/* Client Logo */}
+                  {clientLogoUrl && user && (
+                    <Box sx={{ flexShrink: 0 }}>
+                      <img
+                        src={clientLogoUrl}
+                        alt="Client Logo"
+                        style={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: 8,
+                          objectFit: "contain",
+                          border: "1px solid #e2e8f0"
+                        }}
+                      />
+                    </Box>
+                  )}
+                  <Box>
+                    <Typography variant="h3" style={pdfHdr}>{BRAND_NAME1}</Typography>
+                    <Typography variant="body1" style={pdfNorm}>PIN: {PIN || "N/A"}</Typography>
+                    <Typography variant="body1" style={pdfNorm}>P.O. Box {PO_BOX || "N/A"}</Typography>
+                    <Typography variant="body1" style={pdfNorm}>Tel: {PHONE_NO}</Typography>
+                    <Typography variant="body1" style={pdfNorm}>Email: {EMAIL_URL}</Typography>
+                  </Box>
                 </Box>
                 <Box sx={{ textAlign: "right" }}>
                   <Box sx={{ backgroundColor: docConfig.color, color: "#fff", padding: "8px 20px", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: 1, mb: 2 }}>
@@ -1065,8 +1177,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 </TableHead>
                 <TableBody>
                   {data?.map((item: any, index: number) => {
-                    const displayPrice = getDisplayPrice(item);
-                    const itemVat = item.vat_amount || (item.price * item.quantity * (item.vat_rate || 0) / 100);
+                    // Inline VAT-exclusive computation
+                    const rawPrice = typeof item.price === "string" ? parseFloat(item.price) : (item.price || 0);
+                    const unitExcl = (vatMode === "INCLUSIVE" && VAT_RATE > 0) ? rawPrice / (1 + VAT_RATE) : rawPrice;
+                    const lineExcl = unitExcl * (item.quantity || 1);
+                    const itemVat = (vatMode === "INCLUSIVE" && VAT_RATE > 0) ? lineExcl * VAT_RATE : 0;
+                    const lineTotal = lineExcl + itemVat;
                     // Support both nested product_id.desc and flat item.desc
                     const itemDesc = item?.product_id?.desc || item?.product_id?.description || item?.desc || item?.description || "";
                     return (
@@ -1090,9 +1206,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{displayPrice.toFixed(2)}</TableCell>
+                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{unitExcl.toFixed(2)}</TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{itemVat.toFixed(2)}</TableCell>
-                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{(displayPrice * item.quantity).toFixed(2)}</TableCell>
+                        <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{lineTotal.toFixed(2)}</TableCell>
                       </TableRow>
                     );
                   })}
@@ -1105,7 +1221,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               {(showDiscount || discountAmount === 0) && (
                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                   <Typography style={pdfNorm}>Subtotal</Typography>
-                  <Typography style={pdfNorm}>Ksh {subtotal.toLocaleString()}</Typography>
+                  <Typography style={pdfNorm}>Ksh {netSubtotal.toLocaleString()}</Typography>
                 </Box>
               )}
               {showDiscount && discountAmount > 0 && (
@@ -1191,6 +1307,30 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Printed: {printDateStr} {printTimeStr}</Typography>
             </Box>
           </div>
+        ) : (
+          isPdfView && (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              minHeight: '400px',
+              backgroundColor: '#fff',
+              padding: '40px',
+              maxWidth: '800px',
+              margin: '0 auto',
+              boxShadow: '0 0 10px rgba(0,0,0,0.1)',
+              borderRadius: '8px'
+            }}>
+              <LockOutlined style={{ fontSize: '48px', color: '#6c1c2c', marginBottom: '16px' }} />
+              <Typography variant="h4" sx={{ color: '#6c1c2c', marginBottom: '8px', textAlign: 'center' }}>
+                Authentication Required
+              </Typography>
+              <Typography variant="body1" sx={{ color: '#666', textAlign: 'center', maxWidth: '400px' }}>
+                Please log in to view and print PDF documents. This feature requires user authentication for security purposes.
+              </Typography>
+            </Box>
+          )
         )}
 
         <Box sx={{ mt: 2 }} />

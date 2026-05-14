@@ -1,15 +1,12 @@
 import {
-  AccountBookOutlined,
-  AuditOutlined,
-  CompassOutlined,
   DashboardOutlined,
-  FileTextOutlined,
-  FileDoneOutlined,
-  ReconciliationOutlined,
   ShopOutlined,
-  UsergroupAddOutlined,
   CustomerServiceOutlined,
-  HomeOutlined,
+  AuditOutlined,
+  FileDoneOutlined,
+  CompassOutlined,
+  UsergroupAddOutlined,
+  ReconciliationOutlined,
 } from "@ant-design/icons";
 
 /**
@@ -17,28 +14,18 @@ import {
  *
  * Module rules:
  *  - Duka (POS) only         → Dashboard, Branch, Staff, POS Reports, Documents, Help
- *  - Pesa (Accounting) only  → Accounting Dashboard, Branch, Staff, CoA, Financial Reports, Documents, Help
- *  - Duka + Pesa both        → Dashboard, Branch, Staff, POS Reports, Accounting Dashboard, CoA, Financial Reports, Documents, Help
- *  - Dala ONLY              → Dala Dashboard, Properties, Units, Sales, Leases, Branch, Staff, Help
- *  - Dala + any other       → Dala routes shown alongside other modules
+ *  - Pesa (Accounting) only  → Accounting Dashboard, Branch, Staff, CoA, Reports, Documents, Help
+ *  - Duka + Pesa both        → Dashboard, Branch, Staff, POS Reports, Accounting Dashboard, CoA, Reports, Documents, Help
  *  - Mteja ONLY              → Mteja Dashboard, Branch, Staff, Help
  *  - Mteja + any other       → Mteja routes hidden; only the other module(s) show
  *
  * Router paths (Routers.tsx) — must match exactly:
  *  /admin/dashboard
- *  /admin/reports                    ← POS business reports
+ *  /admin/reports                    ← Unified reports page
  *  /admin/documents
  *  /admin/accounting                 ← Accounting dashboard
  *  /admin/accounting/accounts        ← Chart of Accounts  (was /admin/accounts — 404)
- *  /admin/accounting/reports         ← Financial reports   (was /admin/reports — conflict with POS)
- *  /admin/dala                       ← Dala dashboard
- *  /admin/dala/properties            ← Properties management
- *  /admin/dala/units                 ← Units management
- *  /admin/dala/sales                 ← Sales management
- *  /admin/dala/leases                ← Lease management
- *  /admin/dala/commissions           ← Commission management
- *  /admin/dala/rent-collection        ← Rent collection
- *  /admin/dala/reports               ← Dala reports
+ *  /admin/reports                    ← Unified reports page (includes POS, Accounting, CRM, HR)
  *  /admin/shop-management
  *  /admin/staff-management
  *  /admin/mteja
@@ -46,11 +33,7 @@ import {
  */
 const useAdminProLayoutNav = () => {
   const storedTenant = localStorage.getItem("tenant");
-  const storedUser = localStorage.getItem("user");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const user = storedUser ? JSON.parse(storedUser) : null;
-
-  const userRole = user?.role?.toLowerCase();
 
   // ── Module flags ──────────────────────────────────────────────────────────
   const hasDuka = tenant?.pos_integration?.enabled === true;
@@ -74,6 +57,7 @@ const useAdminProLayoutNav = () => {
 
   // ── Common routes (always shown) ──────────────────────────────────────────
   const commonRoutes = [
+    { path: "/admin/reports", name: "Reports", icon: <ReconciliationOutlined /> },
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
     { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
   ];
@@ -81,20 +65,16 @@ const useAdminProLayoutNav = () => {
   // ── Duka (POS) routes ─────────────────────────────────────────────────────
   const dukaRoutes = [
     { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
-    ...(userRole === "admin"
-      ? [{ path: "/admin/reports", name: "Business Reports", icon: <ReconciliationOutlined /> }]
-      : []),
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
   // ── Pesa (Accounting) routes ──────────────────────────────────────────────
   // FIX: paths now match router exactly
   //   /admin/accounts          → /admin/accounting/accounts  (was 404)
-  //   /admin/reports           → /admin/accounting/reports   (was clashing with POS reports)
+  //   /admin/dashboard         → Unified dashboard page (includes POS, Accounting, Mteja)
   const pesaRoutes = [
-    { path: "/admin/accounting", name: "Accounting Dashboard", icon: <AccountBookOutlined /> },
+    { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
     { path: "/admin/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
-    { path: "/admin/accounting/reports", name: "Financial Reports", icon: <FileTextOutlined /> },
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
@@ -104,10 +84,7 @@ const useAdminProLayoutNav = () => {
   ];
 
   // ── Dala (Real Estate) routes ─────────────────────────────────────────────
-  const dalaRoutes = [
-    { path: "/admin/dala", name: "Dala Dashboard", icon: <HomeOutlined /> },
-    { path: "/admin/dala/reports", name: "Dala Reports", icon: <FileTextOutlined /> },
-  ];
+  const dalaRoutes = [];
 
   // ── Help Center (always last) ─────────────────────────────────────────────
   const helpRoute = {
@@ -149,33 +126,27 @@ const useAdminProLayoutNav = () => {
     };
   }
 
-  // ── CASE 4: Dala only ─────────────────────────────────────────────────────
-  if (hasDala && !hasDuka && !hasPesa) {
-    console.log("[AdminNav] ✅ Dala only (Real Estate)");
+  // ── CASE 4: Duka + Pesa ───────────────────────────────────────────────────
+  // FIX: deduplicate Document Center and Dashboard — appears in both dukaRoutes and pesaRoutes.
+  // When combined, filter them out of pesaRoutes to avoid duplicate nav items.
+  if (hasDuka && hasPesa) {
+    console.log("[AdminNav] ✅ Duka + Pesa (POS + Accounting)");
+    const pesaWithoutDocsAndDashboard = pesaRoutes.filter((r) => r.path !== "/admin/documents" && r.path !== "/admin/dashboard");
     return {
       route: {
         path: "/admin",
-        routes: [
-          { path: "/admin/dala", name: "Dala Dashboard", icon: <HomeOutlined /> },
-          { path: "/admin/dala/reports", name: "Dala Reports", icon: <FileTextOutlined /> },
-          { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
-          { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
-          helpRoute,
-        ],
+        routes: [...dukaRoutes, ...commonRoutes, ...pesaWithoutDocsAndDashboard, helpRoute],
       },
     };
   }
 
-  // ── CASE 5: Duka + Pesa ───────────────────────────────────────────────────
-  // FIX: deduplicate Document Center — appears in both dukaRoutes and pesaRoutes.
-  // When combined, filter it out of pesaRoutes to avoid two identical nav items.
-  if (hasDuka && hasPesa && !hasDala) {
-    console.log("[AdminNav] ✅ Duka + Pesa (POS + Accounting)");
-    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+  // ── CASE 5: Mteja + Dala ───────────────────────────────────────────────────
+  if (hasMteja && hasDala && !hasDuka && !hasPesa) {
+    console.log("[AdminNav] ✅ Mteja + Dala (CRM + Real Estate)");
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...commonRoutes, ...pesaWithoutDocs, helpRoute],
+        routes: [...mtejaRoutes, ...dalaRoutes, ...commonRoutes, helpRoute],
       },
     };
   }
@@ -215,12 +186,22 @@ const useAdminProLayoutNav = () => {
     };
   }
 
-  // ── FALLBACK: no modules ──────────────────────────────────────────────────
-  console.log("[AdminNav] ⚠️ Fallback — no modules");
+  // ── FALLBACK: no modules or unexpected combination ─────────────────────────────
+  console.log("[AdminNav] ⚠️ Fallback — no modules or unexpected combination");
+  const routesToShow = [
+    ...(hasDuka ? dukaRoutes : []),
+    ...(hasPesa ? pesaRoutes : []),
+    ...(hasDala ? dalaRoutes : []),
+    ...(hasMteja ? mtejaRoutes : []),
+    ...commonRoutes,
+    helpRoute,
+  ];
+  // Deduplicate routes based on path
+  const uniqueRoutes = Array.from(new Map(routesToShow.map(r => [r.path, r])).values());
   return {
     route: {
       path: "/admin",
-      routes: [...commonRoutes, helpRoute],
+      routes: uniqueRoutes,
     },
   };
 };

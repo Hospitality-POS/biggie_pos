@@ -15,13 +15,12 @@ import { COOP_NAME } from "@utils/config";
 import MainOrders from "@pages/OrderManagement/MainOrders";
 import NubaLoader from "@components/spinner/NubaLoader";
 import StaffLoginPage from "@pages/Login/login";
-import Dashboard from "@pages/Dashboard/Dashboard";
-import CustomerRegistration from "@pages/Customer/Customer";
+import UnifiedShopDashboardPage from "src/pages/Report/UnifiedShopDashboardPage";
 import StaffClockTracker from "@pages/staff/ClockInTracker";
 import HelpCenter from "src/AdminDashboard/HelpCenter/HelpCenterPage";
 import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
+import UnifiedDashboardPage from "src/pages/Report/UnifiedDashboardPage";
 import ShopManagement from "src/AdminDashboard/Shops/MainShopPage";
-import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
 import Customer from "src/pages/Customer/CustomerList";
 import PaymentSubscriptionPage from "src/components/billing/Billing";
 import AdminCustomersList from "src/AdminDashboard/Customers/CustomerList";
@@ -50,7 +49,6 @@ const SupplierMainSettings = lazy(() => import("@pages/Settings/supplierLevel/su
 const TableMainSettings = lazy(() => import("@pages/Settings/TableLevel/Table_main_settings"));
 const SystemSetup = lazy(() => import("@pages/Settings/systemSetup/SystemSetup"));
 const CategoryMainSettings = lazy(() => import("@pages/Settings/categoryLevel/Category_main_settings"));
-const Reports = lazy(() => import("@pages/Settings/reportsLevel/Reports"));
 const Profile = lazy(() => import("@pages/Profile/Profile"));
 const AdminProfile = lazy(() => import("src/AdminDashboard/Profile/AdminProfile"));
 const EmployeeShift = lazy(() => import("@pages/EmployeeShift/Employee"));
@@ -73,7 +71,7 @@ const JournalEntriesPage = lazy(() => import("src/pages/JournalEntry/JournalEntr
 const NotesPage = lazy(() => import("src/pages/Notes/NotesPage"));
 const BankStatementPage = lazy(() => import("src/pages/Banking/BankStatementPage"));
 const BankReconciliationPage = lazy(() => import("src/pages/Reconciliation/BankReconciliationPage"));
-const AccountingReportsPage = lazy(() => import("src/pages/Report/AccountingReportsPage"));
+const UnifiedReportsPage = lazy(() => import("src/pages/Report/UnifiedReportsPage"));
 
 // Petty Cash & Refunds (Duka Only)
 const PettyCashListPage = lazy(() => import("src/pages/PettyCash/PettyCashListPage"));
@@ -97,7 +95,6 @@ const SalesBudgetsPage = lazy(() => import("src/pages/Salesbudgets/Salesbudgets"
 
 // ─── Dala Real Estate Module ───────────────────────────────────────────────────
 // All Dala pages are lazy-loaded and only reachable when hasDala === true.
-const DalaDashboard = lazy(() => import("src/pages/dala/Dashboard"));
 const PropertiesList = lazy(() => import("src/pages/dala/properties/PropertiesList"));
 const PropertyDetail = lazy(() => import("src/pages/dala/properties/PropertyDetail"));
 const PropertyTypesList = lazy(() => import("src/pages/dala/property-types/PropertyTypesList"));
@@ -109,7 +106,7 @@ const CommissionManagement = lazy(() => import("src/pages/dala/commissions/Commi
 const LeaseManagement = lazy(() => import("src/pages/dala/leases/LeaseManagement"));
 const LeaseDetail = lazy(() => import("src/pages/dala/leases/LeaseDetail"));
 const RentCollection = lazy(() => import("src/pages/dala/rent/RentCollection"));
-const DalaReports = lazy(() => import("src/pages/dala/reports/Reports"));
+const MaintenanceManagement = lazy(() => import("src/pages/dala/maintenance/MaintenanceManagement"));
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = (
@@ -252,8 +249,8 @@ const SmartDashboardRouter = () => {
 
   if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/admin/dala" replace />;
   if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/admin/mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/admin/accounting" replace />;
-  return adminPage(DashboardAdminPage);
+  if (hasAccounting && !hasPOS) return <Navigate to="/admin/dashboard" replace />;
+  return <Navigate to="/admin/dashboard" replace />;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -291,7 +288,7 @@ const routes = createBrowserRouter(
           element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
-          element={guardedPage(Dashboard, "ORDERS_VIEW_DASHBOARD")} />
+          element={guardedPage(UnifiedShopDashboardPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="store" errorElement={<NotFound />}
           element={guardedPage(MainStore, "PRODUCTS_VIEW")} />
@@ -330,7 +327,7 @@ const routes = createBrowserRouter(
           element={guardedPage(CategoryMainSettings, "CATEGORIES_VIEW")} />
 
         <Route path="reports" errorElement={<NotFound />}
-          element={guardedPage(Reports, "REPORTS_ITEM_SALES")} />
+          element={guardedPage(UnifiedReportsPage, "REPORTS_ITEM_SALES")} />
 
         <Route path="inventory-settings" errorElement={<NotFound />}
           element={guardedPage(InventoryMainSettings, "INVENTORY_VIEW")} />
@@ -369,16 +366,7 @@ const routes = createBrowserRouter(
           element={guardedPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
 
         <Route path="mteja" errorElement={<NotFound />}
-          element={
-            <MtejaRoute>
-              <PermissionRoute permission="CUSTOMERS_VIEW">
-                <Suspense fallback={fullscreenSpin}>
-                  <Private><MtejaDashboard /></Private>
-                </Suspense>
-              </PermissionRoute>
-            </MtejaRoute>
-          }
-        />
+          element={<Navigate to="/home-dashboard" replace />} />
 
         <Route path="currencies" errorElement={<NotFound />}
           element={guardedPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
@@ -386,9 +374,9 @@ const routes = createBrowserRouter(
         {/* ── Accounting — shop level (/accounting/...) ──────────────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
-            element={guardedPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
+            element={<Navigate to="/home-dashboard" replace />} />
           <Route path="dashboard" errorElement={<NotFound />}
-            element={guardedPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
+            element={<Navigate to="/home-dashboard" replace />} />
           <Route path="accounts" errorElement={<NotFound />}
             element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
@@ -399,8 +387,6 @@ const routes = createBrowserRouter(
             element={guardedPage(BankStatementPage, "ACCOUNTING_BANK_STMT_VIEW")} />
           <Route path="reconciliation" errorElement={<NotFound />}
             element={guardedPage(BankReconciliationPage, "ACCOUNTING_RECON_VIEW")} />
-          <Route path="reports" errorElement={<NotFound />}
-            element={guardedPage(AccountingReportsPage, "ACCOUNTING_REPORT_PROFIT_LOSS")} />
           <Route path="expenses" errorElement={<NotFound />}
             element={guardedPage(ExpensesPage, "ACCOUNTING_INCOME_POST_EXPENSE")} />
           <Route path="bills" errorElement={<NotFound />}
@@ -436,10 +422,6 @@ const routes = createBrowserRouter(
             add dedicated Dala permissions when roles are extended.
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="dala" element={<Outlet />}>
-          <Route index errorElement={<NotFound />}
-            element={dalaPage(DalaDashboard, "DALA_DASHBOARD_VIEW")} />
-          <Route path="dashboard" errorElement={<NotFound />}
-            element={dalaPage(DalaDashboard, "DALA_DASHBOARD_VIEW")} />
           <Route path="properties" errorElement={<NotFound />}
             element={dalaPage(PropertiesList, "DALA_PROPERTIES_VIEW")} />
           <Route path="properties/:id" errorElement={<NotFound />}
@@ -462,8 +444,8 @@ const routes = createBrowserRouter(
             element={dalaPage(LeaseDetail, "DALA_LEASES_VIEW")} />
           <Route path="rent-collection" errorElement={<NotFound />}
             element={dalaPage(RentCollection, "DALA_RENT_COLLECTION_VIEW")} />
-          <Route path="reports" errorElement={<NotFound />}
-            element={dalaPage(DalaReports, "DALA_REPORTS_VIEW")} />
+          <Route path="maintenance" errorElement={<NotFound />}
+            element={dalaPage(MaintenanceManagement, "DALA_MAINTENANCE_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
@@ -474,9 +456,6 @@ const routes = createBrowserRouter(
       ══════════════════════════════════════════════════════════════════ */}
       <Route path="/admin" element={<Layout />}>
         <Route index element={<SmartDashboardRouter />} />
-
-        <Route path="dashboard" errorElement={<NotFound />}
-          element={<SmartDashboardRouter />} />
 
         <Route path="notifications" errorElement={<NotFound />}
           element={<Suspense fallback={fullscreenSpin}><Notification /></Suspense>} />
@@ -521,7 +500,7 @@ const routes = createBrowserRouter(
           element={
             <PermissionRoute permission="REPORTS_ITEM_SALES">
               <Suspense fallback={fullscreenSpin}>
-                <AdminRoute><AdminReports /></AdminRoute>
+                <AdminRoute><UnifiedReportsPage /></AdminRoute>
               </Suspense>
             </PermissionRoute>
           }
@@ -603,27 +582,24 @@ const routes = createBrowserRouter(
         <Route path="omnichannel" errorElement={<NotFound />}
           element={guardedAdminPage(OmnichannelInboxPage, "OMNICHANNEL_VIEW")} />
 
-        <Route path="mteja" errorElement={<NotFound />}
+        <Route path="dashboard" errorElement={<NotFound />}
           element={
-            <AdminMtejaRoute>
-              <PermissionRoute permission="CUSTOMERS_VIEW">
-                <Suspense fallback={fullscreenSpin}>
-                  <AdminRoute><MtejaDashboard /></AdminRoute>
-                </Suspense>
-              </PermissionRoute>
-            </AdminMtejaRoute>
-          }
-        />
+            <Suspense fallback={fullscreenSpin}>
+              <AdminRoute>
+                <UnifiedDashboardPage />
+              </AdminRoute>
+            </Suspense>
+          } />
 
-        <Route path="currencies" errorElement={<NotFound />}
-          element={guardedAdminPage(CurrencyPage, "ACCOUNTING_COA_VIEW")} />
+        <Route path="mteja" errorElement={<NotFound />}
+          element={<Navigate to="/admin/dashboard" replace />} />
 
         {/* ── Accounting — admin level (/admin/accounting/...) ───────────── */}
         <Route path="accounting" element={<AccountingLayout />}>
           <Route index errorElement={<NotFound />}
-            element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
+            element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" errorElement={<NotFound />}
-            element={guardedAdminPage(AccountingDashboardPage, "ACCOUNTING_DASHBOARD_VIEW")} />
+            element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="accounts" errorElement={<NotFound />}
             element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
@@ -634,8 +610,6 @@ const routes = createBrowserRouter(
             element={guardedAdminPage(BankStatementPage, "ACCOUNTING_BANK_STMT_VIEW")} />
           <Route path="reconciliation" errorElement={<NotFound />}
             element={guardedAdminPage(BankReconciliationPage, "ACCOUNTING_RECON_VIEW")} />
-          <Route path="reports" errorElement={<NotFound />}
-            element={guardedAdminPage(AccountingReportsPage, "ACCOUNTING_REPORT_PROFIT_LOSS")} />
           <Route path="expenses" errorElement={<NotFound />}
             element={guardedAdminPage(ExpensesPage, "ACCOUNTING_INCOME_POST_EXPENSE")} />
           <Route path="bills" errorElement={<NotFound />}
@@ -668,10 +642,6 @@ const routes = createBrowserRouter(
             All gated behind AdminDalaRoute so non-Dala tenants can't access.
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="dala" element={<Outlet />}>
-          <Route index errorElement={<NotFound />}
-            element={dalaAdminPage(DalaDashboard, "DALA_DASHBOARD_VIEW")} />
-          <Route path="dashboard" errorElement={<NotFound />}
-            element={dalaAdminPage(DalaDashboard, "DALA_DASHBOARD_VIEW")} />
           <Route path="properties" errorElement={<NotFound />}
             element={dalaAdminPage(PropertiesList, "DALA_PROPERTIES_VIEW")} />
           <Route path="properties/:id" errorElement={<NotFound />}
@@ -694,8 +664,8 @@ const routes = createBrowserRouter(
             element={dalaAdminPage(LeaseDetail, "DALA_LEASES_VIEW")} />
           <Route path="rent-collection" errorElement={<NotFound />}
             element={dalaAdminPage(RentCollection, "DALA_RENT_COLLECTION_VIEW")} />
-          <Route path="reports" errorElement={<NotFound />}
-            element={dalaAdminPage(DalaReports, "DALA_REPORTS_VIEW")} />
+          <Route path="maintenance" errorElement={<NotFound />}
+            element={dalaAdminPage(MaintenanceManagement, "DALA_MAINTENANCE_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

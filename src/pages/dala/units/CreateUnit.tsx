@@ -12,10 +12,12 @@ import {
   Typography,
   Space,
   message,
+  Switch,
 } from 'antd';
 import {
   ArrowLeftOutlined,
   SaveOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -38,15 +40,33 @@ interface CreateUnitData {
   name: string;
   code: string;
   type: string;
-  bedrooms?: number;
-  bathrooms?: number;
-  size_sqft: number;
-  block_id: string;
-  floor_id: string;
-  property_id: string;
-  base_price: number;
-  current_price?: number;
+  unitType?: string;
+  unitNumber?: string;
+  areaSqm: number;
+  blockId: string;
+  floorId: string;
+  propertyId: string;
+  pricing?: {
+    basePrice: number;
+    pricePerSqm: number;
+    minPrice: number;
+    maxPrice: number;
+    currency: 'KES' | 'USD' | 'EUR' | 'GBP';
+  };
+  rentPerSqm?: number;
+  monthlyRent?: number;
+  serviceCharge?: number;
   status: string;
+  trackIndividualUnits?: boolean;
+  apartments?: Array<{
+    apartmentName: string;
+    apartmentNumber?: string;
+    area: {
+      value: number;
+      unit: 'sqm' | 'sqft';
+    };
+    status: string;
+  }>;
 }
 
 const CreateUnit: React.FC = () => {
@@ -57,17 +77,19 @@ const CreateUnit: React.FC = () => {
   
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [selectedBlock, setSelectedBlock] = useState<string>('');
-  
+  const [propertyPurpose, setPropertyPurpose] = useState<'sale' | 'rental' | 'mixed'>('sale');
+  const [trackIndividualUnits, setTrackIndividualUnits] = useState<boolean>(false);
+
   const properties = useDalaProperties();
   const propertyBlocks = useDalaBlocksByProperty(selectedProperty);
   const blockFloors = useDalaFloorsByBlock(selectedBlock);
 
-  // Get property_id from URL params if provided
+  // Get propertyId from URL params if provided
   useEffect(() => {
     const propertyId = searchParams.get('property_id');
     if (propertyId) {
       setSelectedProperty(propertyId);
-      form.setFieldValue('property_id', propertyId);
+      form.setFieldValue('propertyId', propertyId);
     }
   }, [searchParams, form]);
 
@@ -119,14 +141,17 @@ const CreateUnit: React.FC = () => {
   const handlePropertyChange = (propertyId: string) => {
     setSelectedProperty(propertyId);
     setSelectedBlock('');
-    form.setFieldValue('block_id', undefined);
-    form.setFieldValue('floor_id', undefined);
+    form.setFieldValue('blockId', undefined);
+    form.setFieldValue('floorId', undefined);
   };
 
   const handleBlockChange = (blockId: string) => {
     setSelectedBlock(blockId);
-    form.setFieldValue('floor_id', undefined);
+    form.setFieldValue('floorId', undefined);
   };
+
+  const isSaleOrMixed = propertyPurpose === 'sale' || propertyPurpose === 'mixed';
+  const isRentalOrMixed = propertyPurpose === 'rental' || propertyPurpose === 'mixed';
 
   return (
     <div>
@@ -153,11 +178,29 @@ const CreateUnit: React.FC = () => {
           }}
         >
           <Row gutter={[24, 24]}>
+            {/* Property Purpose */}
+            <Col xs={24} md={12}>
+              <Form.Item
+                label="Property Purpose"
+                name="propertyPurpose"
+                rules={[{ required: true, message: 'Property purpose is required' }]}
+              >
+                <Select
+                  placeholder="Select property purpose"
+                  value={propertyPurpose}
+                  onChange={(value) => setPropertyPurpose(value)}
+                >
+                  <Option value="sale">Sale</Option>
+                  <Option value="rental">Rental</Option>
+                  <Option value="mixed">Mixed (Sale & Rental)</Option>
+                </Select>
+              </Form.Item>
+            </Col>
             {/* Basic Information */}
             <Col xs={24} md={12}>
               <Form.Item
                 label="Property"
-                name="property_id"
+                name="propertyId"
                 rules={[{ required: true, message: 'Property is required' }]}
               >
                 <Select
@@ -176,7 +219,7 @@ const CreateUnit: React.FC = () => {
             <Col xs={24} md={12}>
               <Form.Item
                 label="Block"
-                name="block_id"
+                name="blockId"
                 rules={[{ required: true, message: 'Block is required' }]}
               >
                 <Select
@@ -196,7 +239,7 @@ const CreateUnit: React.FC = () => {
             <Col xs={24} md={12}>
               <Form.Item
                 label="Floor"
-                name="floor_id"
+                name="floorId"
                 rules={[{ required: true, message: 'Floor is required' }]}
               >
                 <Select
@@ -205,7 +248,7 @@ const CreateUnit: React.FC = () => {
                 >
                   {blockFloors.map((floor) => (
                     <Option key={floor._id} value={floor._id}>
-                      {floor.name} (Floor {floor.number})
+                      {floor.name} (Floor {floor.floorNumber})
                     </Option>
                   ))}
                 </Select>
@@ -264,13 +307,13 @@ const CreateUnit: React.FC = () => {
           <Row gutter={[24, 24]}>
             <Col xs={24} md={8}>
               <Form.Item
-                label="Size (sqft)"
-                name="size_sqft"
-                rules={[{ required: true, message: 'Size is required' }]}
+                label="Area (sqm)"
+                name="areaSqm"
+                rules={[{ required: true, message: 'Area is required' }]}
               >
                 <InputNumber
                   style={{ width: '100%' }}
-                  placeholder="Enter size in square feet"
+                  placeholder="Enter area in square meters"
                   min={1}
                   formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as unknown as number}
@@ -305,38 +348,245 @@ const CreateUnit: React.FC = () => {
             </Col>
           </Row>
 
-          {/* Pricing */}
+          {/* Pricing - Sale */}
+          {isSaleOrMixed && (
+            <Row gutter={[24, 24]}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Base Price"
+                  name={['pricing', 'basePrice']}
+                  rules={[{ required: isSaleOrMixed, message: 'Base price is required for sale units' }]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="Enter base price"
+                    min={0}
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as unknown as number}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Price per SQM"
+                  name={['pricing', 'pricePerSqm']}
+                  rules={[{ required: isSaleOrMixed, message: 'Price per SQM is required for sale units' }]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="Enter price per square meter"
+                    min={0}
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as unknown as number}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Min Price"
+                  name={['pricing', 'minPrice']}
+                  rules={[{ required: isSaleOrMixed, message: 'Min price is required for sale units' }]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="Enter minimum price"
+                    min={0}
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as unknown as number}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Max Price"
+                  name={['pricing', 'maxPrice']}
+                  rules={[{ required: isSaleOrMixed, message: 'Max price is required for sale units' }]}
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="Enter maximum price"
+                    min={0}
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as unknown as number}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Currency"
+                  name={['pricing', 'currency']}
+                  rules={[{ required: isSaleOrMixed, message: 'Currency is required for sale units' }]}
+                  initialValue="KES"
+                >
+                  <Select placeholder="Select currency">
+                    <Option value="KES">KES (Kenyan Shilling)</Option>
+                    <Option value="USD">USD (US Dollar)</Option>
+                    <Option value="EUR">EUR (Euro)</Option>
+                    <Option value="GBP">GBP (British Pound)</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
+
+          {/* Pricing - Rental */}
+          {isRentalOrMixed && (
+            <Row gutter={[24, 24]}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Rent per SQM"
+                  name="rentPerSqm"
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="Enter rent per square meter"
+                    min={0}
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as unknown as number}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Monthly Rent"
+                  name="monthlyRent"
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="Enter monthly rent"
+                    min={0}
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as unknown as number}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Service Charge"
+                  name="serviceCharge"
+                >
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="Enter service charge"
+                    min={0}
+                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '') as unknown as number}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
+
+          {/* Apartment Tracking */}
           <Row gutter={[24, 24]}>
-            <Col xs={24} md={12}>
+            <Col xs={24}>
               <Form.Item
-                label="Base Price (KES)"
-                name="base_price"
-                rules={[{ required: true, message: 'Base price is required' }]}
+                label="Track Individual Units (Apartments)"
+                name="trackIndividualUnits"
+                valuePropName="checked"
               >
-                <InputNumber
-                  style={{ width: '100%' }}
-                  placeholder="Enter base price"
-                  min={0}
-                  formatter={(value) => `KES ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={(value) => value!.replace(/\KES\s?|(,*)/g, '') as unknown as number}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="Current Price (KES)"
-                name="current_price"
-              >
-                <InputNumber
-                  style={{ width: '100%' }}
-                  placeholder="Enter current price (optional)"
-                  min={0}
-                  formatter={(value) => `KES ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={(value) => value!.replace(/\KES\s?|(,*)/g, '') as unknown as number}
+                <Switch
+                  checked={trackIndividualUnits}
+                  onChange={setTrackIndividualUnits}
                 />
               </Form.Item>
             </Col>
           </Row>
+
+          {trackIndividualUnits && (
+            <Form.List name="apartments">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Card
+                      key={key}
+                      size="small"
+                      title={`Apartment ${name + 1}`}
+                      extra={
+                        <Button type="link" danger onClick={() => remove(name)}>
+                          Remove
+                        </Button>
+                      }
+                      style={{ marginBottom: 16 }}
+                    >
+                      <Row gutter={[16, 16]}>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            {...restField}
+                            label="Apartment Name"
+                            name={[name, 'apartmentName']}
+                            rules={[{ required: true, message: 'Apartment name is required' }]}
+                          >
+                            <Input placeholder="Enter apartment name" />
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            {...restField}
+                            label="Apartment Number"
+                            name={[name, 'apartmentNumber']}
+                          >
+                            <Input placeholder="Enter apartment number" />
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            {...restField}
+                            label="Area Value"
+                            name={[name, 'area', 'value']}
+                            rules={[{ required: true, message: 'Area value is required' }]}
+                          >
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              placeholder="Enter area value"
+                              min={0}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            {...restField}
+                            label="Area Unit"
+                            name={[name, 'area', 'unit']}
+                            initialValue="sqm"
+                          >
+                            <Select>
+                              <Option value="sqm">Square Meters (sqm)</Option>
+                              <Option value="sqft">Square Feet (sqft)</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            {...restField}
+                            label="Status"
+                            name={[name, 'status']}
+                            initialValue="available"
+                          >
+                            <Select>
+                              <Option value="available">Available</Option>
+                              <Option value="reserved">Reserved</Option>
+                              <Option value="sold">Sold</Option>
+                              <Option value="occupied">Occupied</Option>
+                              <Option value="under_construction">Under Construction</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </Card>
+                  ))}
+                  <Button
+                    type="dashed"
+                    onClick={() => add()}
+                    block
+                    icon={<PlusOutlined />}
+                  >
+                    Add Apartment
+                  </Button>
+                </>
+              )}
+            </Form.List>
+          )}
 
           {/* Form Actions */}
           <Row>

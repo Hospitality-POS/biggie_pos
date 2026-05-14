@@ -28,6 +28,7 @@ import {
   fetchUnits, 
   createPropertySale 
 } from '@services/dala';
+import { fetchAllCustomers } from '@services/customers';
 import { 
   useDalaProperties, 
   useDalaUnitsByProperty 
@@ -57,6 +58,7 @@ const CreateSale: React.FC = () => {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [form] = Form.useForm();
+  const [customerSearch, setCustomerSearch] = useState('');
   
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [selectedUnit, setSelectedUnit] = useState<string>('');
@@ -90,6 +92,28 @@ const CreateSale: React.FC = () => {
       propertyUnits.setUnits(data.data);
     },
   });
+
+  // Fetch customers for dropdown
+  const { data: customersData, isFetching: customersFetching, error: customersError } = useQuery({
+    queryKey: ['customers-dropdown', customerSearch],
+    queryFn: () => fetchAllCustomers({ customer_name: customerSearch }),
+    select: (res: any) => {
+      console.log('Customers API response:', res);
+      return Array.isArray(res) ? res : (res?.customers || res?.data || []);
+    },
+    onError: (err) => {
+      console.error('Error fetching customers:', err);
+    },
+  });
+
+  console.log('Customers data:', customersData);
+  console.log('Customers fetching:', customersFetching);
+  console.log('Customers error:', customersError);
+
+  const customerOptions = (customersData || []).map((c: any) => ({
+    label: `${c.customer_name}${c.phone ? ` — ${c.phone}` : ''}`,
+    value: c._id,
+  }));
 
   const createMutation = useMutation({
     mutationFn: createPropertySale,
@@ -212,13 +236,19 @@ const CreateSale: React.FC = () => {
             {/* Client Information */}
             <Col xs={24} md={12}>
               <Form.Item
-                label="Client Name"
+                label="Client"
                 name="client_id"
-                rules={[{ required: true, message: 'Client name is required' }]}
+                rules={[{ required: true, message: 'Client is required' }]}
               >
-                <Input
-                  placeholder="Enter client name"
-                  prefix={<UserOutlined />}
+                <Select
+                  showSearch
+                  allowClear
+                  placeholder="Search client..."
+                  filterOption={false}
+                  onSearch={setCustomerSearch}
+                  loading={customersFetching}
+                  options={customerOptions}
+                  notFoundContent={customersFetching ? 'Searching...' : 'No clients found'}
                 />
               </Form.Item>
             </Col>

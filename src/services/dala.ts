@@ -31,13 +31,43 @@ export interface Block {
 export interface Floor {
   _id: string;
   name: string;
-  number: number;
-  block_id: string;
-  property_id: string;
+  floorNumber: number;
+  blockId: string;
+  propertyId: string;
+  description?: string;
+  status: 'active' | 'inactive' | 'under_construction';
   units?: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface UnitPricing {
+  basePrice: number;
+  pricePerSqm: number;
+  minPrice: number;
+  maxPrice: number;
+  currency: 'KES' | 'USD' | 'EUR' | 'GBP';
+}
+
+export interface Apartment {
+  apartmentName: string;
+  apartmentNumber?: string;
+  area: {
+    value: number;
+    unit: 'sqm' | 'sqft';
+  };
+  status: 'available' | 'reserved' | 'sold' | 'occupied' | 'under_construction';
+  pricePerSqmOverride?: number;
+  saleListPrice?: number;
+  rentPerSqmOverride?: number;
+  monthlyRentOverride?: number;
+  soldTo?: string;
+  soldDate?: string;
+  customerId?: string;
+  currentLeaseId?: string;
+  currentOccupant?: string;
+  notes?: string;
 }
 
 export interface Unit {
@@ -45,18 +75,50 @@ export interface Unit {
   name: string;
   code: string;
   type: 'residential' | 'commercial' | 'industrial' | 'mixed';
-  bedrooms?: number;
-  bathrooms?: number;
-  size_sqft: number;
-  block_id: string;
-  floor_id: string;
-  property_id: string;
+  unitType?: string;
+  unitNumber?: string;
+  areaSqm: number;
+  blockId: string;
+  floorId: string;
+  propertyId: string;
   status: 'available' | 'reserved' | 'sold' | 'rented' | 'maintenance';
-  base_price: number;
-  current_price?: number;
+  pricing?: UnitPricing;
+  // Legacy pricing fields (retained for backward compatibility)
+  pricePerSqm?: number;
+  listPrice?: number;
+  pricePerSqmFloor?: number;
+  pricePerSqmCeiling?: number;
+  // Rental pricing fields
+  rentPerSqm?: number;
+  monthlyRent?: number;
+  serviceCharge?: number;
+  depositMonths?: number;
+  depositAmount?: number;
+  rentDueDay?: number;
+  rentFrequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually';
+  utilities?: {
+    water?: boolean;
+    electricity?: boolean;
+    internet?: boolean;
+    garbage?: boolean;
+  };
+  // Apartment tracking
+  trackIndividualUnits?: boolean;
+  apartments?: Apartment[];
+  totalUnits?: number;
+  availableUnits?: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface PhasePricing {
+  phasePrice: number;
+  pricePerSqm: number;
+  minPrice: number;
+  maxPrice: number;
+  currency: 'KES' | 'USD' | 'EUR' | 'GBP';
+  priceAdjustment: number;
 }
 
 export interface Phase {
@@ -66,7 +128,10 @@ export interface Phase {
   property_id: string;
   start_date: string;
   end_date?: string;
-  pricing_multiplier: number;
+  pricing_multiplier?: number;
+  pricing?: PhasePricing;
+  // Legacy field retained for backward compatibility
+  price?: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -76,26 +141,43 @@ export interface Property {
   _id: string;
   name: string;
   description?: string;
-  code: string;
+  code?: string;
   address?: string;
-  location?: string;
-  property_type_id: string;
-  total_units: number;
-  available_units: number;
-  sold_units: number;
-  rented_units: number;
+  location?: any;
+  property_type_id?: string;
+  propertyType?: string;
+  category?: string;
+  purpose?: 'sale' | 'rent' | 'lease' | 'rental' | 'mixed';
+  defaultPricePerSqm?: number;
+  defaultRentPerSqm?: number;
+  defaultServiceCharge?: number;
+  defaultDepositMonths?: number;
+  defaultRentDueDay?: number;
+  defaultUtilities?: { water: boolean; electricity: boolean; internet: boolean; garbage: boolean };
+  currency?: string;
+  total_units?: number;
+  available_units?: number;
+  sold_units?: number;
+  rented_units?: number;
   developer?: string;
   year_built?: number;
   amenities?: string[];
+  features?: string[];
   images?: string[];
   documents?: string[];
-  status: 'planning' | 'under_construction' | 'completed' | 'launched';
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  status: string;
+  is_active?: boolean;
+  isBlockless?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  shop_id?: string;
   property_type?: PropertyType;
   blocks?: Block[];
   phases?: Phase[];
+  units?: any[];
+  occupancySummary?: any;
 }
 
 export interface PropertySale {
@@ -264,18 +346,12 @@ export const deletePropertyType = async (id: string) => {
 
 // ── Properties API ────────────────────────────────────────────────────────────
 
-export const fetchProperties = async (params?: {
-  page?: number;
-  limit?: number;
-  search?: string;
-  property_type_id?: string;
-  status?: string;
-}) => {
+export const fetchProperties = async () => {
   try {
     const response = await axiosInstance.get(`${dalaUrl}/properties`, {
-      params,
       headers: getDalaHeaders()
     });
+    console.log('my properties',response );
     return response.data;
   } catch (error: any) {
     console.error("Failed to fetch properties:", error);
@@ -300,9 +376,10 @@ export const createProperty = async (data: Partial<Property>) => {
     const response = await axiosInstance.post(`${dalaUrl}/properties`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Property created successfully");
+  
     return response.data;
   } catch (error: any) {
+    console.log('error val',error );
     const errorMessage = error?.response?.data?.error || "Failed to create property";
     message.error(errorMessage);
     throw error;
@@ -328,7 +405,6 @@ export const deleteProperty = async (id: string) => {
     const response = await axiosInstance.delete(`${dalaUrl}/properties/${id}`, {
       headers: getDalaHeaders()
     });
-    message.success("Property deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to delete property";
@@ -621,9 +697,12 @@ export const payCommission = async (id: string, amount: number, notes?: string) 
 export const fetchLeases = async (params?: {
   page?: number;
   limit?: number;
-  property_id?: string;
+  propertyId?: string;
   status?: string;
-  tenant_id?: string;
+  occupantId?: string;
+  shop_id?: string;
+  startDate?: string;
+  endDate?: string;
 }) => {
   try {
     const response = await axiosInstance.get(`${dalaUrl}/leases`, {
@@ -637,12 +716,43 @@ export const fetchLeases = async (params?: {
   }
 };
 
-export const createLease = async (data: Partial<Lease>) => {
+export const createLease = async (data: {
+  propertyId: string;
+  unitId: string;
+  occupantId: string;
+  leaseType: string;
+  startDate: string;
+  endDate?: string;
+  leaseAmount: number;
+  leasePerSqm?: number;
+  paymentFrequency?: string;
+  paymentDueDay?: number;
+  unitAreaSqm?: number;
+  currency?: string;
+  depositAmount?: number;
+  depositPaid?: number;
+  depositPaidDate?: string;
+  depositRefunded?: number;
+  depositRefundedDate?: string;
+  depositDeductions?: number;
+  depositNotes?: string;
+  serviceChargeAmount?: number;
+  serviceChargeFrequency?: string;
+  utilities?: { water: boolean; electricity: boolean; internet: boolean; garbage: boolean };
+  status?: string;
+  signedDate?: string;
+  leaseEscalations?: any[];
+  documents?: any[];
+  notes?: string;
+  blockId?: string;
+  floorId?: string;
+  [key: string]: any;
+}) => {
   try {
     const response = await axiosInstance.post(`${dalaUrl}/leases`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Lease created successfully");
+
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to create lease";
@@ -656,10 +766,90 @@ export const updateLease = async (id: string, data: Partial<Lease>) => {
     const response = await axiosInstance.put(`${dalaUrl}/leases/${id}`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Lease updated successfully");
+  
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to update lease";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const deleteLease = async (id: string) => {
+  try {
+    const response = await axiosInstance.delete(`${dalaUrl}/leases/${id}`, {
+      headers: getDalaHeaders()
+    });
+   
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to delete lease";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const activateLease = async (id: string) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/leases/${id}/activate`, {}, {
+      headers: getDalaHeaders()
+    });
+    message.success("Lease activated successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to activate lease";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const noticeLease = async (id: string, data: {
+  noticeDate?: string;
+  vacateDate?: string;
+}) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/leases/${id}/notice`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Notice period set successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to set notice period";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const terminateLease = async (id: string, data: {
+  terminationDate?: string;
+  terminationReason?: string;
+}) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/leases/${id}/terminate`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Lease terminated successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to terminate lease";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const renewLease = async (id: string, data: {
+  startDate: string;
+  endDate?: string;
+  leaseAmount?: number;
+}) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/leases/${id}/renew`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Lease renewed successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to renew lease";
     message.error(errorMessage);
     throw error;
   }
@@ -670,10 +860,13 @@ export const updateLease = async (id: string, data: Partial<Lease>) => {
 export const fetchRentPayments = async (params?: {
   page?: number;
   limit?: number;
-  lease_id?: string;
+  leaseId?: string;
   status?: string;
-  start_date?: string;
-  end_date?: string;
+  paymentMethod?: string;
+  paymentType?: string;
+  startDate?: string;
+  endDate?: string;
+  shop_id?: string;
 }) => {
   try {
     const response = await axiosInstance.get(`${dalaUrl}/rent-payments`, {
@@ -687,14 +880,28 @@ export const fetchRentPayments = async (params?: {
   }
 };
 
-export const recordRentPayment = async (lease_id: string, data: {
+export const recordRentPayment = async (data: {
+  leaseId: string;
+  invoiceId?: string;
+  occupantId?: string;
+  propertyId?: string;
+  unitId?: string;
+  paymentDate: string;
   amount: number;
-  payment_method: string;
-  reference?: string;
+  currency?: string;
+  paymentMethod: string;
+  mpesaCode?: string;
+  bankReference?: string;
+  chequeNumber?: string;
+  paymentType?: string;
+  periodCovered?: string;
+  status?: string;
   notes?: string;
+  receiptNumber?: string;
+  shop_id?: string;
 }) => {
   try {
-    const response = await axiosInstance.post(`${dalaUrl}/leases/${lease_id}/rent-payments`, data, {
+    const response = await axiosInstance.post(`${dalaUrl}/rent-payments`, data, {
       headers: getDalaHeaders()
     });
     message.success("Rent payment recorded successfully");
@@ -702,6 +909,269 @@ export const recordRentPayment = async (lease_id: string, data: {
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to record rent payment";
     message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const reverseRentPayment = async (id: string, reversalReason?: string) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/rent-payments/${id}/reverse`, {
+      reversalReason
+    }, {
+      headers: getDalaHeaders()
+    });
+    message.success("Payment reversed successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to reverse payment";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+// ── Rent Invoices API ─────────────────────────────────────────────────────────
+
+export const fetchRentInvoices = async (params?: {
+  leaseId?: string;
+  propertyId?: string;
+  occupantId?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  shop_id?: string;
+  page?: number;
+  limit?: number;
+}) => {
+  try {
+    const response = await axiosInstance.get(`${dalaUrl}/rent-invoices`, {
+      params,
+      headers: getDalaHeaders()
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch rent invoices:", error);
+    throw error;
+  }
+};
+
+export const createRentInvoice = async (data: {
+  leaseId: string;
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  lines?: Array<{
+    description: string;
+    lineType: string;
+    quantity?: number;
+    unitPrice: number;
+    amount: number;
+    taxRate?: number;
+    taxAmount?: number;
+  }>;
+  notes?: string;
+  shop_id?: string;
+  [key: string]: any;
+}) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/rent-invoices`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Invoice created successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to create invoice";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const issueRentInvoice = async (id: string) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/rent-invoices/${id}/issue`, {}, {
+      headers: getDalaHeaders()
+    });
+    message.success("Invoice issued successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to issue invoice";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const waiveRentInvoice = async (id: string, reason?: string) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/rent-invoices/${id}/waive`, { reason }, {
+      headers: getDalaHeaders()
+    });
+    message.success("Invoice waived successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to waive invoice";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const generateBulkInvoices = async (data: {
+  propertyId?: string;
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  shop_id?: string;
+}) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/rent-invoices/generate`, data, {
+      headers: getDalaHeaders()
+    });
+  
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to generate invoices";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+// ── Maintenance & Tickets API ─────────────────────────────────────────────────
+
+export interface MaintenanceTicketParams {
+  shop_id?: string;
+  ticketType?: 'property_maintenance' | 'general';
+  status?: string;
+  priority?: string;
+  category?: string;
+  propertyId?: string;
+  unitId?: string;
+  leaseId?: string;
+  occupantId?: string;
+  saleId?: string;
+  assignedTo?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const fetchMaintenanceTickets = async (params?: MaintenanceTicketParams) => {
+  try {
+    const response = await axiosInstance.get(`${dalaUrl}/maintenance`, {
+      params,
+      headers: getDalaHeaders()
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch maintenance tickets:", error);
+    throw error;
+  }
+};
+
+export const fetchMaintenanceTicket = async (id: string) => {
+  try {
+    const response = await axiosInstance.get(`${dalaUrl}/maintenance/${id}`, {
+      headers: getDalaHeaders()
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch maintenance ticket:", error);
+    throw error;
+  }
+};
+
+export const createMaintenanceTicket = async (data: any) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/maintenance`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Maintenance ticket created successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to create maintenance ticket";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const updateMaintenanceTicket = async (id: string, data: any) => {
+  try {
+    const response = await axiosInstance.put(`${dalaUrl}/maintenance/${id}`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Maintenance ticket updated successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to update maintenance ticket";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const deleteMaintenanceTicket = async (id: string) => {
+  try {
+    const response = await axiosInstance.delete(`${dalaUrl}/maintenance/${id}`, {
+      headers: getDalaHeaders()
+    });
+    message.success("Maintenance ticket deleted successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to delete maintenance ticket";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const updateMaintenanceTicketStatus = async (id: string, data: any) => {
+  try {
+    const response = await axiosInstance.patch(`${dalaUrl}/maintenance/${id}/status`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Ticket status updated successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to update ticket status";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const addMaintenanceTicketUpdate = async (id: string, data: any) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/maintenance/${id}/updates`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Ticket update added successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to add ticket update";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const addMaintenanceTicketCost = async (id: string, data: any) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/maintenance/${id}/costs`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Ticket cost added successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to add ticket cost";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const fetchMaintenanceStats = async (params?: { shop_id?: string }) => {
+  try {
+    const response = await axiosInstance.get(`${dalaUrl}/maintenance/stats`, {
+      params,
+      headers: getDalaHeaders()
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch maintenance stats:", error);
     throw error;
   }
 };
