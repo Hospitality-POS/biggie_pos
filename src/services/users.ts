@@ -56,7 +56,8 @@ export const fetchAllUsersList = async (data: ParamsType & { shop_id?: string })
 
 export const fetchAllUsersByShopId = async () => {
   try {
-    const url = `${BASE_URL}/users/shop/${shopId}`;
+    const currentShopId = localStorage.getItem("shopId");
+    const url = `${BASE_URL}/users/shop/${currentShopId}`;
     const response = await axiosInstance.get(url);
     return response.data;
   } catch (error) {
