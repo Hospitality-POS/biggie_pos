@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Button, DatePicker, Form, InputNumber, Select, Spin, Typography } from "antd";
 import {
   BarChartOutlined,
@@ -11,6 +12,7 @@ import {
   PrinterOutlined,
   ShoppingOutlined,
   ShopOutlined,
+  TrophyOutlined,
   UserOutlined,
   EnvironmentOutlined,
   TagOutlined,
@@ -19,8 +21,9 @@ import PurchaseReportModal from "@components/Reports/PurchaseReport";
 import VoidReportModal from "@components/Reports/VoidReport";
 import VATReportModal from "@components/Reports/VATReport";
 import { fetchItemSalesReport } from "@services/reports";
-import { fetchAllUsersList } from "@services/users";
+import { fetchAllUsersList, fetchAllUsersByShopId } from "@services/users";
 import ItemSalesModal from "./ItemSalesModal";
+import TopEarnersModal from "./TopEarnersModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTableLocation } from "@services/tables";
 import DeliveryReportModal from "@components/Reports/DeliveryReport";
@@ -75,6 +78,7 @@ const TAB_CFG = [
   { key: "delivery", icon: <CarOutlined />, iconColor: C.blue, label: "Delivery" },
   { key: "inventory_usage", icon: <BarChartOutlined />, iconColor: C.purple, label: "Inventory Usage" },
   { key: "vat", icon: <DollarOutlined />, iconColor: C.green, label: "VAT Summary" },
+  { key: "top_earners", icon: <TrophyOutlined />, iconColor: C.orange, label: "Top Earners" },
 ];
 
 // ── Custom tab nav ────────────────────────────────────────────────────────────
@@ -212,6 +216,15 @@ const AdminReports: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
+
+  const [earnerResults, setEarnerResults] = useState<{ id: string; name: string; totalSales: number }[]>([]);
+  const [earnerLoading, setEarnerLoading] = useState(false);
+  const [earnerPcts, setEarnerPcts] = useState({ staff: 77, platform: 23 });
+  const [earnerSearched, setEarnerSearched] = useState(false);
+  const [earnerModalOpen, setEarnerModalOpen] = useState(false);
+  const [earnerDateRange, setEarnerDateRange] = useState<[string, string]>(["", ""]);
 
   const shopOptions = useShopOptions();
   const userOptions = useUserOptions();
@@ -238,6 +251,10 @@ const AdminReports: React.FC = () => {
     setOpenVATModal(false);
     setOpenInventoryUsageModal(false);
     setModalOpen(false);
+    setEarnerResults([]);
+    setEarnerSearched(false);
+    setEarnerLoading(false);
+    setEarnerModalOpen(false);
     form.resetFields();
   };
 
@@ -282,9 +299,11 @@ const AdminReports: React.FC = () => {
               <div style={{ flex: "1 1 300px", minWidth: 0 }}>
                 <DateRangeField rangePresets={rangePresets} />
               </div>
-              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                <ShopField />
-              </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
               <div style={{ flex: "1 1 200px", minWidth: 0 }}>
                 <Form.Item
                   name="servedBy"
@@ -446,6 +465,170 @@ const AdminReports: React.FC = () => {
           </Form>
         );
 
+      case "top_earners":
+        return (
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={async (values) => {
+              const { dateRange, shop_id, staffPct: sp = 77, platformPct: pp = 23 } = values;
+              const start = dateRange?.[0]?.format("YYYY-MM-DD HH:mm") || "";
+              const end = dateRange?.[1]?.format("YYYY-MM-DD HH:mm") || "";
+              if (!start || !end) return;
+              setEarnerPcts({ staff: Number(sp), platform: Number(pp) });
+              setEarnerDateRange([start, end]);
+              setEarnerLoading(true);
+              setEarnerResults([]);
+              setEarnerSearched(false);
+              try {
+                const users = await fetchAllUsersByShopId();
+                const rows = await Promise.all(
+                  (users || []).map(async (u: any) => {
+                    try {
+                      const data = await fetchItemSalesReport({
+                        startDate: start,
+                        endDate: end,
+                        servedBy: u._id,
+                        ...(shop_id ? { shop_id } : {}),
+                      });
+                      const cats: any[] =
+                        data?.data && Array.isArray(data.data)
+                          ? data.data
+                          : Array.isArray(data)
+                          ? data
+                          : [];
+                      const total = cats.reduce(
+                        (s: number, cat: any) =>
+                          s +
+                          (cat.orderItems || []).reduce(
+                            (ss: number, i: any) => ss + (Number(i.total_amount) || 0),
+                            0
+                          ),
+                        0
+                      );
+                      return {
+                        id: u._id,
+                        name: u.username || u.fullname || u.email || "Unknown",
+                        totalSales: total,
+                      };
+                    } catch {
+                      return {
+                        id: u._id,
+                        name: u.username || u.fullname || "Unknown",
+                        totalSales: 0,
+                      };
+                    }
+                  })
+                );
+                const sorted = rows
+                  .filter((r) => r.totalSales > 0)
+                  .sort((a, b) => b.totalSales - a.totalSales);
+                setEarnerResults(sorted);
+                if (sorted.length > 0) {
+                  setEarnerModalOpen(true);
+                }
+              } finally {
+                setEarnerLoading(false);
+                setEarnerSearched(true);
+              }
+            }}
+          >
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0 16px" }}>
+              <div style={{ flex: "1 1 300px", minWidth: 0 }}>
+                <DateRangeField rangePresets={rangePresets} />
+              </div>
+              {isAdminRoute && (
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <ShopField />
+                </div>
+              )}
+              <div style={{ flex: "1 1 140px", minWidth: 0 }}>
+                <Form.Item
+                  name="staffPct"
+                  initialValue={77}
+                  label={
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}>
+                      <UserOutlined /> Staff %
+                    </span>
+                  }
+                  rules={[{ required: true, message: "Required" }]}
+                  style={{ marginBottom: 14 }}
+                >
+                  <InputNumber
+                    min={0}
+                    max={100}
+                    step={1}
+                    formatter={(v) => `${v}%`}
+                    parser={(v) => v!.replace("%", "") as any}
+                    onChange={(v) => {
+                      if (v != null) form.setFieldsValue({ platformPct: 100 - Number(v) });
+                    }}
+                    style={{ width: "100%", borderRadius: 8 }}
+                  />
+                </Form.Item>
+              </div>
+              <div style={{ flex: "1 1 140px", minWidth: 0 }}>
+                <Form.Item
+                  name="platformPct"
+                  initialValue={23}
+                  label={
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.subText }}>
+                      <DollarOutlined /> Platform %
+                    </span>
+                  }
+                  rules={[{ required: true, message: "Required" }]}
+                  style={{ marginBottom: 14 }}
+                >
+                  <InputNumber
+                    min={0}
+                    max={100}
+                    step={1}
+                    formatter={(v) => `${v}%`}
+                    parser={(v) => v!.replace("%", "") as any}
+                    onChange={(v) => {
+                      if (v != null) form.setFieldsValue({ staffPct: 100 - Number(v) });
+                    }}
+                    style={{ width: "100%", borderRadius: 8 }}
+                  />
+                </Form.Item>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  icon={<TrophyOutlined />}
+                  loading={earnerLoading}
+                  style={{
+                    background: C.primary,
+                    borderColor: C.primary,
+                    borderRadius: 8,
+                    height: 40,
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  Generate Top Earners
+                </Button>
+              </Form.Item>
+            </div>
+
+            {earnerLoading && (
+              <div style={{ textAlign: "center", padding: 32 }}>
+                <Spin tip="Calculating earners…" />
+              </div>
+            )}
+
+            {!earnerLoading && earnerSearched && earnerResults.length === 0 && (
+              <div style={{ textAlign: "center", padding: 24, color: C.subText, fontSize: 13 }}>
+                No sales data found for the selected period.
+              </div>
+            )}
+          </Form>
+        );
+
       default:
         return null;
     }
@@ -488,6 +671,17 @@ const AdminReports: React.FC = () => {
           {renderTabContent()}
         </div>
       </div>
+
+      {/* ── Modals ───────────────────────────────────────────────────────── */}
+      <TopEarnersModal
+        open={earnerModalOpen}
+        onClose={() => setEarnerModalOpen(false)}
+        data={earnerResults}
+        startDate={earnerDateRange[0]}
+        endDate={earnerDateRange[1]}
+        staffPct={earnerPcts.staff}
+        platformPct={earnerPcts.platform}
+      />
     </div>
   );
 };

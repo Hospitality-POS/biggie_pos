@@ -263,7 +263,7 @@ const CartDrawer: React.FC = () => {
       try {
         const users = await fetchAllUsersByShopId();
         const filtered = (users || [])
-          .filter((u: any) => u.role !== "admin")
+          .filter((u: any) => u.role?.role_type?.toLowerCase() !== "admin")
           .map((u: any) => ({
             value: u._id,
             label: u.username || u.fullname || u.email || "Unknown",
