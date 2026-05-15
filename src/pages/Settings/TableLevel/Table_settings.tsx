@@ -105,7 +105,7 @@ const TableSetting = () => {
         ]}
         request={async (params) => {
           const data = await getAllTables(params);
-          //   console.log(data);
+             console.log('my info', data);
           return {
             data: data,
             success: true,
