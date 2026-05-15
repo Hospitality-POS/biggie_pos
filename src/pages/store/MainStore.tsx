@@ -340,7 +340,7 @@ export default function MainStore() {
       <Text style={{ fontSize: 13, color: C.subText, display: "block", marginBottom: 24 }}>
         Add your first product category and products to get started.
       </Text>
-      <StoreModal edit={false} />
+      <StoreModal edit={false} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["products"] })} />
     </div>
   );
 
@@ -412,7 +412,7 @@ export default function MainStore() {
             </div>
           )}
 
-          <StoreModal edit={false} />
+          <StoreModal edit={false} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["products"] })} />
         </div>
       </div>
 

@@ -41,11 +41,12 @@ const C = {
 interface StoreModalProps {
   edit?: boolean;
   data?: any;
+  onSuccess?: () => void;
 }
 interface categoryValueType { name: string; _id: string; }
 interface modifiersAddonsType { name: string; _id: string; addons: any[]; }
 
-const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
+const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess }) => {
   const [form] = Form.useForm();
   const formRef = useRef<FormInstance>();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
@@ -165,6 +166,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data }) => {
       } else {
         await addNewProduct(productData);
       }
+      onSuccess?.();
       return true;
     } catch {
       message.error("Failed to save product");
