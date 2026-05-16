@@ -1,4 +1,4 @@
-import React, { Key, useEffect, useMemo, useState } from "react";
+import React, { Key, useEffect, useMemo, useState, useCallback } from "react";
 import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import PrintBillSpaModal from "../MODALS/printBillSpaModal";
@@ -18,7 +18,7 @@ import {
   ClearOutlined, CloseCircleOutlined, OrderedListOutlined,
   PlusCircleOutlined, RestOutlined, SmileFilled,
   SwitcherOutlined, UserOutlined, EditOutlined,
-  CalendarOutlined, PrinterOutlined, UserDeleteOutlined,
+  CalendarOutlined, PrinterOutlined, UserDeleteOutlined, SendOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
@@ -27,6 +27,12 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrintDocument, DocumentType } from "../MODALS/Hooks/usePrintDocument";
+import useSystemDetails from "@hooks/useSystemDetails";
+import {
+  sendPrintJob, buildKitchenLines, groupItemsByMainCategory,
+  getAgentForCategory,
+} from "@services/printAgent";
+import { fetchMainCategories } from "@services/categories";
 
 const { Text } = Typography;
 
@@ -125,6 +131,8 @@ const CartDrawer: React.FC = () => {
   const [editingServedBy, setEditingServedBy] = useState(false);
   const [updatingServedBy, setUpdatingServedBy] = useState(false);
   const [delinkingCustomer, setDelinkingCustomer] = useState(false);
+  const [sendingToPrinter, setSendingToPrinter] = useState(false);
+  const [mainCategories, setMainCategories] = useState<Array<any>>([]);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
@@ -148,6 +156,7 @@ const CartDrawer: React.FC = () => {
     activeTable, allLocations, isLoadingSlots,
     setActiveTable, openNewOrder, removeActiveSlot,
   } = useRetailQueue();
+  const { BRAND_NAME1, PO_BOX, PHONE_NO, EMAIL_URL, Paybill_bs, Paybill_ac } = useSystemDetails();
 
   const isSlotMode = isRetailMode || isHospitalMode;
 
@@ -277,6 +286,100 @@ const CartDrawer: React.FC = () => {
     };
     loadStaff();
   }, []);
+
+  // Load main categories for category name lookup
+  useEffect(() => {
+    const loadMainCategories = async () => {
+      try {
+        const cats = await fetchMainCategories();
+        setMainCategories(cats || []);
+      } catch (e) {
+        console.error("Failed to load main categories", e);
+      }
+    };
+    loadMainCategories();
+  }, []);
+
+  // Get main category name from leaf category ID using full hierarchy
+  const getMainCategoryName = useCallback((leafCategoryId: string): string => {
+    for (const mainCat of mainCategories) {
+      for (const subCat of mainCat.sub_categories) {
+        for (const cat of subCat.categories) {
+          if (cat._id === leafCategoryId) {
+            return mainCat.name;
+          }
+        }
+        if (subCat._id === leafCategoryId) {
+          return mainCat.name;
+        }
+      }
+    }
+    return leafCategoryId;
+  }, [mainCategories]);
+
+  const handleSendToPrinter = async () => {
+    const items: any[] = Array.isArray(data) ? data : [];
+    if (!items.length) return;
+    setSendingToPrinter(true);
+    const grouped = groupItemsByMainCategory(items);
+    if (grouped.size === 0) {
+      message.warning("No category info found on items — cannot route to printer");
+      setSendingToPrinter(false);
+      return;
+    }
+    let sent = 0;
+    const skippedCategories: string[] = [];
+    const agentShopId = localStorage.getItem("shopId") ?? "";
+    const companyCode = localStorage.getItem("companyCode") ?? "";
+
+    for (const [categoryId, grpItems] of grouped) {
+      const mainCategoryName = getMainCategoryName(categoryId);
+      const agentId = getAgentForCategory(mainCategoryName);
+      if (!agentId) {
+        skippedCategories.push(mainCategoryName);
+        continue;
+      }
+      await sendPrintJob({
+        shop_id: agentShopId,
+        main_category_id: mainCategoryName,
+        order_no: cartDetails?.order_no,
+        content_type: "food_order",
+        cut_paper: true,
+        priority: "normal",
+        lines: buildKitchenLines(
+          cartDetails?.order_no ?? "",
+          grpItems,
+          cartDetails?.table_name,
+          {
+            name: BRAND_NAME1,
+            address: PO_BOX,
+            phone: PHONE_NO,
+            email: EMAIL_URL,
+          },
+          mainCategoryName,
+          cartDetails?._id,
+          cartDetails?.created_by_name || cartDetails?.served_by,
+          {
+            method: cartDetails?.payment_method,
+            paybill: Paybill_bs,
+            account: Paybill_ac,
+          }
+        ),
+      }, companyCode)
+        .then((r) => { if (r.agentsSent > 0) sent++; })
+        .catch((e) => console.warn(`[send] category ${mainCategoryName}:`, e.message));
+    }
+    if (sent > 0) {
+      let msg = "Order sent to printer(s)!";
+      if (skippedCategories.length > 0) {
+        msg += ` (Skipped: ${skippedCategories.join(", ")} - no printer assigned)`;
+      }
+      message.success(msg);
+    } else {
+      message.warning("No printers assigned to any categories in this order");
+    }
+    setSendingToPrinter(false);
+  };
 
   useEffect(() => {
     const fetch = async () => {
@@ -658,6 +761,15 @@ const CartDrawer: React.FC = () => {
           <Space direction="vertical" style={{ width: "100%" }} size={8}>
             <Flex gap={8} wrap="wrap">
               <ClientPin cart={cartDetails} />
+              <Button
+                icon={<SendOutlined />}
+                loading={sendingToPrinter}
+                disabled={!data?.length}
+                onClick={handleSendToPrinter}
+                style={{ borderColor: "#f97316", color: "#f97316", borderRadius: 6 }}
+              >
+                Send
+              </Button>
               {isSpa ? (
                 <PrintBillSpaModal
                   cartDetails={cartDetails}
