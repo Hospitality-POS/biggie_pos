@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Box,
@@ -64,6 +64,11 @@ import {
 } from "../MODALS/Hooks/usePrintDocument";
 import DigiTaxInvoiceGenerator from "../DigiTaxInvoiceGenerator";
 import { useIPPrinter } from "../../hooks/useIPPrinter";
+import {
+  sendPrintJob, buildKitchenLines, buildReceiptLines, groupItemsByMainCategory,
+  getAgentForCategory,
+} from "@services/printAgent";
+import { fetchMainCategories } from "@services/categories";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 interface PrintBillProps {
@@ -250,8 +255,64 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [sendingToPrinter, setSendingToPrinter] = useState(false);
+  const [autoPrinting, setAutoPrinting] = useState(false);
   const [useDigiTax, setUseDigiTax] = useState(false);
   const [digiTaxData, setDigiTaxData] = useState<any>(null);
+  const [mainCategories, setMainCategories] = useState<Array<any>>([]);
+
+  const companyCode = useMemo(() => {
+    try {
+      const t = localStorage.getItem("tenant");
+      return t ? (JSON.parse(t)?.tenant_code ?? "") : "";
+    } catch {
+      return "";
+    }
+  }, []);
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const data = await fetchMainCategories();
+      setMainCategories(data?.data || data || []);
+    } catch {
+      console.error("Failed to fetch categories");
+    }
+  }, []);
+
+  const getMainCategoryName = useCallback((leafCategoryId: string): string => {
+    console.log("[getMainCategoryName] Looking for leaf category ID:", leafCategoryId);
+    console.log("[getMainCategoryName] Main categories:", mainCategories);
+    
+    // Search through the main categories hierarchy to find the leaf category
+    for (const mainCat of mainCategories) {
+      // Check sub-categories
+      if (mainCat.sub_categories) {
+        for (const subCat of mainCat.sub_categories) {
+          // Check categories (leaf level)
+          if (subCat.categories) {
+            for (const cat of subCat.categories) {
+              if (cat._id === leafCategoryId) {
+                console.log("[getMainCategoryName] Found leaf category in hierarchy, main category:", mainCat.name);
+                return mainCat.name;
+              }
+            }
+          }
+          // Also check if the sub-category itself matches
+          if (subCat._id === leafCategoryId) {
+            console.log("[getMainCategoryName] Found sub-category in hierarchy, main category:", mainCat.name);
+            return mainCat.name;
+          }
+        }
+      }
+    }
+    
+    console.log("[getMainCategoryName] Not found in hierarchy, returning ID");
+    return leafCategoryId;
+  }, [mainCategories]);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
 
   const pendingPrintRef = useRef(false);
   const [printTrigger, setPrintTrigger] = useState(0);
@@ -441,6 +502,121 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     }
   }, [canPrint, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, printHtmlContent, cartDetails]);
 
+  const agentShopId = localStorage.getItem("shopId") ?? "";
+
+  const handleSendToPrinter = async () => {
+    console.log("[handleSendToPrinter] Called, data:", data);
+    const items: any[] = Array.isArray(data) ? data : [];
+    console.log("[handleSendToPrinter] Items count:", items.length);
+    if (!items.length) return;
+    setSendingToPrinter(true);
+    const grouped = groupItemsByMainCategory(items);
+    console.log("[handleSendToPrinter] Grouped categories:", grouped.size);
+    if (grouped.size === 0) {
+      message.warning("No category info found on items — cannot route to printer");
+      setSendingToPrinter(false);
+      return;
+    }
+    let sent = 0;
+    const skippedCategories: string[] = [];
+    for (const [categoryId, grpItems] of grouped) {
+      // Convert category ID to main category name
+      const mainCategoryName = getMainCategoryName(categoryId);
+      console.log("[handleSendToPrinter] Category ID:", categoryId, "Main category name:", mainCategoryName);
+      const agentId = getAgentForCategory(mainCategoryName);
+      console.log("[handleSendToPrinter] Agent for", mainCategoryName, ":", agentId);
+      if (!agentId) {
+        skippedCategories.push(mainCategoryName);
+        continue;
+      }
+      await sendPrintJob({
+        shop_id: agentShopId,
+        main_category_id: mainCategoryName,
+        order_no: cartDetails?.order_no,
+        content_type: "food_order",
+        cut_paper: true,
+        priority: "normal",
+        lines: (() => {
+          return buildKitchenLines(
+            cartDetails?.order_no ?? "",
+            grpItems,
+            cartDetails?.table_name,
+            {
+              name: BRAND_NAME1,
+              address: PO_BOX,
+              phone: PHONE_NO,
+              email: EMAIL_URL,
+            },
+            mainCategoryName,
+            cartDetails?._id,
+            cartDetails?.created_by_name || cartDetails?.served_by,
+            {
+              method: cartDetails?.payment_method,
+              paybill: Paybill_bs,
+              account: Paybill_ac,
+            }
+          );
+        })(),
+      }, companyCode)
+        .then((r) => { if (r.agentsSent > 0) sent++; })
+        .catch((e) => console.warn(`[send] category ${mainCategoryName}:`, e.message));
+    }
+    if (sent > 0) {
+      let msg = "Order sent to printer(s)!";
+      if (skippedCategories.length > 0) {
+        msg += ` (Skipped: ${skippedCategories.join(", ")} - no printer assigned)`;
+      }
+      message.success(msg);
+    } else {
+      message.warning("No printers assigned to any categories in this order");
+    }
+    setSendingToPrinter(false);
+  };
+
+  const handleAutoPrint = async () => {
+    const items: any[] = Array.isArray(data) ? data : [];
+    if (!items.length) return;
+    setAutoPrinting(true);
+    const grouped = groupItemsByMainCategory(items);
+    if (grouped.size === 0) {
+      message.warning("No category info found on items — cannot auto print");
+      setAutoPrinting(false);
+      return;
+    }
+    let sent = 0;
+    const skippedCategories: string[] = [];
+    for (const [categoryId, grpItems] of grouped) {
+      // Convert category ID to main category name
+      const mainCategoryName = getMainCategoryName(categoryId);
+      const agentId = getAgentForCategory(mainCategoryName);
+      if (!agentId) {
+        skippedCategories.push(mainCategoryName);
+        continue;
+      }
+      await sendPrintJob({
+        shop_id: agentShopId,
+        main_category_id: mainCategoryName,
+        order_no: cartDetails?.order_no,
+        content_type: "receipt",
+        cut_paper: true,
+        priority: "normal",
+        lines: buildReceiptLines(cartDetails?.order_no ?? "", grpItems, grandTotal, cartDetails?.table_name),
+      }, companyCode)
+        .then((r) => { if (r.agentsSent > 0) sent++; })
+        .catch((e) => console.warn(`[autoprint] category ${mainCategoryName}:`, e.message));
+    }
+    if (sent > 0) {
+      let msg = "Receipt sent to printer(s)!";
+      if (skippedCategories.length > 0) {
+        msg += ` (Skipped: ${skippedCategories.join(", ")} - no printer assigned)`;
+      }
+      message.success(msg);
+    } else {
+      message.warning("No printers assigned to any categories in this order");
+    }
+    setAutoPrinting(false);
+  };
+
   const handleFinish = async () => {
     if (!canPrint) { message.error("Print limit reached."); return false; }
     if (isReprint && printStatus?.requires_reason) { setReasonModalOpen(true); return false; }
@@ -517,7 +693,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
         modalProps={{ centered: true, destroyOnClose: true, width: isPdfView ? 900 : 680 }}
         submitter={{
           render: (_, defaultDoms) => (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: 8 }}>
               <Button
                 icon={<MailOutlined />}
                 onClick={() => setEmailModalOpen(true)}
@@ -526,7 +702,29 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               >
                 Send via Email
               </Button>
-              <Space>{defaultDoms[0]}{defaultDoms[1]}</Space>
+              <Space wrap>
+                {/* Send button moved to CartDrawer */}
+                {/* <Button
+                  icon={<SendOutlined />}
+                  loading={sendingToPrinter}
+                  disabled={!data?.length || isPrinting}
+                  onClick={handleSendToPrinter}
+                  style={{ borderColor: "#f97316", color: "#f97316", borderRadius: 7 }}
+                >
+                  Send
+                </Button> */}
+                {/* Auto Print button hidden for now */}
+                {/* <Button
+                  icon={<PrinterFilled />}
+                  loading={autoPrinting}
+                  disabled={!data?.length || isPrinting}
+                  onClick={handleAutoPrint}
+                  style={{ borderColor: C.primary, color: C.primary, borderRadius: 7 }}
+                >
+                  Auto Print
+                </Button> */}
+                {defaultDoms[0]}{defaultDoms[1]}
+              </Space>
             </div>
           ),
           submitButtonProps: {
