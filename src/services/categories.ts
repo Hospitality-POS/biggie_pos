@@ -150,6 +150,16 @@ export const deleteSubCategory = async (params: ParamsType) => {
   }
 };
 
+export const fetchCategoryById = async (categoryId: string) => {
+  try {
+    const response = await axiosInstance.get(`${categ_url}/${categoryId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch category by ID:", error);
+    return null;
+  }
+};
+
 // main category
 export const fetchMainCategories = async () => {
   try {

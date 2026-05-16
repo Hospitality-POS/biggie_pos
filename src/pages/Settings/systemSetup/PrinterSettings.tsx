@@ -1,562 +1,373 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Form, Input, Select, Switch, Button, Space, Divider, Typography, Alert, App, Skeleton, Card, List, Tag } from 'antd';
-import { ProCard } from '@ant-design/pro-components';
-import { PrinterOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined, SearchOutlined } from '@ant-design/icons';
-import { 
-  getPrinterConfig, 
-  savePrinterConfig, 
-  getLocalSubnet, 
-  discoverPrinters, 
-  testPrinterConnection, 
-  printTestPage,
-  type PrinterConfig,
-  type DiscoveredPrinter
-} from '../../../services/printer';
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { Alert, Button, List, Select, Space, Spin, Tag, Typography } from "antd";
+import { ProCard } from "@ant-design/pro-components";
+import {
+  ApiOutlined, CheckCircleOutlined, CloseCircleOutlined,
+  PrinterOutlined, ReloadOutlined, SendOutlined, PlusOutlined, DeleteOutlined,
+} from "@ant-design/icons";
+import {
+  getConnectedAgents, sendPrintJob,
+  getCategoryPrinterMappings, setCategoryPrinterMapping, removeCategoryPrinterMapping,
+  type ConnectedAgent,
+} from "../../../services/printAgent";
+import { fetchMainCategories } from "../../../services/categories";
 
-const { Option } = Select;
 const { Text } = Typography;
 
-const DEFAULT_CONFIG: Partial<PrinterConfig> = {
-  printer_name: '',
-  printer_type: 'thermal',
-  connection_type: 'ip',
-  port: 9100,
-  paper_width: 80,
-  characters_per_line: 32, // Much reduced for much larger text
-  line_spacing: 48, // Much increased for larger text spacing
-  is_default: true,
-  is_active: true,
-  timeout_ms: 5000,
-  retry_attempts: 3
-};
+const C = { primary: "#6c1c2c", subText: "#64748b" };
 
 const PrinterSettings: React.FC = () => {
-  const { message } = App.useApp();
-  const [form] = Form.useForm<PrinterConfig>();
-  const [testing, setTesting] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [printerConfig, setPrinterConfig] = useState<PrinterConfig | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'connected' | 'failed'>('idle');
-  const [testMessage, setTestMessage] = useState<string>('');
+  const [agents, setAgents] = useState<ConnectedAgent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [discovering, setDiscovering] = useState(false);
-  const [discoveredPrinters, setDiscoveredPrinters] = useState<DiscoveredPrinter[]>([]);
-  const [localSubnet, setLocalSubnet] = useState<string>('');
-  const [selectingPrinter, setSelectingPrinter] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<Record<string, boolean | null>>({});
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [categoryMappings, setCategoryMappings] = useState<Map<string, string>>(new Map());
+  const [editingAgent, setEditingAgent] = useState<string | null>(null);
+  const [newCategoryId, setNewCategoryId] = useState("");
+  const [mainCategories, setMainCategories] = useState<Array<{ _id: string; name: string }>>([]);
 
-  const getShopId = () => localStorage.getItem("shopId") || "";
-  const getTenantCode = () => {
+  const shopId = localStorage.getItem("shopId") ?? "";
+  const companyCode = useMemo(() => {
     try {
-      const storedTenant = localStorage.getItem("tenant");
-      const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-      return tenant?.tenant_code || "";
+      const t = localStorage.getItem("tenant");
+      return t ? (JSON.parse(t)?.tenant_code ?? "") : "";
     } catch {
       return "";
     }
-  };
+  }, []);
 
-  const fetchPrinterConfig = useCallback(async () => {
-    const shopId = getShopId();
-    const tenantCode = getTenantCode();
-    if (!shopId) return;
-    
-    setLoading(true);
-    try {
-      const data = await getPrinterConfig(shopId, tenantCode);
-      
-      if (data.success && data.printer_config) {
-        setPrinterConfig(data.printer_config);
-        form.setFieldsValue(data.printer_config);
-      } else {
-        // Set default values if no config exists
-        form.setFieldsValue(DEFAULT_CONFIG);
-      }
-    } catch (error) {
-      console.error('Failed to fetch printer configuration:', error);
-      // Don't show error message for missing service - just use defaults
-      form.setFieldsValue(DEFAULT_CONFIG);
-    } finally {
-      setLoading(false);
-    }
-  }, [form]);
+  const loadMappings = useCallback(() => {
+    setCategoryMappings(getCategoryPrinterMappings());
+  }, []);
 
-  const fetchLocalSubnet = useCallback(async () => {
+  const loadMainCategories = useCallback(async () => {
     try {
-      const data = await getLocalSubnet(getTenantCode());
-      
-      if (data.success) {
-        setLocalSubnet(data.subnet);
-      }
-    } catch (error) {
-      console.error('Failed to fetch local subnet:', error);
+      const data = await fetchMainCategories();
+      setMainCategories(data?.data || data || []);
+    } catch {
+      console.error("Failed to fetch main categories");
     }
   }, []);
 
   useEffect(() => {
-    fetchPrinterConfig();
-    fetchLocalSubnet();
-  }, [fetchPrinterConfig, fetchLocalSubnet]);
+    loadMappings();
+    loadMainCategories();
+  }, [loadMappings, loadMainCategories]);
 
-  const handleDiscoverPrinters = async () => {
-    setDiscovering(true);
-    setDiscoveredPrinters([]);
-    
+  const checkStatus = useCallback(async () => {
+    if (!shopId || !companyCode) { setError("Shop ID or Company Code not found."); return; }
+    setLoading(true);
+    setError(null);
     try {
-      const data = await discoverPrinters(getTenantCode(), localSubnet, 3000, 15);
-      
-      if (data.success) {
-        setDiscoveredPrinters(data.printers);
-        message.success(`Found ${data.printers.length} potential printers`);
-      } else {
-        message.error('Printer discovery failed');
-      }
-    } catch (error) {
-      message.error('Discovery request failed');
+      const { agents: list } = await getConnectedAgents(shopId, companyCode);
+      setAgents(list ?? []);
+      setLastChecked(new Date());
+    } catch {
+      setError("Could not reach the print agent API. Make sure the backend is running.");
+      setAgents([]);
     } finally {
-      setDiscovering(false);
+      setLoading(false);
+    }
+  }, [shopId, companyCode]);
+
+  useEffect(() => {
+    checkStatus();
+    const interval = setInterval(checkStatus, 30_000);
+    return () => clearInterval(interval);
+  }, [checkStatus]);
+
+  const handleTestPrint = async (agentId: string) => {
+    setTestLoading(agentId);
+    setTestResult((prev) => ({ ...prev, [agentId]: null }));
+    try {
+      const assignedCats = getCategoriesForAgent(agentId);
+      const categoryName = assignedCats.length > 0 ? assignedCats[0] : "test";
+      console.log(`[test print] Using category name: ${categoryName} for agent ${agentId}`);
+      const result = await sendPrintJob({
+        shop_id: shopId,
+        main_category_id: categoryName,
+        content_type: "test",
+        cut_paper: true,
+        priority: "normal",
+        lines: [
+          { type: "header", text: "TEST PRINT" },
+          { type: "footer", text: `Agent: ${agentId}` },
+          { type: "footer", text: `Category: ${categoryName}` },
+          { type: "footer", text: new Date().toLocaleString("en-KE") },
+          { type: "divider", text: "" },
+          { type: "footer", text: "Printer is working correctly!" },
+        ],
+      }, companyCode);
+      setTestResult((prev) => ({ ...prev, [agentId]: result.agentsSent > 0 }));
+    } catch {
+      setTestResult((prev) => ({ ...prev, [agentId]: false }));
+    } finally {
+      setTestLoading(null);
     }
   };
 
-  const selectPrinter = async (printer: DiscoveredPrinter) => {
-    console.log('Selecting printer:', printer);
-    setSelectingPrinter(printer.ip_address);
-    
-    try {
-      // Update form fields first
-      const formValues = {
-        ip_address: printer.ip_address,
-        port: printer.ports.includes(9100) ? 9100 : printer.ports[0],
-        printer_name: `Thermal Printer (${printer.ip_address})`,
-        connection_type: 'ip',
-        is_active: true
-      };
-      
-      console.log('Setting form values:', formValues);
-      form.setFieldsValue(formValues);
-      
-      // Test connection before saving
-      const port = printer.ports.includes(9100) ? 9100 : printer.ports[0];
-      console.log(`Testing connection to ${printer.ip_address}:${port}...`);
-      
-      const connectionData = await testPrinterConnection(getTenantCode(), printer.ip_address, port, 5000);
-      
-      if (!connectionData.success || !connectionData.connected) {
-        message.error(`Cannot connect to printer at ${printer.ip_address}:${port}. ${connectionData.message || 'Connection test failed.'}`);
-        return;
-      }
-      
-      console.log('Connection test successful, proceeding with save...');
-      
-      // Create printer configuration
-      const printerConfig: PrinterConfig = {
-        printer_name: `Thermal Printer (${printer.ip_address})`,
-        printer_type: 'thermal',
-        connection_type: 'ip',
-        ip_address: printer.ip_address,
-        port: port,
-        paper_width: 80,
-        characters_per_line: 32, // Much reduced for much larger text
-        line_spacing: 48, // Much increased for larger text spacing
-        is_default: true,
-        is_active: true,
-        timeout_ms: 5000,
-        retry_attempts: 3
-      };
-
-      const shopId = getShopId();
-      const tenantCode = getTenantCode();
-      
-      if (!shopId) {
-        message.error('Shop ID not found');
-        return;
-      }
-
-      console.log('Saving verified printer config:', printerConfig);
-      
-      const data = await savePrinterConfig(shopId, tenantCode, printerConfig);
-      console.log('Save config response data:', data);
-      
-      if (data.success) {
-        setPrinterConfig(printerConfig);
-        setConnectionStatus('connected');
-        setTestMessage('Successfully connected to printer');
-        message.success(`Printer ${printer.ip_address} verified and saved successfully!`);
-      } else {
-        message.error(data.error || 'Failed to save printer configuration');
-      }
-    } catch (error) {
-      console.error('Select printer error:', error);
-      message.error('Configuration save failed');
-    } finally {
-      setSelectingPrinter(null);
-    }
+  const handleAddCategory = (agentId: string) => {
+    if (!newCategoryId.trim()) return;
+    const cat = mainCategories.find((c) => c._id === newCategoryId);
+    const categoryName = cat?.name || newCategoryId;
+    setCategoryPrinterMapping(categoryName, agentId);
+    loadMappings();
+    setNewCategoryId("");
+    setEditingAgent(null);
   };
 
-  const testConnection = async () => {
-    const values = form.getFieldsValue(['ip_address', 'port']);
-    
-    if (!values.ip_address) {
-      message.error('Please enter printer IP address');
-      return;
-    }
-
-    setTesting(true);
-    setConnectionStatus('testing');
-    setTestMessage('');
-    
-    try {
-      const data = await testPrinterConnection(getTenantCode(), values.ip_address, values.port || 9100, 5000);
-      
-      if (data.success && data.connected) {
-        setConnectionStatus('connected');
-        setTestMessage('Successfully connected to printer');
-        message.success('Printer connection successful!');
-      } else {
-        setConnectionStatus('failed');
-        setTestMessage(data.message || 'Failed to connect to printer');
-        message.error('Failed to connect to printer');
-      }
-    } catch (error) {
-      setConnectionStatus('failed');
-      setTestMessage('Printer service not available or connection failed');
-      message.error('Printer service not available - backend service may not be running');
-    } finally {
-      setTesting(false);
-    }
+  const handleRemoveCategory = (categoryName: string) => {
+    removeCategoryPrinterMapping(categoryName);
+    loadMappings();
   };
 
-  const saveConfig = async (values: PrinterConfig) => {
-    console.log('Saving printer config:', values);
-    const shopId = getShopId();
-    const tenantCode = getTenantCode();
-    
-    if (!shopId) {
-      message.error('Shop ID not found');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const data = await savePrinterConfig(shopId, tenantCode, values);
-      console.log('Save config response data:', data);
-      
-      if (data.success) {
-        message.success('Printer configuration saved successfully');
-        setPrinterConfig(values);
-      } else {
-        message.error(data.error || 'Failed to save printer configuration');
-      }
-    } catch (error) {
-      console.error('Save config error:', error);
-      message.error('Printer service not available - configuration not saved');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handlePrintTestPage = async () => {
-    const shopId = getShopId();
-    const tenantCode = getTenantCode();
-    if (!shopId) {
-      message.error('Shop ID not found');
-      return;
-    }
-
-    if (!printerConfig?.is_active) {
-      message.error('Printer is not active');
-      return;
-    }
-
-    try {
-      const data = await printTestPage(shopId, tenantCode);
-      
-      if (data.success) {
-        message.success('Test page printed successfully');
-      } else {
-        message.error(data.error || 'Failed to print test page');
-      }
-    } catch (error) {
-      message.error('Printer service not available - cannot print test page');
-    }
+  const getCategoriesForAgent = (agentId: string): string[] => {
+    const result: string[] = [];
+    categoryMappings.forEach((aid, catName) => {
+      if (aid === agentId) result.push(catName);
+    });
+    return result;
   };
 
   return (
-    <div style={{ padding: '16px 0' }}>
+    <div style={{ padding: "16px 0" }}>
       <ProCard
         bordered
         title={
           <Space>
-            <PrinterOutlined style={{ color: '#6c1c2c' }} />
-            <Text strong>Printer Configuration</Text>
+            <ApiOutlined style={{ color: C.primary }} />
+            <Text strong>Print Agent — Connected Printers</Text>
           </Space>
         }
         extra={
-          connectionStatus !== 'idle' && (
-            <Space>
-              {connectionStatus === 'testing' && (
-                <Text type="secondary">Testing connection...</Text>
-              )}
-              {connectionStatus === 'connected' && (
-                <Space>
-                  <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                  <Text style={{ color: '#52c41a' }}>Connected</Text>
-                </Space>
-              )}
-              {connectionStatus === 'failed' && (
-                <Space>
-                  <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
-                  <Text style={{ color: '#ff4d4f' }}>Connection Failed</Text>
-                </Space>
-              )}
-            </Space>
-          )
-        }
-        style={{ marginBottom: 16 }}
-      >
-        {loading ? (
-          <Skeleton active paragraph={{ rows: 12 }} />
-        ) : (
-          <>
-            {testMessage && (
-              <Alert
-                message={testMessage}
-                type={connectionStatus === 'connected' ? 'success' : 'error'}
-                style={{ marginBottom: 16 }}
-                closable
-                onClose={() => setTestMessage('')}
-              />
-            )}
-
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={saveConfig}
-              initialValues={DEFAULT_CONFIG}
-            >
-          <Form.Item
-            label="Printer Name"
-            name="printer_name"
-            rules={[{ required: true, message: 'Please enter printer name' }]}
-          >
-            <Input placeholder="e.g., Thermal Printer 1" />
-          </Form.Item>
-
-          <Form.Item
-            label="Printer Type"
-            name="printer_type"
-          >
-            <Select>
-              <Option value="thermal">Thermal</Option>
-              <Option value="laser">Laser</Option>
-              <Option value="inkjet">Inkjet</Option>
-              <Option value="pos">POS</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Connection Type"
-            name="connection_type"
-          >
-            <Select>
-              <Option value="ip">IP Network</Option>
-              <Option value="usb">USB</Option>
-              <Option value="bluetooth">Bluetooth</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="IP Address"
-            name="ip_address"
-            rules={[
-              { required: true, message: 'Please enter printer IP address' },
-              { pattern: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/, message: 'Invalid IP address format' }
-            ]}
-          >
-            <Input placeholder="e.g., 192.168.1.100" />
-          </Form.Item>
-
-          <Form.Item
-            label="Port"
-            name="port"
-            rules={[{ type: 'number', min: 1, max: 65535, message: 'Port must be between 1 and 65535' }]}
-          >
-            <Input type="number" placeholder="9100" />
-          </Form.Item>
-
-          <Form.Item
-            label="Paper Width (mm)"
-            name="paper_width"
-          >
-            <Select>
-              <Option value={58}>58mm</Option>
-              <Option value={80}>80mm</Option>
-              <Option value={112}>112mm</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Characters per Line"
-            name="characters_per_line"
-          >
-            <Input type="number" min={20} max={48} />
-          </Form.Item>
-
-          <Form.Item
-            label="Line Spacing"
-            name="line_spacing"
-          >
-            <Input type="number" min={24} max={48} />
-          </Form.Item>
-
-          <Form.Item
-            label="Timeout (ms)"
-            name="timeout_ms"
-          >
-            <Input type="number" min={1000} max={30000} />
-          </Form.Item>
-
-          <Form.Item
-            label="Retry Attempts"
-            name="retry_attempts"
-          >
-            <Input type="number" min={1} max={10} />
-          </Form.Item>
-
-          <Form.Item
-            label="Active"
-            name="is_active"
-            valuePropName="checked"
-          >
-            <Switch checkedChildren="Yes" unCheckedChildren="No" />
-          </Form.Item>
-
-          <Divider />
-
-          {/* Printer Discovery Section */}
-          <Card 
-            title={
-              <Space>
-                <SearchOutlined />
-                <span>Auto-Discover Printers</span>
-              </Space>
-            } 
-            size="small" 
-            style={{ marginBottom: 16 }}
-          >
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div>
-                <Text type="secondary">Network: {localSubnet}.x</Text>
-              </div>
-              
-              <Button 
-                type="primary" 
-                icon={<SearchOutlined />}
-                onClick={handleDiscoverPrinters}
-                loading={discovering}
-                block
-              >
-                {discovering ? 'Scanning Network...' : 'Discover Printers'}
-              </Button>
-
-              {discoveredPrinters.length > 0 && (
-                <div>
-                  <Text strong>Found {discoveredPrinters.length} potential printers:</Text>
-                  <List
-                    size="small"
-                    dataSource={discoveredPrinters}
-                    renderItem={(printer) => (
-                      <List.Item
-                        actions={[
-                          <Button 
-                            type="primary" 
-                            size="small"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              console.log('Button clicked for printer:', printer);
-                              selectPrinter(printer);
-                            }}
-                            icon={<CheckCircleOutlined />}
-                            loading={selectingPrinter === printer.ip_address}
-                            disabled={selectingPrinter !== null}
-                          >
-                            {selectingPrinter === printer.ip_address ? 'Saving...' : 'Select & Save'}
-                          </Button>
-                        ]}
-                      >
-                        <List.Item.Meta
-                          avatar={<PrinterOutlined />}
-                          title={
-                            <Space>
-                              {printer.ip_address}
-                              <Tag color={printer.confidence > 70 ? 'green' : 'orange'}>
-                                {printer.confidence}% confidence
-                              </Tag>
-                              {printerConfig?.ip_address === printer.ip_address && (
-                                <Tag color="green" icon={<CheckCircleOutlined />}>
-                                  Active
-                                </Tag>
-                              )}
-                            </Space>
-                          }
-                          description={
-                            <Space direction="vertical" size="small">
-                              <Text type="secondary">Ports: {printer.ports.join(', ')}</Text>
-                              {printer.services.map((service, idx) => (
-                                <Tag key={idx} color="blue">
-                                  {service.type}: {service.description}
-                                </Tag>
-                              ))}
-                            </Space>
-                          }
-                        />
-                      </List.Item>
-                    )}
-                  />
-                </div>
-              )}
-
-              {discoveredPrinters.length === 0 && !discovering && localSubnet && (
-                <Text type="secondary">
-                  No printers found. Make sure your thermal printer is connected to the network.
-                </Text>
-              )}
-            </Space>
-          </Card>
-
           <Space>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              loading={saving}
-              style={{ background: '#6c1c2c', borderColor: '#6c1c2c' }}
-              onClick={(e) => {
-                e.preventDefault();
-                console.log('Save button clicked directly');
-                form.submit();
-              }}
+            {lastChecked && (
+              <Text style={{ fontSize: 11, color: C.subText }}>
+                Checked: {lastChecked.toLocaleTimeString("en-KE")}
+              </Text>
+            )}
+            <Button
+              size="small"
+              icon={<ReloadOutlined spin={loading} />}
+              onClick={checkStatus}
+              loading={loading}
             >
-              Save Configuration
-            </Button>
-            <Button 
-              onClick={testConnection} 
-              loading={testing}
-              icon={<ApiOutlined />}
-            >
-              Test Connection
-            </Button>
-            <Button 
-              onClick={handlePrintTestPage} 
-              disabled={!printerConfig?.is_active}
-              icon={<PrinterOutlined />}
-            >
-              Print Test Page
+              Refresh
             </Button>
           </Space>
-        </Form>
-          </>
+        }
+        style={{ marginBottom: 16 }}
+        bodyStyle={{ padding: "14px 16px" }}
+      >
+        {!shopId && (
+          <Alert
+            type="error"
+            showIcon
+            message="Shop ID is not set. Please log in again."
+            style={{ marginBottom: 12, borderRadius: 8 }}
+          />
+        )}
+        {error && (
+          <Alert
+            type="warning"
+            showIcon
+            message={error}
+            style={{ marginBottom: 12, borderRadius: 8 }}
+          />
+        )}
+
+        {loading && agents.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <Spin />
+            <Text style={{ display: "block", marginTop: 8, color: C.subText }}>
+              Checking agent connections…
+            </Text>
+          </div>
+        ) : agents.length === 0 ? (
+          <Alert
+            type="info"
+            showIcon
+            message="No agents connected"
+            description="Install the PrintAgent app and configure it with your shop_id."
+            style={{ borderRadius: 8 }}
+          />
+        ) : (
+          <List
+            dataSource={agents}
+            renderItem={(agent) => {
+              const key = agent.agentId;
+              const result = testResult[key];
+              const assignedCats = getCategoriesForAgent(key);
+              return (
+                <List.Item
+                  style={{
+                    background: "#f0fdf4",
+                    border: "1px solid #bbf7d0",
+                    borderRadius: 10,
+                    padding: "10px 14px",
+                    marginBottom: 8,
+                  }}
+                  actions={[
+                    result === true && (
+                      <Tag color="success" style={{ fontSize: 11 }}>✓ Sent</Tag>
+                    ),
+                    result === false && (
+                      <Tag color="error" style={{ fontSize: 11 }}>✗ Failed</Tag>
+                    ),
+                    <Button
+                      size="small"
+                      icon={<SendOutlined />}
+                      loading={testLoading === key}
+                      onClick={() => handleTestPrint(key)}
+                      style={{ borderColor: C.primary, color: C.primary, borderRadius: 6 }}
+                    >
+                      Test Print
+                    </Button>,
+                  ].filter(Boolean)}
+                >
+                  <List.Item.Meta
+                    avatar={
+                      <CheckCircleOutlined style={{ color: "#16a34a", fontSize: 18, marginTop: 2 }} />
+                    }
+                    title={
+                      <Space>
+                        <PrinterOutlined style={{ color: C.primary }} />
+                        <Text strong style={{ fontSize: 13 }}>
+                          Agent: {agent.agentId}
+                        </Text>
+                        <Tag color="blue" style={{ borderRadius: 4, fontSize: 11 }}>
+                          Online
+                        </Tag>
+                      </Space>
+                    }
+                    description={
+                      <div>
+                        <Text style={{ fontSize: 12, color: C.subText }}>
+                          Shop: {agent.shop_id}
+                        </Text>
+                        <div style={{ marginTop: 8 }}>
+                          <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 4 }}>
+                            Assigned Categories:
+                          </Text>
+                          <Space wrap size={4}>
+                            {assignedCats.length === 0 && (
+                              <Tag style={{ fontSize: 10, color: "#9ca3af", border: "1px dashed #d1d5db" }}>
+                                None assigned
+                              </Tag>
+                            )}
+                            {assignedCats.map((catName) => (
+                              <Tag
+                                key={catName}
+                                closable
+                                onClose={() => handleRemoveCategory(catName)}
+                                closeIcon={<DeleteOutlined style={{ fontSize: 10 }} />}
+                                color="blue"
+                                style={{ borderRadius: 4, fontSize: 10 }}
+                              >
+                                {catName}
+                              </Tag>
+                            ))}
+                          </Space>
+                          <div style={{ marginTop: 6 }}>
+                            {editingAgent === key ? (
+                              <Space size={4}>
+                                <Select
+                                  size="small"
+                                  placeholder="Select main category"
+                                  value={newCategoryId || undefined}
+                                  onChange={(value) => setNewCategoryId(value)}
+                                  style={{ width: 220, fontSize: 11 }}
+                                  showSearch
+                                  optionFilterProp="children"
+                                >
+                                  {mainCategories.map((cat) => (
+                                    <Select.Option key={cat._id} value={cat._id}>
+                                      {cat.name} <span style={{ color: "#9ca3af", fontSize: 10 }}> ({cat._id})</span>
+                                    </Select.Option>
+                                  ))}
+                                </Select>
+                                <Button
+                                  size="small"
+                                  type="primary"
+                                  icon={<PlusOutlined />}
+                                  onClick={() => handleAddCategory(key)}
+                                  disabled={!newCategoryId}
+                                  style={{ fontSize: 11 }}
+                                >
+                                  Add
+                                </Button>
+                                <Button
+                                  size="small"
+                                  onClick={() => { setEditingAgent(null); setNewCategoryId(""); }}
+                                  style={{ fontSize: 11 }}
+                                >
+                                  Cancel
+                                </Button>
+                              </Space>
+                            ) : (
+                              <Button
+                                size="small"
+                                icon={<PlusOutlined />}
+                                onClick={() => { setEditingAgent(key); setNewCategoryId(""); }}
+                                style={{ fontSize: 11 }}
+                              >
+                                Assign Category
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  />
+                </List.Item>
+              );
+            }}
+          />
         )}
       </ProCard>
+
+      {!loading && agents.length === 0 && !error && (
+        <ProCard
+          bordered
+          title={
+            <Space>
+              <CloseCircleOutlined style={{ color: "#dc2626" }} />
+              <Text strong>No Printers Online</Text>
+            </Space>
+          }
+          bodyStyle={{ padding: "14px 16px" }}
+        >
+          <Alert
+            type="info"
+            showIcon
+            message="How to connect a printer agent"
+            description={
+              <ol style={{ margin: "8px 0 0", paddingLeft: 16, fontSize: 12 }}>
+                <li>Install the PrintAgent app on the machine connected to each printer.</li>
+                <li>
+                  Set the agent's <strong>shop_id</strong> to{" "}
+                  <code style={{ background: "#f1f5f9", padding: "1px 4px", borderRadius: 3 }}>
+                    {shopId || "<your shop id>"}
+                  </code>
+                  .
+                </li>
+                <li>
+                  Start the agent — it will appear here automatically.
+                </li>
+                <li>
+                  Use the <strong>"Assign Category"</strong> button to assign each connected agent
+                  to a main category (e.g. Kitchen, Bar, Cashier). Enter the main category ObjectId.
+                </li>
+                <li>
+                  When printing, items are routed to the agent assigned to their main category.
+                </li>
+              </ol>
+            }
+          />
+        </ProCard>
+      )}
     </div>
   );
 };

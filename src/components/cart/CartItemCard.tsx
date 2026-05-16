@@ -8,14 +8,15 @@ import {
   IconButton,
 } from "@mui/material";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty } from "../../features/Cart/CartActions";
+import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty, updateCartItems } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
 import { Space } from "antd/lib";
-import { Button, Typography, notification, Tooltip } from "antd";
-import { DeleteOutlined, LoadingOutlined } from "@ant-design/icons";
+import { Button, Typography, notification, Tooltip, Input, Popconfirm } from "antd";
+import { DeleteOutlined, LoadingOutlined, EditOutlined, FileTextOutlined } from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
+import axiosInstance from "../../services/axiosInstance";
 
 interface cartItemCardProps {
   cartItem: any;
@@ -41,6 +42,9 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const [qtyInputValue, setQtyInputValue] = useState<string>("");
   const [stepLoading, setStepLoading] = useState<"add" | "remove" | null>(null);
   const [qtyLoading, setQtyLoading] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState(cartItem?.notes || "");
+  const [notesLoading, setNotesLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const canEditQty = user?.role === "admin" || user?.role === "cashier";
@@ -51,6 +55,13 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       setQtyInputValue(String(cartItem?.quantity ?? 0));
     }
   }, [cartItem?.quantity, isEditingQty]);
+
+  // Sync notes when cart updates externally
+  useEffect(() => {
+    if (!isEditingNotes) {
+      setNotesValue(cartItem?.notes || "");
+    }
+  }, [cartItem?.notes, isEditingNotes]);
 
   // Auto-focus when entering edit mode
   useEffect(() => {
@@ -140,6 +151,22 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     }
   };
 
+  const handleSaveNotes = async () => {
+    setIsEditingNotes(false);
+    if (notesValue === cartItem?.notes) return;
+
+    setNotesLoading(true);
+    try {
+      await dispatch(updateCartItems({ _id: cartItem._id, cart_id: cartDetails._id, notes: notesValue } as any));
+      invalidate();
+    } catch {
+      notification.error({ message: "Failed to update notes" });
+      setNotesValue(cartItem?.notes || "");
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
   if (!cartItem) return null;
 
   const isSent = cartItem.sent;
@@ -161,12 +188,59 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
           {/* Item Name */}
           <Grid item xs={4}>
-            <Typography.Text
-              ellipsis={{ tooltip: cartItem?.product_id?.name }}
-              style={{ color: textColor, fontSize: 13, fontWeight: 500 }}
-            >
-              {cartItem?.product_id?.name || "Product Name"}
-            </Typography.Text>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Typography.Text
+                ellipsis={{ tooltip: cartItem?.product_id?.name }}
+                style={{ color: textColor, fontSize: 13, fontWeight: 500 }}
+              >
+                {cartItem?.product_id?.name || "Product Name"}
+              </Typography.Text>
+              <Tooltip
+                title={
+                  <div style={{ maxWidth: 250 }}>
+                    {cartItem?.notes ? (
+                      <div style={{ background: "#fef08a", padding: 8, borderRadius: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+                        <div style={{ fontWeight: 600, fontSize: 11, marginBottom: 4, color: "#854d0e" }}>📝 Notes:</div>
+                        <div style={{ fontSize: 12, color: "#713f12" }}>{cartItem.notes}</div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: "#94a3b8" }}>No notes</div>
+                    )}
+                  </div>
+                }
+                placement="top"
+              >
+                <FileTextOutlined
+                  style={{
+                    fontSize: 14,
+                    color: cartItem?.notes ? primaryColor : "#94a3b8",
+                    cursor: canEditQty ? "pointer" : "default",
+                    flexShrink: 0
+                  }}
+                  onClick={() => {
+                    if (canEditQty) {
+                      setNotesValue(cartItem?.notes || "");
+                      setIsEditingNotes(true);
+                    }
+                  }}
+                />
+              </Tooltip>
+            </div>
+            {/* Notes editing input */}
+            {isEditingNotes && (
+              <div style={{ marginTop: 6 }}>
+                <Input.TextArea
+                  autoSize={{ minRows: 2, maxRows: 4 }}
+                  value={notesValue}
+                  onChange={(e) => setNotesValue(e.target.value)}
+                  onBlur={handleSaveNotes}
+                  onPressEnter={handleSaveNotes}
+                  placeholder="Add notes (e.g., extra spicy, no onions)"
+                  style={{ fontSize: 12 }}
+                  autoFocus
+                />
+              </div>
+            )}
           </Grid>
 
           {/* Quantity Controls */}
