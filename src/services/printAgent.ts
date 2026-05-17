@@ -1,8 +1,18 @@
 import { BASE_URL } from "@utils/config";
 
 export interface ConnectedAgent {
-  agentId: string;
+  _id: string;
+  agent_id: string;
+  company_code: string;
+  company_id: string;
   shop_id: string;
+  zone: string;
+  device_name: string;
+  is_active: boolean;
+  last_seen: string;
+  createdAt: string;
+  updatedAt: string;
+  connected: boolean;
 }
 
 export interface PrintAgentStatus {
