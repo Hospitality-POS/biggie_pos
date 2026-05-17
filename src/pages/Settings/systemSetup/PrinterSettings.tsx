@@ -196,8 +196,9 @@ const PrinterSettings: React.FC = () => {
         ) : (
           <List
             dataSource={agents}
+            rowKey="agent_id"
             renderItem={(agent) => {
-              const key = agent.agentId;
+              const key = agent.agent_id;
               const result = testResult[key];
               const assignedCats = getCategoriesForAgent(key);
               return (
@@ -235,7 +236,7 @@ const PrinterSettings: React.FC = () => {
                       <Space>
                         <PrinterOutlined style={{ color: C.primary }} />
                         <Text strong style={{ fontSize: 13 }}>
-                          Agent: {agent.agentId}
+                          Agent: {agent.agent_id}
                         </Text>
                         <Tag color="blue" style={{ borderRadius: 4, fontSize: 11 }}>
                           Online
