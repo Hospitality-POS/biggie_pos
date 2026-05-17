@@ -15,6 +15,18 @@ export interface ConnectedAgent {
   connected: boolean;
 }
 
+export interface SendFromCartResult {
+  message: string;
+  jobs: Array<{
+    job_id: string;
+    main_category: string;
+    status: string;
+    items_count: number;
+  }>;
+  totalJobs: number;
+  totalAgentsSent: number;
+}
+
 export interface PrintAgentStatus {
   agents: ConnectedAgent[];
   count: number;
@@ -137,6 +149,19 @@ export async function sendPrintJob(payload: PrintJobPayload, companyCode: string
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error ?? "Print failed");
+  }
+  return res.json();
+}
+
+export async function sendPrintFromCart(cartId: string, shopId: string, companyCode: string): Promise<SendFromCartResult> {
+  const res = await fetch(`${BASE_URL}/api/agents/send-from-cart`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", companycode: companyCode },
+    body: JSON.stringify({ cart_id: cartId, shop_id: shopId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string })?.error ?? "Print failed");
   }
   return res.json();
 }

@@ -1,4 +1,4 @@
-import React, { Key, useEffect, useMemo, useState, useCallback } from "react";
+import React, { Key, useEffect, useMemo, useState } from "react";
 import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import PrintBillSpaModal from "../MODALS/printBillSpaModal";
@@ -29,10 +29,8 @@ import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrintDocument, DocumentType } from "../MODALS/Hooks/usePrintDocument";
 import useSystemDetails from "@hooks/useSystemDetails";
 import {
-  sendPrintJob, buildKitchenLines, groupItemsByMainCategory,
-  getAgentForCategory,
+  sendPrintFromCart,
 } from "@services/printAgent";
-import { fetchMainCategories } from "@services/categories";
 
 const { Text } = Typography;
 
@@ -132,7 +130,6 @@ const CartDrawer: React.FC = () => {
   const [updatingServedBy, setUpdatingServedBy] = useState(false);
   const [delinkingCustomer, setDelinkingCustomer] = useState(false);
   const [sendingToPrinter, setSendingToPrinter] = useState(false);
-  const [mainCategories, setMainCategories] = useState<Array<any>>([]);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
@@ -156,7 +153,6 @@ const CartDrawer: React.FC = () => {
     activeTable, allLocations, isLoadingSlots,
     setActiveTable, openNewOrder, removeActiveSlot,
   } = useRetailQueue();
-  const { BRAND_NAME1, PO_BOX, PHONE_NO, EMAIL_URL, Paybill_bs, Paybill_ac } = useSystemDetails();
 
   const isSlotMode = isRetailMode || isHospitalMode;
 
@@ -191,6 +187,15 @@ const CartDrawer: React.FC = () => {
     data: data ?? [],
     autoCheck: true,
   });
+
+  const printProps = {
+    canPrint,
+    isReprint,
+    printsRemaining,
+    printStatus,
+    statusLoading,
+    recordPrint,
+  };
 
   // ── Discount display math ─────────────────────────────────────────────────
   const discountAmount = useMemo(() => {
@@ -287,98 +292,33 @@ const CartDrawer: React.FC = () => {
     loadStaff();
   }, []);
 
-  // Load main categories for category name lookup
-  useEffect(() => {
-    const loadMainCategories = async () => {
-      try {
-        const cats = await fetchMainCategories();
-        setMainCategories(cats || []);
-      } catch (e) {
-        console.error("Failed to load main categories", e);
-      }
-    };
-    loadMainCategories();
-  }, []);
-
-  // Get main category name from leaf category ID using full hierarchy
-  const getMainCategoryName = useCallback((leafCategoryId: string): string => {
-    for (const mainCat of mainCategories) {
-      for (const subCat of mainCat.sub_categories) {
-        for (const cat of subCat.categories) {
-          if (cat._id === leafCategoryId) {
-            return mainCat.name;
-          }
-        }
-        if (subCat._id === leafCategoryId) {
-          return mainCat.name;
-        }
-      }
-    }
-    return leafCategoryId;
-  }, [mainCategories]);
-
   const handleSendToPrinter = async () => {
-    const items: any[] = Array.isArray(data) ? data : [];
-    if (!items.length) return;
-    setSendingToPrinter(true);
-    const grouped = groupItemsByMainCategory(items);
-    if (grouped.size === 0) {
-      message.warning("No category info found on items — cannot route to printer");
-      setSendingToPrinter(false);
+    const cartId = cartDetails?._id;
+    if (!cartId) {
+      message.error("Cart ID not found");
       return;
     }
-    let sent = 0;
-    const skippedCategories: string[] = [];
-    const agentShopId = localStorage.getItem("shopId") ?? "";
+    
+    const items: any[] = Array.isArray(data) ? data : [];
+    if (!items.length) {
+      message.warning("No items in cart to send to printer");
+      return;
+    }
+    
+    setSendingToPrinter(true);
+    
+    const shopId = localStorage.getItem("shopId") ?? "";
     const companyCode = localStorage.getItem("companyCode") ?? "";
 
-    for (const [categoryId, grpItems] of grouped) {
-      const mainCategoryName = getMainCategoryName(categoryId);
-      const agentId = getAgentForCategory(mainCategoryName);
-      if (!agentId) {
-        skippedCategories.push(mainCategoryName);
-        continue;
-      }
-      await sendPrintJob({
-        shop_id: agentShopId,
-        main_category_id: mainCategoryName,
-        order_no: cartDetails?.order_no,
-        content_type: "food_order",
-        cut_paper: true,
-        priority: "normal",
-        lines: buildKitchenLines(
-          cartDetails?.order_no ?? "",
-          grpItems,
-          cartDetails?.table_name,
-          {
-            name: BRAND_NAME1,
-            address: PO_BOX,
-            phone: PHONE_NO,
-            email: EMAIL_URL,
-          },
-          mainCategoryName,
-          cartDetails?._id,
-          cartDetails?.created_by_name || cartDetails?.served_by,
-          {
-            method: cartDetails?.payment_method,
-            paybill: Paybill_bs,
-            account: Paybill_ac,
-          }
-        ),
-      }, companyCode)
-        .then((r) => { if (r.agentsSent > 0) sent++; })
-        .catch((e) => console.warn(`[send] category ${mainCategoryName}:`, e.message));
+    try {
+      await sendPrintFromCart(cartId, shopId, companyCode);
+      message.success("Printing jobs have been initiated");
+    } catch (error: any) {
+      console.error("Error sending to printer:", error);
+      message.error(error.message || "Failed to send order to printer");
+    } finally {
+      setSendingToPrinter(false);
     }
-    if (sent > 0) {
-      let msg = "Order sent to printer(s)!";
-      if (skippedCategories.length > 0) {
-        msg += ` (Skipped: ${skippedCategories.join(", ")} - no printer assigned)`;
-      }
-      message.success(msg);
-    } else {
-      message.warning("No printers assigned to any categories in this order");
-    }
-    setSendingToPrinter(false);
   };
 
   useEffect(() => {
@@ -432,36 +372,25 @@ const CartDrawer: React.FC = () => {
   // Clears customer_id, client_name, client_pin, client_email and any
   // subscription fields so the cart becomes a walk-in order.
   const handleDelinkCustomer = async () => {
-    const cartId = cartDetails?._id ?? cartDetails?.id;
+    const cartId = cartDetails?._id;
     if (!cartId) return;
     setDelinkingCustomer(true);
     try {
       await updateCartService(cartId, {
-        customer_id: null,
-        client_name: null,
-        client_pin: null,
-        use_subscription: false,
-        payment_type: "Cash",
-        subscription_id: null,
-      } as any);
-      await dispatch(getCart(tableId));
-      message.success("Customer removed from order");
+        customer_id: undefined,
+        client_name: undefined,
+        client_pin: undefined,
+        client_email: undefined,
+        client_phone: undefined,
+      });
+      if (tableId) await dispatch(getCart(tableId));
+      message.success("Customer delinked successfully");
     } catch (e) {
       console.error("Failed to delink customer", e);
-      message.error("Could not remove customer");
+      message.error("Failed to delink customer");
     } finally {
       setDelinkingCustomer(false);
     }
-  };
-
-  // Shared print props passed to both modal variants
-  const printProps = {
-    canPrint,
-    isReprint,
-    printsRemaining,
-    printStatus,
-    statusLoading,
-    recordPrint,
   };
 
   return (
