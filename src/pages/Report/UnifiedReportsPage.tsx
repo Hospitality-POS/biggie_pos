@@ -4,11 +4,13 @@ import {
   ShoppingOutlined,
   AccountBookOutlined,
   TeamOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
 import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
 import AccountingReportsPage from "./AccountingReportsPage";
 import MtejaReports from "./MtejaReports";
 import BanduReports from "./BanduReports";
+import DalaReports from "../dala/reports/Reports";
 
 const { Text } = Typography;
 
@@ -16,16 +18,17 @@ const { Text } = Typography;
 const getModuleFlags = () => {
   try {
     const stored = localStorage.getItem("tenant");
-    if (!stored) return { hasDuka: true, hasPesa: false, hasMteja: false, hasBandu: false };
+    if (!stored) return { hasDuka: true, hasPesa: false, hasMteja: false, hasBandu: false, hasDala: false };
     const tenant = JSON.parse(stored);
     return {
       hasDuka: tenant?.pos_integration?.enabled === true,
       hasPesa: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting),
       hasMteja: tenant?.modules?.crm === true,
       hasBandu: tenant?.modules?.payroll === true,
+      hasDala: tenant?.modules?.dala === true,
     };
   } catch {
-    return { hasDuka: true, hasPesa: false, hasMteja: false, hasBandu: false };
+    return { hasDuka: true, hasPesa: false, hasMteja: false, hasBandu: false, hasDala: false };
   }
 };
 
@@ -34,6 +37,9 @@ const BanduReportsContent: React.FC = () => <BanduReports />;
 
 // ── Mteja/CRM Report Components ────────────────────────────────────────────────────
 const MtejaReportsContent: React.FC = () => <MtejaReports />;
+
+// ── Dala Real Estate Report Components ───────────────────────────────────────────────
+const DalaReportsContent: React.FC = () => <DalaReports />;
 
 // ── Main Unified Reports Page ─────────────────────────────────────────────────────
 const UnifiedReportsPage: React.FC = () => {
@@ -53,6 +59,7 @@ const UnifiedReportsPage: React.FC = () => {
     if (moduleFlags.hasDuka) setActiveModuleTab("duka");
     else if (moduleFlags.hasPesa) setActiveModuleTab("pesa");
     else if (moduleFlags.hasMteja) setActiveModuleTab("mteja");
+    else if (moduleFlags.hasDala) setActiveModuleTab("dala");
     else if (moduleFlags.hasBandu) setActiveModuleTab("bandu");
   }, [moduleFlags]);
 
@@ -85,6 +92,16 @@ const UnifiedReportsPage: React.FC = () => {
             label: "Mteja (CRM)",
             icon: <TeamOutlined />,
             children: <MtejaReportsContent />,
+          },
+        ]
+      : []),
+    ...(moduleFlags.hasDala
+      ? [
+          {
+            key: "dala",
+            label: "Dala (Real Estate)",
+            icon: <HomeOutlined />,
+            children: <DalaReportsContent />,
           },
         ]
       : []),

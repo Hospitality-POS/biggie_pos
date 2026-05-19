@@ -53,6 +53,8 @@ interface Tenant {
         reports?: boolean;
         payroll?: boolean;
         crm?: boolean;
+        dala?: boolean;
+        etims?: boolean;
     };
     // VAT Configuration
     is_vat_enabled?: boolean;
@@ -81,6 +83,20 @@ interface Tenant {
         enabled_at?: string;
         accepted_terms?: boolean;
         accepted_charges?: boolean;
+    };
+    dala_settings?: {
+        enabled_at?: string;
+        accepted_terms?: boolean;
+        accepted_charges?: boolean;
+    };
+    etims_config?: {
+        enabled?: boolean;
+        environment?: 'sandbox' | 'production';
+        tin_number?: string;
+        kra_pin?: string;
+        bhf_id?: string;
+        device_serial?: string;
+        last_sync?: string;
     };
     __v?: number;
     createdAt?: string;
@@ -572,6 +588,147 @@ export const getMtejaStatus = async (id: string) => {
         return response.data;
     } catch (error: any) {
         console.error("Failed to get Mteja status:", error);
+        throw error;
+    }
+};
+
+// ============================================
+// DALA BY BASE — PROPERTIES MODULE
+// ============================================
+
+export const enableDala = async (id: string, data: EnableModuleData) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/enable-dala`,
+            data,
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to enable Dala by Base";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+export const disableDala = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/disable-dala`,
+            {},
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to disable Dala by Base";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+export const getDalaStatus = async (id: string) => {
+    try {
+        const response = await axiosInstance.get(
+            `${tenantUrl}/${id}/dala-status`,
+            { headers: getPOSHeaders() }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error("Failed to get Dala status:", error);
+        throw error;
+    }
+};
+
+// ============================================
+// ETIMS INTEGRATION MODULE
+// ============================================
+
+export interface EtimsConfigData {
+    environment?: 'sandbox' | 'production';
+    tin_number?: string;
+    kra_pin?: string;
+    bhf_id?: string;
+    device_serial?: string;
+}
+
+export const enableEtims = async (id: string, config: EtimsConfigData) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/enable-etims`,
+            config,
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        message.success("ETIMS integration enabled successfully!");
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to enable ETIMS integration";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+export const disableEtims = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/disable-etims`,
+            {},
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        message.success("ETIMS integration disabled successfully!");
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to disable ETIMS integration";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+export const updateEtimsConfig = async (id: string, config: EtimsConfigData) => {
+    try {
+        const response = await axiosInstance.patch(
+            `${tenantUrl}/${id}/etims-config`,
+            config,
+            { headers: getPOSHeaders() }
+        );
+        await refreshTenantInStorage(id);
+        message.success("ETIMS configuration updated successfully!");
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to update ETIMS configuration";
+        message.error(errorMessage);
+        throw error;
+    }
+};
+
+export const getEtimsStatus = async (id: string) => {
+    try {
+        const response = await axiosInstance.get(
+            `${tenantUrl}/${id}/etims-status`,
+            { headers: getPOSHeaders() }
+        );
+        return response.data;
+    } catch (error: any) {
+        console.error("Failed to get ETIMS status:", error);
+        throw error;
+    }
+};
+
+export const syncEtims = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${tenantUrl}/${id}/sync-etims`,
+            {},
+            { headers: getPOSHeaders() }
+        );
+        message.success("ETIMS sync initiated successfully!");
+        return response.data;
+    } catch (error: any) {
+        const errorMessage = error?.response?.data?.error || "Failed to sync ETIMS";
+        message.error(errorMessage);
         throw error;
     }
 };

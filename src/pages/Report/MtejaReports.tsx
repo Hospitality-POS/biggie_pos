@@ -87,7 +87,9 @@ const LeadsConversionReport: React.FC = () => {
       title: "Assigned To",
       dataIndex: "assigned_to",
       render: (assigned: any) => (
-        <Text style={{ fontSize: 12 }}>{(assigned as any)?.fullname || assigned || "—"}</Text>
+        <Text style={{ fontSize: 12 }}>
+          {assigned?.fullname || assigned?.username || assigned?.name || assigned || "—"}
+        </Text>
       ),
     },
     {

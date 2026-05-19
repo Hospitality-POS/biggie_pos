@@ -59,15 +59,19 @@ const useTenantConfig = () => {
   const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
   const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
   const hasMteja = tenant?.modules?.crm === true;
-  const isAccountingOnly = hasAccounting && !hasPOS;
-  const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting;
+  const hasDala = tenant?.modules?.dala === true;
+  const isAccountingOnly = hasAccounting && !hasPOS && !hasDala;
+  const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting && !hasDala;
+  const isDalaOnly = hasDala && !hasPOS && !hasAccounting && !hasMteja;
 
   /** Where "Open Shop" should navigate */
   const shopLandingPath = isMtejaOnly
     ? "/mteja"
     : isAccountingOnly
       ? "/accounting"
-      : "/tables";
+      : isDalaOnly
+        ? "/dala"
+        : "/home-dashboard";
 
   /** Whether the Print Settings tab should be visible */
   const showPrintSettings = hasPOS && !isMtejaOnly;

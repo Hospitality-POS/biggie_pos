@@ -319,6 +319,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const isEtimsEnabled = tenant?.etims_config?.enabled === true;
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
   const clientLogoUrl = tenant?.tenant_logo?.url;
 
@@ -934,14 +935,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           </div>
         </div>
 
-        {/* DigiTax ETR Toggle */}
-        <DigiTaxInvoiceGenerator
-          invoiceId={cartDetails?.order_no}
-          orderNo={cartDetails?.order_no}
-          onDigiTaxChange={setUseDigiTax}
-          onDigiTaxData={setDigiTaxData}
-          disabled={!canPrint}
-        />
+        {/* DigiTax ETR Toggle - Only show if ETIMS is enabled */}
+        {isEtimsEnabled && (
+          <DigiTaxInvoiceGenerator
+            invoiceId={cartDetails?.order_no}
+            orderNo={cartDetails?.order_no}
+            onDigiTaxChange={setUseDigiTax}
+            onDigiTaxData={setDigiTaxData}
+            disabled={!canPrint}
+          />
+        )}
 
         {/* ── THERMAL RECEIPT ─────────────────────────────────────────── */}
         {/*

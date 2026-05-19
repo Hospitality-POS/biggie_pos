@@ -1,7 +1,12 @@
 import {
-  DashboardOutlined, AuditOutlined, FileDoneOutlined,
-  ReconciliationOutlined, ShopOutlined, UsergroupAddOutlined, CustomerServiceOutlined,
+  DashboardOutlined,
+  ShopOutlined,
+  CustomerServiceOutlined,
+  AuditOutlined,
+  FileDoneOutlined,
   CompassOutlined,
+  UsergroupAddOutlined,
+  ReconciliationOutlined,
 } from "@ant-design/icons";
 
 /**
@@ -34,21 +39,25 @@ const useAdminProLayoutNav = () => {
   const hasDuka = tenant?.pos_integration?.enabled === true;
   const hasPesa = tenant?.modules?.accounting === true;
   const hasMteja = tenant?.modules?.crm === true;
+  const hasDala = tenant?.modules?.dala === true;
 
-  const isMtejaOnly = hasMteja && !hasDuka && !hasPesa;
+  const isMtejaOnly = hasMteja && !hasDuka && !hasPesa && !hasDala;
 
   console.log("[AdminNav] Module check:", {
     "Duka (POS)": tenant?.pos_integration?.enabled,
     "Pesa (Accounting)": tenant?.modules?.accounting,
     "Mteja (CRM)": tenant?.modules?.crm,
+    "Dala (Real Estate)": tenant?.modules?.dala,
     hasDuka,
     hasPesa,
     hasMteja,
+    hasDala,
     isMtejaOnly,
   });
 
   // ── Common routes (always shown) ──────────────────────────────────────────
   const commonRoutes = [
+    { path: "/admin/reports", name: "Reports", icon: <ReconciliationOutlined /> },
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
     { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
   ];
@@ -56,7 +65,6 @@ const useAdminProLayoutNav = () => {
   // ── Duka (POS) routes ─────────────────────────────────────────────────────
   const dukaRoutes = [
     { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
-    { path: "/admin/reports", name: "Reports", icon: <ReconciliationOutlined /> },
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
@@ -74,6 +82,9 @@ const useAdminProLayoutNav = () => {
   const mtejaRoutes = [
     { path: "/admin/mteja", name: "Mteja Dashboard", icon: <CustomerServiceOutlined /> },
   ];
+
+  // ── Dala (Real Estate) routes ─────────────────────────────────────────────
+  const dalaRoutes = [];
 
   // ── Help Center (always last) ─────────────────────────────────────────────
   const helpRoute = {
@@ -94,7 +105,7 @@ const useAdminProLayoutNav = () => {
   }
 
   // ── CASE 2: Duka only ─────────────────────────────────────────────────────
-  if (hasDuka && !hasPesa) {
+  if (hasDuka && !hasPesa && !hasDala) {
     console.log("[AdminNav] ✅ Duka only (POS)");
     return {
       route: {
@@ -105,7 +116,7 @@ const useAdminProLayoutNav = () => {
   }
 
   // ── CASE 3: Pesa only ─────────────────────────────────────────────────────
-  if (hasPesa && !hasDuka) {
+  if (hasPesa && !hasDuka && !hasDala) {
     console.log("[AdminNav] ✅ Pesa only (Accounting)");
     return {
       route: {
@@ -129,12 +140,68 @@ const useAdminProLayoutNav = () => {
     };
   }
 
-  // ── FALLBACK: no modules ──────────────────────────────────────────────────
-  console.log("[AdminNav] ⚠️ Fallback — no modules");
+  // ── CASE 5: Mteja + Dala ───────────────────────────────────────────────────
+  if (hasMteja && hasDala && !hasDuka && !hasPesa) {
+    console.log("[AdminNav] ✅ Mteja + Dala (CRM + Real Estate)");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...mtejaRoutes, ...dalaRoutes, ...commonRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 6: Duka + Dala ───────────────────────────────────────────────────
+  if (hasDuka && hasDala && !hasPesa) {
+    console.log("[AdminNav] ✅ Duka + Dala (POS + Real Estate)");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...dukaRoutes, ...dalaRoutes, ...commonRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 7: Pesa + Dala ───────────────────────────────────────────────────
+  if (hasPesa && hasDala && !hasDuka) {
+    console.log("[AdminNav] ✅ Pesa + Dala (Accounting + Real Estate)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...pesaWithoutDocs, ...dalaRoutes, ...commonRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 8: Duka + Pesa + Dala ─────────────────────────────────────────────
+  if (hasDuka && hasPesa && hasDala) {
+    console.log("[AdminNav] ✅ Duka + Pesa + Dala (POS + Accounting + Real Estate)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...dukaRoutes, ...pesaWithoutDocs, ...dalaRoutes, ...commonRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── FALLBACK: no modules or unexpected combination ─────────────────────────────
+  console.log("[AdminNav] ⚠️ Fallback — no modules or unexpected combination");
+  const routesToShow = [
+    ...(hasDuka ? dukaRoutes : []),
+    ...(hasPesa ? pesaRoutes : []),
+    ...(hasDala ? dalaRoutes : []),
+    ...(hasMteja ? mtejaRoutes : []),
+    ...commonRoutes,
+    helpRoute,
+  ];
+  // Deduplicate routes based on path
+  const uniqueRoutes = Array.from(new Map(routesToShow.map(r => [r.path, r])).values());
   return {
     route: {
       path: "/admin",
-      routes: [...commonRoutes, helpRoute],
+      routes: uniqueRoutes,
     },
   };
 };

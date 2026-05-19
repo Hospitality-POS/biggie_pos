@@ -4,21 +4,23 @@ import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
 import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDashboardPage";
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
 import BanduHRDashboard from "src/pages/Report/BanduDashboard";
+import UnifiedDalaDashboard from "src/pages/dala/UnifiedDalaDashboard";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
 const getModuleFlags = () => {
   try {
     const stored = localStorage.getItem("tenant");
-    if (!stored) return { hasDuka: true, hasPesa: false, hasMteja: false, hasBandu: false };
+    if (!stored) return { hasDuka: true, hasPesa: false, hasMteja: false, hasBandu: false, hasDala: false };
     const tenant = JSON.parse(stored);
     return {
       hasDuka: tenant?.pos_integration?.enabled === true,
       hasPesa: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting),
       hasMteja: tenant?.modules?.crm === true,
       hasBandu: tenant?.modules?.payroll === true,
+      hasDala: tenant?.modules?.dala === true,
     };
   } catch {
-    return { hasDuka: true, hasPesa: false, hasMteja: false, hasBandu: false };
+    return { hasDuka: true, hasPesa: false, hasMteja: false, hasBandu: false, hasDala: false };
   }
 };
 
@@ -34,14 +36,17 @@ const MtejaDashboardContent: React.FC = () => <MtejaDashboard />;
 // ── Bandu Dashboard Component ─────────────────────────────────────────────────────
 const BanduDashboardContent: React.FC = () => <BanduHRDashboard />;
 
+// ── Dala Dashboard Component ─────────────────────────────────────────────────────
+const DalaDashboardContent: React.FC = () => <UnifiedDalaDashboard />;
+
 // ── Main Unified Dashboard Page ──────────────────────────────────────────────────
 const UnifiedDashboardPage: React.FC = () => {
   console.log("[UnifiedDashboardPage] Component mounted - START");
 
-  const { hasDuka, hasPesa, hasMteja, hasBandu } = getModuleFlags();
+  const { hasDuka, hasPesa, hasMteja, hasBandu, hasDala } = getModuleFlags();
   const [activeTab, setActiveTab] = useState("pos");
 
-  console.log("[UnifiedDashboardPage] Module flags:", { hasDuka, hasPesa, hasMteja, hasBandu });
+  console.log("[UnifiedDashboardPage] Module flags:", { hasDuka, hasPesa, hasMteja, hasBandu, hasDala });
 
   // Build tab items based on enabled modules
   let tabItems = [
@@ -73,6 +78,13 @@ const UnifiedDashboardPage: React.FC = () => {
           children: <BanduDashboardContent />,
         }]
       : []),
+    ...(hasDala
+      ? [{
+          key: "dala",
+          label: "Dala Dashboard",
+          children: <DalaDashboardContent />,
+        }]
+      : []),
   ];
 
   console.log("[UnifiedDashboardPage] Tab items:", tabItems);
@@ -95,7 +107,8 @@ const UnifiedDashboardPage: React.FC = () => {
     else if (hasPesa) setActiveTab("accounting");
     else if (hasMteja) setActiveTab("mteja");
     else if (hasBandu) setActiveTab("bandu");
-  }, [hasDuka, hasPesa, hasMteja, hasBandu]);
+    else if (hasDala) setActiveTab("dala");
+  }, [hasDuka, hasPesa, hasMteja, hasBandu, hasDala]);
 
   console.log("[UnifiedDashboardPage] Rendering tabs with activeTab:", activeTab);
 
