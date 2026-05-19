@@ -24,7 +24,6 @@ import {
   HomeOutlined,
   PlusOutlined,
   EyeOutlined,
-  BuildingOutlined,
   EnvironmentOutlined,
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -222,7 +221,7 @@ const PropertyDetail: React.FC = () => {
               )}
               {property.address && (
                 <Space>
-                  <BuildingOutlined />
+                  <HomeOutlined />
                   <Text>{property.address}</Text>
                 </Space>
               )}
