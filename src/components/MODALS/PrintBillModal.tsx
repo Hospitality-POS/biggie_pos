@@ -258,6 +258,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const isEtimsEnabled = tenant?.etims_config?.enabled === true;
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
   const clientLogoUrl = tenant?.tenant_logo?.url;
 

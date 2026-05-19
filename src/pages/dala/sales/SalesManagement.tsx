@@ -18,6 +18,7 @@ import {
   Descriptions,
   Tabs,
   Empty,
+  Dropdown,
 } from 'antd';
 import {
   PlusOutlined,
@@ -29,12 +30,17 @@ import {
   DownloadOutlined,
   FileTextOutlined,
   ReloadOutlined,
+  AccountBookOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchPropertySales, fetchProperties, createPropertySale, updatePropertySale } from '@services/dala';
 import { useDalaSales, useDalaProperties } from '../../../stores/dalaStore';
 import dayjs from 'dayjs';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import AddEditSaleModal from './AddEditSaleModal';
+import SalesPaymentsTab from '../payments/SalesPaymentsTab';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -43,6 +49,7 @@ const { RangePicker } = DatePicker;
 
 const SalesManagement: React.FC = () => {
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('sales');
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -138,6 +145,12 @@ const SalesManagement: React.FC = () => {
 
   const columns = [
     {
+      title: 'Sale Code',
+      dataIndex: 'saleCode',
+      key: 'saleCode',
+      render: (code: string) => <Text strong>{code || '-'}</Text>,
+    },
+    {
       title: 'Sale Date',
       dataIndex: 'sale_date',
       key: 'sale_date',
@@ -185,6 +198,23 @@ const SalesManagement: React.FC = () => {
       key: 'deposit',
       render: (deposit: number, record: any) => 
         `KES ${(deposit || 0).toLocaleString()} (${record.sale_price ? (((deposit || 0) / record.sale_price) * 100).toFixed(1) : '0.0'}%)`,
+    },
+    {
+      title: 'Paid',
+      dataIndex: 'paymentTotals',
+      key: 'payment_percentage',
+      render: (paymentTotals: any, record: any) => {
+        const percentage = paymentTotals?.paymentPercentage ?? 0;
+        const totalPaid = paymentTotals?.totalPaid ?? 0;
+        return (
+          <div>
+            <div>{percentage.toFixed(1)}%</div>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              KES {(totalPaid || 0).toLocaleString()}
+            </Text>
+          </div>
+        );
+      },
     },
     {
       title: 'Commission',
@@ -257,6 +287,217 @@ const SalesManagement: React.FC = () => {
   const handleDrawerClose = () => {
     setDrawerVisible(false);
     setSelectedSale(null);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!selectedSale) return;
+
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Get brand primary color
+      const primaryColor = localStorage.getItem('primaryColor') || '#1890ff';
+      
+      // Convert hex to RGB for jsPDF
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 24, g: 144, b: 255 };
+      };
+      
+      const rgb = hexToRgb(primaryColor);
+      
+      // Add logo (use default if tenant logo is missing)
+      const logoUrl = '/logo.png'; // Default logo path
+      const tenantLogo = localStorage.getItem('tenantLogo') || logoUrl;
+      
+      try {
+        doc.addImage(tenantLogo, 'PNG', 15, 10, 30, 30);
+      } catch (error) {
+        // If logo fails to load, draw a placeholder with brand color
+        doc.setFillColor(rgb.r, rgb.g, rgb.b);
+        doc.circle(30, 25, 15, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(10);
+        doc.text('LOGO', 30, 25, { align: 'center', baseline: 'middle' });
+      }
+      
+      // Title
+      doc.setFontSize(20);
+      doc.setTextColor(rgb.r, rgb.g, rgb.b);
+      doc.text('Client Statement', pageWidth / 2, 20, { align: 'center' });
+      
+      // Date
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated: ${dayjs().format('DD MMM YYYY HH:mm')}`, pageWidth / 2, 28, { align: 'center' });
+      
+      // Client Information Section
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, 45, pageWidth - 15, 45);
+      
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Sale Information', 15, 55);
+      
+      // Sale details table
+      const saleData = [
+        ['Sale Code', selectedSale.saleCode || selectedSale._id || '-'],
+        ['Client', selectedSale.client?.name || selectedSale.client?.customer_name || selectedSale.client?.email || '-'],
+        ['Property', selectedSale.property?.name || selectedSale.property?.propertyType || '-'],
+        ['Unit/Apartment', selectedSale.apartmentName || selectedSale.unit?.name || '-'],
+        ['Sale Price', `KES ${(selectedSale.sale_price || 0).toLocaleString()}`],
+        ['Deposit Paid', `KES ${(selectedSale.paymentTotals?.depositPaid || selectedSale.deposit?.amount || 0).toLocaleString()}`],
+        ['Paid Amount', `KES ${(selectedSale.paymentTotals?.totalPaid || 0).toLocaleString()}`],
+        ['Balance', `KES ${(selectedSale.paymentTotals?.outstandingBalance ?? (selectedSale.sale_price - selectedSale.paymentTotals?.totalPaid)).toLocaleString()}`],
+        ['Payment Stage', selectedSale.status?.replace('_', ' ').toUpperCase() || '-'],
+        ['Sale Date', selectedSale.sale_date ? dayjs(selectedSale.sale_date).format('DD MMM YYYY') : '-'],
+      ];
+      
+      autoTable(doc, {
+        startY: 60,
+        head: [['Field', 'Value']],
+        body: saleData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [rgb.r, rgb.g, rgb.b],
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        styles: {
+          fontSize: 10,
+          cellPadding: 3,
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 50 },
+          1: { cellWidth: 'auto' },
+        },
+        didDrawPage: (data) => {
+          // Store the final Y position after drawing the table
+          if (data.cursor) {
+            (doc as any).lastY = data.cursor.y;
+          }
+        },
+      });
+      
+      let currentY = (doc as any).lastY || 130;
+      
+      // Payment Plans Section
+      const paymentPlans = selectedSale.paymentPlans || [];
+      if (paymentPlans.length > 0) {
+        if (currentY > pageHeight - 100) {
+          doc.addPage();
+          currentY = 20;
+        }
+        
+        doc.setFontSize(14);
+        doc.setTextColor(0, 0, 0);
+        doc.text('Payment Plans', 15, currentY);
+        
+        currentY += 5;
+        
+        const planHeaders = ['Start Date', 'End Date', 'Total Amount', 'Installment', 'Frequency', 'Installments', 'Status'];
+        const planRows = paymentPlans.map((plan: any) => [
+          plan.startDate ? dayjs(plan.startDate).format('DD MMM YYYY') : '-',
+          plan.endDate ? dayjs(plan.endDate).format('DD MMM YYYY') : '-',
+          `KES ${(plan.totalAmount || 0).toLocaleString()}`,
+          `KES ${(plan.installmentAmount || 0).toLocaleString()}`,
+          plan.installmentFrequency || '-',
+          plan.numberOfInstallments || 0,
+          plan.status?.toUpperCase() || '-',
+        ]);
+        
+        autoTable(doc, {
+          startY: currentY,
+          head: [planHeaders],
+          body: planRows,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [rgb.r, rgb.g, rgb.b],
+            textColor: 255,
+            fontStyle: 'bold',
+          },
+          styles: {
+            fontSize: 9,
+            cellPadding: 2,
+          },
+          didDrawPage: (data) => {
+            if (data.cursor) {
+              (doc as any).lastY = data.cursor.y;
+            }
+          },
+        });
+        
+        currentY = (doc as any).lastY || currentY + 50;
+      }
+      
+      // Payments Section
+      const payments = selectedSale.payments || [];
+      if (payments.length > 0) {
+        if (currentY > pageHeight - 80) {
+          doc.addPage();
+          currentY = 20;
+        }
+        
+        doc.setFontSize(14);
+        doc.setTextColor(0, 0, 0);
+        doc.text('Payment History', 15, currentY);
+        
+        currentY += 5;
+        
+        const paymentHeaders = ['Date', 'Amount', 'Method', 'Type', 'Status', 'Notes'];
+        const paymentRows = payments.map((payment: any) => [
+          payment.payment_date ? dayjs(payment.payment_date).format('DD MMM YYYY') : '-',
+          `KES ${(payment.amount || 0).toLocaleString()}`,
+          payment.method_id?.name?.replace('_', ' ').toUpperCase() || '-',
+          payment.payment_type?.replace('_', ' ').toUpperCase() || '-',
+          payment.payment_status?.toUpperCase() || '-',
+          payment.notes || '-',
+        ]);
+        
+        autoTable(doc, {
+          startY: currentY,
+          head: [paymentHeaders],
+          body: paymentRows,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [rgb.r, rgb.g, rgb.b],
+            textColor: 255,
+            fontStyle: 'bold',
+          },
+          styles: {
+            fontSize: 9,
+            cellPadding: 2,
+          },
+        });
+      }
+      
+      // Footer
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `Page ${i} of ${pageCount}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        );
+      }
+      
+      // Save the PDF
+      doc.save(`client-statement-${selectedSale.saleCode || selectedSale._id || 'sale'}.pdf`);
+      message.success('PDF downloaded successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      message.error('Failed to generate PDF');
+    }
   };
 
   const handleDownloadClientStatement = () => {
@@ -336,153 +577,185 @@ const SalesManagement: React.FC = () => {
             <Text type="secondary">Track property sales and commissions</Text>
           </Col>
           <Col>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleAddSale}
-            >
-              New Sale
-            </Button>
+            {activeTab === 'sales' && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleAddSale}
+              >
+                New Sale
+              </Button>
+            )}
           </Col>
         </Row>
       </div>
 
-      {/* Statistics Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Total Sales"
-              value={stats.total}
-              prefix={<DollarOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Total Value"
-              value={stats.totalValue}
-              prefix="KES"
-              precision={0}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Pending"
-              value={stats.pending}
-              valueStyle={{ color: '#fa8c16' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Completed"
-              value={stats.completed}
-              valueStyle={{ color: '#722ed1' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {/* Main Tabs */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'sales',
+            label: (
+              <span>
+                <DollarOutlined />
+                Sales
+              </span>
+            ),
+            children: (
+              <>
+                {/* Statistics Cards */}
+                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                  <Col xs={24} sm={6}>
+                    <Card>
+                      <Statistic
+                        title="Total Sales"
+                        value={stats.total}
+                        prefix={<DollarOutlined />}
+                        valueStyle={{ color: '#1890ff' }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={6}>
+                    <Card>
+                      <Statistic
+                        title="Total Value"
+                        value={stats.totalValue}
+                        prefix="KES"
+                        precision={0}
+                        valueStyle={{ color: '#52c41a' }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={6}>
+                    <Card>
+                      <Statistic
+                        title="Pending"
+                        value={stats.pending}
+                        valueStyle={{ color: '#fa8c16' }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={6}>
+                    <Card>
+                      <Statistic
+                        title="Completed"
+                        value={stats.completed}
+                        valueStyle={{ color: '#722ed1' }}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
 
-      {/* Filters */}
-      <Card style={{ marginBottom: 24 }}>
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} sm={6}>
-            <Search
-              placeholder="Search sales..."
-              prefix={<SearchOutlined />}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              allowClear
-            />
-          </Col>
-          <Col xs={24} sm={4}>
-            <Select
-              placeholder="Filter by Status"
-              value={statusFilter}
-              onChange={setStatusFilter}
-              style={{ width: '100%' }}
-              allowClear
-            >
-              <Option value="pending">Pending</Option>
-              <Option value="deposit_paid">Deposit Paid</Option>
-              <Option value="active">Active</Option>
-              <Option value="completed">Completed</Option>
-              <Option value="cancelled">Cancelled</Option>
-            </Select>
-          </Col>
-          <Col xs={24} sm={4}>
-            <Select
-              placeholder="Filter by Property"
-              value={propertyFilter}
-              onChange={setPropertyFilter}
-              style={{ width: '100%' }}
-              allowClear
-            >
-              {properties && properties.length > 0 && properties.map((property) => (
-                <Option key={property._id} value={property._id}>
-                  {property.name}
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col xs={24} sm={6}>
-            <RangePicker
-              placeholder={['Start Date', 'End Date']}
-              value={dateRange}
-              onChange={setDateRange}
-              style={{ width: '100%' }}
-            />
-          </Col>
-          <Col xs={24} sm={4}>
-            <Button
-              icon={<FilterOutlined />}
-              onClick={() => {
-                setSearchTerm('');
-                setStatusFilter('');
-                setPropertyFilter('');
-                setDateRange(null);
-              }}
-            >
-              Clear
-            </Button>
-          </Col>
-        </Row>
-      </Card>
+                {/* Filters */}
+                <Card style={{ marginBottom: 24 }}>
+                  <Row gutter={[16, 16]} align="middle">
+                    <Col xs={24} sm={6}>
+                      <Search
+                        placeholder="Search sales..."
+                        prefix={<SearchOutlined />}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        allowClear
+                      />
+                    </Col>
+                    <Col xs={24} sm={4}>
+                      <Select
+                        placeholder="Filter by Status"
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                        style={{ width: '100%' }}
+                        allowClear
+                      >
+                        <Option value="pending">Pending</Option>
+                        <Option value="deposit_paid">Deposit Paid</Option>
+                        <Option value="active">Active</Option>
+                        <Option value="completed">Completed</Option>
+                        <Option value="cancelled">Cancelled</Option>
+                      </Select>
+                    </Col>
+                    <Col xs={24} sm={4}>
+                      <Select
+                        placeholder="Filter by Property"
+                        value={propertyFilter}
+                        onChange={setPropertyFilter}
+                        style={{ width: '100%' }}
+                        allowClear
+                      >
+                        {properties && properties.length > 0 && properties.map((property) => (
+                          <Option key={property._id} value={property._id}>
+                            {property.name}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Col>
+                    <Col xs={24} sm={6}>
+                      <RangePicker
+                        placeholder={['Start Date', 'End Date']}
+                        value={dateRange}
+                        onChange={setDateRange}
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
+                    <Col xs={24} sm={4}>
+                      <Button
+                        icon={<FilterOutlined />}
+                        onClick={() => {
+                          setSearchTerm('');
+                          setStatusFilter('');
+                          setPropertyFilter('');
+                          setDateRange(null);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    </Col>
+                  </Row>
+                </Card>
 
-      {/* Sales Table */}
-      <Card
-        extra={
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => refetch()}
-            loading={isFetching}
-          >
-            Refresh
-          </Button>
-        }
-      >
-        <Table
-          columns={columns}
-          dataSource={filteredSales}
-          rowKey="_id"
-          loading={isLoading || isFetching}
-          pagination={{
-            total: filteredSales.length,
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} of ${total} sales`,
-          }}
-        />
-      </Card>
+                {/* Sales Table */}
+                <Card
+                  extra={
+                    <Button
+                      icon={<ReloadOutlined />}
+                      onClick={() => refetch()}
+                      loading={isFetching}
+                    >
+                      Refresh
+                    </Button>
+                  }
+                >
+                  <Table
+                    columns={columns}
+                    dataSource={filteredSales}
+                    rowKey="_id"
+                    loading={isLoading || isFetching}
+                    pagination={{
+                      total: filteredSales.length,
+                      pageSize: 10,
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      showTotal: (total, range) =>
+                        `${range[0]}-${range[1]} of ${total} sales`,
+                    }}
+                  />
+                </Card>
+              </>
+            ),
+          },
+          {
+            key: 'payments',
+            label: (
+              <span>
+                <AccountBookOutlined />
+                Sales Payments
+              </span>
+            ),
+            children: <SalesPaymentsTab salesData={sales} propertiesData={propertiesQuery.data?.data || properties || []} />,
+          },
+        ]}
+      />
 
       {/* Add/Edit Sale Modal */}
       <AddEditSaleModal
@@ -501,14 +774,35 @@ const SalesManagement: React.FC = () => {
         onClose={handleDrawerClose}
         width={760}
         extra={
-          <Button
-            type="primary"
-            icon={<DownloadOutlined />}
-            onClick={handleDownloadClientStatement}
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'csv',
+                  label: (
+                    <span>
+                      <FileTextOutlined /> Download CSV
+                    </span>
+                  ),
+                  onClick: handleDownloadClientStatement,
+                },
+                {
+                  key: 'pdf',
+                  label: (
+                    <span>
+                      <FilePdfOutlined /> Download PDF
+                    </span>
+                  ),
+                  onClick: handleDownloadPDF,
+                },
+              ],
+            }}
             disabled={!selectedSale}
           >
-            Download Client Statement
-          </Button>
+            <Button type="primary" icon={<DownloadOutlined />} disabled={!selectedSale}>
+              Download
+            </Button>
+          </Dropdown>
         }
       >
         {selectedSale && (

@@ -349,15 +349,19 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
       };
       
       onSubmit(formattedValues);
-      form.resetFields();
-      setCurrentStep(0);
-      setInstallments([]);
-      setFileList([]);
       return true;
     } catch (error) {
       message.error('Please check all fields');
       return false;
     }
+  };
+
+  const handleCancel = () => {
+    form.resetFields();
+    setCurrentStep(0);
+    setInstallments([]);
+    setFileList([]);
+    onCancel();
   };
 
   const getUnitsForProperty = (propertyId: string) => {
@@ -400,7 +404,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     <Modal
       title={edit ? 'Edit Sale' : 'New Sale'}
       open={visible}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       width={1000}
       footer={null}
       destroyOnClose
@@ -569,7 +573,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                 </Form.Item>
               </Form>
               <div style={{ marginTop: 24, textAlign: 'right' }}>
-                <Button onClick={onCancel} style={{ marginRight: 8 }}>
+                <Button onClick={handleCancel} style={{ marginRight: 8 }}>
                   Cancel
                 </Button>
                 <Button type="primary" onClick={goToStep2}>
@@ -905,7 +909,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                 <Button onClick={goToStep1} style={{ marginRight: 8 }}>
                   ← Back
                 </Button>
-                <Button onClick={onCancel} style={{ marginRight: 8 }}>
+                <Button onClick={handleCancel} style={{ marginRight: 8 }}>
                   Cancel
                 </Button>
                 <Button type="primary" onClick={handleSubmit}>

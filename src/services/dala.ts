@@ -653,6 +653,78 @@ export const updatePropertySale = async (id: string, data: Partial<PropertySale>
   }
 };
 
+// ── Sales Payments API ─────────────────────────────────────────────────────────
+
+export const fetchSalePayments = async (params?: {
+  page?: number;
+  limit?: number;
+  saleId?: string;
+  customerId?: string;
+  paymentPlanId?: string;
+  status?: string;
+  paymentMethod?: string;
+  startDate?: string;
+  endDate?: string;
+  shop_id?: string;
+}) => {
+  try {
+    const response = await axiosInstance.get(`${dalaUrl}/sale-payments`, {
+      params,
+      headers: getDalaHeaders()
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch sale payments:", error);
+    throw error;
+  }
+};
+
+export const recordSalePayment = async (data: {
+  saleId: string;
+  paymentPlanId?: string;
+  customerId: string;
+  propertyId?: string;
+  unitId?: string;
+  paymentDate: string;
+  amount: number;
+  paymentMethod: string;
+  paymentType?: string;
+  reference?: string;
+  receiptNumber?: string;
+  etimsRefNumber?: string;
+  notes?: string;
+  attachments?: any[];
+  shop_id?: string;
+}) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/sale-payments`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Sale payment recorded successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to record sale payment";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const reverseSalePayment = async (id: string, reversalReason?: string) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/sale-payments/${id}/reverse`, {
+      reversalReason
+    }, {
+      headers: getDalaHeaders()
+    });
+    message.success("Sale payment reversed successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to reverse sale payment";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
 // ── Commissions API ───────────────────────────────────────────────────────────
 
 export const fetchCommissions = async (params?: {
@@ -662,6 +734,7 @@ export const fetchCommissions = async (params?: {
   status?: string;
   start_date?: string;
   end_date?: string;
+  saleId?: string;
 }) => {
   try {
     const response = await axiosInstance.get(`${dalaUrl}/commissions`, {
@@ -669,25 +742,27 @@ export const fetchCommissions = async (params?: {
       headers: getDalaHeaders()
     });
     return response.data;
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to fetch commissions:", error);
     throw error;
   }
 };
 
-export const payCommission = async (id: string, amount: number, notes?: string) => {
+export const payCommission = async (saleId: string, amount: number, notes?: string, paymentMethod?: string, reference?: string, withholdingTax?: any) => {
   try {
-    const response = await axiosInstance.post(`${dalaUrl}/commissions/${id}/pay`, {
+    const response = await axiosInstance.post(`${dalaUrl}/commissions/pay`, {
+      saleId,
       amount,
-      notes
+      notes,
+      paymentMethod,
+      reference,
+      withholdingTax
     }, {
       headers: getDalaHeaders()
     });
-    message.success("Commission payment recorded successfully");
     return response.data;
   } catch (error: any) {
-    const errorMessage = error?.response?.data?.error || "Failed to record commission payment";
-    message.error(errorMessage);
+    const errorMessage = error?.response?.data?.error || error?.response?.data?.message || "Failed to record commission payment";
     throw error;
   }
 };

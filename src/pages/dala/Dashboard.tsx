@@ -25,6 +25,7 @@ import {
     SyncOutlined,
     DashboardOutlined,
     BuildOutlined as ToolOutlined,
+    WalletOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { fetchDalaDashboard } from '@services/dala';
@@ -388,12 +389,60 @@ const DalaDashboard: React.FC = () => {
                     </Col>
                     <Col xs={24} sm={12} lg={6}>
                         <KPICard
+                            title="Total Commission"
+                            value={dashboardData?.totalCommission || 0}
+                            icon={<WalletOutlined />}
+                            color="#8b5cf6"
+                            bg="#f5f3ff"
+                            pctChange={15}
+                            prefix=""
+                        />
+                    </Col>
+                </Row>
+
+                {/* ── Section 1.5: Revenue KPI Cards ── */}
+                <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+                    <Col xs={24} sm={12} lg={6}>
+                        <KPICard
                             title="Total Revenue"
                             value={dashboardData?.totalRevenue || 0}
                             icon={<TrophyOutlined />}
                             color="#f59e0b"
                             bg="#fff7ed"
                             pctChange={-3}
+                            prefix=""
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <KPICard
+                            title="Monthly Sales Revenue"
+                            value={dashboardData?.monthlySalesRevenue || 0}
+                            icon={<DollarOutlined />}
+                            color="#10b981"
+                            bg="#f0fdf4"
+                            pctChange={10}
+                            prefix=""
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <KPICard
+                            title="Monthly Rent Collected"
+                            value={dashboardData?.monthlyRentCollected || 0}
+                            icon={<CalendarOutlined />}
+                            color="#3b82f6"
+                            bg="#eff6ff"
+                            pctChange={5}
+                            prefix=""
+                        />
+                    </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                        <KPICard
+                            title="Pending Commission"
+                            value={(dashboardData?.totalCommission || 0) - (dashboardData?.commissionStats?.paidCommission || 0)}
+                            icon={<WalletOutlined />}
+                            color="#ef4444"
+                            bg="#fef2f2"
+                            pctChange={null}
                             prefix=""
                         />
                     </Col>
@@ -655,7 +704,149 @@ const DalaDashboard: React.FC = () => {
                     </Col>
                 </Row>
 
-                {/* ── Section 4: Sales, Leases and Collections ── */}
+                {/* ── Section 4: Commission Details ── */}
+                <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+                    <Col xs={24} lg={8}>
+                        <ProCard title={<Text strong>Commission Overview</Text>} bordered size="small">
+                            <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                                <div
+                                    style={{
+                                        background: "#f5f3ff",
+                                        borderRadius: 8,
+                                        padding: "12px 16px",
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>
+                                        Total Commission
+                                    </Text>
+                                    <Text strong style={{ fontSize: 20, color: "#8b5cf6" }}>
+                                        KES {fmtK(dashboardData?.totalCommission || 0)}
+                                    </Text>
+                                    <div style={{ marginTop: 6, display: "flex", gap: 16 }}>
+                                        <div>
+                                            <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Paid</Text>
+                                            <Text style={{ fontSize: 12, color: "#10b981" }}>
+                                                KES {fmtK(dashboardData?.commissionStats?.paidCommission || 0)}
+                                            </Text>
+                                        </div>
+                                        <div>
+                                            <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Pending</Text>
+                                            <Text style={{ fontSize: 12, color: "#f59e0b" }}>
+                                                KES {fmtK((dashboardData?.totalCommission || 0) - (dashboardData?.commissionStats?.paidCommission || 0))}
+                                            </Text>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    style={{
+                                        background: "#f0fdf4",
+                                        borderRadius: 8,
+                                        padding: "12px 16px",
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 11, color: "#64748b", display: "block" }}>
+                                        Monthly Commission
+                                    </Text>
+                                    <Text strong style={{ fontSize: 20, color: "#10b981" }}>
+                                        KES {fmtK(dashboardData?.monthlyCommission || 0)}
+                                    </Text>
+                                    <div style={{ marginTop: 6 }}>
+                                        <Text style={{ fontSize: 10, color: "#64748b", display: "block" }}>Commission Rate</Text>
+                                        <Text style={{ fontSize: 12, color: "#3b82f6" }}>
+                                            {dashboardData?.commissionStats?.averageRate || 5}%
+                                        </Text>
+                                    </div>
+                                </div>
+                            </Space>
+                        </ProCard>
+                    </Col>
+
+                    <Col xs={24} lg={8}>
+                        <ProCard title={<Text strong>Commission Status</Text>} bordered size="small">
+                            <Space direction="vertical" size={10} style={{ width: "100%" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#f0fdf4", borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Paid Commissions</Text>
+                                    <Text strong style={{ color: "#10b981" }}>{dashboardData?.commissionStats?.paidCount || 0}</Text>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#fff7ed", borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Pending Commissions</Text>
+                                    <Text strong style={{ color: "#f59e0b" }}>{dashboardData?.commissionStats?.pendingCount || 0}</Text>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#eff6ff", borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 12, color: "#64748b" }}>Partial Commissions</Text>
+                                    <Text strong style={{ color: "#3b82f6" }}>{dashboardData?.commissionStats?.partialCount || 0}</Text>
+                                </div>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        padding: "12px",
+                                        background: "#f8fafc",
+                                        borderRadius: 8,
+                                        border: "1px solid #e2e8f0",
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 12, fontWeight: 600 }}>
+                                        Total Commissions
+                                    </Text>
+                                    <Text strong style={{ fontSize: 16, color: "#0f172a" }}>
+                                        {(dashboardData?.commissionStats?.paidCount || 0) + (dashboardData?.commissionStats?.pendingCount || 0) + (dashboardData?.commissionStats?.partialCount || 0)}
+                                    </Text>
+                                </div>
+
+                                {/* Commission status pills */}
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingTop: 4 }}>
+                                    <Tooltip title="Commission payment rate">
+                                        <div style={{ background: "#f5f3ff", borderRadius: 6, padding: "4px 10px", fontSize: 11 }}>
+                                            💳 {dashboardData?.totalCommission > 0 ? ((dashboardData?.commissionStats?.paidCommission || 0) / dashboardData?.totalCommission * 100).toFixed(1) : 0}% Paid
+                                        </div>
+                                    </Tooltip>
+                                </div>
+                            </Space>
+                        </ProCard>
+                    </Col>
+
+                    <Col xs={24} lg={8}>
+                        <ProCard title={<Text strong>Top Agents</Text>} bordered size="small">
+                            <Space direction="vertical" size={10} style={{ width: "100%" }}>
+                                {dashboardData?.commissionStats?.topAgents?.slice(0, 3).map((agent: any, i: number) => (
+                                    <div
+                                        key={i}
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "center",
+                                            padding: "10px 12px",
+                                            background: "#f8fafc",
+                                            borderRadius: 8,
+                                            borderLeft: `3px solid ${primaryColor}`,
+                                        }}
+                                    >
+                                        <Space direction="vertical" size={0}>
+                                            <Text style={{ fontSize: 12, fontWeight: 600 }}>{agent.name || 'Agent'}</Text>
+                                            <Text style={{ fontSize: 10, color: "#94a3b8" }}>{agent.sales || 0} sales</Text>
+                                        </Space>
+                                        <Text
+                                            strong
+                                            style={{
+                                                fontSize: 13,
+                                                color: "#0f172a",
+                                            }}
+                                        >
+                                            KES {fmtK(agent.commission || 0)}
+                                        </Text>
+                                    </div>
+                                )) || (
+                                    <Text type="secondary" style={{ fontSize: 12 }}>No agent data available</Text>
+                                )}
+                            </Space>
+                        </ProCard>
+                    </Col>
+                </Row>
+
+                {/* ── Section 5: Sales, Leases and Collections ── */}
                 <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
                     <Col xs={24} lg={8}>
                         <ProCard title={<Text strong>Sales Pipeline</Text>} bordered size="small">

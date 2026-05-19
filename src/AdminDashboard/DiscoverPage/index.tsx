@@ -36,6 +36,7 @@ import {
     CustomerServiceOutlined,
     PhoneOutlined,
     CodeOutlined,
+    DollarOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -1103,9 +1104,9 @@ const DiscoverPage: React.FC = () => {
                 title={<ModalTitle icon={<AuditOutlined />} color={C.indigo} title="Enable eTIMS Integration" />}
             >
                 <Form form={etimsForm} layout="vertical" onFinish={v => enableEtimsMutation.mutate(v)}
-                    initialValues={{ environment: 'sandbox' }} style={{ paddingTop: 4 }}>
+                    initialValues={{ accept_terms: false, accept_charges: false, environment: 'sandbox' }} style={{ paddingTop: 4 }}>
                     <Alert
-                        message="Kenya Revenue Authority electronic Tax Invoice Management System integration for tax compliance."
+                        message="Kenya Revenue Authority electronic Tax Invoice Management System integration for tax compliance. Connection via PIA."
                         type="info" showIcon style={{ marginBottom: 14, borderRadius: 8 }}
                     />
                     <FormSection>
@@ -1113,25 +1114,35 @@ const DiscoverPage: React.FC = () => {
                         <Form.Item name="environment" label="Environment" style={{ marginBottom: 12 }}>
                             <Switch checkedChildren="Production" unCheckedChildren="Sandbox" />
                         </Form.Item>
-                        <Form.Item name="tin_number" label="TIN Number" rules={[{ required: true, message: "TIN number is required" }]} style={{ marginBottom: 12 }}>
-                            <Input placeholder="Enter your KRA TIN number" style={{ borderRadius: 8 }} />
-                        </Form.Item>
-                        <Form.Item name="kra_pin" label="KRA PIN" style={{ marginBottom: 12 }}>
-                            <Input placeholder="Enter your KRA PIN (optional)" style={{ borderRadius: 8 }} />
-                        </Form.Item>
-                        <Form.Item name="bhf_id" label="Branch Fiscal ID" style={{ marginBottom: 12 }}>
-                            <Input placeholder="Branch Fiscal ID (default: 00)" style={{ borderRadius: 8 }} />
-                        </Form.Item>
-                        <Form.Item name="device_serial" label="Device Serial Number" style={{ marginBottom: 6 }}>
-                            <Input placeholder="Device serial number for eTIMS" style={{ borderRadius: 8 }} />
-                        </Form.Item>
                     </FormSection>
                     <div style={{ background: "#f0f5ff", border: `1px solid ${C.indigo}30`, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
                         <InfoCircleOutlined style={{ color: C.indigo, fontSize: 14, marginRight: 8 }} />
                         <Text style={{ fontSize: 12, color: C.subText }}>
-                            eTIMS integration starts in test mode. You can switch to production when ready.
+                            TIN/PIN and other configuration details are already set in shop system settings. eTIMS integration starts in test mode. You can switch to production when ready.
                         </Text>
                     </div>
+                    <div style={{ background: "#fff8ed", border: `1px solid ${C.indigo}30`, borderRadius: 10, padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+                        <DollarOutlined style={{ color: C.indigo, fontSize: 16, flexShrink: 0 }} />
+                        <div>
+                            <Text strong style={{ fontSize: 13, color: C.indigo, display: "block" }}>Billing will apply</Text>
+                            <Text style={{ fontSize: 12, color: C.subText }}>Additional charges may apply for eTIMS integration usage.</Text>
+                        </div>
+                    </div>
+                    <FormSection>
+                        <SectionLabel>Agreement</SectionLabel>
+                        <Form.Item name="accept_terms" valuePropName="checked"
+                            rules={[{ validator: (_, v) => v ? Promise.resolve() : Promise.reject("Required") }]}
+                            style={{ marginBottom: 10 }}>
+                            <Checkbox style={{ fontSize: 12 }}>
+                                I accept the <a href="/terms" target="_blank" rel="noreferrer">terms and conditions</a>
+                            </Checkbox>
+                        </Form.Item>
+                        <Form.Item name="accept_charges" valuePropName="checked"
+                            rules={[{ validator: (_, v) => v ? Promise.resolve() : Promise.reject("Required") }]}
+                            style={{ marginBottom: 6 }}>
+                            <Checkbox style={{ fontSize: 12 }}>I acknowledge that additional charges may apply</Checkbox>
+                        </Form.Item>
+                    </FormSection>
                     <ModalFooter onCancel={() => { setEtimsModalOpen(false); etimsForm.resetFields(); }}
                         submitLabel="Enable eTIMS" loading={enableEtimsMutation.isPending}
                         cancelDisabled={enableEtimsMutation.isPending} color={C.indigo} icon={<CheckCircleOutlined />} />
