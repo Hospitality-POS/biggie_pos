@@ -460,7 +460,7 @@ const PrinterSettings: React.FC = () => {
                   <Space>
                     <WindowsOutlined style={{ fontSize: 20, color: "#6c1c2c" }} />
                     <Text strong style={{ fontSize: 14 }}>Windows (64-bit)</Text>
-                    <Tag color="blue" style={{ fontSize: 11 }}>v0.4.2</Tag>
+                    <Tag color="blue" style={{ fontSize: 11 }}>v0.6.2</Tag>
                   </Space>
                   <Text style={{ fontSize: 12, color: C.subText }}>
                     For Windows 10/11 computers (64-bit)
@@ -468,7 +468,7 @@ const PrinterSettings: React.FC = () => {
                   <Button
                     type="primary"
                     icon={<DownloadOutlined />}
-                    href="https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.4.2_x64-setup%20(1).exe"
+                    href="https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.6.2_x64-setup.exe"
                     download
                     style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}
                   >
