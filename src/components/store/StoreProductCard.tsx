@@ -17,10 +17,11 @@ interface StoreProductCardProps {
   product: any;
   productId: string;
   activateInventory: boolean;
+  onSuccess?: () => void;
 }
 
 const StoreProductCard: React.FC<StoreProductCardProps> = ({
-  name, price, bowls, product, productId, activateInventory,
+  name, price, bowls, product, productId, activateInventory, onSuccess,
 }) => {
   const [isDisabled, setIsDisabled] = React.useState<boolean>(
     product?.is_disabled ?? false
@@ -93,6 +94,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
         <StoreModal
           edit={true}
           data={product}
+          onSuccess={onSuccess}
           trigger={
             <EditOutlined
               style={{
@@ -138,6 +140,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
         <StoreModal
           edit={true}
           data={product}
+          onSuccess={onSuccess}
           trigger={
             <EditOutlined
               style={{
