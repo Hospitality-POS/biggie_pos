@@ -86,7 +86,6 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess }) => {
       title: modifierAddon?.name,
       value: modifierAddon?._id,
       key: modifierAddon?._id,
-      disabled: true,
       children: modifierAddon?.addons?.map((child) => ({
         label: child?.name,
         title: child?.name,
@@ -104,7 +103,48 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess }) => {
   const editPayload = {
     ...data,
     category: { value: data?.category?._id, lable: data?.category?.name },
-    addons: data?.addons?.map((addon: any) => ({ value: addon._id, label: addon.name })),
+    addons: data?.addons?.map((addon: any) => {
+      // Handle both string IDs and object formats
+      if (typeof addon === 'string') {
+        // Find the addon/modifier in allAddons to get the label
+        let foundAddon: any = null;
+        let foundInModifier = false;
+
+        for (const modifier of allAddons || []) {
+          // Check if it's a modifier (parent)
+          if (modifier._id === addon) {
+            foundAddon = modifier;
+            foundInModifier = true;
+            break;
+          }
+          // Check if it's an addon (child)
+          const childAddon = modifier.addons?.find((a: any) => a._id === addon);
+          if (childAddon) {
+            foundAddon = childAddon;
+            foundInModifier = false;
+            break;
+          }
+        }
+
+        if (foundAddon) {
+          return {
+            value: foundAddon._id,
+            label: foundAddon.name,
+            ...(foundInModifier && { isModifier: true }),
+          };
+        }
+        // Fallback if not found
+        return { value: addon, label: addon };
+      }
+
+      // Handle object format (existing logic)
+      const isModifier = addon.modifier || (addon.addons && Array.isArray(addon.addons));
+      return {
+        value: addon._id,
+        label: addon.name || addon.title,
+        ...(isModifier && { isModifier: true }),
+      };
+    }),
   };
 
   const beforeUpload = (file: RcFile) => {

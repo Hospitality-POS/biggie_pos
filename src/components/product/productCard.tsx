@@ -9,6 +9,7 @@ import { AccessTime, ShoppingCart, Build } from "@mui/icons-material";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
+import AddonSelectionModal from "../MODALS/pro/AddonSelectionModal";
 
 interface menudetails {
   quantity?: number;
@@ -51,6 +52,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
   const { cartDetails, cartItems, loading } = useAppSelector((state) => state.cart);
   const [isHovered, setIsHovered] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [addonModalOpen, setAddonModalOpen] = useState(false);
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
 
   const primaryColor = usePrimaryColor();
   const { isRetailMode } = usePOSMode();
@@ -85,7 +88,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
     );
   }, [cartItems, menu._id]);
 
-  const handleAddToCart = useCallback(async () => {
+  const handleAddToCart = useCallback(async (addons?: string[]) => {
     if (loading || isProcessing) return;
     if (!tableId) {
       console.warn('ProductCard: no tableId available, skipping addToCart');
@@ -115,6 +118,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
             desc: menu.desc,
             table_id: tableId,
             ...(menu.type === 'service' && menu.duration && { duration: menu.duration }),
+            ...(addons && addons.length > 0 && { addons }),
           })
         );
       }
@@ -176,187 +180,206 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
   const handleClick = useCallback(() => {
     if (!loading && !isProcessing && tableId) {
-      handleAddToCart();
+      // Check if product has addons
+      if (menu.addons && menu.addons.length > 0) {
+        setAddonModalOpen(true);
+      } else {
+        handleAddToCart();
+      }
     }
-  }, [loading, isProcessing, tableId, handleAddToCart]);
+  }, [loading, isProcessing, tableId, menu.addons, handleAddToCart]);
+
+  const handleAddonModalConfirm = (selectedAddonIds: string[]) => {
+    setSelectedAddons(selectedAddonIds);
+    handleAddToCart(selectedAddonIds);
+  };
 
   const hoverColor = lightenColor(primaryColor, 15);
 
   return (
-    <Paper
-      elevation={isHovered ? 6 : 3}
-      onClick={handleClick}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "0",
-        width: "180px",
-        height: "250px",
-        overflow: "hidden",
-        cursor: (loading || isProcessing || !tableId) ? "wait" : "pointer",
-        backgroundColor: isHovered ? hoverColor : primaryColor,
-        transition: "all 0.3s ease",
-        borderRadius: "8px",
-        position: "relative",
-        opacity: (loading || isProcessing) ? 0.7 : 1,
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Type Badge */}
-      <div style={{
-        position: "absolute",
-        top: "8px",
-        right: "8px",
-        backgroundColor: badgeProps.color,
-        color: 'white',
-        padding: "4px 8px",
-        borderRadius: "12px",
-        fontSize: "10px",
-        fontWeight: "bold",
-        zIndex: 1,
-        display: "flex",
-        alignItems: "center",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-      }}>
-        {badgeProps.icon}
-        {badgeProps.text}
-      </div>
-
-      {/* Cart quantity badge — shown when item is already in cart */}
-      {cartQty > 0 && (
+    <>
+      <Paper
+        elevation={isHovered ? 6 : 3}
+        onClick={handleClick}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "0",
+          width: "180px",
+          height: "250px",
+          overflow: "hidden",
+          cursor: (loading || isProcessing || !tableId) ? "wait" : "pointer",
+          backgroundColor: isHovered ? hoverColor : primaryColor,
+          transition: "all 0.3s ease",
+          borderRadius: "8px",
+          position: "relative",
+          opacity: (loading || isProcessing) ? 0.7 : 1,
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {/* Type Badge */}
         <div style={{
           position: "absolute",
           top: "8px",
-          left: "8px",
-          backgroundColor: "rgba(0,0,0,0.65)",
-          color: "white",
-          width: "22px",
-          height: "22px",
-          borderRadius: "50%",
-          fontSize: "11px",
+          right: "8px",
+          backgroundColor: badgeProps.color,
+          color: 'white',
+          padding: "4px 8px",
+          borderRadius: "12px",
+          fontSize: "10px",
           fontWeight: "bold",
           zIndex: 1,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
         }}>
-          {cartQty}
+          {badgeProps.icon}
+          {badgeProps.text}
         </div>
-      )}
 
-      {/* Processing Indicator */}
-      {isProcessing && (
-        <div style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          backgroundColor: "rgba(0, 0, 0, 0.7)",
-          color: "white",
-          padding: "8px 16px",
-          borderRadius: "4px",
-          fontSize: "12px",
-          zIndex: 10,
-        }}>
-          Adding...
-        </div>
-      )}
-
-      {/* Image Container */}
-      <div style={{
-        width: "100%",
-        height: "120px",
-        overflow: "hidden",
-        position: "relative",
-        borderTopLeftRadius: "8px",
-        borderTopRightRadius: "8px",
-      }}>
-        <img
-          src={menu.thumbnail || defaultImagePath}
-          alt={menu.name}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            transition: "transform 0.3s ease",
-            transform: isHovered ? "scale(1.05)" : "scale(1)",
-          }}
-          onError={(e) => { e.currentTarget.src = defaultImagePath; }}
-        />
-      </div>
-
-      {/* Content Container */}
-      <div style={{
-        padding: "12px",
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        flexGrow: 1,
-      }}>
-        <Typography.Title
-          level={4}
-          ellipsis={{ rows: 2 }}
-          style={{
-            fontSize: "16px",
-            margin: "0 0 8px 0",
-            color: "white",
-            textAlign: "center",
-            fontWeight: "600",
-          }}
-        >
-          {menu.name}
-        </Typography.Title>
-
-        {menu.type === 'service' && menu.duration && (
+        {/* Cart quantity badge — shown when item is already in cart */}
+        {cartQty > 0 && (
           <div style={{
+            position: "absolute",
+            top: "8px",
+            left: "8px",
+            backgroundColor: "rgba(0,0,0,0.65)",
+            color: "white",
+            width: "22px",
+            height: "22px",
+            borderRadius: "50%",
+            fontSize: "11px",
+            fontWeight: "bold",
+            zIndex: 1,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            marginBottom: "8px",
-            color: "rgba(255, 255, 255, 0.95)",
-            fontSize: "11px",
-            backgroundColor: "rgba(255, 255, 255, 0.1)",
-            padding: "4px 8px",
-            borderRadius: "8px",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
           }}>
-            <AccessTime style={{ fontSize: '12px', marginRight: '4px' }} />
-            {formatDuration(menu.duration)}
+            {cartQty}
           </div>
         )}
 
-        <div style={{ marginTop: "auto", textAlign: "center" }}>
-          <Typography.Text strong style={{
-            fontSize: "18px",
-            color: "white",
-            display: "block",
-            fontWeight: "bold",
-          }}>
-            {menu.type === 'service' ? 'From ' : ''}Ksh. {formattedPrice}
-            {menu.type === 'service' && menu.duration && (
-              <span style={{ fontSize: '12px', opacity: 0.8 }}>
-                /{menu.duration < 60 ? 'session' : 'hour'}
-              </span>
-            )}
-          </Typography.Text>
-
+        {/* Processing Indicator */}
+        {isProcessing && (
           <div style={{
-            marginTop: "8px",
-            backgroundColor: isHovered ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.15)",
-            padding: "4px 12px",
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            color: "white",
+            padding: "8px 16px",
             borderRadius: "4px",
-            display: "inline-block",
-            transition: "background-color 0.3s ease",
+            fontSize: "12px",
+            zIndex: 10,
           }}>
-            <Typography.Text style={{ color: "white", fontSize: "12px" }}>
-              {getActionText()}
+            Adding...
+          </div>
+        )}
+
+        {/* Image Container */}
+        <div style={{
+          width: "100%",
+          height: "120px",
+          overflow: "hidden",
+          position: "relative",
+          borderTopLeftRadius: "8px",
+          borderTopRightRadius: "8px",
+        }}>
+          <img
+            src={menu.thumbnail || defaultImagePath}
+            alt={menu.name}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              transition: "transform 0.3s ease",
+              transform: isHovered ? "scale(1.05)" : "scale(1)",
+            }}
+            onError={(e) => { e.currentTarget.src = defaultImagePath; }}
+          />
+        </div>
+
+        {/* Content Container */}
+        <div style={{
+          padding: "12px",
+          display: "flex",
+          flexDirection: "column",
+          width: "100%",
+          flexGrow: 1,
+        }}>
+          <Typography.Title
+            level={4}
+            ellipsis={{ rows: 2 }}
+            style={{
+              fontSize: "16px",
+              margin: "0 0 8px 0",
+              color: "white",
+              textAlign: "center",
+              fontWeight: "600",
+            }}
+          >
+            {menu.name}
+          </Typography.Title>
+
+          {menu.type === 'service' && menu.duration && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: "8px",
+              color: "rgba(255, 255, 255, 0.95)",
+              fontSize: "11px",
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              padding: "4px 8px",
+              borderRadius: "8px",
+            }}>
+              <AccessTime style={{ fontSize: '12px', marginRight: '4px' }} />
+              {formatDuration(menu.duration)}
+            </div>
+          )}
+
+          <div style={{ marginTop: "auto", textAlign: "center" }}>
+            <Typography.Text strong style={{
+              fontSize: "18px",
+              color: "white",
+              display: "block",
+              fontWeight: "bold",
+            }}>
+              {menu.type === 'service' ? 'From ' : ''}Ksh. {formattedPrice}
+              {menu.type === 'service' && menu.duration && (
+                <span style={{ fontSize: '12px', opacity: 0.8 }}>
+                  /{menu.duration < 60 ? 'session' : 'hour'}
+                </span>
+              )}
             </Typography.Text>
+
+            <div style={{
+              marginTop: "8px",
+              backgroundColor: isHovered ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.15)",
+              padding: "4px 12px",
+              borderRadius: "4px",
+              display: "inline-block",
+              transition: "background-color 0.3s ease",
+            }}>
+              <Typography.Text style={{ color: "white", fontSize: "12px" }}>
+                {getActionText()}
+              </Typography.Text>
+            </div>
           </div>
         </div>
-      </div>
-    </Paper>
+      </Paper>
+
+      <AddonSelectionModal
+        open={addonModalOpen}
+        onClose={() => setAddonModalOpen(false)}
+        product={menu}
+        onConfirm={handleAddonModalConfirm}
+      />
+    </>
   );
 };
 

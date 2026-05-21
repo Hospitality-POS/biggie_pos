@@ -1,4 +1,4 @@
-import { FolderAddOutlined, HolderOutlined, SearchOutlined } from "@ant-design/icons";
+import { FolderAddOutlined, HolderOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Empty, Input, Skeleton, Switch, Typography, Popconfirm, notification } from "antd";
 import { useEffect, useRef, useState } from "react";
@@ -219,13 +219,14 @@ export default function MainStore() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [showDisabled, setShowDisabled] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Tracks which bulk operation is running: null | "all-disable" | "all-enable" | "cat-disable" | "cat-enable"
   const [bulkLoading, setBulkLoading] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["products"],
-    queryFn: getAllProducts,
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["products", refreshKey],
+    queryFn: () => getAllProducts(refreshKey > 0),
     retry: 1,
     networkMode: "always",
   });
@@ -378,6 +379,25 @@ export default function MainStore() {
             prefix={<SearchOutlined style={{ color: C.subText }} />}
           />
 
+          <button
+            onClick={() => setRefreshKey(prev => prev + 1)}
+            disabled={isLoading}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: C.bg, border: `1px solid ${C.border}`,
+              borderRadius: 7, padding: "4px 10px",
+              fontSize: 11, fontWeight: 600, color: C.subText,
+              cursor: isLoading ? "wait" : "pointer",
+              opacity: isLoading ? 0.65 : 1,
+              transition: "all 0.15s",
+              whiteSpace: "nowrap",
+            }}
+            title="Refresh services"
+          >
+            <ReloadOutlined style={{ fontSize: 11 }} />
+            Refresh
+          </button>
+
           {/* ── Disable ALL / Enable ALL (across every category) ── */}
           {isAdmin && (
             <div style={{ display: "flex", gap: 6 }}>
@@ -412,7 +432,7 @@ export default function MainStore() {
             </div>
           )}
 
-          <StoreModal edit={false} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["products"] })} />
+          <StoreModal edit={false} onSuccess={() => { setRefreshKey(prev => prev + 1); }} />
         </div>
       </div>
 
@@ -549,6 +569,7 @@ export default function MainStore() {
                 product={prod}
                 productId={prod?._id}
                 activateInventory={prod?.activateInventory}
+                onSuccess={() => setRefreshKey(prev => prev + 1)}
               />
             ))}
           </div>

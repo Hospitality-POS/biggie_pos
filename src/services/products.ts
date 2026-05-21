@@ -35,9 +35,12 @@ const getTenant = () => {
   }
 };
 
-export const getAllProducts = async () => {
+export const getAllProducts = async (forceRefresh = false) => {
   try {
-    const response = await axiosInstance.get(`${productUrl}/getproducts/all`);
+    const url = forceRefresh 
+      ? `${productUrl}/getproducts/all?_t=${Date.now()}`
+      : `${productUrl}/getproducts/all`;
+    const response = await axiosInstance.get(url);
     return response.data;
   } catch (error) {
     throw new Error("Failed to fetch products");
