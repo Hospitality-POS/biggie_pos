@@ -79,6 +79,8 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess }) => {
 
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
+  const isCashier = user?.role === "cashier";
+  const canEditProduct = isAdmin || isCashier;
 
   const AddonsRequest = async () =>
     allAddons?.map((modifierAddon: modifiersAddonsType) => ({
@@ -236,7 +238,7 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess }) => {
         edit ? (
           <Button
             type="link"
-            disabled={!isAdmin}
+            disabled={!canEditProduct}
             key="button"
             icon={
               <EditOutlined
