@@ -361,6 +361,10 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
         ? await updateShop({ ...values, _id: data?._id, pos_mode: posMode })
         : await createShop({ ...values, pos_mode: posMode });
       actionRef?.current?.reload?.() || actionRef?.current?.reset?.();
+      // Clear localStorage posMode when shop is updated to force refetch
+      if (edit) {
+        localStorage.removeItem('posMode');
+      }
       setOpen(false);
       form.resetFields();
     } catch { /* validation shown inline */ }

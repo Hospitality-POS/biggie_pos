@@ -44,7 +44,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
   const savedValuesRef = useRef<Record<string, any>>({});
 
   const { user } = useAppSelector((state) => state.auth);
-  const isAdmin = user?.role === "admin";
+  const isAdminOrCashier = user?.role === "admin" || user?.role === "cashier";
 
   // Sync external open state
   useEffect(() => {
@@ -118,7 +118,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
         trigger={
           externalOpen !== undefined ? undefined : edit ? (
             <Button
-              disabled={!isAdmin}
+              disabled={!isAdminOrCashier}
               size="small"
               key="button"
               icon={<EditOutlined style={{ color: "#914F1E" }} />}
@@ -127,7 +127,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
               Edit
             </Button>
           ) : (
-            <Button type="primary" disabled={!isAdmin} key="button" icon={<ApartmentOutlined />}>
+            <Button type="primary" disabled={!isAdminOrCashier} key="button" icon={<ApartmentOutlined />}>
               New Category
             </Button>
           )

@@ -166,6 +166,19 @@ export async function sendPrintFromCart(cartId: string, shopId: string, companyC
   return res.json();
 }
 
+export async function printFromCart(cartId: string, shopId: string, companyCode: string): Promise<SendFromCartResult> {
+  const res = await fetch(`${BASE_URL}/printer/print`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", companycode: companyCode },
+    body: JSON.stringify({ cart_id: cartId, shop_id: shopId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string })?.error ?? "Print failed");
+  }
+  return res.json();
+}
+
 export function buildKitchenLines(
   orderNo: string,
   cartItems: any[],

@@ -130,6 +130,7 @@ const CartDrawer: React.FC = () => {
   const [updatingServedBy, setUpdatingServedBy] = useState(false);
   const [delinkingCustomer, setDelinkingCustomer] = useState(false);
   const [sendingToPrinter, setSendingToPrinter] = useState(false);
+  const [showSendButton, setShowSendButton] = useState(false);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
@@ -290,6 +291,12 @@ const CartDrawer: React.FC = () => {
       }
     };
     loadStaff();
+  }, []);
+
+  useEffect(() => {
+    // Load global captain_order setting from localStorage
+    const savedCaptainOrder = localStorage.getItem("captain_order_enabled");
+    setShowSendButton(savedCaptainOrder === "true");
   }, []);
 
   const handleSendToPrinter = async () => {
@@ -690,15 +697,17 @@ const CartDrawer: React.FC = () => {
           <Space direction="vertical" style={{ width: "100%" }} size={8}>
             <Flex gap={8} wrap="wrap">
               <ClientPin cart={cartDetails} />
-              <Button
-                icon={<SendOutlined />}
-                loading={sendingToPrinter}
-                disabled={!data?.length}
-                onClick={handleSendToPrinter}
-                style={{ borderColor: "#f97316", color: "#f97316", borderRadius: 6 }}
-              >
-                Send
-              </Button>
+              {showSendButton && (
+                <Button
+                  icon={<SendOutlined />}
+                  loading={sendingToPrinter}
+                  disabled={!data?.length}
+                  onClick={handleSendToPrinter}
+                  style={{ borderColor: "#f97316", color: "#f97316", borderRadius: 6 }}
+                >
+                  Send
+                </Button>
+              )}
               {isSpa ? (
                 <PrintBillSpaModal
                   cartDetails={cartDetails}

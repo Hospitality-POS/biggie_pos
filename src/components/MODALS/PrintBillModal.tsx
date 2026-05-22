@@ -66,7 +66,7 @@ import DigiTaxInvoiceGenerator from "../DigiTaxInvoiceGenerator";
 import { useIPPrinter } from "../../hooks/useIPPrinter";
 import {
   sendPrintJob, buildKitchenLines, buildReceiptLines, groupItemsByMainCategory,
-  getAgentForCategory,
+  getAgentForCategory, printFromCart,
 } from "@services/printAgent";
 import { fetchMainCategories } from "@services/categories";
 
@@ -234,7 +234,7 @@ const MetaRow: React.FC<{ left: React.ReactNode; right?: React.ReactNode; style?
 const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
   const { user } = useAppSelector((state) => state.auth);
-  const { printHtmlContent, loading: ipPrinterLoading } = useIPPrinter();
+  const { loading: ipPrinterLoading } = useIPPrinter();
 
   const componentRef = useRef<HTMLDivElement | null>(null);
   const [refReady, setRefReady] = useState(false);
@@ -313,6 +313,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  // Load global print_by_agent setting from localStorage
+  useEffect(() => {
+    const savedPrintByAgent = localStorage.getItem("print_by_agent_enabled");
+    setUseIPPrinterMode(savedPrintByAgent === "true");
+  }, []);
 
   const pendingPrintRef = useRef(false);
   const [printTrigger, setPrintTrigger] = useState(0);
@@ -454,30 +460,29 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     
     try {
       if (useIPPrinterMode) {
-        // Use IP printer - capture HTML content from thermal receipt
-        console.log('🔍 PrintBillModal - IP Printer Mode - Capturing HTML content');
+        // Use agent-based printing via new /api/printer/print endpoint
+        console.log('🔍 PrintBillModal - Agent Printer Mode - Using /api/printer/print endpoint');
         
-        if (!componentRef.current) {
-          message.error("Receipt content not ready for IP printing");
+        const cartId = cartDetails?._id;
+        const shopId = localStorage.getItem("shopId") ?? "";
+        
+        const t = localStorage.getItem("tenant");
+        const companyCode = t ? (JSON.parse(t)?.tenant_code ?? "") : "";
+
+        if (!cartId) {
+          message.error("Cart ID not found for printing");
           setIsPrinting(false);
           return;
         }
+
+        const result = await printFromCart(cartId, shopId, companyCode);
         
-        // Capture the HTML content from the thermal receipt section
-        const htmlContent = componentRef.current.innerHTML;
-        console.log('🔍 PrintBillModal - Captured HTML content length:', htmlContent.length);
-        
-        const result = await printHtmlContent(htmlContent, 'bill');
-        if (result.success) {
-          // Record the print if IP printing was successful
-          const printFormat: PrintFormat = "thermal";
-          const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
-          if (blocked) { setIsPrinting(false); return; }
-          if (saved) {
-            message.success(`Bill printed via IP printer and recorded successfully`);
-          }
-        } else {
-          message.error(result.message);
+        // Record the print
+        const printFormat: PrintFormat = "thermal";
+        const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
+        if (blocked) { setIsPrinting(false); return; }
+        if (saved) {
+          message.success(result.message || "Print job sent successfully");
         }
       } else {
         // Use browser printing
@@ -501,7 +506,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     } finally {
       setIsPrinting(false);
     }
-  }, [canPrint, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, printHtmlContent, cartDetails]);
+  }, [canPrint, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, cartDetails]);
 
   const agentShopId = localStorage.getItem("shopId") ?? "";
 

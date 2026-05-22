@@ -350,6 +350,9 @@ const useProLayoutNav = () => {
     { ...documentRoute, _bare: "/documents" },
     { path: p("/petty-cash"), name: "Petty Cash", icon: <WalletOutlined />, _bare: "/petty-cash" },
     { path: p("/refunds"), name: "Refunds", icon: <SwapOutlined />, _bare: "/refunds" },
+    { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
+    { path: p("/table-settings"), name: "Tables", icon: <AppstoreOutlined />, _bare: "/table-settings" },
+    { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,
@@ -371,6 +374,9 @@ const useProLayoutNav = () => {
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
     ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
     { ...documentRoute, _bare: "/documents" },
+    { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
+    { path: p("/table-settings"), name: "Tables", icon: <AppstoreOutlined />, _bare: "/table-settings" },
+    { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,

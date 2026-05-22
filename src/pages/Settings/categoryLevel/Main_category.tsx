@@ -20,7 +20,7 @@ const MainCategorySettings = () => {
   });
 
   const { user } = useAppSelector((state) => state.auth);
-  const isAdmin = user?.role === "admin";
+  const isAdminOrCashier = user?.role === "admin" || user?.role === "cashier";
 
   const actionColumn = {
     title: "Actions",
@@ -37,7 +37,7 @@ const MainCategorySettings = () => {
           okText="Yes"
           cancelText="No"
         >
-          <Button type="primary" disabled={!isAdmin} danger icon={<DeleteOutlined />} size="small">
+          <Button type="primary" disabled={!isAdminOrCashier} danger icon={<DeleteOutlined />} size="small">
             Delete
           </Button>
         </Popconfirm>

@@ -27,7 +27,7 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
   const [open, setOpen] = useState(false);
 
   const { user } = useAppSelector((state) => state.auth);
-  const isAdmin = user?.role === "admin";
+  const isAdminOrCashier = user?.role === "admin" || user?.role === "cashier";
 
   // Sync external open state
   useEffect(() => {
@@ -62,12 +62,12 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
       initialValues={edit ? { ...data } : {}}
       trigger={
         externalOpen !== undefined ? undefined : edit ? (
-          <Button disabled={!isAdmin} size="small" key="button"
+          <Button disabled={!isAdminOrCashier} size="small" key="button"
             icon={<EditOutlined style={{ color: "#6c1c2c" }} onClick={() => form.setFieldsValue(data)} />}>
             Edit
           </Button>
         ) : (
-          <Button disabled={!isAdmin} type="primary" key="button" icon={<CrownOutlined />}>
+          <Button disabled={!isAdminOrCashier} type="primary" key="button" icon={<CrownOutlined />}>
             New Main Category
           </Button>
         )

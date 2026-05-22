@@ -62,6 +62,7 @@ import {
 } from "../MODALS/Hooks/usePrintDocument";
 import DigiTaxInvoiceGenerator from "../DigiTaxInvoiceGenerator";
 import { useIPPrinter } from "../../hooks/useIPPrinter";
+import { printFromCart } from "@services/printAgent";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 interface PrintBillProps {
@@ -207,7 +208,7 @@ const DoubleLine = () => (
 const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
-  const { printHtmlContent, loading: ipPrinterLoading } = useIPPrinter();
+  const { loading: ipPrinterLoading } = useIPPrinter();
 
   const componentRef = useRef<HTMLDivElement | null>(null);
   const [refReady, setRefReady] = useState(false);
@@ -319,6 +320,12 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     }
   }, [printTrigger, refReady, triggerPrint]);
 
+  // Load global print_by_agent setting from localStorage
+  useEffect(() => {
+    const savedPrintByAgent = localStorage.getItem("print_by_agent_enabled");
+    setUseIPPrinterMode(savedPrintByAgent === "true");
+  }, []);
+
   const getDocumentTypeConfig = () => {
     switch (documentType) {
       case "receipt": return { label: "RECEIPT", color: "#52c41a", icon: <FileTextOutlined />, amountLabel: "Amount Paid" };
@@ -339,30 +346,29 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     
     try {
       if (useIPPrinterMode) {
-        // Use IP printer - capture HTML content from thermal receipt
-        console.log('🔍 PrintSpaBillModal - IP Printer Mode - Capturing HTML content');
+        // Use agent-based printing via new /api/printer/print endpoint
+        console.log('🔍 PrintSpaBillModal - Agent Printer Mode - Using /api/printer/print endpoint');
         
-        if (!componentRef.current) {
-          message.error("Receipt content not ready for IP printing");
+        const cartId = cartDetails?._id;
+        const shopId = localStorage.getItem("shopId") ?? "";
+        
+        const t = localStorage.getItem("tenant");
+        const companyCode = t ? (JSON.parse(t)?.tenant_code ?? "") : "";
+
+        if (!cartId) {
+          message.error("Cart ID not found for printing");
           setIsPrinting(false);
           return;
         }
+
+        const result = await printFromCart(cartId, shopId, companyCode);
         
-        // Capture the HTML content from the thermal receipt section
-        const htmlContent = componentRef.current.innerHTML;
-        console.log('🔍 PrintSpaBillModal - Captured HTML content length:', htmlContent.length);
-        
-        const result = await printHtmlContent(htmlContent, 'spa_bill');
-        if (result.success) {
-          // Record the print if IP printing was successful
-          const printFormat: PrintFormat = "thermal";
-          const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
-          if (blocked) { setIsPrinting(false); return; }
-          if (saved) {
-            message.success(`Spa bill printed via IP printer and recorded successfully`);
-          }
-        } else {
-          message.error(result.message);
+        // Record the print
+        const printFormat: PrintFormat = "thermal";
+        const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
+        if (blocked) { setIsPrinting(false); return; }
+        if (saved) {
+          message.success(result.message || "Print job sent successfully");
         }
       } else {
         // Use browser printing
@@ -386,7 +392,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     } finally {
       setIsPrinting(false);
     }
-  }, [canPrint, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, printHtmlContent]);
+  }, [canPrint, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, cartDetails]);
 
   const handleFinish = async () => {
     if (!canPrint) { message.error("Print limit reached."); return false; }

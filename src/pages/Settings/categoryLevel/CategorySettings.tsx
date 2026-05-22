@@ -20,7 +20,7 @@ const CategorySettings = () => {
   });
 
   const { user } = useAppSelector((state) => state.auth);
-  const isAdmin = user?.role === "admin";
+  const isAdminOrCashier = user?.role === "admin" || user?.role === "cashier";
 
   const actionColumn = {
     title: "Actions",
@@ -43,7 +43,7 @@ const CategorySettings = () => {
           cancelText="No"
         >
           <Button
-            disabled={!isAdmin}
+            disabled={!isAdminOrCashier}
             size="small"
             type="primary"
             danger
