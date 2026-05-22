@@ -37,7 +37,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
   const savedValuesRef = useRef<Record<string, any>>({});
 
   const { user } = useAppSelector((state) => state.auth);
-  const isAdmin = user?.role === "admin";
+  const isAdminOrCashier = user?.role === "admin" || user?.role === "cashier";
 
   // Sync external open state
   useEffect(() => {
@@ -111,7 +111,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
         trigger={
           externalOpen !== undefined ? undefined : edit ? (
             <Button
-              disabled={!isAdmin}
+              disabled={!isAdminOrCashier}
               key="button"
               size="small"
               icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
@@ -120,7 +120,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
               Edit
             </Button>
           ) : (
-            <Button type="primary" disabled={!isAdmin} key="button" icon={<SubnodeOutlined />}>
+            <Button type="primary" disabled={!isAdminOrCashier} key="button" icon={<SubnodeOutlined />}>
               New Sub-category
             </Button>
           )

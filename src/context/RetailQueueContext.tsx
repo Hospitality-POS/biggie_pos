@@ -82,7 +82,35 @@ export const RetailQueueProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         setIsLoadingSlots(true);
         try {
-            const tables: TableSlot[] = await getAllTables({});
+            let tables: TableSlot[] = await getAllTables({});
+
+            // Apply privacy locking for waiters - lock tables where cart was created by others
+            const user = JSON.parse(localStorage.getItem("user") || "{}");
+            const currentUser = user._id || user.id;
+            const userRole = (typeof user.role === 'string' ? user.role : user.roleData?.role_type)?.toLowerCase();
+
+            // Fetch enable_privacy setting
+            let enablePrivacy = false;
+            try {
+                const { fetchSystemSetupDetailsById } = await import('../services/systemsetup');
+                const systemSettings = await fetchSystemSetupDetailsById();
+                enablePrivacy = systemSettings?.enable_privacy || false;
+            } catch (err) {
+                console.log('[RetailQueueContext] Failed to fetch enable_privacy');
+            }
+
+            // If privacy is enabled and user is waiter, lock tables where served_by is not current user
+            if (enablePrivacy && userRole === "waiter" && currentUser) {
+                tables = tables.map((table: any) => {
+                    const servedByCurrentUser = table.served_by === currentUser || table.served_by === user.name;
+                    const isEmpty = !table.isOccupied && table.status !== 'occupied';
+                    // Lock if not served by current user AND not empty
+                    const isLocked = !servedByCurrentUser && !isEmpty;
+                    console.log(`[RetailQueueContext] Table ${table.name}: served_by=${table.served_by}, isOccupied=${table.isOccupied}, isLocked=${isLocked}`);
+                    return { ...table, isLocked };
+                });
+                console.log('[RetailQueueContext] Applied privacy locking, locked tables:', tables.filter((t: any) => t.isLocked).length);
+            }
 
             if (!tables?.length) {
                 if (!isAutoSlotMode()) {

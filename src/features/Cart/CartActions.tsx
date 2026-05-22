@@ -47,9 +47,10 @@ export const createCart = createAsyncThunk(
 
 export const addToCartByBarcode = createAsyncThunk(
   "cart/addByBarcode",
-  async ({ barcode, tableId }: { barcode: string; tableId: string }, { rejectWithValue }) => {
+  async ({ barcode, tableId }: { barcode: string; tableId: string }, { rejectWithValue, dispatch }) => {
     try {
       const res = await axiosInstance.post(`/cart/${tableId}/add-by-barcode`, { barcode });
+      dispatch(getCart(tableId));
       return { success: true, productName: res.data.product?.name, ...res.data };
     } catch (err: any) {
       if (err.response?.status === 404)

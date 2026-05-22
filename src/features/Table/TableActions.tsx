@@ -2,6 +2,7 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import { BASE_URL } from "@utils/config";
 import { AxiosResponse } from "axios";
 import axiosInstance from "../../services/request";
+import { fetchSystemSetupDetailsById } from "../../services/systemsetup";
 
 const baseUrl = `${BASE_URL}/tables`;
 
@@ -26,7 +27,35 @@ export const fetchTables = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response: AxiosResponse<unknown, unknown> = await axiosInstance.get(`${baseUrl}`)
-      return response.data;
+      let tables: any = response.data;
+
+      // Apply privacy locking for waiters - lock tables where cart was created by others
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const currentUser = user._id || user.id;
+      const userRole = (typeof user.role === 'string' ? user.role : user.roleData?.role_type)?.toLowerCase();
+
+      let enablePrivacy = false;
+      try {
+        const systemSettings = await fetchSystemSetupDetailsById();
+        enablePrivacy = systemSettings?.enable_privacy || false;
+      } catch (err) {
+        console.log('🔍 [fetchTables] Failed to fetch enable_privacy');
+      }
+
+      // If privacy is enabled and user is waiter, lock tables where served_by is not current user
+      if (enablePrivacy && userRole === "waiter" && currentUser) {
+        tables = tables.map((table: any) => {
+          const servedByCurrentUser = table.served_by === currentUser || table.served_by === user.name;
+          const isEmpty = !table.isOccupied && table.status !== 'occupied';
+          // Lock if not served by current user AND not empty
+          const isLocked = !servedByCurrentUser && !isEmpty;
+          console.log(`🔍 [fetchTables] Table ${table.name}: served_by=${table.served_by}, isOccupied=${table.isOccupied}, isLocked=${isLocked}`);
+          return { ...table, isLocked };
+        });
+        console.log('🔍 [fetchTables] Applied privacy locking, locked tables:', tables.filter((t: any) => t.isLocked).length);
+      }
+
+      return tables;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
     }

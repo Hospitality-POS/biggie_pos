@@ -139,17 +139,10 @@ export const deleteShop = async (id: string) => {
 
 export const fetchShop = async (id: string) => {
   try {
-    // Check if user is authenticated before making API call
-    const token = localStorage.getItem("token");
-    const user = localStorage.getItem("user");
-    if (!token || !user) {
-      console.warn("User not authenticated - skipping fetchShop API call");
-      return null;
-    }
-
     const response = await axiosInstance.get(`${url}/${id}`);
     return response.data;
   } catch (error: any) {
+    console.error('Error fetching shop:', error);
     throw error;
   }
 };

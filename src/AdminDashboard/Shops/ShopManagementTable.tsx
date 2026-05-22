@@ -71,7 +71,9 @@ const useTenantConfig = () => {
       ? "/accounting"
       : isDalaOnly
         ? "/dala"
-        : "/home-dashboard";
+        : hasPOS
+          ? "/tables"
+          : "/home-dashboard";
 
   /** Whether the Print Settings tab should be visible */
   const showPrintSettings = hasPOS && !isMtejaOnly;
@@ -520,6 +522,8 @@ const ShopManagementTable: React.FC = () => {
 
   const handleShopClick = (shopId: string) => {
     localStorage.setItem("shopId", shopId);
+    // Clear localStorage posMode to force refetch from shop settings
+    localStorage.removeItem("posMode");
     navigate(shopLandingPath);
   };
 

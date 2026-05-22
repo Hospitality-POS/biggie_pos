@@ -135,7 +135,11 @@ const WardStrip: React.FC<{ activeTable: any }> = ({ activeTable }) => {
 };
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-const HospitalPage: React.FC = () => {
+interface HospitalPageProps {
+    mode?: "hospital" | "retail";
+}
+
+const HospitalPage: React.FC<HospitalPageProps> = ({ mode = "hospital" }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
     const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
@@ -393,7 +397,7 @@ const HospitalPage: React.FC = () => {
                                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                     <LocalHospital sx={{ color: "rgba(255,255,255,0.8)", fontSize: 16 }} />
                                     <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 700, letterSpacing: 0.8 }}>
-                                        HOSPITAL POS
+                                        {mode === "retail" ? "RETAIL POS" : "HOSPITAL POS"}
                                     </Typography>
                                 </Box>
                                 <ModeToggle />

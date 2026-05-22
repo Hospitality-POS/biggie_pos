@@ -446,9 +446,10 @@ export default function TablePro() {
                 alignItems: "start",
               }}
             >
-              {item.tables.map((T: any) => (
-                <TableCard key={T._id} item={T} openModal={handleOpen} />
-              ))}
+              {item.tables.map((T: any) => {
+                console.log(`🔍 [TablePro] Passing to TableCard: ${T.name}, isLocked=${T.isLocked}`);
+                return <TableCard key={T._id} item={T} openModal={handleOpen} />;
+              })}
             </div>
           ) : (
             <EmptyPage />
@@ -521,7 +522,7 @@ export default function TablePro() {
   if (isRetailMode) {
     return (
       <>
-        <RestaurantPage />
+        <HospitalPage mode="retail" />
         {selectedProductId && (
           <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} />
         )}
