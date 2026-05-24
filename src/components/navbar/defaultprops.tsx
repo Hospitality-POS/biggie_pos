@@ -423,6 +423,7 @@ const useProLayoutNav = () => {
   // ── Dala routes ───────────────────────────────────────────────────────────
   const buildDalaRoutes = () => {
     const routesBase = [
+      { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
       { path: p("/dala/properties"), name: "Portfolio", icon: <HomeOutlined />, _bare: "/dala/properties" },
       { path: p("/dala/property-types"), name: "Property Types", icon: <ApartmentOutlined />, _bare: "/dala/property-types" },
       { path: p("/dala/sales"), name: "Sales", icon: <ReconciliationOutlined />, _bare: "/dala/sales" },

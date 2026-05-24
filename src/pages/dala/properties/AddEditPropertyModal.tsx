@@ -126,6 +126,7 @@ const getFieldPlaceholder = (fieldName: string): string => {
 };
 
 const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actionRef, data, quickMode }) => {
+  const STORAGE_KEY = 'dala_property_draft';
 
   const { data: allUsers } = useQuery({
     queryKey: ['users'],
@@ -217,6 +218,76 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
   const [undefinedFields, setUndefinedFields] = useState<any[]>([]);
 
   const [formRef] = Form.useForm();
+
+  // Save draft to localStorage
+  const saveDraft = () => {
+    if (edit) return; // Don't save drafts for edit mode
+    const formValues = formRef.getFieldsValue();
+    const draftData = {
+      formValues,
+      phases,
+      units,
+      blocks,
+      floors,
+      propertyType,
+      propertyPurpose,
+      currentPhase,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(draftData));
+  };
+
+  // Load draft from localStorage
+  const loadDraft = () => {
+    if (edit) return; // Don't load drafts for edit mode
+    const savedDraft = localStorage.getItem(STORAGE_KEY);
+    if (savedDraft) {
+      try {
+        const draftData = JSON.parse(savedDraft);
+        // Only load if draft is less than 24 hours old
+        if (Date.now() - draftData.timestamp < 24 * 60 * 60 * 1000) {
+          // Use setTimeout to ensure form is mounted
+          setTimeout(() => {
+            formRef.setFieldsValue(draftData.formValues);
+            setPhases(draftData.phases || []);
+            setUnits(draftData.units || []);
+            setBlocks(draftData.blocks || []);
+            setFloors(draftData.floors || []);
+            setPropertyType(draftData.propertyType || '');
+            setPropertyPurpose(draftData.propertyPurpose || 'sale');
+            setCurrentPhase(draftData.currentPhase || '');
+           // message.info('Draft loaded from previous session');
+          }, 100);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      } catch (error) {
+        console.error('Error loading draft:', error);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  };
+
+  // Clear draft from localStorage
+  const clearDraft = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    message.success('Draft cleared');
+  };
+
+  // Auto-save draft on form changes
+  useEffect(() => {
+    if (!edit) {
+      const timer = setTimeout(saveDraft, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [phases, units, blocks, floors, propertyType, propertyPurpose, currentPhase]);
+
+  // Load draft on mount (only for new properties)
+  useEffect(() => {
+    if (!edit) {
+      loadDraft();
+    }
+  }, [edit]);
 
   // ✅ Count existing apartments of the same unit type across ALL blocks
   const generateApartmentNames = (
@@ -1608,6 +1679,11 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
             priceStartPoint: 0
           }
         }
+        onValuesChange={() => {
+          if (!edit) {
+            saveDraft();
+          }
+        }}
         onFinish={async (values) => {
           if (!validateBeforeSubmit()) return false;
 
@@ -1711,6 +1787,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
             } else {
               await createProperty(formData);
               message.success('Property created successfully');
+              clearDraft(); // Clear draft after successful submission
             }
             actionRef?.current?.reload();
             setCurrentStep(0);
@@ -1721,7 +1798,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           }
         }}
         modalProps={{
-          destroyOnClose: true,
+          destroyOnClose: false,
           centered: true,
           afterClose: () => setCurrentStep(0),
         }}
@@ -1733,14 +1810,26 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           render: (_, defaultDoms) => {
             if (currentStep === 0) {
               return (
-                <Button type="primary" onClick={goToStep2}>
-                  Next: Units & Pricing →
-                </Button>
+                <Space>
+                  {!edit && (
+                    <Button onClick={clearDraft} type="default">
+                      Clear Draft
+                    </Button>
+                  )}
+                  <Button type="primary" onClick={goToStep2}>
+                    Next: Units & Pricing →
+                  </Button>
+                </Space>
               );
             }
             return (
               <Space>
                 <Button onClick={goToStep1}>← Back</Button>
+                {!edit && (
+                  <Button onClick={clearDraft} type="default">
+                    Clear Draft
+                  </Button>
+                )}
                 {defaultDoms[1]}
               </Space>
             );

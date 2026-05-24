@@ -2,7 +2,7 @@ import React, { Key, useEffect, useMemo, useState } from "react";
 import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import PrintBillSpaModal from "../MODALS/printBillSpaModal";
-import { deleteAllCartItems, getCart } from "../../features/Cart/CartActions";
+import { deleteAllCartItems, getCart, addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
 import { updateCart as updateCartService } from "../../services/cart";
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
@@ -12,7 +12,7 @@ import CartLoader from "../spinner/cartLoader";
 import { fetchAllUsersByShopId } from "../../services/users";
 import {
   Button, Space, Typography, Tag, Empty, Divider,
-  Flex, Avatar, Tooltip, Select, Popconfirm, message,
+  Flex, Avatar, Tooltip, Select, Popconfirm, message, Modal, Form, InputNumber, Input,
 } from "antd";
 import {
   ClearOutlined, CloseCircleOutlined, OrderedListOutlined,
@@ -27,7 +27,6 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrintDocument, DocumentType } from "../MODALS/Hooks/usePrintDocument";
-import useSystemDetails from "@hooks/useSystemDetails";
 import {
   sendPrintFromCart,
 } from "@services/printAgent";
@@ -131,6 +130,8 @@ const CartDrawer: React.FC = () => {
   const [delinkingCustomer, setDelinkingCustomer] = useState(false);
   const [sendingToPrinter, setSendingToPrinter] = useState(false);
   const [showSendButton, setShowSendButton] = useState(false);
+  const [isCustomItemModalOpen, setIsCustomItemModalOpen] = useState(false);
+  const [customItemLoading, setCustomItemLoading] = useState(false);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
@@ -333,7 +334,17 @@ const CartDrawer: React.FC = () => {
       if (!tableId || tableId === "tables") return;
       setLoadingData(true);
       try {
-        await dispatch(getCart(tableId));
+        // Check if the URL pattern is /cart/cart/:cartId (cart ID) or /dashboard/:id (table ID)
+        const isCartId = window.location.pathname.includes('/cart/cart/');
+        
+        if (isCartId) {
+          // URL has cart ID, fetch cart items using cart ID
+          await dispatch(fetchCartItems(tableId));
+        } else {
+          // URL has table ID, fetch cart using table ID
+          await dispatch(getCart(tableId));
+        }
+        
         await refreshStatus();
         if (!isSlotMode && !data && !cartDetails) navigate("/tables");
       } catch (e) {
@@ -397,6 +408,48 @@ const CartDrawer: React.FC = () => {
       message.error("Failed to delink customer");
     } finally {
       setDelinkingCustomer(false);
+    }
+  };
+
+  const [customItemForm] = Form.useForm();
+
+  const handleAddCustomItem = async () => {
+    try {
+      const values = await customItemForm.validateFields();
+      setCustomItemLoading(true);
+      
+      const cartId = cartDetails?._id;
+      if (!cartId) {
+        message.error("Cart not found");
+        return;
+      }
+
+      await dispatch(addItemToCart({
+        cart_id: cartId,
+        product_id: null,
+        product_type: "Miscellaneous",
+        miscellaneous_name: values.name,
+        price: values.price,
+        quantity: values.quantity,
+        created_by: user?._id || "",
+        vat_type: "STANDARD",
+        notes: values.notes || "",
+        addons: [],
+      }));
+
+      message.success("Custom item added successfully");
+      setIsCustomItemModalOpen(false);
+      customItemForm.resetFields();
+      
+      // Auto-refresh cart to show the new item
+      if (tableId) {
+        await dispatch(getCart(tableId));
+      }
+    } catch (error) {
+      console.error("Failed to add custom item", error);
+      message.error("Failed to add custom item");
+    } finally {
+      setCustomItemLoading(false);
     }
   };
 
@@ -566,6 +619,14 @@ const CartDrawer: React.FC = () => {
               imageStyle={{ height: 64, opacity: 0.5 }}
               description={<Text style={{ fontSize: 13, color: "#94a3b8" }}>Add items to get started</Text>}
             />
+            <Button
+              type="dashed"
+              icon={<PlusCircleOutlined />}
+              onClick={() => setIsCustomItemModalOpen(true)}
+              style={{ marginTop: 12, borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
+            >
+              Add Miscellaneous Item
+            </Button>
           </div>
         )}
 
@@ -697,6 +758,15 @@ const CartDrawer: React.FC = () => {
           <Space direction="vertical" style={{ width: "100%" }} size={8}>
             <Flex gap={8} wrap="wrap">
               <ClientPin cart={cartDetails} />
+              {(user?.role === "admin" || user?.role === "cashier") && (
+                <Button
+                  icon={<PlusCircleOutlined />}
+                  onClick={() => setIsCustomItemModalOpen(true)}
+                  style={{ borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
+                >
+                  Add Miscellaneous Item
+                </Button>
+              )}
               {showSendButton && (
                 <Button
                   icon={<SendOutlined />}
@@ -747,6 +817,70 @@ const CartDrawer: React.FC = () => {
           <PaymentDrawer customerDetails={customerDetails} />
         </div>
       )}
+
+      {/* ── Custom Item Modal ─────────────────────────────────────────────── */}
+      <Modal
+        open={isCustomItemModalOpen}
+        onCancel={() => {
+          setIsCustomItemModalOpen(false);
+          customItemForm.resetFields();
+        }}
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <PlusCircleOutlined style={{ color: primaryColor }} />
+            <span>Add Miscellaneous Item</span>
+          </div>
+        }
+        onOk={handleAddCustomItem}
+        confirmLoading={customItemLoading}
+        okText="Add Item"
+        cancelText="Cancel"
+        width={500}
+      >
+        <Form form={customItemForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="name"
+            label="Item Name"
+            rules={[{ required: true, message: "Please enter item name" }]}
+          >
+            <Input placeholder="e.g., Custom Service Fee" />
+          </Form.Item>
+          <Form.Item
+            name="price"
+            label="Price"
+            rules={[{ required: true, message: "Please enter price" }]}
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              min={0}
+              precision={2}
+              placeholder="0.00"
+              prefix="KES"
+            />
+          </Form.Item>
+          <Form.Item
+            name="quantity"
+            label="Quantity"
+            rules={[{ required: true, message: "Please enter quantity" }]}
+            initialValue={1}
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              min={1}
+              precision={0}
+            />
+          </Form.Item>
+          <Form.Item
+            name="notes"
+            label="Notes (Optional)"
+          >
+            <Input.TextArea
+              rows={2}
+              placeholder="Add any additional notes..."
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };
