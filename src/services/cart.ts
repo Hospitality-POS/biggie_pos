@@ -234,18 +234,31 @@ export const getCart = async (tableId: string) => {
  */
 export const addItemToCart = async (itemData: {
   cart_id: string;
-  product_id: string;
+  product_id: string | null;
   price: number;
   quantity: number;
   created_by: string;
   desc?: string;
-  table_id: string;
-  product_type: "Product" | "Product_Inventory";
+  table_id?: string;
+  product_type: "Product" | "Product_Inventory" | "Miscellaneous";
+  miscellaneous_name?: string;
+  vat_type?: string;
+  notes?: string;
+  addons?: any[];
 }) => {
   try {
+    const companyCode = localStorage.getItem("companyCode");
+    const tenant = localStorage.getItem("tenant") ? JSON.parse(localStorage.getItem("tenant")!) : null;
+    
+    const requestData = {
+      ...itemData,
+      companyCode: companyCode || (tenant ? tenant.tenant_code : null),
+      tenant_code: companyCode || (tenant ? tenant.tenant_code : null),
+    };
+
     const response = await axiosInstance.post(
       `${baseUrl}/cart/add-to-cart`,
-      itemData
+      requestData
     );
     return response.data;
   } catch (error: any) {

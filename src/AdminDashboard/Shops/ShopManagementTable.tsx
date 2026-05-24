@@ -70,7 +70,7 @@ const useTenantConfig = () => {
     : isAccountingOnly
       ? "/accounting"
       : isDalaOnly
-        ? "/dala"
+        ? "/home-dashboard"
         : hasPOS
           ? "/tables"
           : "/home-dashboard";

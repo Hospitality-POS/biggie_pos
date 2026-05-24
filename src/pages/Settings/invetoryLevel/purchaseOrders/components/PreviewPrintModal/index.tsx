@@ -65,13 +65,13 @@ interface POItem {
 interface PO {
     _id: string;
     po_number: string;
-    supplier_id: { name: string; contact?: string; email?: string };
+    supplier_id: { name: string; phone?: string; email?: string };
     status: string;
     po_items: POItem[];
     total_amount: number;
     delivery_percentage: number;
     expected_delivery_date?: string;
-    created_by: { name: string; email?: string };
+    created_by: { fullname: string; email?: string };
     createdAt: string;
     notes?: string;
 }
@@ -101,12 +101,13 @@ const cell = (extra: React.CSSProperties = {}): React.CSSProperties => ({
 
 const th = (extra: React.CSSProperties = {}): React.CSSProperties =>
     cell({
-        background: C.primary,
+        background: `linear-gradient(135deg, ${C.primary} 0%, #8b2a3e 100%)`,
         fontWeight: 700,
         fontSize: 11,
         color: C.white,
         whiteSpace: "nowrap",
-        letterSpacing: "0.3px",
+        letterSpacing: "0.5px",
+        textTransform: "uppercase",
         printColorAdjust: "exact",
         WebkitPrintColorAdjust: "exact",
         ...extra,
@@ -130,18 +131,39 @@ const DocHeader: React.FC<{ brand: string; docTitle: string }> = ({ brand, docTi
         justifyContent: "space-between",
         alignItems: "center",
         borderBottom: `3px solid ${C.primary}`,
-        paddingBottom: 16,
-        marginBottom: 20,
+        paddingBottom: 20,
+        marginBottom: 24,
     }}>
-        <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: C.darkText, lineHeight: 1.2 }}>{brand}</div>
-            <div style={{ fontSize: 11, color: C.subText, marginTop: 3 }}>Powered by {COOP_NAME}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <img 
+                src="/logo.png" 
+                alt="Company Logo" 
+                style={{ 
+                    width: 60, 
+                    height: 60, 
+                    objectFit: "contain",
+                    borderRadius: 8,
+                }}
+                onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                }}
+            />
+            <div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: C.darkText, lineHeight: 1.2 }}>{brand}</div>
+                <div style={{ fontSize: 12, color: C.subText, marginTop: 4, fontWeight: 500 }}>Powered by {COOP_NAME}</div>
+            </div>
         </div>
         <div style={{
-            background: C.primary, color: C.white,
-            padding: "8px 18px", borderRadius: 7,
-            fontWeight: 700, fontSize: 14, letterSpacing: "0.5px",
-            printColorAdjust: "exact", WebkitPrintColorAdjust: "exact",
+            background: `linear-gradient(135deg, ${C.primary} 0%, #8b2a3e 100%)`, 
+            color: C.white,
+            padding: "10px 24px", 
+            borderRadius: 8,
+            fontWeight: 700, 
+            fontSize: 15, 
+            letterSpacing: "0.5px",
+            boxShadow: "0 2px 8px rgba(108, 28, 44, 0.3)",
+            printColorAdjust: "exact", 
+            WebkitPrintColorAdjust: "exact",
         } as React.CSSProperties}>
             {docTitle}
         </div>
@@ -151,16 +173,18 @@ const DocHeader: React.FC<{ brand: string; docTitle: string }> = ({ brand, docTi
 // ── Info Grid ─────────────────────────────────────────────────────────────────
 const InfoGrid: React.FC<{ left: [string, string][]; right: [string, string][] }> = ({ left, right }) => (
     <div style={{
-        display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20,
-        background: "#f8fafc", border: `1px solid ${C.tableBorder}`,
-        borderRadius: 8, padding: 12,
+        display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24,
+        background: "linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%)", 
+        border: `1px solid ${C.tableBorder}`,
+        borderRadius: 12, padding: 16,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
     }}>
         {[left, right].map((col, ci) => (
-            <div key={ci} style={{ flex: "1 1 140px", minWidth: 0 }}>
+            <div key={ci} style={{ flex: "1 1 160px", minWidth: 0 }}>
                 {col.map(([label, value]) => (
-                    <div key={label} style={{ marginBottom: 5, fontSize: 12 }}>
-                        <span style={{ fontWeight: 600, color: "#475569" }}>{label}: </span>
-                        <span style={{ color: "#374151", wordBreak: "break-word" }}>{value}</span>
+                    <div key={label} style={{ marginBottom: 8, fontSize: 12 }}>
+                        <span style={{ fontWeight: 700, color: "#475569", textTransform: "uppercase", fontSize: 10, letterSpacing: "0.5px" }}>{label}: </span>
+                        <span style={{ color: "#1e293b", wordBreak: "break-word", fontWeight: 500 }}>{value}</span>
                     </div>
                 ))}
             </div>
@@ -187,14 +211,16 @@ const StatusText: React.FC<{ status: string }> = ({ status }) => {
 // ── Summary Box ───────────────────────────────────────────────────────────────
 const SummaryBox: React.FC<{ items: [string, string | number][] }> = ({ items }) => (
     <div style={{
-        background: "#f0f9ff", border: "1px solid #bae6fd",
-        borderRadius: 8, padding: 14, marginTop: 16,
+        background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)", 
+        border: "2px solid #0ea5e9",
+        borderRadius: 10, padding: 16, marginTop: 20,
+        boxShadow: "0 2px 8px rgba(14, 165, 233, 0.15)",
     }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
             {items.map(([label, value]) => (
                 <div key={label} style={{ fontSize: 12 }}>
-                    <span style={{ fontWeight: 600, color: "#475569" }}>{label}: </span>
-                    <span style={{ color: C.darkText }}>{value}</span>
+                    <span style={{ fontWeight: 700, color: "#0369a1", textTransform: "uppercase", fontSize: 10, letterSpacing: "0.5px" }}>{label}: </span>
+                    <span style={{ color: C.darkText, fontWeight: 600 }}>{value}</span>
                 </div>
             ))}
         </div>
@@ -205,11 +231,14 @@ const SummaryBox: React.FC<{ items: [string, string | number][] }> = ({ items })
 const NotesBlock: React.FC<{ notes?: string }> = ({ notes }) =>
     notes ? (
         <div style={{
-            marginTop: 14, fontSize: 12, padding: "10px 12px",
-            background: "#fffbeb", border: "1px solid #fde68a",
-            borderRadius: 6, color: "#374151",
+            marginTop: 16, fontSize: 12, padding: "12px 16px",
+            background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)", 
+            border: "2px solid #f59e0b",
+            borderRadius: 10, color: "#374151",
+            boxShadow: "0 2px 8px rgba(245, 158, 11, 0.15)",
         }}>
-            <strong>Notes: </strong>{notes}
+            <strong style={{ color: "#b45309", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px" }}>Notes: </strong>
+            <span style={{ fontWeight: 500 }}>{notes}</span>
         </div>
     ) : null;
 
@@ -227,17 +256,19 @@ const PrintFooter: React.FC<{ label?: string }> = ({ label }) => (
 // ── PO Banner ─────────────────────────────────────────────────────────────────
 const POBanner: React.FC<{ po: PO; showMeta?: boolean }> = ({ po, showMeta }) => (
     <div style={{
-        background: C.primaryLight, border: `1px solid #f3c6cd`,
-        borderRadius: 7, padding: "10px 14px", marginBottom: 16,
+        background: `linear-gradient(135deg, ${C.primaryLight} 0%, #fce7eb 100%)`, 
+        border: `2px solid ${C.primary}`,
+        borderRadius: 10, padding: "14px 18px", marginBottom: 20,
         display: "flex", justifyContent: "space-between",
-        alignItems: "center", flexWrap: "wrap", gap: 8,
+        alignItems: "center", flexWrap: "wrap", gap: 10,
+        boxShadow: "0 2px 8px rgba(108, 28, 44, 0.15)",
     }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.primary }}>{po.po_number}</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: C.primary, letterSpacing: "0.3px" }}>{po.po_number}</div>
         {showMeta && (
-            <div style={{ fontSize: 12, color: C.subText }}>
+            <div style={{ fontSize: 12, color: C.subText, fontWeight: 500 }}>
                 Status: <StatusText status={po.status} /> &nbsp;·&nbsp;
-                Items: <strong>{po.po_items?.length || 0}</strong> &nbsp;·&nbsp;
-                Total: <strong>{fmt(po.total_amount || 0)}</strong>
+                Items: <strong style={{ color: C.darkText }}>{po.po_items?.length || 0}</strong> &nbsp;·&nbsp;
+                Total: <strong style={{ color: C.primary }}>{fmt(po.total_amount || 0)}</strong>
             </div>
         )}
     </div>
@@ -251,27 +282,32 @@ const MobileItemCard: React.FC<{ item: POItem; index: number; showDeliveryStatus
     const lineTotal = (item.quantity_ordered || 0) * (item.unit_price || 0);
     return (
         <div style={{
-            background: index % 2 === 0 ? "#fff" : "#f8fafc",
+            background: index % 2 === 0 ? "#fff" : "linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%)",
             border: `1px solid ${C.tableBorder}`,
-            borderRadius: 7, padding: "10px 12px", marginBottom: 8,
+            borderRadius: 10, padding: "14px 16px", marginBottom: 10,
+            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
         }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: C.darkText, flex: 1, marginRight: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: C.darkText, flex: 1, marginRight: 8, lineHeight: 1.3 }}>
                     {item.inventory_id?.name || "N/A"}
                 </span>
                 {showDeliveryStatus && (
-                    <span style={{ fontSize: 11, fontWeight: 700, color, whiteSpace: "nowrap" }}>{label}</span>
+                    <span style={{ 
+                        fontSize: 10, fontWeight: 700, color, whiteSpace: "nowrap",
+                        padding: "4px 10px", borderRadius: 12, background: `${color}15`,
+                        border: `1px solid ${color}40`
+                    }}>{label}</span>
                 )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", fontSize: 12 }}>
-                <div><span style={{ color: C.subText }}>Unit: </span>{item.unit_id?.abbreviation || item.unit_id?.name || "—"}</div>
-                <div><span style={{ color: C.subText }}>Ordered: </span><strong>{item.quantity_ordered}</strong></div>
-                <div><span style={{ color: C.subText }}>Received: </span>{item.quantity_received}</div>
-                <div><span style={{ color: C.subText }}>Pending: </span>{item.quantity_ordered - item.quantity_received}</div>
-                <div><span style={{ color: C.subText }}>Unit Price: </span>{fmt(item.unit_price)}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", fontSize: 12 }}>
+                <div><span style={{ color: C.subText, fontWeight: 500 }}>Unit: </span>{item.unit_id?.abbreviation || item.unit_id?.name || "—"}</div>
+                <div><span style={{ color: C.subText, fontWeight: 500 }}>Ordered: </span><strong>{item.quantity_ordered}</strong></div>
+                <div><span style={{ color: C.subText, fontWeight: 500 }}>Received: </span>{item.quantity_received}</div>
+                <div><span style={{ color: C.subText, fontWeight: 500 }}>Pending: </span>{item.quantity_ordered - item.quantity_received}</div>
+                <div><span style={{ color: C.subText, fontWeight: 500 }}>Unit Price: </span>{fmt(item.unit_price)}</div>
                 <div>
-                    <span style={{ color: C.subText }}>Total: </span>
-                    <strong style={{ color: C.green }}>{fmt(item.total_price || lineTotal)}</strong>
+                    <span style={{ color: C.subText, fontWeight: 500 }}>Total: </span>
+                    <strong style={{ color: C.primary, fontSize: 13 }}>{fmt(item.total_price || lineTotal)}</strong>
                 </div>
             </div>
         </div>
@@ -295,11 +331,12 @@ const POItemsTable: React.FC<{
                         ))}
                         <div style={{
                             display: "flex", justifyContent: "space-between", alignItems: "center",
-                            padding: "10px 12px", background: "#f1f5f9",
-                            borderRadius: 7, border: `1px solid ${C.tableBorder}`, marginTop: 4,
+                            padding: "14px 18px", background: `linear-gradient(135deg, ${C.primaryLight} 0%, #fce7eb 100%)`,
+                            borderRadius: 10, border: `2px solid ${C.primary}`, marginTop: 8,
+                            boxShadow: "0 2px 8px rgba(108, 28, 44, 0.15)",
                         }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: C.darkText }}>TOTAL AMOUNT</span>
-                            <span style={{ fontSize: 14, fontWeight: 800, color: C.primary }}>{fmt(po.total_amount)}</span>
+                            <span style={{ fontSize: 14, fontWeight: 800, color: C.primary, letterSpacing: "0.5px" }}>TOTAL AMOUNT</span>
+                            <span style={{ fontSize: 16, fontWeight: 800, color: C.primary }}>{fmt(po.total_amount)}</span>
                         </div>
                     </>
                 ) : (
@@ -361,14 +398,14 @@ const POItemsTable: React.FC<{
                                 );
                             })}
                             {/* Total row */}
-                            <tr style={{ background: C.primaryLight }}>
+                            <tr style={{ background: `linear-gradient(135deg, ${C.primaryLight} 0%, #fce7eb 100%)` }}>
                                 <td
                                     colSpan={totalColSpan}
-                                    style={td({ fontWeight: 700, textAlign: "right", color: C.primary, borderLeft: `3px solid ${C.primary}` })}
+                                    style={td({ fontWeight: 800, textAlign: "right", color: C.primary, borderLeft: `3px solid ${C.primary}`, fontSize: 13, letterSpacing: "0.5px" })}
                                 >
                                     TOTAL AMOUNT
                                 </td>
-                                <td style={td({ textAlign: "right", fontWeight: 800, color: C.primary, fontSize: 13 })}>
+                                <td style={td({ textAlign: "right", fontWeight: 800, color: C.primary, fontSize: 14 })}>
                                     {fmt(po.total_amount)}
                                 </td>
                             </tr>
@@ -405,13 +442,13 @@ const renderSinglePO = (po: PO, brand: string, isMobile?: boolean) => (
         <InfoGrid
             left={[
                 ["Supplier", po.supplier_id?.name || "N/A"],
-                ["Contact", po.supplier_id?.contact || "N/A"],
+                ["Contact", po.supplier_id?.phone || "N/A"],
                 ["Email", po.supplier_id?.email || "N/A"],
             ]}
             right={[
                 ["Status", po.status?.replace(/_/g, " ").toUpperCase() || "N/A"],
                 ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
-                ["Created By", po.created_by?.name || "Unknown"],
+                ["Created By", po.created_by?.fullname || "Unknown"],
                 ["Date", new Date(po.createdAt).toLocaleDateString()],
             ]}
         />
@@ -431,12 +468,12 @@ const renderItemsOnly = (po: PO, brand: string, isMobile?: boolean) => (
         <InfoGrid
             left={[
                 ["Supplier", po.supplier_id?.name || "N/A"],
-                ["Contact", po.supplier_id?.contact || "N/A"],
+                ["Contact", po.supplier_id?.phone || "N/A"],
                 ["Status", po.status?.replace(/_/g, " ").toUpperCase() || "N/A"],
             ]}
             right={[
                 ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
-                ["Created By", po.created_by?.name || "Unknown"],
+                ["Created By", po.created_by?.fullname || "Unknown"],
                 ["Date", new Date(po.createdAt).toLocaleDateString()],
             ]}
         />
@@ -457,21 +494,23 @@ const renderBulkPOs = (pos: PO[], brand: string, isMobile?: boolean) => (
         {pos.map((po, index) => (
             <div key={po._id} style={{
                 marginBottom: 40,
-                border: `1px solid ${C.tableBorder}`,
-                borderRadius: 8,
-                padding: isMobile ? 12 : 20,
+                border: `2px solid ${C.tableBorder}`,
+                borderRadius: 12,
+                padding: isMobile ? 16 : 24,
                 pageBreakBefore: index > 0 ? "always" : "auto",
+                background: "#fff",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
             }}>
                 <POBanner po={po} showMeta />
                 <InfoGrid
                     left={[
                         ["Supplier", po.supplier_id?.name || "N/A"],
-                        ["Contact", po.supplier_id?.contact || "N/A"],
+                        ["Contact", po.supplier_id?.phone || "N/A"],
                         ["Email", po.supplier_id?.email || "N/A"],
                     ]}
                     right={[
                         ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
-                        ["Created By", po.created_by?.name || "Unknown"],
+                        ["Created By", po.created_by?.fullname || "Unknown"],
                         ["Date", new Date(po.createdAt).toLocaleDateString()],
                         ["Progress", `${po.delivery_percentage || 0}%`],
                     ]}

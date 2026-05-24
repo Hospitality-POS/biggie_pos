@@ -11,7 +11,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty, updateCartItems } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
-import { Button, Typography, notification, Tooltip, Input, Popconfirm, Checkbox, Space } from "antd";
+import { Button, Typography, notification, Tooltip, Input, Popconfirm, Checkbox, Space, Tag } from "antd";
 import { DeleteOutlined, LoadingOutlined, EditOutlined, FileTextOutlined, TagOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -186,6 +186,15 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const formattedPrice = useMemo(() => formatPrice(cartItem?.price), [cartItem?.price]);
   const formattedQuantity = useMemo(() => formatQuantity(cartItem?.quantity), [cartItem?.quantity]);
 
+  const getItemName = () => {
+    if (cartItem?.product_type === "Miscellaneous") {
+      return cartItem?.miscellaneous_name || cartItem?.product_id?.name || "Custom Item";
+    }
+    return cartItem?.product_id?.name || "Product Name";
+  };
+
+  const isMiscellaneous = cartItem?.product_type === "Miscellaneous";
+
   const discountedPrice = useMemo(() => {
     if (!cartItem?.price || !cartDetails?.discount) return null;
     const itemPrice = cartItem.price;
@@ -328,14 +337,31 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
             <Grid item xs={4}>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <Typography.Text
-                  ellipsis={{ tooltip: cartItem?.product_id?.name }}
+                  ellipsis={{ tooltip: getItemName() }}
                   style={{ color: textColor, fontSize: 13, fontWeight: 500 }}
                 >
-                  {cartItem?.product_id?.name || "Product Name"}
+                  {getItemName()}
                 </Typography.Text>
                 
-                {/* Addons icon */}
-                {addonNames.length > 0 && (
+                {/* Miscellaneous badge */}
+                {isMiscellaneous && (
+                  <Tag
+                    style={{
+                      fontSize: 10,
+                      borderRadius: 4,
+                      margin: 0,
+                      padding: "0 6px",
+                      background: primaryColor,
+                      color: "#fff",
+                      border: "none",
+                    }}
+                  >
+                    Custom
+                  </Tag>
+                )}
+                
+                {/* Addons icon - hide for miscellaneous items */}
+                {!isMiscellaneous && addonNames.length > 0 && (
                   <Tooltip title="View addons">
                     <TagOutlined
                       style={{
@@ -632,43 +658,44 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       <Divider sx={{ my: 0 }} />
     </Card>
 
-    {/* Addons Modal */}
-    <Modal
-      open={isAddonModalOpen}
-      onCancel={() => {
-        setIsAddonModalOpen(false);
-        setIsEditingAddons(false);
-      }}
-      title={
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <TagOutlined style={{ color: primaryColor }} />
-          <span>Product Addons</span>
-        </div>
-      }
-      footer={
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          {isEditingAddons ? (
-            <Space>
-              <Button onClick={() => setIsEditingAddons(false)}>Cancel</Button>
-              <Button type="primary" onClick={handleSaveAddons}>Save Changes</Button>
-            </Space>
-          ) : (
-            <Button type="primary" onClick={() => setIsAddonModalOpen(false)}>
-              Close
-            </Button>
-          )}
-          {!isEditingAddons && (
-            <Button
-              type="default"
-              onClick={() => setIsEditingAddons(true)}
-            >
-              Edit
-            </Button>
-          )}
-        </div>
-      }
-      width={500}
-    >
+    {/* Addons Modal - disabled for miscellaneous items */}
+    {!isMiscellaneous && (
+      <Modal
+        open={isAddonModalOpen}
+        onCancel={() => {
+          setIsAddonModalOpen(false);
+          setIsEditingAddons(false);
+        }}
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <TagOutlined style={{ color: primaryColor }} />
+            <span>Product Addons</span>
+          </div>
+        }
+        footer={
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {isEditingAddons ? (
+              <Space>
+                <Button onClick={() => setIsEditingAddons(false)}>Cancel</Button>
+                <Button type="primary" onClick={handleSaveAddons}>Save Changes</Button>
+              </Space>
+            ) : (
+              <Button type="primary" onClick={() => setIsAddonModalOpen(false)}>
+                Close
+              </Button>
+            )}
+            {!isEditingAddons && (
+              <Button
+                type="default"
+                onClick={() => setIsEditingAddons(true)}
+              >
+                Edit
+              </Button>
+            )}
+          </div>
+        }
+        width={500}
+      >
       <div style={{ padding: "16px 0" }}>
         <Typography.Text strong style={{ fontSize: 14, display: "block", marginBottom: 12 }}>
           {cartItem?.product_id?.name || "Product"}
@@ -753,6 +780,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
         )}
       </div>
     </Modal>
+    )}
     </>
   );
 };

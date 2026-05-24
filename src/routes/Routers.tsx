@@ -247,8 +247,7 @@ const SmartDashboardRouter = () => {
   const hasMteja = tenant?.modules?.crm === true;
   const hasDala = tenant?.modules?.dala === true;
 
-  if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/admin/dala" replace />;
-  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/admin/mteja" replace />;
+  if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/mteja" replace />;
   if (hasAccounting && !hasPOS) return <Navigate to="/admin/dashboard" replace />;
   return <Navigate to="/admin/dashboard" replace />;
 };
@@ -285,6 +284,12 @@ const routes = createBrowserRouter(
           element={guardedPage(MainCategory, "CATEGORIES_VIEW")} />
 
         <Route path="dashboard/:id" errorElement={<NotFound />}
+          element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
+
+        <Route path="dashboard" errorElement={<NotFound />}
+          element={<Navigate to="/home-dashboard" replace />} />
+
+        <Route path="cart/cart/:cartId" errorElement={<NotFound />}
           element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}

@@ -57,6 +57,7 @@ const useAdminProLayoutNav = () => {
 
   // ── Common routes (always shown) ──────────────────────────────────────────
   const commonRoutes = [
+    { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
     { path: "/admin/reports", name: "Reports", icon: <ReconciliationOutlined /> },
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
     { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
@@ -64,16 +65,13 @@ const useAdminProLayoutNav = () => {
 
   // ── Duka (POS) routes ─────────────────────────────────────────────────────
   const dukaRoutes = [
-    { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
   // ── Pesa (Accounting) routes ──────────────────────────────────────────────
   // FIX: paths now match router exactly
   //   /admin/accounts          → /admin/accounting/accounts  (was 404)
-  //   /admin/dashboard         → Unified dashboard page (includes POS, Accounting, Mteja)
   const pesaRoutes = [
-    { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
     { path: "/admin/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
@@ -99,7 +97,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...mtejaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...mtejaRoutes, helpRoute],
       },
     };
   }
@@ -127,15 +125,15 @@ const useAdminProLayoutNav = () => {
   }
 
   // ── CASE 4: Duka + Pesa ───────────────────────────────────────────────────
-  // FIX: deduplicate Document Center and Dashboard — appears in both dukaRoutes and pesaRoutes.
-  // When combined, filter them out of pesaRoutes to avoid duplicate nav items.
+  // FIX: deduplicate Document Center — appears in both dukaRoutes and pesaRoutes.
+  // When combined, filter it out of pesaRoutes to avoid duplicate nav items.
   if (hasDuka && hasPesa) {
     console.log("[AdminNav] ✅ Duka + Pesa (POS + Accounting)");
-    const pesaWithoutDocsAndDashboard = pesaRoutes.filter((r) => r.path !== "/admin/documents" && r.path !== "/admin/dashboard");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...commonRoutes, ...pesaWithoutDocsAndDashboard, helpRoute],
+        routes: [...dukaRoutes, ...commonRoutes, ...pesaWithoutDocs, helpRoute],
       },
     };
   }
