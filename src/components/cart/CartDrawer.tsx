@@ -10,6 +10,7 @@ import { useAppDispatch, useAppSelector } from "../../store";
 import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
 import { fetchAllUsersByShopId } from "../../services/users";
+import { fetchMainCategories } from "../../services/categories";
 import {
   Button, Space, Typography, Tag, Empty, Divider,
   Flex, Avatar, Tooltip, Select, Popconfirm, message, Modal, Form, InputNumber, Input,
@@ -132,6 +133,7 @@ const CartDrawer: React.FC = () => {
   const [showSendButton, setShowSendButton] = useState(false);
   const [isCustomItemModalOpen, setIsCustomItemModalOpen] = useState(false);
   const [customItemLoading, setCustomItemLoading] = useState(false);
+  const [mainCategories, setMainCategories] = useState<{ value: string; label: string }[]>([]);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
@@ -300,6 +302,18 @@ const CartDrawer: React.FC = () => {
     setShowSendButton(savedCaptainOrder === "true");
   }, []);
 
+  useEffect(() => {
+    const loadMainCategories = async () => {
+      try {
+        const categories = await fetchMainCategories();
+        setMainCategories(categories.map((cat: any) => ({ value: cat._id, label: cat.name })));
+      } catch (error) {
+        console.error("Failed to load main categories:", error);
+      }
+    };
+    loadMainCategories();
+  }, []);
+
   const handleSendToPrinter = async () => {
     const cartId = cartDetails?._id;
     if (!cartId) {
@@ -429,6 +443,7 @@ const CartDrawer: React.FC = () => {
         product_id: null,
         product_type: "Miscellaneous",
         miscellaneous_name: values.name,
+        main_category: values.main_category,
         price: values.price,
         quantity: values.quantity,
         created_by: user?._id || "",
@@ -844,6 +859,17 @@ const CartDrawer: React.FC = () => {
             rules={[{ required: true, message: "Please enter item name" }]}
           >
             <Input placeholder="e.g., Custom Service Fee" />
+          </Form.Item>
+          <Form.Item
+            name="main_category"
+            label="Main Category"
+            rules={[{ required: true, message: "Please select main category" }]}
+          >
+            <Select
+              placeholder="Select main category"
+              options={mainCategories}
+              loading={!mainCategories.length}
+            />
           </Form.Item>
           <Form.Item
             name="price"
