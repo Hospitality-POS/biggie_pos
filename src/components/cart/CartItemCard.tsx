@@ -17,7 +17,8 @@ import useCartItemsData from "@hooks/cartItemsData";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import axiosInstance from "../../services/request";
 import { BASE_URL } from "@utils/config";
-import { Modal } from "antd";
+import { Modal, Form, InputNumber, Select } from "antd";
+import { fetchMainCategories } from "../../services/categories";
 
 interface cartItemCardProps {
   cartItem: any;
@@ -51,6 +52,10 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const [isEditingAddons, setIsEditingAddons] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [allAvailableAddons, setAllAvailableAddons] = useState<any[]>([]);
+  const [isEditMiscModalOpen, setIsEditMiscModalOpen] = useState(false);
+  const [editMiscLoading, setEditMiscLoading] = useState(false);
+  const [mainCategories, setMainCategories] = useState<{ value: string; label: string }[]>([]);
+  const [editMiscForm] = Form.useForm();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const canEditQty = user?.role === "admin" || user?.role === "cashier";
@@ -68,6 +73,19 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       setNotesValue(cartItem?.notes || "");
     }
   }, [cartItem?.notes, isEditingNotes]);
+
+  // Load main categories
+  useEffect(() => {
+    const loadMainCategories = async () => {
+      try {
+        const categories = await fetchMainCategories();
+        setMainCategories(categories.map((cat: any) => ({ value: cat._id, label: cat.name })));
+      } catch (error) {
+        console.error("Failed to load main categories:", error);
+      }
+    };
+    loadMainCategories();
+  }, []);
 
   // Fetch addon names when cart item changes
   useEffect(() => {
@@ -301,15 +319,48 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const handleSaveAddons = async () => {
     setIsEditingAddons(false);
     try {
-      await dispatch(updateCartItems({ 
-        _id: cartItem._id, 
-        cart_id: cartDetails._id, 
-        addons: selectedAddons 
+      await dispatch(updateCartItems({
+        _id: cartItem._id,
+        cart_id: cartDetails._id,
+        addons: selectedAddons
       } as any));
       invalidate();
       notification.success({ message: "Addons updated successfully" });
     } catch {
       notification.error({ message: "Failed to update addons" });
+    }
+  };
+
+  const handleEditMiscItem = () => {
+    editMiscForm.setFieldsValue({
+      name: cartItem?.miscellaneous_name,
+      main_category: cartItem?.main_category?._id || cartItem?.main_category,
+      price: cartItem?.price,
+      quantity: cartItem?.quantity,
+      notes: cartItem?.notes,
+    });
+    setIsEditMiscModalOpen(true);
+  };
+
+  const handleUpdateMiscItem = async () => {
+    try {
+      const values = await editMiscForm.validateFields();
+      setEditMiscLoading(true);
+      await dispatch(updateCartItems({
+        _id: cartItem._id,
+        cart_id: cartDetails._id,
+        miscellaneous_name: values.name,
+        main_category: values.main_category,
+        price: values.price,
+        quantity: values.quantity,
+        notes: values.notes,
+      } as any));
+      notification.success({ message: "Miscellaneous item updated successfully" });
+      setIsEditMiscModalOpen(false);
+    } catch (error) {
+      notification.error({ message: "Failed to update miscellaneous item" });
+    } finally {
+      setEditMiscLoading(false);
     }
   };
 
@@ -619,6 +670,14 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
           <Grid item xs={2}>
             {isSent ? (
               <Space>
+                {isMiscellaneous && (
+                  <Button
+                    size="small"
+                    style={{ width: "32px", padding: 0 }}
+                    icon={<EditOutlined />}
+                    onClick={handleEditMiscItem}
+                  />
+                )}
                 {user?.role === "admin" && (
                   <Button
                     danger
@@ -638,18 +697,28 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 </IconButton>
               </Space>
             ) : (
-              <Button
-                danger
-                size="small"
-                style={{ width: "32px", padding: 0 }}
-                icon={<DeleteOutlined />}
-                onClick={() => {
-                  if (cartItem._id) {
-                    dispatch(deleteCartItem(cartItem._id));
-                    invalidate();
-                  }
-                }}
-              />
+              <Space>
+                {isMiscellaneous && (
+                  <Button
+                    size="small"
+                    style={{ width: "32px", padding: 0 }}
+                    icon={<EditOutlined />}
+                    onClick={handleEditMiscItem}
+                  />
+                )}
+                <Button
+                  danger
+                  size="small"
+                  style={{ width: "32px", padding: 0 }}
+                  icon={<DeleteOutlined />}
+                  onClick={() => {
+                    if (cartItem._id) {
+                      dispatch(deleteCartItem(cartItem._id));
+                      invalidate();
+                    }
+                  }}
+                />
+              </Space>
             )}
           </Grid>
 
@@ -700,7 +769,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
         <Typography.Text strong style={{ fontSize: 14, display: "block", marginBottom: 12 }}>
           {cartItem?.product_id?.name || "Product"}
         </Typography.Text>
-        
+
         {isEditingAddons ? (
           <div style={{
             background: "#f5f5f5",
@@ -780,6 +849,75 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
         )}
       </div>
     </Modal>
+    )}
+
+    {/* Edit Miscellaneous Item Modal */}
+    {isMiscellaneous && (
+      <Modal
+        open={isEditMiscModalOpen}
+        onCancel={() => setIsEditMiscModalOpen(false)}
+        title="Edit Miscellaneous Item"
+        onOk={handleUpdateMiscItem}
+        confirmLoading={editMiscLoading}
+        okText="Update Item"
+        cancelText="Cancel"
+        width={500}
+        destroyOnClose={false}
+      >
+        <Form form={editMiscForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="name"
+            label="Item Name"
+            rules={[{ required: true, message: "Please enter item name" }]}
+          >
+            <Input placeholder="e.g., Custom Service Fee" />
+          </Form.Item>
+          <Form.Item
+            name="main_category"
+            label="Main Category"
+            rules={[{ required: true, message: "Please select main category" }]}
+          >
+            <Select
+              placeholder="Select main category"
+              options={mainCategories}
+              loading={!mainCategories.length}
+            />
+          </Form.Item>
+          <Form.Item
+            name="price"
+            label="Price"
+            rules={[{ required: true, message: "Please enter price" }]}
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              min={0}
+              precision={2}
+              placeholder="0.00"
+              prefix="KES"
+            />
+          </Form.Item>
+          <Form.Item
+            name="quantity"
+            label="Quantity"
+            rules={[{ required: true, message: "Please enter quantity" }]}
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              min={1}
+              precision={0}
+            />
+          </Form.Item>
+          <Form.Item
+            name="notes"
+            label="Notes (Optional)"
+          >
+            <Input.TextArea
+              rows={2}
+              placeholder="Add any additional notes..."
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     )}
     </>
   );

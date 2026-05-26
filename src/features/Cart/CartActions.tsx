@@ -111,13 +111,12 @@ export const addItemToCart = createAsyncThunk(
 
 export const updateCartItems = createAsyncThunk(
   "cart/updateCartItems",
-  async (updatedCartItems: UpdatedCartItems, { rejectWithValue, dispatch }) => {
+  async (updatedCartItems: UpdatedCartItems, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.put(
         `${baseUrl}/cart-item/${updatedCartItems._id}`,
         updatedCartItems
       );
-      dispatch(fetchCartItems(updatedCartItems.cart_id));
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -134,11 +133,8 @@ export const updateCartItems = createAsyncThunk(
 
 export const addQtyCart = createAsyncThunk(
   "cart/addQtyCart",
-  async (cartItem: any, { rejectWithValue, dispatch, getState }) => {
+  async (cartItem: any, { rejectWithValue }) => {
     try {
-      const state: any = getState();
-      const tableId = state.cart.cartDetails?.table_id?._id || state.cart.cartDetails?.table_id;
-
       const newQty = (cartItem.quantity || 1) + 1;
 
       // Send only the new quantity; price stays as unit price — unchanged
@@ -147,7 +143,6 @@ export const addQtyCart = createAsyncThunk(
         { ...cartItem, quantity: newQty }
       );
 
-      if (tableId) dispatch(getCart(tableId));
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());
@@ -157,11 +152,8 @@ export const addQtyCart = createAsyncThunk(
 
 export const removeQtyCart = createAsyncThunk(
   "cart/removeQtyCart",
-  async (cartItem: any, { rejectWithValue, dispatch, getState }) => {
+  async (cartItem: any, { rejectWithValue }) => {
     try {
-      const state: any = getState();
-      const tableId = state.cart.cartDetails?.table_id?._id || state.cart.cartDetails?.table_id;
-
       const currentQty = cartItem.quantity || 1;
       if (currentQty <= 1) return cartItem; // Safety guard
 
@@ -173,7 +165,6 @@ export const removeQtyCart = createAsyncThunk(
         { ...cartItem, quantity: newQty }
       );
 
-      if (tableId) dispatch(getCart(tableId));
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.message || error.toString());

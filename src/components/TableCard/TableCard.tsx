@@ -222,7 +222,7 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
             >
               Amount: {item.cart_amount.toLocaleString()}
             </Typography>
-            {item?.served_by && (
+            {item?.served_by && item.cart_amount > 0 && (
               <Typography
                 variant="body2"
                 fontWeight={"bold"}

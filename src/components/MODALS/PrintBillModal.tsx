@@ -689,6 +689,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     { value: 15, label: "X-Large" },
     { value: 17, label: "XX-Large" },
     { value: 20, label: "Huge" },
+    { value: 25, label: "25px" },
+    { value: 30, label: "30px" },
+    { value: 35, label: "35px" },
+    { value: 40, label: "40px" },
+    { value: 45, label: "45px" },
+    { value: 50, label: "50px" },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────

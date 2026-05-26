@@ -309,11 +309,23 @@ const cartSlice = createSlice({
       })
 
       .addCase(addQtyCart.pending, (state) => { state.loading = true; state.error = null; })
-      .addCase(addQtyCart.fulfilled, (state) => { state.loading = false; })
+      .addCase(addQtyCart.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedItem = action.payload;
+        const index = state.cartItems.findIndex((i: any) => i._id === updatedItem._id);
+        if (index !== -1) state.cartItems[index] = updatedItem;
+        calculateTotals(state);
+      })
       .addCase(addQtyCart.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; })
 
       .addCase(removeQtyCart.pending, (state) => { state.loading = true; state.error = null; })
-      .addCase(removeQtyCart.fulfilled, (state) => { state.loading = false; })
+      .addCase(removeQtyCart.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedItem = action.payload;
+        const index = state.cartItems.findIndex((i: any) => i._id === updatedItem._id);
+        if (index !== -1) state.cartItems[index] = updatedItem;
+        calculateTotals(state);
+      })
       .addCase(removeQtyCart.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; })
 
       .addCase(updateCartItemQty.pending, (state) => { state.loading = true; state.error = null; })
