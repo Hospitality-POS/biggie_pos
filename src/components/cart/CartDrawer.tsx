@@ -773,7 +773,7 @@ const CartDrawer: React.FC = () => {
           <Space direction="vertical" style={{ width: "100%" }} size={8}>
             <Flex gap={8} wrap="wrap">
               <ClientPin cart={cartDetails} />
-              {(user?.role === "admin" || user?.role === "cashier") && (
+         
                 <Button
                   icon={<PlusCircleOutlined />}
                   onClick={() => setIsCustomItemModalOpen(true)}
@@ -781,7 +781,7 @@ const CartDrawer: React.FC = () => {
                 >
                   Add Miscellaneous Item
                 </Button>
-              )}
+          
               {showSendButton && (
                 <Button
                   icon={<SendOutlined />}
