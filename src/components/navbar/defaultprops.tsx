@@ -90,6 +90,8 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting": "ACCOUNTING_DASHBOARD_VIEW",
   "/orders": "ACCOUNTING_INVOICE_VIEW",
+  "/store": "PRODUCTS_VIEW",
+  "/Category-settings": "CATEGORIES_VIEW",
   "/accounting/notes": "ACCOUNTING_NOTES_VIEW",
   "/accounting/journals": "ACCOUNTING_JOURNAL_VIEW",
   "/accounting/bank-statements": "ACCOUNTING_BANK_STMT_VIEW",
@@ -407,6 +409,10 @@ const useProLayoutNav = () => {
       { path: p("/payment-methods"), name: "Payment Methods", icon: <CalculatorFilled />, _bare: "/payment-methods" },
       { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
       { ...documentRoute, _bare: "/documents" },
+      ...(!hasPOS ? [
+        { path: p("/store"), name: "Services", icon: <FolderFilled />, _bare: "/store" },
+        { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
+      ] : []),
       ...mtejaConversationsRoute,
       // CRM routes under accounting layout too — only when hasMteja
       ...crmRoutes,
@@ -488,6 +494,10 @@ const useProLayoutNav = () => {
     { icon: makeTile("#22c55e", ICONS.reports), title: "Reports", desc: "View financial reports and analytics.", url: p("/reports"), _bare: "/reports" },
     { icon: makeTile("#10b981", ICONS.income), title: "Income", desc: "View all inbound and outbound payments.", url: p("/accounting/income"), _bare: "/accounting/income" },
     { icon: makeTile("#10b981", ICONS.inventory), title: "Inventory", desc: "Track and manage your stock levels.", url: p("/inventory"), _bare: "/inventory" },
+    ...(!hasPOS ? [
+      { icon: makeTile("#6366f1", ICONS.checklist), title: "Services", desc: "Manage products and services for your customers.", url: p("/store"), _bare: "/store" },
+      { icon: makeTile("#6366f1", ICONS.checklist), title: "Categories", desc: "Organize your products and services with clear categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
+    ] : []),
     { icon: makeTile("#06b6d4", ICONS.customers), title: "Customers", desc: "Manage your customer relationships.", url: p("/customers"), _bare: "/customers" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: p("/suppliers"), _bare: "/suppliers" },
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: p("/payment-methods"), _bare: "/payment-methods" },

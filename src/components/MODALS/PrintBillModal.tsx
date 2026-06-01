@@ -62,7 +62,6 @@ import {
   type PrintStatusResult,
   type SavePrintResult,
 } from "../MODALS/Hooks/usePrintDocument";
-import DigiTaxInvoiceGenerator from "../DigiTaxInvoiceGenerator";
 import { useIPPrinter } from "../../hooks/useIPPrinter";
 import {
   sendPrintJob, buildKitchenLines, buildReceiptLines, groupItemsByMainCategory,
@@ -74,6 +73,9 @@ import { fetchMainCategories } from "@services/categories";
 interface PrintBillProps {
   cartDetails: any;
   data: any;
+  subtotal?: number;
+  totalVatAmount?: number;
+  grandTotal?: number;
 }
 
 interface SendEmailValues {
@@ -231,10 +233,15 @@ const MetaRow: React.FC<{ left: React.ReactNode; right?: React.ReactNode; style?
 );
 
 // ── Main component ─────────────────────────────────────────────────────────
-const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
+const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal: customSubtotal, totalVatAmount: customTotalVat, grandTotal: customGrandTotal }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
   const { user } = useAppSelector((state) => state.auth);
   const { loading: ipPrinterLoading } = useIPPrinter();
+
+  // Use custom totals if provided, otherwise fall back to cart state
+  const finalSubtotal = customSubtotal !== undefined ? customSubtotal : subtotal;
+  const finalTotalVat = customTotalVat !== undefined ? customTotalVat : totalVatAmount;
+  const finalGrandTotal = customGrandTotal !== undefined ? customGrandTotal : grandTotal;
 
   const componentRef = useRef<HTMLDivElement | null>(null);
   const [refReady, setRefReady] = useState(false);
@@ -257,8 +264,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const [isPrinting, setIsPrinting] = useState(false);
   const [sendingToPrinter, setSendingToPrinter] = useState(false);
   const [autoPrinting, setAutoPrinting] = useState(false);
-  const [useDigiTax, setUseDigiTax] = useState(false);
-  const [digiTaxData, setDigiTaxData] = useState<any>(null);
   const [mainCategories, setMainCategories] = useState<Array<any>>([]);
 
   const companyCode = useMemo(() => {
@@ -325,9 +330,14 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const isEtimsEnabled = tenant?.etims_config?.enabled === true;
   const isElectronicsStore = tenant?.business_type?.name === "Electronics";
+  const hasDuka = tenant?.pos_integration?.enabled === true;
   const clientLogoUrl = tenant?.tenant_logo?.url;
+  
+  // ETR data from invoice
+  const etrEnabled = cartDetails?.etr_enabled === true;
+  const digitax = cartDetails?.digitax;
+  const shopKraPin = cartDetails?.shop_kra_pin || tenant?.kra_pin;
 
   // Get VAT mode and rate from tenant settings (normalize to uppercase)
   const rawVatMode = (tenant?.vat_pricing_mode || "EXCLUSIVE").toString().toUpperCase();
@@ -338,9 +348,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   // In INCLUSIVE mode the store sets subtotal = grossTotal and
   // totalVatAmount/subtotal ≈ VAT_RATE/(1+VAT_RATE).
   let vatMode: "INCLUSIVE" | "EXCLUSIVE" = rawVatMode === "INCLUSIVE" ? "INCLUSIVE" : "EXCLUSIVE";
-  if (vatMode === "EXCLUSIVE" && subtotal > 0 && totalVatAmount > 0 && VAT_RATE > 0) {
+  if (vatMode === "EXCLUSIVE" && finalSubtotal > 0 && finalTotalVat > 0 && VAT_RATE > 0) {
     const inclusiveRatio = VAT_RATE / (1 + VAT_RATE);
-    const actualRatio = totalVatAmount / subtotal;
+    const actualRatio = finalTotalVat / finalSubtotal;
     if (Math.abs(actualRatio - inclusiveRatio) < 0.02) {
       vatMode = "INCLUSIVE";
     }
@@ -361,16 +371,19 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     documentType,
     cartDetails,
     data,
+    subtotal: finalSubtotal,
+    totalVatAmount: finalTotalVat,
+    grandTotal: finalGrandTotal,
   });
 
   // Calculate net subtotal for inclusive VAT
-  const netSubtotal = vatMode === "INCLUSIVE" ? subtotal - totalVatAmount : subtotal;
+  const netSubtotal = vatMode === "INCLUSIVE" ? finalSubtotal - finalTotalVat : finalSubtotal;
 
   // Derived discount amount
   const discountAmount =
     cartDetails?.discount > 0
       ? cartDetails.discount_type === "percentage"
-        ? parseFloat((subtotal * (cartDetails.discount / 100)).toFixed(2))
+        ? parseFloat((finalSubtotal * (cartDetails.discount / 100)).toFixed(2))
         : cartDetails.discount
       : 0;
 
@@ -389,13 +402,14 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const getDisplayPrice = useCallback(
     (item: any): number => {
       const price = getExclPrice(item);
+      if (!price || isNaN(price)) return 0;
       if (showDiscount || discountAmount === 0) return price;
       const itemTotal = price * item.quantity;
-      const netSub = vatMode === "INCLUSIVE" ? subtotal - totalVatAmount : subtotal;
+      const netSub = vatMode === "INCLUSIVE" ? finalSubtotal - finalTotalVat : finalSubtotal;
       const discountRatio = netSub > 0 ? discountAmount / netSub : 0;
       return (itemTotal * (1 - discountRatio)) / item.quantity;
     },
-    [showDiscount, discountAmount, subtotal, totalVatAmount, vatMode, getExclPrice]
+    [showDiscount, discountAmount, finalSubtotal, finalTotalVat, vatMode, getExclPrice]
   );
 
   const triggerPrint = useReactToPrint({
@@ -606,7 +620,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
         content_type: "receipt",
         cut_paper: true,
         priority: "normal",
-        lines: buildReceiptLines(cartDetails?.order_no ?? "", grpItems, grandTotal, cartDetails?.table_name),
+        lines: buildReceiptLines(cartDetails?.order_no ?? "", grpItems, finalGrandTotal, cartDetails?.table_name),
       }, companyCode)
         .then((r) => { if (r.agentsSent > 0) sent++; })
         .catch((e) => console.warn(`[autoprint] category ${mainCategoryName}:`, e.message));
@@ -646,8 +660,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
         bannerType: "Sales",
         summary: [
           { label: "Subtotal", value: fmtAmt(netSubtotal), color: C.primary },
-          { label: "VAT", value: fmtAmt(totalVatAmount), color: "#6366f1" },
-          { label: docConfig.amountLabel, value: fmtAmt(grandTotal), color: "#10b981" },
+          { label: "VAT", value: fmtAmt(finalTotalVat), color: "#6366f1" },
+          { label: docConfig.amountLabel, value: fmtAmt(finalGrandTotal), color: "#10b981" },
         ],
         htmlTable,
         outro: `Thank you for your ${documentType === "quotation" ? "interest" : "business"}!`,
@@ -751,12 +765,23 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           },
         }}
         trigger={
-          <Button type="primary" icon={canPrint ? <PrinterOutlined /> : <LockOutlined />} disabled={statusLoading}>
+          <Button type="primary" icon={canPrint ? <PrinterOutlined /> : <LockOutlined />} disabled={statusLoading || !hasDuka}>
             {isReprint ? "Reprint Bill" : "Print Bill"}
           </Button>
         }
         onFinish={handleFinish}
       >
+        {!hasDuka ? (
+          <Alert
+            type="warning"
+            showIcon
+            icon={<WarningOutlined />}
+            message="Duka (POS) module is not enabled"
+            description="Please enable Duka by Base in your tenant settings to use thermal printing."
+            style={{ marginBottom: 16, borderRadius: 8 }}
+          />
+        ) : (
+          <>
         {/* ── Alerts ──────────────────────────────────────────────────── */}
         {!canPrint && (
           <Alert type="error" showIcon icon={<LockOutlined />}
@@ -946,16 +971,6 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           </div>
         </div>
 
-        {/* DigiTax ETR Toggle - Only show if ETIMS is enabled */}
-        {isEtimsEnabled && (
-          <DigiTaxInvoiceGenerator
-            invoiceId={cartDetails?.order_no}
-            orderNo={cartDetails?.order_no}
-            onDigiTaxChange={setUseDigiTax}
-            onDigiTaxData={setDigiTaxData}
-            disabled={!canPrint}
-          />
-        )}
 
         {/* ── THERMAL RECEIPT ─────────────────────────────────────────── */}
         {/*
@@ -994,19 +1009,14 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
             <div style={{ ...S.docType, marginBottom: 4 }}>{docConfig.label}</div>
 
-            {/* DigiTax ETR Information */}
-            {useDigiTax && digiTaxData?.success && (
+            {/* ETR Information */}
+            {/* {etrEnabled && digitax && digitax.receipt_number && digitax.receipt_number !== 0 && (
               <div style={{ marginBottom: 4, textAlign: "center" }}>
-                <div style={{ ...S.meta, fontSize: `${fontSize - 1}px`, color: "#52c41a", fontWeight: 700 }}>
-                  ETR RECEIPT
+                <div style={{ ...S.meta, fontSize: String(fontSize - 2) + "px", color: "#389e0d" }}>
+                  Receipt No: {digitax.receipt_number}
                 </div>
-                {digiTaxData.taxReceiptNumber && (
-                  <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#389e0d" }}>
-                    Tax Receipt: {digiTaxData.taxReceiptNumber}
-                  </div>
-                )}
               </div>
-            )}
+            )} */}
 
             <MetaRow
               left={<span style={S.meta}>
@@ -1084,9 +1094,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
             {data?.map((item: any, index: number) => {
               const displayPrice = getDisplayPrice(item);
-              const exclLine = getExclPrice(item) * item.quantity;
+              const exclLine = getExclPrice(item) * (item.quantity || 0);
               const itemVat = (vatMode === "INCLUSIVE" && VAT_RATE > 0) ? exclLine * VAT_RATE : 0;
-              const lineTotal = displayPrice * item.quantity;
+              const lineTotal = (displayPrice || 0) * (item.quantity || 0);
 
               return (
                 /* Single flex row — all columns together, name wraps, numbers stay top-right */
@@ -1095,7 +1105,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                   {/* <span style={{ ...S.tblData, width: 16, flexShrink: 0 }}>{index + 1}</span> */}
 
                   {/* Qty */}
-                  <span style={{ ...S.tblData, width: 24, flexShrink: 0 }}>{item.quantity}</span>
+                  <span style={{ ...S.tblData, width: 24, flexShrink: 0 }}>{item.quantity || 0}</span>
 
                   {/* Name — flex:1 so it takes all remaining space and wraps */}
                   <span style={{
@@ -1106,15 +1116,18 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     overflowWrap: "break-word",
                     whiteSpace: "normal",
                   }}>
-                    {item?.product_id?.name}
+                    {item?.product_id?.name || item?.description || 'Item'}
+                    {item.notes && (
+                      <span style={{ ...S.tblSub, display: "block", color: "#666" }}>({item.notes})</span>
+                    )}
                     {item.quantity > 1 && (
-                      <span style={{ ...S.tblSub, display: "block" }}>@ {displayPrice.toFixed(2)} ea</span>
+                      <span style={{ ...S.tblSub, display: "block" }}>@ {(displayPrice || 0).toFixed(2)} ea</span>
                     )}
                   </span>
 
                   {/* Price */}
                   <span style={{ ...S.tblData, width: 52, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>
-                    {displayPrice.toFixed(2)}
+                    {(displayPrice || 0).toFixed(2)}
                   </span>
 
                   {/* VAT column — commented out for now */}
@@ -1159,7 +1172,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 <tr>
                   <td style={{ ...S.value, paddingBottom: 2 }}>VAT</td>
                   <td style={{ ...S.value, paddingBottom: 2, textAlign: "right", whiteSpace: "nowrap" }}>
-                    {totalVatAmount.toFixed(2)}
+                    {finalTotalVat.toFixed(2)}
                   </td>
                 </tr>
               )}
@@ -1172,7 +1185,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               <tr>
                 <td style={S.total}>{docConfig.amountLabel.toUpperCase()}</td>
                 <td style={{ ...S.total, textAlign: "right", whiteSpace: "nowrap" }}>
-                  {grandTotal.toLocaleString()}
+                  {finalGrandTotal.toLocaleString()}
                 </td>
               </tr>
             </tbody>
@@ -1205,7 +1218,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 border: "2px solid #000", padding: "6px 8px",
                 margin: "6px 0", textAlign: "center", background: "#f9f9f9",
               }}>
-                <span style={{ ...S.label, fontSize: `${fontSize - 1}px` }}>
+                <span style={{ ...S.label, fontSize: String(fontSize - 1) + "px" }}>
                   <SafetyCertificateFilled /> WARRANTY: 6 MONTHS <SafetyCertificateFilled />
                 </span>
               </div>
@@ -1234,16 +1247,16 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               printers need 15-20mm of feed after the last character so the
               cut lands below "Powered By BasePoint Cloud", not through it. */}
           <div style={{ textAlign: "center", marginTop: 4, paddingBottom: "20mm" }}>
-            {/* ETR QR Code - replaces regular QR code when present */}
-            {useDigiTax && digiTaxData?.success && digiTaxData.qrCode ? (
+            {/* ETR QR Code - use backend digitax data */}
+            {etrEnabled && digitax?.offline_url ? (
               <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: `${fontSize - 2}px`, color: "#52c41a", marginBottom: 2, fontWeight: 600 }}>
+                <div style={{ fontSize: String(fontSize - 2) + "px", color: "#52c41a", marginBottom: 2, fontWeight: 600 }}>
                   ETR VERIFICATION
                 </div>
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
-                  <QRCodeCanvas value={digiTaxData.qrCode} size={60} className="etr-qrcode" />
+                  <QRCodeCanvas value={digitax.offline_url} size={60} className="etr-qrcode" />
                 </div>
-                <div style={{ fontSize: `${fontSize - 3}px`, color: "#666" }}>
+                <div style={{ fontSize: String(fontSize - 3) + "px", color: "#666" }}>
                   Scan to verify tax receipt
                 </div>
               </div>
@@ -1310,29 +1323,24 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                   <Typography variant="body1" style={pdfNorm}>Invoice No: {cartDetails?.order_no || "N/A"}</Typography>
                   <Typography variant="body1" style={pdfNorm}>LPO No: {cartDetails?.lpo_no || "N/A"}</Typography>
                   
-                  {/* DigiTax ETR Information */}
-                  {useDigiTax && digiTaxData?.success && (
+                  {/* ETR Information */}
+                  {etrEnabled && digitax && digitax.receipt_number && digitax.receipt_number !== 0 && (
                     <Box sx={{ mt: 1, p: 1, backgroundColor: "#f6ffed", border: "1px solid #b7eb8f", borderRadius: 1 }}>
-                      <Typography variant="body2" style={{ color: "#52c41a", fontWeight: 700, fontSize: "12px" }}>
-                        ETR RECEIPT
+                      <Typography variant="body2" style={{ color: "#389e0d", fontSize: "11px" }}>
+                        Receipt No: {digitax.receipt_number}
                       </Typography>
-                      {digiTaxData.taxReceiptNumber && (
-                        <Typography variant="body2" style={{ color: "#389e0d", fontSize: "11px" }}>
-                          Tax Receipt: {digiTaxData.taxReceiptNumber}
-                        </Typography>
-                      )}
                     </Box>
                   )}
                 </Box>
               </Box>
               <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
                 {/* ETR QR Code - replaces regular QR code when present */}
-                {useDigiTax && digiTaxData?.success && digiTaxData.qrCode ? (
+                {etrEnabled && digitax?.offline_url ? (
                   <Box sx={{ textAlign: "center" }}>
                     <Typography variant="body2" style={{ color: "#52c41a", fontWeight: 600, fontSize: "10px", marginBottom: 1 }}>
                       ETR VERIFICATION
                     </Typography>
-                    <QRCodeCanvas value={digiTaxData.qrCode} size={100} />
+                    <QRCodeCanvas value={digitax.offline_url} size={100} />
                     <Typography variant="body2" style={{ color: "#666", fontSize: "8px", marginTop: 1 }}>
                       Scan to verify tax receipt
                     </Typography>
@@ -1402,8 +1410,18 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                         {/* Name + description stacked in one cell */}
                         <TableCell sx={pdfTD}>
                           <div style={{ fontWeight: 600, color: "#1a1a1a", fontSize: "14px" }}>
-                            {item?.product_id?.name}
+                            {item?.product_id?.name || item?.description || 'Item'}
                           </div>
+                          {item.notes && (
+                            <div style={{
+                              fontSize: "12px",
+                              color: "#6b7280",
+                              marginTop: "3px",
+                              lineHeight: "1.4",
+                            }}>
+                              ({item.notes})
+                            </div>
+                          )}
                           {itemDesc && (
                             <div style={{
                               fontSize: "12px",
@@ -1437,7 +1455,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               {showDiscount && discountAmount > 0 && (
                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                   <Typography style={pdfNorm}>
-                    Discount{cartDetails.discount_type === "percentage" ? ` (${cartDetails.discount}%)` : ""}
+                    {cartDetails.discount_type === "percentage" ? "Discount (" + String(cartDetails.discount) + "%)" : "Discount"}
                   </Typography>
                   <Typography style={{ ...pdfNorm, color: "#d32f2f" }}>- Ksh {discountAmount.toFixed(2)}</Typography>
                 </Box>
@@ -1445,13 +1463,13 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               {showVat && (
                 <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                   <Typography style={pdfNorm}>VAT</Typography>
-                  <Typography style={pdfNorm}>Ksh {totalVatAmount.toFixed(2)}</Typography>
+                  <Typography style={pdfNorm}>Ksh {finalTotalVat.toFixed(2)}</Typography>
                 </Box>
               )}
               <Divider sx={{ my: 1.5, borderColor: "#333", borderWidth: 2 }} />
               <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                 <Typography style={{ ...pdfHdr, fontSize: "20px" }}>{docConfig.amountLabel}</Typography>
-                <Typography style={{ ...pdfHdr, fontSize: "20px" }}>Ksh {grandTotal.toLocaleString()}</Typography>
+                <Typography style={{ ...pdfHdr, fontSize: "20px" }}>Ksh {finalGrandTotal.toLocaleString()}</Typography>
               </Box>
             </Box>
 
@@ -1461,7 +1479,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 <Typography variant="h6" style={pdfSub} sx={{ textAlign: "center" }}>Payment Details</Typography>
                 {Paybill_bs && (
                   <Typography style={pdfNorm} sx={{ textAlign: "center" }}>
-                    Paybill: {Paybill_bs}{Paybill_ac && ` | Account: ${Paybill_ac}`}
+                    Paybill: {Paybill_bs}{Paybill_ac ? " | Account: " + Paybill_ac : ""}
                   </Typography>
                 )}
                 {TILL_NO && (
@@ -1541,6 +1559,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Typography>
             </Box>
           )
+        )}
+          </>
         )}
 
         <Box sx={{ mt: 2 }} />

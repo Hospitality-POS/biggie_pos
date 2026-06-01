@@ -18,6 +18,24 @@ export type InvoiceStatus =
 export type InvoiceSource = "pos" | "accounting" | "standalone";
 export type InvoiceDirection = "customer" | "supplier";
 
+export interface DigiTaxData {
+    sale_id?: string;
+    serial_number?: string;
+    receipt_number?: number;
+    invoice_number?: number;
+    trader_invoice_number?: string;
+    etims_url?: string;
+    offline_url?: string;
+    receipt_signature?: string;
+    internal_data?: string;
+    receipt_type_code?: string;
+    sale_date?: string;
+    sale_time?: string;
+    submission_status?: "Submitted" | "Verified" | "COMPLETED" | "Failed" | "FAILED";
+    submission_date?: string;
+    error_message?: string | null;
+}
+
 export interface InvoiceAttachment {
     url: string;
     filename: string;
@@ -86,6 +104,11 @@ export interface Invoice {
     order_id?: string;
     supplier_ref?: string;
 
+    // ETR / DigiTax
+    etr_enabled?: boolean;
+    shop_kra_pin?: string | null;
+    digitax?: DigiTaxData | null;
+
     // Meta
     notes?: string;
     terms?: string;
@@ -148,6 +171,7 @@ export interface CreateInvoiceParams {
     supplier_ref?: string;
     discount_amount?: number;
     currency?: string;
+    etr_enabled?: boolean;
     // Optional: record payment immediately on creation
     record_payment?: boolean;
     payment_method_id?: string;
@@ -218,6 +242,20 @@ export const getInvoiceById = async (id: string) => {
             `${BASE_URL}/accounting/invoices/${id}`
         );
         return response.data as { invoice: Invoice };
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Manually verify an invoice with KRA DigiTax (optional immediate verification)
+ */
+export const verifyDigiTax = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/invoices/${id}/verify-digita`
+        );
+        return response.data;
     } catch (error) {
         throw error;
     }
@@ -332,6 +370,32 @@ export const recordInvoicePayment = async (
             message.error(error.response.data.message);
         } else {
             message.error("Error recording payment");
+        }
+        throw error;
+    }
+};
+
+/**
+ * Patch arbitrary fields on an invoice (e.g. DigiTax CU data).
+ * Use for PATCH /accounting/invoices/:id
+ */
+export const patchInvoice = async (id: string, data: Partial<{
+    digitax: Partial<DigiTaxData>;
+    etr_enabled: boolean;
+    status: InvoiceStatus;
+    internal_notes: string;
+}>) => {
+    try {
+        const response = await axiosInstance.patch(
+            `${BASE_URL}/accounting/invoices/${id}`,
+            data
+        );
+        return response.data as { invoice: Invoice };
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error updating invoice");
         }
         throw error;
     }

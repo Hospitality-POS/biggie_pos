@@ -1,23 +1,26 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     Modal, Form, Input, InputNumber, Select, DatePicker,
     Button, Space, Table, Divider, App, Row, Col, Tag,
-    Typography, Alert, Segmented, Steps, Card, Statistic, Tooltip, Checkbox,
+    Typography, Alert, Segmented, Steps, Card, Statistic, Tooltip, Checkbox, Switch, Spin,
 } from "antd";
 import {
     PlusOutlined, DeleteOutlined,
     FileDoneOutlined, FileTextOutlined, DollarOutlined,
     CheckCircleOutlined, ArrowRightOutlined, InfoCircleOutlined,
+    SafetyCertificateOutlined, WarningOutlined, ReloadOutlined, LinkOutlined,
 } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllAccounts } from "@services/accounting/accounts";
-import { createInvoice, convertQuoteToInvoice, recordInvoicePayment } from "@services/accounting/invoice";
+import { createInvoice, convertQuoteToInvoice, recordInvoicePayment, getInvoiceById, patchInvoice } from "@services/accounting/invoice";
 import { fetchAllCustomers } from "@services/customers";
 import { fetchAllInventoryItems, getAllProducts } from "@services/products";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchTenantDetails, getCurrentTenantId } from "@services/tenants";
 import AddCustomerModal from "@pages/Customer/AddCustomerModal";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
+import { fetchSystemSetupDetailsById } from "@services/systemsetup";
 import { useCurrency } from "@context/CurrencyContext";
 import { CurrencySelector } from "@components/Currency/CurrencySelector";
 import dayjs, { Dayjs } from "dayjs";
@@ -107,6 +110,12 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     const [discountPercentage, setDiscountPercentage] = useState<number>(0);
     const [discountReason, setDiscountReason] = useState<string>("");
 
+    // ETR state
+    const [etrEnabled, setEtrEnabled] = useState(false);
+    const [etrPolling, setEtrPolling] = useState(false);
+    const etrPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const etrActivePollRef = useRef(false);
+
     // Track whether we've had a successful save so closing always triggers refresh
     const [didSave, setDidSave] = useState(false);
 
@@ -115,8 +124,20 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     const [addAccountOpen, setAddAccountOpen] = useState(false);
     const [addDepositAccountOpen, setAddDepositAccountOpen] = useState(false);
 
+    const navigate = useNavigate();
     const shopId = localStorage.getItem("shopId") || "";
     const tenantId = getCurrentTenantId();
+    const isAdminRoute = window.location.pathname.startsWith("/admin");
+    const systemSetupPath = isAdminRoute ? "/admin/system-setup" : "/system-setup";
+
+    // ── System settings (KRA PIN check) ──────────────────────────────────────
+    const { data: systemSettings } = useQuery({
+        queryKey: ["systemsettings"],
+        queryFn: fetchSystemSetupDetailsById,
+        enabled: open,
+        staleTime: 5 * 60 * 1000,
+    });
+    const shopKraPin = systemSettings?.kra_pin;
 
     // ── Tenant VAT config ─────────────────────────────────────────────────────
     const { data: tenantData } = useQuery({
@@ -127,6 +148,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
     });
 
     const tenant = tenantData?.data;
+    const etimsEnabled = tenant?.etims_config?.enabled === true;
     const vatEnabled = tenant?.is_vat_enabled ?? true;
     const standardVatRate = tenant?.vat_standard_rate ?? 0.16;
     const vatPricingMode = tenant?.vat_pricing_mode ?? "EXCLUSIVE";
@@ -348,6 +370,9 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             setDidSave(true); // mark: table needs refresh when modal closes
             queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+            if (docType !== "quote" && etrEnabled && data?.invoice?._id) {
+                startEtrPoll(data.invoice._id);
+            }
             setStep(docType === "quote" ? 1 : 2);
         },
         onError: (err: any) =>
@@ -362,6 +387,9 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             setDidSave(true);
             queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
             queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+            if (etrEnabled && data?.invoice?._id) {
+                startEtrPoll(data.invoice._id);
+            }
             setStep(2);
         },
         onError: (err: any) =>
@@ -383,6 +411,51 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             message.error(err?.response?.data?.message || "Failed to record payment"),
     });
 
+    const retryEtrMutation = useMutation({
+        mutationFn: () => patchInvoice(savedInvoice?._id as string, { etr_enabled: true }),
+        onSuccess: (res) => {
+            setSavedInvoice(res.invoice);
+            message.success("ETR re-submission triggered");
+            startEtrPoll(res.invoice._id);
+        },
+        onError: () => message.error("Failed to trigger ETR retry"),
+    });
+
+    // ── ETR polling helpers ──────────────────────────────────────────────────
+    const startEtrPoll = (invoiceId: string) => {
+        if (etrPollRef.current) clearTimeout(etrPollRef.current);
+        const TERMINAL = ["Verified", "COMPLETED", "Failed", "FAILED"];
+        etrActivePollRef.current = true;
+        setEtrPolling(true);
+        const doPoll = () => {
+            etrPollRef.current = setTimeout(async () => {
+                if (!etrActivePollRef.current) return;
+                try {
+                    const res = await getInvoiceById(invoiceId);
+                    if (!etrActivePollRef.current) return;
+                    setSavedInvoice(res.invoice);
+                    const st = res.invoice?.digitax?.submission_status;
+                    if (st && TERMINAL.includes(st)) {
+                        setEtrPolling(false);
+                        etrActivePollRef.current = false;
+                    } else {
+                        doPoll();
+                    }
+                } catch {
+                    setEtrPolling(false);
+                    etrActivePollRef.current = false;
+                }
+            }, 4000);
+        };
+        doPoll();
+    };
+
+    const stopEtrPoll = () => {
+        etrActivePollRef.current = false;
+        if (etrPollRef.current) clearTimeout(etrPollRef.current);
+        setEtrPolling(false);
+    };
+
     // ── Reset + close — always fires onSuccess if anything was saved ──────────
     const resetAndClose = () => {
         form.resetFields();
@@ -393,6 +466,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         setSavedInvoice(null);
         setDidSave(false);
         setCustomTermInput("");
+        stopEtrPoll();
+        setEtrEnabled(false);
         onClose();
     };
 
@@ -418,6 +493,8 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
         discount_amount: invoiceDiscount > 0 ? invoiceDiscount : undefined,
         discount_percentage: invoiceDiscount > 0 && discountType === "percentage" ? discountPercentage : undefined,
         discount_reason: invoiceDiscount > 0 ? discountReason : undefined,
+        etr_enabled: etrEnabled,
+        counterparty_kra_pin: values.counterparty_kra_pin || undefined,
         lines: lines.map((l) => ({
             description: l.description,
             account_id: l.account_id,
@@ -787,6 +864,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                                 notFoundContent={customersFetching ? "Searching..." : "No customers found"}
                                 onChange={(value: string) => {
                                     const customer = customersData?.find((c: any) => c._id === value);
+                                    form.setFieldValue("counterparty_kra_pin", customer?.kra_pin || "");
                                     if (customer?.address) {
                                         form.setFieldsValue({
                                             billing_address: {
@@ -820,6 +898,22 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                             />
                         </Form.Item>
                     </Col>
+                    {etrEnabled && (
+                        <Col span={8}>
+                            <Form.Item
+                                name="counterparty_kra_pin"
+                                label="Customer KRA PIN"
+                                tooltip="Auto-filled from customer profile. You can edit it before saving."
+                            >
+                                <Input
+                                    placeholder="e.g. A000000000X"
+                                    allowClear
+                                    style={{ fontFamily: "monospace" }}
+                                    prefix={<SafetyCertificateOutlined style={{ color: "#16a34a" }} />}
+                                />
+                            </Form.Item>
+                        </Col>
+                    )}
                 </Row>
 
                 <Row gutter={16}>
@@ -1000,6 +1094,88 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                         </Form.Item>
                     </Col>
                 </Row>
+
+                {docType === "invoice" && (
+                    <div style={{
+                        background: !etimsEnabled ? "#f5f5f5" : etrEnabled ? "#f0fdf4" : "#fafafa",
+                        border: `1px solid ${!etimsEnabled ? "#d9d9d9" : etrEnabled ? "#86efac" : "#e2e8f0"}`,
+                        borderRadius: 8, padding: "12px 16px", marginTop: 8,
+                        transition: "all 0.2s",
+                        opacity: !etimsEnabled ? 0.85 : 1,
+                    }}>
+                        <Space align="center" style={{ width: "100%", justifyContent: "space-between" }}>
+                            <Space>
+                                <SafetyCertificateOutlined style={{ color: !etimsEnabled ? "#bfbfbf" : etrEnabled ? "#16a34a" : "#94a3b8", fontSize: 16 }} />
+                                <Text strong style={{ fontSize: 13, color: !etimsEnabled ? "#8c8c8c" : undefined }}>Include ETR (KRA DigiTax)</Text>
+                                {!etimsEnabled
+                                    ? <Tag color="default" style={{ fontSize: 11 }}>eTIMS Not Enabled</Tag>
+                                    : <Tag color={etrEnabled ? "success" : "default"} style={{ fontSize: 11 }}>{etrEnabled ? "Enabled" : "Disabled"}</Tag>
+                                }
+                            </Space>
+                            <Tooltip
+                                title={!etimsEnabled ? "Enable eTIMS in Discover to use ETR invoicing" : undefined}
+                            >
+                                <Switch
+                                    checked={etrEnabled}
+                                    onChange={setEtrEnabled}
+                                    size="small"
+                                    disabled={!etimsEnabled}
+                                />
+                            </Tooltip>
+                        </Space>
+                        {!etimsEnabled && (
+                            <Alert
+                                type="info"
+                                showIcon
+                                style={{ marginTop: 8 }}
+                                message="eTIMS integration is not enabled"
+                                description={
+                                    <span>
+                                        Enable eTIMS in your integrations to use ETR invoicing.{" "}
+                                        <a
+                                            onClick={() => {
+                                                handleClose();
+                                                navigate("/admin/discover");
+                                            }}
+                                            style={{ fontWeight: 600 }}
+                                        >
+                                            Go to Discover → eTIMS to enable it →
+                                        </a>
+                                    </span>
+                                }
+                            />
+                        )}
+                        {etrEnabled && !shopKraPin && (
+                            <Alert
+                                type="warning"
+                                showIcon
+                                icon={<WarningOutlined />}
+                                style={{ marginTop: 8 }}
+                                message="KRA PIN not configured"
+                                description={
+                                    <span>
+                                        Your shop's KRA PIN is required for ETR invoices.{" "}
+                                        <a
+                                            onClick={() => {
+                                                handleClose();
+                                                navigate(systemSetupPath);
+                                            }}
+                                            style={{ fontWeight: 600 }}
+                                        >
+                                            Go to System Setup → System Profile to add it →
+                                        </a>
+                                    </span>
+                                }
+                            />
+                        )}
+                        {etrEnabled && shopKraPin && (
+                            <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 6 }}>
+                                KRA PIN <strong>{shopKraPin}</strong> will be auto-attached. ETR data (CU serial, invoice no., QR code)
+                                will be available after DigiTax submission.
+                            </Text>
+                        )}
+                    </div>
+                )}
             </Form>
         </>
     );
@@ -1072,6 +1248,153 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
                     </Col>
                 </Row>
             </Card>
+
+            {etrEnabled && (
+                <Card
+                    size="small"
+                    title={(() => {
+                        const st = savedInvoice?.digitax?.submission_status;
+                        let badge: React.ReactNode;
+                        if (!savedInvoice?.digitax || !st) {
+                            badge = <Tag color="default" icon={etrPolling ? <Spin size="small" /> : undefined}>In Flight</Tag>;
+                        } else if (st === "Verified" || st === "COMPLETED") {
+                            badge = <Tag color="success">ETR Verified</Tag>;
+                        } else if (st === "Submitted") {
+                            badge = <Tag color="processing">Submitted to KRA</Tag>;
+                        } else if (st === "Failed" || st === "FAILED") {
+                            badge = <Tag color="error">ETR Failed</Tag>;
+                        } else {
+                            badge = <Tag color="default">Pending</Tag>;
+                        }
+                        return (
+                            <Space>
+                                <SafetyCertificateOutlined style={{ color: "#16a34a" }} />
+                                ETR / KRA DigiTax
+                                {badge}
+                            </Space>
+                        );
+                    })()}
+                >
+                    {!savedInvoice?.shop_kra_pin ? (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            icon={<WarningOutlined />}
+                            message="KRA PIN not configured"
+                            description="Go to Settings → System Profile to add your shop's KRA PIN."
+                            style={{ marginBottom: 0 }}
+                        />
+                    ) : (
+                        <>
+                            <Row gutter={16} style={{ marginBottom: 8 }}>
+                                <Col span={8}>
+                                    <Statistic
+                                        title="Shop KRA PIN"
+                                        value={savedInvoice.shop_kra_pin}
+                                        valueStyle={{ fontSize: 13, fontFamily: "monospace" }}
+                                    />
+                                </Col>
+                                {savedInvoice?.digitax?.serial_number && (
+                                    <Col span={8}>
+                                        <Statistic
+                                            title="CU Serial No."
+                                            value={savedInvoice.digitax.serial_number}
+                                            valueStyle={{ fontSize: 13, fontFamily: "monospace" }}
+                                        />
+                                    </Col>
+                                )}
+                                {savedInvoice?.digitax?.receipt_number != null && (
+                                    <Col span={8}>
+                                        <Statistic
+                                            title="Receipt No."
+                                            value={savedInvoice.digitax.receipt_number}
+                                            valueStyle={{ fontSize: 13 }}
+                                        />
+                                    </Col>
+                                )}
+                                {savedInvoice?.digitax?.invoice_number != null && (
+                                    <Col span={8}>
+                                        <Statistic
+                                            title="CU Invoice No."
+                                            value={savedInvoice.digitax.invoice_number}
+                                            valueStyle={{ fontSize: 13 }}
+                                        />
+                                    </Col>
+                                )}
+                                {savedInvoice?.digitax?.receipt_signature && (
+                                    <Col span={16}>
+                                        <Statistic
+                                            title="Receipt Signature"
+                                            value={savedInvoice.digitax.receipt_signature}
+                                            valueStyle={{ fontSize: 12, fontFamily: "monospace" }}
+                                        />
+                                    </Col>
+                                )}
+                            </Row>
+
+                            {!savedInvoice?.digitax && (
+                                <Space style={{ marginTop: 4, marginBottom: 4 }}>
+                                    {etrPolling && <Spin size="small" />}
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                        {etrPolling
+                                            ? "Awaiting KRA DigiTax response…"
+                                            : "ETR submission in progress — check back shortly."}
+                                    </Text>
+                                </Space>
+                            )}
+
+                            {(savedInvoice?.digitax?.submission_status === "Failed" ||
+                                savedInvoice?.digitax?.submission_status === "FAILED") && (
+                                <Space direction="vertical" style={{ width: "100%", marginTop: 8 }}>
+                                    {savedInvoice.digitax.error_message && (
+                                        <Alert
+                                            type="error" showIcon
+                                            message="DigiTax Submission Error"
+                                            description={savedInvoice.digitax.error_message}
+                                        />
+                                    )}
+                                    <Button
+                                        size="small"
+                                        icon={<ReloadOutlined />}
+                                        loading={retryEtrMutation.isPending}
+                                        onClick={() => retryEtrMutation.mutate()}
+                                        danger
+                                    >
+                                        Retry ETR Submission
+                                    </Button>
+                                </Space>
+                            )}
+
+                            {savedInvoice?.digitax?.etims_url && (
+                                <div style={{ marginTop: 8 }}>
+                                    <a
+                                        href={savedInvoice.digitax.etims_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ fontSize: 12 }}
+                                    >
+                                        <LinkOutlined style={{ marginRight: 4 }} />
+                                        Verify on KRA eTIMS
+                                    </a>
+                                </div>
+                            )}
+                            {savedInvoice?.digitax?.offline_url && (
+                                <div style={{ marginTop: 4 }}>
+                                    <a
+                                        href={savedInvoice.digitax.offline_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ fontSize: 12 }}
+                                    >
+                                        <LinkOutlined style={{ marginRight: 4 }} />
+                                        Offline Receipt
+                                    </a>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </Card>
+            )}
 
             <Divider orientation="left" plain style={{ fontWeight: 600 }}>
                 <Space><DollarOutlined /> Record Payment (optional)</Space>

@@ -12,11 +12,12 @@ import {
 import {
   DollarOutlined, EditOutlined, FileDoneOutlined,
   FileTextOutlined, FilterOutlined, MoreOutlined,
-  PrinterOutlined, UserOutlined,
+  PrinterOutlined, UserOutlined, SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import { getAllInvoices } from "@services/cart";
 import { convertQuoteToInvoice, recordInvoicePayment } from "@services/accounting/invoice";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
+import { generateTaxInvoice } from "@services/accounting/digiTax";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import InvoiceReprintModal from "./InvoiceReprintModal";
 import ManualInvoiceModal from "./ManualInvoiceModal";
@@ -192,10 +193,12 @@ const MobileInvoiceCard: React.FC<{
   onEdit: (r: any) => void;
   onExpand: (r: any) => void;
   onOpenNote: (noteId: string) => void;
+  onEtr: (r: any) => void;
   expanded: boolean;
-}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, expanded }) => {
+}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, onEtr, expanded }) => {
   const isDraft = record.status === "Draft";
   const isPayable = ["Pending", "Partially_Paid", "Overdue"].includes(record.status);
+  const needsEtr = !isDraft && !record.etr_enabled;
 
   const actionItems = [
     ...(isDraft ? [
@@ -203,6 +206,7 @@ const MobileInvoiceCard: React.FC<{
       { key: "convert", label: "Convert to Invoice", icon: <FileDoneOutlined /> },
     ] : []),
     ...(isPayable ? [{ key: "pay", label: "Record Payment", icon: <DollarOutlined /> }] : []),
+    ...(needsEtr ? [{ key: "etr", label: "Submit ETR", icon: <SafetyCertificateOutlined /> }] : []),
     { key: "edit", label: "Edit", icon: <EditOutlined /> },
   ];
 
@@ -211,6 +215,7 @@ const MobileInvoiceCard: React.FC<{
     if (key === "convert") onConvert(record);
     if (key === "pay") onPay(record);
     if (key === "edit") onEdit(record);
+    if (key === "etr") onEtr(record);
   };
 
   return (
@@ -466,6 +471,12 @@ const InvoicesTable = () => {
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
+
+  // Check if Pesa (accounting) is enabled
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const hasPesa = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
 
   const [convertTarget, setConvertTarget] = useState<any>(null);
   const [payTarget, setPayTarget] = useState<any>(null);
@@ -480,6 +491,7 @@ const InvoicesTable = () => {
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [noteDetailOpen, setNoteDetailOpen] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [etrSubmitting, setEtrSubmitting] = useState<string | null>(null);
 
   const [queryParams, setQueryParams] = useState({
     page: 1, limit: 10,
@@ -534,6 +546,25 @@ const InvoicesTable = () => {
     loadMobileData(next, mobileFilters);
   };
 
+  const handleEtrSubmit = async (record: any) => {
+    setEtrSubmitting(record._id);
+    try {
+      const result = await generateTaxInvoice(record._id, true);
+      if (result.success) {
+        message.success(`ETR submitted successfully! Receipt: ${result.taxReceiptNumber}`);
+        refreshTable();
+        // Invalidate specific invoice query to refresh expanded view
+        queryClient.invalidateQueries({ queryKey: ["invoice", record._id] });
+      } else {
+        message.error(result.error || 'Failed to submit ETR');
+      }
+    } catch (error) {
+      message.error('Failed to submit ETR to KRA');
+    } finally {
+      setEtrSubmitting(null);
+    }
+  };
+
   // Row action menu for desktop
   const getRowActionItems = (record: any) => [
     { key: "edit", label: "Edit", icon: <EditOutlined /> },
@@ -544,6 +575,9 @@ const InvoicesTable = () => {
     ...(["Pending", "Partially_Paid", "Overdue"].includes(record.status) ? [
       { key: "pay", label: "Record Payment", icon: <DollarOutlined /> },
     ] : []),
+    ...(record.status !== "Draft" && !record.etr_enabled ? [
+      { key: "etr", label: "Submit ETR", icon: <SafetyCertificateOutlined /> },
+    ] : []),
   ];
 
   const handleRowMenuClick = (key: string, record: any) => {
@@ -551,6 +585,7 @@ const InvoicesTable = () => {
     if (key === "print") printQuote(record);
     if (key === "convert") setConvertTarget(record);
     if (key === "pay") setPayTarget(record);
+    if (key === "etr") handleEtrSubmit(record);
   };
 
   const desktopColumns = [
@@ -731,6 +766,7 @@ const InvoicesTable = () => {
                 expanded={expandedId === record._id}
                 onExpand={(r) => setExpandedId(expandedId === r._id ? null : r._id)}
                 onOpenNote={handleOpenNote}
+                onEtr={handleEtrSubmit}
               />
             ))}
             {mobileData.length < mobileTotal && (
@@ -791,15 +827,17 @@ const InvoicesTable = () => {
           optionRender: (_, __, dom) => [...dom],
         }}
         toolBarRender={() => [
-          <Button
-            key="new-invoice"
-            type="primary"
-            icon={<FileDoneOutlined />}
-            onClick={() => setManualModalOpen(true)}
-            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
-          >
-            New Invoice
-          </Button>,
+          ...(hasPesa ? [
+            <Button
+              key="new-invoice"
+              type="primary"
+              icon={<FileDoneOutlined />}
+              onClick={() => setManualModalOpen(true)}
+              style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
+            >
+              New Invoice
+            </Button>,
+          ] : []),
         ]}
         pagination={{
           pageSize: queryParams.limit, current: queryParams.page,
@@ -810,6 +848,7 @@ const InvoicesTable = () => {
           {
             title: "Date Range", dataIndex: "dateRange",
             valueType: "dateRange", hideInTable: true,
+            initialValue: [dayjs().startOf("day"), dayjs().endOf("day")],
             fieldProps: {
               ranges: {
                 Today: [dayjs().startOf("day"), dayjs().endOf("day")],
