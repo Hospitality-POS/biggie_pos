@@ -504,6 +504,7 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             vat_rate: vatEnabled ? l.vat_rate : 0,
             vat_amount: parseFloat(lineVAT(l).toFixed(2)),
             item_type: l.item_type,
+            item_id: l.item_id,
         })),
     } as any);
 
