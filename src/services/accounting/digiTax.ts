@@ -103,7 +103,7 @@ export const digiTaxService = {
   // Generate tax invoice
   async generateTaxInvoice(invoiceId: string, useDigiTax: boolean): Promise<TaxInvoiceResponse> {
     const response = await postRequest(
-      `/accounting/digi-tax/invoices/${invoiceId}/generate`,
+      `/accounting/invoices/${invoiceId}/generate-digita`,
       { use_digi_tax: useDigiTax },
       {
         headers: { 'x-permission': DIGITAX_PERMISSIONS.GENERATE_INVOICE }

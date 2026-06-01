@@ -8,8 +8,17 @@ import AddProCategoryModal from "@components/MODALS/pro/AddProCategoryModal";
 import { useMutation } from "@tanstack/react-query";
 import { useAppSelector } from "src/store";
 
+const getHasPOS = () => {
+  try {
+    return JSON.parse(localStorage.getItem("tenant") || "{}")?.pos_integration?.enabled === true;
+  } catch {
+    return true;
+  }
+};
+
 const CategorySettings = () => {
   const actionRef = useRef<ActionType>();
+  const hasPOS = getHasPOS();
 
   const DeleteCategoryMutation = useMutation(deleteCategory, {
     onSuccess: () => {
@@ -79,14 +88,14 @@ const CategorySettings = () => {
             },
             ellipsis: true,
           },
-          {
+          ...( hasPOS ? [{
             title: "Subcategory",
-            dataIndex: ["sub_category", "name"],
+            dataIndex: ["sub_category", "name"] as string[],
             hideInSearch: false,
             fieldProps: {
               placeholder: "Enter sub_category name",
             },
-          },
+          }] : []),
           actionColumn,
         ]}
         request={async (param) => {

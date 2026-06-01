@@ -12,8 +12,18 @@ import SubCategorySettings from "./Sub_category";
 import CategorySettings from "./CategorySettings";
 import ModifiersSettings from "./ModifiersSettings";
 
+const getCategoryFlags = () => {
+  try {
+    const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
+    return tenant?.pos_integration?.enabled === true;
+  } catch {
+    return true;
+  }
+};
+
 const CategoryMainSettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>("mainCategory");
+  const hasPOS = getCategoryFlags();
+  const [activeTab, setActiveTab] = useState<string>(hasPOS ? "mainCategory" : "category1");
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
@@ -42,45 +52,49 @@ const CategoryMainSettings: React.FC = () => {
         size: "large",
       }}
     >
-      <ProCard.TabPane
-        key="mainCategory"
-        tab={
-          <Space>
-            <AppstoreOutlined style={{ color: "#52c41a" }} />
-            <Typography.Text>Main Category</Typography.Text>
-          </Space>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
+      {hasPOS && (
+        <ProCard.TabPane
+          key="mainCategory"
+          tab={
+            <Space>
+              <AppstoreOutlined style={{ color: "#52c41a" }} />
+              <Typography.Text>Main Category</Typography.Text>
+            </Space>
+          }
         >
-          <MainCategorySettings />
-        </div>
-      </ProCard.TabPane>
+          <div
+            style={{
+              padding: "0",
+              backgroundColor: "#fafafa",
+              borderRadius: "8px",
+            }}
+          >
+            <MainCategorySettings />
+          </div>
+        </ProCard.TabPane>
+      )}
 
-      <ProCard.TabPane
-        key="category2"
-        tab={
-          <Space>
-            <FolderOutlined style={{ color: "#faad14" }} />
-            <Typography.Text>Sub-Category</Typography.Text>
-          </Space>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
+      {hasPOS && (
+        <ProCard.TabPane
+          key="category2"
+          tab={
+            <Space>
+              <FolderOutlined style={{ color: "#faad14" }} />
+              <Typography.Text>Sub-Category</Typography.Text>
+            </Space>
+          }
         >
-          <SubCategorySettings />
-        </div>
-      </ProCard.TabPane>
+          <div
+            style={{
+              padding: "0",
+              backgroundColor: "#fafafa",
+              borderRadius: "8px",
+            }}
+          >
+            <SubCategorySettings />
+          </div>
+        </ProCard.TabPane>
+      )}
 
       <ProCard.TabPane
         key="category1"
@@ -102,25 +116,27 @@ const CategoryMainSettings: React.FC = () => {
         </div>
       </ProCard.TabPane>
 
-      <ProCard.TabPane
-        key="modifiers"
-        tab={
-          <Space>
-            <SettingOutlined style={{ color: "#eb2f96" }} />
-            <Typography.Text>Modifiers</Typography.Text>
-          </Space>
-        }
-      >
-        <div
-          style={{
-            padding: "0",
-            backgroundColor: "#fafafa",
-            borderRadius: "8px",
-          }}
+      {hasPOS && (
+        <ProCard.TabPane
+          key="modifiers"
+          tab={
+            <Space>
+              <SettingOutlined style={{ color: "#eb2f96" }} />
+              <Typography.Text>Modifiers</Typography.Text>
+            </Space>
+          }
         >
-          <ModifiersSettings />
-        </div>
-      </ProCard.TabPane>
+          <div
+            style={{
+              padding: "0",
+              backgroundColor: "#fafafa",
+              borderRadius: "8px",
+            }}
+          >
+            <ModifiersSettings />
+          </div>
+        </ProCard.TabPane>
+      )}
     </ProCard>
   );
 };

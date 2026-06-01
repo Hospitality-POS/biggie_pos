@@ -177,6 +177,9 @@ interface UsePrintDocumentOptions {
     cartDetails: any;
     data: any[];
     autoCheck?: boolean;
+    subtotal?: number;
+    totalVatAmount?: number;
+    grandTotal?: number;
 }
 
 interface UsePrintDocumentResult {
@@ -200,9 +203,29 @@ export function usePrintDocument({
     cartDetails,
     data,
     autoCheck = true,
+    subtotal: customSubtotal,
+    totalVatAmount: customTotalVat,
+    grandTotal: customGrandTotal,
 }: UsePrintDocumentOptions): UsePrintDocumentResult {
     const { subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
     const { user } = useAppSelector((s) => s.auth);
+
+    // Use custom totals if provided, otherwise fall back to cart state
+    const finalSubtotal = customSubtotal !== undefined ? customSubtotal : subtotal;
+    const finalTotalVat = customTotalVat !== undefined ? customTotalVat : totalVatAmount;
+    const finalGrandTotal = customGrandTotal !== undefined ? customGrandTotal : grandTotal;
+
+    console.log('usePrintDocument totals:', {
+        customSubtotal,
+        customTotalVat,
+        customGrandTotal,
+        cartSubtotal: subtotal,
+        cartTotalVat: totalVatAmount,
+        cartGrandTotal: grandTotal,
+        finalSubtotal,
+        finalTotalVat,
+        finalGrandTotal,
+    });
 
     const storedTenant = localStorage.getItem("tenant");
     const tenant = storedTenant ? JSON.parse(storedTenant) : null;
@@ -223,9 +246,9 @@ export function usePrintDocument({
     const shopIdRef = useRef(shopId);
     const orderNoRef = useRef(orderNo);
     const documentTypeRef = useRef(documentType);
-    const subtotalRef = useRef(subtotal);
-    const totalVatRef = useRef(totalVatAmount);
-    const grandTotalRef = useRef(grandTotal);
+    const subtotalRef = useRef(finalSubtotal);
+    const totalVatRef = useRef(finalTotalVat);
+    const grandTotalRef = useRef(finalGrandTotal);
     const vatModeRef = useRef(vatMode);
     const userRef = useRef(user);
     const cartDetailsRef = useRef(cartDetails);
@@ -235,9 +258,9 @@ export function usePrintDocument({
     useEffect(() => { shopIdRef.current = shopId; }, [shopId]);
     useEffect(() => { orderNoRef.current = orderNo; }, [orderNo]);
     useEffect(() => { documentTypeRef.current = documentType; }, [documentType]);
-    useEffect(() => { subtotalRef.current = subtotal; }, [subtotal]);
-    useEffect(() => { totalVatRef.current = totalVatAmount; }, [totalVatAmount]);
-    useEffect(() => { grandTotalRef.current = grandTotal; }, [grandTotal]);
+    useEffect(() => { subtotalRef.current = finalSubtotal; }, [finalSubtotal]);
+    useEffect(() => { totalVatRef.current = finalTotalVat; }, [finalTotalVat]);
+    useEffect(() => { grandTotalRef.current = finalGrandTotal; }, [finalGrandTotal]);
     useEffect(() => { vatModeRef.current = vatMode; }, [vatMode]);
     useEffect(() => { userRef.current = user; }, [user]);
     useEffect(() => { cartDetailsRef.current = cartDetails; }, [cartDetails]);

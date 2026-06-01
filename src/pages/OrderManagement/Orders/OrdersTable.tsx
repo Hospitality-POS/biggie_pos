@@ -675,9 +675,10 @@ const OrdersTable = () => {
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
               <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)} style={{ borderRadius: 8, borderColor: C.border, height: 30, fontSize: 12 }}>Filter</Button>
-              <CSVLink data={csvData} filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}
-                style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 30, padding: "0 10px", borderRadius: 8, fontSize: 12, background: C.primary, color: "#fff", textDecoration: "none", fontWeight: 500, whiteSpace: "nowrap" }}>
-                <DownloadOutlined style={{ fontSize: 12 }} /> CSV
+              <CSVLink data={csvData} filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}>
+                <Button size="small" icon={<DownloadOutlined />} type="primary" style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 30, fontSize: 12 }}>
+                  CSV
+                </Button>
               </CSVLink>
             </div>
           </div>
@@ -743,9 +744,10 @@ const OrdersTable = () => {
           title: "Orders", tooltip: "Order Management",
           actions: [
             <CSVLink key="csv" data={csvData}
-              filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 15px", borderRadius: 8, fontSize: 13, background: C.primary, color: "#fff", textDecoration: "none", fontWeight: 500 }}>
-              <DownloadOutlined /> Export CSV
+              filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}>
+              <Button type="primary" icon={<DownloadOutlined />} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+                Export CSV
+              </Button>
             </CSVLink>,
           ],
         }}

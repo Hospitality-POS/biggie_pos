@@ -125,6 +125,27 @@ export interface InvoiceForPrint {
     shop_id?: string;
     table_id?: { name: string };
 
+    // ETR / DigiTax
+    etr_enabled?: boolean;
+    shop_kra_pin?: string | null;
+    digitax?: {
+        sale_id?: string;
+        serial_number?: string;
+        receipt_number?: number;
+        invoice_number?: number;
+        trader_invoice_number?: string;
+        etims_url?: string;
+        offline_url?: string;
+        receipt_signature?: string;
+        internal_data?: string;
+        receipt_type_code?: string;
+        sale_date?: string;
+        sale_time?: string;
+        submission_status?: "Submitted" | "Verified" | "COMPLETED" | "Failed" | "FAILED";
+        submission_date?: string;
+        error_message?: string | null;
+    } | null;
+
     [key: string]: any;
 }
 
@@ -196,6 +217,37 @@ interface SharedProps {
     sys: SystemDetails;
     accentColor?: string;
 }
+
+// ETR QR Code component for print templates
+const EtrQrCode = ({ inv }: { inv: InvoiceForPrint }) => {
+    if (!inv.etr_enabled || !inv.digitax?.offline_url) return null;
+
+    return (
+        <div style={{ marginTop: 20, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: C.subText, marginBottom: 6, fontWeight: 600, textTransform: "uppercase" }}>
+                Scan to Verify ETR
+            </div>
+            <div style={{
+                display: "inline-block",
+                padding: 8,
+                background: "#fff",
+                border: "1px solid #e2e8f0",
+                borderRadius: 6,
+            }}>
+                <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(inv.digitax.offline_url)}`}
+                    alt="ETR QR Code"
+                    style={{ width: 120, height: 120, display: "block" }}
+                />
+            </div>
+            {inv.digitax.serial_number && (
+                <div style={{ fontSize: 9, color: C.subText, marginTop: 4, fontFamily: "monospace" }}>
+                    CU: {inv.digitax.serial_number}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
     const items = inv.items || [];
@@ -763,6 +815,7 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
             <TotalsBlock inv={inv} accentColor={C.primary} />
             <PaymentDetailsBlock inv={inv} sys={sys} accentColor={C.primary} />
             <Footer sys={sys} />
+            <EtrQrCode inv={inv} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -907,6 +960,7 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
             <TotalsBlock inv={inv} accentColor={navy} />
             <PaymentDetailsBlock inv={inv} sys={sys} accentColor={navy} />
             <Footer sys={sys} />
+            <EtrQrCode inv={inv} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -1010,6 +1064,7 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
                 <TotalsBlock inv={inv} accentColor={C.blue} />
                 <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#eff6ff" borderColor="#bfdbfe" accentColor={C.blue} />
                 <Footer sys={sys} borderColor="#bfdbfe" />
+                <EtrQrCode inv={inv} />
             </div>
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
@@ -1159,6 +1214,7 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
             </div>
 
             <Footer sys={sys} />
+            <EtrQrCode inv={inv} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:14mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -1280,6 +1336,7 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
                 <TotalsBlock inv={inv} accentColor={forest} />
                 <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#f0fdf4" borderColor="#bbf7d0" accentColor={forest} />
                 <Footer sys={sys} borderColor="#d1fae5" />
+                <EtrQrCode inv={inv} />
             </div>
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>

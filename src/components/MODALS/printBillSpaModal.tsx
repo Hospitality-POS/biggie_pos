@@ -60,7 +60,6 @@ import {
   type PrintStatusResult,
   type SavePrintResult,
 } from "../MODALS/Hooks/usePrintDocument";
-import DigiTaxInvoiceGenerator from "../DigiTaxInvoiceGenerator";
 import { useIPPrinter } from "../../hooks/useIPPrinter";
 import { printFromCart } from "@services/printAgent";
 
@@ -229,15 +228,17 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [useDigiTax, setUseDigiTax] = useState(false);
-  const [digiTaxData, setDigiTaxData] = useState<any>(null);
 
   const pendingPrintRef = useRef(false);
   const [printTrigger, setPrintTrigger] = useState(0);
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const isEtimsEnabled = tenant?.etims_config?.enabled === true;
+  
+  // ETR data from invoice
+  const etrEnabled = cartDetails?.etr_enabled === true;
+  const digitax = cartDetails?.digitax;
+  const shopKraPin = cartDetails?.shop_kra_pin || tenant?.kra_pin;
 
   const {
     BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO,
@@ -682,16 +683,6 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           </div>
         </div>
 
-        {/* DigiTax ETR Toggle - Only show if ETIMS is enabled */}
-        {isEtimsEnabled && (
-          <DigiTaxInvoiceGenerator
-            invoiceId={cartDetails?.order_no}
-            orderNo={cartDetails?.order_no}
-            onDigiTaxChange={setUseDigiTax}
-            onDigiTaxData={setDigiTaxData}
-            disabled={!canPrint}
-          />
-        )}
 
         {/* ── THERMAL RECEIPT ─────────────────────────────────────────── */}
         <div
@@ -705,15 +696,20 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             <div style={S.shopName}>{BRAND_NAME1}</div>
             <div style={S.docType}>{docConfig.label}</div>
             
-            {/* DigiTax ETR Information */}
-            {useDigiTax && digiTaxData?.success && (
+            {/* ETR Information */}
+            {etrEnabled && digitax && (
               <div style={{ marginBottom: 4, textAlign: "center" }}>
                 <div style={{ ...S.meta, fontSize: `${fontSize - 1}px`, color: "#52c41a", fontWeight: 700 }}>
                   ETR RECEIPT
                 </div>
-                {digiTaxData.taxReceiptNumber && (
+                {digitax.receipt_number && (
                   <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#389e0d" }}>
-                    Tax Receipt: {digiTaxData.taxReceiptNumber}
+                    Receipt No: {digitax.receipt_number}
+                  </div>
+                )}
+                {digitax.serial_number && (
+                  <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#389e0d" }}>
+                    CU: {digitax.serial_number}
                   </div>
                 )}
               </div>
@@ -783,7 +779,12 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                   <tr key={item._id || index}>
                     <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top" }}>{item.quantity}</td>
                     <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top", wordBreak: "break-word" }}>
-                      {item?.product_id?.name}
+                      {item?.product_id?.name || item?.description || 'Item'}
+                      {item.notes && (
+                        <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#666" }}>
+                          ({item.notes})
+                        </div>
+                      )}
                       {item.quantity > 1 && (
                         <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#555" }}>
                           @ {displayPrice.toFixed(2)} each
@@ -844,13 +845,13 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           <DashedLine />
           <div style={{ textAlign: "center", marginTop: 6 }}>
             {/* ETR QR Code - replaces regular QR code when present */}
-            {useDigiTax && digiTaxData?.success && digiTaxData.qrCode ? (
+            {etrEnabled && digitax?.offline_url ? (
               <div style={{ marginBottom: 8 }}>
                 <div style={{ fontSize: `${fontSize - 2}px`, color: "#52c41a", marginBottom: 2, fontWeight: 600 }}>
                   ETR VERIFICATION
                 </div>
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
-                  <QRCodeCanvas value={digiTaxData.qrCode} size={60} className="etr-qrcode" />
+                  <QRCodeCanvas value={digitax.offline_url} size={60} className="etr-qrcode" />
                 </div>
                 <div style={{ fontSize: `${fontSize - 3}px`, color: "#666" }}>
                   Scan to verify tax receipt
@@ -906,15 +907,20 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                   <Typography variant="h5" style={{ fontSize: "20px", fontWeight: 700, color: "#fff", margin: 0 }}>{docConfig.label}</Typography>
                 </Box>
                 
-                {/* DigiTax ETR Information */}
-                {useDigiTax && digiTaxData?.success && (
+                {/* ETR Information */}
+                {etrEnabled && digitax && (
                   <Box sx={{ mt: 1, p: 1, backgroundColor: "#f6ffed", border: "1px solid #b7eb8f", borderRadius: 1 }}>
                     <Typography variant="body2" style={{ color: "#52c41a", fontWeight: 700, fontSize: "12px" }}>
                       ETR RECEIPT
                     </Typography>
-                    {digiTaxData.taxReceiptNumber && (
+                    {digitax.receipt_number && (
                       <Typography variant="body2" style={{ color: "#389e0d", fontSize: "11px" }}>
-                        Tax Receipt: {digiTaxData.taxReceiptNumber}
+                        Receipt No: {digitax.receipt_number}
+                      </Typography>
+                    )}
+                    {digitax.serial_number && (
+                      <Typography variant="body2" style={{ color: "#389e0d", fontSize: "11px" }}>
+                        CU: {digitax.serial_number}
                       </Typography>
                     )}
                   </Box>
@@ -934,7 +940,20 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     <Typography variant="body1" style={pdfNorm}>Till No: {TILL_NO}</Typography>
                   )}
                 </Box>
-                <Box><QRCodeCanvas value={QR_Code} size={120} /></Box>
+                {/* ETR QR Code - replaces regular QR code when present */}
+                {etrEnabled && digitax?.offline_url ? (
+                  <Box sx={{ textAlign: "center" }}>
+                    <Typography variant="body2" style={{ color: "#52c41a", fontWeight: 600, fontSize: "10px", marginBottom: 1 }}>
+                      ETR VERIFICATION
+                    </Typography>
+                    <QRCodeCanvas value={digitax.offline_url} size={100} />
+                    <Typography variant="body2" style={{ color: "#666", fontSize: "8px", marginTop: 1 }}>
+                      Scan to verify tax receipt
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box><QRCodeCanvas value={QR_Code} size={120} /></Box>
+                )}
               </Box>
             </Box>
 
@@ -986,7 +1005,14 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     return (
                       <TableRow key={item._id || index}>
                         <TableCell sx={pdfTD}>{item.quantity}</TableCell>
-                        <TableCell sx={pdfTD}>{item?.product_id?.name}</TableCell>
+                        <TableCell sx={pdfTD}>
+                          {item?.product_id?.name || item?.description || 'Item'}
+                          {item.notes && (
+                            <Typography variant="body2" sx={{ fontSize: "10px", color: "#666" }}>
+                              ({item.notes})
+                            </Typography>
+                          )}
+                        </TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{displayPrice.toFixed(2)}</TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{(displayPrice * item.quantity).toFixed(2)}</TableCell>
                       </TableRow>
