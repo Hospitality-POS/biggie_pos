@@ -185,6 +185,7 @@ export interface RecordInvoicePaymentParams {
     method_id: string;
     reference?: string;
     notes?: string;
+    bank_account_id?: string;
 }
 
 // ============================================
@@ -422,6 +423,29 @@ export const convertQuoteToInvoice = async (
             message.error(error.response.data.message);
         } else {
             message.error("Error converting quote to invoice");
+        }
+        throw error;
+    }
+};
+
+/**
+ * Delete an invoice.
+ * Only available for admin users.
+ * Backend prevents deletion of paid or voided invoices.
+ * Cleans up: invoice items, journal entry, payments, and stock updates.
+ */
+export const deleteInvoice = async (id: string) => {
+    try {
+        const response = await axiosInstance.delete(
+            `${BASE_URL}/accounting/invoices/${id}`
+        );
+        message.success("Invoice deleted successfully");
+        return response.data;
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error deleting invoice");
         }
         throw error;
     }
