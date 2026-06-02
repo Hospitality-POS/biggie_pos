@@ -7,21 +7,24 @@ import {
 import ExpandedRowContent from "./ExpandableInvoice";
 import {
   Button, DatePicker, Drawer, Form, Input, InputNumber,
-  Modal, Select, App, Tooltip, Typography, Dropdown,
+  Modal, Select, App, Tooltip, Typography, Dropdown, Tag, Divider,
 } from "antd";
 import {
   DollarOutlined, EditOutlined, FileDoneOutlined,
   FileTextOutlined, FilterOutlined, MoreOutlined,
   PrinterOutlined, UserOutlined, SafetyCertificateOutlined,
+  DeleteOutlined, PlusOutlined,
 } from "@ant-design/icons";
 import { getAllInvoices } from "@services/cart";
-import { convertQuoteToInvoice, recordInvoicePayment } from "@services/accounting/invoice";
+import { convertQuoteToInvoice, recordInvoicePayment, deleteInvoice } from "@services/accounting/invoice";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
+import { getAllAccounts } from "@services/accounting/accounts";
 import { generateTaxInvoice } from "@services/accounting/digiTax";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import InvoiceReprintModal from "./InvoiceReprintModal";
 import ManualInvoiceModal from "./ManualInvoiceModal";
 import NoteDetailDrawer from "../../Notes/NoteDetailDrawer";
+import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -208,6 +211,7 @@ const MobileInvoiceCard: React.FC<{
     ...(isPayable ? [{ key: "pay", label: "Record Payment", icon: <DollarOutlined /> }] : []),
     ...(needsEtr ? [{ key: "etr", label: "Submit ETR", icon: <SafetyCertificateOutlined /> }] : []),
     { key: "edit", label: "Edit", icon: <EditOutlined /> },
+    ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
   ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -216,6 +220,7 @@ const MobileInvoiceCard: React.FC<{
     if (key === "pay") onPay(record);
     if (key === "edit") onEdit(record);
     if (key === "etr") onEtr(record);
+    if (key === "delete") setDeleteTarget(record);
   };
 
   return (
@@ -243,6 +248,17 @@ const MobileInvoiceCard: React.FC<{
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <StatusTag status={record.status} />
+          {record.status !== "Draft" && (
+            record.etr_enabled ? (
+              <Tag color="green" style={{ fontSize: 9, borderRadius: 4 }}>
+                ETR
+              </Tag>
+            ) : (
+              <Tag color="orange" style={{ fontSize: 9, borderRadius: 4 }}>
+                No ETR
+              </Tag>
+            )
+          )}
           <Dropdown
             menu={{ items: actionItems, onClick: handleMenuClick }}
             trigger={["click"]}
@@ -338,10 +354,57 @@ const PaymentModal: React.FC<{
 }> = ({ invoice, open, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const { message } = App.useApp();
+  const queryClient = useQueryClient();
+  const [addDepositAccountOpen, setAddDepositAccountOpen] = useState(false);
+  
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const shopId = tenant?.shop_id || "";
+  
   const { data: methodsData } = useQuery({
     queryKey: ["payment-methods"], queryFn: () => fetchAllPaymentMethods({}), enabled: open,
   });
+  
+     const { data: accountsData } = useQuery({
+         queryKey: ["chart-of-accounts"],
+         queryFn: () => getAllAccounts({}),
+         enabled: open,
+     });
+     
+  const allAccounts = accountsData?.accounts || [];
+
+     const assetAccounts = allAccounts.filter(
+        (a: any) => a.account_type === "ASSET" && a.is_active
+    );
+  const assetAccountOptions = assetAccounts.map((a: any) => ({
+    label: `${a.account_code} — ${a.account_name}`,
+    value: a._id,
+  }));
+  
   const methodOptions = (methodsData || []).map((m: any) => ({ label: m.name, value: m._id }));
+  
+  // ── Helper: dropdown footer factory ─────────────────────────────────────────
+  const dropdownFooter = (label: string, onAdd: () => void) => (
+    <>
+      <Divider style={{ margin: "4px 0" }} />
+      <Button
+        type="link"
+        icon={<PlusOutlined />}
+        style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onAdd();
+        }}
+      >
+        {label}
+      </Button>
+    </>
+  );
+  
+  const handleAccountAdded = () => {
+    queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
+  };
+  
   const amountDue = invoice?.amount_due ?? invoice?.grand_total ?? 0;
   const mutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => recordInvoicePayment(id, data),
@@ -352,14 +415,24 @@ const PaymentModal: React.FC<{
   });
   const handleOk = async () => {
     const v = await form.validateFields();
-    mutation.mutate({ id: invoice._id, data: { amount: v.amount, method_id: v.method_id, reference: v.reference, notes: v.notes } });
+    mutation.mutate({ 
+      id: invoice._id, 
+      data: { 
+        amount: v.amount, 
+        method_id: v.method_id, 
+        account_id: v.account_id,
+        reference: v.reference, 
+        notes: v.notes,
+      } 
+    });
   };
   return (
+    <>
     <Modal open={open} onCancel={onClose} destroyOnClose
       style={{ top: 20 }} width="min(480px, 96vw)"
       styles={{ body: { padding: "20px 24px" } }}
       title={modalTitle(<DollarOutlined />, C.green, `Record Payment — ${invoice?.order_no}`)}
-      footer={modalFooter(onClose, handleOk, mutation.isPending, "Record Payment", C.green)}
+      footer={modalFooter(onClose, handleOk, mutation.isLoading, "Record Payment", C.green)}
     >
       <div style={{
         background: "#f0fdf4", border: "1px solid #bbf7d0",
@@ -373,6 +446,28 @@ const PaymentModal: React.FC<{
         <Form.Item name="method_id" label="Payment Method" rules={[{ required: true }]}>
           <Select showSearch placeholder="M-Pesa / Bank / Cash"
             options={methodOptions} optionFilterProp="label" style={{ borderRadius: 8 }} />
+        </Form.Item>
+        <Form.Item 
+          name="account_id" 
+          label="Deposit Account"
+          rules={[{ required: true, message: "Select the account receiving payment" }]}
+          tooltip="Choose the cash or bank account where this payment is deposited."
+        >
+          <Select 
+            showSearch 
+            placeholder="e.g. Cash on Hand, Bank, M-Pesa Float"
+            optionFilterProp="label"
+            options={assetAccountOptions}
+            notFoundContent="No asset accounts found — add them in Chart of Accounts"
+            allowClear
+            style={{ borderRadius: 8 }} 
+            dropdownRender={(menu) => (
+              <>
+                {menu}
+                {dropdownFooter("Add Asset Account", () => setAddDepositAccountOpen(true))}
+              </>
+            )}
+          />
         </Form.Item>
         <Form.Item name="amount" label="Amount (KES)"
           rules={[{ required: true }, { type: "number", min: 0.01, max: amountDue }]}>
@@ -389,6 +484,18 @@ const PaymentModal: React.FC<{
         </Form.Item>
       </Form>
     </Modal>
+
+    <AccountFormDrawer
+      open={addDepositAccountOpen}
+      onClose={() => setAddDepositAccountOpen(false)}
+      onSuccess={() => {
+        setAddDepositAccountOpen(false);
+        handleAccountAdded();
+      }}
+      accounts={allAccounts}
+      shopId={shopId}
+    />
+    </>
   );
 };
 
@@ -478,9 +585,15 @@ const InvoicesTable = () => {
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const hasPesa = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
 
+  // Check if user is admin
+  const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : null;
+  const isAdmin = user?.role === "admin";
+
   const [convertTarget, setConvertTarget] = useState<any>(null);
   const [payTarget, setPayTarget] = useState<any>(null);
   const [editTarget, setEditTarget] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [mobileData, setMobileData] = useState<any[]>([]);
@@ -578,6 +691,7 @@ const InvoicesTable = () => {
     ...(record.status !== "Draft" && !record.etr_enabled ? [
       { key: "etr", label: "Submit ETR", icon: <SafetyCertificateOutlined /> },
     ] : []),
+    ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
   ];
 
   const handleRowMenuClick = (key: string, record: any) => {
@@ -586,7 +700,18 @@ const InvoicesTable = () => {
     if (key === "convert") setConvertTarget(record);
     if (key === "pay") setPayTarget(record);
     if (key === "etr") handleEtrSubmit(record);
+    if (key === "delete") setDeleteTarget(record);
   };
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteInvoice(id),
+    onSuccess: () => {
+      message.success("Invoice deleted successfully");
+      setDeleteTarget(null);
+      refreshTable();
+    },
+  });
 
   const desktopColumns = [
     {
@@ -603,7 +728,22 @@ const InvoicesTable = () => {
     },
     {
       title: "Status", dataIndex: "status", hideInSearch: true,
-      render: (status: string) => <StatusTag status={status} />,
+      render: (status: string, record: any) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <StatusTag status={status} />
+          {record.status !== "Draft" && (
+            record.etr_enabled ? (
+              <Tag color="green" style={{ fontSize: 10, borderRadius: 4 }}>
+                ETR
+              </Tag>
+            ) : (
+              <Tag color="orange" style={{ fontSize: 10, borderRadius: 4 }}>
+                No ETR
+              </Tag>
+            )
+          )}
+        </div>
+      ),
     },
     {
       title: "Customer", dataIndex: ["customer_id", "customer_name"], hideInSearch: true,
@@ -669,6 +809,13 @@ const InvoicesTable = () => {
       title: "Table", dataIndex: ["table_id", "name"], key: "table",
       hideInSearch: false, fieldProps: { placeholder: "Enter table name" },
       render: (text: string) => <Text style={{ fontSize: 12 }}>{text || "—"}</Text>,
+    },
+    {
+      title: "ETR Status", dataIndex: "etr_enabled", key: "etr_status",
+      hideInTable: true, valueEnum: {
+        true: { text: "With ETR" },
+        false: { text: "Without ETR" },
+      },
     },
     {
       title: "Closed By", dataIndex: ["served_by", "username"], key: "closed-by", hideInSearch: true,
@@ -925,6 +1072,37 @@ const InvoicesTable = () => {
         onSuccess={() => {}} // No refresh needed for notes from invoice view
         onOpenInvoice={() => {}} // No need to navigate back to invoice from here
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={!!deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        title={modalTitle(<DeleteOutlined />, C.red, "Delete Invoice")}
+        okText="Delete"
+        okButtonProps={{ danger: true, style: { background: C.red, borderColor: C.red } }}
+        onOk={() => deleteTarget && deleteMutation.mutate(deleteTarget._id)}
+        confirmLoading={deleteMutation.isLoading}
+        destroyOnClose
+      >
+        <div style={{ padding: "16px 0" }}>
+          <p style={{ marginBottom: 12 }}>
+            Are you sure you want to delete invoice <strong>{deleteTarget?.order_no}</strong>?
+          </p>
+          <p style={{ fontSize: 12, color: C.subText, marginBottom: 8 }}>
+            This action will:
+          </p>
+          <ul style={{ fontSize: 12, color: C.subText, paddingLeft: 20, marginBottom: 12 }}>
+            <li>Delete all invoice items</li>
+            <li>Reverse stock updates</li>
+            <li>Delete the journal entry</li>
+            <li>Delete associated payments</li>
+            <li>Delete the invoice record</li>
+          </ul>
+          <p style={{ fontSize: 12, color: C.red, fontWeight: 500 }}>
+            This action cannot be undone.
+          </p>
+        </div>
+      </Modal>
     </>
   );
 };
