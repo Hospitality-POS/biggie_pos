@@ -25,6 +25,8 @@ import {
   ReloadOutlined,
   StopOutlined,
   TruckOutlined,
+  InboxOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { ProTable } from "@ant-design/pro-components";
 import type { ActionType, ParamsType } from "@ant-design/pro-components";
@@ -52,6 +54,27 @@ const fmtK = (v: number) => {
   if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
   if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
   return v.toLocaleString("en-KE", { minimumFractionDigits: 0 });
+};
+
+// ── Direction tag ────────────────────────────────────────────────────────────────
+const renderDirection = (direction: string) => {
+  const isSupplier = direction === 'supplier';
+  return (
+    <Tag
+      icon={isSupplier ? <InboxOutlined /> : <UserOutlined />}
+      style={{
+        background: isSupplier ? "#eff6ff" : "#f0fdf4",
+        color: isSupplier ? "#1d4ed8" : "#10b981",
+        border: "none",
+        borderRadius: 5,
+        fontSize: 10,
+        fontWeight: 600,
+        padding: "1px 7px",
+      }}
+    >
+      {isSupplier ? "Supplier" : "Customer"}
+    </Tag>
+  );
 };
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -169,9 +192,16 @@ const ExpandedRow: React.FC<{ record: PurchaseOrder; isMobile?: boolean }> = ({ 
         gap: 8,
         marginBottom: 14,
       }}>
-        <InfoPill label="Supplier" value={record.supplier_id?.name || "N/A"} />
-        {record.supplier_id?.contact && (
+        {record.direction === 'supplier' ? (
+          <InfoPill label="Supplier" value={record.supplier_id?.name || "N/A"} />
+        ) : (
+          <InfoPill label="Customer" value={record.customer_id?.customer_name || "N/A"} />
+        )}
+        {record.direction === 'supplier' && record.supplier_id?.contact && (
           <InfoPill label="Contact" value={record.supplier_id.contact} />
+        )}
+        {record.direction === 'customer' && record.customer_id?.phone && (
+          <InfoPill label="Phone" value={record.customer_id.phone} />
         )}
         <InfoPill
           label="Created"
@@ -468,10 +498,13 @@ const POCard: React.FC<{
             >
               {record.po_number}
             </Tag>
+            {renderDirection(record.direction || 'supplier')}
             {renderStatus(record.status)}
           </Space>
           <Text style={{ fontSize: 13, color: "#374151", display: "block" }}>
-            {record.supplier_id?.name || "No supplier"}
+            {record.direction === 'supplier' 
+              ? (record.supplier_id?.name || "No supplier")
+              : (record.customer_id?.customer_name || "No customer")}
           </Text>
           {record.expected_delivery_date && (
             <Text style={{ fontSize: 11, color: isOverdue ? "#ef4444" : "#94a3b8" }}>
@@ -909,14 +942,31 @@ export const PurchaseOrderTable: React.FC<PurchaseOrderTableProps> = ({
           ),
         },
         {
-          title: "Supplier",
-          dataIndex: ["supplier_id", "name"],
+          title: "Direction",
+          dataIndex: "direction",
+          width: 100,
+          filters: [
+            { text: "Supplier", value: "supplier" },
+            { text: "Customer", value: "customer" },
+          ],
+          onFilter: (value: any, record: PurchaseOrder) => record.direction === value,
+          render: (direction: string) => renderDirection(direction || 'supplier'),
+        },
+        {
+          title: "Counterparty",
+          dataIndex: "supplier_id",
           width: 150,
           search: false,
           ellipsis: true,
-          render: (text: string) => (
-            <Text style={{ fontSize: 13, color: "#374151" }}>{text || "N/A"}</Text>
-          ),
+          render: (_: any, record: PurchaseOrder) => {
+            const isSupplier = record.direction === 'supplier';
+            const name = isSupplier 
+              ? record.supplier_id?.name 
+              : record.customer_id?.customer_name;
+            return (
+              <Text style={{ fontSize: 13, color: "#374151" }}>{name || "N/A"}</Text>
+            );
+          },
         },
         {
           title: "Status",

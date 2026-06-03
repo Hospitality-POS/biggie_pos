@@ -59,13 +59,38 @@ const DeliveryNoteContent = React.forwardRef<
   );
   const deliveryCode = record.code || `DN-${record._id?.slice(-6).toUpperCase()}`;
 
+  const isCustomer = record.direction === 'customer';
+  
+  const displayDeliveredBy = () => {
+    if (!record.delivered_by) return "—";
+    if (isCustomer) {
+      // Customer delivery: delivered_by is a user ObjectId
+      return record.delivered_by?.fullname || record.delivered_by || "—";
+    } else {
+      // Supplier delivery: delivered_by is a string (driver name)
+      return record.delivered_by;
+    }
+  };
+
+  const displayReceivedBy = () => {
+    if (!record.received_by) return "—";
+    if (isCustomer) {
+      // Customer delivery: received_by is a string (customer name)
+      return record.received_by;
+    } else {
+      // Supplier delivery: received_by is a user ObjectId
+      return record.received_by?.fullname || record.received_by || "—";
+    }
+  };
+
   const metaRows = [
     { label: "Date", value: fmtDate(record.createdAt) },
     { label: "Status", value: record.delivery_status ? "✓ Delivered" : "⏳ Pending" },
-    { label: "Delivered By", value: record.delivered_by || "—" },
-    { label: "Received By", value: record.received_by?.fullname || "—" },
-    { label: "Supplier", value: record.supplier_id?.name || "—" },
-    ...(record.supplier_id?.phone ? [{ label: "Supplier Phone", value: record.supplier_id.phone }] : []),
+    { label: "Delivered By", value: displayDeliveredBy() },
+    { label: "Received By", value: displayReceivedBy() },
+    { label: isCustomer ? "Customer" : "Supplier", value: isCustomer ? record.customer_id?.customer_name || "—" : record.supplier_id?.name || "—" },
+    ...(isCustomer && record.customer_id?.phone ? [{ label: "Customer Phone", value: record.customer_id.phone }] : []),
+    ...(!isCustomer && record.supplier_id?.phone ? [{ label: "Supplier Phone", value: record.supplier_id.phone }] : []),
   ];
 
   const thStyle: React.CSSProperties = {
@@ -517,19 +542,38 @@ const ExpandedDeliveryItems = ({ record }: { record: any }) => {
 
       {/* Meta pills */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-        {[
-          { icon: <TruckOutlined />, label: "Delivered by", value: record.delivered_by, color: C.blue, bg: "#eff6ff" },
-          { icon: <UserOutlined />, label: "Received by", value: record?.received_by?.fullname, color: C.indigo, bg: "#eef2ff" },
-          { icon: <InboxOutlined />, label: "Supplier", value: record?.supplier_id?.name, color: C.orange, bg: "#fff7ed" },
-        ]
-          .filter((m) => m.value)
-          .map((m, i) => (
+        {(() => {
+          const isCustomer = record.direction === 'customer';
+          const displayDeliveredBy = () => {
+            if (!record.delivered_by) return null;
+            if (isCustomer) {
+              return record.delivered_by?.fullname || record.delivered_by;
+            } else {
+              return record.delivered_by;
+            }
+          };
+          const displayReceivedBy = () => {
+            if (!record.received_by) return null;
+            if (isCustomer) {
+              return record.received_by;
+            } else {
+              return record.received_by?.fullname || record.received_by;
+            }
+          };
+          
+          const pills = [
+            { icon: <TruckOutlined />, label: "Delivered by", value: displayDeliveredBy(), color: C.blue, bg: "#eff6ff" },
+            { icon: <UserOutlined />, label: "Received by", value: displayReceivedBy(), color: C.indigo, bg: "#eef2ff" },
+            { icon: <InboxOutlined />, label: isCustomer ? "Customer" : "Supplier", value: isCustomer ? record?.customer_id?.customer_name : record?.supplier_id?.name, color: C.orange, bg: "#fff7ed" },
+          ];
+          return pills.filter((m) => m.value).map((m, i) => (
             <Space key={i} size={6} style={{ background: m.bg, borderRadius: 7, padding: "5px 10px" }}>
               <span style={{ color: m.color, fontSize: 13 }}>{m.icon}</span>
               <Text style={{ fontSize: 11, color: C.subText }}>{m.label}:</Text>
               <Text strong style={{ fontSize: 12, color: C.darkText }}>{m.value}</Text>
             </Space>
-          ))}
+          ));
+        })()}
       </div>
 
       {/* Items list */}

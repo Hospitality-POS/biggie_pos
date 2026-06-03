@@ -108,7 +108,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...dukaRoutes, helpRoute],
       },
     };
   }
@@ -119,7 +119,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...pesaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...pesaRoutes, helpRoute],
       },
     };
   }
@@ -130,10 +130,11 @@ const useAdminProLayoutNav = () => {
   if (hasDuka && hasPesa) {
     console.log("[AdminNav] ✅ Duka + Pesa (POS + Accounting)");
     const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...commonRoutes, ...pesaWithoutDocs, helpRoute],
+        routes: [...commonRoutes, ...dukaWithoutDocs, ...pesaWithoutDocs, helpRoute],
       },
     };
   }
@@ -144,7 +145,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...mtejaRoutes, ...dalaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...mtejaRoutes, ...dalaRoutes, helpRoute],
       },
     };
   }
@@ -155,7 +156,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...dalaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...dukaRoutes, ...dalaRoutes, helpRoute],
       },
     };
   }
@@ -167,7 +168,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...pesaWithoutDocs, ...dalaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...pesaWithoutDocs, ...dalaRoutes, helpRoute],
       },
     };
   }
@@ -176,10 +177,11 @@ const useAdminProLayoutNav = () => {
   if (hasDuka && hasPesa && hasDala) {
     console.log("[AdminNav] ✅ Duka + Pesa + Dala (POS + Accounting + Real Estate)");
     const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...pesaWithoutDocs, ...dalaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...dukaWithoutDocs, ...pesaWithoutDocs, ...dalaRoutes, helpRoute],
       },
     };
   }
@@ -187,11 +189,11 @@ const useAdminProLayoutNav = () => {
   // ── FALLBACK: no modules or unexpected combination ─────────────────────────────
   console.log("[AdminNav] ⚠️ Fallback — no modules or unexpected combination");
   const routesToShow = [
+    ...commonRoutes,
     ...(hasDuka ? dukaRoutes : []),
     ...(hasPesa ? pesaRoutes : []),
     ...(hasDala ? dalaRoutes : []),
     ...(hasMteja ? mtejaRoutes : []),
-    ...commonRoutes,
     helpRoute,
   ];
   // Deduplicate routes based on path

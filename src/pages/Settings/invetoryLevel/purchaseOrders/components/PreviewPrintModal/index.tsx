@@ -65,7 +65,9 @@ interface POItem {
 interface PO {
     _id: string;
     po_number: string;
-    supplier_id: { name: string; phone?: string; email?: string };
+    direction?: 'supplier' | 'customer';
+    supplier_id?: { name: string; phone?: string; email?: string } | null;
+    customer_id?: { customer_name: string; phone?: string; email?: string; address?: any } | null;
     status: string;
     po_items: POItem[];
     total_amount: number;
@@ -433,56 +435,81 @@ const deliverySummaryItems = (po: PO): [string, string | number][] => [
 ];
 
 // ── Single PO render ──────────────────────────────────────────────────────────
-const renderSinglePO = (po: PO, brand: string, isMobile?: boolean) => (
-    <div>
-        <DocHeader brand={brand} docTitle="PURCHASE ORDER" />
-        <div style={{ textAlign: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 800, color: C.primary }}>{po.po_number}</div>
+const renderSinglePO = (po: PO, brand: string, isMobile?: boolean) => {
+    const isCustomer = po.direction === 'customer';
+    const counterpartyName = isCustomer ? po.customer_id?.customer_name : po.supplier_id?.name;
+    const counterpartyContact = isCustomer ? po.customer_id?.phone : po.supplier_id?.phone;
+    const counterpartyEmail = isCustomer ? po.customer_id?.email : po.supplier_id?.email;
+    const counterpartyLabel = isCustomer ? 'Customer' : 'Supplier';
+    const directionLabel = isCustomer ? 'Customer (Sales)' : 'Supplier (Purchase)';
+    const docTitle = isCustomer ? 'SALES ORDER' : 'PURCHASE ORDER';
+
+    return (
+        <div>
+            <DocHeader brand={brand} docTitle={docTitle} />
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+                <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 800, color: C.primary }}>{po.po_number}</div>
+                <div style={{ fontSize: 11, color: C.subText, marginTop: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {directionLabel}
+                </div>
+            </div>
+            <InfoGrid
+                left={[
+                    [counterpartyLabel, counterpartyName || "N/A"],
+                    ["Contact", counterpartyContact || "N/A"],
+                    ["Email", counterpartyEmail || "N/A"],
+                ]}
+                right={[
+                    ["Status", po.status?.replace(/_/g, " ").toUpperCase() || "N/A"],
+                    ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
+                    ["Created By", po.created_by?.fullname || "Unknown"],
+                    ["Date", new Date(po.createdAt).toLocaleDateString()],
+                ]}
+            />
+            <POItemsTable po={po} isMobile={isMobile} />
+            <NotesBlock notes={po.notes} />
+            <PrintFooter />
         </div>
-        <InfoGrid
-            left={[
-                ["Supplier", po.supplier_id?.name || "N/A"],
-                ["Contact", po.supplier_id?.phone || "N/A"],
-                ["Email", po.supplier_id?.email || "N/A"],
-            ]}
-            right={[
-                ["Status", po.status?.replace(/_/g, " ").toUpperCase() || "N/A"],
-                ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
-                ["Created By", po.created_by?.fullname || "Unknown"],
-                ["Date", new Date(po.createdAt).toLocaleDateString()],
-            ]}
-        />
-        <POItemsTable po={po} isMobile={isMobile} />
-        <NotesBlock notes={po.notes} />
-        <PrintFooter />
-    </div>
-);
+    );
+};
 
 // ── Items only render ─────────────────────────────────────────────────────────
-const renderItemsOnly = (po: PO, brand: string, isMobile?: boolean) => (
-    <div>
-        <DocHeader brand={brand} docTitle="PO ITEMS DETAIL" />
-        <div style={{ textAlign: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 800, color: C.primary }}>{po.po_number}</div>
+const renderItemsOnly = (po: PO, brand: string, isMobile?: boolean) => {
+    const isCustomer = po.direction === 'customer';
+    const counterpartyName = isCustomer ? po.customer_id?.customer_name : po.supplier_id?.name;
+    const counterpartyContact = isCustomer ? po.customer_id?.phone : po.supplier_id?.phone;
+    const counterpartyLabel = isCustomer ? 'Customer' : 'Supplier';
+    const directionLabel = isCustomer ? 'Customer (Sales)' : 'Supplier (Purchase)';
+    const docTitle = isCustomer ? 'SALES ORDER ITEMS' : 'PO ITEMS DETAIL';
+
+    return (
+        <div>
+            <DocHeader brand={brand} docTitle={docTitle} />
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+                <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 800, color: C.primary }}>{po.po_number}</div>
+                <div style={{ fontSize: 11, color: C.subText, marginTop: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {directionLabel}
+                </div>
+            </div>
+            <InfoGrid
+                left={[
+                    [counterpartyLabel, counterpartyName || "N/A"],
+                    ["Contact", counterpartyContact || "N/A"],
+                    ["Status", po.status?.replace(/_/g, " ").toUpperCase() || "N/A"],
+                ]}
+                right={[
+                    ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
+                    ["Created By", po.created_by?.fullname || "Unknown"],
+                    ["Date", new Date(po.createdAt).toLocaleDateString()],
+                ]}
+            />
+            <POItemsTable po={po} showDeliveryStatus showSKU isMobile={isMobile} />
+            <SummaryBox items={deliverySummaryItems(po)} />
+            <NotesBlock notes={po.notes} />
+            <PrintFooter />
         </div>
-        <InfoGrid
-            left={[
-                ["Supplier", po.supplier_id?.name || "N/A"],
-                ["Contact", po.supplier_id?.phone || "N/A"],
-                ["Status", po.status?.replace(/_/g, " ").toUpperCase() || "N/A"],
-            ]}
-            right={[
-                ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
-                ["Created By", po.created_by?.fullname || "Unknown"],
-                ["Date", new Date(po.createdAt).toLocaleDateString()],
-            ]}
-        />
-        <POItemsTable po={po} showDeliveryStatus showSKU isMobile={isMobile} />
-        <SummaryBox items={deliverySummaryItems(po)} />
-        <NotesBlock notes={po.notes} />
-        <PrintFooter />
-    </div>
-);
+    );
+};
 
 // ── Bulk PO render ────────────────────────────────────────────────────────────
 const renderBulkPOs = (pos: PO[], brand: string, isMobile?: boolean) => (
@@ -491,35 +518,44 @@ const renderBulkPOs = (pos: PO[], brand: string, isMobile?: boolean) => (
         <div style={{ textAlign: "center", marginBottom: 20, fontSize: 13, color: C.subText }}>
             {pos.length} Purchase Order{pos.length !== 1 ? "s" : ""} &nbsp;·&nbsp; Generated {new Date().toLocaleString()}
         </div>
-        {pos.map((po, index) => (
-            <div key={po._id} style={{
-                marginBottom: 40,
-                border: `2px solid ${C.tableBorder}`,
-                borderRadius: 12,
-                padding: isMobile ? 16 : 24,
-                pageBreakBefore: index > 0 ? "always" : "auto",
-                background: "#fff",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-            }}>
-                <POBanner po={po} showMeta />
-                <InfoGrid
-                    left={[
-                        ["Supplier", po.supplier_id?.name || "N/A"],
-                        ["Contact", po.supplier_id?.phone || "N/A"],
-                        ["Email", po.supplier_id?.email || "N/A"],
-                    ]}
-                    right={[
-                        ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
-                        ["Created By", po.created_by?.fullname || "Unknown"],
-                        ["Date", new Date(po.createdAt).toLocaleDateString()],
-                        ["Progress", `${po.delivery_percentage || 0}%`],
-                    ]}
-                />
-                <POItemsTable po={po} showSKU isMobile={isMobile} />
-                <NotesBlock notes={po.notes} />
-                <SummaryBox items={deliverySummaryItems(po)} />
-            </div>
-        ))}
+        {pos.map((po, index) => {
+            const isCustomer = po.direction === 'customer';
+            const counterpartyName = isCustomer ? po.customer_id?.customer_name : po.supplier_id?.name;
+            const counterpartyContact = isCustomer ? po.customer_id?.phone : po.supplier_id?.phone;
+            const counterpartyEmail = isCustomer ? po.customer_id?.email : po.supplier_id?.email;
+            const counterpartyLabel = isCustomer ? 'Customer' : 'Supplier';
+            const directionLabel = isCustomer ? 'Customer (Sales)' : 'Supplier (Purchase)';
+            
+            return (
+                <div key={po._id} style={{
+                    marginBottom: 40,
+                    border: `2px solid ${C.tableBorder}`,
+                    borderRadius: 12,
+                    padding: isMobile ? 16 : 24,
+                    pageBreakBefore: index > 0 ? "always" : "auto",
+                    background: "#fff",
+                    boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+                }}>
+                    <POBanner po={po} showMeta />
+                    <InfoGrid
+                        left={[
+                            [counterpartyLabel, counterpartyName || "N/A"],
+                            ["Contact", counterpartyContact || "N/A"],
+                            ["Email", counterpartyEmail || "N/A"],
+                        ]}
+                        right={[
+                            ["Expected", po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : "Not set"],
+                            ["Created By", po.created_by?.fullname || "Unknown"],
+                            ["Date", new Date(po.createdAt).toLocaleDateString()],
+                            ["Progress", `${po.delivery_percentage || 0}%`],
+                        ]}
+                    />
+                    <POItemsTable po={po} showSKU isMobile={isMobile} />
+                    <NotesBlock notes={po.notes} />
+                    <SummaryBox items={deliverySummaryItems(po)} />
+                </div>
+            );
+        })}
         <PrintFooter label="End of Report —" />
     </div>
 );
@@ -538,10 +574,13 @@ const getPoEmailMeta = (type: string, data: PO | PO[] | null) => {
         };
     }
     const po = data as PO;
+    const isCustomer = po.direction === 'customer';
+    const counterpartyName = isCustomer ? po.customer_id?.customer_name : po.supplier_id?.name;
     return {
         poMeta: {
             poNumber: po.po_number,
-            supplierName: po.supplier_id?.name,
+            counterpartyName: counterpartyName,
+            direction: po.direction || 'supplier',
             totalAmount: po.total_amount || 0,
             deliveryPercentage: po.delivery_percentage || 0,
         },

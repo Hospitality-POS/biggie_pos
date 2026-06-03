@@ -31,7 +31,8 @@ export interface InvoiceItem {
     product_id?: { _id: string; name: string; price?: number };
     description?: string;
     quantity: number;
-    price: number;
+    price?: number;
+    unit_price?: number;
     vat_amount?: number;
 }
 
@@ -189,7 +190,7 @@ export const resolveParty = (inv: InvoiceForPrint) => {
     const c = inv.customer_id;
     if (c && typeof c === "object") {
         return {
-            label: "Customer",
+            label: "",
             name: c.customer_name || c.name || "—",
             phone: c.phone || c.customer_phone || "",
             email: c.email || c.customer_email || "",
@@ -200,7 +201,7 @@ export const resolveParty = (inv: InvoiceForPrint) => {
         };
     }
     return {
-        label: "Customer",
+        label: "",
         name: inv.counterparty_name || "—",
         phone: inv.counterparty_phone || "",
         email: inv.counterparty_email || "",
@@ -282,7 +283,7 @@ const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
                             </td>
                             <td style={{ padding: "7px 10px", textAlign: "center", borderBottom: "1px solid #f1f5f9" }}>{item.quantity}</td>
                             <td style={{ padding: "7px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9" }}>
-                                {fmt(item.price)}
+                                {fmt(item.unit_price || item.price)}
                             </td>
                             <td style={{ padding: "7px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9", color: "#3b82f6" }}>
                                 {(item.vat_amount || 0) > 0 ? fmt(item.vat_amount!) : "—"}
@@ -348,6 +349,39 @@ const TotalsBlock = ({ inv, accentColor }: { inv: InvoiceForPrint; accentColor: 
     </div>
 );
 
+const PaybillAccountBlock = ({
+    sys,
+    bgColor = "#f8fafc",
+    borderColor = "#e2e8f0",
+    accentColor = C.primary,
+}: {
+    sys: SystemDetails;
+    bgColor?: string;
+    borderColor?: string;
+    accentColor?: string;
+}) => {
+    if (!sys.Paybill_bs) return null;
+
+    return (
+        <div style={{ marginTop: 20, textAlign: "center" }}>
+            <div
+                style={{
+                    display: "inline-block",
+                    background: bgColor,
+                    border: `1px solid ${borderColor}`,
+                    borderRadius: 7,
+                    padding: "9px 12px",
+                }}
+            >
+                <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Paybill / Account</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: accentColor }}>
+                    {sys.Paybill_bs} / {sys.Paybill_ac || "—"}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const PaymentDetailsBlock = ({
     inv,
     sys,
@@ -379,7 +413,7 @@ const PaymentDetailsBlock = ({
                 Payment Details
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const, marginBottom: 14 }}>
-                {sys.TILL_NO && (
+                {sys.TILL_NO && !sys.Paybill_bs && (
                     <div
                         style={{
                             flex: "1 1 120px",
@@ -393,20 +427,30 @@ const PaymentDetailsBlock = ({
                         <div style={{ fontSize: 15, fontWeight: 700, color: accentColor }}>{sys.TILL_NO}</div>
                     </div>
                 )}
-                {sys.Paybill_bs && (
+                {inv.etr_enabled && inv.digitax?.offline_url && (
                     <div
                         style={{
-                            flex: "1 1 140px",
+                            flex: "1 1 120px",
                             background: bgColor,
                             border: `1px solid ${borderColor}`,
                             borderRadius: 7,
                             padding: "9px 12px",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
                         }}
                     >
-                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Paybill / Account</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: accentColor }}>
-                            {sys.Paybill_bs} / {sys.Paybill_ac || "—"}
-                        </div>
+                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>Scan to Verify</div>
+                        <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(inv.digitax.offline_url)}`}
+                            alt="ETR QR Code"
+                            style={{ width: 80, height: 80, display: "block" }}
+                        />
+                        {inv.digitax.serial_number && (
+                            <div style={{ fontSize: 9, color: C.subText, marginTop: 4, fontFamily: "monospace" }}>
+                                CU: {inv.digitax.serial_number}
+                            </div>
+                        )}
                     </div>
                 )}
                 <div
@@ -557,37 +601,20 @@ const PaymentDetailsBlock = ({
                 </>
             )}
 
-            {/* Notes / Terms */}
-            {(inv.notes || inv.terms) && (
-                <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" as const }}>
-                    {inv.notes && (
-                        <div
-                            style={{
-                                flex: "1 1 200px",
-                                background: "#fffbeb",
-                                border: "1px solid #fde68a",
-                                borderRadius: 7,
-                                padding: "9px 12px",
-                            }}
-                        >
-                            <div style={{ fontSize: 10, fontWeight: 700, color: "#92400e", marginBottom: 3 }}>Notes</div>
-                            <div style={{ fontSize: 12, color: "#78350f" }}>{inv.notes}</div>
-                        </div>
-                    )}
-                    {inv.terms && (
-                        <div
-                            style={{
-                                flex: "1 1 200px",
-                                background: bgColor,
-                                border: `1px solid ${borderColor}`,
-                                borderRadius: 7,
-                                padding: "9px 12px",
-                            }}
-                        >
-                            <div style={{ fontSize: 10, fontWeight: 700, color: C.subText, marginBottom: 3 }}>Terms</div>
-                            <div style={{ fontSize: 12, color: C.darkText }}>{inv.terms}</div>
-                        </div>
-                    )}
+            {/* Notes */}
+            {inv.notes && (
+                <div style={{ marginTop: 14 }}>
+                    <div
+                        style={{
+                            background: "#fffbeb",
+                            border: "1px solid #fde68a",
+                            borderRadius: 7,
+                            padding: "9px 12px",
+                        }}
+                    >
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#92400e", marginBottom: 3 }}>Notes</div>
+                        <div style={{ fontSize: 12, color: "#78350f" }}>{inv.notes}</div>
+                    </div>
                 </div>
             )}
         </div>
@@ -614,9 +641,6 @@ const Footer = ({ sys, borderColor = C.border }: { sys: SystemDetails; borderCol
         </div>
         <div style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>Thank you for your business!</div>
         <div style={{ fontSize: 11, color: C.subText }}>
-            {sys.Paybill_bs && sys.Paybill_ac && (
-                <span>Paybill: {sys.Paybill_bs} · Acc: {sys.Paybill_ac} · </span>
-            )}
             Printed {new Date().toLocaleDateString("en-KE")}
         </div>
     </div>
@@ -719,22 +743,6 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
                     {inv.due_date && (
                         <div style={{ fontSize: 11, opacity: 0.75 }}>Due: {fmtDateShort(inv.due_date)}</div>
                     )}
-                    {inv.status && (
-                        <div
-                            style={{
-                                marginTop: 4,
-                                display: "inline-block",
-                                background: inv.status === "Paid" ? "#10b981" : "rgba(255,255,255,0.15)",
-                                border: inv.status !== "Paid" ? `1px solid ${accentColor}` : "none",
-                                borderRadius: 4,
-                                padding: "2px 8px",
-                                fontSize: 10,
-                                fontWeight: 700,
-                            }}
-                        >
-                            {inv.status.toUpperCase()}
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -814,8 +822,8 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
             <ItemsTable inv={inv} />
             <TotalsBlock inv={inv} accentColor={C.primary} />
             <PaymentDetailsBlock inv={inv} sys={sys} accentColor={C.primary} />
+            <PaybillAccountBlock sys={sys} accentColor={C.primary} />
             <Footer sys={sys} />
-            <EtrQrCode inv={inv} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -871,23 +879,6 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
                     <div style={{ fontSize: 28, fontWeight: 700, color: navy, letterSpacing: "-0.5px" }}>{docLabel}</div>
                     <div style={{ fontSize: 12, color: C.subText, marginTop: 2 }}>{inv.order_no || inv.invoice_no}</div>
                     <div style={{ fontSize: 11, color: C.subText }}>{fmtDate(inv.issue_date || inv.createdAt)}</div>
-                    {inv.status && (
-                        <span
-                            style={{
-                                background: "#eff6ff",
-                                color: C.blue,
-                                border: "1px solid #bfdbfe",
-                                borderRadius: 4,
-                                padding: "2px 8px",
-                                fontSize: 10,
-                                fontWeight: 700,
-                                marginTop: 4,
-                                display: "inline-block",
-                            }}
-                        >
-                            {inv.status}
-                        </span>
-                    )}
                 </div>
             </div>
 
@@ -945,7 +936,7 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
                     )}
                     {inv.terms && (
                         <div style={{ fontSize: 12 }}>
-                            Terms: <strong>{inv.terms}</strong>
+                            : <strong>{inv.terms}</strong>
                         </div>
                     )}
                     {inv.served_by && (
@@ -959,8 +950,8 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
             <ItemsTable inv={inv} />
             <TotalsBlock inv={inv} accentColor={navy} />
             <PaymentDetailsBlock inv={inv} sys={sys} accentColor={navy} />
+            <PaybillAccountBlock sys={sys} accentColor={navy} />
             <Footer sys={sys} />
-            <EtrQrCode inv={inv} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -1045,26 +1036,14 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
                                 <div style={{ fontWeight: 700, fontSize: 12, color: C.red }}>{fmtDateShort(inv.due_date)}</div>
                             </div>
                         )}
-                        {inv.status && (
-                            <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "10px 14px", minWidth: 90 }}>
-                                <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Status</div>
-                                <div style={{ fontWeight: 700, fontSize: 12, color: C.blue }}>{inv.status}</div>
-                            </div>
-                        )}
-                        {inv.terms && (
-                            <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", minWidth: 110 }}>
-                                <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Terms</div>
-                                <div style={{ fontWeight: 700, fontSize: 12 }}>{inv.terms}</div>
-                            </div>
-                        )}
-                    </div>
+                                            </div>
                 </div>
 
                 <ItemsTable inv={inv} />
                 <TotalsBlock inv={inv} accentColor={C.blue} />
                 <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#eff6ff" borderColor="#bfdbfe" accentColor={C.blue} />
+                <PaybillAccountBlock sys={sys} bgColor="#eff6ff" borderColor="#bfdbfe" accentColor={C.blue} />
                 <Footer sys={sys} borderColor="#bfdbfe" />
-                <EtrQrCode inv={inv} />
             </div>
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
@@ -1187,23 +1166,6 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                     {inv.due_date && (
                         <div style={{ fontSize: 12, color: C.subText, marginTop: 2 }}>by {fmtDateShort(inv.due_date)}</div>
                     )}
-                    {inv.status && (
-                        <div
-                            style={{
-                                display: "inline-block",
-                                marginTop: 6,
-                                background: C.bg,
-                                border: `1px solid ${C.border}`,
-                                borderRadius: 4,
-                                padding: "2px 8px",
-                                fontSize: 10,
-                                fontWeight: 700,
-                                color: charcoal,
-                            }}
-                        >
-                            {inv.status}
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -1213,8 +1175,8 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                 <PaymentDetailsBlock inv={inv} sys={sys} accentColor={charcoal} />
             </div>
 
+            <PaybillAccountBlock sys={sys} accentColor={charcoal} />
             <Footer sys={sys} />
-            <EtrQrCode inv={inv} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:14mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -1313,30 +1275,14 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
                                 <div style={{ fontSize: 14, fontWeight: 700, color: C.red }}>{fmtDateShort(inv.due_date)}</div>
                             </div>
                         )}
-                        {inv.status && (
-                            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px" }}>
-                                <div style={{ fontSize: 10, textTransform: "uppercase" as const, fontWeight: 700, color: forest, marginBottom: 2 }}>
-                                    Status
-                                </div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: forest }}>{inv.status}</div>
-                            </div>
-                        )}
-                        {inv.terms && (
-                            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px" }}>
-                                <div style={{ fontSize: 10, textTransform: "uppercase" as const, fontWeight: 700, color: forest, marginBottom: 2 }}>
-                                    Terms
-                                </div>
-                                <div style={{ fontSize: 12, color: forest }}>{inv.terms}</div>
-                            </div>
-                        )}
                     </div>
                 </div>
 
                 <ItemsTable inv={inv} />
                 <TotalsBlock inv={inv} accentColor={forest} />
                 <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#f0fdf4" borderColor="#bbf7d0" accentColor={forest} />
+                <PaybillAccountBlock sys={sys} bgColor="#f0fdf4" borderColor="#bbf7d0" accentColor={forest} />
                 <Footer sys={sys} borderColor="#d1fae5" />
-                <EtrQrCode inv={inv} />
             </div>
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
@@ -1347,6 +1293,14 @@ Template5Forest.displayName = "Template5Forest";
 
 // ── Template meta ──────────────────────────────────────────────────────────
 export const TEMPLATES = [
+    {
+        id: 4,
+        name: "Minimal",
+        description: "Serif editorial, clean double-rule",
+        component: Template4Minimal,
+        thumbBg: "#f1f5f9",
+        thumbAccent: "#374151",
+    },
     {
         id: 1,
         name: "Classic",
@@ -1370,14 +1324,6 @@ export const TEMPLATES = [
         component: Template3Ocean,
         thumbBg: "#1d4ed8",
         thumbAccent: "#fff",
-    },
-    {
-        id: 4,
-        name: "Minimal",
-        description: "Serif editorial, clean double-rule",
-        component: Template4Minimal,
-        thumbBg: "#f1f5f9",
-        thumbAccent: "#374151",
     },
     {
         id: 5,

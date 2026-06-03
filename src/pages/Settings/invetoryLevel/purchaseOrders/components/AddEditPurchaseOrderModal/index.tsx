@@ -15,6 +15,7 @@ import {
   Divider,
   Form,
   message,
+  Radio,
   Row,
   Select,
   Space,
@@ -28,8 +29,11 @@ import {
   MinusCircleOutlined,
   PlusOutlined,
   ShoppingCartOutlined,
+  InboxOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { fetchAllSuppliers } from "@services/supplier";
+import { fetchAllCustomers } from "@services/customers";
 import { fetchAllInventory } from "@services/inventory";
 import { fetchAllUnits } from "@services/products";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -92,6 +96,7 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
   const [stepFormValues, setStepFormValues] = useState<any>({});
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [direction, setDirection] = useState<'supplier' | 'customer'>('supplier');
   const queryClient = useQueryClient();
 
   const { createPurchaseOrder, updatePurchaseOrder } = usePurchaseOrders();
@@ -107,6 +112,14 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
     queryFn: fetchAllSuppliers,
+    retry: 1,
+    networkMode: "always",
+    enabled: open,
+  });
+
+  const { data: customers } = useQuery({
+    queryKey: ["customers"],
+    queryFn: fetchAllCustomers,
     retry: 1,
     networkMode: "always",
     enabled: open,
@@ -129,6 +142,7 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
   });
 
   const supplierOptions = (suppliers || []).map((s: any) => ({ label: s.name, value: s._id }));
+  const customerOptions = (customers || []).map((c: any) => ({ label: c.customer_name, value: c._id }));
   const inventoryOptions = (inventory || []).map((item: any) => ({
     label: `${item.name}${item.supplier_price ? ` (Last: Ksh.${item.supplier_price})` : ""}`,
     value: item._id,
@@ -147,6 +161,7 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
       form.resetFields();
       setTotalAmount(0);
       setStepFormValues({});
+      setDirection('supplier');
     }
   };
 
@@ -182,7 +197,9 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
         })) || [];
 
       const submitData = {
-        supplier_id: values.supplier_id?.value || values.supplier_id,
+        direction: values.direction || 'supplier',
+        supplier_id: values.direction === 'supplier' ? (values.supplier_id?.value || values.supplier_id) : null,
+        customer_id: values.direction === 'customer' ? (values.customer_id?.value || values.customer_id) : null,
         expected_delivery_date: values.expected_delivery_date,
         notes: values.notes,
         po_items: processedItems,
@@ -210,6 +227,24 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
   };
 
   // ── Label resolvers for confirmation step ─────────────────────────────────
+  const resolveDirectionLabel = (val: any) => {
+    return val === 'customer' ? 'Customer (Sales)' : 'Supplier (Purchase)';
+  };
+
+  const resolveCounterpartyLabel = (val: any, dir: any) => {
+    if (dir === 'customer') {
+      if (typeof val === "object" && val?.label) return val.label;
+      if (typeof val === "string" && customers)
+        return customers.find((c: any) => c._id === val)?.customer_name || "Unknown";
+      return "Not selected";
+    } else {
+      if (typeof val === "object" && val?.label) return val.label;
+      if (typeof val === "string" && suppliers)
+        return suppliers.find((s: any) => s._id === val)?.name || "Unknown";
+      return "Not selected";
+    }
+  };
+
   const resolveSupplierLabel = (val: any) => {
     if (typeof val === "object" && val?.label) return val.label;
     if (typeof val === "string" && suppliers)
@@ -332,47 +367,85 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
             initialValues={
               edit
                 ? {
-                  supplier_id: data?.supplier_id?._id,
+                  direction: data?.direction || 'supplier',
+                  supplier_id: data?.direction === 'supplier' ? data?.supplier_id?._id : undefined,
+                  customer_id: data?.direction === 'customer' ? data?.customer_id?._id : undefined,
                   expected_delivery_date: data?.expected_delivery_date,
                   notes: data?.notes,
                 }
-                : {}
+                : { direction: 'supplier' }
             }
           >
             <Alert
               message="Purchase Order Information"
-              description="Select the supplier and expected delivery date for this order."
+              description="Select the direction (Supplier/Customer) and the appropriate counterparty for this order."
               type="info" showIcon closable style={{ marginBottom: 20, borderRadius: 8 }}
             />
 
             <Row gutter={[16, 0]}>
-              <Col xs={24} md={12}>
-                {/*
-                 * Plain Form.Item + Select replaces ProFormSelect + request.
-                 * ProFormSelect caches its request result — new suppliers added
-                 * via the inline modal won't appear until a page refresh.
-                 * Reading from live React Query data fixes this instantly.
-                 */}
-                <Form.Item
-                  name="supplier_id"
-                  label="Supplier"
-                  rules={[{ required: true, message: "Supplier is required" }]}
-                >
-                  <Select
-                    showSearch
-                    placeholder="Select supplier"
-                    optionFilterProp="label"
-                    options={supplierOptions}
-                    notFoundContent={suppliers ? "No suppliers found" : "Loading..."}
-                    dropdownRender={(menu) => (
-                      <>
-                        {menu}
-                        {addFooter("Add New Supplier", () => setAddSupplierOpen(true))}
-                      </>
-                    )}
-                  />
+              <Col xs={24}>
+                <Form.Item label="Direction" name="direction" initialValue="supplier">
+                  <Radio.Group 
+                    onChange={(e) => setDirection(e.target.value)}
+                    buttonStyle="solid"
+                  >
+                    <Radio.Button value="supplier">
+                      <Space>
+                        <InboxOutlined />
+                        Supplier (Purchase)
+                      </Space>
+                    </Radio.Button>
+                    <Radio.Button value="customer">
+                      <Space>
+                        <UserOutlined />
+                        Customer (Sales)
+                      </Space>
+                    </Radio.Button>
+                  </Radio.Group>
                 </Form.Item>
               </Col>
+            </Row>
+
+            <Row gutter={[16, 0]}>
+              {direction === 'supplier' ? (
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    name="supplier_id"
+                    label="Supplier"
+                    rules={[{ required: true, message: "Supplier is required" }]}
+                  >
+                    <Select
+                      showSearch
+                      placeholder="Select supplier"
+                      optionFilterProp="label"
+                      options={supplierOptions}
+                      notFoundContent={suppliers ? "No suppliers found" : "Loading..."}
+                      dropdownRender={(menu) => (
+                        <>
+                          {menu}
+                          {addFooter("Add New Supplier", () => setAddSupplierOpen(true))}
+                        </>
+                      )}
+                    />
+                  </Form.Item>
+                </Col>
+              ) : (
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    name="customer_id"
+                    label="Customer"
+                    rules={[{ required: true, message: "Customer is required" }]}
+                  >
+                    <Select
+                      showSearch
+                      placeholder="Select customer"
+                      optionFilterProp="label"
+                      options={customerOptions}
+                      notFoundContent={customers ? "No customers found" : "Loading..."}
+                    />
+                  </Form.Item>
+                </Col>
+              )}
               <Col xs={24} md={12}>
                 <ProFormDatePicker
                   name="expected_delivery_date"
@@ -624,9 +697,17 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                       <Row gutter={[16, 8]}>
                         <Col xs={24} sm={12}>
                           <Space size={4} direction="vertical">
-                            <Text style={{ fontSize: 11, color: C.subText }}>Supplier</Text>
+                            <Text style={{ fontSize: 11, color: C.subText }}>Direction</Text>
+                            <Tag color={allValues.direction === 'customer' ? 'green' : 'blue'} style={{ fontSize: 12, fontWeight: 500 }}>
+                              {resolveDirectionLabel(allValues.direction)}
+                            </Tag>
+                          </Space>
+                        </Col>
+                        <Col xs={24} sm={12}>
+                          <Space size={4} direction="vertical">
+                            <Text style={{ fontSize: 11, color: C.subText }}>{allValues.direction === 'customer' ? 'Customer' : 'Supplier'}</Text>
                             <Text strong style={{ fontSize: 13 }}>
-                              {resolveSupplierLabel(allValues.supplier_id)}
+                              {resolveCounterpartyLabel(allValues.direction === 'customer' ? allValues.customer_id : allValues.supplier_id, allValues.direction)}
                             </Text>
                           </Space>
                         </Col>
