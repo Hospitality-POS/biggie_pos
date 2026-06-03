@@ -21,11 +21,17 @@ export interface PurchaseOrderItem {
 export interface PurchaseOrder {
   _id: string;
   po_number: string;
+  direction: 'supplier' | 'customer';
   supplier_id: {
     name: string;
     contact?: string;
     email?: string;
-  };
+  } | null;
+  customer_id: {
+    customer_name: string;
+    phone?: string;
+    email?: string;
+  } | null;
   status: 'pending' | 'approved' | 'partially_delivered' | 'fully_delivered' | 'cancelled';
   po_items: PurchaseOrderItem[];
   total_amount: number;

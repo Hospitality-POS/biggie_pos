@@ -209,7 +209,7 @@ const MobileInvoiceCard: React.FC<{
       { key: "convert", label: "Convert to Invoice", icon: <FileDoneOutlined /> },
     ] : []),
     ...(isPayable ? [{ key: "pay", label: "Record Payment", icon: <DollarOutlined /> }] : []),
-    ...(needsEtr ? [{ key: "etr", label: "Submit ETR", icon: <SafetyCertificateOutlined /> }] : []),
+    ...(needsEtr ? [{ key: "etr", label: "Submit Etims", icon: <SafetyCertificateOutlined /> }] : []),
     { key: "edit", label: "Edit", icon: <EditOutlined /> },
     ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
   ];
@@ -669,10 +669,10 @@ const InvoicesTable = () => {
         // Invalidate specific invoice query to refresh expanded view
         queryClient.invalidateQueries({ queryKey: ["invoice", record._id] });
       } else {
-        message.error(result.error || 'Failed to submit ETR');
+        message.error(result.error || 'Failed to submit Etims');
       }
     } catch (error) {
-      message.error('Failed to submit ETR to KRA');
+      message.error('Failed to submit Etims to KRA');
     } finally {
       setEtrSubmitting(null);
     }
@@ -689,7 +689,7 @@ const InvoicesTable = () => {
       { key: "pay", label: "Record Payment", icon: <DollarOutlined /> },
     ] : []),
     ...(record.status !== "Draft" && !record.etr_enabled ? [
-      { key: "etr", label: "Submit ETR", icon: <SafetyCertificateOutlined /> },
+      { key: "etr", label: "Submit Etims", icon: <SafetyCertificateOutlined /> },
     ] : []),
     ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
   ];

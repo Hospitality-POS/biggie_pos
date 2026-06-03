@@ -9,6 +9,7 @@ import {
     FileDoneOutlined, FileTextOutlined, DollarOutlined,
     CheckCircleOutlined, ArrowRightOutlined, InfoCircleOutlined,
     SafetyCertificateOutlined, WarningOutlined, ReloadOutlined, LinkOutlined,
+    SelectOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -556,59 +557,81 @@ const ManualInvoiceModal: React.FC<Props> = ({ open, onClose, onSuccess }) => {
             dataIndex: "description",
             width: 300,
             render: (_: any, r: LineItem) => (
-                <Select
-                    size="small"
-                    placeholder={inventoryFetching || servicesFetching ? "Loading items..." : "Select item or service"}
-                    value={r.item_id}
-                    onChange={(value: string) => {
-                        if (value === "custom") {
-                            // Handle custom item selection
-                            updateLine(r.key, "item_id" as keyof LineItem, null);
-                            updateLine(r.key, "item_type" as keyof LineItem, "custom");
-                            updateLine(r.key, "description" as keyof LineItem, "");
-                            updateLine(r.key, "unit_price" as keyof LineItem, 0);
-                            return;
+                r.item_type === "custom" ? (
+                    <Input
+                        size="small"
+                        placeholder="Enter custom item description"
+                        value={r.description}
+                        onChange={(e) => updateLine(r.key, "description", e.target.value)}
+                        addonAfter={
+                            <Button
+                                type="text"
+                                size="small"
+                                onClick={() => {
+                                    updateLine(r.key, "item_type", "inventory");
+                                    updateLine(r.key, "item_id", null);
+                                    updateLine(r.key, "description", "");
+                                    updateLine(r.key, "unit_price", 0);
+                                }}
+                            >
+                                <SelectOutlined />
+                            </Button>
                         }
+                    />
+                ) : (
+                    <Select
+                        size="small"
+                        placeholder={inventoryFetching || servicesFetching ? "Loading items..." : "Select item or service"}
+                        value={r.item_id}
+                        onChange={(value: string) => {
+                            if (value === "custom") {
+                                updateLine(r.key, "item_id" as keyof LineItem, null);
+                                updateLine(r.key, "item_type" as keyof LineItem, "custom");
+                                updateLine(r.key, "description" as keyof LineItem, "");
+                                updateLine(r.key, "unit_price" as keyof LineItem, 0);
+                                return;
+                            }
 
-                        const selectedItem = [...inventoryItems, ...services].find(item => item.id === value);
-                        if (selectedItem) {
-                            updateLine(r.key, "item_id" as keyof LineItem, value);
-                            updateLine(r.key, "item_type" as keyof LineItem, selectedItem.type);
-                            updateLine(r.key, "description" as keyof LineItem, selectedItem.name);
-                            updateLine(r.key, "unit_price" as keyof LineItem, selectedItem.price);
-                            updateLine(r.key, "account_id" as keyof LineItem, selectedItem.account_id || "");
+                            const selectedItem = [...inventoryItems, ...services].find(item => item.id === value);
+                            if (selectedItem) {
+                                updateLine(r.key, "item_id" as keyof LineItem, value);
+                                updateLine(r.key, "item_type" as keyof LineItem, selectedItem.type);
+                                updateLine(r.key, "description" as keyof LineItem, selectedItem.name);
+                                updateLine(r.key, "unit_price" as keyof LineItem, selectedItem.price);
+                                updateLine(r.key, "account_id" as keyof LineItem, selectedItem.account_id || "");
+                            }
+                        }}
+                        allowClear
+                        showSearch
+                        loading={inventoryFetching || servicesFetching}
+                        filterOption={(input, option) =>
+                            (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                         }
-                    }}
-                    allowClear
-                    showSearch
-                    loading={inventoryFetching || servicesFetching}
-                    filterOption={(input, option) =>
-                        (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
-                    }
-                    options={[
-                        ...(inventoryItems.length > 0 ? [{
-                            label: "Inventory Items",
-                            options: inventoryItems.map(item => ({
-                                label: `${item.name}${item.sku ? ` (${item.sku})` : ""} - KES${item.price}`,
-                                value: item.id,
-                            })),
-                        }] : []),
-                        ...(services.length > 0 ? [{
-                            label: "Services",
-                            options: services.map(service => ({
-                                label: `${service.name} - KES${service.price}`,
-                                value: service.id,
-                            })),
-                        }] : []),
-                        {
-                            label: "Custom Item",
-                            options: [{
-                                label: "Create custom item...",
-                                value: "custom",
-                            }],
-                        },
-                    ]}
-                />
+                        options={[
+                            ...(inventoryItems.length > 0 ? [{
+                                label: "Inventory Items",
+                                options: inventoryItems.map(item => ({
+                                    label: `${item.name}${item.sku ? ` (${item.sku})` : ""} - KES${item.price}`,
+                                    value: item.id,
+                                })),
+                            }] : []),
+                            ...(services.length > 0 ? [{
+                                label: "Services",
+                                options: services.map(service => ({
+                                    label: `${service.name} - KES${service.price}`,
+                                    value: service.id,
+                                })),
+                            }] : []),
+                            {
+                                label: "Custom Item",
+                                options: [{
+                                    label: "Create custom item...",
+                                    value: "custom",
+                                }],
+                            },
+                        ]}
+                    />
+                )
             ),
         },
         {

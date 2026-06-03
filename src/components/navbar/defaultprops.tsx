@@ -339,8 +339,8 @@ const useProLayoutNav = () => {
 
   // ── POS routes ────────────────────────────────────────────────────────────
   const posRoutesFullAccessBase = [
-    { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
+    { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
     ...(posMode !== "retail"
       ? [{ path: p("/store"), name: isHospitalMode ? "Services" : "Services", icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled />, _bare: "/store" }]
@@ -366,8 +366,8 @@ const useProLayoutNav = () => {
     .map(({ _bare: _b, ...rest }) => rest);
 
   const posRoutesStaffBase = [
-    { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
+    { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
     ...(posMode !== "retail"
       ? [{ path: p("/store"), name: isHospitalMode ? "Services" : "Services", icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled />, _bare: "/store" }]
@@ -392,7 +392,7 @@ const useProLayoutNav = () => {
   // ── Accounting routes ─────────────────────────────────────────────────────
   const buildAccountingRoutes = () => {
     const routesBase = [
-      { path: p("/accounting"), name: "Overview", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
+      { path: p("/accounting"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
       { path: p("/orders"), name: "Invoices", icon: <FileTextOutlined />, _bare: "/orders" },
       { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
       { path: p("/accounting/bills"), name: "Bills", icon: <FileTextOutlined />, _bare: "/accounting/bills" },
