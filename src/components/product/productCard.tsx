@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import Paper from "@mui/material/Paper";
-import { addItemToCart, addQtyCart } from "../../features/Cart/CartActions";
+import { addItemToCart, addQtyCart, createCart, getCart } from "../../features/Cart/CartActions";
 import { useParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { Typography } from "antd";
@@ -97,6 +97,23 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
     setIsProcessing(true);
     try {
+      // ── Ensure cart exists before adding items ─────────────────────────────
+      let cartId = cartDetails?._id;
+      if (!cartId) {
+        const createResult = await dispatch(createCart({
+          table_id: tableId,
+          created_by: user?.id || user?._id,
+        }));
+        if (createResult.type.endsWith('/fulfilled')) {
+          cartId = createResult.payload?._id;
+          // Fetch cart to update state
+          await dispatch(getCart(tableId));
+        } else {
+          console.error('Failed to create cart');
+          return;
+        }
+      }
+
       if (existingCartItem) {
         // ── Item already in cart — increment quantity only, never resend price ──
         // addQtyCart does: existing.quantity + 1 via PUT /cart-item/:id
@@ -109,11 +126,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         // addQtyCart above which only touches quantity, never price.
         await dispatch(
           addItemToCart({
-            cart_id: cartDetails?._id || undefined,
+            cart_id: cartId,
             product_id: menu._id,
             product_type: menu.type === 'product' ? 'Product_Inventory' : 'Product',
             price: menu.price,         // unit price — set exactly once
-            created_by: user?.id,
+            created_by: user?.id || user?._id,
             quantity: formattedQuantity,
             desc: menu.desc,
             table_id: tableId,
