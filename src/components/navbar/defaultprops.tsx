@@ -602,7 +602,6 @@ const useProLayoutNav = () => {
       route: {
         path: "/",
         routes: [
-          { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           { path: p("/customers"), name: "Customers", icon: <UserOutlined />, _bare: "/customers" },
           ...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest),

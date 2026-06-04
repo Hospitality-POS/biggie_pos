@@ -206,6 +206,20 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
   const [namingPattern, setNamingPattern] = useState<'sequential' | 'letters' | 'custom'>('sequential');
   const [viewApartmentsModalVisible, setViewApartmentsModalVisible] = useState(false);
   const [selectedUnitForView, setSelectedUnitForView] = useState<Unit | null>(null);
+  const [editUnitModalVisible, setEditUnitModalVisible] = useState(false);
+  const [selectedUnitForEdit, setSelectedUnitForEdit] = useState<Unit | null>(null);
+  const [editUnitForm, setEditUnitForm] = useState({
+    unitNumber: '',
+    unitType: 'one_bedroom',
+    areaSqm: 0,
+    priceStartPoint: 0,
+    totalUnits: 1,
+    bedrooms: 1,
+    bathrooms: 1,
+    status: 'available',
+  });
+  const [editUnitApartments, setEditUnitApartments] = useState<Apartment[]>([]);
+  const [newAptForm, setNewAptForm] = useState({ apartmentName: '', areaValue: 0, price: 0, status: 'available' as 'available' | 'sold' | 'reserved' });
   const [editApartmentModalVisible, setEditApartmentModalVisible] = useState(false);
   const [selectedApartmentForEdit, setSelectedApartmentForEdit] = useState<any>(null);
   const [editApartmentForm, setEditApartmentForm] = useState({
@@ -755,6 +769,71 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
   const removeUnit = (key: string) => {
     setUnits(units.filter(u => u.key !== key));
     message.success('Unit removed successfully');
+  };
+
+  const openEditUnit = (unit: Unit) => {
+    setSelectedUnitForEdit(unit);
+    setEditUnitForm({
+      unitNumber: unit.unitNumber || '',
+      unitType: unit.unitType || 'one_bedroom',
+      areaSqm: (unit as any).areaSqm || 0,
+      priceStartPoint: unit.priceStartPoint || 0,
+      totalUnits: unit.totalUnits || 1,
+      bedrooms: (unit as any).specifications?.bedrooms ?? (unit as any).bedrooms ?? 1,
+      bathrooms: (unit as any).specifications?.bathrooms ?? (unit as any).bathrooms ?? 1,
+      status: unit.status || 'available',
+    });
+    setEditUnitApartments(unit.apartments ? [...unit.apartments] : []);
+    setNewAptForm({ apartmentName: '', areaValue: 0, price: 0, status: 'available' });
+    setEditUnitModalVisible(true);
+  };
+
+  const handleAddNewApartment = () => {
+    if (!newAptForm.apartmentName.trim()) { message.error('Apartment name is required'); return; }
+    const newApt: Apartment = {
+      key: `apt_${Date.now()}`,
+      apartmentName: newAptForm.apartmentName.trim(),
+      area: newAptForm.areaValue as any,
+      saleListPrice: newAptForm.price,
+      status: newAptForm.status,
+    } as any;
+    setEditUnitApartments(prev => [...prev, newApt]);
+    setNewAptForm({ apartmentName: '', areaValue: 0, price: 0, status: 'available' });
+  };
+
+  const handleRemoveApartmentFromEdit = (key: string | undefined, idx: number) => {
+    setEditUnitApartments(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveUnitEdit = () => {
+    if (!selectedUnitForEdit) return;
+    const hasApts = editUnitApartments.length > 0;
+    setUnits(prev => prev.map(u => {
+      if ((u.key || u._id) === (selectedUnitForEdit.key || selectedUnitForEdit._id)) {
+        return {
+          ...u,
+          unitNumber: editUnitForm.unitNumber,
+          unitType: editUnitForm.unitType,
+          areaSqm: editUnitForm.areaSqm,
+          priceStartPoint: editUnitForm.priceStartPoint,
+          basePrice: editUnitForm.priceStartPoint,
+          totalUnits: hasApts ? editUnitApartments.length : editUnitForm.totalUnits,
+          availableUnits: hasApts ? editUnitApartments.filter(a => a.status === 'available').length : editUnitForm.totalUnits,
+          status: editUnitForm.status,
+          trackIndividualUnits: hasApts,
+          apartments: hasApts ? editUnitApartments : u.apartments,
+          specifications: {
+            ...(u as any).specifications,
+            bedrooms: editUnitForm.bedrooms,
+            bathrooms: editUnitForm.bathrooms,
+          },
+        } as Unit;
+      }
+      return u;
+    }));
+    setEditUnitModalVisible(false);
+    setSelectedUnitForEdit(null);
+    message.success('Unit updated successfully');
   };
 
   const viewApartments = (unit: Unit) => {
@@ -1360,13 +1439,41 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
         title: 'Area (sqm)',
         dataIndex: 'areaSqm',
         key: 'areaSqm',
-        render: (area: number) => `${area?.toLocaleString() || 0} sqm`
+        render: (area: number, record: Unit) => {
+          if (record.trackIndividualUnits && record.apartments && record.apartments.length > 0) {
+            const totalSqm = record.apartments.reduce((sum, apt) => {
+              const a = apt.area;
+              return sum + (typeof a === 'object' ? (a as any)?.value || 0 : a || 0);
+            }, 0);
+            return <span><strong>{totalSqm.toLocaleString()}</strong> sqm <span style={{ color: '#8c8c8c', fontSize: 11 }}>({record.apartments.length} apts)</span></span>;
+          }
+          return `${area?.toLocaleString() || 0} sqm`;
+        }
       }] : []),
-      { title: 'Start Price (KES)', dataIndex: 'priceStartPoint', key: 'priceStartPoint', render: (price: number) => `${price?.toLocaleString() || 0}` },
+      {
+        title: 'Start Price (KES)', dataIndex: 'priceStartPoint', key: 'priceStartPoint',
+        render: (price: number, record: Unit) => {
+          if (record.trackIndividualUnits && record.apartments && record.apartments.length > 0) {
+            const prices = record.apartments
+              .map((a: any) => a.saleListPrice || a.monthlyRent || 0)
+              .filter((p: number) => p > 0);
+            if (prices.length === 0) return <span style={{ color: '#bbb' }}>—</span>;
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            return min === max
+              ? `${min.toLocaleString()}`
+              : <span>{min.toLocaleString()} <span style={{ color: '#8c8c8c' }}>– {max.toLocaleString()}</span></span>;
+          }
+          return price ? price.toLocaleString() : <span style={{ color: '#bbb' }}>—</span>;
+        }
+      },
       {
         title: 'Actions', key: 'actions',
         render: (_: any, record: Unit) => (
           <Space>
+            <Button type="link" icon={<EditOutlined />} onClick={() => openEditUnit(record)} size="small">
+              Edit Unit
+            </Button>
             {record.trackIndividualUnits && record.apartments && (
               <Button type="link" icon={<UnorderedListOutlined />} onClick={() => viewApartments(record)} size="small">
                 View Apartments ({record.apartments.length})
@@ -1801,6 +1908,13 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           destroyOnClose: false,
           centered: true,
           afterClose: () => setCurrentStep(0),
+          styles: {
+            body: {
+              maxHeight: 'calc(100vh - 220px)',
+              overflowY: 'auto',
+              paddingRight: 4,
+            },
+          },
         }}
         autoFocusFirstInput
         width={1200}
@@ -1934,7 +2048,6 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
                           ? 'No types found'
                           : 'Select property type',
                       onChange: (value) => setPropertyType(normalizePropertyType(value)),
-                      disabled: edit,
                     }}
                   />
                 </Col>
@@ -1951,7 +2064,6 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
                 fieldProps={{
                   placeholder: 'Select purpose',
                   onChange: (value: string) => setPropertyPurpose(value),
-                  disabled: edit,
                 }}
                 initialValue={propertyPurpose}
               />
@@ -2109,6 +2221,159 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       {renderApartmentNamingModal()}
       {renderViewApartmentsModal()}
       {renderEditApartmentModal()}
+      <Modal
+        title={<Space><UnorderedListOutlined /> Apartments — {selectedUnitForEdit ? getUnitLabel(selectedUnitForEdit) : ''} ({editUnitApartments.length})</Space>}
+        open={editUnitModalVisible}
+        onCancel={() => { setEditUnitModalVisible(false); setSelectedUnitForEdit(null); }}
+        width={700}
+        styles={{ body: { maxHeight: 'calc(100vh - 240px)', overflowY: 'auto' } }}
+        footer={[
+          <Button key="cancel" onClick={() => setEditUnitModalVisible(false)}>Cancel</Button>,
+          <Button key="save" type="primary" onClick={handleSaveUnitEdit}>Save Changes</Button>,
+        ]}
+      >
+        {/* Add new apartment row */}
+        <div style={{ background: '#fafafa', border: '1px dashed #d9d9d9', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+          <Row gutter={8} align="middle">
+            <Col span={7}>
+              <Input
+                placeholder="Name e.g. L2-02"
+                value={newAptForm.apartmentName}
+                onChange={(e) => setNewAptForm({ ...newAptForm, apartmentName: e.target.value })}
+                onPressEnter={handleAddNewApartment}
+                size="small"
+              />
+            </Col>
+            <Col span={4}>
+              <InputNumber
+                placeholder="Area sqm"
+                value={newAptForm.areaValue}
+                onChange={(v) => setNewAptForm({ ...newAptForm, areaValue: v || 0 })}
+                min={0}
+                style={{ width: '100%' }}
+                size="small"
+              />
+            </Col>
+            <Col span={5}>
+              <InputNumber
+                placeholder="Price (KES)"
+                value={newAptForm.price}
+                onChange={(v) => setNewAptForm({ ...newAptForm, price: v || 0 })}
+                min={0}
+                style={{ width: '100%' }}
+                size="small"
+                formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              />
+            </Col>
+            <Col span={5}>
+              <Select
+                value={newAptForm.status}
+                onChange={(v) => setNewAptForm({ ...newAptForm, status: v })}
+                size="small"
+                style={{ width: '100%' }}
+              >
+                <Select.Option value="available">Available</Select.Option>
+                <Select.Option value="reserved">Reserved</Select.Option>
+                <Select.Option value="sold">Sold</Select.Option>
+              </Select>
+            </Col>
+            <Col span={3}>
+              <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAddNewApartment} style={{ width: '100%' }}>
+                Add
+              </Button>
+            </Col>
+          </Row>
+        </div>
+
+        {/* Apartments list */}
+        <Table
+          dataSource={editUnitApartments}
+          rowKey={(_, i) => String(i)}
+          size="small"
+          pagination={false}
+          locale={{ emptyText: 'No apartments yet — add one above' }}
+          columns={[
+            { title: '#', render: (_: any, __: any, i: number) => i + 1, width: 40 },
+            {
+              title: 'Name', dataIndex: 'apartmentName',
+              render: (name: string, _: Apartment, i: number) => (
+                <Input
+                  value={name}
+                  size="small"
+                  onChange={(e) => {
+                    const updated = [...editUnitApartments];
+                    updated[i] = { ...updated[i], apartmentName: e.target.value };
+                    setEditUnitApartments(updated);
+                  }}
+                />
+              )
+            },
+            {
+              title: 'Area (sqm)', dataIndex: 'area', width: 100,
+              render: (area: any, _: Apartment, i: number) => (
+                <InputNumber
+                  value={typeof area === 'object' ? area?.value : area}
+                  size="small"
+                  min={0}
+                  style={{ width: '100%' }}
+                  onChange={(v) => {
+                    const updated = [...editUnitApartments];
+                    updated[i] = { ...updated[i], area: v || 0 } as Apartment;
+                    setEditUnitApartments(updated);
+                  }}
+                />
+              )
+            },
+            {
+              title: 'Price (KES)', dataIndex: 'saleListPrice', width: 120,
+              render: (price: any, _: Apartment, i: number) => (
+                <InputNumber
+                  value={price || ((_ as any).monthlyRent) || 0}
+                  size="small"
+                  min={0}
+                  style={{ width: '100%' }}
+                  formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  onChange={(v) => {
+                    const updated = [...editUnitApartments];
+                    updated[i] = { ...updated[i], saleListPrice: v || 0, monthlyRent: v || 0 } as any;
+                    setEditUnitApartments(updated);
+                  }}
+                />
+              )
+            },
+            {
+              title: 'Status', dataIndex: 'status', width: 110,
+              render: (status: string, _: Apartment, i: number) => (
+                <Select
+                  value={status}
+                  size="small"
+                  style={{ width: '100%' }}
+                  onChange={(v) => {
+                    const updated = [...editUnitApartments];
+                    updated[i] = { ...updated[i], status: v };
+                    setEditUnitApartments(updated);
+                  }}
+                >
+                  <Select.Option value="available">Available</Select.Option>
+                  <Select.Option value="reserved">Reserved</Select.Option>
+                  <Select.Option value="sold">Sold</Select.Option>
+                </Select>
+              )
+            },
+            {
+              title: '', width: 40,
+              render: (_: any, rec: Apartment, i: number) => (
+                <Button
+                  type="text" danger size="small"
+                  icon={<DeleteOutlined />}
+                  disabled={rec.status === 'sold' || rec.status === 'reserved'}
+                  onClick={() => handleRemoveApartmentFromEdit(rec.key, i)}
+                />
+              )
+            },
+          ]}
+        />
+      </Modal>
     </>
   );
 };

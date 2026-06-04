@@ -81,6 +81,19 @@ export const addNewCustomer = async (params: ParamsType) => {
   }
 };
 
+// Delete customer
+export const deleteCustomer = async (customerId: string) => {
+  try {
+    const response = await axiosInstance.delete(`${categ_url}/${customerId}`);
+    return response;
+  } catch (error: any) {
+    const errorMessage =
+      error?.response?.data?.message || error?.message || "Failed to delete customer";
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
 // Update customer
 export const updateCustomer = async (customerId: string, params: ParamsType) => {
   try {

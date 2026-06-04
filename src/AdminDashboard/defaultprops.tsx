@@ -127,8 +127,44 @@ const useAdminProLayoutNav = () => {
   // ── CASE 4: Duka + Pesa ───────────────────────────────────────────────────
   // FIX: deduplicate Document Center — appears in both dukaRoutes and pesaRoutes.
   // When combined, filter it out of pesaRoutes to avoid duplicate nav items.
-  if (hasDuka && hasPesa) {
+  if (hasDuka && hasPesa && !hasMteja && !hasDala) {
     console.log("[AdminNav] ✅ Duka + Pesa (POS + Accounting)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, ...dukaWithoutDocs, ...pesaWithoutDocs, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 4b: Duka + Mteja ─────────────────────────────────────────────────
+  if (hasDuka && hasMteja && !hasPesa && !hasDala) {
+    console.log("[AdminNav] ✅ Duka + Mteja (POS + CRM)");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, ...dukaRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 4c: Pesa + Mteja ─────────────────────────────────────────────────
+  if (hasPesa && hasMteja && !hasDuka && !hasDala) {
+    console.log("[AdminNav] ✅ Pesa + Mteja (Accounting + CRM)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, ...pesaWithoutDocs, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 4d: Duka + Pesa + Mteja ─────────────────────────────────────────
+  if (hasDuka && hasPesa && hasMteja && !hasDala) {
+    console.log("[AdminNav] ✅ Duka + Pesa + Mteja (POS + Accounting + CRM)");
     const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
     const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
     return {
@@ -145,7 +181,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...commonRoutes, ...mtejaRoutes, ...dalaRoutes, helpRoute],
+        routes: [...commonRoutes, ...dalaRoutes, helpRoute],
       },
     };
   }
@@ -173,9 +209,34 @@ const useAdminProLayoutNav = () => {
     };
   }
 
-  // ── CASE 8: Duka + Pesa + Dala ─────────────────────────────────────────────
-  if (hasDuka && hasPesa && hasDala) {
+  // ── CASE 8: Duka + Mteja + Dala ─────────────────────────────────────────────
+  if (hasDuka && hasMteja && hasDala && !hasPesa) {
+    console.log("[AdminNav] ✅ Duka + Mteja + Dala (POS + CRM + Real Estate)");
+    const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, ...dukaWithoutDocs, ...dalaRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 9: Duka + Pesa + Dala ─────────────────────────────────────────────
+  if (hasDuka && hasPesa && hasDala && !hasMteja) {
     console.log("[AdminNav] ✅ Duka + Pesa + Dala (POS + Accounting + Real Estate)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, ...dukaWithoutDocs, ...pesaWithoutDocs, ...dalaRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 10: Duka + Pesa + Mteja + Dala ────────────────────────────────────
+  if (hasDuka && hasPesa && hasMteja && hasDala) {
+    console.log("[AdminNav] ✅ Duka + Pesa + Mteja + Dala (All modules)");
     const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
     const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
     return {
@@ -193,7 +254,8 @@ const useAdminProLayoutNav = () => {
     ...(hasDuka ? dukaRoutes : []),
     ...(hasPesa ? pesaRoutes : []),
     ...(hasDala ? dalaRoutes : []),
-    ...(hasMteja ? mtejaRoutes : []),
+    // Only show Mteja Dashboard if it's the sole module
+    ...(isMtejaOnly ? mtejaRoutes : []),
     helpRoute,
   ];
   // Deduplicate routes based on path

@@ -32,6 +32,7 @@ import {
 } from 'antd';
 import { useRef, useState } from 'react';
 import AddEditPropertyModal from './AddEditPropertyModal';
+import ImportPropertiesModal, { ImportPropertiesTrigger } from './ImportPropertiesModal';
 
 interface Property {
   _id: string;
@@ -59,6 +60,7 @@ const PropertiesList: React.FC = () => {
   const queryClient = useQueryClient();
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const onView = (property: any) => {
     setSelectedProperty(property);
@@ -210,58 +212,45 @@ const PropertiesList: React.FC = () => {
             },
           },
           {
-            title: 'Units Info',
+            title: 'Portfolio Info',
             key: 'units',
             align: 'center',
             search: false,
+            width: 160,
             render: (_, record) => {
-              // Handle both 'units' and 'propertyUnits' for backward compatibility
               const unitsArray = record?.units || record?.propertyUnits || [];
+              const summary = record?.occupancySummary;
 
-              if (!Array.isArray(unitsArray) || unitsArray.length === 0) {
-                return <span>0 / 0 units</span>;
-              }
-
-              const totalUnits = unitsArray.reduce(
-                (total, unit) => total + (unit?.totalUnits || 0),
-                0,
+              const totalUnits = summary?.totalUnits ?? unitsArray.reduce(
+                (total: number, unit: any) => total + (unit?.totalUnits || 0), 0,
               );
-              const availableUnits = unitsArray.reduce(
-                (total, unit) => total + (unit?.availableUnits || 0),
-                0,
+              const availableUnits = summary?.vacantUnits ?? unitsArray.reduce(
+                (total: number, unit: any) => total + (unit?.availableUnits || 0), 0,
+              );
+              const totalApts = unitsArray.reduce(
+                (total: number, unit: any) => total + (unit?.apartments?.length || 0), 0,
+              );
+              const availableApts = unitsArray.reduce(
+                (total: number, unit: any) => total + (unit?.apartments?.filter((a: any) => a.status === 'available')?.length || 0), 0,
               );
 
               return (
-                <Space direction="vertical" size="small">
-                  <span>
-                    <Tag color="green">{availableUnits}</Tag> /{' '}
-                    <Tag color="blue">{totalUnits}</Tag> units
-                  </span>
-                  {record.propertyType === 'land' && unitsArray.length > 0 && (
-                    <div>
-                      <small>
-                        {unitsArray
-                          .filter((unit) => unit?.plotSize?.area)
-                          .map(
-                            (unit) =>
-                              `${unit.plotSize.area} ${unit.plotSize.unit || 'sqm'}`
-                          )
-                          .join(', ') || 'N/A'}
-                      </small>
-                    </div>
-                  )}
-                  {record.propertyType === 'apartment' && unitsArray.length > 0 && (
-                    <div>
-                      <small>
-                        {unitsArray
-                          .filter((unit) => unit?.areaSqm)
-                          .map(
-                            (unit) =>
-                              `${unit.areaSqm} sqm`
-                          )
-                          .join(', ') || 'N/A'}
-                      </small>
-                    </div>
+                <Space direction="vertical" size={2} style={{ textAlign: 'center' }}>
+                  <div>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: '#1677ff' }}>{availableUnits}</span>
+                    <span style={{ color: '#8c8c8c', margin: '0 4px' }}>/</span>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>{totalUnits}</span>
+                  </div>
+                  <span style={{ fontSize: 11, color: '#8c8c8c' }}>Units</span>
+                  {totalApts > 0 && (
+                    <>
+                      <div style={{ marginTop: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#52c41a' }}>{availableApts}</span>
+                        <span style={{ color: '#8c8c8c', margin: '0 4px' }}>/</span>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{totalApts}</span>
+                      </div>
+                      <span style={{ fontSize: 11, color: '#8c8c8c' }}>Apartments</span>
+                    </>
                   )}
                 </Space>
               );
@@ -464,6 +453,7 @@ const PropertiesList: React.FC = () => {
         headerTitle="Properties"
         toolBarRender={() => [
           <AddEditPropertyModal actionRef={actionRef} key={'add-edit-property'} />,
+          <ImportPropertiesTrigger key={'import'} onOpen={() => setImportModalOpen(true)} />,
           <Dropdown
             key={'export'}
             menu={{
@@ -486,6 +476,16 @@ const PropertiesList: React.FC = () => {
             </Button>
           </Dropdown>,
         ]}
+      />
+      
+      {/* Import Properties Modal */}
+      <ImportPropertiesModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={() => {
+          actionRef.current?.reload();
+          setImportModalOpen(false);
+        }}
       />
       
       {/* Property Details Drawer */}
@@ -818,6 +818,13 @@ const PropertiesList: React.FC = () => {
                         return total + apartmentsTotal;
                       }
                       const currentPrice = unit?.basePrice || unit?.price || unit?.listPrice || 0;
+
+      {/* Import Properties Modal */}
+      <ImportPropertiesModal
+        open={importModalVisible}
+        onClose={() => setImportModalVisible(false)}
+        onSuccess={() => actionRef.current?.reload()}
+      />
                       return total + currentPrice * (unit?.totalUnits || 0);
                     }, 0);
                     return `KES ${totalValue.toLocaleString()}`;
