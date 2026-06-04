@@ -346,10 +346,11 @@ export const deletePropertyType = async (id: string) => {
 
 // ── Properties API ────────────────────────────────────────────────────────────
 
-export const fetchProperties = async () => {
+export const fetchProperties = async (populate: boolean = true) => {
   try {
     const response = await axiosInstance.get(`${dalaUrl}/properties`, {
-      headers: getDalaHeaders()
+      headers: getDalaHeaders(),
+      params: { populate }
     });
     console.log('my properties',response );
     return response.data;
@@ -389,7 +390,8 @@ export const createProperty = async (data: Partial<Property>) => {
 export const updateProperty = async (id: string, data: Partial<Property>) => {
   try {
     const response = await axiosInstance.put(`${dalaUrl}/properties/${id}`, data, {
-      headers: getDalaHeaders()
+      headers: getDalaHeaders(),
+      params: { populate: false }
     });
     message.success("Property updated successfully");
     return response.data;
@@ -408,6 +410,19 @@ export const deleteProperty = async (id: string) => {
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to delete property";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const importProperties = async (data: { properties: Partial<Property>[] }) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/properties/import`, data, {
+      headers: getDalaHeaders()
+    });
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to import properties";
     message.error(errorMessage);
     throw error;
   }

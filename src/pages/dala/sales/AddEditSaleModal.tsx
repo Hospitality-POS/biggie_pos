@@ -167,8 +167,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     setSelectedUnit(unit);
 
     if (unit?.trackIndividualUnits && unit.apartments) {
-      const available = unit.apartments.filter((apt: any) => apt.status === 'available');
-      setAvailableApartments(available);
+      setAvailableApartments(unit.apartments);
     } else {
       setAvailableApartments([]);
     }
@@ -188,8 +187,11 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
   const handleApartmentChange = (value: string) => {
     const apartment = availableApartments.find((apt: any) => apt._id === value);
     if (apartment) {
+      const price = apartment.saleListPrice || apartment.monthlyRent || 0;
       form.setFieldsValue({
-        sale_price: apartment.saleListPrice,
+        list_price: price,
+        sale_price: price,
+        discount: 0,
       });
     }
   };
@@ -479,12 +481,37 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                       placeholder="Select apartment"
                       onChange={handleApartmentChange}
                       showSearch
+                      filterOption={(input, option) =>
+                        (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                      }
+                      optionLabelProp="label"
                     >
-                      {availableApartments.map((apt: any) => (
-                        <Option key={apt._id} value={apt._id}>
-                          {apt.apartmentName} - {apt.area?.value} {apt.area?.unit}
-                        </Option>
-                      ))}
+                      {availableApartments.map((apt: any) => {
+                        const area = typeof apt.area === 'object' ? apt.area?.value : apt.area;
+                        const price = apt.saleListPrice || apt.monthlyRent || 0;
+                        const isAvailable = apt.status === 'available';
+                        const statusColor = isAvailable ? '#52c41a' : apt.status === 'reserved' ? '#faad14' : '#ff4d4f';
+                        const statusLabel = (apt.status || 'available').charAt(0).toUpperCase() + (apt.status || 'available').slice(1);
+                        return (
+                          <Option
+                            key={apt._id}
+                            value={apt._id}
+                            disabled={!isAvailable}
+                            label={`${apt.apartmentName} - ${area} sqm`}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>
+                                <strong>{apt.apartmentName}</strong>
+                                {area ? <span style={{ color: '#8c8c8c', marginLeft: 8 }}>{area} sqm</span> : null}
+                              </span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {price > 0 && <span style={{ color: '#1677ff', fontSize: 12 }}>KES {price.toLocaleString()}</span>}
+                                <span style={{ color: statusColor, fontSize: 11, fontWeight: 600, background: `${statusColor}18`, padding: '1px 6px', borderRadius: 4 }}>{statusLabel}</span>
+                              </span>
+                            </div>
+                          </Option>
+                        );
+                      })}
                     </Select>
                   </Form.Item>
                 )}
@@ -492,7 +519,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                 {selectedUnit?.trackIndividualUnits && (
                   <Alert
                     message="Individual Apartment Tracking"
-                    description={`This unit tracks individual apartments. ${availableApartments.length} apartments available.`}
+                    description={`This unit tracks individual apartments. ${availableApartments.filter((a: any) => a.status === 'available').length} of ${availableApartments.length} apartments available.`}
                     type="info"
                     showIcon
                     style={{ marginBottom: 16 }}

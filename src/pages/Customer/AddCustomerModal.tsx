@@ -375,65 +375,63 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         Address Information
                     </Text>
                     
-                    <Form.Item name="address" label="">
-                        <Row gutter={[12, 8]}>
-                            <Col span={24}>
-                                <Form.Item name={["address", "street"]} label="Street Address" style={{ marginBottom: 8 }}>
-                                    <AutoComplete
-                                        options={options}
-                                        onSearch={getPlacePredictions}
-                                        onSelect={async (value: string, option: any) => {
-                                            const details = await getPlaceDetails(option.place_id);
-                                            if (details) {
-                                                form.setFieldsValue({
-                                                    address: {
-                                                        street: details.street,
-                                                        building: details.building,
-                                                        city: details.city,
-                                                        county: details.county,
-                                                        postal_code: details.postal_code,
-                                                        country: details.country,
-                                                    }
-                                                });
-                                            }
-                                        }}
-                                        placeholder="Start typing address for Google Places autocomplete..."
-                                        style={{ width: '100%' }}
-                                    >
-                                        <Input 
-                                            prefix={<EnvironmentOutlined style={{ color: C.subText }} />}
-                                            placeholder="e.g. 123 Main Street, Apartment 4B" 
-                                        />
-                                    </AutoComplete>
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item name={["address", "building"]} label="Building/Landmark" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="e.g. Westgate Tower" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item name={["address", "city"]} label="City/Town" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="e.g. Nairobi" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                                <Form.Item name={["address", "postal_code"]} label="Postal Code" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="e.g. 00100" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                                <Form.Item name={["address", "county"]} label="County/State" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="e.g. Nairobi" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                                <Form.Item name={["address", "country"]} label="Country" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="e.g. Kenya" />
-                                </Form.Item>
-                            </Col>
-                        </Row>
-                    </Form.Item>
+                    <Row gutter={[12, 8]}>
+                        <Col span={24}>
+                            <Form.Item name={["address", "street"]} label="Street Address" style={{ marginBottom: 8 }}>
+                                <AutoComplete
+                                    options={options}
+                                    onSearch={getPlacePredictions}
+                                    onSelect={async (value: string, option: any) => {
+                                        const details = await getPlaceDetails(option.place_id);
+                                        if (details) {
+                                            form.setFieldsValue({
+                                                address: {
+                                                    ...form.getFieldValue('address'),
+                                                    street: details.street || value,
+                                                    building: details.building,
+                                                    city: details.city,
+                                                    county: details.county,
+                                                    postal_code: details.postal_code,
+                                                    country: details.country,
+                                                }
+                                            });
+                                        }
+                                    }}
+                                    style={{ width: '100%' }}
+                                >
+                                    <Input
+                                        prefix={<EnvironmentOutlined style={{ color: C.subText }} />}
+                                        placeholder="Start typing street address..."
+                                    />
+                                </AutoComplete>
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name={["address", "building"]} label="Building/Landmark" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Westgate Tower" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name={["address", "city"]} label="City/Town" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Nairobi" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name={["address", "postal_code"]} label="Postal Code" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. 00100" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name={["address", "county"]} label="County/State" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Nairobi" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name={["address", "country"]} label="Country" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Kenya" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
                 </div>
 
                 {/* Additional Address Fields - Hidden */}

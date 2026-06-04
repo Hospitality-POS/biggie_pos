@@ -279,7 +279,7 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                         <TextArea rows={2} placeholder="What happened…" style={{ borderRadius: 8 }} />
                     </Form.Item>
                     <Button htmlType="submit" loading={activityLoading}
-                        style={{ background: C.blue, borderColor: C.blue, color: "#fff", borderRadius: 8, width: "100%" }}>
+                        style={{ background: C.primary, borderColor: C.primary, color: "#fff", borderRadius: 8, width: "100%" }}>
                         Log Activity
                     </Button>
                 </Form>

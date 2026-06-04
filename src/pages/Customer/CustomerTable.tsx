@@ -1,14 +1,14 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ActionType, ProFormInstance, ProTable } from "@ant-design/pro-components";
 import {
-    AlertOutlined, BarsOutlined, CheckCircleOutlined, EditOutlined,
+    AlertOutlined, BarsOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined,
     EnvironmentOutlined, EyeOutlined, GiftOutlined, HistoryOutlined,
     IdcardOutlined, MailOutlined, MoreOutlined, ReloadOutlined,
     SearchOutlined, StarFilled, TeamOutlined, TrophyOutlined,
     UserAddOutlined, UserOutlined, PhoneOutlined,
 } from "@ant-design/icons";
 import { App, Button, Drawer, Dropdown, Form, Input, Modal, Table, Typography } from "antd";
-import { fetchAllCustomers, fetchAllGiftCards } from "@services/customers";
+import { deleteCustomer, fetchAllCustomers, fetchAllGiftCards } from "@services/customers";
 import ExpandedRowContent from "./ExpandableCustomer";
 import GiftCardModal from "../../components/MODALS/pro/GiftCardModal";
 
@@ -153,17 +153,43 @@ const buildStats = (customers: any[]) => {
     const topVisitors = [...visitCounts].sort((a, b) => b.visits - a.visits).slice(0, 5);
 
     const locMap: Record<string, number> = {};
-    customers.forEach(c => { const l = c.location || "Unknown"; locMap[l] = (locMap[l] || 0) + 1; });
+    customers.forEach(c => {
+        const l = c.address?.city || c.address?.county || c.location || "Unknown";
+        locMap[l] = (locMap[l] || 0) + 1;
+    });
     const byLocation = Object.entries(locMap)
         .map(([location, count]) => ({ location, count }))
-        .sort((a, b) => b.count - a.count).slice(0, 4);
+        .sort((a, b) => b.count - a.count).slice(0, 5);
+
+    const sourceMap: Record<string, number> = {};
+    customers.forEach(c => {
+        const s = c.source || "unknown";
+        sourceMap[s] = (sourceMap[s] || 0) + 1;
+    });
+    const bySource = Object.entries(sourceMap)
+        .map(([source, count]) => ({ source: source.replace(/_/g, " "), count }))
+        .sort((a, b) => b.count - a.count).slice(0, 5);
+
+    const lifecycleMap: Record<string, number> = {};
+    customers.forEach(c => {
+        const s = c.lifecycle_stage || "customer";
+        lifecycleMap[s] = (lifecycleMap[s] || 0) + 1;
+    });
 
     return {
         total: customers.length,
+        active: customers.filter(c => c.is_active !== false).length,
         withEmail: customers.filter(c => c.email).length,
         withPhone: customers.filter(c => c.phone).length,
-        recent, overdue, never, topVisitors, byLocation,
+        withAddress: customers.filter(c => c.address?.city || c.address?.street).length,
+        vip: customers.filter(c => c.lifecycle_stage === 'vip' || c.lifecycle_stage === 'repeat').length,
+        recent, overdue, never, topVisitors, byLocation, bySource, lifecycleMap,
     };
+};
+
+const LIFECYCLE_COLORS: Record<string, string> = {
+    lead: C.orange, customer: C.blue, repeat: C.green,
+    vip: '#f59e0b', at_risk: C.red, churned: C.subText,
 };
 
 const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
@@ -172,42 +198,29 @@ const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
 
     return (
         <div style={{ marginBottom: 16 }}>
+            {/* ── KPI row ── */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
                 <KpiCard icon={<TeamOutlined />} label="Total Customers" value={s.total}
-                    sub={`${s.withPhone} with phone`} color={C.blue} bg="#eff6ff" />
-                <KpiCard icon={<CheckCircleOutlined />} label="Recent Visitors" value={s.recent}
-                    sub={`${s.total ? Math.round((s.recent / s.total) * 100) : 0}% visited in 14d`}
+                    sub={`${s.active} active`} color={C.blue} bg="#eff6ff" />
+                <KpiCard icon={<CheckCircleOutlined />} label="Active" value={s.active}
+                    sub={`${s.total ? Math.round((s.active / s.total) * 100) : 0}% of total`}
                     color={C.green} bg="#f0fdf4" />
-                <KpiCard icon={<AlertOutlined />} label="Overdue" value={s.overdue}
-                    sub="last visit > 14 days" color={C.orange} bg="#fffbeb" />
-                <KpiCard icon={<UserOutlined />} label="Never Visited" value={s.never}
-                    sub="no visit recorded" color={C.red} bg="#fef2f2" />
                 <KpiCard icon={<MailOutlined />} label="With Email" value={s.withEmail}
                     sub={`${s.total ? Math.round((s.withEmail / s.total) * 100) : 0}% reachable`}
                     color={C.purple} bg="#faf5ff" />
+                <KpiCard icon={<EnvironmentOutlined />} label="With Address" value={s.withAddress}
+                    sub={`${s.total ? Math.round((s.withAddress / s.total) * 100) : 0}% mapped`}
+                    color={C.indigo} bg="#eef2ff" />
+                <KpiCard icon={<StarFilled />} label="VIP / Repeat" value={s.vip}
+                    sub={`${s.total ? Math.round((s.vip / s.total) * 100) : 0}% high-value`}
+                    color={C.orange} bg="#fffbeb" />
             </div>
 
+            {/* ── Detail row ── */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {/* By Location */}
                 <div style={{
-                    flex: "1 1 240px", background: "#fff",
-                    border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px",
-                }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                        <TrophyOutlined style={{ color: C.orange, fontSize: 13 }} />
-                        <Text strong style={{ fontSize: 12, color: C.darkText }}>Top Visitors</Text>
-                    </div>
-                    {s.topVisitors.length === 0
-                        ? <Text style={{ fontSize: 12, color: C.subText }}>No visit data</Text>
-                        : s.topVisitors.map((c, i) => (
-                            <TopCustomerRow key={i} rank={i + 1} name={c.name}
-                                visits={c.visits} sub={c.location}
-                                last={i === s.topVisitors.length - 1} />
-                        ))
-                    }
-                </div>
-
-                <div style={{
-                    flex: "1 1 220px", background: "#fff",
+                    flex: "1 1 200px", background: "#fff",
                     border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px",
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
@@ -224,18 +237,64 @@ const AnalyticsPanel = ({ customers }: { customers: any[] }) => {
                     }
                 </div>
 
+                {/* By Source */}
                 <div style={{
                     flex: "1 1 200px", background: "#fff",
                     border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px",
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                        <StarFilled style={{ color: C.blue, fontSize: 13 }} />
-                        <Text strong style={{ fontSize: 12, color: C.darkText }}>Visit Health</Text>
+                        <BarsOutlined style={{ color: C.blue, fontSize: 13 }} />
+                        <Text strong style={{ fontSize: 12, color: C.darkText }}>By Source</Text>
                     </div>
-                    <ProgressRow label="Recent (≤14d)" count={s.recent} total={s.total} color={C.green} />
-                    <ProgressRow label="Overdue (>14d)" count={s.overdue} total={s.total} color={C.orange} />
-                    <ProgressRow label="Never visited" count={s.never} total={s.total} color={C.red} last />
+                    {s.bySource.length === 0 || (s.bySource.length === 1 && s.bySource[0].source === 'unknown')
+                        ? <Text style={{ fontSize: 12, color: C.subText }}>No source data</Text>
+                        : s.bySource.map((src, i) => (
+                            <ProgressRow key={i}
+                                label={src.source.charAt(0).toUpperCase() + src.source.slice(1)}
+                                count={src.count} total={s.total} color={C.blue}
+                                last={i === s.bySource.length - 1} />
+                        ))
+                    }
                 </div>
+
+                {/* Lifecycle stages */}
+                <div style={{
+                    flex: "1 1 200px", background: "#fff",
+                    border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px",
+                }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                        <StarFilled style={{ color: C.orange, fontSize: 13 }} />
+                        <Text strong style={{ fontSize: 12, color: C.darkText }}>Lifecycle Stages</Text>
+                    </div>
+                    {Object.entries(s.lifecycleMap).length === 0
+                        ? <Text style={{ fontSize: 12, color: C.subText }}>No data</Text>
+                        : Object.entries(s.lifecycleMap)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([stage, count], i, arr) => (
+                                <ProgressRow key={stage}
+                                    label={stage.charAt(0).toUpperCase() + stage.slice(1)}
+                                    count={count} total={s.total}
+                                    color={LIFECYCLE_COLORS[stage] || C.subText}
+                                    last={i === arr.length - 1} />
+                            ))
+                    }
+                </div>
+
+                {/* Visit health — only if visits exist */}
+                {(s.recent + s.overdue + s.never) > 0 && (
+                    <div style={{
+                        flex: "1 1 180px", background: "#fff",
+                        border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px",
+                    }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                            <HistoryOutlined style={{ color: C.green, fontSize: 13 }} />
+                            <Text strong style={{ fontSize: 12, color: C.darkText }}>Visit Health</Text>
+                        </div>
+                        <ProgressRow label="Recent (≤14d)" count={s.recent} total={s.total} color={C.green} />
+                        <ProgressRow label="Overdue (>14d)" count={s.overdue} total={s.total} color={C.orange} />
+                        <ProgressRow label="Never visited" count={s.never} total={s.total} color={C.red} last />
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -426,9 +485,10 @@ const getModules = () => {
         return {
             hasPOS: tenant?.pos_integration?.enabled === true,
             hasAccounting: tenant?.modules?.accounting === true,
+            hasDala: tenant?.modules?.dala === true,
         };
     } catch {
-        return { hasPOS: false, hasAccounting: false };
+        return { hasPOS: false, hasAccounting: false, hasDala: false };
     }
 };
 
@@ -446,7 +506,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         const [searchForm] = Form.useForm();
 
         // ── Gift cards are a POS feature — hide when accounting-only ──────────
-        const { hasPOS } = getModules();
+        const { hasPOS, hasDala } = getModules();
         const giftCardsEnabled = nonCustomerEnabled && hasPOS;
 
         const [giftCardOpen, setGiftCardOpen] = useState(false);
@@ -676,21 +736,23 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                         </div>
                     ) : <Text style={{ fontSize: 12, color: C.subText }}>—</Text>,
             },
-            {
-                title: "Status", dataIndex: "lastVisit", hideInSearch: true,
-                render: (_: any, record: any) => <VisitBadge visits={record.visits || []} />,
-            },
-            {
-                title: "Last Visit", key: "lastVisit", search: false,
-                render: (_: any, record: any) => {
-                    const lv = getLastVisit(record.visits || []);
-                    return (
-                        <Text style={{ fontSize: 12, color: C.subText }}>
-                            {lv ? new Date(lv).toLocaleString("en-GB") : "No visits"}
-                        </Text>
-                    );
+            ...(!hasDala ? [
+                {
+                    title: "Status", dataIndex: "lastVisit", hideInSearch: true,
+                    render: (_: any, record: any) => <VisitBadge visits={record.visits || []} />,
                 },
-            },
+                {
+                    title: "Last Visit", key: "lastVisit", search: false,
+                    render: (_: any, record: any) => {
+                        const lv = getLastVisit(record.visits || []);
+                        return (
+                            <Text style={{ fontSize: 12, color: C.subText }}>
+                                {lv ? new Date(lv).toLocaleString("en-GB") : "No visits"}
+                            </Text>
+                        );
+                    },
+                },
+            ] : []),
             {
                 title: "Actions", key: "actions", search: false, fixed: "right" as const, width: 56,
                 render: (_: any, record: any) => (
@@ -705,6 +767,20 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                                 { key: "issue", icon: <GiftOutlined />, label: "Issue Gift Card", onClick: () => openGiftCardModal(record) },
                                 { key: "history", icon: <HistoryOutlined />, label: "View Gift Cards", onClick: () => openGiftCardsHistory(record) },
                             ] : []),
+                            { type: "divider" as const },
+                            {
+                                key: "delete", icon: <DeleteOutlined />, label: "Delete", danger: true,
+                                onClick: () => Modal.confirm({
+                                    title: `Delete "${record.customer_name}"?`,
+                                    content: "This action cannot be undone.",
+                                    okText: "Delete",
+                                    okButtonProps: { danger: true },
+                                    onOk: async () => {
+                                        await deleteCustomer(record._id);
+                                        actionRef.current?.reload();
+                                    },
+                                }),
+                            },
                         ],
                     }}>
                         <Button type="text" icon={<MoreOutlined />} style={{ borderRadius: 6 }} />

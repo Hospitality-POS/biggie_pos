@@ -42,9 +42,10 @@ const getTenantFlags = () => {
             hasPOS: !!(tenant?.pos_integration?.enabled ?? true),
             hasAccounting: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting),
             hasMteja: tenant?.modules?.crm === true,
+            hasDala: tenant?.modules?.dala === true,
         };
     } catch {
-        return { hasPOS: true, hasAccounting: false, hasMteja: false };
+        return { hasPOS: true, hasAccounting: false, hasMteja: false, hasDala: false };
     }
 };
 
@@ -61,7 +62,7 @@ type TabItem = {
 
 const getTabConfig = (): TabItem[] => {
     const isHospital = getPosMode() === "hospital";
-    const { hasMteja, hasPOS } = getTenantFlags();
+    const { hasMteja, hasPOS, hasDala } = getTenantFlags();
 
     if (isHospital) {
         return [
@@ -75,12 +76,11 @@ const getTabConfig = (): TabItem[] => {
 
     if (hasMteja && hasPOS) {
         return [
-            { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
-            // Leads tab is LIVE when Mteja enabled — no comingSoon
             { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CRM_LEADS_VIEW" },
+            { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
             { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
-            { key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" },
+            ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
             { key: "consultations", label: "Consultations", icon: <StarOutlined />, permissionKey: "CONSULTATIONS_VIEW" },
             { key: "feedback", label: "Feedback", icon: <MessageOutlined />, permissionKey: "FEEDBACK_VIEW" },
             { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
@@ -89,9 +89,9 @@ const getTabConfig = (): TabItem[] => {
 
     if (hasMteja) {
         return [
-            { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
             { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CRM_LEADS_VIEW" },
-            { key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" },
+            { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
+            ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
         ];
     }
 
@@ -99,7 +99,7 @@ const getTabConfig = (): TabItem[] => {
         { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
         { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
         { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
-        { key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" },
+        ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
         { key: "consultations", label: "Consultations", icon: <StarOutlined />, permissionKey: "CONSULTATIONS_VIEW" },
         { key: "feedback", label: "Feedback", icon: <MessageOutlined />, permissionKey: "FEEDBACK_VIEW" },
         { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
