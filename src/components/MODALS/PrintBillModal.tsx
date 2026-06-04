@@ -185,27 +185,27 @@ async function attemptSave(
 // cause right-side overflow on the 80mm roll. The UI slider still shows
 // the user's chosen value; only the printed output is clamped.
 const makeReceiptStyles = (bold: boolean, fontSize: number) => {
-  // Hard-clamp: 80mm roll can't safely render beyond ~14px Courier New
-  const clampedSize = Math.min(fontSize, 14);
-  const weight = bold ? 700 : 400;
-  const headerWeight = bold ? 900 : 600;
+  // Hard-clamp: 80mm roll can't safely render beyond ~15px Courier New
+  const clampedSize = Math.min(fontSize, 15);
+  const weight = bold ? 700 : 500;
+  const headerWeight = bold ? 900 : 700;
   const base = { fontFamily: "'Courier New', Courier, monospace", color: "#000000" };
   const baseFontSize = `${clampedSize}px`;
   const smallFontSize = `${clampedSize - 1}px`;
   const smallerFontSize = `${clampedSize - 1.5}px`;
 
   return {
-    shopName: { ...base, fontSize: `${clampedSize + 1}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
-    docType: { ...base, fontSize: `${clampedSize + 3}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
+    shopName: { ...base, fontSize: `${clampedSize + 2}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
+    docType: { ...base, fontSize: `${clampedSize + 4}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
     meta: { ...base, fontSize: smallFontSize, fontWeight: weight },
-    label: { ...base, fontSize: baseFontSize, fontWeight: bold ? 700 : 500 },
+    label: { ...base, fontSize: baseFontSize, fontWeight: bold ? 700 : 600 },
     value: { ...base, fontSize: baseFontSize, fontWeight: weight },
     // ── table cells ──────────────────────────────────────────────────────
-    tblHdr: { padding: "3px 2px", fontWeight: headerWeight, fontSize: smallFontSize, color: "#000", borderBottom: "1px solid #000" },
-    tblData: { padding: "3px 2px", fontWeight: weight, fontSize: smallerFontSize, color: "#000" },
+    tblHdr: { padding: "5px 3px", fontWeight: headerWeight, fontSize: baseFontSize, color: "#000", borderBottom: "2px solid #000" },
+    tblData: { padding: "4px 3px", fontWeight: weight, fontSize: smallFontSize, color: "#000" },
     tblSub: { ...base, fontSize: smallerFontSize, fontWeight: weight, color: "#555" },
     // ── totals ───────────────────────────────────────────────────────────
-    total: { ...base, fontSize: `${clampedSize + 2}px`, fontWeight: headerWeight },
+    total: { ...base, fontSize: `${clampedSize + 3}px`, fontWeight: headerWeight },
     footer: { ...base, fontSize: smallerFontSize, fontWeight: weight, textAlign: "center" as const },
   };
 };
@@ -254,7 +254,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
 
   const [isPdfView, setIsPdfView] = useState(false);
   const [isBold, setIsBold] = useState(true);
-  const [fontSize, setFontSize] = useState(11); // Base font size in pixels
+  const [fontSize, setFontSize] = useState(13); // Base font size in pixels
   const [showDiscount, setShowDiscount] = useState(true);
   const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
@@ -697,12 +697,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
 
   // ── Font size presets — extended for larger options ────────────────────
   const fontSizes = [
-    { value: 9, label: "Small" },
-    { value: 11, label: "Normal" },
-    { value: 13, label: "Large" },
-    { value: 15, label: "X-Large" },
-    { value: 17, label: "XX-Large" },
-    { value: 20, label: "Huge" },
+    { value: 10, label: "Small" },
+    { value: 13, label: "Normal" },
+    { value: 15, label: "Large" },
+    { value: 17, label: "X-Large" },
+    { value: 19, label: "XX-Large" },
+    { value: 22, label: "Huge" },
     { value: 25, label: "25px" },
     { value: 30, label: "30px" },
     { value: 35, label: "35px" },

@@ -172,22 +172,22 @@ async function attemptSave(
 
 // ── Receipt styles helper — supports font size and weight ───────────────
 const makeReceiptStyles = (bold: boolean, fontSize: number) => {
-  const weight = bold ? 700 : 400;
-  const headerWeight = bold ? 900 : 600;
+  const weight = bold ? 700 : 500;
+  const headerWeight = bold ? 900 : 700;
   const base = { fontFamily: "'Courier New', Courier, monospace", color: "#000000" };
   const baseFontSize = `${fontSize}px`;
   const smallFontSize = `${fontSize - 1}px`;
   const smallerFontSize = `${fontSize - 1.5}px`;
 
   return {
-    shopName: { ...base, fontSize: `${fontSize + 2}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
-    docType: { ...base, fontSize: `${fontSize + 4}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
+    shopName: { ...base, fontSize: `${fontSize + 3}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
+    docType: { ...base, fontSize: `${fontSize + 5}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
     meta: { ...base, fontSize: smallFontSize, fontWeight: weight },
-    label: { ...base, fontSize: baseFontSize, fontWeight: bold ? 700 : 500 },
+    label: { ...base, fontSize: baseFontSize, fontWeight: bold ? 700 : 600 },
     value: { ...base, fontSize: baseFontSize, fontWeight: weight },
-    tblHdr: { padding: "4px 2px", fontWeight: headerWeight, fontSize: baseFontSize, color: "#000", borderBottom: "1px solid #000" },
-    tblData: { padding: "3px 2px", fontWeight: weight, fontSize: smallFontSize, color: "#000" },
-    total: { ...base, fontSize: `${fontSize + 2}px`, fontWeight: headerWeight },
+    tblHdr: { padding: "5px 3px", fontWeight: headerWeight, fontSize: baseFontSize, color: "#000", borderBottom: "2px solid #000" },
+    tblData: { padding: "4px 3px", fontWeight: weight, fontSize: smallFontSize, color: "#000" },
+    total: { ...base, fontSize: `${fontSize + 3}px`, fontWeight: headerWeight },
     footer: { ...base, fontSize: smallerFontSize, fontWeight: weight, textAlign: "center" as const },
     clientHdr: { ...base, fontSize: baseFontSize, fontWeight: headerWeight, letterSpacing: "1px" },
   };
@@ -220,7 +220,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   const [isPdfView, setIsPdfView] = useState(false);
   const [isBold, setIsBold] = useState(true);
-  const [fontSize, setFontSize] = useState(11);
+  const [fontSize, setFontSize] = useState(13);
   const [showDiscount, setShowDiscount] = useState(true);
   const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
@@ -445,12 +445,12 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   // ── Font size presets — extended for larger options ────────────────────
   const fontSizes = [
-    { value: 9, label: "Small" },
-    { value: 11, label: "Normal" },
-    { value: 13, label: "Large" },
-    { value: 15, label: "X-Large" },
-    { value: 17, label: "XX-Large" },
-    { value: 20, label: "Huge" },
+    { value: 10, label: "Small" },
+    { value: 13, label: "Normal" },
+    { value: 15, label: "Large" },
+    { value: 17, label: "X-Large" },
+    { value: 19, label: "XX-Large" },
+    { value: 22, label: "Huge" },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -596,19 +596,19 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     <ZoomOutOutlined style={{ fontSize: 16, color: "#6b7280" }} />
                   </Tooltip>
                   <AntSlider
-                    min={8}
-                    max={20}
+                    min={10}
+                    max={22}
                     value={fontSize}
                     onChange={setFontSize}
                     style={{ width: 130, margin: 0 }}
                     tooltip={{ formatter: (v) => `${v}px` }}
                     marks={{
-                      8: "",
-                      11: "",
+                      10: "",
                       13: "",
                       15: "",
                       17: "",
-                      20: "",
+                      19: "",
+                      22: "",
                     }}
                   />
                   <Tooltip title="Increase Font Size">
