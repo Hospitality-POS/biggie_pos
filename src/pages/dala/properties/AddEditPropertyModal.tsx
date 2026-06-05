@@ -230,6 +230,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
   });
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [undefinedFields, setUndefinedFields] = useState<any[]>([]);
+  const [editUnitActiveTab, setEditUnitActiveTab] = useState<string>('details');
 
   const [formRef] = Form.useForm();
 
@@ -785,6 +786,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
     });
     setEditUnitApartments(unit.apartments ? [...unit.apartments] : []);
     setNewAptForm({ apartmentName: '', areaValue: 0, price: 0, status: 'available' });
+    setEditUnitActiveTab('details');
     setEditUnitModalVisible(true);
   };
 
@@ -2222,154 +2224,286 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       {renderViewApartmentsModal()}
       {renderEditApartmentModal()}
       <Modal
-        title={<Space><UnorderedListOutlined /> Apartments — {selectedUnitForEdit ? getUnitLabel(selectedUnitForEdit) : ''} ({editUnitApartments.length})</Space>}
+        title={<Space><UnorderedListOutlined /> Edit Unit — {selectedUnitForEdit ? getUnitLabel(selectedUnitForEdit) : ''}</Space>}
         open={editUnitModalVisible}
-        onCancel={() => { setEditUnitModalVisible(false); setSelectedUnitForEdit(null); }}
-        width={700}
+        onCancel={() => { setEditUnitModalVisible(false); setSelectedUnitForEdit(null); setEditUnitActiveTab('details'); }}
+        width={800}
         styles={{ body: { maxHeight: 'calc(100vh - 240px)', overflowY: 'auto' } }}
         footer={[
-          <Button key="cancel" onClick={() => setEditUnitModalVisible(false)}>Cancel</Button>,
+          <Button key="cancel" onClick={() => { setEditUnitModalVisible(false); setSelectedUnitForEdit(null); setEditUnitActiveTab('details'); }}>Cancel</Button>,
           <Button key="save" type="primary" onClick={handleSaveUnitEdit}>Save Changes</Button>,
         ]}
       >
-        {/* Add new apartment row */}
-        <div style={{ background: '#fafafa', border: '1px dashed #d9d9d9', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          <Row gutter={8} align="middle">
-            <Col span={7}>
-              <Input
-                placeholder="Name e.g. L2-02"
-                value={newAptForm.apartmentName}
-                onChange={(e) => setNewAptForm({ ...newAptForm, apartmentName: e.target.value })}
-                onPressEnter={handleAddNewApartment}
-                size="small"
-              />
-            </Col>
-            <Col span={4}>
-              <InputNumber
-                placeholder="Area sqm"
-                value={newAptForm.areaValue}
-                onChange={(v) => setNewAptForm({ ...newAptForm, areaValue: v || 0 })}
-                min={0}
-                style={{ width: '100%' }}
-                size="small"
-              />
-            </Col>
-            <Col span={5}>
-              <InputNumber
-                placeholder="Price (KES)"
-                value={newAptForm.price}
-                onChange={(v) => setNewAptForm({ ...newAptForm, price: v || 0 })}
-                min={0}
-                style={{ width: '100%' }}
-                size="small"
-                formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              />
-            </Col>
-            <Col span={5}>
-              <Select
-                value={newAptForm.status}
-                onChange={(v) => setNewAptForm({ ...newAptForm, status: v })}
-                size="small"
-                style={{ width: '100%' }}
-              >
-                <Select.Option value="available">Available</Select.Option>
-                <Select.Option value="reserved">Reserved</Select.Option>
-                <Select.Option value="sold">Sold</Select.Option>
-              </Select>
-            </Col>
-            <Col span={3}>
-              <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAddNewApartment} style={{ width: '100%' }}>
-                Add
-              </Button>
-            </Col>
-          </Row>
-        </div>
+        <Tabs
+          activeKey={editUnitActiveTab}
+          onChange={setEditUnitActiveTab}
+          items={[
+            {
+              key: 'details',
+              label: 'Unit Details',
+              children: (
+                <div style={{ padding: '16px 0' }}>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Unit Number</label>
+                        <Input
+                          value={editUnitForm.unitNumber}
+                          onChange={(e) => setEditUnitForm({ ...editUnitForm, unitNumber: e.target.value })}
+                          placeholder="e.g., 101, A1, BA111"
+                        />
+                      </div>
+                    </Col>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Unit Type</label>
+                        <Select
+                          value={editUnitForm.unitType}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, unitType: value })}
+                          style={{ width: '100%' }}
+                        >
+                          <Select.Option value="studio">Studio</Select.Option>
+                          <Select.Option value="one_bedroom">One Bedroom</Select.Option>
+                          <Select.Option value="two_bedroom">Two Bedroom</Select.Option>
+                          <Select.Option value="three_bedroom">Three Bedroom</Select.Option>
+                          <Select.Option value="penthouse">Penthouse</Select.Option>
+                          <Select.Option value="shop">Shop</Select.Option>
+                          <Select.Option value="other">Other</Select.Option>
+                        </Select>
+                      </div>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Area (sqm)</label>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          value={editUnitForm.areaSqm}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, areaSqm: value || 0 })}
+                          placeholder="Enter area in sqm"
+                        />
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Price Start Point (KES)</label>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          value={editUnitForm.priceStartPoint}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, priceStartPoint: value || 0 })}
+                          formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          placeholder="e.g., 5000000"
+                        />
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Status</label>
+                        <Select
+                          value={editUnitForm.status}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, status: value as 'available' | 'sold' | 'reserved' })}
+                          style={{ width: '100%' }}
+                        >
+                          <Select.Option value="available">Available</Select.Option>
+                          <Select.Option value="reserved">Reserved</Select.Option>
+                          <Select.Option value="sold">Sold</Select.Option>
+                        </Select>
+                      </div>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Bedrooms</label>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          value={editUnitForm.bedrooms}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, bedrooms: value || 0 })}
+                        />
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Bathrooms</label>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          value={editUnitForm.bathrooms}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, bathrooms: value || 0 })}
+                        />
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Total Units</label>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={1}
+                          value={editUnitForm.totalUnits}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, totalUnits: value || 1 })}
+                          disabled={editUnitApartments.length > 0}
+                        />
+                        {editUnitApartments.length > 0 && (
+                          <small style={{ color: '#888' }}>Disabled when tracking individual apartments</small>
+                        )}
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+              ),
+            },
+            {
+              key: 'apartments',
+              label: `Apartments (${editUnitApartments.length})`,
+              children: (
+                <div style={{ padding: '16px 0' }}>
+                  {/* Add new apartment row */}
+                  <div style={{ background: '#fafafa', border: '1px dashed #d9d9d9', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                    <Row gutter={8} align="middle">
+                      <Col span={7}>
+                        <Input
+                          placeholder="Name e.g. L2-02"
+                          value={newAptForm.apartmentName}
+                          onChange={(e) => setNewAptForm({ ...newAptForm, apartmentName: e.target.value })}
+                          onPressEnter={handleAddNewApartment}
+                          size="small"
+                        />
+                      </Col>
+                      <Col span={4}>
+                        <InputNumber
+                          placeholder="Area sqm"
+                          value={newAptForm.areaValue}
+                          onChange={(v) => setNewAptForm({ ...newAptForm, areaValue: v || 0 })}
+                          min={0}
+                          style={{ width: '100%' }}
+                          size="small"
+                        />
+                      </Col>
+                      <Col span={5}>
+                        <InputNumber
+                          placeholder="Price (KES)"
+                          value={newAptForm.price}
+                          onChange={(v) => setNewAptForm({ ...newAptForm, price: v || 0 })}
+                          min={0}
+                          style={{ width: '100%' }}
+                          size="small"
+                          formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        />
+                      </Col>
+                      <Col span={5}>
+                        <Select
+                          value={newAptForm.status}
+                          onChange={(v) => setNewAptForm({ ...newAptForm, status: v })}
+                          size="small"
+                          style={{ width: '100%' }}
+                        >
+                          <Select.Option value="available">Available</Select.Option>
+                          <Select.Option value="reserved">Reserved</Select.Option>
+                          <Select.Option value="sold">Sold</Select.Option>
+                        </Select>
+                      </Col>
+                      <Col span={3}>
+                        <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAddNewApartment} style={{ width: '100%' }}>
+                          Add
+                        </Button>
+                      </Col>
+                    </Row>
+                  </div>
 
-        {/* Apartments list */}
-        <Table
-          dataSource={editUnitApartments}
-          rowKey={(_, i) => String(i)}
-          size="small"
-          pagination={false}
-          locale={{ emptyText: 'No apartments yet — add one above' }}
-          columns={[
-            { title: '#', render: (_: any, __: any, i: number) => i + 1, width: 40 },
-            {
-              title: 'Name', dataIndex: 'apartmentName',
-              render: (name: string, _: Apartment, i: number) => (
-                <Input
-                  value={name}
-                  size="small"
-                  onChange={(e) => {
-                    const updated = [...editUnitApartments];
-                    updated[i] = { ...updated[i], apartmentName: e.target.value };
-                    setEditUnitApartments(updated);
-                  }}
-                />
-              )
-            },
-            {
-              title: 'Area (sqm)', dataIndex: 'area', width: 100,
-              render: (area: any, _: Apartment, i: number) => (
-                <InputNumber
-                  value={typeof area === 'object' ? area?.value : area}
-                  size="small"
-                  min={0}
-                  style={{ width: '100%' }}
-                  onChange={(v) => {
-                    const updated = [...editUnitApartments];
-                    updated[i] = { ...updated[i], area: v || 0 } as Apartment;
-                    setEditUnitApartments(updated);
-                  }}
-                />
-              )
-            },
-            {
-              title: 'Price (KES)', dataIndex: 'saleListPrice', width: 120,
-              render: (price: any, _: Apartment, i: number) => (
-                <InputNumber
-                  value={price || ((_ as any).monthlyRent) || 0}
-                  size="small"
-                  min={0}
-                  style={{ width: '100%' }}
-                  formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  onChange={(v) => {
-                    const updated = [...editUnitApartments];
-                    updated[i] = { ...updated[i], saleListPrice: v || 0, monthlyRent: v || 0 } as any;
-                    setEditUnitApartments(updated);
-                  }}
-                />
-              )
-            },
-            {
-              title: 'Status', dataIndex: 'status', width: 110,
-              render: (status: string, _: Apartment, i: number) => (
-                <Select
-                  value={status}
-                  size="small"
-                  style={{ width: '100%' }}
-                  onChange={(v) => {
-                    const updated = [...editUnitApartments];
-                    updated[i] = { ...updated[i], status: v };
-                    setEditUnitApartments(updated);
-                  }}
-                >
-                  <Select.Option value="available">Available</Select.Option>
-                  <Select.Option value="reserved">Reserved</Select.Option>
-                  <Select.Option value="sold">Sold</Select.Option>
-                </Select>
-              )
-            },
-            {
-              title: '', width: 40,
-              render: (_: any, rec: Apartment, i: number) => (
-                <Button
-                  type="text" danger size="small"
-                  icon={<DeleteOutlined />}
-                  disabled={rec.status === 'sold' || rec.status === 'reserved'}
-                  onClick={() => handleRemoveApartmentFromEdit(rec.key, i)}
-                />
-              )
+                  {/* Apartments list */}
+                  <Table
+                    dataSource={editUnitApartments}
+                    rowKey={(_, i) => String(i)}
+                    size="small"
+                    pagination={false}
+                    locale={{ emptyText: 'No apartments yet — add one above' }}
+                    columns={[
+                      { title: '#', render: (_: any, __: any, i: number) => i + 1, width: 40 },
+                      {
+                        title: 'Name', dataIndex: 'apartmentName',
+                        render: (name: string, _: Apartment, i: number) => (
+                          <Input
+                            value={name}
+                            size="small"
+                            onChange={(e) => {
+                              const updated = [...editUnitApartments];
+                              updated[i] = { ...updated[i], apartmentName: e.target.value };
+                              setEditUnitApartments(updated);
+                            }}
+                          />
+                        )
+                      },
+                      {
+                        title: 'Area (sqm)', dataIndex: 'area', width: 100,
+                        render: (area: any, _: Apartment, i: number) => (
+                          <InputNumber
+                            value={typeof area === 'object' ? area?.value : area}
+                            size="small"
+                            min={0}
+                            style={{ width: '100%' }}
+                            onChange={(v) => {
+                              const updated = [...editUnitApartments];
+                              updated[i] = { ...updated[i], area: v || 0 } as Apartment;
+                              setEditUnitApartments(updated);
+                            }}
+                          />
+                        )
+                      },
+                      {
+                        title: 'Price (KES)', dataIndex: 'saleListPrice', width: 120,
+                        render: (price: any, _: Apartment, i: number) => (
+                          <InputNumber
+                            value={price || ((_ as any).monthlyRent) || 0}
+                            size="small"
+                            min={0}
+                            style={{ width: '100%' }}
+                            formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            onChange={(v) => {
+                              const updated = [...editUnitApartments];
+                              updated[i] = { ...updated[i], saleListPrice: v || 0, monthlyRent: v || 0 } as any;
+                              setEditUnitApartments(updated);
+                            }}
+                          />
+                        )
+                      },
+                      {
+                        title: 'Status', dataIndex: 'status', width: 110,
+                        render: (status: string, _: Apartment, i: number) => (
+                          <Select
+                            value={status}
+                            size="small"
+                            style={{ width: '100%' }}
+                            onChange={(v) => {
+                              const updated = [...editUnitApartments];
+                              updated[i] = { ...updated[i], status: v as 'available' | 'sold' | 'reserved' };
+                              setEditUnitApartments(updated);
+                            }}
+                          >
+                            <Select.Option value="available">Available</Select.Option>
+                            <Select.Option value="reserved">Reserved</Select.Option>
+                            <Select.Option value="sold">Sold</Select.Option>
+                          </Select>
+                        )
+                      },
+                      {
+                        title: '', width: 40,
+                        render: (_: any, rec: Apartment, i: number) => (
+                          <Button
+                            type="text" danger size="small"
+                            icon={<DeleteOutlined />}
+                            disabled={rec.status === 'sold' || rec.status === 'reserved'}
+                            onClick={() => handleRemoveApartmentFromEdit(rec.key, i)}
+                          />
+                        )
+                      },
+                    ]}
+                  />
+                </div>
+              ),
             },
           ]}
         />
