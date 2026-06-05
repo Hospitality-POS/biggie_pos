@@ -801,7 +801,7 @@ const DiscoverPage: React.FC = () => {
 
             {/* Cards */}
             <Row gutter={[16, 16]}>
-                {INTEGRATIONS.filter((integration) => getStatus(integration.id) === "enabled").map((integration) => {
+                {INTEGRATIONS.map((integration) => {
                     const isEnabled = getStatus(integration.id) === "enabled";
                     return (
                         <Col xs={24} sm={24} md={12} lg={8} key={integration.id}>
@@ -811,6 +811,14 @@ const DiscoverPage: React.FC = () => {
                                 onEnable={() => handleEnable(integration)}
                                 onDisable={() => handleDisable(integration.id)}
                                 onLearnMore={() => { setSelectedIntegration(integration); setLearnMoreOpen(true); }}
+                                enableLoading={
+                                    (integration.id === "relia_accounting" && enableAccountingMutation.isPending) ||
+                                    (integration.id === "relia_pos" && enablePosMutation.isPending) ||
+                                    (integration.id === "relia_payroll" && enableBanduMutation.isPending) ||
+                                    (integration.id === "mteja" && enableMtejaMutation.isPending) ||
+                                    (integration.id === "dala" && enableDalaMutation.isPending) ||
+                                    (integration.id === "etims" && enableEtimsMutation.isPending)
+                                }
                                 disableLoading={
                                     (integration.id === "relia_accounting" && disableAccountingMutation.isPending) ||
                                     (integration.id === "relia_pos" && disablePosMutation.isPending) ||
