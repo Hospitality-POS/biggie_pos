@@ -107,7 +107,7 @@ interface AutoCreated { units?: string[]; main_categories?: string[]; categories
 interface ImportResult {
   message: string;
   summary: {
-    total: number; created: number; skipped: number; errors: number;
+    total: number; created: number; updated: number; skipped: number; errors: number;
     auto_created?: AutoCreated;
     format_detected?: { sheet: string; header_row: number; mapped_columns: number };
   };
@@ -125,7 +125,7 @@ interface AnalysisResult {
   missingRecommended: string[];
   columnMapping: Record<string, string>;
   advice: AdviceItem[];
-  previewRows: Array<{ rowNum: number; name: string; quantity: string; unit: string; usage_type: string; price: string; category: string; supplier: string; barcode: string; }>;
+  previewRows: Array<{ rowNum: number; name: string; quantity: string; unit: string; usage_type: string; price: string; category: string; supplier: string; barcode: string; variant_attribute?: string; variant_value?: string; }>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,6 +145,7 @@ const FIELD_LABELS: Record<string, string> = {
   supplier_name: "Supplier", barcode: "Barcode", status: "Status", vat_type: "VAT Type",
   min_viable_quantity: "Min Stock Level", location: "Storage Location",
   manufacturer: "Manufacturer", desc: "Description", weight_value: "Weight Value", weight_unit: "Weight Unit",
+  variant_attribute: "Variant Attribute", variant_value: "Variant Value",
 };
 const REQUIRED_FIELDS = ["name", "quantity", "unit_name"];
 const RECOMMENDED_FIELDS = ["price", "category_name", "supplier_name"];
@@ -202,13 +203,14 @@ const ColumnMappingTable: React.FC<{ mapping: Record<string, string>; missingReq
 // ─────────────────────────────────────────────────────────────────────────────
 const PreviewTable: React.FC<{ rows: AnalysisResult["previewRows"] }> = ({ rows }) => {
   if (!rows.length) return null;
+  const hasVariants = rows.some(row => row.variant_attribute || row.variant_value);
   return (
     <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" as const, fontSize: 12 }}>
           <thead>
             <tr style={{ background: "#f8fafc" }}>
-              {["Row", "Name", "Qty", "Unit", "Type", "Price", "Category", "Supplier"].map(h => (
+              {["Row", "Name", "Qty", "Unit", "Type", "Price", ...(hasVariants ? ["Variant Attr", "Variant Value"] : []), "Category", "Supplier"].map(h => (
                 <th key={h} style={{ padding: "7px 10px", textAlign: "left" as const, fontWeight: 600, color: "#64748b", fontSize: 11, textTransform: "uppercase" as const, letterSpacing: 0.5, borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" as const }}>{h}</th>
               ))}
             </tr>
@@ -226,6 +228,12 @@ const PreviewTable: React.FC<{ rows: AnalysisResult["previewRows"] }> = ({ rows 
                     : <Text type="secondary">—</Text>}
                 </td>
                 <td style={{ padding: "6px 10px", color: "#374151" }}>{row.price ? `Ksh ${row.price}` : "—"}</td>
+                {hasVariants && (
+                  <>
+                    <td style={{ padding: "6px 10px", color: "#374151" }}>{row.variant_attribute || "—"}</td>
+                    <td style={{ padding: "6px 10px", color: "#374151" }}>{row.variant_value || "—"}</td>
+                  </>
+                )}
                 <td style={{ padding: "6px 10px", color: "#374151", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{row.category || "—"}</td>
                 <td style={{ padding: "6px 10px", color: "#374151", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{row.supplier || "—"}</td>
               </tr>
@@ -250,11 +258,12 @@ const ImportInventoryModal: React.FC<{ onSuccess: () => void }> = ({ onSuccess }
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [updateMode, setUpdateMode] = useState(false);
   const shopId = localStorage.getItem("shopId") || "";
 
   const handleOpen = () => { setOpen(true); reset(); };
   const handleClose = () => { if (step !== "analysing" && step !== "importing") { setOpen(false); reset(); } };
-  const reset = () => { setFile(null); setStep("upload"); setAnalysis(null); setImportResult(null); };
+  const reset = () => { setFile(null); setStep("upload"); setAnalysis(null); setImportResult(null); setUpdateMode(false); };
 
   const handleDownloadTemplate = async () => {
     setDownloading(true);
@@ -277,10 +286,10 @@ const ImportInventoryModal: React.FC<{ onSuccess: () => void }> = ({ onSuccess }
     if (!file || !shopId) return;
     setStep("importing");
     try {
-      const result = await importInventoryFromExcel(file, shopId);
+      const result = await importInventoryFromExcel(file, shopId, updateMode);
       setImportResult(result);
       setStep("result");
-      if (result.summary.created > 0) onSuccess();
+      if (result.summary.created > 0 || result.summary.updated > 0) onSuccess();
     } catch (err: any) {
       message.error(err?.message || "Import failed");
       setStep("advice");
@@ -304,6 +313,16 @@ const ImportInventoryModal: React.FC<{ onSuccess: () => void }> = ({ onSuccess }
       <Text style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 12 }}>
         We'll detect your column headers automatically and show you a preview before importing anything.
       </Text>
+      <div style={{ marginBottom: 12, padding: "10px 12px", background: "#eff6ff", borderRadius: 8, border: "1px solid #bfdbfe" }}>
+        <Checkbox checked={updateMode} onChange={(e) => setUpdateMode(e.target.checked)}>
+          <Text style={{ fontSize: 12, color: "#1e40af" }}>Update existing products (don't create duplicates)</Text>
+        </Checkbox>
+        {updateMode && (
+          <Text style={{ fontSize: 11, color: "#6b7280", display: "block", marginTop: 4, marginLeft: 24 }}>
+            Products with the same name will be updated instead of creating new ones
+          </Text>
+        )}
+      </div>
       <Dragger
         accept=".xlsx,.xls" maxCount={1} showUploadList={false}
         beforeUpload={(f) => { setFile(f); handleAnalyse(f); return false; }}
@@ -428,10 +447,11 @@ const ImportInventoryModal: React.FC<{ onSuccess: () => void }> = ({ onSuccess }
     const totalAutoCreated = Object.values(ac).reduce((s, arr) => s + (arr?.length ?? 0), 0);
     return (
       <div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
           {[
             { label: "Total Rows", value: summary.total, color: "#6366f1", bg: "#eef2ff" },
             { label: "Created", value: summary.created, color: "#059669", bg: "#f0fdf4" },
+            { label: "Updated", value: summary.updated, color: "#3b82f6", bg: "#eff6ff" },
             { label: "Skipped", value: summary.skipped, color: summary.skipped ? "#f59e0b" : "#10b981", bg: summary.skipped ? "#fffbeb" : "#f0fdf4" },
           ].map((s) => (
             <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "10px 8px", textAlign: "center" as const }}>
