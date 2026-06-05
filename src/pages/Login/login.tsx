@@ -203,6 +203,12 @@ const StaffLoginPage = () => {
         setLoginMethod("companyCode");
     };
 
+    // Helper function to determine redirect path based on enabled modules
+    const getRedirectPath = () => {
+        // All non-admin users should redirect to home-dashboard
+        return "/home-dashboard";
+    };
+
     const handleLoginWithNavigation = async (enteredPin: string) => {
         setLoading(true);
         setError(null);
@@ -221,7 +227,7 @@ const StaffLoginPage = () => {
         if (success && userPayload?.role === "admin") {
             navigate("/admin/dashboard");
         } else if (success) {
-            navigate("/tables");
+            navigate(getRedirectPath());
         } else {
             setError(loginError);
         }
@@ -310,7 +316,7 @@ const StaffLoginPage = () => {
                 if (success && userPayload?.role === "admin") {
                     navigate("/admin/dashboard");
                 } else if (success) {
-                    navigate("/tables");
+                    navigate(getRedirectPath());
                 } else {
                     setError(loginError);
                 }
@@ -339,8 +345,8 @@ const StaffLoginPage = () => {
                         console.log('Navigating to admin dashboard');
                         navigate("/admin/dashboard");
                     } else {
-                        console.log('Navigating to tables');
-                        navigate("/tables");
+                        console.log('Navigating to appropriate dashboard based on modules');
+                        navigate(getRedirectPath());
                     }
                 } catch (fetchError) {
                     console.error('OTP Login Error:', fetchError);

@@ -63,6 +63,7 @@ type TabItem = {
 const getTabConfig = (): TabItem[] => {
     const isHospital = getPosMode() === "hospital";
     const { hasMteja, hasPOS, hasDala } = getTenantFlags();
+    const customerLabel = hasDala ? "Clients" : "Customers";
 
     if (isHospital) {
         return [
@@ -77,7 +78,7 @@ const getTabConfig = (): TabItem[] => {
     if (hasMteja && hasPOS) {
         return [
             { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CRM_LEADS_VIEW" },
-            { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
+            { key: "customers", label: customerLabel, icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
             { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
@@ -90,13 +91,13 @@ const getTabConfig = (): TabItem[] => {
     if (hasMteja) {
         return [
             { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CRM_LEADS_VIEW" },
-            { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
+            { key: "customers", label: customerLabel, icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
             ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
         ];
     }
 
     return [
-        { key: "customers", label: "Customers", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
+        { key: "customers", label: customerLabel, icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
         { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
         { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
         ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
@@ -184,7 +185,7 @@ type LeadPrefill = {
 // ── Main ───────────────────────────────────────────────────────────────────
 function Customers() {
     const isMobile = useIsMobile();
-    const { hasPOS, hasAccounting, hasMteja } = getTenantFlags();
+    const { hasPOS, hasAccounting, hasMteja, hasDala } = getTenantFlags();
     const can = useMemo(() => getPermissionChecker(), []);
     const ALL_TABS = useMemo(() => getTabConfig(), []);
     const tabsWithAccess = useMemo(
@@ -312,16 +313,16 @@ function Customers() {
         }}>
             <div>
                 <Text strong style={{ fontSize: isMobile ? 15 : 17, color: colors.darkText, display: "block", lineHeight: 1.3 }}>
-                    {isHospital ? "Patient Management" : "Customer Management"}
+                    {isHospital ? "Patient Management" : (hasDala ? "Client Management" : "Customer Management")}
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.subText, lineHeight: 1.3 }}>
                     {showOnlyCustomers
-                        ? `Manage your ${isHospital ? "patients" : "customers"}` 
+                        ? `Manage your ${isHospital ? "patients" : (hasDala ? "clients" : "customers")}` 
                         : hasMteja
-                            ? "Customers, leads & bookings"
+                            ? `${hasDala ? "Clients" : "Customers"}, leads & bookings`
                             : isHospital
                                 ? "Patients, appointments, services & more"
-                                : "Customers, subscriptions, bookings & more"}
+                                : `${hasDala ? "Clients" : "Customers"}, subscriptions, bookings & more`}
                 </Text>
             </div>
             {showAdd && can("CUSTOMERS_CREATE") && (
