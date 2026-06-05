@@ -127,7 +127,7 @@ const ModuleScopeTags: React.FC<{ permissionKeys: string[] }> = ({ permissionKey
   const scopes = new Set(
     permissionKeys.map((k) => PERMISSIONS[k]?.moduleScope).filter(Boolean)
   );
-  if (!scopes.has("hr") && !scopes.has("accounting")) return null;
+  if (!scopes.has("hr") && !scopes.has("accounting") && !scopes.has("crm") && !scopes.has("dala")) return null;
   return (
     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
       {scopes.has("hr") && (
@@ -135,6 +135,12 @@ const ModuleScopeTags: React.FC<{ permissionKeys: string[] }> = ({ permissionKey
       )}
       {scopes.has("accounting") && (
         <Tag color="purple" style={{ fontSize: 10, margin: 0, padding: "0 5px" }}>Acct</Tag>
+      )}
+      {scopes.has("crm") && (
+        <Tag color="cyan" style={{ fontSize: 10, margin: 0, padding: "0 5px" }}>CRM</Tag>
+      )}
+      {scopes.has("dala") && (
+        <Tag color="orange" style={{ fontSize: 10, margin: 0, padding: "0 5px" }}>Dala</Tag>
       )}
     </div>
   );
@@ -496,7 +502,7 @@ const MobileRoleList: React.FC<{
 function RoleSettings() {
   const actionRef = useRef<ActionType>();
   const isMobile = useIsMobile();
-  const { hasHR, hasAccounting } = useTenantModules();
+  const { hasHR, hasAccounting, hasMteja, hasDala, hasPOS } = useTenantModules();
 
   const deleteRoleMutation = useMutation(deleteRole, {
     onSuccess: () => { actionRef.current?.reload(); message.success("Role deleted"); },
@@ -610,8 +616,11 @@ function RoleSettings() {
             <SafetyCertificateOutlined />
           </div>
           <Text strong style={{ fontSize: 14, color: C.darkText }}>Role Settings</Text>
+          {hasPOS && <Tag color="blue" style={{ fontSize: 10 }}>POS</Tag>}
           {hasHR && <Tag color="blue" style={{ fontSize: 10 }}>HR</Tag>}
           {hasAccounting && <Tag color="purple" style={{ fontSize: 10 }}>Accounting</Tag>}
+          {hasMteja && <Tag color="cyan" style={{ fontSize: 10 }}>CRM</Tag>}
+          {hasDala && <Tag color="orange" style={{ fontSize: 10 }}>Dala</Tag>}
         </Space>
       }
       request={async (params) => {
