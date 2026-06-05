@@ -789,7 +789,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
   };
 
   const removeUnit = (key: string) => {
-    setUnits(units.filter(u => u.key !== key));
+    setUnits(units.filter(u => (u.key || u._id) !== key));
     message.success('Unit removed successfully');
   };
 
