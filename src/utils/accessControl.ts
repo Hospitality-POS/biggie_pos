@@ -1,4 +1,4 @@
-export type ModuleScope = "core" | "hr" | "accounting" | "crm";
+export type ModuleScope = "core" | "hr" | "accounting" | "crm" | "dala";
 
 // ─── Feature module names (UI grouping labels) ────────────────────────────────
 
@@ -56,6 +56,16 @@ export const MODULES = {
     CRM_SALES_BUDGETS: "CRM · Sales Budgets",
     CRM_LEAD_ACTIVITIES: "CRM · Lead Activities",
     CRM_LEAD_WORKFLOWS: "CRM · Lead Workflows",
+    // ── Dala / Real Estate module ─────────────────────────────────────────────
+    DALA_DASHBOARD: "Dala · Dashboard",
+    DALA_PROPERTIES: "Dala · Properties",
+    DALA_PROPERTY_TYPES: "Dala · Property Types",
+    DALA_SALES: "Dala · Sales",
+    DALA_LEASES: "Dala · Leases",
+    DALA_COMMISSIONS: "Dala · Commissions",
+    DALA_RENT_COLLECTION: "Dala · Rent Collection",
+    DALA_MAINTENANCE: "Dala · Maintenance",
+    DALA_REPORTS: "Dala · Reports",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -610,6 +620,74 @@ export const PERMISSIONS: Record<string, Permission> = {
     CRM_BUDGETS_UPDATE_ACTUALS: { key: "CRM_BUDGETS_UPDATE_ACTUALS", label: "Update Budget Actuals", module: MODULES.CRM_SALES_BUDGETS, action: "special", moduleScope: "crm" },
     CRM_BUDGETS_DELETE: { key: "CRM_BUDGETS_DELETE", label: "Delete Sales Budget", module: MODULES.CRM_SALES_BUDGETS, action: "delete", moduleScope: "crm" },
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // DALA / REAL ESTATE MODULE  (moduleScope: "dala")
+    // Visible / assignable only when tenant.modules.dala === true
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // ── Dashboard ─────────────────────────────────────────────────────────────
+
+    DALA_DASHBOARD_VIEW: { key: "DALA_DASHBOARD_VIEW", label: "View Dala Dashboard", module: MODULES.DALA_DASHBOARD, action: "read", moduleScope: "dala" },
+
+    // ── Properties ─────────────────────────────────────────────────────────────
+
+    DALA_PROPERTIES_VIEW: { key: "DALA_PROPERTIES_VIEW", label: "View Properties", module: MODULES.DALA_PROPERTIES, action: "read", moduleScope: "dala" },
+    DALA_PROPERTIES_VIEW_ONE: { key: "DALA_PROPERTIES_VIEW_ONE", label: "View Property Details", module: MODULES.DALA_PROPERTIES, action: "read", moduleScope: "dala" },
+    DALA_PROPERTIES_CREATE: { key: "DALA_PROPERTIES_CREATE", label: "Create Property", module: MODULES.DALA_PROPERTIES, action: "create", moduleScope: "dala" },
+    DALA_PROPERTIES_UPDATE: { key: "DALA_PROPERTIES_UPDATE", label: "Update Property", module: MODULES.DALA_PROPERTIES, action: "update", moduleScope: "dala" },
+    DALA_PROPERTIES_DELETE: { key: "DALA_PROPERTIES_DELETE", label: "Delete Property", module: MODULES.DALA_PROPERTIES, action: "delete", moduleScope: "dala" },
+
+    // ── Property Types ─────────────────────────────────────────────────────────
+
+    DALA_PROPERTY_TYPES_VIEW: { key: "DALA_PROPERTY_TYPES_VIEW", label: "View Property Types", module: MODULES.DALA_PROPERTY_TYPES, action: "read", moduleScope: "dala" },
+    DALA_PROPERTY_TYPES_CREATE: { key: "DALA_PROPERTY_TYPES_CREATE", label: "Create Property Type", module: MODULES.DALA_PROPERTY_TYPES, action: "create", moduleScope: "dala" },
+    DALA_PROPERTY_TYPES_UPDATE: { key: "DALA_PROPERTY_TYPES_UPDATE", label: "Update Property Type", module: MODULES.DALA_PROPERTY_TYPES, action: "update", moduleScope: "dala" },
+    DALA_PROPERTY_TYPES_DELETE: { key: "DALA_PROPERTY_TYPES_DELETE", label: "Delete Property Type", module: MODULES.DALA_PROPERTY_TYPES, action: "delete", moduleScope: "dala" },
+
+    // ── Sales ─────────────────────────────────────────────────────────────────
+
+    DALA_SALES_VIEW: { key: "DALA_SALES_VIEW", label: "View Sales", module: MODULES.DALA_SALES, action: "read", moduleScope: "dala" },
+    DALA_SALES_VIEW_ONE: { key: "DALA_SALES_VIEW_ONE", label: "View Sale Details", module: MODULES.DALA_SALES, action: "read", moduleScope: "dala" },
+    DALA_SALES_CREATE: { key: "DALA_SALES_CREATE", label: "Create Sale", module: MODULES.DALA_SALES, action: "create", moduleScope: "dala" },
+    DALA_SALES_UPDATE: { key: "DALA_SALES_UPDATE", label: "Update Sale", module: MODULES.DALA_SALES, action: "update", moduleScope: "dala" },
+    DALA_SALES_DELETE: { key: "DALA_SALES_DELETE", label: "Delete Sale", module: MODULES.DALA_SALES, action: "delete", moduleScope: "dala" },
+
+    // ── Leases ─────────────────────────────────────────────────────────────────
+
+    DALA_LEASES_VIEW: { key: "DALA_LEASES_VIEW", label: "View Leases", module: MODULES.DALA_LEASES, action: "read", moduleScope: "dala" },
+    DALA_LEASES_VIEW_ONE: { key: "DALA_LEASES_VIEW_ONE", label: "View Lease Details", module: MODULES.DALA_LEASES, action: "read", moduleScope: "dala" },
+    DALA_LEASES_CREATE: { key: "DALA_LEASES_CREATE", label: "Create Lease", module: MODULES.DALA_LEASES, action: "create", moduleScope: "dala" },
+    DALA_LEASES_UPDATE: { key: "DALA_LEASES_UPDATE", label: "Update Lease", module: MODULES.DALA_LEASES, action: "update", moduleScope: "dala" },
+    DALA_LEASES_DELETE: { key: "DALA_LEASES_DELETE", label: "Delete Lease", module: MODULES.DALA_LEASES, action: "delete", moduleScope: "dala" },
+
+    // ── Commissions ───────────────────────────────────────────────────────────
+
+    DALA_COMMISSIONS_VIEW: { key: "DALA_COMMISSIONS_VIEW", label: "View Commissions", module: MODULES.DALA_COMMISSIONS, action: "read", moduleScope: "dala" },
+    DALA_COMMISSIONS_VIEW_ONE: { key: "DALA_COMMISSIONS_VIEW_ONE", label: "View Commission Details", module: MODULES.DALA_COMMISSIONS, action: "read", moduleScope: "dala" },
+    DALA_COMMISSIONS_CREATE: { key: "DALA_COMMISSIONS_CREATE", label: "Create Commission", module: MODULES.DALA_COMMISSIONS, action: "create", moduleScope: "dala" },
+    DALA_COMMISSIONS_UPDATE: { key: "DALA_COMMISSIONS_UPDATE", label: "Update Commission", module: MODULES.DALA_COMMISSIONS, action: "update", moduleScope: "dala" },
+    DALA_COMMISSIONS_DELETE: { key: "DALA_COMMISSIONS_DELETE", label: "Delete Commission", module: MODULES.DALA_COMMISSIONS, action: "delete", moduleScope: "dala" },
+
+    // ── Rent Collection ───────────────────────────────────────────────────────
+
+    DALA_RENT_COLLECTION_VIEW: { key: "DALA_RENT_COLLECTION_VIEW", label: "View Rent Collection", module: MODULES.DALA_RENT_COLLECTION, action: "read", moduleScope: "dala" },
+    DALA_RENT_COLLECTION_VIEW_ONE: { key: "DALA_RENT_COLLECTION_VIEW_ONE", label: "View Rent Collection Details", module: MODULES.DALA_RENT_COLLECTION, action: "read", moduleScope: "dala" },
+    DALA_RENT_COLLECTION_CREATE: { key: "DALA_RENT_COLLECTION_CREATE", label: "Record Rent Payment", module: MODULES.DALA_RENT_COLLECTION, action: "create", moduleScope: "dala" },
+    DALA_RENT_COLLECTION_UPDATE: { key: "DALA_RENT_COLLECTION_UPDATE", label: "Update Rent Collection", module: MODULES.DALA_RENT_COLLECTION, action: "update", moduleScope: "dala" },
+    DALA_RENT_COLLECTION_DELETE: { key: "DALA_RENT_COLLECTION_DELETE", label: "Delete Rent Collection", module: MODULES.DALA_RENT_COLLECTION, action: "delete", moduleScope: "dala" },
+
+    // ── Maintenance ───────────────────────────────────────────────────────────
+
+    DALA_MAINTENANCE_VIEW: { key: "DALA_MAINTENANCE_VIEW", label: "View Maintenance Requests", module: MODULES.DALA_MAINTENANCE, action: "read", moduleScope: "dala" },
+    DALA_MAINTENANCE_VIEW_ONE: { key: "DALA_MAINTENANCE_VIEW_ONE", label: "View Maintenance Details", module: MODULES.DALA_MAINTENANCE, action: "read", moduleScope: "dala" },
+    DALA_MAINTENANCE_CREATE: { key: "DALA_MAINTENANCE_CREATE", label: "Create Maintenance Request", module: MODULES.DALA_MAINTENANCE, action: "create", moduleScope: "dala" },
+    DALA_MAINTENANCE_UPDATE: { key: "DALA_MAINTENANCE_UPDATE", label: "Update Maintenance Request", module: MODULES.DALA_MAINTENANCE, action: "update", moduleScope: "dala" },
+    DALA_MAINTENANCE_DELETE: { key: "DALA_MAINTENANCE_DELETE", label: "Delete Maintenance Request", module: MODULES.DALA_MAINTENANCE, action: "delete", moduleScope: "dala" },
+
+    // ── Reports ───────────────────────────────────────────────────────────────
+
+    DALA_REPORTS_VIEW: { key: "DALA_REPORTS_VIEW", label: "View Dala Reports", module: MODULES.DALA_REPORTS, action: "read", moduleScope: "dala" },
+
 } as const;
 
 // ─── Key collections ──────────────────────────────────────────────────────────
@@ -628,6 +706,9 @@ export const ACCOUNTING_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
 export const CRM_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
     (k) => PERMISSIONS[k].moduleScope === "crm"
 );
+export const DALA_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
+    (k) => PERMISSIONS[k].moduleScope === "dala"
+);
 
 // ─── Tenant-aware helpers ─────────────────────────────────────────────────────
 
@@ -635,12 +716,14 @@ export const getPermissionsForTenant = (options: {
     hasHR?: boolean;
     hasAccounting?: boolean;
     hasCRM?: boolean;
+    hasDala?: boolean;
 }): Permission[] =>
     Object.values(PERMISSIONS).filter((p) => {
         if (p.moduleScope === "core") return true;
         if (p.moduleScope === "hr") return !!options.hasHR;
         if (p.moduleScope === "accounting") return !!options.hasAccounting;
         if (p.moduleScope === "crm") return !!options.hasCRM;
+        if (p.moduleScope === "dala") return !!options.hasDala;
         return false;
     });
 
@@ -648,6 +731,7 @@ export const getPermissionsGroupedByModuleForTenant = (options: {
     hasHR?: boolean;
     hasAccounting?: boolean;
     hasCRM?: boolean;
+    hasDala?: boolean;
 }): Record<string, Permission[]> =>
     getPermissionsForTenant(options).reduce<Record<string, Permission[]>>((acc, p) => {
         if (!acc[p.module]) acc[p.module] = [];

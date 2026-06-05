@@ -801,7 +801,7 @@ const DiscoverPage: React.FC = () => {
 
             {/* Cards */}
             <Row gutter={[16, 16]}>
-                {INTEGRATIONS.map((integration) => {
+                {INTEGRATIONS.filter((integration) => getStatus(integration.id) === "enabled").map((integration) => {
                     const isEnabled = getStatus(integration.id) === "enabled";
                     return (
                         <Col xs={24} sm={24} md={12} lg={8} key={integration.id}>
