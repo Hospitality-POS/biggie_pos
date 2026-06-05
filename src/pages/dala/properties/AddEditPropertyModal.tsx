@@ -217,6 +217,8 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
     bedrooms: 1,
     bathrooms: 1,
     status: 'available',
+    blockId: '',
+    floorId: '',
   });
   const [editUnitApartments, setEditUnitApartments] = useState<Apartment[]>([]);
   const [newAptForm, setNewAptForm] = useState({ apartmentName: '', areaValue: 0, price: 0, status: 'available' as 'available' | 'sold' | 'reserved' });
@@ -481,17 +483,36 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       }
 
       if (propertyBlocks.length > 0) {
-        const loadedBlocks = propertyBlocks.map((block: any, index: number) => ({
-          ...block,
-          key: block._id || `block_${index}`,
-          tempId: block._id || `temp-block-${index}`,
-          floors: (block.floors || []).map((floor: any, fIndex: number) => ({
-            ...floor,
-            key: floor._id || `floor_${index}_${fIndex}`,
-            tempId: floor._id || `temp-floor-${index}_${fIndex}`,
-            blockTempId: block._id || `temp-block-${index}` 
-          }))
-        }));
+        const loadedBlocks = propertyBlocks.map((block: any, index: number) => {
+          const normalizedFloors = (block.floors || []).map((floor: any, fIndex: number) => {
+            // Normalize floor name from API format "Level 3 (+13.0)" to "3rd Floor"
+            let floorName = floor.name;
+            if (floorName && floorName.includes('Level')) {
+              const match = floorName.match(/Level\s+(\d+)/);
+              if (match) {
+                const floorNum = parseInt(match[1]);
+                if (floorNum === 0) floorName = 'Ground Floor';
+                else if (floorNum === 1) floorName = '1st Floor';
+                else if (floorNum === 2) floorName = '2nd Floor';
+                else if (floorNum === 3) floorName = '3rd Floor';
+                else floorName = `${floorNum}th Floor`;
+              }
+            }
+            return {
+              ...floor,
+              key: floor._id || `floor_${index}_${fIndex}`,
+              tempId: floor._id || `temp-floor-${index}_${fIndex}`,
+              blockTempId: block._id || `temp-block-${index}`,
+              name: floorName || floor.name
+            };
+          });
+          return {
+            ...block,
+            key: block._id || `block_${index}`,
+            tempId: block._id || `temp-block-${index}`,
+            floors: normalizedFloors
+          };
+        });
         setBlocks(loadedBlocks);
         setFloors(loadedBlocks.flatMap((block: any) => block.floors));
       }
@@ -783,6 +804,8 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       bedrooms: (unit as any).specifications?.bedrooms ?? (unit as any).bedrooms ?? 1,
       bathrooms: (unit as any).specifications?.bathrooms ?? (unit as any).bathrooms ?? 1,
       status: unit.status || 'available',
+      blockId: unit.blockId || '',
+      floorId: unit.floorId || '',
     });
     setEditUnitApartments(unit.apartments ? [...unit.apartments] : []);
     setNewAptForm({ apartmentName: '', areaValue: 0, price: 0, status: 'available' });
@@ -824,6 +847,8 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           status: editUnitForm.status,
           trackIndividualUnits: hasApts,
           apartments: hasApts ? editUnitApartments : u.apartments,
+          blockId: editUnitForm.blockId || u.blockId,
+          floorId: editUnitForm.floorId || u.floorId,
           specifications: {
             ...(u as any).specifications,
             bedrooms: editUnitForm.bedrooms,
@@ -887,7 +912,8 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
     if (propertyType === 'land') return unit.plotSize || unit.unitType;
     const block = blocks.find(b => b.tempId === unit.blockId);
     const floor = floors.find(f => f.tempId === unit.floorId);
-    return [block?.name, floor?.name, unit.unitNumber, unit.unitType.replace('_', ' ')].filter(Boolean).join(' - ');
+    const unitTypeLabel = unit.unitType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return [block?.name, floor?.name, unit.unitNumber, unitTypeLabel].filter(Boolean).join(' - ');
   };
 
   const renderBlockManagement = () => {
@@ -2243,6 +2269,45 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
               label: 'Unit Details',
               children: (
                 <div style={{ padding: '16px 0' }}>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Block</label>
+                        <Select
+                          value={editUnitForm.blockId}
+                          onChange={(value) => {
+                            setEditUnitForm({ ...editUnitForm, blockId: value, floorId: '' });
+                          }}
+                          style={{ width: '100%' }}
+                          placeholder="Select block"
+                        >
+                          {blocks.map(block => (
+                            <Select.Option key={block.tempId} value={block.tempId}>
+                              {block.name} ({block.totalFloors} floors)
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </Col>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Floor</label>
+                        <Select
+                          value={editUnitForm.floorId}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, floorId: value })}
+                          style={{ width: '100%' }}
+                          placeholder="Select floor"
+                          disabled={!editUnitForm.blockId}
+                        >
+                          {floors.filter(floor => floor.blockTempId === editUnitForm.blockId).map(floor => (
+                            <Select.Option key={floor.tempId} value={floor.tempId}>
+                              {floor.name}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </Col>
+                  </Row>
                   <Row gutter={16}>
                     <Col span={12}>
                       <div style={{ marginBottom: 16 }}>
