@@ -213,6 +213,12 @@ const useProLayoutNav = () => {
   const canSee = (bare: string, permMap: Record<string, string>): boolean => {
     const gate = permMap[bare];
     if (!gate) return true;
+    
+    // Special case: if Dala module is enabled, show all Dala navigation
+    if (hasDala && bare.startsWith("/dala")) {
+      return true;
+    }
+    
     return can(gate);
   };
 
@@ -221,6 +227,13 @@ const useProLayoutNav = () => {
 
   const homeRouteName = "POS";
   const homeRouteIcon = isHospitalMode ? <MedicineBoxOutlined /> : <HomeFilled />;
+
+  // Helper to get customer label based on Dala and hospital mode
+  const getCustomerLabel = () => {
+    if (isHospitalMode) return "Patients";
+    if (hasDala) return "Clients";
+    return "Customers";
+  };
 
   const { hasPOS, hasAccounting, hasMteja, hasDala } = getTenantFlags();
   const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting && !hasDala;
@@ -265,7 +278,7 @@ const useProLayoutNav = () => {
   // ── Mteja Customers (sole module only) ───────────────────────────────────
   const mtejaCustomersRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
     path: p("/customers"),
-    name: isHospitalMode ? "Patients" : "Customers",
+    name: getCustomerLabel(),
     icon: <UserOutlined />,
     _bare: "/customers",
   }] : [];
@@ -347,7 +360,7 @@ const useProLayoutNav = () => {
       : []),
     { ...inventoryRoute, _bare: inventoryBarePath },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
-    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
+    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
     { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
     { path: p("/petty-cash"), name: "Petty Cash", icon: <WalletOutlined />, _bare: "/petty-cash" },
@@ -374,7 +387,7 @@ const useProLayoutNav = () => {
       : []),
     { ...inventoryRoute, _bare: inventoryBarePath },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
-    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
+    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
     { ...documentRoute, _bare: "/documents" },
     { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
     { path: p("/table-settings"), name: "Tables", icon: <AppstoreOutlined />, _bare: "/table-settings" },
@@ -404,7 +417,7 @@ const useProLayoutNav = () => {
       { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
       // { path: p("/accounting/currencies"), name: "Currencies", icon: <GlobalOutlined />, _bare: "/accounting/currencies" },
       { ...inventoryRoute, _bare: inventoryBarePath },
-      ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
+      ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
       { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
       { path: p("/payment-methods"), name: "Payment Methods", icon: <CalculatorFilled />, _bare: "/payment-methods" },
       { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
@@ -498,7 +511,7 @@ const useProLayoutNav = () => {
       { icon: makeTile("#6366f1", ICONS.checklist), title: "Services", desc: "Manage products and services for your customers.", url: p("/store"), _bare: "/store" },
       { icon: makeTile("#6366f1", ICONS.checklist), title: "Categories", desc: "Organize your products and services with clear categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
     ] : []),
-    { icon: makeTile("#06b6d4", ICONS.customers), title: "Customers", desc: "Manage your customer relationships.", url: p("/customers"), _bare: "/customers" },
+    { icon: makeTile("#06b6d4", ICONS.customers), title: getCustomerLabel(), desc: "Manage your customer relationships.", url: p("/customers"), _bare: "/customers" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: p("/suppliers"), _bare: "/suppliers" },
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: p("/payment-methods"), _bare: "/payment-methods" },
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: p("/system-setup"), _bare: "/system-setup" },
@@ -528,7 +541,7 @@ const useProLayoutNav = () => {
     }] : []),
     ...(can("CUSTOMERS_VIEW") ? [{
       icon: makeTile("#06b6d4", ICONS.customers),
-      title: "Customers",
+      title: getCustomerLabel(),
       desc: "Manage your customer relationships and subscriptions.",
       url: p("/customers"),
     }] : []),
@@ -603,7 +616,7 @@ const useProLayoutNav = () => {
         path: "/",
         routes: [
           ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
-          { path: p("/customers"), name: "Customers", icon: <UserOutlined />, _bare: "/customers" },
+          { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
           ...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest),
           ...crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
           { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
@@ -668,7 +681,7 @@ const useProLayoutNav = () => {
         routes: [
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
-          ...(hasMteja ? [{ path: p("/customers"), name: "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
+          ...(hasMteja ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
           {
             path: p("/accounting"),
             name: "Accounting",
@@ -740,7 +753,7 @@ const useProLayoutNav = () => {
     );
     // Add Customers if Mteja is enabled
     if (hasMteja) {
-      baseRoutes.splice(2, 0, { path: p("/customers"), name: "Customers", icon: <UserOutlined /> });
+      baseRoutes.splice(2, 0, { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined /> });
     }
   }
   return { route: { path: "/", routes: baseRoutes }, appList: posAppList };
