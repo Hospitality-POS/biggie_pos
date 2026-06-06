@@ -58,7 +58,10 @@ export const createUser = createAsyncThunk(
   "user/createUser",
   async (_userDetails: UserDetails, { rejectWithValue, dispatch }) => {
     try {
-      const response = await axiosInstance.post(`${baseUrl}/register`, _userDetails);
+      // Add company code to prevent logout
+      const companyCode = localStorage.getItem("companyCode");
+      const payload = companyCode ? { ..._userDetails, companyCode, tenant_code: companyCode } : _userDetails;
+      const response = await axiosInstance.post(`${baseUrl}/register`, payload);
       dispatch(fetchAllUsers())
       return response.data;
     } catch (error: any) {

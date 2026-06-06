@@ -476,7 +476,8 @@ export interface Customer {
 
   // ── Original POS fields ────────────────────────────────────────────────────
   code: string;
-  customer_name: string;
+  entity_type?: 'individual' | 'company';
+  customer_name?: string;
   email?: string;
   phone: string;
   location?: string;

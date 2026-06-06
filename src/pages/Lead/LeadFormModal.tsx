@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import {
-    Button, DatePicker, Form, Input, InputNumber, Modal, Select, Typography, message, Spin,
+    Button, DatePicker, Form, Input, InputNumber, Modal, Select, Typography, message, Spin, Radio,
 } from "antd";
 import {
     EditOutlined, MailOutlined, PhoneOutlined, SaveOutlined,
-    TeamOutlined, UserOutlined, UserSwitchOutlined,
+    TeamOutlined, UserOutlined, UserSwitchOutlined, ShopOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch } from "../../store";
 import { createLead, updateLead, Lead } from "@services/crm/leads";
@@ -49,6 +49,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     const [loading, setLoading] = useState(false);
     const [usersLoading, setUsersLoading] = useState(false);
     const [users, setUsers] = useState<User[]>([]);
+    const [entityType, setEntityType] = useState<'individual' | 'company'>('individual');
     const dispatch = useAppDispatch();
     const isEdit = mode === "edit";
 
@@ -84,9 +85,13 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
     useEffect(() => {
         if (!visible) return;
         if (isEdit && lead) {
+            const entityTypeValue = lead.entity_type || 'individual';
+            setEntityType(entityTypeValue);
             form.setFieldsValue({
+                entity_type: entityTypeValue,
                 lead_name: lead.lead_name,
                 company_name: lead.company_name,
+                contact_person: lead.contact_person,
                 email: lead.email,
                 phone: lead.phone,
                 website: lead.website,
@@ -106,6 +111,8 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
             });
         } else {
             form.resetFields();
+            setEntityType('individual');
+            form.setFieldsValue({ entity_type: 'individual' });
         }
     }, [visible, mode, lead, form]);
 
@@ -121,14 +128,16 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
             const tenant_id = tenant?._id;
 
             const payload: any = {
-                lead_name: values.lead_name,
-                company_name: values.company_name,
+                entity_type: values.entity_type || 'individual',
+                lead_name: values.entity_type === 'individual' ? values.lead_name : undefined,
+                company_name: values.entity_type === 'company' ? values.company_name : undefined,
+                contact_person: values.contact_person,
                 email: values.email,
                 phone: values.phone,
                 website: values.website,
                 stage: values.stage || "new",
                 source: values.source,
-                assigned_to: values.assigned_to, // Add assigned_to user ID
+                assigned_to: values.assigned_to,
                 estimated_value: values.estimated_value,
                 probability: values.probability,
                 expected_close_date: values.expected_close_date?.toISOString(),
@@ -186,23 +195,50 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({
         >
             <Form form={form} layout="vertical" onFinish={handleSubmit} style={{ marginTop: 4 }}>
 
-                {/* Name + Company */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {/* Entity Type */}
+                <Form.Item name="entity_type" label="Entity Type" initialValue="individual">
+                    <Radio.Group 
+                        onChange={(e) => setEntityType(e.target.value)}
+                        style={{ width: '100%' }}
+                    >
+                        <Radio.Button value="individual" style={{ marginRight: 8 }}>
+                            <UserOutlined /> Individual
+                        </Radio.Button>
+                        <Radio.Button value="company">
+                            <ShopOutlined /> Company
+                        </Radio.Button>
+                    </Radio.Group>
+                </Form.Item>
+
+                {/* Name fields based on entity type */}
+                {entityType === 'individual' ? (
                     <Form.Item name="lead_name" label="Lead Name"
-                        rules={[{ required: true, message: "Lead name is required" }]}
-                        style={{ flex: "1 1 220px" }}>
+                        rules={[{ required: true, message: "Lead name is required for individual leads" }]}
+                    >
                         <Input prefix={<UserOutlined style={{ color: C.subText }} />}
                             placeholder="Full name" style={{ borderRadius: 8 }} autoFocus />
                     </Form.Item>
-                    <Form.Item name="company_name" label="Company / Business"
-                        style={{ flex: "1 1 220px" }}>
-                        <Input placeholder="Company name (optional)" style={{ borderRadius: 8 }} />
+                ) : (
+                    <Form.Item name="company_name" label="Company Name"
+                        rules={[{ required: true, message: "Company name is required for company leads" }]}
+                    >
+                        <Input prefix={<ShopOutlined style={{ color: C.subText }} />}
+                            placeholder="Company name" style={{ borderRadius: 8 }} autoFocus />
                     </Form.Item>
-                </div>
+                )}
+
+                {/* Contact Person (optional for both, recommended for company) */}
+                <Form.Item name="contact_person" label="Contact Person">
+                    <Input prefix={<UserOutlined style={{ color: C.subText }} />}
+                        placeholder={entityType === 'company' ? "Primary contact person" : "Contact person (optional)"}
+                        style={{ borderRadius: 8 }} />
+                </Form.Item>
 
                 {/* Phone + Email */}
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <Form.Item name="phone" label="Phone" style={{ flex: "1 1 200px" }}>
+                    <Form.Item name="phone" label="Phone" 
+                        rules={[{ required: true, message: "Phone number is required" }]}
+                        style={{ flex: "1 1 200px" }}>
                         <Input prefix={<PhoneOutlined style={{ color: C.subText }} />}
                             placeholder="e.g. 0712345678" style={{ borderRadius: 8 }} />
                     </Form.Item>

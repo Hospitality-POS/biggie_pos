@@ -47,8 +47,10 @@ export interface StageHistoryEntry {
 
 export interface Lead {
     _id: string;
-    lead_name: string;
+    entity_type?: 'individual' | 'company';
+    lead_name?: string;
     company_name?: string;
+    contact_person?: string;
     email?: string;
     phone?: string;
     website?: string;
@@ -79,6 +81,7 @@ export interface Lead {
     updatedAt: string;
     // attached by getById
     activities?: import("./crm/leadActivities").LeadActivity[];
+    documents?: any[];
 }
 
 export interface PipelineStageSummary {

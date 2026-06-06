@@ -4,7 +4,7 @@ import { PlusOutlined, TeamOutlined } from "@ant-design/icons";
 import LeadTable, { LeadTableHandle } from "./LeadTable";
 import LeadFormModal from "./LeadFormModal";
 import LeadDetailDrawer from "./LeadDetailDrawer";
-import { Lead } from "@services/crm/leads";
+import { Lead, getLeadById } from "@services/crm/leads";
 
 const { Text } = Typography;
 
@@ -40,6 +40,23 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
     const handleEdit = (l: Lead) => { setFormMode("edit"); setSelectedLead(l); setFormOpen(true); };
     const handleView = (l: Lead) => { setSelectedLead(l); setDrawerOpen(true); };
     const handleSuccess = () => tableRef.current?.reload();
+
+    const handleRefreshLead = async () => {
+        if (selectedLead) {
+            const shopData = localStorage.getItem("shop");
+            const shop = shopData ? JSON.parse(shopData) : null;
+            const shop_id = shop?._id;
+            
+            try {
+                const updatedLead = await getLeadById(selectedLead._id, shop_id || "");
+                if (updatedLead) {
+                    setSelectedLead(updatedLead);
+                }
+            } catch (error) {
+                console.error("Error refreshing lead:", error);
+            }
+        }
+    };
 
     return (
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
@@ -87,6 +104,7 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
                 onClose={() => setDrawerOpen(false)}
                 onUpdated={handleSuccess}
                 onConvertWithForm={onConvertWithForm}
+                onRefreshLead={handleRefreshLead}
             />
         </div>
     );

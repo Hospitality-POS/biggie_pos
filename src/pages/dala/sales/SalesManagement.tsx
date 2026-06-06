@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   Button,
@@ -19,6 +19,8 @@ import {
   Tabs,
   Empty,
   Dropdown,
+  Form,
+  Upload,
 } from 'antd';
 import {
   PlusOutlined,
@@ -32,10 +34,22 @@ import {
   ReloadOutlined,
   AccountBookOutlined,
   FilePdfOutlined,
+  FileOutlined,
+  UploadOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchPropertySales, fetchProperties, createPropertySale, updatePropertySale } from '@services/dala';
+import {
+  fetchPropertyDocuments,
+  uploadPropertyDocument,
+  deletePropertyDocument,
+  PROPERTY_DOCUMENT_TYPES,
+} from '@services/dala/propertyDocuments';
 import { useDalaSales, useDalaProperties } from '../../../stores/dalaStore';
+import { generateOfferLetterPDF } from '@utils/offerLetterPDF';
+import { getPermissionChecker } from '@utils/getPermissionChecker';
+import { PERMISSIONS } from '@utils/accessControl';
 import dayjs from 'dayjs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -46,9 +60,24 @@ const { Search } = Input;
 const { Option } = Select;
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
+const { TextArea } = Input;
+
+const C = {
+  primary: "#6c1c2c",
+  primaryLight: "#f9f0f2",
+  green: "#10b981",
+  red: "#ef4444",
+  blue: "#3b82f6",
+  subText: "#64748b",
+  darkText: "#0f172a",
+  border: "#e2e8f0",
+  bg: "#f8fafc",
+};
 
 const SalesManagement: React.FC = () => {
   const queryClient = useQueryClient();
+  const can = getPermissionChecker();
+  
   const [activeTab, setActiveTab] = useState('sales');
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,6 +88,91 @@ const SalesManagement: React.FC = () => {
   const [editSale, setEditSale] = useState<any>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [selectedSale, setSelectedSale] = useState<any>(null);
+  
+  // Document management state
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [fileList, setFileList] = useState<any[]>([]);
+  const [documentForm] = Form.useForm();
+
+  const shop_id = localStorage.getItem("shopId");
+
+  // Fetch documents when drawer opens and documents tab is active
+  useEffect(() => {
+    const property_id = selectedSale?.property_id || selectedSale?.property?._id;
+    if (drawerVisible && property_id && shop_id) {
+      fetchPropertyDocuments(property_id, shop_id)
+        .then(response => {
+          setDocuments(Array.isArray(response.data) ? response.data : []);
+        })
+        .catch(() => setDocuments([]));
+    }
+  }, [drawerVisible, selectedSale?.property_id, selectedSale?.property?._id, shop_id]);
+
+  const handleDocumentUpload = async (values: any) => {
+    console.log('handleDocumentUpload called with values:', values);
+    console.log('fileList:', fileList);
+    console.log('selectedSale:', selectedSale);
+    console.log('shop_id:', shop_id);
+    
+    const property_id = selectedSale?.property_id || selectedSale?.property?._id;
+    console.log('resolved property_id:', property_id);
+    
+    if (!property_id || !shop_id) {
+      message.error(`Missing property_id (${property_id}) or shop_id (${shop_id})`);
+      return;
+    }
+    
+    if (fileList.length === 0) {
+      message.error("Please upload at least one file");
+      return;
+    }
+    
+    setUploadLoading(true);
+    try {
+      await uploadPropertyDocument(property_id, {
+        shop_id,
+        document_type: values.document_type,
+        name: values.name,
+        description: values.description,
+        files: fileList.map(f => f.originFileObj).filter(Boolean),
+      });
+      documentForm.resetFields();
+      setFileList([]);
+      // Refresh documents
+      const response = await fetchPropertyDocuments(property_id, shop_id);
+      setDocuments(Array.isArray(response.data) ? response.data : []);
+      message.success("Document uploaded successfully");
+    } catch (error) {
+      console.error('Upload error:', error);
+      message.error("Failed to upload document");
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!selectedSale?.property_id || !shop_id) return;
+    try {
+      await deletePropertyDocument(selectedSale.property_id, documentId, shop_id);
+      // Refresh documents
+      const response = await fetchPropertyDocuments(selectedSale.property_id, shop_id);
+      setDocuments(Array.isArray(response.data) ? response.data : []);
+      message.success("Document deleted");
+    } catch (error) {
+      message.error("Failed to delete document");
+    }
+  };
+
+  const SectionTitle = ({ label }: { label: string }) => (
+    <Text strong style={{
+      fontSize: 11, color: C.primary, textTransform: "uppercase",
+      letterSpacing: "0.5px", display: "block",
+    }}>
+      {label}
+    </Text>
+  );
   
   const storeSales = useDalaSales();
   const properties = useDalaProperties();
@@ -177,7 +291,18 @@ const SalesManagement: React.FC = () => {
       dataIndex: ['client', 'name'],
       key: 'client',
       render: (name: string, record: any) => (
-        <Text>{name || record.client?.email || record.client?.phone || '-'}</Text>
+        <div>
+          {record.isJointPurchase ? (
+            <div>
+              <Tag color="purple" size="small">Joint ({record.customers?.length || 0})</Tag>
+              <Text style={{ marginLeft: 8 }}>
+                {record.customers?.[0]?.name || record.customers?.[0]?.customer_name || record.customer?.name || record.client?.name || '-'}
+              </Text>
+            </div>
+          ) : (
+            <Text>{name || record.customer?.name || record.client?.name || record.customer?.email || record.client?.email || '-'}</Text>
+          )}
+        </div>
       ),
     },
     {
@@ -312,38 +437,88 @@ const SalesManagement: React.FC = () => {
       
       const rgb = hexToRgb(primaryColor);
       
-      // Add logo (use default if tenant logo is missing)
-      const logoUrl = '/logo.png'; // Default logo path
+      // Title at the top
+      doc.setFontSize(22);
+      doc.setTextColor(rgb.r, rgb.g, rgb.b);
+      doc.text('Client Statement', pageWidth / 2, 15, { align: 'center' });
+      
+      // Divider line after title
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, 20, pageWidth - 15, 20);
+      
+      // Add logo (use relia.png as default if tenant logo is missing)
+      const logoUrl = '/relia.png'; // Default logo path
       const tenantLogo = localStorage.getItem('tenantLogo') || logoUrl;
       
       try {
-        doc.addImage(tenantLogo, 'PNG', 15, 10, 30, 30);
+        doc.addImage(tenantLogo, 'PNG', 15, 25, 25, 25);
       } catch (error) {
         // If logo fails to load, draw a placeholder with brand color
         doc.setFillColor(rgb.r, rgb.g, rgb.b);
-        doc.circle(30, 25, 15, 'F');
+        doc.circle(27.5, 37.5, 12.5, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(10);
-        doc.text('LOGO', 30, 25, { align: 'center', baseline: 'middle' });
+        doc.text('LOGO', 27.5, 37.5, { align: 'center', baseline: 'middle' });
       }
       
-      // Title
-      doc.setFontSize(20);
-      doc.setTextColor(rgb.r, rgb.g, rgb.b);
-      doc.text('Client Statement', pageWidth / 2, 20, { align: 'center' });
+      // Get tenant details for company information
+      const tenantStr = localStorage.getItem('tenant');
+      let tenantName = 'Relia POS';
+      let tenantPhone = '';
+      let tenantEmail = '';
+      let tenantAddress = '';
       
-      // Date
-      doc.setFontSize(10);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Generated: ${dayjs().format('DD MMM YYYY HH:mm')}`, pageWidth / 2, 28, { align: 'center' });
+      try {
+        const tenant = JSON.parse(tenantStr || '{}');
+        tenantName = String(tenant.name || tenant.company_name || 'Relia POS');
+        tenantPhone = String(tenant.phone || tenant.contact_phone || '');
+        tenantEmail = String(tenant.email || tenant.contact_email || '');
+        const addressValue = tenant.address || tenant.location;
+        // Handle address - if it's an object, try to extract meaningful parts, otherwise skip
+        if (typeof addressValue === 'object' && addressValue !== null) {
+          // Extract street, city, country if available
+          const parts = [];
+          if (addressValue.street) parts.push(addressValue.street);
+          if (addressValue.city) parts.push(addressValue.city);
+          if (addressValue.country && parts.length > 0) parts.push(addressValue.country);
+          tenantAddress = parts.join(', ') || '';
+        } else {
+          tenantAddress = String(addressValue || '');
+        }
+      } catch (error) {
+        console.error('Error parsing tenant:', error);
+      }
       
-      // Client Information Section
-      doc.setDrawColor(200, 200, 200);
-      doc.line(15, 45, pageWidth - 15, 45);
-      
-      doc.setFontSize(14);
+      // Company details on the far right - aligned professionally
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text('Sale Information', 15, 55);
+      doc.text(tenantName, pageWidth - 15, 30, { align: 'right' });
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      let yPos = 38;
+      if (tenantAddress && tenantAddress !== '[object Object]' && tenantAddress !== '') {
+        doc.text(tenantAddress, pageWidth - 15, yPos, { align: 'right' });
+        yPos += 6;
+      }
+      if (tenantPhone) {
+        doc.text(`Tel: ${tenantPhone}`, pageWidth - 15, yPos, { align: 'right' });
+        yPos += 6;
+      }
+      if (tenantEmail) {
+        doc.text(`Email: ${tenantEmail}`, pageWidth - 15, yPos, { align: 'right' });
+      }
+      
+      // Divider line after company details
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, 55, pageWidth - 15, 55);
+      
+      // Sale Information section
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Sale Information', 15, 63);
       
       // Sale details table
       const saleData = [
@@ -360,7 +535,7 @@ const SalesManagement: React.FC = () => {
       ];
       
       autoTable(doc, {
-        startY: 60,
+        startY: 68,
         head: [['Field', 'Value']],
         body: saleData,
         theme: 'grid',
@@ -386,6 +561,7 @@ const SalesManagement: React.FC = () => {
       });
       
       let currentY = (doc as any).lastY || 130;
+      currentY += 15; // Add spacing after Sale Information table
       
       // Payment Plans Section
       const paymentPlans = selectedSale.paymentPlans || [];
@@ -399,7 +575,7 @@ const SalesManagement: React.FC = () => {
         doc.setTextColor(0, 0, 0);
         doc.text('Payment Plans', 15, currentY);
         
-        currentY += 5;
+        currentY += 10;
         
         const planHeaders = ['Start Date', 'End Date', 'Total Amount', 'Installment', 'Frequency', 'Installments', 'Status'];
         const planRows = paymentPlans.map((plan: any) => [
@@ -434,6 +610,7 @@ const SalesManagement: React.FC = () => {
         });
         
         currentY = (doc as any).lastY || currentY + 50;
+        currentY += 15; // Add spacing after Payment Plans table
       }
       
       // Payments Section
@@ -448,7 +625,7 @@ const SalesManagement: React.FC = () => {
         doc.setTextColor(0, 0, 0);
         doc.text('Payment History', 15, currentY);
         
-        currentY += 5;
+        currentY += 10;
         
         const paymentHeaders = ['Date', 'Amount', 'Method', 'Type', 'Status', 'Notes'];
         const paymentRows = payments.map((payment: any) => [
@@ -484,15 +661,17 @@ const SalesManagement: React.FC = () => {
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
         doc.text(
-          `Page ${i} of ${pageCount}`,
+          `Generated: ${dayjs().format('DD MMM YYYY HH:mm')} | Page ${i} of ${pageCount}`,
           pageWidth / 2,
           pageHeight - 10,
           { align: 'center' }
         );
       }
       
-      // Save the PDF
-      doc.save(`client-statement-${selectedSale.saleCode || selectedSale._id || 'sale'}.pdf`);
+      // Save the PDF with client name
+      const clientName = selectedSale.client?.name || selectedSale.client?.customer_name || selectedSale.client?.email || 'client';
+      const sanitizedClientName = clientName.replace(/[^a-zA-Z0-9]/g, '_');
+      doc.save(`client-statement-${sanitizedClientName}-${selectedSale.saleCode || selectedSale._id || 'sale'}.pdf`);
       message.success('PDF downloaded successfully');
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -552,6 +731,57 @@ const SalesManagement: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadOfferLetter = () => {
+    if (!selectedSale) return;
+    
+    // Try to get property name from properties query data
+    const propertiesList = propertiesQuery.data?.data || [];
+    const property = propertiesList.find((p: any) => p._id === selectedSale.property?._id);
+    const propertyName = property?.name || selectedSale.property?.name || selectedSale.property?.propertyType || 'N/A';
+    
+    // Handle joint purchase customers
+    let clientName = 'N/A';
+    let clientEmail = '';
+    let clientPhone = '';
+    let customers = [];
+    
+    if (selectedSale.isJointPurchase && selectedSale.customers?.length > 0) {
+      customers = selectedSale.customers;
+      clientName = customers.map((c: any) => c.name || c.customer_name || c.email).join(', ');
+      clientEmail = customers.map((c: any) => c.email).filter(Boolean).join(', ');
+      clientPhone = customers.map((c: any) => c.phone).filter(Boolean).join(', ');
+    } else {
+      const customer = selectedSale.customer || selectedSale.client;
+      clientName = String(customer?.name || customer?.customer_name || customer?.email || 'N/A');
+      clientEmail = String(customer?.email || '');
+      clientPhone = String(customer?.phone || '');
+    }
+    
+    const offerLetterData = {
+      saleCode: String(selectedSale.saleCode || 'N/A'),
+      clientName: String(clientName),
+      clientEmail: String(clientEmail),
+      clientPhone: String(clientPhone),
+      propertyName: String(propertyName),
+      propertyType: String(selectedSale.property?.propertyType || 'N/A'),
+      unitName: String(selectedSale.unitTypeID?.unitType || selectedSale.unitTypeID?.type || 'N/A'),
+      apartmentName: String(selectedSale.apartmentName || ''),
+      salePrice: Number(selectedSale.salePrice || 0),
+      initialPayment: Number(selectedSale.deposit?.amount || selectedSale.paymentPlans?.[0]?.initialDeposit || 0),
+      paymentPlan: String(selectedSale.paymentPlanType || 'N/A'),
+      saleDate: String(selectedSale.saleDate || ''),
+      salesAgent: String(selectedSale.salesAgent?.fullname || selectedSale.salesAgent?.name || selectedSale.salesAgent?.email || 'N/A'),
+      propertyManager: String(selectedSale.propertyManager?.fullname || selectedSale.propertyManager?.name || selectedSale.propertyManager?.email || 'N/A'),
+      paymentPlans: selectedSale.paymentPlans || [],
+      payments: selectedSale.payments || [],
+      paymentTotals: selectedSale.paymentTotals || null,
+      isJointPurchase: selectedSale.isJointPurchase || false,
+      customers: customers,
+    };
+
+    generateOfferLetterPDF(offerLetterData);
+  };
+
   const handleModalCancel = () => {
     setModalVisible(false);
     setEditSale(null);
@@ -566,6 +796,39 @@ const SalesManagement: React.FC = () => {
       createMutation.mutate(values);
     }
   };
+
+  const downloadMenuItems = [
+    {
+      key: 'csv',
+      label: (
+        <span>
+          <FileTextOutlined /> Download CSV
+        </span>
+      ),
+      onClick: handleDownloadClientStatement,
+    },
+    {
+      key: 'pdf',
+      label: (
+        <span>
+          <FilePdfOutlined /> Download PDF
+        </span>
+      ),
+      onClick: handleDownloadPDF,
+    },
+  ];
+
+  if (can(PERMISSIONS.DALA_SALES_DOWNLOAD_OFFER_LETTER.key)) {
+    downloadMenuItems.push({
+      key: 'offer-letter',
+      label: (
+        <span>
+          <FileOutlined /> Download Offer Letter
+        </span>
+      ),
+      onClick: handleDownloadOfferLetter,
+    });
+  }
 
   return (
     <div>
@@ -776,26 +1039,7 @@ const SalesManagement: React.FC = () => {
         extra={
           <Dropdown
             menu={{
-              items: [
-                {
-                  key: 'csv',
-                  label: (
-                    <span>
-                      <FileTextOutlined /> Download CSV
-                    </span>
-                  ),
-                  onClick: handleDownloadClientStatement,
-                },
-                {
-                  key: 'pdf',
-                  label: (
-                    <span>
-                      <FilePdfOutlined /> Download PDF
-                    </span>
-                  ),
-                  onClick: handleDownloadPDF,
-                },
-              ],
+              items: downloadMenuItems,
             }}
             disabled={!selectedSale}
           >
@@ -866,8 +1110,32 @@ const SalesManagement: React.FC = () => {
                       <Descriptions.Item label="Commission">
                         KES {(selectedSale.commission_amount || 0).toLocaleString()} ({selectedSale.commission_rate || 0}%)
                       </Descriptions.Item>
-                      <Descriptions.Item label="Client">
-                        {selectedSale.client?.name || selectedSale.client?.customer_name || selectedSale.client?.email || selectedSale.client?.phone || '-'}
+                      <Descriptions.Item label="Purchase Type">
+                        {selectedSale.isJointPurchase ? (
+                          <Tag color="purple">Joint Purchase ({selectedSale.customers?.length || 0} customers)</Tag>
+                        ) : (
+                          <Tag color="blue">Single Customer</Tag>
+                        )}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Client(s)">
+                        {selectedSale.isJointPurchase && selectedSale.customers?.length > 0 ? (
+                          <div>
+                            {selectedSale.customers.map((customer: any, index: number) => (
+                              <div key={customer._id || index} style={{ marginBottom: 4 }}>
+                                <Text strong>{index + 1}.</Text> {customer.name || customer.customer_name || customer.email || '-'}
+                                {customer.entity_type && (
+                                  <Tag size="small" style={{ marginLeft: 8 }}>
+                                    {customer.entity_type === 'company' ? 'Company' : 'Individual'}
+                                  </Tag>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <Text>
+                            {selectedSale.customer?.name || selectedSale.client?.name || selectedSale.customer?.customer_name || selectedSale.client?.customer_name || selectedSale.customer?.email || selectedSale.client?.email || '-'}
+                          </Text>
+                        )}
                       </Descriptions.Item>
                       <Descriptions.Item label="Sales Agent">
                         {selectedSale.salesAgent?.name || selectedSale.salesAgent?.fullname || selectedSale.salesAgent?.email || '-'}
@@ -1048,36 +1316,140 @@ const SalesManagement: React.FC = () => {
               },
               {
                 key: 'documents',
-                label: 'Sale Documents',
-                children: selectedSale.documents?.length ? (
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    {selectedSale.documents.map((document: any, index: number) => {
-                      const url = document.url || document.fileUrl || document.path;
-                      return (
-                        <Card
-                          key={document._id || url || index}
-                          size="small"
-                          title={
-                            <Space>
-                              <FileTextOutlined />
-                              {document.name || document.fileName || document.title || `Document ${index + 1}`}
-                            </Space>
-                          }
-                          extra={
-                            url ? (
-                              <Button type="link" href={url} target="_blank" icon={<DownloadOutlined />}>
-                                Download
-                              </Button>
-                            ) : null
-                          }
+                label: 'Property Documents',
+                children: (
+                  <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px" }}>
+                    <SectionTitle label="Upload Document" />
+                    <Form
+                      form={documentForm}
+                      layout="vertical"
+                      onFinish={handleDocumentUpload}
+                      style={{ marginBottom: 20 }}
+                      onFinishFailed={(errorInfo) => console.log('Form validation failed:', errorInfo)}
+                    >
+                      <Form.Item
+                        name="document_type"
+                        label="Document Type"
+                        rules={[{ required: true, message: "Please select document type" }]}
+                      >
+                        <Select placeholder="Select document type">
+                          {PROPERTY_DOCUMENT_TYPES.map(type => (
+                            <Option key={type.value} value={type.value}>{type.label}</Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+                      <Form.Item
+                        name="name"
+                        label="Document Name"
+                        rules={[{ required: true, message: "Please enter document name" }]}
+                      >
+                        <Input placeholder="Enter document name" />
+                      </Form.Item>
+                      <Form.Item name="description" label="Description">
+                        <TextArea rows={3} placeholder="Enter description (optional)" />
+                      </Form.Item>
+                      <Form.Item label="Files">
+                        <Upload
+                          fileList={fileList}
+                          onChange={({ fileList }) => setFileList(fileList)}
+                          beforeUpload={() => false}
+                          multiple
                         >
-                          <Text type="secondary">{document.type || document.mimeType || 'Sale document'}</Text>
-                        </Card>
-                      );
-                    })}
-                  </Space>
-                ) : (
-                  <Empty description="No sale documents found" />
+                          <Button icon={<UploadOutlined />}>Select Files</Button>
+                        </Upload>
+                      </Form.Item>
+                      <Form.Item>
+                        <Button
+                          type="primary"
+                          htmlType="submit"
+                          loading={uploadLoading}
+                          icon={<UploadOutlined />}
+                          style={{ background: C.primary, borderColor: C.primary }}
+                        >
+                          Upload Document
+                        </Button>
+                      </Form.Item>
+                    </Form>
+
+                    <SectionTitle label="Documents" />
+                    {documentsLoading ? (
+                      <div style={{ textAlign: "center", padding: 20 }}>Loading...</div>
+                    ) : documents.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: 20, color: C.subText }}>No documents uploaded</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {documents.map(doc => (
+                          <div key={doc._id} style={{
+                            display: "flex", flexDirection: "column", gap: 8,
+                            padding: "12px", border: `1px solid ${C.border}`,
+                            borderRadius: 8, background: C.bg
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <FileOutlined style={{ color: C.primary, fontSize: 18 }} />
+                              <div style={{ flex: 1 }}>
+                                <Text strong style={{ fontSize: 12, display: "block" }}>
+                                  {doc.name}
+                                </Text>
+                                {doc.description && (
+                                  <Text style={{ fontSize: 11, color: C.subText }}>{doc.description}</Text>
+                                )}
+                                <Text style={{ fontSize: 10, color: C.subText, display: "block" }}>
+                                  {doc.attachments?.length || 0} file(s) · {new Date(doc.created_at).toLocaleDateString("en-GB")}
+                                </Text>
+                              </div>
+                              <Button
+                                danger
+                                size="small"
+                                icon={<DeleteOutlined />}
+                                onClick={() => handleDeleteDocument(doc._id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                            {doc.attachments && doc.attachments.length > 0 && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 28 }}>
+                                {doc.attachments.map((attachment: any) => (
+                                  <div key={attachment._id} style={{
+                                    display: "flex", alignItems: "center", gap: 8,
+                                    padding: "6px 10px", background: "#fff",
+                                    borderRadius: 6, border: `1px solid ${C.border}`
+                                  }}>
+                                    <FileOutlined style={{ color: C.subText, fontSize: 14 }} />
+                                    <Text style={{ fontSize: 11, flex: 1, color: C.darkText }}>
+                                      {attachment.file_name}
+                                    </Text>
+                                    <Button
+                                      size="small"
+                                      type="link"
+                                      icon={<EyeOutlined />}
+                                      onClick={() => window.open(attachment.file_url, '_blank')}
+                                      style={{ padding: "0 4px", fontSize: 11 }}
+                                    >
+                                      View
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      type="link"
+                                      icon={<DownloadOutlined />}
+                                      onClick={() => {
+                                        const link = document.createElement('a');
+                                        link.href = attachment.file_url;
+                                        link.download = attachment.file_name;
+                                        link.click();
+                                      }}
+                                      style={{ padding: "0 4px", fontSize: 11 }}
+                                    >
+                                      Download
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ),
               },
             ]}
