@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   Col,
+  ColorPicker,
   DatePicker,
   Descriptions,
   Drawer,
@@ -15,6 +16,7 @@ import {
   Select,
   Space,
   Statistic,
+  Switch,
   Table,
   Tabs,
   Tag,
@@ -43,6 +45,11 @@ import {
   fetchUnits,
   updateMaintenanceTicket,
   updateMaintenanceTicketStatus,
+  fetchMaintenanceCategories,
+  createMaintenanceCategory,
+  updateMaintenanceCategory,
+  deleteMaintenanceCategory,
+  toggleMaintenanceCategoryStatus,
 } from '@services/dala';
 import { fetchAllUsersList } from '@services/users';
 import { fetchProperties } from '@services/dala';
@@ -58,22 +65,6 @@ const TICKET_TYPES = [
 
 const STATUSES = ['open', 'assigned', 'in_progress', 'on_hold', 'resolved', 'closed', 'cancelled'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
-const CATEGORIES = [
-  'plumbing',
-  'electrical',
-  'hvac',
-  'cleaning',
-  'security',
-  'landscaping',
-  'appliance',
-  'structural',
-  'internet',
-  'utilities',
-  'billing',
-  'customer_service',
-  'technical',
-  'other',
-];
 
 const pretty = (value?: string) => value ? value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '-';
 const money = (value?: number) => `KES ${(value || 0).toLocaleString()}`;
@@ -105,10 +96,13 @@ const MaintenanceManagement: React.FC = () => {
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [updateModalVisible, setUpdateModalVisible] = useState(false);
   const [costModalVisible, setCostModalVisible] = useState(false);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any>(null);
   const [form] = Form.useForm();
   const [statusForm] = Form.useForm();
   const [updateForm] = Form.useForm();
   const [costForm] = Form.useForm();
+  const [categoryForm] = Form.useForm();
   const selectedPropertyId = Form.useWatch('propertyId', form);
 
   const queryParams = useMemo(() => {
@@ -156,9 +150,15 @@ const MaintenanceManagement: React.FC = () => {
     queryFn: () => fetchAllCustomers({ limit: 200 }),
   });
 
+  const { data: categoriesData, isLoading: categoriesLoading, refetch: refetchCategories } = useQuery({
+    queryKey: ['dala-maintenance-categories', shopId],
+    queryFn: () => fetchMaintenanceCategories({ shop_id: shopId }),
+  });
+
   const tickets = Array.isArray(ticketsData?.data) ? ticketsData.data : [];
   const pagination = ticketsData?.pagination;
   const apiStats = statsData?.data || {};
+  const categories = Array.isArray(categoriesData?.data) ? categoriesData.data : [];
   const calculatedStats = {
     totalTickets: pagination?.total || tickets.length,
     propertyMaintenanceTickets: tickets.filter((ticket: any) => ticket.ticketType === 'property_maintenance').length,
@@ -326,10 +326,40 @@ const MaintenanceManagement: React.FC = () => {
     },
   });
 
+  const createCategoryMutation = useMutation({
+    mutationFn: createMaintenanceCategory,
+    onSuccess: () => {
+      setCategoryModalVisible(false);
+      setEditingCategory(null);
+      categoryForm.resetFields();
+      refetchCategories();
+    },
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateMaintenanceCategory(id, data),
+    onSuccess: () => {
+      setCategoryModalVisible(false);
+      setEditingCategory(null);
+      categoryForm.resetFields();
+      refetchCategories();
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: deleteMaintenanceCategory,
+    onSuccess: refetchCategories,
+  });
+
+  const toggleCategoryStatusMutation = useMutation({
+    mutationFn: toggleMaintenanceCategoryStatus,
+    onSuccess: refetchCategories,
+  });
+
   const openCreateModal = () => {
     setEditingTicket(null);
     form.resetFields();
-    form.setFieldsValue({ ticketType: 'property_maintenance', priority: 'medium', category: 'other' });
+    form.setFieldsValue({ ticketType: 'property_maintenance', priority: 'medium', category: categories[0]?.name || 'other' });
     setModalVisible(true);
   };
 
@@ -341,6 +371,32 @@ const MaintenanceManagement: React.FC = () => {
       scheduledDate: ticket.scheduledDate ? dayjs(ticket.scheduledDate) : undefined,
     });
     setModalVisible(true);
+  };
+
+  const openCreateCategoryModal = () => {
+    setEditingCategory(null);
+    categoryForm.resetFields();
+    categoryForm.setFieldsValue({ isActive: true, sortOrder: categories.length + 1 });
+    setCategoryModalVisible(true);
+  };
+
+  const openEditCategoryModal = (category: any) => {
+    setEditingCategory(category);
+    categoryForm.setFieldsValue(category);
+    setCategoryModalVisible(true);
+  };
+
+  const handleSaveCategory = (values: any) => {
+    const payload = {
+      ...values,
+      shop_id: shopId,
+      color: typeof values.color === 'string' ? values.color : values.color?.toHexString(),
+    };
+    if (editingCategory?._id) {
+      updateCategoryMutation.mutate({ id: editingCategory._id, data: payload });
+    } else {
+      createCategoryMutation.mutate(payload);
+    }
   };
 
   const handleSaveTicket = (values: any) => {
@@ -456,39 +512,97 @@ const MaintenanceManagement: React.FC = () => {
           { key: 'in_progress', label: 'In Progress' },
           { key: 'resolved', label: 'Resolved' },
           { key: 'costs', label: 'Costs' },
+          { key: 'categories', label: 'Categories' },
         ]} />
 
         <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-          <Col xs={24} md={6}>
-            <Input.Search placeholder="Search tickets" allowClear onSearch={(search) => setFilters((prev: any) => ({ ...prev, page: 1, search }))} />
-          </Col>
-          <Col xs={24} md={4}>
-            <Select allowClear placeholder="Status" style={{ width: '100%' }} onChange={(status) => setFilters((prev: any) => ({ ...prev, page: 1, status }))} options={STATUSES.map((value) => ({ value, label: pretty(value) }))} />
-          </Col>
-          <Col xs={24} md={4}>
-            <Select allowClear placeholder="Priority" style={{ width: '100%' }} onChange={(priority) => setFilters((prev: any) => ({ ...prev, page: 1, priority }))} options={PRIORITIES.map((value) => ({ value, label: pretty(value) }))} />
-          </Col>
-          <Col xs={24} md={4}>
-            <Select allowClear placeholder="Category" style={{ width: '100%' }} onChange={(category) => setFilters((prev: any) => ({ ...prev, page: 1, category }))} options={CATEGORIES.map((value) => ({ value, label: pretty(value) }))} />
-          </Col>
-          <Col xs={24} md={6}>
-            <RangePicker style={{ width: '100%' }} onChange={handleDateFilter} />
-          </Col>
+          {activeTab === 'categories' ? (
+            <>
+              <Col xs={24} md={18}>
+                <Input.Search placeholder="Search categories" allowClear onSearch={(search) => setFilters((prev: any) => ({ ...prev, page: 1, search }))} />
+              </Col>
+              <Col xs={24} md={6}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreateCategoryModal} block>New Category</Button>
+              </Col>
+            </>
+          ) : (
+            <>
+              <Col xs={24} md={6}>
+                <Input.Search placeholder="Search tickets" allowClear onSearch={(search) => setFilters((prev: any) => ({ ...prev, page: 1, search }))} />
+              </Col>
+              <Col xs={24} md={4}>
+                <Select allowClear placeholder="Status" style={{ width: '100%' }} onChange={(status) => setFilters((prev: any) => ({ ...prev, page: 1, status }))} options={STATUSES.map((value) => ({ value, label: pretty(value) }))} />
+              </Col>
+              <Col xs={24} md={4}>
+                <Select allowClear placeholder="Priority" style={{ width: '100%' }} onChange={(priority) => setFilters((prev: any) => ({ ...prev, page: 1, priority }))} options={PRIORITIES.map((value) => ({ value, label: pretty(value) }))} />
+              </Col>
+              <Col xs={24} md={4}>
+                <Select allowClear placeholder="Category" style={{ width: '100%' }} onChange={(category) => setFilters((prev: any) => ({ ...prev, page: 1, category }))} options={categories.map((cat: any) => ({ value: cat.name, label: cat.name }))} />
+              </Col>
+              <Col xs={24} md={6}>
+                <RangePicker style={{ width: '100%' }} onChange={handleDateFilter} />
+              </Col>
+            </>
+          )}
         </Row>
 
-        <Table
-          rowKey="_id"
-          loading={isLoading}
-          dataSource={tickets}
-          columns={columns}
-          scroll={{ x: 1500 }}
-          pagination={{
-            current: pagination?.page || filters.page,
-            pageSize: pagination?.limit || filters.limit,
-            total: pagination?.total || tickets.length,
-            onChange: (page, limit) => setFilters((prev: any) => ({ ...prev, page, limit })),
-          }}
-        />
+        {activeTab === 'categories' ? (
+          <Table
+            rowKey="_id"
+            loading={categoriesLoading}
+            dataSource={categories}
+            columns={[
+              { title: 'Name', dataIndex: 'name', render: (v: string, record: any) => (
+                <Space>
+                  {record.color && <div style={{ width: 16, height: 16, borderRadius: 4, backgroundColor: record.color }} />}
+                  <Text strong>{v}</Text>
+                </Space>
+              )},
+              { title: 'Description', dataIndex: 'description', ellipsis: true },
+              { title: 'Icon', dataIndex: 'icon' },
+              { title: 'Sort Order', dataIndex: 'sortOrder', width: 100 },
+              { title: 'Status', dataIndex: 'isActive', render: (isActive: boolean) => <Tag color={isActive ? 'green' : 'red'}>{isActive ? 'Active' : 'Inactive'}</Tag> },
+              { title: 'Default', dataIndex: 'isDefault', render: (isDefault: boolean) => isDefault ? <Tag color="blue">Default</Tag> : '-' },
+              {
+                title: 'Actions',
+                key: 'actions',
+                width: 180,
+                render: (_: any, record: any) => (
+                  <Space size={4}>
+                    <Tooltip title="Edit">
+                      <Button type="link" icon={<EditOutlined />} onClick={() => openEditCategoryModal(record)} />
+                    </Tooltip>
+                    <Tooltip title="Toggle Status">
+                      <Button type="link" onClick={() => toggleCategoryStatusMutation.mutate(record._id)}>
+                        {record.isActive ? 'Disable' : 'Enable'}
+                      </Button>
+                    </Tooltip>
+                    {!record.isDefault && (
+                      <Popconfirm title="Delete category?" onConfirm={() => deleteCategoryMutation.mutate(record._id)}>
+                        <Button danger type="link" icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    )}
+                  </Space>
+                ),
+              },
+            ]}
+            pagination={false}
+          />
+        ) : (
+          <Table
+            rowKey="_id"
+            loading={isLoading}
+            dataSource={tickets}
+            columns={columns}
+            scroll={{ x: 1500 }}
+            pagination={{
+              current: pagination?.page || filters.page,
+              pageSize: pagination?.limit || filters.limit,
+              total: pagination?.total || tickets.length,
+              onChange: (page, limit) => setFilters((prev: any) => ({ ...prev, page, limit })),
+            }}
+          />
+        )}
       </Card>
 
       <Modal
@@ -513,7 +627,7 @@ const MaintenanceManagement: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item name="category" label="Category" rules={[{ required: true }]}>
-                <Select showSearch options={CATEGORIES.map((value) => ({ value, label: pretty(value) }))} />
+                <Select showSearch options={categories.map((cat: any) => ({ value: cat.name, label: cat.name }))} />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -703,6 +817,55 @@ const MaintenanceManagement: React.FC = () => {
           <Form.Item name="receiptUrl" label="Receipt URL"><Input /></Form.Item>
           <Form.Item name="paidDate" label="Paid Date"><DatePicker style={{ width: '100%' }} /></Form.Item>
           <Form.Item name="paid" label="Paid" initialValue={true}><Select options={[{ value: true, label: 'Paid' }, { value: false, label: 'Unpaid' }]} /></Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={editingCategory ? 'Edit Category' : 'Create Category'}
+        open={categoryModalVisible}
+        onCancel={() => setCategoryModalVisible(false)}
+        onOk={() => categoryForm.submit()}
+        confirmLoading={createCategoryMutation.isLoading || updateCategoryMutation.isLoading}
+        width={600}
+      >
+        <Form form={categoryForm} layout="vertical" onFinish={handleSaveCategory}>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Category name is required' }]}>
+                <Input placeholder="e.g., Plumbing" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="icon" label="Icon">
+                <Input placeholder="e.g., 🔧" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="color" label="Color">
+                <ColorPicker showText />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="sortOrder" label="Sort Order" rules={[{ required: true }]}>
+                <InputNumber min={1} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={24}>
+              <Form.Item name="description" label="Description">
+                <Input.TextArea rows={3} placeholder="Describe this category" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="isActive" label="Active" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="isDefault" label="Default Category" valuePropName="checked">
+                <Switch disabled={editingCategory?.isDefault} />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </div>

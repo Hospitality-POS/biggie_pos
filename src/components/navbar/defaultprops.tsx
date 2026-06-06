@@ -368,6 +368,7 @@ const useProLayoutNav = () => {
     { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
     { path: p("/table-settings"), name: "Tables", icon: <AppstoreOutlined />, _bare: "/table-settings" },
     { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
+    { path: p("/help-center"), name: "Help Center", icon: <CustomerServiceOutlined />, _bare: "/help-center" },
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,
@@ -392,6 +393,7 @@ const useProLayoutNav = () => {
     { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
     { path: p("/table-settings"), name: "Tables", icon: <AppstoreOutlined />, _bare: "/table-settings" },
     { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
+    { path: p("/help-center"), name: "Help Center", icon: <CustomerServiceOutlined />, _bare: "/help-center" },
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,

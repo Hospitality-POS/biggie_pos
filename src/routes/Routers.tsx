@@ -30,6 +30,40 @@ import PaymentCallback from "@components/payment/PaymentCallback";
 import { getPrimaryColor } from "@utils/getPrimaryColor";
 import PermissionRoute from "@components/PermissionRoute";
 
+// ─── Fallback spinners ────────────────────────────────────────────────────────
+const fullscreenSpin = (
+  <Spin size="large" fullscreen style={{ color: getPrimaryColor() }} />
+);
+
+// ─── Page wrappers ────────────────────────────────────────────────────────────
+const adminPage = (Component: React.ComponentType) => (
+  <Suspense fallback={<NubaLoader />}>
+    <AdminRoute>
+      <Component />
+    </AdminRoute>
+  </Suspense>
+);
+
+const privatePage = (Component: React.ComponentType) => (
+  <Suspense fallback={fullscreenSpin}>
+    <Private>
+      <Component />
+    </Private>
+  </Suspense>
+);
+
+const guardedPage = (Component: React.ComponentType, permission: string) => (
+  <PermissionRoute permission={permission}>
+    {privatePage(Component)}
+  </PermissionRoute>
+);
+
+const guardedAdminPage = (Component: React.ComponentType, permission: string) => (
+  <PermissionRoute permission={permission}>
+    {adminPage(Component)}
+  </PermissionRoute>
+);
+
 // ─── Wages Module ─────────────────────────────────────────────────────────────
 const WagesList = lazy(() => import("src/AdminDashboard/Wages/WageList"));
 
@@ -108,11 +142,6 @@ const LeaseDetail = lazy(() => import("src/pages/dala/leases/LeaseDetail"));
 const RentCollection = lazy(() => import("src/pages/dala/rent/RentCollection"));
 const MaintenanceManagement = lazy(() => import("src/pages/dala/maintenance/MaintenanceManagement"));
 
-// ─── Fallback spinners ────────────────────────────────────────────────────────
-const fullscreenSpin = (
-  <Spin size="large" fullscreen style={{ color: getPrimaryColor() }} />
-);
-
 // ─── Mteja guard ─────────────────────────────────────────────────────────────
 const getMtejaEnabled = (): boolean => {
   try {
@@ -152,35 +181,6 @@ const AdminDalaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   if (!getDalaEnabled()) return <Navigate to="/admin/customers" replace />;
   return <>{children}</>;
 };
-
-// ─── Page wrappers ────────────────────────────────────────────────────────────
-const adminPage = (Component: React.ComponentType) => (
-  <Suspense fallback={<NubaLoader />}>
-    <AdminRoute>
-      <Component />
-    </AdminRoute>
-  </Suspense>
-);
-
-const privatePage = (Component: React.ComponentType) => (
-  <Suspense fallback={fullscreenSpin}>
-    <Private>
-      <Component />
-    </Private>
-  </Suspense>
-);
-
-const guardedPage = (Component: React.ComponentType, permission: string) => (
-  <PermissionRoute permission={permission}>
-    {privatePage(Component)}
-  </PermissionRoute>
-);
-
-const guardedAdminPage = (Component: React.ComponentType, permission: string) => (
-  <PermissionRoute permission={permission}>
-    {adminPage(Component)}
-  </PermissionRoute>
-);
 
 // ─── CRM page wrapper — private + Mteja guard ────────────────────────────────
 const mtejaPage = (Component: React.ComponentType, permission: string) => (
@@ -360,6 +360,9 @@ const routes = createBrowserRouter(
 
         <Route path="documents" errorElement={<NotFound />}
           element={guardedPage(DocumentCenter, "DOCUMENTS_VIEW")} />
+
+        <Route path="help-center" errorElement={<NotFound />}
+          element={<Suspense fallback={fullscreenSpin}><HelpCenter /></Suspense>} />
 
         {/* Petty Cash & Refunds (Duka Only) */}
         <Route path="petty-cash" errorElement={<NotFound />}
