@@ -66,6 +66,7 @@ const ACTION_CFG: Record<ActionType, { color: string; bg: string; label: string 
 // ── Scope badge config ────────────────────────────────────────────────────────
 const SCOPE_CFG: Record<string, { color: string; bg: string; antColor: string; label: string }> = {
   core: { color: C.indigo, bg: "#eef2ff", antColor: "default", label: "Core" },
+  pos: { color: C.blue, bg: "#eff6ff", antColor: "blue", label: "POS" },
   hr: { color: C.blue, bg: "#eff6ff", antColor: "blue", label: "HR" },
   accounting: { color: C.purple, bg: "#faf5ff", antColor: "purple", label: "Accounting" },
   crm: { color: C.teal, bg: "#f0fdfa", antColor: "cyan", label: "CRM" },
@@ -258,7 +259,7 @@ const StepBasicInfo: React.FC<{
       <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 16px" }}>
         <SectionLabel>Active Modules — Permissions Available</SectionLabel>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          <Tag color="default" style={{ fontSize: 11 }}>✓ Core (POS)</Tag>
+          <Tag color="default" style={{ fontSize: 11 }}>✓ Core</Tag>
           {hasPOS ? <Tag color="blue" style={{ fontSize: 11 }}>✓ POS Module</Tag>
             : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ POS (not enabled)</Tag>}
           {hasHR ? <Tag color="blue" style={{ fontSize: 11 }}>✓ HR Module</Tag>
@@ -349,8 +350,8 @@ const StepPermissions: React.FC<{
 
   // Only show scope filter tabs for enabled modules
   const scopeOptions = useMemo(() => {
-    const opts: { label: string; value: string }[] = [{ label: "All modules", value: "all" }, { label: "Core (POS)", value: "core" }];
-    if (hasPOS) opts.push({ label: "POS", value: "core" });
+    const opts: { label: string; value: string }[] = [{ label: "All modules", value: "all" }, { label: "Core", value: "core" }];
+    if (hasPOS) opts.push({ label: "POS", value: "pos" });
     if (hasHR) opts.push({ label: "HR", value: "hr" });
     if (hasAccounting) opts.push({ label: "Accounting", value: "accounting" });
     if (hasMteja) opts.push({ label: "CRM / Mteja", value: "crm" });
@@ -537,8 +538,8 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
   // Rebuild permission groups whenever module flags change.
   // hasCRM maps to hasMteja — the CRM scope is gated on tenant.modules.crm.
   const groupedPermissions = useMemo(
-    () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting, hasCRM: hasMteja, hasDala }),
-    [hasHR, hasAccounting, hasMteja, hasDala]
+    () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting, hasCRM: hasMteja, hasDala, hasPOS }),
+    [hasHR, hasAccounting, hasMteja, hasDala, hasPOS]
   );
 
   const [open, setOpen] = useState(false);

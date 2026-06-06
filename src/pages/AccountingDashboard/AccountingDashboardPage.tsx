@@ -845,7 +845,7 @@ const AccountingDashboardPage: React.FC = () => {
                         <ProCard
                             title={<Text strong>Recent Journal Entries</Text>}
                             extra={
-                                <Text style={{ fontSize: 11, color: "#94a3b8" }}>Last 10 posted</Text>
+                                <Text style={{ fontSize: 11, color: "#94a3b8" }}>Last 5 posted</Text>
                             }
                             bordered
                             size="small"
@@ -853,7 +853,7 @@ const AccountingDashboardPage: React.FC = () => {
                         >
                             <Table
                                 rowKey="_id"
-                                dataSource={recent_entries}
+                                dataSource={recent_entries.slice(0, 5)}
                                 columns={recentCols}
                                 pagination={false}
                                 size="small"

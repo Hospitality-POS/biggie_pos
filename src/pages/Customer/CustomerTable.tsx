@@ -8,6 +8,7 @@ import {
     UserAddOutlined, UserOutlined, PhoneOutlined,
 } from "@ant-design/icons";
 import { App, Button, Drawer, Dropdown, Form, Input, Modal, Table, Typography } from "antd";
+import CustomerDetailDrawer from "./CustomerDetailDrawer";
 import { deleteCustomer, fetchAllCustomers, fetchAllGiftCards } from "@services/customers";
 import ExpandedRowContent from "./ExpandableCustomer";
 import GiftCardModal from "../../components/MODALS/pro/GiftCardModal";
@@ -516,6 +517,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
         const [viewGiftCardsOpen, setViewGiftCardsOpen] = useState(false);
         const [allGiftCardsOpen, setAllGiftCardsOpen] = useState(false);
         const [activeGiftTab, setActiveGiftTab] = useState<GiftTab>("all");
+        const [customerDetailOpen, setCustomerDetailOpen] = useState(false);
 
         const [currentCustomer, setCurrentCustomer] = useState<any>(null);
         const [currentGiftCard, setCurrentGiftCard] = useState<any>(null);
@@ -688,7 +690,19 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
             {
                 title: "Name", dataIndex: "customer_name",
                 fieldProps: { placeholder: "Customer Name" },
-                render: (text: string) => <Text strong style={{ fontSize: 12 }}>{text}</Text>,
+                render: (_: string, record: any) => {
+                    const displayName = record.entity_type === 'company' 
+                        ? (record.company_name || 'Unnamed Company') 
+                        : (record.customer_name || 'Unnamed Individual');
+                    return (
+                        <div>
+                            <Text strong style={{ fontSize: 12 }}>{displayName}</Text>
+                            {record.entity_type === 'company' && record.contact_person && (
+                                <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>Contact: {record.contact_person}</Text>
+                            )}
+                        </div>
+                    );
+                },
             },
             {
                 title: "Email", dataIndex: "email", copyable: true,
@@ -758,6 +772,7 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                 render: (_: any, record: any) => (
                     <Dropdown trigger={["click"]} menu={{
                         items: [
+                            { key: "view", icon: <EyeOutlined />, label: "View Details", onClick: () => { setCurrentCustomer(record); setCustomerDetailOpen(true); } },
                             ...(onEditCustomer ? [{
                                 key: "edit", icon: <EditOutlined />, label: "Edit Customer",
                                 onClick: () => onEditCustomer(record),
@@ -935,6 +950,13 @@ const CustomerTable = forwardRef<CustomerTableHandle, CustomerTableProps>(
                         )}
                     </>
                 )}
+
+                <CustomerDetailDrawer
+                    open={customerDetailOpen}
+                    onClose={() => setCustomerDetailOpen(false)}
+                    customer={currentCustomer}
+                    onUpdated={() => actionRef.current?.reload()}
+                />
             </>
         );
 

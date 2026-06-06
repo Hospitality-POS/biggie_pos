@@ -13,15 +13,18 @@ import {
   message,
   DatePicker,
   Divider,
-  Space,
   Alert,
   Upload,
   Typography,
+  Switch,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllCustomers } from '@services/customers';
 import { fetchAllUsersList } from '@services/users';
+import { generateOfferLetterPDF } from '@utils/offerLetterPDF';
+import { getPermissionChecker } from '@utils/getPermissionChecker';
+import { PERMISSIONS } from '@utils/accessControl';
 import dayjs from 'dayjs';
 import type { UploadFile } from 'antd/es/upload/interface';
 
@@ -71,6 +74,10 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
   const [initialPaymentType, setInitialPaymentType] = useState<string>('booking_fee');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
 
+  // Joint purchase state
+  const [isJointPurchase, setIsJointPurchase] = useState<boolean>(false);
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
+
   // Filter properties to only show sale properties
   const saleProperties = properties.filter((p: any) => {
     const purpose = String(p.purpose || '').toLowerCase();
@@ -89,23 +96,37 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     enabled: visible,
   });
 
+  const can = getPermissionChecker();
+
   console.log('my customers', customers);
 
   useEffect(() => {
     if (visible) {
       if (edit && initialData) {
+        // Handle joint purchase data
+        const isJoint = initialData.isJointPurchase || false;
+        const customersArray = initialData.customers || [];
+        const primaryCustomerId = initialData.customer || initialData.customer_id;
+
+        setIsJointPurchase(isJoint);
+        if (isJoint && customersArray.length > 0) {
+          setSelectedCustomers(customersArray.map((c: any) => c._id || c));
+        } else if (primaryCustomerId) {
+          setSelectedCustomers([primaryCustomerId]);
+        }
+
         form.setFieldsValue({
           property_id: initialData.property_id,
           unit_id: initialData.unit_id,
           apartment_id: initialData.apartment_id,
-          client_id: initialData.client_id,
+          client_id: primaryCustomerId,
           sale_date: initialData.sale_date ? dayjs(initialData.sale_date) : dayjs(),
           sale_price: initialData.sale_price,
           list_price: initialData.list_price || initialData.sale_price,
           discount: initialData.discount || 0,
           payment_plan: initialData.payment_plan || 'full_payment',
           initial_payment_type: initialData.initial_payment_type || 'booking_fee',
-          initial_payment: initialData.initial_payment || 5000,
+          initial_payment: initialData.initial_payment || 100000,
           payment_date: initialData.payment_date ? dayjs(initialData.payment_date) : dayjs(),
           payment_method: initialData.payment_method,
           commission_rate: initialData.commission_rate || 0,
@@ -123,13 +144,15 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         form.resetFields();
         form.setFieldsValue({
           initial_payment_type: 'booking_fee',
-          initial_payment: 5000,
+          initial_payment: 100000,
           payment_plan: 'full_payment',
           commission_rate: 5,
           status: 'pending',
         });
         setSelectedPropertyId(null);
         setInstallments([]);
+        setIsJointPurchase(false);
+        setSelectedCustomers([]);
       }
       setCurrentStep(0);
     }
@@ -137,7 +160,21 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
 
   const goToStep2 = async () => {
     try {
-      await form.validateFields(['property_id', 'unit_id', 'client_id', 'sale_date', 'sale_price']);
+      // Validate joint purchase requirements
+      if (isJointPurchase && selectedCustomers.length < 2) {
+        message.error('Joint purchase requires at least 2 customers');
+        return;
+      }
+      if (isJointPurchase && selectedCustomers.length > 10) {
+        message.error('Maximum 10 customers allowed for joint purchase');
+        return;
+      }
+      if (!isJointPurchase && selectedCustomers.length === 0) {
+        message.error('Please select a customer');
+        return;
+      }
+
+      await form.validateFields(['property_id', 'unit_id', 'sale_date', 'sale_price']);
       setCurrentStep(1);
     } catch {
       message.error('Please fill in all required fields before continuing');
@@ -206,7 +243,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
   const handleInitialPaymentTypeChange = (value: string) => {
     setInitialPaymentType(value);
     if (value === 'booking_fee') {
-      form.setFieldsValue({ initial_payment: 5000 });
+      form.setFieldsValue({ initial_payment: 100000 });
     } else {
       form.setFieldsValue({ initial_payment: undefined });
     }
@@ -318,6 +355,20 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     try {
       const values = await form.validateFields();
       
+      // Validate joint purchase requirements
+      if (isJointPurchase && selectedCustomers.length < 2) {
+        message.error('Joint purchase requires at least 2 customers');
+        return false;
+      }
+      if (isJointPurchase && selectedCustomers.length > 10) {
+        message.error('Maximum 10 customers allowed for joint purchase');
+        return false;
+      }
+      if (!isJointPurchase && selectedCustomers.length === 0) {
+        message.error('Please select a customer');
+        return false;
+      }
+      
       // Validate apartment selection for units with individual tracking
       if (selectedUnit?.trackIndividualUnits && !values.apartment_id) {
         message.error('Please select an apartment for this unit');
@@ -348,7 +399,16 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         paymentPlanType: values.payment_plan,
         salesAgent: values.salesAgent,
         propertyManager: values.propertyManager,
+        is_joint_purchase: isJointPurchase,
       };
+
+      // Handle customer vs customers based on joint purchase
+      if (isJointPurchase) {
+        formattedValues.customers = selectedCustomers;
+        formattedValues.customer = selectedCustomers[0]; // Primary customer for backward compatibility
+      } else {
+        formattedValues.customer = selectedCustomers[0];
+      }
       
       onSubmit(formattedValues);
       return true;
@@ -364,6 +424,38 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     setInstallments([]);
     setFileList([]);
     onCancel();
+  };
+
+  const handleDownloadOfferLetter = () => {
+    const values = form.getFieldsValue();
+    const client = customers?.find((c: any) => c._id === values.client_id);
+    const salesAgent = users?.find((u: any) => u._id === values.salesAgent);
+    const propertyManager = users?.find((u: any) => u._id === values.propertyManager);
+    const property = properties.find((p: any) => p._id === values.property_id);
+    const unit = property?.units?.find((u: any) => u._id === values.unit_id);
+    const apartment = unit?.apartments?.find((a: any) => a._id === values.apartment_id);
+
+    const offerLetterData = {
+      saleCode: String(initialData?.saleCode || `SALE-${Date.now()}`),
+      clientName: String(client?.name || client?.customer_name || 'N/A'),
+      clientEmail: String(client?.email || ''),
+      clientPhone: String(client?.phone || ''),
+      propertyName: String(property?.name || 'N/A'),
+      propertyType: String(property?.propertyType || 'N/A'),
+      unitName: String(unit?.unitType || unit?.type || 'N/A'),
+      apartmentName: String(apartment?.apartmentName || ''),
+      salePrice: Number(values.sale_price || 0),
+      initialPayment: Number(values.initial_payment || 0),
+      paymentPlan: String(values.payment_plan || 'N/A'),
+      saleDate: String(values.sale_date?.format('YYYY-MM-DD') || ''),
+      salesAgent: String(salesAgent?.fullname || salesAgent?.name || 'N/A'),
+      propertyManager: String(propertyManager?.fullname || propertyManager?.name || 'N/A'),
+      paymentPlans: initialData?.paymentPlans || [],
+      payments: initialData?.payments || [],
+      paymentTotals: initialData?.paymentTotals || null,
+    };
+
+    generateOfferLetterPDF(offerLetterData);
   };
 
   const getUnitsForProperty = (propertyId: string) => {
@@ -526,25 +618,83 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                   />
                 )}
 
-                <Form.Item
-                  label="Client"
-                  name="client_id"
-                  rules={[{ required: true, message: 'Please select a client' }]}
-                >
-                  <Select
-                    placeholder="Select client"
-                    showSearch
-                    filterOption={(input, option) =>
-                      (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
-                    }
-                  >
-                    {customers?.map((customer: any) => (
-                      <Option key={customer._id} value={customer._id}>
-                        {customer.name || customer.customer_name} - {customer.email || customer.phone}
-                      </Option>
-                    ))}
-                  </Select>
+                <Form.Item label="Joint Purchase">
+                  <Switch
+                    checked={isJointPurchase}
+                    onChange={(checked) => {
+                      setIsJointPurchase(checked);
+                      if (checked) {
+                        // Keep first customer when switching to joint
+                        const currentClient = form.getFieldValue('client_id');
+                        setSelectedCustomers(currentClient ? [currentClient] : []);
+                      } else {
+                        // Keep only first customer when switching to single
+                        setSelectedCustomers(selectedCustomers.length > 0 ? [selectedCustomers[0]] : []);
+                      }
+                    }}
+                  />
+                  <span style={{ marginLeft: 8 }}>
+                    {isJointPurchase ? 'Multiple Customers' : 'Single Customer'}
+                  </span>
                 </Form.Item>
+
+                {isJointPurchase ? (
+                  <Form.Item
+                    label="Customers"
+                    rules={[
+                      {
+                        validator: () => {
+                          if (selectedCustomers.length < 2) {
+                            return Promise.reject('Please select at least 2 customers for joint purchase');
+                          }
+                          if (selectedCustomers.length > 10) {
+                            return Promise.reject('Maximum 10 customers allowed');
+                          }
+                          return Promise.resolve();
+                        },
+                      },
+                    ]}
+                  >
+                    <Select
+                      mode="multiple"
+                      placeholder="Select customers (min 2, max 10)"
+                      value={selectedCustomers}
+                      onChange={setSelectedCustomers}
+                      showSearch
+                      filterOption={(input, option) =>
+                        (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {customers?.map((customer: any) => (
+                        <Option key={customer._id} value={customer._id}>
+                          {customer.name || customer.customer_name} - {customer.email || customer.phone}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                ) : (
+                  <Form.Item
+                    label="Client"
+                    name="client_id"
+                    rules={[{ required: true, message: 'Please select a client' }]}
+                  >
+                    <Select
+                      placeholder="Select client"
+                      value={selectedCustomers[0]}
+                      onChange={(value) => setSelectedCustomers([value])}
+                      showSearch
+                      filterOption={(input, option) =>
+                        (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {customers?.map((customer: any) => (
+                        <Option key={customer._id} value={customer._id}>
+                          {customer.name || customer.customer_name} - {customer.email || customer.phone}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                )}
 
                 <Row gutter={16}>
                   <Col span={8}>
@@ -618,7 +768,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                   rules={[{ required: true, message: 'Please select initial payment type' }]}
                 >
                   <Select onChange={handleInitialPaymentTypeChange}>
-                    <Option value="booking_fee">Booking Fee (KES 5,000 - Non-refundable)</Option>
+                    <Option value="booking_fee">Booking Fee (KES 100,000 - Non-refundable)</Option>
                     <Option value="down_payment">Down Payment (Custom Amount)</Option>
                   </Select>
                 </Form.Item>
@@ -628,7 +778,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                     message="Booking Fee - Non-Refundable"
                     description={
                       <div>
-                        <Text strong>KES 5,000</Text> booking fee reserves this property for <Text strong>7 working days</Text>.
+                        <Text strong>KES 100,000</Text> booking fee reserves this property for <Text strong>30 working days</Text>.
                         <br />
                         <Text type="warning">⚠️ This fee is non-refundable and will be applied to your total purchase price.</Text>
                       </div>
@@ -646,7 +796,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                 >
                   <InputNumber
                     style={{ width: '100%' }}
-                    min={initialPaymentType === 'booking_fee' ? 5000 : 0}
+                    min={initialPaymentType === 'booking_fee' ? 100000 : 0}
                     disabled={initialPaymentType === 'booking_fee'}
                     formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                     parser={(value: string) => value!.replace(/\$\s?|(,*)/g, '')}
@@ -936,6 +1086,15 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                 <Button onClick={goToStep1} style={{ marginRight: 8 }}>
                   ← Back
                 </Button>
+                {can(PERMISSIONS.DALA_SALES_DOWNLOAD_OFFER_LETTER.key) && (
+                  <Button 
+                    icon={<DownloadOutlined />} 
+                    onClick={handleDownloadOfferLetter}
+                    style={{ marginRight: 8 }}
+                  >
+                    Download Offer Letter
+                  </Button>
+                )}
                 <Button onClick={handleCancel} style={{ marginRight: 8 }}>
                   Cancel
                 </Button>

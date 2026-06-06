@@ -69,20 +69,22 @@ const SalesPaymentsTab: React.FC<SalesPaymentsTabProps> = ({
         _id: payment._id,
         id: payment._id,
         amount: payment.amount,
-        status: payment.payment_status || payment.status,
-        paymentDate: payment.payment_date,
-        paymentMethod: payment.method_id?.name || payment.paymentMethod,
+        status: payment.status,
+        paymentDate: payment.paymentDate,
+        paymentMethod: payment.paymentMethod,
         reference: payment.reference,
         receiptNo: payment.receiptNumber,
         receiptNumber: payment.receiptNumber,
         etimsRefNumber: payment.etimsRefNumber,
         notes: payment.notes,
-        customer: payment.customer || {
-          name: payment.customer_name,
+        customer: {
+          name: payment.customer?.email || payment.customer?.phone || 'Unknown',
+          email: payment.customer?.email,
+          phone: payment.customer?.phone,
         },
         sale: {
           property: {
-            name: payment.sale?.property?.name || payment.propertyName,
+            name: payment.propertyId?.name || payment.sale?.property?.name || payment.propertyName,
           },
         },
         createdAt: payment.createdAt,

@@ -77,11 +77,13 @@ const useIsMobile = () => {
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
-  actionRef: any;
+  actionRef?: any;
   edit?: boolean;
   data?: any;
   isProfile?: boolean;
   userId?: string;
+  onUserSaved?: () => void;
+  onModalClose?: () => void;
 }
 
 // ── Section label ─────────────────────────────────────────────────────────────
@@ -454,6 +456,8 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   data,
   isProfile,
   userId,
+  onUserSaved,
+  onModalClose,
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef<any>();
@@ -564,6 +568,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       setSelectedCategories([]);
       setCurrentShopId(null);
       setCategoriesData([]);
+      onModalClose?.();
     }
   };
 
@@ -608,6 +613,12 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
     const payload: any = { ...values, phone: phoneNumber };
     if (uploadedFile) payload.imageFile = uploadedFile;
     if (selectedCategories.length > 0) payload.categories = selectedCategories;
+    // Add company code to prevent logout
+    const companyCode = localStorage.getItem("companyCode");
+    if (companyCode) {
+      payload.companyCode = companyCode;
+      payload.tenant_code = companyCode;
+    }
     return payload;
   };
 
@@ -620,6 +631,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         await handleConfirmAddUser(payload);
       }
       actionRef.current?.reload();
+      onUserSaved?.();
       return true;
     } catch {
       message.error("Failed to save user");

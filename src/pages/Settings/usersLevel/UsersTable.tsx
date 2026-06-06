@@ -115,13 +115,12 @@ const RoleTag: React.FC<{ role: string }> = ({ role }) => {
 // ── Action dropdown ───────────────────────────────────────────────────────────
 const ActionCell: React.FC<{
   record: any;
-  actionRef: React.RefObject<ActionType>;
   onStatusUpdate: (id: string, status: "Active" | "Suspended" | "Terminated") => void;
   onDelete: (id: string) => void;
   statusLoading: boolean;
   deleteLoading: boolean;
   isMobile?: boolean;
-}> = ({ record, actionRef, onStatusUpdate, onDelete, statusLoading, deleteLoading, isMobile }) => {
+}> = ({ record, onStatusUpdate, onDelete, statusLoading, deleteLoading, isMobile }) => {
   const isAdmin = record?.role?.role_type?.toLowerCase() === "admin";
   const status = record?.status || "Active";
 
@@ -215,7 +214,7 @@ const ActionCell: React.FC<{
 
   return (
     <Space size={4}>
-      <AddEditProUserModal edit data={record} actionRef={actionRef} />
+      <AddEditProUserModal edit data={record} />
       <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement={isMobile ? "topRight" : "bottomRight"}>
         <Button
           type="text"
@@ -381,7 +380,7 @@ const MobileUserList: React.FC<{
           style={{ flex: 1, height: 36, borderRadius: 8, border: `1px solid ${C.border}`, padding: "0 12px", fontSize: 13, outline: "none", color: C.darkText, background: "#f8fafc" }}
         />
         <Button icon={<ReloadOutlined />} onClick={load} loading={loading} style={{ borderRadius: 8, height: 36, width: 36, padding: 0 }} />
-        <AddEditProUserModal actionRef={actionRef} />
+        <AddEditProUserModal actionRef={actionRef} onSuccess={load} />
       </div>
 
       {/* Summary strip */}
@@ -437,6 +436,11 @@ const UsersTable = () => {
   const { user } = useAppSelector((state) => state.auth);
   const actionRef = useRef<ActionType>();
   const isMobile = useIsMobile();
+
+  const handleUserSaved = () => {
+    console.log('handleUserSaved called, reloading ProTable');
+    actionRef.current?.reload();
+  };
 
   const deleteUserMutation = useMutation(deleteUserById, {
     onSuccess: () => { actionRef.current?.reload(); message.success("User deleted successfully"); },
@@ -555,7 +559,6 @@ const UsersTable = () => {
           render: (_: any, record: any) => (
             <ActionCell
               record={record}
-              actionRef={actionRef as React.RefObject<ActionType>}
               onStatusUpdate={(id, status) => updateStatusMutation.mutate({ id, status })}
               onDelete={(id) => deleteUserMutation.mutate(id)}
               statusLoading={updateStatusMutation.isLoading}
@@ -591,7 +594,13 @@ const UsersTable = () => {
         defaultExpandAllRows: false,
       }}
       dateFormatter="string"
-      toolBarRender={() => [<AddEditProUserModal key="add" actionRef={actionRef} />]}
+      toolBarRender={() => [
+        <AddEditProUserModal 
+          actionRef={actionRef} 
+          onUserSaved={handleUserSaved}
+          onModalClose={handleUserSaved}
+        />
+      ]}
       rowClassName={(record) => {
         if (record.status === "Terminated") return "row-terminated";
         if (record.status === "Suspended") return "row-suspended";

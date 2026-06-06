@@ -72,8 +72,11 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
     const shop_id = JSON.parse(localStorage.getItem("shop") || "{}")._id;
 
     const handleDelete = (record: Lead) => {
+        const displayName = record.entity_type === 'company' 
+            ? (record.company_name || 'Unnamed Company') 
+            : (record.lead_name || 'Unnamed Individual');
         Modal.confirm({
-            title: `Delete "${record.lead_name}"?`,
+            title: `Delete "${displayName}"?`,
             content: "This action cannot be undone.",
             okText: "Delete",
             okButtonProps: { danger: true },
@@ -92,14 +95,22 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
         {
             title: "Lead", dataIndex: "lead_name",
             fieldProps: { placeholder: "Search by name…" },
-            render: (name: string, record: Lead) => (
-                <div>
-                    <Text strong style={{ fontSize: 12, color: C.darkText, display: "block" }}>{name}</Text>
-                    {record.company_name && (
-                        <Text style={{ fontSize: 11, color: C.subText }}>{record.company_name}</Text>
-                    )}
-                </div>
-            ),
+            render: (_: string, record: Lead) => {
+                const displayName = record.entity_type === 'company' 
+                    ? (record.company_name || 'Unnamed Company') 
+                    : (record.lead_name || 'Unnamed Individual');
+                return (
+                    <div>
+                        <Text strong style={{ fontSize: 12, color: C.darkText, display: "block" }}>{displayName}</Text>
+                        {record.entity_type === 'company' && record.contact_person && (
+                            <Text style={{ fontSize: 11, color: C.subText }}>Contact: {record.contact_person}</Text>
+                        )}
+                        {record.entity_type === 'individual' && record.company_name && (
+                            <Text style={{ fontSize: 11, color: C.subText }}>{record.company_name}</Text>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             title: "Phone", dataIndex: "phone", search: false,

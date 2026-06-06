@@ -111,7 +111,7 @@ export function useTenantModules(): TenantModules {
             // If any flag is true we have good data — use it.
             // If all are false it might be legit OR an empty redux slice,
             // so fall through to localStorage to be sure.
-            if (parsed.hasHR || parsed.hasAccounting || parsed.hasMteja) return parsed;
+            if (parsed.hasHR || parsed.hasAccounting || parsed.hasMteja || parsed.hasDala || parsed.hasPOS) return parsed;
         }
 
         // 2. localStorage fallback (always fresh after login)
