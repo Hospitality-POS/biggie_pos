@@ -164,7 +164,7 @@ export interface Property {
   amenities?: string[];
   features?: string[];
   images?: string[];
-  documents?: string[];
+  documents?: any[];
   status: string;
   is_active?: boolean;
   isBlockless?: boolean;
@@ -304,7 +304,19 @@ export const fetchPropertyTypes = async (params?: {
 
 export const createPropertyType = async (data: Partial<PropertyType>) => {
   try {
-    const response = await axiosInstance.post(`${dalaUrl}/property-types`, data, {
+    // Get shop_id from localStorage if not provided
+    let shopId = data.shop_id as string;
+    
+    if (!shopId) {
+      shopId = localStorage.getItem("shopId") || '';
+    }
+
+    const dataWithIds = {
+      ...data,
+      shop_id: shopId,
+    };
+
+    const response = await axiosInstance.post(`${dalaUrl}/property-types`, dataWithIds, {
       headers: getDalaHeaders()
     });
    // message.success("Property type created successfully");
@@ -1262,6 +1274,124 @@ export const fetchMaintenanceStats = async (params?: { shop_id?: string }) => {
     return response.data;
   } catch (error: any) {
     console.error("Failed to fetch maintenance stats:", error);
+    throw error;
+  }
+};
+
+// ── Maintenance Categories API ─────────────────────────────────────────────────
+
+export interface MaintenanceCategory {
+  _id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  isActive: boolean;
+  isDefault: boolean;
+  sortOrder: number;
+  shop_id?: string;
+  tenant_id?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const fetchMaintenanceCategories = async (params?: {
+  page?: number;
+  limit?: number;
+  isActive?: boolean;
+  search?: string;
+  shop_id?: string;
+}) => {
+  try {
+    const response = await axiosInstance.get(`${dalaUrl}/maintenance-categories`, {
+      params,
+      headers: getDalaHeaders()
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch maintenance categories:", error);
+    throw error;
+  }
+};
+
+export const fetchMaintenanceCategory = async (id: string) => {
+  try {
+    const response = await axiosInstance.get(`${dalaUrl}/maintenance-categories/${id}`, {
+      headers: getDalaHeaders()
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Failed to fetch maintenance category:", error);
+    throw error;
+  }
+};
+
+export const createMaintenanceCategory = async (data: Partial<MaintenanceCategory>) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/maintenance-categories`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Maintenance category created successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to create maintenance category";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const updateMaintenanceCategory = async (id: string, data: Partial<MaintenanceCategory>) => {
+  try {
+    const response = await axiosInstance.put(`${dalaUrl}/maintenance-categories/${id}`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Maintenance category updated successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to update maintenance category";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const deleteMaintenanceCategory = async (id: string) => {
+  try {
+    const response = await axiosInstance.delete(`${dalaUrl}/maintenance-categories/${id}`, {
+      headers: getDalaHeaders()
+    });
+    message.success("Maintenance category deleted successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to delete maintenance category";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const toggleMaintenanceCategoryStatus = async (id: string) => {
+  try {
+    const response = await axiosInstance.patch(`${dalaUrl}/maintenance-categories/${id}/toggle-status`, {}, {
+      headers: getDalaHeaders()
+    });
+    message.success("Category status updated successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to toggle category status";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const reorderMaintenanceCategories = async (data: { categories: Array<{ id: string; sortOrder: number }> }) => {
+  try {
+    const response = await axiosInstance.post(`${dalaUrl}/maintenance-categories/reorder`, data, {
+      headers: getDalaHeaders()
+    });
+    message.success("Categories reordered successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to reorder categories";
+    message.error(errorMessage);
     throw error;
   }
 };

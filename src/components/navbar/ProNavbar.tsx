@@ -43,6 +43,7 @@ import {
   // ── CRM ──────────────────────────────────────────────────────────────────
   NotificationOutlined,
   AimOutlined,
+  CustomerServiceOutlined,
   // ── Dala ───────────────────────────────────────────────────────────────────
   HomeOutlined,
   AccountBookOutlined,
@@ -660,6 +661,13 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           style: { padding: "8px 12px", margin: "2px 4px", borderRadius: 6 },
         },
         {
+          key: "help-center",
+          icon: <CustomerServiceOutlined style={{ fontSize: 15, color: "#1890ff" }} />,
+          label: "Help Center",
+          onClick: () => navigate("/help-center"),
+          style: { padding: "8px 12px", margin: "2px 4px", borderRadius: 6 },
+        },
+        {
           key: "settings",
           icon: <SettingOutlined style={{ fontSize: 15, color: "#13c2c2" }} />,
           label: "Settings",
@@ -667,7 +675,15 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           style: { padding: "8px 12px", margin: "2px 4px", borderRadius: 6 },
         },
       ]
-      : []),
+      : [
+        {
+          key: "help-center",
+          icon: <CustomerServiceOutlined style={{ fontSize: 15, color: "#1890ff" }} />,
+          label: "Help Center",
+          onClick: () => navigate("/help-center"),
+          style: { padding: "8px 12px", margin: "2px 4px", borderRadius: 6 },
+        },
+      ]),
     {
       key: "logout",
       icon: <PoweroffOutlined style={{ fontSize: 15 }} />,
