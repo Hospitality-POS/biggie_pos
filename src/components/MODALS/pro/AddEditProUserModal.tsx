@@ -413,7 +413,6 @@ const MobileDetailsFields: React.FC<{
           <Form.Item
             name="idNumber"
             label={fieldLabel("National ID")}
-            rules={[{ required: true, message: "National ID is required" }]}
             style={{ marginBottom: 10 }}
           >
             <InputNumber
@@ -442,7 +441,7 @@ const MobileDetailsFields: React.FC<{
               />
             </Form.Item>
           )}
-          <PhoneInput label="Phone" owner="phoneNumber" />
+          <PhoneInput label="Phone" owner="phoneNumber" required={false} />
         </FormSection>
       </>
     );
@@ -856,7 +855,6 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
             width="xl"
             name="idNumber"
             label="National ID"
-            rules={[{ required: true, message: "National ID is required" }]}
             placeholder="Enter national ID number"
           />
           {user?.role !== "cashier" && (!isAdmin || !isEditingOwnProfile) && (
@@ -872,7 +870,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
               fieldProps={{ onChange: handleShopChange }}
             />
           )}
-          <PhoneInput label="Phone" owner="phoneNumber" />
+          <PhoneInput label="Phone" owner="phoneNumber" required={false} />
         </ProForm.Group>
       </div>
     </>

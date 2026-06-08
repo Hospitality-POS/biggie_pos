@@ -32,9 +32,29 @@ export interface ShopDigiTaxSettings {
   can_use_digi_tax: boolean;
 }
 
+export interface DigiTaxReceipt {
+  sale_id?: string;
+  serial_number?: string;
+  receipt_number?: number;
+  invoice_number?: number;
+  trader_invoice_number?: string;
+  etims_url?: string | null;
+  offline_url?: string | null;
+  receipt_signature?: string | null;
+  internal_data?: string | null;
+  receipt_type_code?: string;
+  sale_date?: string;
+  sale_time?: string;
+  submission_status?: string;
+  submission_date?: string;
+  error_message?: string | null;
+}
+
 export interface TaxInvoiceResponse {
   message: string;
-  use_digi_tax: boolean;
+  digitax?: DigiTaxReceipt;
+  // legacy fields
+  use_digi_tax?: boolean;
   test_mode?: boolean;
   tax_receipt_number?: string;
   qr_code?: string;
@@ -51,6 +71,7 @@ export interface TaxInvoiceResponse {
     generated_at: string;
   };
   service_config?: DigiTaxConfig;
+  [key: string]: any;
 }
 
 export interface InvoiceStatusResponse {
@@ -130,6 +151,16 @@ export const digiTaxService = {
       }
     );
     return response.data;
+  },
+
+  // Refresh ETR status from DigiTax
+  async refreshEtr(invoiceId: string): Promise<TaxInvoiceResponse> {
+    const response = await postRequest(
+      `/accounting/invoices/${invoiceId}/refresh-etr`,
+      {},
+      { headers: { 'x-permission': DIGITAX_PERMISSIONS.GENERATE_INVOICE } }
+    );
+    return response.data;
   }
 };
 
@@ -191,36 +222,49 @@ export const getShopDigiTaxSettings = async (shopId?: string) => {
   }
 };
 
+export const refreshInvoiceEtr = async (invoiceId: string) => {
+  try {
+    const result = await digiTaxService.refreshEtr(invoiceId);
+    if (result.digitax) {
+      return { success: true, digitax: result.digitax, message: result.message };
+    }
+    return { success: false, error: result.error || 'ETR refresh failed' };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error?.response?.data?.message || (error instanceof Error ? error.message : 'Network error'),
+    };
+  }
+};
+
 export const generateTaxInvoice = async (invoiceId: string, useDigiTax: boolean) => {
   try {
     const result = await digiTaxService.generateTaxInvoice(invoiceId, useDigiTax);
     
-    // Handle the actual backend response structure
-    if (result.invoice) {
-      const invoice = result.invoice;
-      
-      // Generate test data for beta testing since backend doesn't provide tax receipt details yet
-      const testReceiptNumber = `TR-${Date.now()}`;
-      const testQrCode = `QR-${invoice.invoice_id}`;
-      const testGeneratedAt = invoice.created_at || new Date().toISOString();
-      
+    // Handle current backend response: { message, digitax: { ... } }
+    if (result.digitax) {
+      const d = result.digitax;
+      const receiptNum = d.receipt_number ? String(d.receipt_number) : undefined;
+      const invoiceNum = d.invoice_number ? `INV-${d.invoice_number}` : undefined;
       return {
         success: true,
-        useDigiTax: true, // Always show as enabled for beta
-        testMode: false, // Remove test mode indicators
-        taxReceiptNumber: testReceiptNumber,
-        qrCode: testQrCode,
-        invoiceUrl: null,
-        generatedAt: testGeneratedAt,
-        invoiceId: invoice.invoice_id,
-        orderId: invoice.order_id,
-        message: result.message
+        useDigiTax: true,
+        testMode: false,
+        taxReceiptNumber: receiptNum || invoiceNum,
+        qrCode: d.offline_url || d.etims_url || undefined,
+        invoiceUrl: d.offline_url || null,
+        generatedAt: d.submission_date || new Date().toISOString(),
+        serialNumber: d.serial_number,
+        traderInvoiceNumber: d.trader_invoice_number,
+        submissionStatus: d.submission_status,
+        digitax: d,
+        message: result.message,
       };
     } else if (result.use_digi_tax || result.test_mode_fallback) {
-      // Handle original expected structure (for future compatibility)
+      // Legacy structure
       return {
         success: true,
-        useDigiTax: result.use_digi_tax,
+        useDigiTax: result.use_digi_tax ?? false,
         testMode: result.test_mode || result.test_mode_fallback?.test_mode,
         taxReceiptNumber: result.tax_receipt_number || result.test_mode_fallback?.tax_receipt_number,
         qrCode: result.qr_code || result.test_mode_fallback?.qr_code,
@@ -233,7 +277,7 @@ export const generateTaxInvoice = async (invoiceId: string, useDigiTax: boolean)
         success: false,
         useDigiTax: false,
         error: result.error || 'Failed to generate tax invoice',
-        testFallback: result.test_mode_fallback
+        testFallback: result.test_mode_fallback,
       };
     }
   } catch (error) {
@@ -242,9 +286,10 @@ export const generateTaxInvoice = async (invoiceId: string, useDigiTax: boolean)
       console.error('Failed to generate tax invoice:', error);
     }
     return { 
-      success: false, 
+      success: false,
+      useDigiTax: false,
       error: error instanceof Error ? error.message : 'Unknown error',
-      permissionError: isPermissionError(error)
+      permissionError: isPermissionError(error),
     };
   }
 };

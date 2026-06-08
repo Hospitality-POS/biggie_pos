@@ -7,12 +7,14 @@ import {
   DollarCircleOutlined,
   PrinterOutlined,
   LockOutlined,
+  FontColorsOutlined,
 } from "@ant-design/icons";
 import { Space, Typography } from "antd";
 import Profile from "./Profile";
 import PaymentDetailsSettings from "../paymentMethodLevel/PaymentDetailsSettings";
 import PrinterSettings from "./PrinterSettings";
 import PrivacySettings from "./PrivacySettings";
+import ReceiptAppearanceSettings from "./ReceiptAppearanceSettings";
 
 const SystemSetup: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("payment-detail");
@@ -84,6 +86,20 @@ const SystemSetup: React.FC = () => {
       >
         <div style={{ padding: "0", backgroundColor: "#fafafa", borderRadius: "8px" }}>
           <PrivacySettings />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
+        key="receipt-appearance"
+        tab={
+          <Space>
+            <FontColorsOutlined style={{ color: "#1677ff" }} />
+            <Typography.Text>Receipt Appearance</Typography.Text>
+          </Space>
+        }
+      >
+        <div style={{ padding: "0", backgroundColor: "#fafafa", borderRadius: "8px" }}>
+          <ReceiptAppearanceSettings />
         </div>
       </ProCard.TabPane>
 

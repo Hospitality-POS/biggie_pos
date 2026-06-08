@@ -253,8 +253,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
   }, []);
 
   const [isPdfView, setIsPdfView] = useState(false);
-  const [isBold, setIsBold] = useState(true);
-  const [fontSize, setFontSize] = useState(13); // Base font size in pixels
+  const [isBold, setIsBold] = useState(true); // synced from sysSettings via useEffect below
+  const [fontSize, setFontSize] = useState(13); // synced from sysSettings via useEffect below
   const [showDiscount, setShowDiscount] = useState(true);
   const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
@@ -361,7 +361,14 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
   const {
     BRAND_NAME1, EMAIL_URL, PHONE_NO, PO_BOX,
     QR_Code, Paybill_bs, Paybill_ac, TILL_NO, PIN, bank_details,
+    receipt_font_size, receipt_text_bold,
   } = useSystemDetails();
+
+  // Sync receipt appearance defaults from system settings when they load
+  useEffect(() => {
+    setFontSize(receipt_font_size);
+    setIsBold(receipt_text_bold);
+  }, [receipt_font_size, receipt_text_bold]);
 
   const {
     canPrint, isReprint, printsRemaining,

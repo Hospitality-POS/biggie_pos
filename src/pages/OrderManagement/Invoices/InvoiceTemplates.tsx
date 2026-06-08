@@ -221,7 +221,9 @@ interface SharedProps {
 
 // ETR QR Code component for print templates
 const EtrQrCode = ({ inv }: { inv: InvoiceForPrint }) => {
-    if (!inv.etr_enabled || !inv.digitax?.offline_url) return null;
+    const st = inv.digitax?.submission_status;
+    const qrUrl = inv.digitax?.etims_url || inv.digitax?.offline_url;
+    if (!inv.etr_enabled || !qrUrl || !(st === "Verified" || st === "COMPLETED")) return null;
 
     return (
         <div style={{ marginTop: 20, textAlign: "center" }}>
@@ -236,7 +238,7 @@ const EtrQrCode = ({ inv }: { inv: InvoiceForPrint }) => {
                 borderRadius: 6,
             }}>
                 <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(inv.digitax.offline_url)}`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrUrl)}`}
                     alt="ETR QR Code"
                     style={{ width: 120, height: 120, display: "block" }}
                 />
@@ -427,32 +429,37 @@ const PaymentDetailsBlock = ({
                         <div style={{ fontSize: 15, fontWeight: 700, color: accentColor }}>{sys.TILL_NO}</div>
                     </div>
                 )}
-                {inv.etr_enabled && inv.digitax?.offline_url && (
-                    <div
-                        style={{
-                            flex: "1 1 120px",
-                            background: bgColor,
-                            border: `1px solid ${borderColor}`,
-                            borderRadius: 7,
-                            padding: "9px 12px",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                        }}
-                    >
-                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>Scan to Verify</div>
-                        <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(inv.digitax.offline_url)}`}
-                            alt="ETR QR Code"
-                            style={{ width: 80, height: 80, display: "block" }}
-                        />
-                        {inv.digitax.serial_number && (
-                            <div style={{ fontSize: 9, color: C.subText, marginTop: 4, fontFamily: "monospace" }}>
-                                CU: {inv.digitax.serial_number}
-                            </div>
-                        )}
-                    </div>
-                )}
+                {(() => {
+                    const st = inv.digitax?.submission_status;
+                    const qrUrl = inv.digitax?.etims_url || inv.digitax?.offline_url;
+                    if (!inv.etr_enabled || !qrUrl || !(st === "Verified" || st === "COMPLETED")) return null;
+                    return (
+                        <div
+                            style={{
+                                flex: "1 1 120px",
+                                background: bgColor,
+                                border: `1px solid ${borderColor}`,
+                                borderRadius: 7,
+                                padding: "9px 12px",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                            }}
+                        >
+                            <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>Scan to Verify</div>
+                            <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(qrUrl)}`}
+                                alt="ETR QR Code"
+                                style={{ width: 80, height: 80, display: "block" }}
+                            />
+                            {inv.digitax?.serial_number && (
+                                <div style={{ fontSize: 9, color: C.subText, marginTop: 4, fontFamily: "monospace" }}>
+                                    CU: {inv.digitax.serial_number}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
                 <div
                     style={{
                         flex: "1 1 120px",
@@ -699,7 +706,9 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
                 color: C.darkText,
                 background: "#fff",
                 padding: 32,
-                minWidth: 640,
+                width: "100%",
+                maxWidth: 730,
+                boxSizing: "border-box" as const,
             }}
         >
             {/* Header */}
@@ -842,7 +851,7 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
     return (
         <div
             ref={ref}
-            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 32, minWidth: 640 }}
+            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 32, width: "100%", maxWidth: 730, boxSizing: "border-box" as const }}
         >
             {/* Header */}
             <div
@@ -969,7 +978,7 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
     return (
         <div
             ref={ref}
-            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 0, minWidth: 640 }}
+            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 0, width: "100%", maxWidth: 730, boxSizing: "border-box" as const }}
         >
             {/* Gradient header */}
             <div
@@ -1068,7 +1077,9 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                 color: C.darkText,
                 background: "#fff",
                 padding: 36,
-                minWidth: 640,
+                width: "100%",
+                maxWidth: 730,
+                boxSizing: "border-box" as const,
             }}
         >
             {/* Header */}
@@ -1195,7 +1206,7 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
     return (
         <div
             ref={ref}
-            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 0, minWidth: 640 }}
+            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 0, width: "100%", maxWidth: 730, boxSizing: "border-box" as const }}
         >
             {/* Header bar */}
             <div style={{ background: forest, color: "#fff", display: "flex", alignItems: "stretch", overflow: "hidden" }}>

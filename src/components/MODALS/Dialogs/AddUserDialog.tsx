@@ -260,7 +260,6 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
             <Controller
               name="phone"
               control={control}
-              rules={{ required: "Phone is required" }}
               defaultValue={newUser.phone}
               render={({ field }) => (
                 <TextField
@@ -314,7 +313,6 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
             <Controller
               name="idNumber"
               control={control}
-              rules={{ required: "ID Number is required" }}
               defaultValue={newUser.idNumber}
               render={({ field }) => (
                 <TextField

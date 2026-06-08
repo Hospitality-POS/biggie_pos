@@ -12,6 +12,7 @@ import {
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getInvoiceById, patchInvoice, verifyDigiTax } from "@services/accounting/invoice";
+import { refreshInvoiceEtr } from "@services/accounting/digiTax";
 import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
 import { getNotesByInvoice } from "@services/accounting/notes";
@@ -106,7 +107,7 @@ export interface InvoiceDetailsInterface {
     receipt_type_code?: string;
     sale_date?: string;
     sale_time?: string;
-    submission_status?: "Submitted" | "Verified" | "COMPLETED" | "Failed" | "FAILED";
+    submission_status?: "Pending" | "Submitted" | "Verified" | "COMPLETED" | "Failed" | "FAILED";
     submission_date?: string;
     error_message?: string | null;
   } | null;
@@ -936,6 +937,22 @@ const EtrTab = ({ record }: { record: InvoiceDetailsInterface }) => {
     onError: () => message.error("Failed to trigger ETR retry"),
   });
 
+  // Refresh ETR status from DigiTax
+  const refreshMutation = useMutation({
+    mutationFn: () => refreshInvoiceEtr(record._id),
+    onSuccess: (res) => {
+      if (res.success) {
+        message.success("ETR status refreshed");
+        stopPoll();
+        queryClient.invalidateQueries({ queryKey: ["invoice", record._id] });
+        queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+      } else {
+        message.error(res.error || "ETR refresh failed");
+      }
+    },
+    onError: () => message.error("ETR refresh failed"),
+  });
+
   // Manual verification with KRA
   const verifyMutation = useMutation({
     mutationFn: () => verifyDigiTax(record._id),
@@ -991,6 +1008,16 @@ const EtrTab = ({ record }: { record: InvoiceDetailsInterface }) => {
           {statusBadge}
         </Space>
         <Space>
+          {(st === "Pending" || !st) && etrEnabled && (
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              loading={refreshMutation.isLoading}
+              onClick={() => refreshMutation.mutate()}
+            >
+              Refresh ETR Status
+            </Button>
+          )}
           {st === "Submitted" && (
             <Button
               size="small"
@@ -1097,21 +1124,25 @@ const EtrTab = ({ record }: { record: InvoiceDetailsInterface }) => {
                 Verify on KRA eTIMS
               </a>
             )}
-            {digitax?.offline_url && (
+            {digitax?.offline_url && (st === "Verified" || st === "COMPLETED") ? (
               <a
                 href={digitax.offline_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ fontSize: 12 }}
+                style={{ fontSize: 12, color: C.green }}
               >
                 <LinkOutlined style={{ marginRight: 4 }} />
-                Offline Receipt
+                View KRA Receipt
               </a>
-            )}
+            ) : digitax?.offline_url ? (
+              <Text style={{ fontSize: 11, color: C.subText }}>
+                Receipt link available once ETR is verified
+              </Text>
+            ) : null}
           </Space>
 
-          {/* QR Code */}
-          {digitax?.offline_url && (
+          {/* QR Code — only show when receipt is verified */}
+          {(digitax?.etims_url || digitax?.offline_url) && (st === "Verified" || st === "COMPLETED") && (
             <div style={{ marginTop: 16, textAlign: "center" }}>
               <SectionLabel>QR Code for Verification</SectionLabel>
               <div style={{
@@ -1119,7 +1150,7 @@ const EtrTab = ({ record }: { record: InvoiceDetailsInterface }) => {
                 borderRadius: 8, border: "1px solid #e5e7eb",
               }}>
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(digitax.offline_url)}`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(digitax.etims_url || digitax.offline_url!)}`}
                   alt="ETR QR Code"
                   style={{ width: 150, height: 150, display: "block" }}
                 />
@@ -1306,7 +1337,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
           <span>ETR / DigiTax</span>
         </Space>
       ),
-      children: <EtrTab record={record} />,
+      children: <EtrTab record={invoiceData as InvoiceDetailsInterface} />,
     }] : []),
   ];
 

@@ -31,7 +31,7 @@ export interface DigiTaxData {
     receipt_type_code?: string;
     sale_date?: string;
     sale_time?: string;
-    submission_status?: "Submitted" | "Verified" | "COMPLETED" | "Failed" | "FAILED";
+    submission_status?: "Pending" | "Submitted" | "Verified" | "COMPLETED" | "Failed" | "FAILED";
     submission_date?: string;
     error_message?: string | null;
 }
