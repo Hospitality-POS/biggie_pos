@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Box,
@@ -243,7 +243,14 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const {
     BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO,
     QR_Code, Paybill_bs, Paybill_ac, TILL_NO,
+    receipt_font_size, receipt_text_bold,
   } = useSystemDetails();
+
+  // Sync receipt appearance defaults from system settings when they load
+  useEffect(() => {
+    setFontSize(receipt_font_size);
+    setIsBold(receipt_text_bold);
+  }, [receipt_font_size, receipt_text_bold]);
 
   // Get VAT mode from tenant settings
   const vatMode: "INCLUSIVE" | "EXCLUSIVE" = tenant?.vat_pricing_mode || "EXCLUSIVE";

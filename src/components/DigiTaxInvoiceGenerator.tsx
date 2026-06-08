@@ -13,6 +13,11 @@ export interface DigiTaxData {
   generatedAt?: string;
   error?: string;
   testFallback?: any;
+  serialNumber?: string;
+  traderInvoiceNumber?: string;
+  submissionStatus?: string;
+  digitax?: any;
+  message?: string;
 }
 
 interface DigiTaxInvoiceGeneratorProps {
@@ -174,14 +179,40 @@ const DigiTaxInvoiceGenerator: React.FC<DigiTaxInvoiceGeneratorProps> = ({
           padding: '8px 12px',
           marginTop: 8
         }}>
-          <div style={{ fontSize: 12, color: '#52c41a', marginBottom: 4 }}>
+          <div style={{ fontSize: 12, color: '#52c41a', marginBottom: 6 }}>
             <strong>ETR Generated Successfully</strong>
           </div>
           {digiTaxData.taxReceiptNumber && (
             <div style={{ fontSize: 11, color: '#389e0d' }}>
-              Tax Receipt: {digiTaxData.taxReceiptNumber}
+              Receipt / Invoice: {digiTaxData.taxReceiptNumber}
             </div>
           )}
+          {digiTaxData.traderInvoiceNumber && (
+            <div style={{ fontSize: 11, color: '#389e0d' }}>
+              Trader Invoice: {digiTaxData.traderInvoiceNumber}
+            </div>
+          )}
+          {digiTaxData.serialNumber && (
+            <div style={{ fontSize: 11, color: '#389e0d' }}>
+              CU Serial: {digiTaxData.serialNumber}
+            </div>
+          )}
+          {digiTaxData.submissionStatus && (
+            <div style={{ fontSize: 11, color: digiTaxData.submissionStatus === 'Pending' ? '#d46b08' : '#389e0d', marginTop: 2 }}>
+              Status: {digiTaxData.submissionStatus}
+            </div>
+          )}
+          {digiTaxData.invoiceUrl && (digiTaxData.submissionStatus === 'Verified' || digiTaxData.submissionStatus === 'COMPLETED') ? (
+            <div style={{ fontSize: 11, marginTop: 4 }}>
+              <a href={digiTaxData.invoiceUrl} target="_blank" rel="noreferrer" style={{ color: '#52c41a' }}>
+                View KRA Receipt ↗
+              </a>
+            </div>
+          ) : digiTaxData.invoiceUrl ? (
+            <div style={{ fontSize: 11, color: '#8c8c8c', marginTop: 4 }}>
+              Receipt link available once ETR is verified
+            </div>
+          ) : null}
           {digiTaxData.testMode && (
             <div style={{ fontSize: 11, color: '#d46b08', marginTop: 2 }}>
               * Test mode - not a valid tax document
