@@ -102,6 +102,7 @@ const MtejaDashboard = lazy(() => import("src/pages/Dashboard/MtejaDashboard"));
 const AccountingDashboardPage = lazy(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
 const ChartOfAccountsPage = lazy(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
 const JournalEntriesPage = lazy(() => import("src/pages/JournalEntry/JournalEntriesPage"));
+const SalesReceiptsPage = lazy(() => import("src/pages/SalesReceipts/SalesReceiptsPage"));
 const NotesPage = lazy(() => import("src/pages/Notes/NotesPage"));
 const BankStatementPage = lazy(() => import("src/pages/Banking/BankStatementPage"));
 const BankReconciliationPage = lazy(() => import("src/pages/Reconciliation/BankReconciliationPage"));
@@ -389,6 +390,8 @@ const routes = createBrowserRouter(
             element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
             element={guardedPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
+          <Route path="sales-receipts" errorElement={<NotFound />}
+            element={guardedPage(SalesReceiptsPage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
           <Route path="notes" errorElement={<NotFound />}
             element={guardedPage(NotesPage, "ACCOUNTING_NOTES_VIEW")} />
           <Route path="bank-statements" errorElement={<NotFound />}
@@ -612,6 +615,8 @@ const routes = createBrowserRouter(
             element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
             element={guardedAdminPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
+          <Route path="sales-receipts" errorElement={<NotFound />}
+            element={guardedAdminPage(SalesReceiptsPage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
           <Route path="notes" errorElement={<NotFound />}
             element={guardedAdminPage(NotesPage, "ACCOUNTING_NOTES_VIEW")} />
           <Route path="bank-statements" errorElement={<NotFound />}
