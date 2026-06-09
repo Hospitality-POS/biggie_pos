@@ -50,6 +50,7 @@ import {
     RecentJournalEntry,
     TopExpenseAccount,
     CashAccount,
+    DashboardSalesReceiptsSummary,
 } from "@services/accounting/accountingDashboard";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import dayjs from "dayjs";
@@ -238,6 +239,7 @@ const AccountingDashboardPage: React.FC = () => {
         top_expense_accounts,
         vat_summary,
         reconciliation_status,
+        sales_receipts_summary,
     } = data;
 
     // ── Chart data ─────────────────────────────────────────────────────────────
@@ -676,6 +678,73 @@ const AccountingDashboardPage: React.FC = () => {
                         </ProCard>
                     </Col>
                 </Row>
+
+                {/* ── Section 5: Sales Receipts Summary ── */}
+                {sales_receipts_summary && (
+                    <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+                        <Col xs={24} lg={8}>
+                            <ProCard title={<Text strong>Sales Receipts Overview</Text>} bordered size="small">
+                                <Space direction="vertical" size={10} style={{ width: "100%" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#f0fdf4", borderRadius: 8 }}>
+                                        <Text style={{ fontSize: 12, color: "#64748b" }}>Posted</Text>
+                                        <Text strong style={{ color: "#10b981" }}>KES {fmtK(sales_receipts_summary.total_posted)}</Text>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#fff7ed", borderRadius: 8 }}>
+                                        <Text style={{ fontSize: 12, color: "#64748b" }}>Pending</Text>
+                                        <Text strong style={{ color: "#f59e0b" }}>KES {fmtK(sales_receipts_summary.total_pending)}</Text>
+                                    </div>
+                                    {sales_receipts_summary.total_voided > 0 && (
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#fef2f2", borderRadius: 8 }}>
+                                            <Text style={{ fontSize: 12, color: "#64748b" }}>Voided</Text>
+                                            <Text strong style={{ color: "#ef4444" }}>KES {fmtK(sales_receipts_summary.total_voided)}</Text>
+                                        </div>
+                                    )}
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: "#eef2ff", borderRadius: 8, border: "1px solid #c7d2fe" }}>
+                                        <Text style={{ fontSize: 12, fontWeight: 600 }}>VAT Collected</Text>
+                                        <Text strong style={{ fontSize: 16, color: "#6366f1" }}>
+                                            KES {fmtK(sales_receipts_summary.total_vat_collected)}
+                                        </Text>
+                                    </div>
+                                </Space>
+                            </ProCard>
+                        </Col>
+
+                        <Col xs={24} lg={16}>
+                            <ProCard title={<Text strong>Sales Receipts by Payment Method</Text>} bordered size="small">
+                                {Object.keys(sales_receipts_summary.by_payment_method).length === 0 ? (
+                                    <div style={{ textAlign: "center", padding: "32px 0", color: "#94a3b8", fontSize: 12 }}>
+                                        No sales receipts this period
+                                    </div>
+                                ) : (
+                                    <Row gutter={[12, 12]}>
+                                        {Object.entries(sales_receipts_summary.by_payment_method).map(([method, data]) => (
+                                            <Col xs={12} sm={8} key={method}>
+                                                <div
+                                                    style={{
+                                                        background: "#f8fafc",
+                                                        borderRadius: 8,
+                                                        padding: "12px",
+                                                        borderLeft: `3px solid ${primaryColor}`,
+                                                    }}
+                                                >
+                                                    <Text style={{ fontSize: 11, color: "#64748b", display: "block", marginBottom: 4 }}>
+                                                        {method.replace(/_/g, " ")}
+                                                    </Text>
+                                                    <Text strong style={{ fontSize: 16, color: "#0f172a", display: "block" }}>
+                                                        KES {fmtK(data.total)}
+                                                    </Text>
+                                                    <Text style={{ fontSize: 11, color: "#94a3b8" }}>
+                                                        {data.count} receipt{data.count !== 1 ? "s" : ""}
+                                                    </Text>
+                                                </div>
+                                            </Col>
+                                        ))}
+                                    </Row>
+                                )}
+                            </ProCard>
+                        </Col>
+                    </Row>
+                )}
 
                 {/* ── Section 4: Top Expenses Bar + Notes Summary ── */}
                 <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>

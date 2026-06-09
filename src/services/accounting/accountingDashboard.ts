@@ -178,6 +178,29 @@ export interface DashboardReconciliationStatus {
     attention_needed: number;
 }
 
+// ── Section 11: Sales Receipts Summary ───────────────────────────────────────
+
+export interface SalesReceiptStatusBucket {
+    count: number;
+    total: number;
+    vat: number;
+    subtotal: number;
+}
+
+export interface SalesReceiptPaymentMethodBucket {
+    count: number;
+    total: number;
+}
+
+export interface DashboardSalesReceiptsSummary {
+    by_status: Record<string, SalesReceiptStatusBucket>; // Posted | Pending | Voided
+    total_posted: number;
+    total_pending: number;
+    total_voided: number;
+    total_vat_collected: number;
+    by_payment_method: Record<string, SalesReceiptPaymentMethodBucket>; // Cash | M-Pesa | Card | etc.
+}
+
 // ── Full Dashboard Response ───────────────────────────────────────────────────
 
 export interface AccountingDashboardResponse {
@@ -197,6 +220,7 @@ export interface AccountingDashboardResponse {
     top_expense_accounts: TopExpenseAccount[];
     vat_summary: DashboardVATSummary;
     reconciliation_status: DashboardReconciliationStatus;
+    sales_receipts_summary?: DashboardSalesReceiptsSummary;
 }
 
 // ── Query params ──────────────────────────────────────────────────────────────
