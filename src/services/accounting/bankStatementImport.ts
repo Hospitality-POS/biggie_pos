@@ -514,6 +514,86 @@ export const deleteCategoryMapping = async (id: string) => {
 };
 
 // ============================================
+// TEMPLATE DOWNLOAD SERVICES
+// ============================================
+
+/**
+ * Download Excel template for bank statement import
+ * @param account_id - The bank account ID to generate template for
+ */
+export const downloadExcelTemplate = async (account_id: string) => {
+    try {
+        const response = await axiosInstance.get(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/template/excel`,
+            {
+                params: { account_id },
+                responseType: 'blob',
+            }
+        );
+        
+        // Create download link
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'bank_statement_template.xlsx');
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        
+        message.success('Excel template downloaded successfully');
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error('Error downloading Excel template');
+        }
+        throw error;
+    }
+};
+
+/**
+ * Download PDF template for bank statement import
+ * @param account_id - The bank account ID to generate template for
+ */
+export const downloadPDFTemplate = async (account_id: string) => {
+    try {
+        const response = await axiosInstance.get(
+            `${BASE_URL}/accounting/bank-reconciliations/bank-imports/template/pdf`,
+            {
+                params: { account_id },
+                responseType: 'blob',
+            }
+        );
+        
+        // Create download link
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'bank_statement_template.pdf');
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        
+        message.success('PDF template downloaded successfully');
+    } catch (error: unknown) {
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        if (axiosError?.response?.data?.message) {
+            message.error(axiosError.response.data.message);
+        } else {
+            message.error('Error downloading PDF template');
+        }
+        throw error;
+    }
+};
+
+// ============================================
 // BANK STATEMENT IMPORT SERVICES
 // ============================================
 
