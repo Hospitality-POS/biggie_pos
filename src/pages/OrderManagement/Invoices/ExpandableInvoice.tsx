@@ -8,10 +8,10 @@ import {
   ArrowRightOutlined, CheckCircleOutlined, CreditCardOutlined,
   DollarOutlined, EditOutlined, FileSearchOutlined, FilePdfOutlined,
   FileTextOutlined, PrinterOutlined, SaveOutlined,
-  SafetyCertificateOutlined, WarningOutlined, ReloadOutlined, LinkOutlined,
+  SafetyCertificateOutlined, WarningOutlined, ReloadOutlined, LinkOutlined, CopyOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getInvoiceById, patchInvoice, verifyDigiTax } from "@services/accounting/invoice";
+import { getInvoiceById, patchInvoice, verifyDigiTax, duplicateInvoice } from "@services/accounting/invoice";
 import { refreshInvoiceEtr } from "@services/accounting/digiTax";
 import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
@@ -248,6 +248,7 @@ const ReceiptTab = ({
   onColorChange,
   primaryColor,
   printProps,
+  creditNotes,
 }: {
   record: InvoiceDetailsInterface;
   sys: SystemDetails;
@@ -255,9 +256,13 @@ const ReceiptTab = ({
   onColorChange: (color: string) => void;
   primaryColor: string;
   printProps: any;
+  creditNotes?: any[];
 }) => {
   const [selected, setSelected] = useState<TemplateId>(1);
-  const inv = record as unknown as InvoiceForPrint;
+  const inv = record ? {
+    ...record,
+    credit_notes: creditNotes || [],
+  } as unknown as InvoiceForPrint : undefined;
 
   const ref1 = useRef<HTMLDivElement>(null);
   const ref2 = useRef<HTMLDivElement>(null);
@@ -695,6 +700,21 @@ const PaymentsTab = ({
   const total = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const amountDue = record.amount_due || 0;
   const grandTotal = record.grand_total || 0;
+  const queryClient = useQueryClient();
+
+  // Duplicate mutation
+  const duplicateMutation = useMutation({
+    mutationFn: () => duplicateInvoice(record._id),
+    onSuccess: () => {
+      message.success("Invoice duplicated successfully");
+      queryClient.invalidateQueries({ queryKey: ["invoice", record._id] });
+      queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+    },
+  });
+
+  const handleDuplicate = () => {
+    duplicateMutation.mutate();
+  };
 
   const columns = [
     {
@@ -766,6 +786,13 @@ const PaymentsTab = ({
         <Button icon={<PrinterOutlined />} onClick={onOpenPrint}
           style={{ alignSelf: "center", borderRadius: 8, borderColor: C.primary, color: C.primary }}>
           Download Receipt
+        </Button>
+        <Button 
+          icon={<CopyOutlined />} 
+          onClick={handleDuplicate}
+          loading={duplicateMutation.isPending}
+          style={{ alignSelf: "center", borderRadius: 8, borderColor: C.primary, color: C.primary }}>
+          Duplicate
         </Button>
       </div>
       {!payments.length ? (
@@ -1273,6 +1300,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
           onColorChange={handleColorChange}
           primaryColor={primaryColor}
           printProps={printProps}
+          creditNotes={notesData?.notes || []}
         />
       ),
     },
