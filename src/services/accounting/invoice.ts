@@ -450,3 +450,32 @@ export const deleteInvoice = async (id: string) => {
         throw error;
     }
 };
+
+/**
+ * Duplicate an invoice with a new invoice number.
+ * Creates a copy of the invoice with all line items but with:
+ * - New invoice ID and number
+ * - Reset payment status to "Pending"
+ * - Reset amounts (amount_paid = 0, amount_due = grand_total)
+ * - Cleared ETR/DigiTax data
+ * - Current issue date
+ */
+export const duplicateInvoice = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/invoices/${id}/duplicate`
+        );
+        message.success(`Invoice duplicated: ${response.data.invoice.order_no}`);
+        return response.data as {
+            invoice: Invoice;
+            items: InvoiceLineItem[];
+        };
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error duplicating invoice");
+        }
+        throw error;
+    }
+};

@@ -13,10 +13,10 @@ import {
   DollarOutlined, EditOutlined, FileDoneOutlined,
   FileTextOutlined, FilterOutlined, MoreOutlined,
   PrinterOutlined, UserOutlined, SafetyCertificateOutlined,
-  DeleteOutlined, PlusOutlined,
+  DeleteOutlined, PlusOutlined, CopyOutlined, StopOutlined,
 } from "@ant-design/icons";
 import { getAllInvoices } from "@services/cart";
-import { convertQuoteToInvoice, recordInvoicePayment, deleteInvoice } from "@services/accounting/invoice";
+import { convertQuoteToInvoice, recordInvoicePayment, deleteInvoice, duplicateInvoice, voidInvoice } from "@services/accounting/invoice";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { getAllAccounts } from "@services/accounting/accounts";
 import { generateTaxInvoice } from "@services/accounting/digiTax";
@@ -24,6 +24,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import InvoiceReprintModal from "./InvoiceReprintModal";
 import ManualInvoiceModal from "./ManualInvoiceModal";
 import NoteDetailDrawer from "../../Notes/NoteDetailDrawer";
+import NoteFormDrawer from "../../Notes/NoteFormDrawer";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import dayjs from "dayjs";
 
@@ -584,6 +585,7 @@ const InvoicesTable = () => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const hasPesa = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
+  const shopId = tenant?.shop_id || "";
 
   // Check if user is admin
   const storedUser = localStorage.getItem("user");
@@ -594,8 +596,12 @@ const InvoicesTable = () => {
   const [payTarget, setPayTarget] = useState<any>(null);
   const [editTarget, setEditTarget] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [voidTarget, setVoidTarget] = useState<any>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [creditNoteTarget, setCreditNoteTarget] = useState<any>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
   const [mobileData, setMobileData] = useState<any[]>([]);
   const [mobileLoading, setMobileLoading] = useState(false);
   const [mobilePage, setMobilePage] = useState(1);
@@ -681,6 +687,7 @@ const InvoicesTable = () => {
   // Row action menu for desktop
   const getRowActionItems = (record: any) => [
     { key: "edit", label: "Edit", icon: <EditOutlined /> },
+    ...(record.status !== "Voided" ? [{ key: "duplicate", label: "Duplicate", icon: <CopyOutlined /> }] : []),
     ...(record.status === "Draft" ? [
       { key: "print", label: "Print Quote", icon: <PrinterOutlined /> },
       { key: "convert", label: "Convert to Invoice", icon: <FileDoneOutlined /> },
@@ -688,7 +695,13 @@ const InvoicesTable = () => {
     ...(["Pending", "Partially_Paid", "Overdue"].includes(record.status) ? [
       { key: "pay", label: "Record Payment", icon: <DollarOutlined /> },
     ] : []),
-    ...(record.status !== "Draft" && !record.etr_enabled ? [
+    ...(record.status !== "Draft" && record.status !== "Voided" ? [
+      { key: "credit-note", label: "Create Credit Note", icon: <FileTextOutlined /> },
+    ] : []),
+    ...(record.status !== "Draft" && record.status !== "Voided" && !record.etr_enabled ? [
+      { key: "void", label: "Void Invoice", icon: <StopOutlined />, danger: true },
+    ] : []),
+    ...(record.status !== "Draft" && record.status !== "Voided" && !record.etr_enabled ? [
       { key: "etr", label: "Submit Etims", icon: <SafetyCertificateOutlined /> },
     ] : []),
     ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
@@ -696,9 +709,12 @@ const InvoicesTable = () => {
 
   const handleRowMenuClick = (key: string, record: any) => {
     if (key === "edit") setEditTarget(record);
+    if (key === "duplicate") handleDuplicate(record);
     if (key === "print") printQuote(record);
     if (key === "convert") setConvertTarget(record);
     if (key === "pay") setPayTarget(record);
+    if (key === "credit-note") setCreditNoteTarget(record);
+    if (key === "void") setVoidTarget(record);
     if (key === "etr") handleEtrSubmit(record);
     if (key === "delete") setDeleteTarget(record);
   };
@@ -712,6 +728,29 @@ const InvoicesTable = () => {
       refreshTable();
     },
   });
+
+  // Void mutation
+  const voidMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => voidInvoice(id, reason),
+    onSuccess: () => {
+      message.success("Invoice voided successfully");
+      setVoidTarget(null);
+      setVoidReason("");
+      refreshTable();
+    },
+  });
+
+  // Duplicate mutation
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => duplicateInvoice(id),
+    onSuccess: (data) => {
+      refreshTable();
+    },
+  });
+
+  const handleDuplicate = (record: any) => {
+    duplicateMutation.mutate(record._id);
+  };
 
   const desktopColumns = [
     {
@@ -1046,7 +1085,24 @@ const InvoicesTable = () => {
           defaultExpandAllRows: false,
           expandIconColumnIndex: 1,
           columnTitle: " ",
+          expandedRowKeys: expandedRowKeys,
+          onExpandedRowsChange: (keys) => setExpandedRowKeys(keys),
         }}
+        onRow={(record) => ({
+          onClick: (e) => {
+            // Don't expand if clicking on action dropdown or its children
+            const target = e.target as HTMLElement;
+            if (target.closest('.ant-dropdown-trigger') || target.closest('.ant-btn')) {
+              return;
+            }
+            // Toggle expansion
+            const newKeys = expandedRowKeys.includes(record._id)
+              ? expandedRowKeys.filter((k) => k !== record._id)
+              : [...expandedRowKeys, record._id];
+            setExpandedRowKeys(newKeys);
+          },
+          style: { cursor: 'pointer' },
+        })}
         dateFormatter="string"
         rowClassName={(record) => record.status === "Draft" ? "row-quote" : ""}
       />
@@ -1103,6 +1159,73 @@ const InvoicesTable = () => {
           </p>
         </div>
       </Modal>
+
+      {/* Void Invoice Modal */}
+      <Modal
+        open={!!voidTarget}
+        onCancel={() => { setVoidTarget(null); setVoidReason(""); }}
+        title={modalTitle(<StopOutlined />, C.red, "Void Invoice")}
+        okText="Void Invoice"
+        okButtonProps={{ danger: true, style: { background: C.red, borderColor: C.red } }}
+        onOk={() => voidTarget && voidMutation.mutate({ id: voidTarget._id, reason: voidReason })}
+        confirmLoading={voidMutation.isLoading}
+        destroyOnClose
+      >
+        <div style={{ padding: "16px 0" }}>
+          <p style={{ marginBottom: 12 }}>
+            Are you sure you want to void invoice <strong>{voidTarget?.order_no}</strong>?
+          </p>
+          <p style={{ fontSize: 12, color: C.subText, marginBottom: 8 }}>
+            This action will:
+          </p>
+          <ul style={{ fontSize: 12, color: C.subText, paddingLeft: 20, marginBottom: 12 }}>
+            <li>Set invoice status to "Voided"</li>
+            <li>Void the associated journal entry</li>
+            <li>Add void reason to internal notes</li>
+          </ul>
+          <div style={{ marginTop: 16 }}>
+            <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+              Void Reason <span style={{ color: C.red }}>*</span>
+            </label>
+            <Input.TextArea
+              placeholder="Enter the reason for voiding this invoice..."
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              rows={4}
+              maxLength={500}
+              showCount
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <NoteFormDrawer
+        open={!!creditNoteTarget}
+        onClose={() => setCreditNoteTarget(null)}
+        onSuccess={refreshTable}
+        shopId={shopId}
+        noteType="CREDIT_NOTE"
+        readonlyFields={true}
+        editingNote={creditNoteTarget ? {
+          _id: "",
+          note_no: "",
+          note_type: "CREDIT_NOTE",
+          direction: creditNoteTarget.direction === "supplier" ? "supplier" : "customer",
+          original_invoice_id: creditNoteTarget._id,
+          original_invoice_no: creditNoteTarget.order_no,
+          customer_id: creditNoteTarget.customer_id,
+          supplier_id: creditNoteTarget.supplier_id,
+          issue_date: new Date().toISOString(),
+          lines: [],
+          subtotal: 0,
+          total_vat: 0,
+          total_discount: 0,
+          grand_total: 0,
+          status: "Draft",
+          reason: "",
+          shop_id: shopId,
+        } as any : undefined}
+      />
     </>
   );
 };

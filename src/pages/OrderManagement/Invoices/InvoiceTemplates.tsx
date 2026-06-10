@@ -114,12 +114,8 @@ export interface InvoiceForPrint {
     payments?: PaymentRecord[];
     payment_ids?: PaymentRecord[];
 
-    // Notes
-    notes?: string;
-    terms?: string;
-    internal_notes?: string;
-
-    // Notes adjustment (credit/debit notes)
+    // Credit/Debit Notes
+    credit_notes?: any[];
     notes_adjustment?: number;
 
     // System
@@ -150,6 +146,17 @@ export interface InvoiceForPrint {
     [key: string]: any;
 }
 
+export interface BankDetail {
+    _id?: string;
+    bank_name: string;
+    branch: string;
+    account_no: string;
+    account_name: string;
+    swift_code: string;
+    paybill_no: string;
+    is_primary: boolean;
+}
+
 export interface SystemDetails {
     BRAND_NAME1?: string;
     PHONE_NO?: string;
@@ -160,6 +167,7 @@ export interface SystemDetails {
     Paybill_ac?: string;
     QR_Code?: string;
     tenant_logo?: { url?: string };
+    bank_details?: BankDetail[];
 }
 
 // ── Resolve counterparty ───────────────────────────────────────────────────
@@ -351,7 +359,7 @@ const TotalsBlock = ({ inv, accentColor }: { inv: InvoiceForPrint; accentColor: 
     </div>
 );
 
-const PaybillAccountBlock = ({
+const BankDetailsBlock = ({
     sys,
     bgColor = "#f8fafc",
     borderColor = "#e2e8f0",
@@ -362,7 +370,13 @@ const PaybillAccountBlock = ({
     borderColor?: string;
     accentColor?: string;
 }) => {
-    if (!sys.Paybill_bs) return null;
+    // Get primary bank from bank_details array
+    const primaryBank = sys.bank_details?.find((b) => b.is_primary);
+    
+    // Fallback to legacy Paybill fields if no bank_details
+    const useLegacy = !primaryBank && (sys.Paybill_bs || sys.Paybill_ac);
+
+    if (!primaryBank && !useLegacy) return null;
 
     return (
         <div style={{ marginTop: 20, textAlign: "center" }}>
@@ -372,13 +386,45 @@ const PaybillAccountBlock = ({
                     background: bgColor,
                     border: `1px solid ${borderColor}`,
                     borderRadius: 7,
-                    padding: "9px 12px",
+                    padding: "10px 14px",
+                    minWidth: 200,
                 }}
             >
-                <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Paybill / Account</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: accentColor }}>
-                    {sys.Paybill_bs} / {sys.Paybill_ac || "—"}
-                </div>
+                {primaryBank ? (
+                    <>
+                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>
+                            Bank Details
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: accentColor, marginBottom: 2 }}>
+                            {primaryBank.bank_name}
+                        </div>
+                        {primaryBank.branch && (
+                            <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>
+                                {primaryBank.branch}
+                            </div>
+                        )}
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.darkText, marginBottom: 2 }}>
+                            A/C: {primaryBank.account_no}
+                        </div>
+                        {primaryBank.account_name && (
+                            <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>
+                                {primaryBank.account_name}
+                            </div>
+                        )}
+                        {primaryBank.paybill_no && (
+                            <div style={{ fontSize: 11, fontWeight: 600, color: accentColor }}>
+                                Paybill: {primaryBank.paybill_no}
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Paybill / Account</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: accentColor }}>
+                            {sys.Paybill_bs} / {sys.Paybill_ac || "—"}
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -398,6 +444,12 @@ const PaymentDetailsBlock = ({
     accentColor?: string;
 }) => {
     const payments: PaymentRecord[] = inv.payments || inv.payment_ids || [];
+    const creditNotes = inv.credit_notes || [];
+    const hasCreditNotes = creditNotes.length > 0;
+    const hasPayments = payments.length > 0;
+
+    // Show credit notes if they exist, otherwise show payments
+    const showCreditNotes = hasCreditNotes;
 
     return (
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${borderColor}` }}>
@@ -491,7 +543,110 @@ const PaymentDetailsBlock = ({
             </div>
 
             {/* Payment history table */}
-            {payments.length > 0 && (
+            {showCreditNotes && creditNotes.length > 0 ? (
+                <>
+                    <div
+                        style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: "0.5px",
+                            textTransform: "uppercase" as const,
+                            color: C.subText,
+                            marginBottom: 7,
+                        }}
+                    >
+                        Credit Notes Applied
+                    </div>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                        <thead>
+                            <tr style={{ background: "#f1f5f9" }}>
+                                {["Date", "Note No.", "Type", "Reason", "Status", "Amount"].map((h) => (
+                                    <th
+                                        key={h}
+                                        style={{
+                                            padding: "5px 8px",
+                                            textAlign: h === "Amount" ? "right" : "left",
+                                            fontWeight: 700,
+                                            fontSize: 10,
+                                            borderBottom: "1px solid #e2e8f0",
+                                            color: "#374151",
+                                        }}
+                                    >
+                                        {h}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {creditNotes.map((note, i) => {
+                                const isCredit = note.note_type === "CREDIT_NOTE";
+                                const statusColor =
+                                    note.status === "Applied"
+                                        ? C.green
+                                        : note.status === "Approved"
+                                            ? C.orange
+                                            : note.status === "Voided"
+                                                ? C.red
+                                                : C.subText;
+                                return (
+                                    <tr key={note._id || i} style={{ background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                        <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9", color: C.subText }}>
+                                            {fmtDateShort(note.issue_date)}
+                                        </td>
+                                        <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9", fontFamily: "monospace", fontSize: 10 }}>
+                                            {note.note_no}
+                                        </td>
+                                        <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                                            <span
+                                                style={{
+                                                    background: isCredit ? "#f0fdf4" : "#fff7ed",
+                                                    color: isCredit ? C.green : C.orange,
+                                                    border: `1px solid ${isCredit ? "#bbf7d0" : "#fed7aa"}`,
+                                                    borderRadius: 4,
+                                                    padding: "1px 6px",
+                                                    fontSize: 10,
+                                                    fontWeight: 700,
+                                                }}
+                                            >
+                                                {isCredit ? "Credit" : "Debit"}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                                            {note.reason}
+                                        </td>
+                                        <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                                            <span
+                                                style={{
+                                                    fontSize: 10,
+                                                    fontWeight: 700,
+                                                    color: statusColor,
+                                                    background: `${statusColor}15`,
+                                                    border: `1px solid ${statusColor}40`,
+                                                    borderRadius: 4,
+                                                    padding: "1px 6px",
+                                                }}
+                                            >
+                                                {note.status}
+                                            </span>
+                                        </td>
+                                        <td
+                                            style={{
+                                                padding: "5px 8px",
+                                                borderBottom: "1px solid #f1f5f9",
+                                                textAlign: "right",
+                                                fontWeight: 700,
+                                                color: isCredit ? C.green : C.orange,
+                                            }}
+                                        >
+                                            {isCredit ? "−" : "+"}KES {fmt(note.grand_total)}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </>
+            ) : payments.length > 0 ? (
                 <>
                     <div
                         style={{
@@ -606,7 +761,7 @@ const PaymentDetailsBlock = ({
                         </tbody>
                     </table>
                 </>
-            )}
+            ) : null}
 
             {/* Notes */}
             {inv.notes && (
@@ -628,30 +783,46 @@ const PaymentDetailsBlock = ({
     );
 };
 
-const Footer = ({ sys, borderColor = C.border }: { sys: SystemDetails; borderColor?: string }) => (
+const Footer = ({ sys, borderColor = C.border, accentColor = C.primary }: { sys: SystemDetails; borderColor?: string; accentColor?: string }) => {
+    // Determine which logo to use based on background color
+    // Light backgrounds (Ocean: #eff6ff, Forest: #f0fdf4) need dark logo
+    // Dark backgrounds (Classic: #6c1c2c, Slate: #1e293b, Minimal: #374151) need light logo
+    const isLightBackground = accentColor === '#3b82f6' || accentColor === '#16a34a';
+    const logoSrc = isLightBackground ? '/relia2.png' : '/relia.png';
+
+    return (
     <div
         style={{
             marginTop: 24,
             borderTop: `2px solid ${borderColor}`,
             paddingTop: 14,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap" as const,
-            gap: 8,
         }}
     >
-        <div style={{ fontSize: 11, color: C.subText }}>
-            {sys.EMAIL_URL && <span>{sys.EMAIL_URL} · </span>}
-            {sys.PHONE_NO && <span>{sys.PHONE_NO}</span>}
-            {sys.PIN && <span> · KRA PIN: {sys.PIN}</span>}
+        {/* Row 1: Logo and POWERED BY */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+            <img 
+                src={logoSrc} 
+                alt="Relia" 
+                style={{ height: 20 }} 
+            />
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>POWERED BY Basepoint</span>
         </div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>Thank you for your business!</div>
-        <div style={{ fontSize: 11, color: C.subText }}>
-            Printed {new Date().toLocaleDateString("en-KE")}
+        
+        {/* Row 2: Contact info, thank you, printed date */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 8 }}>
+            <div style={{ fontSize: 11, color: C.subText }}>
+                {sys.EMAIL_URL && <span>{sys.EMAIL_URL} · </span>}
+                {sys.PHONE_NO && <span>{sys.PHONE_NO}</span>}
+                {sys.PIN && <span> · KRA PIN: {sys.PIN}</span>}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>Thank you for your business!</div>
+            <div style={{ fontSize: 11, color: C.subText }}>
+                Printed {new Date().toLocaleDateString("en-KE")}
+            </div>
         </div>
     </div>
-);
+    );
+};
 
 const LogoOrText = ({
     sys,
@@ -831,8 +1002,8 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
             <ItemsTable inv={inv} />
             <TotalsBlock inv={inv} accentColor={C.primary} />
             <PaymentDetailsBlock inv={inv} sys={sys} accentColor={C.primary} />
-            <PaybillAccountBlock sys={sys} accentColor={C.primary} />
-            <Footer sys={sys} />
+            <BankDetailsBlock sys={sys} accentColor={C.primary} />
+            <Footer sys={sys} accentColor={C.primary} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -959,8 +1130,8 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
             <ItemsTable inv={inv} />
             <TotalsBlock inv={inv} accentColor={navy} />
             <PaymentDetailsBlock inv={inv} sys={sys} accentColor={navy} />
-            <PaybillAccountBlock sys={sys} accentColor={navy} />
-            <Footer sys={sys} />
+            <BankDetailsBlock sys={sys} accentColor={navy} />
+            <Footer sys={sys} accentColor={navy} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -1051,8 +1222,8 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
                 <ItemsTable inv={inv} />
                 <TotalsBlock inv={inv} accentColor={C.blue} />
                 <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#eff6ff" borderColor="#bfdbfe" accentColor={C.blue} />
-                <PaybillAccountBlock sys={sys} bgColor="#eff6ff" borderColor="#bfdbfe" accentColor={C.blue} />
-                <Footer sys={sys} borderColor="#bfdbfe" />
+                <BankDetailsBlock sys={sys} bgColor="#eff6ff" borderColor="#bfdbfe" accentColor={C.blue} />
+                <Footer sys={sys} borderColor="#bfdbfe" accentColor={C.blue} />
             </div>
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
@@ -1186,8 +1357,8 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                 <PaymentDetailsBlock inv={inv} sys={sys} accentColor={charcoal} />
             </div>
 
-            <PaybillAccountBlock sys={sys} accentColor={charcoal} />
-            <Footer sys={sys} />
+            <BankDetailsBlock sys={sys} accentColor={charcoal} />
+            <Footer sys={sys} accentColor={charcoal} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:14mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -1292,8 +1463,8 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
                 <ItemsTable inv={inv} />
                 <TotalsBlock inv={inv} accentColor={forest} />
                 <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#f0fdf4" borderColor="#bbf7d0" accentColor={forest} />
-                <PaybillAccountBlock sys={sys} bgColor="#f0fdf4" borderColor="#bbf7d0" accentColor={forest} />
-                <Footer sys={sys} borderColor="#d1fae5" />
+                <BankDetailsBlock sys={sys} bgColor="#f0fdf4" borderColor="#bbf7d0" accentColor={forest} />
+                <Footer sys={sys} borderColor="#d1fae5" accentColor={forest} />
             </div>
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>

@@ -8,6 +8,7 @@ import {
   PrinterOutlined,
   LockOutlined,
   FontColorsOutlined,
+  BankOutlined,
 } from "@ant-design/icons";
 import { Space, Typography } from "antd";
 import Profile from "./Profile";
@@ -15,6 +16,7 @@ import PaymentDetailsSettings from "../paymentMethodLevel/PaymentDetailsSettings
 import PrinterSettings from "./PrinterSettings";
 import PrivacySettings from "./PrivacySettings";
 import ReceiptAppearanceSettings from "./ReceiptAppearanceSettings";
+import BankDetailsSettings from "./BankDetailsSettings";
 
 const SystemSetup: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("payment-detail");
@@ -58,6 +60,20 @@ const SystemSetup: React.FC = () => {
       >
         <div style={{ padding: "0", backgroundColor: "#fafafa", borderRadius: "8px" }}>
           <PaymentDetailsSettings />
+        </div>
+      </ProCard.TabPane>
+
+      <ProCard.TabPane
+        key="bank-details"
+        tab={
+          <Space>
+            <BankOutlined style={{ color: "#1890ff" }} />
+            <Typography.Text>Bank Details</Typography.Text>
+          </Space>
+        }
+      >
+        <div style={{ padding: "0", backgroundColor: "#fafafa", borderRadius: "8px" }}>
+          <BankDetailsSettings />
         </div>
       </ProCard.TabPane>
 
