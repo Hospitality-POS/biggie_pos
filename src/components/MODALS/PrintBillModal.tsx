@@ -419,6 +419,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
     [showDiscount, discountAmount, finalSubtotal, finalTotalVat, vatMode, getExclPrice]
   );
 
+  // Strip trailing .00 from whole numbers to save column space on thermal receipts
+  const fmtN = (n: number) => n % 1 === 0 ? String(Math.round(n)) : n.toFixed(2);
+
   const triggerPrint = useReactToPrint({
     content: () => componentRef.current,
     onBeforeGetContent: () =>
@@ -1091,12 +1094,12 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
             }}>
               {/* # column — commented out for now */}
               {/* <span style={{ ...S.tblHdr, width: 16, flexShrink: 0 }}>#</span> */}
-              <span style={{ ...S.tblHdr, width: 24, flexShrink: 0 }}>Qty</span>
+              <span style={{ ...S.tblHdr, width: 32, flexShrink: 0, whiteSpace: "nowrap" }}>Qty</span>
               <span style={{ ...S.tblHdr, flex: 1 }}>Item</span>
-              <span style={{ ...S.tblHdr, width: 52, flexShrink: 0, textAlign: "right" }}>Price</span>
+              <span style={{ ...S.tblHdr, width: 56, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>Price</span>
               {/* VAT column — commented out for now */}
               {/* <span style={{ ...S.tblHdr, width: 40, flexShrink: 0, textAlign: "right" }}>VAT</span> */}
-              <span style={{ ...S.tblHdr, width: 52, flexShrink: 0, textAlign: "right" }}>Total</span>
+              <span style={{ ...S.tblHdr, width: 56, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>Total</span>
             </div>
 
             {data?.map((item: any, index: number) => {
@@ -1112,7 +1115,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
                   {/* <span style={{ ...S.tblData, width: 16, flexShrink: 0 }}>{index + 1}</span> */}
 
                   {/* Qty */}
-                  <span style={{ ...S.tblData, width: 24, flexShrink: 0 }}>{item.quantity || 0}</span>
+                  <span style={{ ...S.tblData, width: 32, flexShrink: 0, whiteSpace: "nowrap" }}>{item.quantity || 0}</span>
 
                   {/* Name — flex:1 so it takes all remaining space and wraps */}
                   <span style={{
@@ -1128,13 +1131,13 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
                       <span style={{ ...S.tblSub, display: "block", color: "#666" }}>({item.notes})</span>
                     )}
                     {item.quantity > 1 && (
-                      <span style={{ ...S.tblSub, display: "block" }}>@ {(displayPrice || 0).toFixed(2)} ea</span>
+                      <span style={{ ...S.tblSub, display: "block" }}>@ {fmtN(displayPrice || 0)} ea</span>
                     )}
                   </span>
 
                   {/* Price */}
-                  <span style={{ ...S.tblData, width: 52, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>
-                    {(displayPrice || 0).toFixed(2)}
+                  <span style={{ ...S.tblData, width: 56, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>
+                    {fmtN(displayPrice || 0)}
                   </span>
 
                   {/* VAT column — commented out for now */}
@@ -1143,8 +1146,8 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
                   </span> */}
 
                   {/* Total */}
-                  <span style={{ ...S.tblData, width: 52, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>
-                    {lineTotal.toFixed(2)}
+                  <span style={{ ...S.tblData, width: 56, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}>
+                    {fmtN(lineTotal)}
                   </span>
                 </div>
               );
