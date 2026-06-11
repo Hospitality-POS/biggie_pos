@@ -172,22 +172,23 @@ async function attemptSave(
 
 // ── Receipt styles helper — supports font size and weight ───────────────
 const makeReceiptStyles = (bold: boolean, fontSize: number) => {
+  const clampedFontSize = Math.min(Math.max(fontSize, 12), 22);
   const weight = bold ? 700 : 500;
   const headerWeight = bold ? 900 : 700;
   const base = { fontFamily: "'Courier New', Courier, monospace", color: "#000000" };
-  const baseFontSize = `${fontSize}px`;
-  const smallFontSize = `${fontSize - 1}px`;
-  const smallerFontSize = `${fontSize - 1.5}px`;
+  const baseFontSize = `${clampedFontSize}px`;
+  const smallFontSize = `${clampedFontSize - 1}px`;
+  const smallerFontSize = `${clampedFontSize - 1.5}px`;
 
   return {
-    shopName: { ...base, fontSize: `${fontSize + 3}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
-    docType: { ...base, fontSize: `${fontSize + 5}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
+    shopName: { ...base, fontSize: `${clampedFontSize + 3}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
+    docType: { ...base, fontSize: `${clampedFontSize + 5}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
     meta: { ...base, fontSize: smallFontSize, fontWeight: weight },
     label: { ...base, fontSize: baseFontSize, fontWeight: bold ? 700 : 600 },
     value: { ...base, fontSize: baseFontSize, fontWeight: weight },
     tblHdr: { padding: "5px 3px", fontWeight: headerWeight, fontSize: baseFontSize, color: "#000", borderBottom: "2px solid #000" },
     tblData: { padding: "4px 3px", fontWeight: weight, fontSize: smallFontSize, color: "#000" },
-    total: { ...base, fontSize: `${fontSize + 3}px`, fontWeight: headerWeight },
+    total: { ...base, fontSize: `${clampedFontSize + 3}px`, fontWeight: headerWeight },
     footer: { ...base, fontSize: smallerFontSize, fontWeight: weight, textAlign: "center" as const },
     clientHdr: { ...base, fontSize: baseFontSize, fontWeight: headerWeight, letterSpacing: "1px" },
   };
@@ -220,7 +221,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   const [isPdfView, setIsPdfView] = useState(false);
   const [isBold, setIsBold] = useState(true);
-  const [fontSize, setFontSize] = useState(13);
+  const [fontSize, setFontSize] = useState(14);
   const [showDiscount, setShowDiscount] = useState(true);
   const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
@@ -248,7 +249,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   // Sync receipt appearance defaults from system settings when they load
   useEffect(() => {
-    setFontSize(receipt_font_size);
+    if (receipt_font_size > 0) setFontSize(receipt_font_size);
     setIsBold(receipt_text_bold);
   }, [receipt_font_size, receipt_text_bold]);
 
@@ -313,14 +314,22 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     pageStyle: isPdfView
       ? `@page { size: A4; margin: 20mm; }
          @media print { * { color-adjust: exact !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } body { margin: 0; padding: 0; } }`
-      : `@media print {
+      : `@page { size: 80mm auto; margin: 4mm 4mm 24mm 4mm; }
+         @media print {
            * {
              color-adjust: exact !important;
              -webkit-print-color-adjust: exact !important;
              print-color-adjust: exact !important;
              color: black !important;
+             box-sizing: border-box !important;
+             max-width: 100% !important;
+             word-break: break-word !important;
+             overflow-wrap: break-word !important;
              ${isBold ? "font-weight: bold !important;" : ""}
            }
+           body { margin: 0; padding: 0; width: 100%; }
+           table { width: 100% !important; table-layout: fixed !important; }
+           td, th { overflow: hidden !important; }
          }`,
   });
 
@@ -876,7 +885,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             <div style={S.footer}>{EMAIL_URL}</div>
             <div style={S.footer}>Printed: {printDateStr} {printTimeStr}</div>
             <div style={{ ...S.footer, marginTop: 4, fontSize: `${fontSize - 2}px`, color: "#555" }}>
-              Powered By BasePoint Cloud
+              Powered By BasePoint
             </div>
           </div>
         </div>
@@ -1093,7 +1102,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Typography>
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Email: {EMAIL_URL}</Typography>
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Printed: {printDateStr} {printTimeStr}</Typography>
-              <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By BasePoint Cloud</Typography>
+              <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By Basepoint</Typography>
             </Box>
           </div>
         ) : (
