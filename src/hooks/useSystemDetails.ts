@@ -22,7 +22,7 @@ function useSystemDetails() {
     Paybill_bs: data?.business_no,
     PO_BOX: data?.po_box,
     bank_details: data?.bank_details,
-    receipt_font_size: (data?.receipt_font_size ?? 13) as number,
+    receipt_font_size: (data?.receipt_font_size || 13) as number,
     receipt_text_bold: (data?.receipt_text_bold ?? true) as boolean,
   };
 }

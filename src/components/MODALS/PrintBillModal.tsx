@@ -185,8 +185,8 @@ async function attemptSave(
 // cause right-side overflow on the 80mm roll. The UI slider still shows
 // the user's chosen value; only the printed output is clamped.
 const makeReceiptStyles = (bold: boolean, fontSize: number) => {
-  // Hard-clamp: 80mm roll can't safely render beyond ~15px Courier New
-  const clampedSize = Math.min(fontSize, 15);
+  // Clamp: never smaller than 12px (prevents unreadable output from a mis-set system setting)
+  const clampedSize = Math.min(Math.max(fontSize, 12), 22);
   const weight = bold ? 700 : 500;
   const headerWeight = bold ? 900 : 700;
   const base = { fontFamily: "'Courier New', Courier, monospace", color: "#000000" };
@@ -254,7 +254,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
 
   const [isPdfView, setIsPdfView] = useState(false);
   const [isBold, setIsBold] = useState(true); // synced from sysSettings via useEffect below
-  const [fontSize, setFontSize] = useState(13); // synced from sysSettings via useEffect below
+  const [fontSize, setFontSize] = useState(14); // synced from sysSettings via useEffect below
   const [showDiscount, setShowDiscount] = useState(true);
   const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
@@ -366,7 +366,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
 
   // Sync receipt appearance defaults from system settings when they load
   useEffect(() => {
-    setFontSize(receipt_font_size);
+    if (receipt_font_size > 0) setFontSize(receipt_font_size);
     setIsBold(receipt_text_bold);
   }, [receipt_font_size, receipt_text_bold]);
 
@@ -1255,7 +1255,7 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
           {/* paddingBottom: the physical distance from the last printed line
               to where the printer's cutter blade sits. Most 80mm thermal
               printers need 15-20mm of feed after the last character so the
-              cut lands below "Powered By BasePoint Cloud", not through it. */}
+              cut lands below "Powered By Basepoint Cloud", not through it. */}
           <div style={{ textAlign: "center", marginTop: 4, paddingBottom: "20mm" }}>
             {/* ETR QR Code - use backend digitax data */}
             {etrEnabled && digitax?.offline_url ? (
@@ -1280,6 +1280,9 @@ const PrintBillModal: React.FC<PrintBillProps> = ({ cartDetails, data, subtotal:
             </div>
             <div style={S.footer}>{EMAIL_URL}</div>
             <div style={S.footer}>Printed: {printDateStr} {printTimeStr}</div>
+            <div style={{ ...S.footer, marginTop: 4, fontSize: String(fontSize - 2) + "px", color: "#555" }}>
+              Powered By Basepoint
+            </div>
           </div>
         </div>
         {/* ── END THERMAL ─────────────────────────────────────────────── */}
