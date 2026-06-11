@@ -294,6 +294,9 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     [showDiscount, discountAmount, subtotal]
   );
 
+  // Strip trailing .00 from whole numbers to save column space on thermal receipts
+  const fmtN = (n: number) => n % 1 === 0 ? String(Math.round(n)) : n.toFixed(2);
+
   const triggerPrint = useReactToPrint({
     content: () => componentRef.current,
     onBeforeGetContent: () =>
@@ -774,9 +777,9 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                <th style={{ ...S.tblHdr, textAlign: "left", width: "8%" }}>QTY</th>
+                <th style={{ ...S.tblHdr, textAlign: "left", width: "12%", whiteSpace: "nowrap" }}>QTY</th>
                 <th style={{ ...S.tblHdr, textAlign: "left" }}>DESCRIPTION</th>
-                <th style={{ ...S.tblHdr, textAlign: "right", width: "28%" }}>AMOUNT</th>
+                <th style={{ ...S.tblHdr, textAlign: "right", width: "28%", whiteSpace: "nowrap" }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -784,7 +787,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 const displayPrice = getDisplayPrice(item);
                 return (
                   <tr key={item._id || index}>
-                    <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top" }}>{item.quantity}</td>
+                    <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top", whiteSpace: "nowrap" }}>{item.quantity}</td>
                     <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top", wordBreak: "break-word" }}>
                       {item?.product_id?.name || item?.description || 'Item'}
                       {item.notes && (
@@ -794,12 +797,12 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                       )}
                       {item.quantity > 1 && (
                         <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#555" }}>
-                          @ {displayPrice.toFixed(2)} each
+                          @ {fmtN(displayPrice)} each
                         </div>
                       )}
                     </td>
-                    <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top" }}>
-                      {(displayPrice * item.quantity).toFixed(2)}
+                    <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                      {fmtN(displayPrice * item.quantity)}
                     </td>
                   </tr>
                 );
