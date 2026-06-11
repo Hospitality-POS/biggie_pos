@@ -5,14 +5,17 @@ import {
   AppstoreOutlined,
   EnvironmentOutlined,
   TableOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
-import { Space, Typography, Divider } from "antd";
+import { Space, Typography } from "antd";
 import TableSetting from "./Table_settings";
+import { usePOSMode } from "@context/POSModeContext";
 
 const { Text } = Typography;
 
 const TableMainSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("locations");
+  const { isHotelMode } = usePOSMode();
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
@@ -20,8 +23,18 @@ const TableMainSettings: React.FC = () => {
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const tableName = tenant?.business_type?.name === "Electronics" || tenant?.business_type?.name === "massage_parlour" ? "Slots" : "Tables";
-  const staffName = tenant?.business_type?.name === "Electronics" || tenant?.business_type?.name === "massage_parlour" ? "Staff" : "Locations";
+  
+  // Determine labels based on mode
+  const tableName = isHotelMode 
+    ? "Rooms" 
+    : tenant?.business_type?.name === "Electronics" || tenant?.business_type?.name === "massage_parlour" 
+      ? "Slots" 
+      : "Tables";
+  const locationName = isHotelMode 
+    ? "Floors" 
+    : tenant?.business_type?.name === "Electronics" || tenant?.business_type?.name === "massage_parlour" 
+      ? "Staff" 
+      : "Locations";
   return (
     <ProCard
       bordered
@@ -34,7 +47,7 @@ const TableMainSettings: React.FC = () => {
             margin: 0,
           }}
         >
-          <AppstoreOutlined style={{ marginRight: 8 }} />
+          {isHotelMode ? <HomeOutlined style={{ marginRight: 8 }} /> : <AppstoreOutlined style={{ marginRight: 8 }} />}
           {tableName} Main Settings
         </Typography.Title>
       }
@@ -49,8 +62,8 @@ const TableMainSettings: React.FC = () => {
         key="locations"
         tab={
           <Space>
-            <EnvironmentOutlined style={{ color: "#52c41a" }} />
-            <Text>{staffName} Settings</Text>
+            {isHotelMode ? <HomeOutlined style={{ color: "#7c3aed" }} /> : <EnvironmentOutlined style={{ color: "#52c41a" }} />}
+            <Text>{locationName} Settings</Text>
           </Space>
         }
       >
@@ -69,7 +82,7 @@ const TableMainSettings: React.FC = () => {
         key="tables"
         tab={
           <Space>
-            <TableOutlined style={{ color: "#1890ff" }} />
+            {isHotelMode ? <HomeOutlined style={{ color: "#7c3aed" }} /> : <TableOutlined style={{ color: "#1890ff" }} />}
             <Text>{tableName} Settings</Text>
           </Space>
         }

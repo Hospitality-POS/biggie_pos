@@ -5,7 +5,6 @@ import {
   MenuOutlined,
   TableOutlined,
   RightOutlined,
-  MedicineBoxOutlined,
 } from "@ant-design/icons";
 import { ProCard } from "@ant-design/pro-components";
 import SuccesssModal from "@components/MODALS/SuccessModal";
@@ -31,8 +30,8 @@ import EmptyPage from "@routes/EmptyPage";
 import { useNavigate } from "react-router-dom";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
-import RestaurantPage from "@pages/Restaurant/Restuarant";
 import HospitalPage from "@pages/Hospital/HospitalPage";
+import HotelPage from "@pages/Hotel/HotelPage";
 import React from "react";
 
 const { Text, Title } = Typography;
@@ -298,7 +297,7 @@ export default function TablePro() {
   const { openModal: successmodal, loading } = useAppSelector((state) => state.order);
   const navigate = useNavigate();
   const primaryColor = usePrimaryColor();
-  const { isRetailMode, isHospitalMode, isModeLoading } = usePOSMode();
+  const { isRetailMode, isHospitalMode, isHotelMode, isModeLoading } = usePOSMode();
   const isMobile = useIsMobile();
 
   const storedCode = localStorage.getItem("companyCode");
@@ -506,13 +505,25 @@ export default function TablePro() {
 
   if (isError) return <EmptyPage />;
 
+  // ── Hotel mode ────────────────────────────────────────────────────────────
+  if (isHotelMode) {
+    return (
+      <>
+        <HotelPage />
+        {selectedProductId && (
+          <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
+        )}
+      </>
+    );
+  }
+
   // ── Hospital mode ─────────────────────────────────────────────────────────
   if (isHospitalMode) {
     return (
       <>
         <HospitalPage />
         {selectedProductId && (
-          <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} />
+          <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
         )}
       </>
     );
@@ -524,7 +535,7 @@ export default function TablePro() {
       <>
         <HospitalPage mode="retail" />
         {selectedProductId && (
-          <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} />
+          <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
         )}
       </>
     );
@@ -571,7 +582,7 @@ export default function TablePro() {
         </div>
 
         {selectedProductId && (
-          <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} />
+          <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
         )}
       </>
     );
@@ -630,7 +641,7 @@ export default function TablePro() {
       </ConfigProvider>
 
       {selectedProductId && (
-        <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} />
+        <StaffModal setOpen={setOpen} open={open} tbl={selectedProductId} showButton={true} />
       )}
     </>
   );

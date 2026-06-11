@@ -57,7 +57,7 @@ const RetailQueueContext = createContext<RetailQueueContextType>(defaultValue);
 // "service" / "restaurant" → physical tables, never auto-create slots
 // "retail"                 → auto-create slots as needed
 // "hospital"               → physical wards/beds, never auto-create slots
-type StoredMode = 'service' | 'restaurant' | 'retail' | 'hospital';
+type StoredMode = 'service' | 'restaurant' | 'retail' | 'hospital' | 'hotel';
 
 const getStoredMode = (): StoredMode =>
     (localStorage.getItem('posMode') ?? 'service') as StoredMode;

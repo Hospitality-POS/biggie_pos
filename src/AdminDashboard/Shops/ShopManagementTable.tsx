@@ -9,7 +9,7 @@ import {
   DeleteOutlined, ShopOutlined, ArrowRightOutlined,
   BranchesOutlined, DollarOutlined, TeamOutlined,
   EnvironmentOutlined, ReloadOutlined, MedicineBoxOutlined,
-  GlobalOutlined, LinkOutlined, SolutionOutlined, PrinterOutlined,
+  GlobalOutlined, LinkOutlined, SolutionOutlined, PrinterOutlined, HomeOutlined,
 } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -101,6 +101,7 @@ const POS_MODE_CONFIG: Record<string, { label: string; icon: React.ReactNode; co
   restaurant: { label: "Duka Services", icon: <SolutionOutlined />, color: "#c2410c", bg: "#fff7ed" },
   retail: { label: "Retail", icon: <ShopOutlined />, color: "#1d4ed8", bg: "#eff6ff" },
   hospital: { label: "Hospital", icon: <MedicineBoxOutlined />, color: "#059669", bg: "#f0fdf4" },
+  hotel: { label: "Hotel", icon: <HomeOutlined />, color: "#7c3aed", bg: "#f5f3ff" },
 };
 
 // ── POS Mode Tag ──────────────────────────────────────────────────────────────
@@ -570,6 +571,7 @@ const ShopManagementTable: React.FC = () => {
         restaurant: { text: "Duka Services" },
         retail: { text: "Retail" },
         hospital: { text: "Hospital" },
+        hotel: { text: "Hotel" },
       },
       render: (_: any, record: any) =>
         record.pos_mode ? <PosModeTag mode={record.pos_mode} /> : <Text type="secondary">—</Text>,
