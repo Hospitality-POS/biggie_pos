@@ -10,6 +10,7 @@ import { AimOutlined, AppstoreAddOutlined, EditOutlined, PlusOutlined } from "@a
 import { addNewTable, getTableLocation, updateTable } from "../../../services/tables";
 import { useAddEditTableModal } from "../Hooks/useAddEditTableModal";
 import ShowConfirm from "@utils/ConfirmUtil";
+import { usePOSMode } from "@context/POSModeContext";
 
 interface AddEditProTableModalProps {
   actionRef;
@@ -24,6 +25,7 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [open, setOpen] = useState(false);
+  const { isHotelMode } = usePOSMode();
 
   useEffect(() => {
     if (open && data) {
@@ -64,7 +66,7 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
           >Edit</Button>
         ) : (
           <Button type="primary" key="button" icon={<AppstoreAddOutlined />}>
-            New Table
+            {isHotelMode ? "New Room" : "New Table"}
           </Button>
         )
       }
@@ -85,7 +87,7 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
       submitter={{
         searchConfig: {
           resetText: "Cancel",
-          submitText: edit ? "Update Table" : "Add Table",
+          submitText: edit ? (isHotelMode ? "Update Room" : "Update Table") : (isHotelMode ? "Add Room" : "Add Table"),
         },
       }}
       modalProps={{
@@ -97,17 +99,17 @@ const AddEditProTableModal: React.FC<AddEditProTableModalProps> = ({
         <ProFormText
           width="md"
           name="name"
-          label="Table Name"
-          rules={[{ required: true, message: "Table name is required" }]}
-          placeholder="Enter table name"
+          label={isHotelMode ? "Room Name" : "Table Name"}
+          rules={[{ required: true, message: isHotelMode ? "Room name is required" : "Table name is required" }]}
+          placeholder={isHotelMode ? "Enter room name" : "Enter table name"}
         />
         <ProFormSelect
           width="md"
           name="locatedAt"
-          label="Location"
-          rules={[{ required: true, message: "Table Location is required" }]}
+          label={isHotelMode ? "Floor" : "Location"}
+          rules={[{ required: true, message: isHotelMode ? "Floor is required" : "Table Location is required" }]}
           showSearch
-          placeholder="Select available location"
+          placeholder={isHotelMode ? "Select available floor" : "Select available location"}
           request={async (params) => {
             const data = await getTableLocation(params);
             const values = data.map((e) => {

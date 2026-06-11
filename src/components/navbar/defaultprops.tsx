@@ -227,8 +227,9 @@ const useProLayoutNav = () => {
 
   const posMode = (localStorage.getItem("posMode") ?? "restaurant") as string;
   const isHospitalMode = posMode === "hospital";
+  const isHotelMode = posMode === "hotel";
 
-  const homeRouteName = "POS";
+  const homeRouteName = isHotelMode ? "Rooms" : "POS";
   const homeRouteIcon = isHospitalMode ? <MedicineBoxOutlined /> : <HomeFilled />;
 
   // Helper to get customer label based on Dala and hospital mode
@@ -244,7 +245,7 @@ const useProLayoutNav = () => {
   const inventoryBarePath = "/inventory";
   const inventoryRoute = {
     path: p(inventoryBarePath),
-    name: isHospitalMode ? "Pharmacy" : "Inventory",
+    name: isHospitalMode ? "Pharmacy" : isHotelMode ? "Store" : "Inventory",
     icon: isHospitalMode ? <MedicineBoxOutlined /> : <AppstoreOutlined />,
   };
 

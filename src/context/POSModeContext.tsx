@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { fetchShop } from '@services/shops';
 
-export type POSMode = 'restaurant' | 'retail' | 'hospital';
+export type POSMode = 'restaurant' | 'retail' | 'hospital' | 'hotel';
 
 interface POSModeContextType {
     posMode: POSMode;
     setPosMode: (mode: POSMode) => Promise<void>;
     isRetailMode: boolean;
     isHospitalMode: boolean;
+    isHotelMode: boolean;
     isServiceMode: boolean;
     isModeLoading: boolean;
 }
@@ -17,6 +18,7 @@ const POSModeContext = createContext<POSModeContextType>({
     setPosMode: async () => { },
     isRetailMode: false,
     isHospitalMode: false,
+    isHotelMode: false,
     isServiceMode: false,
     isModeLoading: true,
 });
@@ -25,6 +27,7 @@ const POSModeContext = createContext<POSModeContextType>({
 const normaliseMode = (raw: string | null): POSMode => {
     if (raw === 'retail') return 'retail';
     if (raw === 'hospital') return 'hospital';
+    if (raw === 'hotel') return 'hotel';
     if (raw === 'restaurant') return 'restaurant';
     if (raw === 'service') return 'restaurant'; // Legacy "service" → "restaurant"
     return 'restaurant'; // Default to restaurant
@@ -109,6 +112,7 @@ export const POSModeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             setPosMode,
             isRetailMode: posMode === 'retail',
             isHospitalMode: posMode === 'hospital',
+            isHotelMode: posMode === 'hotel',
             isServiceMode: posMode === 'restaurant',
             isModeLoading,
         }}>

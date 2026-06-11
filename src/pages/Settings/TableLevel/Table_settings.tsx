@@ -7,9 +7,11 @@ import { deleteTable, getAllTables } from "@services/tables";
 import { Badge } from "antd/lib";
 import AddEditProTableModal from "@components/MODALS/pro/AddEditProTableModal";
 import { useMutation } from "@tanstack/react-query";
+import { usePOSMode } from "@context/POSModeContext";
 
 const TableSetting = () => {
   const tableRef = useRef<ActionType>();
+  const { isHotelMode } = usePOSMode();
 
   const DeleteTableMutation = useMutation(deleteTable, {
     onSuccess: () => {
@@ -61,19 +63,19 @@ const TableSetting = () => {
         }}
         columns={[
           {
-            title: "Table",
+            title: isHotelMode ? "Room" : "Table",
             dataIndex: "name",
             hideInSearch: false,
             fieldProps: {
-              placeholder: "Enter table name",
+              placeholder: isHotelMode ? "Enter room name" : "Enter table name",
             },
           },
           {
-            title: "Located At",
+            title: isHotelMode ? "Floor" : "Located At",
             dataIndex: "locatedAt",
             hideInSearch: false,
             fieldProps: {
-              placeholder: "Enter table location name",
+              placeholder: isHotelMode ? "Enter floor name" : "Enter table location name",
             },
           },
           {
@@ -124,12 +126,12 @@ const TableSetting = () => {
           selections: false,
         }}
         search={{
-          searchText: "Search Table",
+          searchText: isHotelMode ? "Search Room" : "Search Table",
           resetText: "Reset",
           labelWidth: "auto",
         }}
         dateFormatter="string"
-        headerTitle="List of Tables"
+        headerTitle={isHotelMode ? "List of Rooms" : "List of Tables"}
         toolBarRender={() => [
           <AddEditProTableModal edit={false} actionRef={tableRef} />,
         ]}
