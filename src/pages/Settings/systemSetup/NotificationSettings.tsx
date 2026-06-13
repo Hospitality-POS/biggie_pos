@@ -11,6 +11,7 @@ import {
   Checkbox,
   Spin,
   Collapse,
+  Radio,
 } from "antd";
 import {
   BellOutlined,
@@ -60,6 +61,7 @@ const NotificationSettings: React.FC = () => {
     account_statement: false,
   });
   const [roleEvents, setRoleEvents] = useState<Record<string, string[]>>({});
+  const [whatsappMode, setWhatsappMode] = useState<'sandbox' | 'production'>('sandbox');
 
   const eventLabels: Record<keyof NotificationSettings["events"], string> = {
     invoice_issued: "Invoice Issued",
@@ -89,6 +91,9 @@ const NotificationSettings: React.FC = () => {
       if (notifSettings.role_events) {
         setRoleEvents(notifSettings.role_events);
       }
+    }
+    if (systemSettings?.whatsapp_mode) {
+      setWhatsappMode(systemSettings.whatsapp_mode);
     }
   }, [systemSettings]);
 
@@ -127,7 +132,7 @@ const NotificationSettings: React.FC = () => {
 
   // Save mutation
   const saveMutation = useMutation({
-    mutationFn: async (data: { notification_settings: NotificationSettings }) => {
+    mutationFn: async (data: { notification_settings: NotificationSettings; whatsapp_mode?: 'sandbox' | 'production' }) => {
       if (systemSettings?._id) {
         return updateSystemSetup({ _id: systemSettings._id, data });
       } else {
@@ -157,6 +162,12 @@ const NotificationSettings: React.FC = () => {
       return;
     }
 
+    // Validate production mode requires WhatsApp sender setup
+    if (whatsappMode === 'production' && !systemSettings?.whatsapp_sender_id) {
+      message.error("Please register and verify a WhatsApp sender in the WhatsApp Registration tab before switching to production mode");
+      return;
+    }
+
     try {
       await saveMutation.mutateAsync({
         notification_settings: {
@@ -164,6 +175,7 @@ const NotificationSettings: React.FC = () => {
           events,
           role_events: roleEvents,
         },
+        whatsapp_mode: whatsappMode,
       });
     } catch (error) {
       // Error handled in mutation
@@ -284,6 +296,70 @@ const NotificationSettings: React.FC = () => {
                 />
               </div>
             </Space>
+          </Card>
+
+          {/* WhatsApp Mode Configuration */}
+          <Card
+            title={
+              <Space>
+                <WhatsAppOutlined style={{ color: "#25D366" }} />
+                <Text strong>WhatsApp Mode Configuration</Text>
+              </Space>
+            }
+            style={{ borderRadius: 8 }}
+          >
+            <Alert
+              message="Mode Selection"
+              description="Choose between sandbox for testing or production for live messaging."
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            
+            <Radio.Group 
+              value={whatsappMode} 
+              onChange={(e) => setWhatsappMode(e.target.value)}
+              style={{ marginBottom: 16, width: '100%' }}
+            >
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Radio value="sandbox">
+                  <div>
+                    <strong>Sandbox Mode</strong>
+                    <div style={{ fontSize: 12, color: '#666' }}>
+                      Testing with Twilio sandbox number (+1 415 523 8886)
+                    </div>
+                  </div>
+                </Radio>
+                <Radio value="production">
+                  <div>
+                    <strong>Production Mode</strong>
+                    <div style={{ fontSize: 12, color: '#666' }}>
+                      Live messaging with registered WhatsApp numbers
+                    </div>
+                  </div>
+                </Radio>
+              </Space>
+            </Radio.Group>
+
+            {whatsappMode === 'sandbox' && (
+              <Alert
+                message="Sandbox Mode Active"
+                description="Recipients must send 'join knowledge-could' to +1 415 523 8886 to receive messages."
+                type="warning"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
+
+            {whatsappMode === 'production' && (
+              <Alert
+                message="Production Mode Active"
+                description="Set up your WhatsApp sender in the WhatsApp Registration tab to enable live messaging."
+                type="success"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
           </Card>
 
           {/* Notification Events */}

@@ -14,7 +14,6 @@ import { Spin } from "antd/lib";
 import { COOP_NAME } from "@utils/config";
 import MainOrders from "@pages/OrderManagement/MainOrders";
 import NubaLoader from "@components/spinner/NubaLoader";
-import LogoLoader from "@components/spinner/LogoLoader";
 import StaffLoginPage from "@pages/Login/login";
 import UnifiedShopDashboardPage from "src/pages/Report/UnifiedShopDashboardPage";
 import StaffClockTracker from "@pages/staff/ClockInTracker";
@@ -690,7 +689,7 @@ const routes = createBrowserRouter(
 
 function Routers() {
   return (
-    <Suspense fallback={<LogoLoader />}>
+    <Suspense fallback={<Spin size="large" />}>
       <RouterProvider router={routes} />
     </Suspense>
   );

@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Form, Input, Button, Alert, Space, Typography, Card, Select, message } from "antd";
 import { WhatsAppOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import axiosInstance from "@services/request";
+import { updateSystemSetup, fetchSystemSetupDetailsById } from "@services/systemsetup";
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -30,8 +31,16 @@ const WhatsAppSenderRegistration: React.FC = () => {
   const [form] = Form.useForm();
   const [step, setStep] = useState<"form" | "otp" | "success" | "error">("form");
   const [registrationData, setRegistrationData] = useState<RegisterWhatsAppSenderResponse | null>(null);
+  const queryClient = useQueryClient();
 
   const shopId = localStorage.getItem("shopId");
+
+  // Fetch current system settings
+  const { data: systemSettings } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: fetchSystemSetupDetailsById,
+    retry: false,
+  });
 
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterWhatsAppSenderRequest) => {
@@ -41,11 +50,23 @@ const WhatsAppSenderRegistration: React.FC = () => {
       );
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setRegistrationData(data);
       if (data.status === "PENDING_VERIFICATION" && data.otp_required) {
         setStep("otp");
       } else if (data.status === "VERIFIED") {
+        // Save sender_id to system settings
+        if (systemSettings?._id) {
+          try {
+            await updateSystemSetup({
+              _id: systemSettings._id,
+              data: { whatsapp_sender_id: data.sender_id }
+            });
+            queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+          } catch (error) {
+            console.error("Failed to save sender_id to system settings:", error);
+          }
+        }
         setStep("success");
         message.success("WhatsApp sender registered successfully!");
       } else {
