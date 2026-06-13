@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Tabs } from "antd";
+import { ShopOutlined, DollarOutlined, CustomerServiceOutlined, TeamOutlined, HomeOutlined } from "@ant-design/icons";
 import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
 import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDashboardPage";
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
@@ -53,35 +54,35 @@ const UnifiedDashboardPage: React.FC = () => {
     ...(hasDuka
       ? [{
           key: "pos",
-          label: "POS Dashboard",
+          label: <><ShopOutlined /> Duka</>,
           children: <POSDashboardContent />,
         }]
       : []),
     ...(hasPesa
       ? [{
           key: "accounting",
-          label: "Accounting Dashboard",
+          label: <><DollarOutlined /> Pesa</>,
           children: <AccountingDashboardContent />,
         }]
       : []),
     ...(hasMteja
       ? [{
           key: "mteja",
-          label: "Mteja Dashboard",
+          label: <><CustomerServiceOutlined /> Mteja</>,
           children: <MtejaDashboardContent />,
         }]
       : []),
     ...(hasBandu
       ? [{
           key: "bandu",
-          label: "Bandu HR Dashboard",
+          label: <><TeamOutlined /> Bandu</>,
           children: <BanduDashboardContent />,
         }]
       : []),
     ...(hasDala
       ? [{
           key: "dala",
-          label: "Dala Dashboard",
+          label: <><HomeOutlined /> Dala</>,
           children: <DalaDashboardContent />,
         }]
       : []),
@@ -89,12 +90,12 @@ const UnifiedDashboardPage: React.FC = () => {
 
   console.log("[UnifiedDashboardPage] Tab items:", tabItems);
 
-  // Fallback: if no tabs, show POS dashboard by default
+  // Fallback: if no tabs, show Duka dashboard by default
   if (tabItems.length === 0) {
-    console.log("[UnifiedDashboardPage] No tabs detected, using fallback POS dashboard");
+    console.log("[UnifiedDashboardPage] No tabs detected, using fallback Duka dashboard");
     tabItems = [{
       key: "pos",
-      label: "POS Dashboard",
+      label: <><ShopOutlined /> Duka</>,
       children: <POSDashboardContent />,
     }];
   }
