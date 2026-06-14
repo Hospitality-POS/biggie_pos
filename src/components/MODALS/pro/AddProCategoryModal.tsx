@@ -9,7 +9,6 @@ import { addNewCategory, fetchSubCategories, updateCategory } from "@services/ca
 import { ApartmentOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAppSelector } from "src/store";
 import SubCategoryModal from "./SubCategoryModal";
 
 interface AddCategoryDialogProps {
@@ -52,8 +51,6 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
   // restore them after the child modal closes so nothing is lost.
   const savedValuesRef = useRef<Record<string, any>>({});
 
-  const { user } = useAppSelector((state) => state.auth);
-  const isAdminOrCashier = user?.role === "admin" || user?.role === "cashier";
 
   // Sync external open state
   useEffect(() => {
@@ -127,7 +124,6 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
         trigger={
           externalOpen !== undefined ? undefined : edit ? (
             <Button
-              disabled={!isAdminOrCashier}
               size="small"
               key="button"
               icon={<EditOutlined style={{ color: "#914F1E" }} />}
@@ -136,7 +132,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
               Edit
             </Button>
           ) : (
-            <Button type="primary" disabled={!isAdminOrCashier} key="button" icon={<ApartmentOutlined />}>
+            <Button type="primary" key="button" icon={<ApartmentOutlined />}>
               New Category
             </Button>
           )

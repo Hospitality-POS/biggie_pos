@@ -9,7 +9,6 @@ import {
   fetchMainCategories,
 } from "@services/categories";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAppSelector } from "src/store";
 import MainCategoryModal from "./MainCategoryModal";
 
 interface SubCategoryModalProps {
@@ -35,9 +34,6 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
 
   // ── Persist field values across child modal open/close cycles ─────────────
   const savedValuesRef = useRef<Record<string, any>>({});
-
-  const { user } = useAppSelector((state) => state.auth);
-  const isAdminOrCashier = user?.role === "admin" || user?.role === "cashier";
 
   // Sync external open state
   useEffect(() => {
@@ -111,7 +107,6 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
         trigger={
           externalOpen !== undefined ? undefined : edit ? (
             <Button
-              disabled={!isAdminOrCashier}
               key="button"
               size="small"
               icon={<EditOutlined style={{ color: "#6c1c2c" }} />}
@@ -120,7 +115,7 @@ const SubCategoryModal: React.FC<SubCategoryModalProps> = ({
               Edit
             </Button>
           ) : (
-            <Button type="primary" disabled={!isAdminOrCashier} key="button" icon={<SubnodeOutlined />}>
+            <Button type="primary" key="button" icon={<SubnodeOutlined />}>
               New Sub-category
             </Button>
           )

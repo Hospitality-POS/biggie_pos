@@ -255,12 +255,18 @@ const CartDrawer: React.FC = () => {
     return null;
   }, [cartDetails?.customer_id, cartDetails?.client_name, cartDetails?.client_pin, cartDetails?.client_email, cartDetails?.client_phone]);
 
-  const servedById = useMemo(() => {
+  const servedByIds = useMemo(() => {
     const cb = cartDetails?.served_by ?? cartDetails?.created_by;
-    if (!cb) return undefined;
-    if (typeof cb === "string") return cb;
-    if (typeof cb === "object" && cb._id) return cb._id;
-    return undefined;
+    if (!cb) return [];
+    // Handle array format (new)
+    if (Array.isArray(cb)) {
+      return cb.map((u: any) => typeof u === "string" ? u : u?._id).filter(Boolean);
+    }
+    // Handle single object format (old)
+    if (typeof cb === "object" && cb._id) return [cb._id];
+    // Handle single string format (old)
+    if (typeof cb === "string") return [cb];
+    return [];
   }, [cartDetails?.served_by, cartDetails?.created_by]);
 
   const slotLabel = useMemo(() => {
@@ -385,12 +391,12 @@ const CartDrawer: React.FC = () => {
   const isSpa = tenant?.business_type?.name === "massage_parlour";
   const canCheckout = (user?.role === "admin" || user?.role === "cashier") && (data?.length ?? 0) > 0;
 
-  const handleServedByChange = async (newUserId: string) => {
+  const handleServedByChange = async (newUserIds: string[]) => {
     const cartId = cartDetails?._id ?? cartDetails?.id;
     if (!cartId) return;
     setUpdatingServedBy(true);
     try {
-      await updateCartService(cartId, { served_by: newUserId });
+      await updateCartService(cartId, { served_by: newUserIds });
       await dispatch(getCart(tableId));
       setEditingServedBy(false);
     } catch (e) {
@@ -707,16 +713,17 @@ const CartDrawer: React.FC = () => {
               <div style={{ background: `${primaryColor}08`, border: `1px solid ${primaryColor}40`, borderRadius: 8, padding: "8px 10px" }}>
                 <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginBottom: 6 }}>
                   <SmileFilled style={{ color: "#fbbf24", marginRight: 4 }} />
-                  Change staff member
+                  Assign staff members
                 </Text>
                 <Flex align="center" gap={6}>
                   <Select
+                    mode="multiple"
                     size="middle" style={{ flex: 1 }}
                     loading={loadingStaff || updatingServedBy}
                     disabled={updatingServedBy}
-                    value={staffList.find((s) => s.value === servedById) ? servedById : undefined}
+                    value={servedByIds}
                     options={staffList}
-                    placeholder={loadingStaff ? "Loading…" : staffList.length === 0 ? "No staff found" : "Select staff"}
+                    placeholder={loadingStaff ? "Loading…" : staffList.length === 0 ? "No staff found" : "Select staff members"}
                     onChange={handleServedByChange}
                     autoFocus
                   />
@@ -749,9 +756,27 @@ const CartDrawer: React.FC = () => {
                   <SmileFilled style={{ color: "#fbbf24", fontSize: 14 }} />
                   <div>
                     <Text style={{ fontSize: 10, color: "#94a3b8", display: "block", lineHeight: 1.2 }}>Served by</Text>
-                    <Text style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
-                      {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}
-                    </Text>
+                    <Flex align="center" gap={4}>
+                      <Text style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+                        {(() => {
+                          const servedBy = cartDetails?.served_by;
+                          if (!servedBy || (Array.isArray(servedBy) && servedBy.length === 0)) {
+                            return cartDetails?.created_by?.username || "Staff";
+                          }
+                          if (Array.isArray(servedBy)) {
+                            if (servedBy.length === 0) return cartDetails?.created_by?.username || "Staff";
+                            if (servedBy.length === 1) return servedBy[0]?.username || servedBy[0]?.fullname || "Staff";
+                            return `${servedBy[0]?.username || servedBy[0]?.fullname || "Staff"}`;
+                          }
+                          return servedBy?.username || servedBy?.fullname || cartDetails?.created_by?.username || "Staff";
+                        })()}
+                      </Text>
+                      {Array.isArray(cartDetails?.served_by) && cartDetails.served_by.length > 1 && (
+                        <Tag style={{ fontSize: 10, borderRadius: 4, margin: 0, padding: "0 6px" }}>
+                          +{cartDetails.served_by.length - 1}
+                        </Tag>
+                      )}
+                    </Flex>
                   </div>
                 </Flex>
                 {(user?.role === "admin" || user?.role === "cashier") && cartDetails?._id && (
