@@ -4,6 +4,7 @@ import { PlusOutlined, TeamOutlined } from "@ant-design/icons";
 import LeadTable, { LeadTableHandle } from "./LeadTable";
 import LeadFormModal from "./LeadFormModal";
 import LeadDetailDrawer from "./LeadDetailDrawer";
+import ImportLeadsModal from "./ImportLeadsModal";
 import { Lead, getLeadById } from "@services/crm/leads";
 
 const { Text } = Typography;
@@ -77,10 +78,13 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
                         <Text style={{ fontSize: 11, color: C.subText }}>Track and manage your sales pipeline</Text>
                     </div>
                 </div>
-                <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}
-                    style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 36, fontSize: 13 }}>
-                    Add Lead
-                </Button>
+                <div style={{ display: "flex", gap: 8 }}>
+                    <ImportLeadsModal onSuccess={handleSuccess} />
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}
+                        style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 36, fontSize: 13 }}>
+                        Add Lead
+                    </Button>
+                </div>
             </div>
 
             {/* Table */}
