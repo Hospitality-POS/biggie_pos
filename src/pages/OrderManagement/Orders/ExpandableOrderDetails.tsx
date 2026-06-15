@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ProDescriptions } from "@ant-design/pro-components";
 import {
   Alert, Button, DatePicker, Form, InputNumber,
@@ -249,6 +249,15 @@ const ExpandedRowContent = ({
   const isRegularOrder = order_type === "Regular";
   const needsPayment = isRegularOrder && !hasPayments;
   const orderItemsTotal = order_items.reduce((s, i) => s + i.price * i.quantity, 0);
+
+  // Handle served_by as array or single object
+  const servedByUsers = useMemo(() => {
+    if (!served_by) return [];
+    if (Array.isArray(served_by)) {
+      return served_by.map((u: any) => typeof u === "string" ? { username: u } : u);
+    }
+    return [served_by];
+  }, [served_by]);
 
   // ── Discount display ────────────────────────────────────────────────────
   // Use stored discount_amount if available (backend-calculated).
@@ -638,7 +647,17 @@ const ExpandedRowContent = ({
               <EditableDateSection />
             </MetaRow>
             <MetaRow label="Served By">
-              <Text style={{ fontSize: 12 }}>{served_by?.username || "N/A"}</Text>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "flex-end" }}>
+                {servedByUsers.length > 0 ? (
+                  servedByUsers.map((u: any, i: number) => (
+                    <span key={i} style={{ fontSize: 12 }}>
+                      {u?.username || "N/A"}{i < servedByUsers.length - 1 ? ", " : ""}
+                    </span>
+                  ))
+                ) : (
+                  <Text style={{ fontSize: 12 }}>N/A</Text>
+                )}
+              </div>
             </MetaRow>
             <div style={{ paddingTop: 7 }}>
               <Text style={{ fontSize: 11, color: C.subText }}>Payment</Text>
@@ -758,7 +777,17 @@ const ExpandedRowContent = ({
           </ProDescriptions.Item>
 
           <ProDescriptions.Item label="Served By">
-            <Text style={{ fontSize: 12 }}>{served_by?.username || "N/A"}</Text>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {servedByUsers.length > 0 ? (
+                servedByUsers.map((u: any, i: number) => (
+                  <span key={i} style={{ fontSize: 12 }}>
+                    {u?.username || "N/A"}{i < servedByUsers.length - 1 ? ", " : ""}
+                  </span>
+                ))
+              ) : (
+                <Text style={{ fontSize: 12 }}>N/A</Text>
+              )}
+            </div>
           </ProDescriptions.Item>
 
           {customer_name && (
