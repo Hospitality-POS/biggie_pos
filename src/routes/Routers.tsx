@@ -317,6 +317,14 @@ const routes = createBrowserRouter(
         <Route path="users-settings" errorElement={<NotFound />}
           element={guardedPage(UsersMainSettings, "USERS_VIEW")} />
 
+        <Route path="staff-management" errorElement={<NotFound />}
+          element={
+            <Suspense fallback={fullscreenSpin}>
+              <AdminRoute><UsersMainSettings /></AdminRoute>
+            </Suspense>
+          }
+        />
+
         <Route path="supplier-settings" errorElement={<NotFound />}
           element={guardedPage(SupplierMainSettings, "SUPPLIERS_VIEW")} />
 

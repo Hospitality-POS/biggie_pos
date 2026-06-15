@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
   Avatar,
@@ -328,7 +329,9 @@ const MobileUserList: React.FC<{
   actionRef: React.RefObject<ActionType>;
   currentUserId?: string;
   isAdmin?: boolean;
-}> = ({ actionRef, currentUserId, isAdmin }) => {
+  isShopLevelStaffManagement?: boolean;
+  currentShopId?: string | null;
+}> = ({ actionRef, currentUserId, isAdmin, isShopLevelStaffManagement, currentShopId }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -338,7 +341,13 @@ const MobileUserList: React.FC<{
     setLoading(true);
     try {
       const data = await fetchAllUsersList({});
-      const filtered = data.filter((u: any) => isAdmin && currentUserId ? u._id !== currentUserId : true);
+      let filtered = data.filter((u: any) => isAdmin && currentUserId ? u._id !== currentUserId : true);
+      // Filter by shop_id for non-admin users OR when on shop-level route
+      if ((!isAdmin || isShopLevelStaffManagement) && currentShopId) {
+        filtered = filtered.filter((u: any) =>
+          u.shop_id?._id === currentShopId || u.shop_id === currentShopId
+        );
+      }
       setUsers(filtered);
     } catch {
       message.error("Failed to load users");
@@ -436,6 +445,13 @@ const UsersTable = () => {
   const { user } = useAppSelector((state) => state.auth);
   const actionRef = useRef<ActionType>();
   const isMobile = useIsMobile();
+  const location = useLocation();
+
+  // Get current user's shop ID for filtering
+  const currentShopId = localStorage.getItem("shopId");
+
+  // Check if we're on shop-level staff-management route
+  const isShopLevelStaffManagement = location.pathname === "/staff-management";
 
   const handleUserSaved = () => {
     console.log('handleUserSaved called, reloading ProTable');
@@ -463,6 +479,8 @@ const UsersTable = () => {
         actionRef={actionRef as React.RefObject<ActionType>}
         currentUserId={user?.id}
         isAdmin={user?.isAdmin}
+        isShopLevelStaffManagement={isShopLevelStaffManagement}
+        currentShopId={currentShopId}
       />
     );
   }
@@ -569,9 +587,15 @@ const UsersTable = () => {
       ]}
       request={async (params) => {
         const data = await fetchAllUsersList(params);
-        const filteredData = data.filter((item: any) =>
+        let filteredData = data.filter((item: any) =>
           user?.isAdmin && user?.id ? item._id !== user.id : true
         );
+        // Filter by shop_id for non-admin users OR when on shop-level route
+        if ((!user?.isAdmin || isShopLevelStaffManagement) && currentShopId) {
+          filteredData = filteredData.filter((item: any) =>
+            item.shop_id?._id === currentShopId || item.shop_id === currentShopId
+          );
+        }
         return { data: filteredData, success: true, total: filteredData.length };
       }}
       options={{ fullScreen: true, reload: () => actionRef.current?.reload(), density: true, setting: true }}
