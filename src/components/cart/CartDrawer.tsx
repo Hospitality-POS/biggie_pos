@@ -2,7 +2,7 @@ import React, { Key, useEffect, useMemo, useState } from "react";
 import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import PrintBillSpaModal from "../MODALS/printBillSpaModal";
-import { deleteAllCartItems, getCart } from "../../features/Cart/CartActions";
+import { deleteAllCartItems, getCart, addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
 import { updateCart as updateCartService } from "../../services/cart";
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
@@ -10,9 +10,10 @@ import { useAppDispatch, useAppSelector } from "../../store";
 import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
 import { fetchAllUsersByShopId } from "../../services/users";
+import { fetchMainCategories } from "../../services/categories";
 import {
   Button, Space, Typography, Tag, Empty, Divider,
-  Flex, Avatar, Tooltip, Select, Popconfirm, message,
+  Flex, Avatar, Tooltip, Select, Popconfirm, message, Modal, Form, InputNumber, Input,
 } from "antd";
 import {
   ClearOutlined, CloseCircleOutlined, OrderedListOutlined,
@@ -27,7 +28,6 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrintDocument, DocumentType } from "../MODALS/Hooks/usePrintDocument";
-import useSystemDetails from "@hooks/useSystemDetails";
 import {
   sendPrintFromCart,
 } from "@services/printAgent";
@@ -130,6 +130,10 @@ const CartDrawer: React.FC = () => {
   const [updatingServedBy, setUpdatingServedBy] = useState(false);
   const [delinkingCustomer, setDelinkingCustomer] = useState(false);
   const [sendingToPrinter, setSendingToPrinter] = useState(false);
+  const [showSendButton, setShowSendButton] = useState(false);
+  const [isCustomItemModalOpen, setIsCustomItemModalOpen] = useState(false);
+  const [customItemLoading, setCustomItemLoading] = useState(false);
+  const [mainCategories, setMainCategories] = useState<{ value: string; label: string }[]>([]);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
@@ -251,12 +255,18 @@ const CartDrawer: React.FC = () => {
     return null;
   }, [cartDetails?.customer_id, cartDetails?.client_name, cartDetails?.client_pin, cartDetails?.client_email, cartDetails?.client_phone]);
 
-  const servedById = useMemo(() => {
+  const servedByIds = useMemo(() => {
     const cb = cartDetails?.served_by ?? cartDetails?.created_by;
-    if (!cb) return undefined;
-    if (typeof cb === "string") return cb;
-    if (typeof cb === "object" && cb._id) return cb._id;
-    return undefined;
+    if (!cb) return [];
+    // Handle array format (new)
+    if (Array.isArray(cb)) {
+      return cb.map((u: any) => typeof u === "string" ? u : u?._id).filter(Boolean);
+    }
+    // Handle single object format (old)
+    if (typeof cb === "object" && cb._id) return [cb._id];
+    // Handle single string format (old)
+    if (typeof cb === "string") return [cb];
+    return [];
   }, [cartDetails?.served_by, cartDetails?.created_by]);
 
   const slotLabel = useMemo(() => {
@@ -290,6 +300,24 @@ const CartDrawer: React.FC = () => {
       }
     };
     loadStaff();
+  }, []);
+
+  useEffect(() => {
+    // Load global captain_order setting from localStorage
+    const savedCaptainOrder = localStorage.getItem("captain_order_enabled");
+    setShowSendButton(savedCaptainOrder === "true");
+  }, []);
+
+  useEffect(() => {
+    const loadMainCategories = async () => {
+      try {
+        const categories = await fetchMainCategories();
+        setMainCategories(categories.map((cat: any) => ({ value: cat._id, label: cat.name })));
+      } catch (error) {
+        console.error("Failed to load main categories:", error);
+      }
+    };
+    loadMainCategories();
   }, []);
 
   const handleSendToPrinter = async () => {
@@ -326,7 +354,17 @@ const CartDrawer: React.FC = () => {
       if (!tableId || tableId === "tables") return;
       setLoadingData(true);
       try {
-        await dispatch(getCart(tableId));
+        // Check if the URL pattern is /cart/cart/:cartId (cart ID) or /dashboard/:id (table ID)
+        const isCartId = window.location.pathname.includes('/cart/cart/');
+        
+        if (isCartId) {
+          // URL has cart ID, fetch cart items using cart ID
+          await dispatch(fetchCartItems(tableId));
+        } else {
+          // URL has table ID, fetch cart using table ID
+          await dispatch(getCart(tableId));
+        }
+        
         await refreshStatus();
         if (!isSlotMode && !data && !cartDetails) navigate("/tables");
       } catch (e) {
@@ -353,12 +391,12 @@ const CartDrawer: React.FC = () => {
   const isSpa = tenant?.business_type?.name === "massage_parlour";
   const canCheckout = (user?.role === "admin" || user?.role === "cashier") && (data?.length ?? 0) > 0;
 
-  const handleServedByChange = async (newUserId: string) => {
+  const handleServedByChange = async (newUserIds: string[]) => {
     const cartId = cartDetails?._id ?? cartDetails?.id;
     if (!cartId) return;
     setUpdatingServedBy(true);
     try {
-      await updateCartService(cartId, { served_by: newUserId });
+      await updateCartService(cartId, { served_by: newUserIds });
       await dispatch(getCart(tableId));
       setEditingServedBy(false);
     } catch (e) {
@@ -390,6 +428,49 @@ const CartDrawer: React.FC = () => {
       message.error("Failed to delink customer");
     } finally {
       setDelinkingCustomer(false);
+    }
+  };
+
+  const [customItemForm] = Form.useForm();
+
+  const handleAddCustomItem = async () => {
+    try {
+      const values = await customItemForm.validateFields();
+      setCustomItemLoading(true);
+      
+      const cartId = cartDetails?._id;
+      if (!cartId) {
+        message.error("Cart not found");
+        return;
+      }
+
+      await dispatch(addItemToCart({
+        cart_id: cartId,
+        product_id: null,
+        product_type: "Miscellaneous",
+        miscellaneous_name: values.name,
+        main_category: values.main_category,
+        price: values.price,
+        quantity: values.quantity,
+        created_by: user?._id || "",
+        vat_type: "STANDARD",
+        notes: values.notes || "",
+        addons: [],
+      }));
+
+      message.success("Custom item added successfully");
+      setIsCustomItemModalOpen(false);
+      customItemForm.resetFields();
+      
+      // Auto-refresh cart to show the new item
+      if (tableId) {
+        await dispatch(getCart(tableId));
+      }
+    } catch (error) {
+      console.error("Failed to add custom item", error);
+      message.error("Failed to add custom item");
+    } finally {
+      setCustomItemLoading(false);
     }
   };
 
@@ -559,6 +640,14 @@ const CartDrawer: React.FC = () => {
               imageStyle={{ height: 64, opacity: 0.5 }}
               description={<Text style={{ fontSize: 13, color: "#94a3b8" }}>Add items to get started</Text>}
             />
+            <Button
+              type="dashed"
+              icon={<PlusCircleOutlined />}
+              onClick={() => setIsCustomItemModalOpen(true)}
+              style={{ marginTop: 12, borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
+            >
+              Add Miscellaneous Item
+            </Button>
           </div>
         )}
 
@@ -624,16 +713,17 @@ const CartDrawer: React.FC = () => {
               <div style={{ background: `${primaryColor}08`, border: `1px solid ${primaryColor}40`, borderRadius: 8, padding: "8px 10px" }}>
                 <Text style={{ fontSize: 11, color: "#94a3b8", display: "block", marginBottom: 6 }}>
                   <SmileFilled style={{ color: "#fbbf24", marginRight: 4 }} />
-                  Change staff member
+                  Assign staff members
                 </Text>
                 <Flex align="center" gap={6}>
                   <Select
+                    mode="multiple"
                     size="middle" style={{ flex: 1 }}
                     loading={loadingStaff || updatingServedBy}
                     disabled={updatingServedBy}
-                    value={staffList.find((s) => s.value === servedById) ? servedById : undefined}
+                    value={servedByIds}
                     options={staffList}
-                    placeholder={loadingStaff ? "Loading…" : staffList.length === 0 ? "No staff found" : "Select staff"}
+                    placeholder={loadingStaff ? "Loading…" : staffList.length === 0 ? "No staff found" : "Select staff members"}
                     onChange={handleServedByChange}
                     autoFocus
                   />
@@ -666,9 +756,27 @@ const CartDrawer: React.FC = () => {
                   <SmileFilled style={{ color: "#fbbf24", fontSize: 14 }} />
                   <div>
                     <Text style={{ fontSize: 10, color: "#94a3b8", display: "block", lineHeight: 1.2 }}>Served by</Text>
-                    <Text style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
-                      {cartDetails?.served_by?.username || cartDetails?.created_by?.username || "Staff"}
-                    </Text>
+                    <Flex align="center" gap={4}>
+                      <Text style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+                        {(() => {
+                          const servedBy = cartDetails?.served_by;
+                          if (!servedBy || (Array.isArray(servedBy) && servedBy.length === 0)) {
+                            return cartDetails?.created_by?.username || "Staff";
+                          }
+                          if (Array.isArray(servedBy)) {
+                            if (servedBy.length === 0) return cartDetails?.created_by?.username || "Staff";
+                            if (servedBy.length === 1) return servedBy[0]?.username || servedBy[0]?.fullname || "Staff";
+                            return `${servedBy[0]?.username || servedBy[0]?.fullname || "Staff"}`;
+                          }
+                          return servedBy?.username || servedBy?.fullname || cartDetails?.created_by?.username || "Staff";
+                        })()}
+                      </Text>
+                      {Array.isArray(cartDetails?.served_by) && cartDetails.served_by.length > 1 && (
+                        <Tag style={{ fontSize: 10, borderRadius: 4, margin: 0, padding: "0 6px" }}>
+                          +{cartDetails.served_by.length - 1}
+                        </Tag>
+                      )}
+                    </Flex>
                   </div>
                 </Flex>
                 {(user?.role === "admin" || user?.role === "cashier") && cartDetails?._id && (
@@ -690,15 +798,26 @@ const CartDrawer: React.FC = () => {
           <Space direction="vertical" style={{ width: "100%" }} size={8}>
             <Flex gap={8} wrap="wrap">
               <ClientPin cart={cartDetails} />
-              <Button
-                icon={<SendOutlined />}
-                loading={sendingToPrinter}
-                disabled={!data?.length}
-                onClick={handleSendToPrinter}
-                style={{ borderColor: "#f97316", color: "#f97316", borderRadius: 6 }}
-              >
-                Send
-              </Button>
+         
+                <Button
+                  icon={<PlusCircleOutlined />}
+                  onClick={() => setIsCustomItemModalOpen(true)}
+                  style={{ borderColor: primaryColor, color: primaryColor, borderRadius: 6 }}
+                >
+                  Add Miscellaneous Item
+                </Button>
+          
+              {showSendButton && (
+                <Button
+                  icon={<SendOutlined />}
+                  loading={sendingToPrinter}
+                  disabled={!data?.length}
+                  onClick={handleSendToPrinter}
+                  style={{ borderColor: "#f97316", color: "#f97316", borderRadius: 6 }}
+                >
+                  Send
+                </Button>
+              )}
               {isSpa ? (
                 <PrintBillSpaModal
                   cartDetails={cartDetails}
@@ -738,6 +857,81 @@ const CartDrawer: React.FC = () => {
           <PaymentDrawer customerDetails={customerDetails} />
         </div>
       )}
+
+      {/* ── Custom Item Modal ─────────────────────────────────────────────── */}
+      <Modal
+        open={isCustomItemModalOpen}
+        onCancel={() => {
+          setIsCustomItemModalOpen(false);
+          customItemForm.resetFields();
+        }}
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <PlusCircleOutlined style={{ color: primaryColor }} />
+            <span>Add Miscellaneous Item</span>
+          </div>
+        }
+        onOk={handleAddCustomItem}
+        confirmLoading={customItemLoading}
+        okText="Add Item"
+        cancelText="Cancel"
+        width={500}
+      >
+        <Form form={customItemForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="name"
+            label="Item Name"
+            rules={[{ required: true, message: "Please enter item name" }]}
+          >
+            <Input placeholder="e.g., Custom Service Fee" />
+          </Form.Item>
+          <Form.Item
+            name="main_category"
+            label="Main Category"
+            rules={[{ required: true, message: "Please select main category" }]}
+          >
+            <Select
+              placeholder="Select main category"
+              options={mainCategories}
+              loading={!mainCategories.length}
+            />
+          </Form.Item>
+          <Form.Item
+            name="price"
+            label="Price"
+            rules={[{ required: true, message: "Please enter price" }]}
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              min={0}
+              precision={2}
+              placeholder="0.00"
+              prefix="KES"
+            />
+          </Form.Item>
+          <Form.Item
+            name="quantity"
+            label="Quantity"
+            rules={[{ required: true, message: "Please enter quantity" }]}
+            initialValue={1}
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              min={1}
+              precision={0}
+            />
+          </Form.Item>
+          <Form.Item
+            name="notes"
+            label="Notes (Optional)"
+          >
+            <Input.TextArea
+              rows={2}
+              placeholder="Add any additional notes..."
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

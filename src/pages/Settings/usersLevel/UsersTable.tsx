@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
   Avatar,
@@ -115,13 +116,12 @@ const RoleTag: React.FC<{ role: string }> = ({ role }) => {
 // ── Action dropdown ───────────────────────────────────────────────────────────
 const ActionCell: React.FC<{
   record: any;
-  actionRef: React.RefObject<ActionType>;
   onStatusUpdate: (id: string, status: "Active" | "Suspended" | "Terminated") => void;
   onDelete: (id: string) => void;
   statusLoading: boolean;
   deleteLoading: boolean;
   isMobile?: boolean;
-}> = ({ record, actionRef, onStatusUpdate, onDelete, statusLoading, deleteLoading, isMobile }) => {
+}> = ({ record, onStatusUpdate, onDelete, statusLoading, deleteLoading, isMobile }) => {
   const isAdmin = record?.role?.role_type?.toLowerCase() === "admin";
   const status = record?.status || "Active";
 
@@ -215,7 +215,7 @@ const ActionCell: React.FC<{
 
   return (
     <Space size={4}>
-      <AddEditProUserModal edit data={record} actionRef={actionRef} />
+      <AddEditProUserModal edit data={record} />
       <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement={isMobile ? "topRight" : "bottomRight"}>
         <Button
           type="text"
@@ -329,7 +329,9 @@ const MobileUserList: React.FC<{
   actionRef: React.RefObject<ActionType>;
   currentUserId?: string;
   isAdmin?: boolean;
-}> = ({ actionRef, currentUserId, isAdmin }) => {
+  isShopLevelStaffManagement?: boolean;
+  currentShopId?: string | null;
+}> = ({ actionRef, currentUserId, isAdmin, isShopLevelStaffManagement, currentShopId }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -339,7 +341,13 @@ const MobileUserList: React.FC<{
     setLoading(true);
     try {
       const data = await fetchAllUsersList({});
-      const filtered = data.filter((u: any) => isAdmin && currentUserId ? u._id !== currentUserId : true);
+      let filtered = data.filter((u: any) => isAdmin && currentUserId ? u._id !== currentUserId : true);
+      // Filter by shop_id for non-admin users OR when on shop-level route
+      if ((!isAdmin || isShopLevelStaffManagement) && currentShopId) {
+        filtered = filtered.filter((u: any) =>
+          u.shop_id?._id === currentShopId || u.shop_id === currentShopId
+        );
+      }
       setUsers(filtered);
     } catch {
       message.error("Failed to load users");
@@ -381,7 +389,7 @@ const MobileUserList: React.FC<{
           style={{ flex: 1, height: 36, borderRadius: 8, border: `1px solid ${C.border}`, padding: "0 12px", fontSize: 13, outline: "none", color: C.darkText, background: "#f8fafc" }}
         />
         <Button icon={<ReloadOutlined />} onClick={load} loading={loading} style={{ borderRadius: 8, height: 36, width: 36, padding: 0 }} />
-        <AddEditProUserModal actionRef={actionRef} />
+        <AddEditProUserModal actionRef={actionRef} onSuccess={load} />
       </div>
 
       {/* Summary strip */}
@@ -437,6 +445,18 @@ const UsersTable = () => {
   const { user } = useAppSelector((state) => state.auth);
   const actionRef = useRef<ActionType>();
   const isMobile = useIsMobile();
+  const location = useLocation();
+
+  // Get current user's shop ID for filtering
+  const currentShopId = localStorage.getItem("shopId");
+
+  // Check if we're on shop-level staff-management route
+  const isShopLevelStaffManagement = location.pathname === "/staff-management";
+
+  const handleUserSaved = () => {
+    console.log('handleUserSaved called, reloading ProTable');
+    actionRef.current?.reload();
+  };
 
   const deleteUserMutation = useMutation(deleteUserById, {
     onSuccess: () => { actionRef.current?.reload(); message.success("User deleted successfully"); },
@@ -459,6 +479,8 @@ const UsersTable = () => {
         actionRef={actionRef as React.RefObject<ActionType>}
         currentUserId={user?.id}
         isAdmin={user?.isAdmin}
+        isShopLevelStaffManagement={isShopLevelStaffManagement}
+        currentShopId={currentShopId}
       />
     );
   }
@@ -555,7 +577,6 @@ const UsersTable = () => {
           render: (_: any, record: any) => (
             <ActionCell
               record={record}
-              actionRef={actionRef as React.RefObject<ActionType>}
               onStatusUpdate={(id, status) => updateStatusMutation.mutate({ id, status })}
               onDelete={(id) => deleteUserMutation.mutate(id)}
               statusLoading={updateStatusMutation.isLoading}
@@ -566,9 +587,15 @@ const UsersTable = () => {
       ]}
       request={async (params) => {
         const data = await fetchAllUsersList(params);
-        const filteredData = data.filter((item: any) =>
+        let filteredData = data.filter((item: any) =>
           user?.isAdmin && user?.id ? item._id !== user.id : true
         );
+        // Filter by shop_id for non-admin users OR when on shop-level route
+        if ((!user?.isAdmin || isShopLevelStaffManagement) && currentShopId) {
+          filteredData = filteredData.filter((item: any) =>
+            item.shop_id?._id === currentShopId || item.shop_id === currentShopId
+          );
+        }
         return { data: filteredData, success: true, total: filteredData.length };
       }}
       options={{ fullScreen: true, reload: () => actionRef.current?.reload(), density: true, setting: true }}
@@ -591,7 +618,13 @@ const UsersTable = () => {
         defaultExpandAllRows: false,
       }}
       dateFormatter="string"
-      toolBarRender={() => [<AddEditProUserModal key="add" actionRef={actionRef} />]}
+      toolBarRender={() => [
+        <AddEditProUserModal 
+          actionRef={actionRef} 
+          onUserSaved={handleUserSaved}
+          onModalClose={handleUserSaved}
+        />
+      ]}
       rowClassName={(record) => {
         if (record.status === "Terminated") return "row-terminated";
         if (record.status === "Suspended") return "row-suspended";

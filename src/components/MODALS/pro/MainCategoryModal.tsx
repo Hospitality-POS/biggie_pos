@@ -4,7 +4,6 @@ import { ModalForm, ProFormText, ProForm } from "@ant-design/pro-form";
 import { CrownOutlined, EditOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { addNewMainCategory, editMainCategory } from "@services/categories";
-import { useAppSelector } from "src/store";
 
 interface MainCategoryModalProps {
   actionRef: any;
@@ -25,9 +24,6 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
   const [form] = Form.useForm();
   const formRef = useRef();
   const [open, setOpen] = useState(false);
-
-  const { user } = useAppSelector((state) => state.auth);
-  const isAdmin = user?.role === "admin";
 
   // Sync external open state
   useEffect(() => {
@@ -62,12 +58,12 @@ const MainCategoryModal: React.FC<MainCategoryModalProps> = ({
       initialValues={edit ? { ...data } : {}}
       trigger={
         externalOpen !== undefined ? undefined : edit ? (
-          <Button disabled={!isAdmin} size="small" key="button"
+          <Button size="small" key="button"
             icon={<EditOutlined style={{ color: "#6c1c2c" }} onClick={() => form.setFieldsValue(data)} />}>
             Edit
           </Button>
         ) : (
-          <Button disabled={!isAdmin} type="primary" key="button" icon={<CrownOutlined />}>
+          <Button type="primary" key="button" icon={<CrownOutlined />}>
             New Main Category
           </Button>
         )

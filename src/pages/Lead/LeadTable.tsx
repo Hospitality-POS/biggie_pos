@@ -1,12 +1,13 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
-    CalendarOutlined, CheckCircleOutlined, EditOutlined,
+    CalendarOutlined, CheckCircleOutlined, DeleteOutlined, EditOutlined,
     EnvironmentOutlined, EyeOutlined, MoreOutlined,
     PhoneOutlined, TeamOutlined, UserOutlined,
 } from "@ant-design/icons";
-import { App, Button, Dropdown, Tag, Typography } from "antd";
-import { fetchAllLeads, Lead, LeadStage } from "@services/crm/leads";
+import { App, Button, Dropdown, Modal, Tag, Typography } from "antd";
+import { deleteLead, fetchAllLeads, Lead, LeadStage } from "@services/crm/leads";
+import { useAppDispatch } from "src/store";
 
 const { Text } = Typography;
 
@@ -67,6 +68,24 @@ interface LeadTableProps {
 const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit }, ref) => {
     const actionRef = useRef<ActionType>();
     const { message: msg } = App.useApp();
+    const dispatch = useAppDispatch();
+    const shop_id = JSON.parse(localStorage.getItem("shop") || "{}")._id;
+
+    const handleDelete = (record: Lead) => {
+        const displayName = record.entity_type === 'company' 
+            ? (record.company_name || 'Unnamed Company') 
+            : (record.lead_name || 'Unnamed Individual');
+        Modal.confirm({
+            title: `Delete "${displayName}"?`,
+            content: "This action cannot be undone.",
+            okText: "Delete",
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                await dispatch(deleteLead({ id: record._id, shop_id }));
+                actionRef.current?.reload();
+            },
+        });
+    };
 
     useImperativeHandle(ref, () => ({
         reload: () => actionRef.current?.reload(),
@@ -76,14 +95,22 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
         {
             title: "Lead", dataIndex: "lead_name",
             fieldProps: { placeholder: "Search by name…" },
-            render: (name: string, record: Lead) => (
-                <div>
-                    <Text strong style={{ fontSize: 12, color: C.darkText, display: "block" }}>{name}</Text>
-                    {record.company_name && (
-                        <Text style={{ fontSize: 11, color: C.subText }}>{record.company_name}</Text>
-                    )}
-                </div>
-            ),
+            render: (_: string, record: Lead) => {
+                const displayName = record.entity_type === 'company' 
+                    ? (record.company_name || 'Unnamed Company') 
+                    : (record.lead_name || 'Unnamed Individual');
+                return (
+                    <div>
+                        <Text strong style={{ fontSize: 12, color: C.darkText, display: "block" }}>{displayName}</Text>
+                        {record.entity_type === 'company' && record.contact_person && (
+                            <Text style={{ fontSize: 11, color: C.subText }}>Contact: {record.contact_person}</Text>
+                        )}
+                        {record.entity_type === 'individual' && record.company_name && (
+                            <Text style={{ fontSize: 11, color: C.subText }}>{record.company_name}</Text>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             title: "Phone", dataIndex: "phone", search: false,
@@ -153,6 +180,8 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
                     items: [
                         { key: "view", icon: <EyeOutlined />, label: "View Details", onClick: () => onView(record) },
                         { key: "edit", icon: <EditOutlined />, label: "Edit Lead", onClick: () => onEdit(record) },
+                        { type: "divider" as const },
+                        { key: "delete", icon: <DeleteOutlined />, label: "Delete", danger: true, onClick: () => handleDelete(record) },
                     ],
                 }}>
                     <Button type="text" icon={<MoreOutlined />} style={{ borderRadius: 6 }} />

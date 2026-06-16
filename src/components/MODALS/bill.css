@@ -145,9 +145,11 @@ footer {
   body {
     color: #000;
     background-color: #fff;
-    font-size: 12px;
-    font-weight: bold;
+    font-size: 13px;
+    font-weight: 600;
     padding: 0%;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .hidden-print,
@@ -166,5 +168,21 @@ footer {
     padding: 0;
     overflow: hidden;
     width: 90mm;
+  }
+
+  /* Ensure high contrast for thermal printing */
+  .receipt * {
+    color: #000 !important;
+    text-shadow: none !important;
+  }
+
+  /* Improve table readability */
+  .receipt table {
+    border-collapse: collapse;
+  }
+
+  .receipt th,
+  .receipt td {
+    padding: 4px 3px !important;
   }
 }

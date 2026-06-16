@@ -45,7 +45,7 @@ export const updateSystemSetup = async (data: ParamsType) => {
     // console.log("update..", data);
     const url = `${BASE_URL}/users/update-system-setting`;
     const response = await axiosInstance.put(`${url}/${data._id}`, data.data);
-    message.success("System Setup updated successfully");
+    //message.success("System Setup updated successfully");
     return response.data;
   } catch (error) {
     message.error("Failed to update System Setup");

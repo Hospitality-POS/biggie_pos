@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { fetchShop } from '@services/shops';
 
-export type POSMode = 'restaurant' | 'retail' | 'hospital';
+export type POSMode = 'restaurant' | 'retail' | 'hospital' | 'hotel';
 
 interface POSModeContextType {
     posMode: POSMode;
     setPosMode: (mode: POSMode) => Promise<void>;
     isRetailMode: boolean;
     isHospitalMode: boolean;
+    isHotelMode: boolean;
     isServiceMode: boolean;
     isModeLoading: boolean;
 }
@@ -17,16 +18,19 @@ const POSModeContext = createContext<POSModeContextType>({
     setPosMode: async () => { },
     isRetailMode: false,
     isHospitalMode: false,
+    isHotelMode: false,
     isServiceMode: false,
     isModeLoading: true,
 });
 
-// Normalise legacy "restaurant" → "service" so old DB records still work
+// Normalise legacy modes to current enum values
 const normaliseMode = (raw: string | null): POSMode => {
     if (raw === 'retail') return 'retail';
     if (raw === 'hospital') return 'hospital';
-    if (raw === 'service') return 'service';
-    return 'service'; // "restaurant" and anything else → service
+    if (raw === 'hotel') return 'hotel';
+    if (raw === 'restaurant') return 'restaurant';
+    if (raw === 'service') return 'restaurant'; // Legacy "service" → "restaurant"
+    return 'restaurant'; // Default to restaurant
 };
 
 export const POSModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -41,7 +45,6 @@ export const POSModeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         fetchShop(shopId)
             .then(shop => {
                 const mode = normaliseMode(shop?.pos_mode);
-                console.log('POSModeContext: mode =', mode, 'shopId =', shopId);
                 setPOSModeState(mode);
                 localStorage.setItem('posMode', mode);
             })
@@ -54,23 +57,40 @@ export const POSModeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     useEffect(() => {
-        const interval = setInterval(() => {
+        const checkShopId = () => {
             const shopId = localStorage.getItem('shopId');
             if (
                 shopId &&
                 shopId !== 'undefined' &&
                 shopId !== 'null' &&
-                shopId.trim() !== '' &&
-                shopId !== lastShopId.current
+                shopId.trim() !== ''
             ) {
-                lastShopId.current = shopId;
-                fetchAndSetMode(shopId);
+                // Always fetch on mount or when shop changes
+                if (shopId !== lastShopId.current) {
+                    console.log('POSModeContext: Shop changed from', lastShopId.current, 'to', shopId);
+                    lastShopId.current = shopId;
+                    // Clear localStorage posMode when shop changes to force refetch from shop
+                    localStorage.removeItem('posMode');
+                    fetchAndSetMode(shopId);
+                }
             }
-        }, 300);
+        };
+
+        // Initial check - force fetch even if shopId is already set
+        const initialShopId = localStorage.getItem('shopId');
+        if (initialShopId && initialShopId !== 'undefined' && initialShopId !== 'null' && initialShopId.trim() !== '') {
+            console.log('POSModeContext: Initial mount with shopId', initialShopId, '- forcing fetch from database');
+            lastShopId.current = initialShopId;
+            localStorage.removeItem('posMode');
+            fetchAndSetMode(initialShopId);
+        }
+
+        // Check periodically for shop changes
+        const interval = setInterval(checkShopId, 500);
 
         const timeout = setTimeout(() => {
             if (!lastShopId.current) {
-                console.warn('POSModeContext: no shopId after 15s, defaulting to service');
+                console.warn('POSModeContext: no shopId after 15s, defaulting to restaurant');
                 setIsModeLoading(false);
             }
         }, 15000);
@@ -92,7 +112,8 @@ export const POSModeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             setPosMode,
             isRetailMode: posMode === 'retail',
             isHospitalMode: posMode === 'hospital',
-            isServiceMode: posMode === 'service' || posMode === 'restaurant',
+            isHotelMode: posMode === 'hotel',
+            isServiceMode: posMode === 'restaurant',
             isModeLoading,
         }}>
             {children}

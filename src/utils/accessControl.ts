@@ -1,4 +1,4 @@
-export type ModuleScope = "core" | "hr" | "accounting" | "crm";
+export type ModuleScope = "core" | "pos" | "hr" | "accounting" | "crm" | "dala";
 
 // ─── Feature module names (UI grouping labels) ────────────────────────────────
 
@@ -56,6 +56,16 @@ export const MODULES = {
     CRM_SALES_BUDGETS: "CRM · Sales Budgets",
     CRM_LEAD_ACTIVITIES: "CRM · Lead Activities",
     CRM_LEAD_WORKFLOWS: "CRM · Lead Workflows",
+    // ── Dala / Real Estate module ─────────────────────────────────────────────
+    DALA_DASHBOARD: "Dala · Dashboard",
+    DALA_PROPERTIES: "Dala · Properties",
+    DALA_PROPERTY_TYPES: "Dala · Property Types",
+    DALA_SALES: "Dala · Sales",
+    DALA_LEASES: "Dala · Leases",
+    DALA_COMMISSIONS: "Dala · Commissions",
+    DALA_RENT_COLLECTION: "Dala · Rent Collection",
+    DALA_MAINTENANCE: "Dala · Maintenance",
+    DALA_REPORTS: "Dala · Reports",
 } as const;
 
 export type ModuleKey = keyof typeof MODULES;
@@ -84,36 +94,36 @@ export const PERMISSIONS: Record<string, Permission> = {
 
     // ── CART ──────────────────────────────────────────────────────────────────
 
-    CART_VIEW_ITEMS: { key: "CART_VIEW_ITEMS", label: "View Cart Items", module: MODULES.CART, action: "read", moduleScope: "core" },
-    CART_CREATE: { key: "CART_CREATE", label: "Create Cart", module: MODULES.CART, action: "create", moduleScope: "core" },
-    CART_UPDATE: { key: "CART_UPDATE", label: "Update Cart", module: MODULES.CART, action: "update", moduleScope: "core" },
-    CART_GET: { key: "CART_GET", label: "Get Cart Details", module: MODULES.CART, action: "read", moduleScope: "core" },
-    CART_ADD_ITEM: { key: "CART_ADD_ITEM", label: "Add Item to Cart", module: MODULES.CART, action: "create", moduleScope: "core" },
-    CART_UPDATE_ITEM: { key: "CART_UPDATE_ITEM", label: "Update Cart Item", module: MODULES.CART, action: "update", moduleScope: "core" },
-    CART_DELETE_ITEM: { key: "CART_DELETE_ITEM", label: "Delete Cart Item", module: MODULES.CART, action: "delete", moduleScope: "core" },
-    CART_DELETE_ALL_ITEMS: { key: "CART_DELETE_ALL_ITEMS", label: "Clear All Cart Items", module: MODULES.CART, action: "delete", moduleScope: "core" },
-    CART_SEND_TO_KITCHEN: { key: "CART_SEND_TO_KITCHEN", label: "Send Cart to Kitchen", module: MODULES.CART, action: "special", moduleScope: "core" },
-    CART_VOID: { key: "CART_VOID", label: "Void Cart", module: MODULES.CART, action: "special", moduleScope: "core" },
-    CART_TRANSFER_ITEMS: { key: "CART_TRANSFER_ITEMS", label: "Transfer Cart Items to Another Table", module: MODULES.CART, action: "special", moduleScope: "core" },
-    CART_PRINT_INVOICE: { key: "CART_PRINT_INVOICE", label: "Print Invoice", module: MODULES.CART, action: "special", moduleScope: "core" },
-    CART_VIEW_INVOICES: { key: "CART_VIEW_INVOICES", label: "View All Invoices", module: MODULES.CART, action: "read", moduleScope: "core" },
-    CART_REPRINT_INVOICE: { key: "CART_REPRINT_INVOICE", label: "Re-Print Invoice", module: MODULES.CART, action: "special", moduleScope: "core" },
-    CART_VIEW_ACTIVE_SUBSCRIPTIONS: { key: "CART_VIEW_ACTIVE_SUBSCRIPTIONS", label: "View Customer Active Subscriptions for Cart", module: MODULES.CART, action: "read", moduleScope: "core" },
+    CART_VIEW_ITEMS: { key: "CART_VIEW_ITEMS", label: "View Cart Items", module: MODULES.CART, action: "read", moduleScope: "pos" },
+    CART_CREATE: { key: "CART_CREATE", label: "Create Cart", module: MODULES.CART, action: "create", moduleScope: "pos" },
+    CART_UPDATE: { key: "CART_UPDATE", label: "Update Cart", module: MODULES.CART, action: "update", moduleScope: "pos" },
+    CART_GET: { key: "CART_GET", label: "Get Cart Details", module: MODULES.CART, action: "read", moduleScope: "pos" },
+    CART_ADD_ITEM: { key: "CART_ADD_ITEM", label: "Add Item to Cart", module: MODULES.CART, action: "create", moduleScope: "pos" },
+    CART_UPDATE_ITEM: { key: "CART_UPDATE_ITEM", label: "Update Cart Item", module: MODULES.CART, action: "update", moduleScope: "pos" },
+    CART_DELETE_ITEM: { key: "CART_DELETE_ITEM", label: "Delete Cart Item", module: MODULES.CART, action: "delete", moduleScope: "pos" },
+    CART_DELETE_ALL_ITEMS: { key: "CART_DELETE_ALL_ITEMS", label: "Clear All Cart Items", module: MODULES.CART, action: "delete", moduleScope: "pos" },
+    CART_SEND_TO_KITCHEN: { key: "CART_SEND_TO_KITCHEN", label: "Send Cart to Kitchen", module: MODULES.CART, action: "special", moduleScope: "pos" },
+    CART_VOID: { key: "CART_VOID", label: "Void Cart", module: MODULES.CART, action: "special", moduleScope: "pos" },
+    CART_TRANSFER_ITEMS: { key: "CART_TRANSFER_ITEMS", label: "Transfer Cart Items to Another Table", module: MODULES.CART, action: "special", moduleScope: "pos" },
+    CART_PRINT_INVOICE: { key: "CART_PRINT_INVOICE", label: "Print Invoice", module: MODULES.CART, action: "special", moduleScope: "pos" },
+    CART_VIEW_INVOICES: { key: "CART_VIEW_INVOICES", label: "View All Invoices", module: MODULES.CART, action: "read", moduleScope: "pos" },
+    CART_REPRINT_INVOICE: { key: "CART_REPRINT_INVOICE", label: "Re-Print Invoice", module: MODULES.CART, action: "special", moduleScope: "pos" },
+    CART_VIEW_ACTIVE_SUBSCRIPTIONS: { key: "CART_VIEW_ACTIVE_SUBSCRIPTIONS", label: "View Customer Active Subscriptions for Cart", module: MODULES.CART, action: "read", moduleScope: "pos" },
 
     // ── CATEGORIES ────────────────────────────────────────────────────────────
 
-    CATEGORIES_VIEW: { key: "CATEGORIES_VIEW", label: "View Categories", module: MODULES.CATEGORIES, action: "read", moduleScope: "core" },
-    CATEGORIES_CREATE: { key: "CATEGORIES_CREATE", label: "Create Category", module: MODULES.CATEGORIES, action: "create", moduleScope: "core" },
-    CATEGORIES_UPDATE: { key: "CATEGORIES_UPDATE", label: "Update Category", module: MODULES.CATEGORIES, action: "update", moduleScope: "core" },
-    CATEGORIES_DELETE: { key: "CATEGORIES_DELETE", label: "Delete Category", module: MODULES.CATEGORIES, action: "delete", moduleScope: "core" },
-    SUB_CATEGORIES_VIEW: { key: "SUB_CATEGORIES_VIEW", label: "View Sub-Categories", module: MODULES.CATEGORIES, action: "read", moduleScope: "core" },
-    SUB_CATEGORIES_CREATE: { key: "SUB_CATEGORIES_CREATE", label: "Create Sub-Category", module: MODULES.CATEGORIES, action: "create", moduleScope: "core" },
-    SUB_CATEGORIES_UPDATE: { key: "SUB_CATEGORIES_UPDATE", label: "Update Sub-Category", module: MODULES.CATEGORIES, action: "update", moduleScope: "core" },
-    SUB_CATEGORIES_DELETE: { key: "SUB_CATEGORIES_DELETE", label: "Delete Sub-Category", module: MODULES.CATEGORIES, action: "delete", moduleScope: "core" },
-    MAIN_CATEGORIES_VIEW: { key: "MAIN_CATEGORIES_VIEW", label: "View Main Categories", module: MODULES.CATEGORIES, action: "read", moduleScope: "core" },
-    MAIN_CATEGORIES_CREATE: { key: "MAIN_CATEGORIES_CREATE", label: "Create Main Category", module: MODULES.CATEGORIES, action: "create", moduleScope: "core" },
-    MAIN_CATEGORIES_UPDATE: { key: "MAIN_CATEGORIES_UPDATE", label: "Update Main Category", module: MODULES.CATEGORIES, action: "update", moduleScope: "core" },
-    MAIN_CATEGORIES_DELETE: { key: "MAIN_CATEGORIES_DELETE", label: "Delete Main Category", module: MODULES.CATEGORIES, action: "delete", moduleScope: "core" },
+    CATEGORIES_VIEW: { key: "CATEGORIES_VIEW", label: "View Categories", module: MODULES.CATEGORIES, action: "read", moduleScope: "pos" },
+    CATEGORIES_CREATE: { key: "CATEGORIES_CREATE", label: "Create Category", module: MODULES.CATEGORIES, action: "create", moduleScope: "pos" },
+    CATEGORIES_UPDATE: { key: "CATEGORIES_UPDATE", label: "Update Category", module: MODULES.CATEGORIES, action: "update", moduleScope: "pos" },
+    CATEGORIES_DELETE: { key: "CATEGORIES_DELETE", label: "Delete Category", module: MODULES.CATEGORIES, action: "delete", moduleScope: "pos" },
+    SUB_CATEGORIES_VIEW: { key: "SUB_CATEGORIES_VIEW", label: "View Sub-Categories", module: MODULES.CATEGORIES, action: "read", moduleScope: "pos" },
+    SUB_CATEGORIES_CREATE: { key: "SUB_CATEGORIES_CREATE", label: "Create Sub-Category", module: MODULES.CATEGORIES, action: "create", moduleScope: "pos" },
+    SUB_CATEGORIES_UPDATE: { key: "SUB_CATEGORIES_UPDATE", label: "Update Sub-Category", module: MODULES.CATEGORIES, action: "update", moduleScope: "pos" },
+    SUB_CATEGORIES_DELETE: { key: "SUB_CATEGORIES_DELETE", label: "Delete Sub-Category", module: MODULES.CATEGORIES, action: "delete", moduleScope: "pos" },
+    MAIN_CATEGORIES_VIEW: { key: "MAIN_CATEGORIES_VIEW", label: "View Main Categories", module: MODULES.CATEGORIES, action: "read", moduleScope: "pos" },
+    MAIN_CATEGORIES_CREATE: { key: "MAIN_CATEGORIES_CREATE", label: "Create Main Category", module: MODULES.CATEGORIES, action: "create", moduleScope: "pos" },
+    MAIN_CATEGORIES_UPDATE: { key: "MAIN_CATEGORIES_UPDATE", label: "Update Main Category", module: MODULES.CATEGORIES, action: "update", moduleScope: "pos" },
+    MAIN_CATEGORIES_DELETE: { key: "MAIN_CATEGORIES_DELETE", label: "Delete Main Category", module: MODULES.CATEGORIES, action: "delete", moduleScope: "pos" },
 
     // ── CONSULTATIONS ─────────────────────────────────────────────────────────
 
@@ -138,12 +148,12 @@ export const PERMISSIONS: Record<string, Permission> = {
 
     // ── DELIVERY ──────────────────────────────────────────────────────────────
 
-    DELIVERY_VIEW: { key: "DELIVERY_VIEW", label: "View Deliveries", module: MODULES.DELIVERY, action: "read", moduleScope: "core" },
-    DELIVERY_CREATE: { key: "DELIVERY_CREATE", label: "Create Delivery", module: MODULES.DELIVERY, action: "create", moduleScope: "core" },
-    DELIVERY_UPDATE: { key: "DELIVERY_UPDATE", label: "Update Delivery", module: MODULES.DELIVERY, action: "update", moduleScope: "core" },
-    DELIVERY_DELETE: { key: "DELIVERY_DELETE", label: "Delete Delivery", module: MODULES.DELIVERY, action: "delete", moduleScope: "core" },
-    DELIVERY_VIEW_BY_DATE_RANGE: { key: "DELIVERY_VIEW_BY_DATE_RANGE", label: "View Delivery Items by Date Range", module: MODULES.DELIVERY, action: "read", moduleScope: "core" },
-    DELIVERY_PRINT_NOTE: { key: "DELIVERY_PRINT_NOTE", label: "Print Delivery Note", module: MODULES.DELIVERY, action: "special", moduleScope: "core" },
+    DELIVERY_VIEW: { key: "DELIVERY_VIEW", label: "View Deliveries", module: MODULES.DELIVERY, action: "read", moduleScope: "pos" },
+    DELIVERY_CREATE: { key: "DELIVERY_CREATE", label: "Create Delivery", module: MODULES.DELIVERY, action: "create", moduleScope: "pos" },
+    DELIVERY_UPDATE: { key: "DELIVERY_UPDATE", label: "Update Delivery", module: MODULES.DELIVERY, action: "update", moduleScope: "pos" },
+    DELIVERY_DELETE: { key: "DELIVERY_DELETE", label: "Delete Delivery", module: MODULES.DELIVERY, action: "delete", moduleScope: "pos" },
+    DELIVERY_VIEW_BY_DATE_RANGE: { key: "DELIVERY_VIEW_BY_DATE_RANGE", label: "View Delivery Items by Date Range", module: MODULES.DELIVERY, action: "read", moduleScope: "pos" },
+    DELIVERY_PRINT_NOTE: { key: "DELIVERY_PRINT_NOTE", label: "Print Delivery Note", module: MODULES.DELIVERY, action: "special", moduleScope: "pos" },
 
     // ── DOCUMENTS ─────────────────────────────────────────────────────────────
 
@@ -201,49 +211,49 @@ export const PERMISSIONS: Record<string, Permission> = {
 
     // ── GIFT CARDS ────────────────────────────────────────────────────────────
 
-    GIFT_CARDS_VIEW: { key: "GIFT_CARDS_VIEW", label: "View Gift Cards", module: MODULES.GIFT_CARDS, action: "read", moduleScope: "core" },
-    GIFT_CARDS_VIEW_ONE: { key: "GIFT_CARDS_VIEW_ONE", label: "Look Up Gift Card by Code", module: MODULES.GIFT_CARDS, action: "read", moduleScope: "core" },
-    GIFT_CARDS_CREATE: { key: "GIFT_CARDS_CREATE", label: "Create Gift Card", module: MODULES.GIFT_CARDS, action: "create", moduleScope: "core" },
-    GIFT_CARDS_UPDATE: { key: "GIFT_CARDS_UPDATE", label: "Update Gift Card", module: MODULES.GIFT_CARDS, action: "update", moduleScope: "core" },
-    GIFT_CARDS_SEND_EMAIL: { key: "GIFT_CARDS_SEND_EMAIL", label: "Send Gift Card via Email", module: MODULES.GIFT_CARDS, action: "special", moduleScope: "core" },
+    GIFT_CARDS_VIEW: { key: "GIFT_CARDS_VIEW", label: "View Gift Cards", module: MODULES.GIFT_CARDS, action: "read", moduleScope: "pos" },
+    GIFT_CARDS_VIEW_ONE: { key: "GIFT_CARDS_VIEW_ONE", label: "Look Up Gift Card by Code", module: MODULES.GIFT_CARDS, action: "read", moduleScope: "pos" },
+    GIFT_CARDS_CREATE: { key: "GIFT_CARDS_CREATE", label: "Create Gift Card", module: MODULES.GIFT_CARDS, action: "create", moduleScope: "pos" },
+    GIFT_CARDS_UPDATE: { key: "GIFT_CARDS_UPDATE", label: "Update Gift Card", module: MODULES.GIFT_CARDS, action: "update", moduleScope: "pos" },
+    GIFT_CARDS_SEND_EMAIL: { key: "GIFT_CARDS_SEND_EMAIL", label: "Send Gift Card via Email", module: MODULES.GIFT_CARDS, action: "special", moduleScope: "pos" },
 
     // ── INVENTORY ─────────────────────────────────────────────────────────────
 
-    INVENTORY_VIEW: { key: "INVENTORY_VIEW", label: "View Inventory", module: MODULES.INVENTORY, action: "read", moduleScope: "core" },
-    INVENTORY_VIEW_ONE: { key: "INVENTORY_VIEW_ONE", label: "View Inventory Item Details", module: MODULES.INVENTORY, action: "read", moduleScope: "core" },
-    INVENTORY_CREATE: { key: "INVENTORY_CREATE", label: "Add Inventory Item", module: MODULES.INVENTORY, action: "create", moduleScope: "core" },
-    INVENTORY_UPDATE: { key: "INVENTORY_UPDATE", label: "Edit Inventory Item", module: MODULES.INVENTORY, action: "update", moduleScope: "core" },
-    INVENTORY_DELETE: { key: "INVENTORY_DELETE", label: "Delete Inventory Item", module: MODULES.INVENTORY, action: "delete", moduleScope: "core" },
-    INVENTORY_DELETE_MULTIPLE: { key: "INVENTORY_DELETE_MULTIPLE", label: "Delete Multiple Inventory Items", module: MODULES.INVENTORY, action: "delete", moduleScope: "core" },
-    INVENTORY_DELETE_ALL: { key: "INVENTORY_DELETE_ALL", label: "Delete All Inventory Items", module: MODULES.INVENTORY, action: "delete", moduleScope: "core" },
-    INVENTORY_IMPORT: { key: "INVENTORY_IMPORT", label: "Import Inventory from Excel", module: MODULES.INVENTORY, action: "create", moduleScope: "core" },
-    INVENTORY_ANALYSE_IMPORT: { key: "INVENTORY_ANALYSE_IMPORT", label: "Analyse Inventory Import File", module: MODULES.INVENTORY, action: "special", moduleScope: "core" },
-    INVENTORY_DOWNLOAD_TEMPLATE: { key: "INVENTORY_DOWNLOAD_TEMPLATE", label: "Download Inventory Import Template", module: MODULES.INVENTORY, action: "special", moduleScope: "core" },
-    INVENTORY_VIEW_NOTIFICATIONS: { key: "INVENTORY_VIEW_NOTIFICATIONS", label: "View Inventory Low Stock Alerts", module: MODULES.INVENTORY, action: "read", moduleScope: "core" },
-    INVENTORY_VIEW_USAGE_BY_DATE: { key: "INVENTORY_VIEW_USAGE_BY_DATE", label: "View Inventory Usage by Date Range", module: MODULES.INVENTORY, action: "read", moduleScope: "core" },
+    INVENTORY_VIEW: { key: "INVENTORY_VIEW", label: "View Inventory", module: MODULES.INVENTORY, action: "read", moduleScope: "pos" },
+    INVENTORY_VIEW_ONE: { key: "INVENTORY_VIEW_ONE", label: "View Inventory Item Details", module: MODULES.INVENTORY, action: "read", moduleScope: "pos" },
+    INVENTORY_CREATE: { key: "INVENTORY_CREATE", label: "Add Inventory Item", module: MODULES.INVENTORY, action: "create", moduleScope: "pos" },
+    INVENTORY_UPDATE: { key: "INVENTORY_UPDATE", label: "Edit Inventory Item", module: MODULES.INVENTORY, action: "update", moduleScope: "pos" },
+    INVENTORY_DELETE: { key: "INVENTORY_DELETE", label: "Delete Inventory Item", module: MODULES.INVENTORY, action: "delete", moduleScope: "pos" },
+    INVENTORY_DELETE_MULTIPLE: { key: "INVENTORY_DELETE_MULTIPLE", label: "Delete Multiple Inventory Items", module: MODULES.INVENTORY, action: "delete", moduleScope: "pos" },
+    INVENTORY_DELETE_ALL: { key: "INVENTORY_DELETE_ALL", label: "Delete All Inventory Items", module: MODULES.INVENTORY, action: "delete", moduleScope: "pos" },
+    INVENTORY_IMPORT: { key: "INVENTORY_IMPORT", label: "Import Inventory from Excel", module: MODULES.INVENTORY, action: "create", moduleScope: "pos" },
+    INVENTORY_ANALYSE_IMPORT: { key: "INVENTORY_ANALYSE_IMPORT", label: "Analyse Inventory Import File", module: MODULES.INVENTORY, action: "special", moduleScope: "pos" },
+    INVENTORY_DOWNLOAD_TEMPLATE: { key: "INVENTORY_DOWNLOAD_TEMPLATE", label: "Download Inventory Import Template", module: MODULES.INVENTORY, action: "special", moduleScope: "pos" },
+    INVENTORY_VIEW_NOTIFICATIONS: { key: "INVENTORY_VIEW_NOTIFICATIONS", label: "View Inventory Low Stock Alerts", module: MODULES.INVENTORY, action: "read", moduleScope: "pos" },
+    INVENTORY_VIEW_USAGE_BY_DATE: { key: "INVENTORY_VIEW_USAGE_BY_DATE", label: "View Inventory Usage by Date Range", module: MODULES.INVENTORY, action: "read", moduleScope: "pos" },
 
     // ── TRANSFERS ─────────────────────────────────────────────────────────────
 
-    TRANSFERS_VIEW: { key: "TRANSFERS_VIEW", label: "View Transfers", module: MODULES.TRANSFERS, action: "read", moduleScope: "core" },
-    TRANSFERS_VIEW_ONE: { key: "TRANSFERS_VIEW_ONE", label: "View Transfer Details", module: MODULES.TRANSFERS, action: "read", moduleScope: "core" },
-    TRANSFERS_CREATE: { key: "TRANSFERS_CREATE", label: "Create Transfer", module: MODULES.TRANSFERS, action: "create", moduleScope: "core" },
-    TRANSFERS_APPROVE: { key: "TRANSFERS_APPROVE", label: "Approve Transfer", module: MODULES.TRANSFERS, action: "special", moduleScope: "core" },
-    TRANSFERS_COMPLETE: { key: "TRANSFERS_COMPLETE", label: "Complete Transfer", module: MODULES.TRANSFERS, action: "special", moduleScope: "core" },
-    TRANSFERS_REJECT: { key: "TRANSFERS_REJECT", label: "Reject Transfer", module: MODULES.TRANSFERS, action: "special", moduleScope: "core" },
-    TRANSFERS_CANCEL: { key: "TRANSFERS_CANCEL", label: "Cancel Transfer", module: MODULES.TRANSFERS, action: "special", moduleScope: "core" },
-    TRANSFERS_VIEW_PENDING: { key: "TRANSFERS_VIEW_PENDING", label: "View Pending Transfers", module: MODULES.TRANSFERS, action: "read", moduleScope: "core" },
-    TRANSFERS_VIEW_STATS: { key: "TRANSFERS_VIEW_STATS", label: "View Transfer Statistics", module: MODULES.TRANSFERS, action: "read", moduleScope: "core" },
+    TRANSFERS_VIEW: { key: "TRANSFERS_VIEW", label: "View Transfers", module: MODULES.TRANSFERS, action: "read", moduleScope: "pos" },
+    TRANSFERS_VIEW_ONE: { key: "TRANSFERS_VIEW_ONE", label: "View Transfer Details", module: MODULES.TRANSFERS, action: "read", moduleScope: "pos" },
+    TRANSFERS_CREATE: { key: "TRANSFERS_CREATE", label: "Create Transfer", module: MODULES.TRANSFERS, action: "create", moduleScope: "pos" },
+    TRANSFERS_APPROVE: { key: "TRANSFERS_APPROVE", label: "Approve Transfer", module: MODULES.TRANSFERS, action: "special", moduleScope: "pos" },
+    TRANSFERS_COMPLETE: { key: "TRANSFERS_COMPLETE", label: "Complete Transfer", module: MODULES.TRANSFERS, action: "special", moduleScope: "pos" },
+    TRANSFERS_REJECT: { key: "TRANSFERS_REJECT", label: "Reject Transfer", module: MODULES.TRANSFERS, action: "special", moduleScope: "pos" },
+    TRANSFERS_CANCEL: { key: "TRANSFERS_CANCEL", label: "Cancel Transfer", module: MODULES.TRANSFERS, action: "special", moduleScope: "pos" },
+    TRANSFERS_VIEW_PENDING: { key: "TRANSFERS_VIEW_PENDING", label: "View Pending Transfers", module: MODULES.TRANSFERS, action: "read", moduleScope: "pos" },
+    TRANSFERS_VIEW_STATS: { key: "TRANSFERS_VIEW_STATS", label: "View Transfer Statistics", module: MODULES.TRANSFERS, action: "read", moduleScope: "pos" },
 
     // ── MODIFIERS & ADDONS ────────────────────────────────────────────────────
 
-    MODIFIERS_VIEW: { key: "MODIFIERS_VIEW", label: "View Modifiers", module: MODULES.MODIFIERS_ADDONS, action: "read", moduleScope: "core" },
-    MODIFIERS_CREATE: { key: "MODIFIERS_CREATE", label: "Create Modifier", module: MODULES.MODIFIERS_ADDONS, action: "create", moduleScope: "core" },
-    MODIFIERS_UPDATE: { key: "MODIFIERS_UPDATE", label: "Update Modifier", module: MODULES.MODIFIERS_ADDONS, action: "update", moduleScope: "core" },
-    MODIFIERS_DELETE: { key: "MODIFIERS_DELETE", label: "Delete Modifier", module: MODULES.MODIFIERS_ADDONS, action: "delete", moduleScope: "core" },
-    ADDONS_VIEW: { key: "ADDONS_VIEW", label: "View Addons", module: MODULES.MODIFIERS_ADDONS, action: "read", moduleScope: "core" },
-    ADDONS_CREATE: { key: "ADDONS_CREATE", label: "Create Addon", module: MODULES.MODIFIERS_ADDONS, action: "create", moduleScope: "core" },
-    ADDONS_UPDATE: { key: "ADDONS_UPDATE", label: "Update Addon", module: MODULES.MODIFIERS_ADDONS, action: "update", moduleScope: "core" },
-    ADDONS_DELETE: { key: "ADDONS_DELETE", label: "Delete Addon", module: MODULES.MODIFIERS_ADDONS, action: "delete", moduleScope: "core" },
+    MODIFIERS_VIEW: { key: "MODIFIERS_VIEW", label: "View Modifiers", module: MODULES.MODIFIERS_ADDONS, action: "read", moduleScope: "pos" },
+    MODIFIERS_CREATE: { key: "MODIFIERS_CREATE", label: "Create Modifier", module: MODULES.MODIFIERS_ADDONS, action: "create", moduleScope: "pos" },
+    MODIFIERS_UPDATE: { key: "MODIFIERS_UPDATE", label: "Update Modifier", module: MODULES.MODIFIERS_ADDONS, action: "update", moduleScope: "pos" },
+    MODIFIERS_DELETE: { key: "MODIFIERS_DELETE", label: "Delete Modifier", module: MODULES.MODIFIERS_ADDONS, action: "delete", moduleScope: "pos" },
+    ADDONS_VIEW: { key: "ADDONS_VIEW", label: "View Addons", module: MODULES.MODIFIERS_ADDONS, action: "read", moduleScope: "pos" },
+    ADDONS_CREATE: { key: "ADDONS_CREATE", label: "Create Addon", module: MODULES.MODIFIERS_ADDONS, action: "create", moduleScope: "pos" },
+    ADDONS_UPDATE: { key: "ADDONS_UPDATE", label: "Update Addon", module: MODULES.MODIFIERS_ADDONS, action: "update", moduleScope: "pos" },
+    ADDONS_DELETE: { key: "ADDONS_DELETE", label: "Delete Addon", module: MODULES.MODIFIERS_ADDONS, action: "delete", moduleScope: "pos" },
 
     // ── NOTIFICATIONS ─────────────────────────────────────────────────────────
 
@@ -271,29 +281,29 @@ export const PERMISSIONS: Record<string, Permission> = {
 
     // ── ORDERS ────────────────────────────────────────────────────────────────
 
-    ORDERS_VIEW: { key: "ORDERS_VIEW", label: "View Orders", module: MODULES.ORDERS, action: "read", moduleScope: "core" },
-    ORDERS_DELETE: { key: "ORDERS_DELETE", label: "Delete Order", module: MODULES.ORDERS, action: "delete", moduleScope: "core" },
-    ORDERS_UPDATE: { key: "ORDERS_UPDATE", label: "Update Order", module: MODULES.ORDERS, action: "update", moduleScope: "core" },
-    ORDERS_UPDATE_TIMESTAMP: { key: "ORDERS_UPDATE_TIMESTAMP", label: "Update Order Timestamp", module: MODULES.ORDERS, action: "special", moduleScope: "core" },
-    ORDERS_UPDATE_ITEM: { key: "ORDERS_UPDATE_ITEM", label: "Update Order Item", module: MODULES.ORDERS, action: "update", moduleScope: "core" },
-    ORDERS_DELETE_ITEM: { key: "ORDERS_DELETE_ITEM", label: "Delete Order Item", module: MODULES.ORDERS, action: "delete", moduleScope: "core" },
-    ORDERS_VIEW_DASHBOARD: { key: "ORDERS_VIEW_DASHBOARD", label: "View Dashboard Summary", module: MODULES.ORDERS, action: "read", moduleScope: "core" },
-    ORDERS_VIEW_ADMIN_DASHBOARD: { key: "ORDERS_VIEW_ADMIN_DASHBOARD", label: "View Admin Dashboard Summary", module: MODULES.ORDERS, action: "read", moduleScope: "core" },
-    ORDERS_VIEW_BEST_SELLERS: { key: "ORDERS_VIEW_BEST_SELLERS", label: "View Best Sellers", module: MODULES.ORDERS, action: "read", moduleScope: "core" },
-    ORDERS_VIEW_SALES_CHART: { key: "ORDERS_VIEW_SALES_CHART", label: "View Sales Chart", module: MODULES.ORDERS, action: "read", moduleScope: "core" },
-    ORDERS_REPOST_PAYMENT: { key: "ORDERS_REPOST_PAYMENT", label: "Repost Order Payment", module: MODULES.ORDERS, action: "special", moduleScope: "core" },
+    ORDERS_VIEW: { key: "ORDERS_VIEW", label: "View Orders", module: MODULES.ORDERS, action: "read", moduleScope: "pos" },
+    ORDERS_DELETE: { key: "ORDERS_DELETE", label: "Delete Order", module: MODULES.ORDERS, action: "delete", moduleScope: "pos" },
+    ORDERS_UPDATE: { key: "ORDERS_UPDATE", label: "Update Order", module: MODULES.ORDERS, action: "update", moduleScope: "pos" },
+    ORDERS_UPDATE_TIMESTAMP: { key: "ORDERS_UPDATE_TIMESTAMP", label: "Update Order Timestamp", module: MODULES.ORDERS, action: "special", moduleScope: "pos" },
+    ORDERS_UPDATE_ITEM: { key: "ORDERS_UPDATE_ITEM", label: "Update Order Item", module: MODULES.ORDERS, action: "update", moduleScope: "pos" },
+    ORDERS_DELETE_ITEM: { key: "ORDERS_DELETE_ITEM", label: "Delete Order Item", module: MODULES.ORDERS, action: "delete", moduleScope: "pos" },
+    ORDERS_VIEW_DASHBOARD: { key: "ORDERS_VIEW_DASHBOARD", label: "View Dashboard Summary", module: MODULES.ORDERS, action: "read", moduleScope: "pos" },
+    ORDERS_VIEW_ADMIN_DASHBOARD: { key: "ORDERS_VIEW_ADMIN_DASHBOARD", label: "View Admin Dashboard Summary", module: MODULES.ORDERS, action: "read", moduleScope: "pos" },
+    ORDERS_VIEW_BEST_SELLERS: { key: "ORDERS_VIEW_BEST_SELLERS", label: "View Best Sellers", module: MODULES.ORDERS, action: "read", moduleScope: "pos" },
+    ORDERS_VIEW_SALES_CHART: { key: "ORDERS_VIEW_SALES_CHART", label: "View Sales Chart", module: MODULES.ORDERS, action: "read", moduleScope: "pos" },
+    ORDERS_REPOST_PAYMENT: { key: "ORDERS_REPOST_PAYMENT", label: "Repost Order Payment", module: MODULES.ORDERS, action: "special", moduleScope: "pos" },
 
     // ── PAYMENT METHODS ───────────────────────────────────────────────────────
 
-    PAYMENT_METHODS_VIEW: { key: "PAYMENT_METHODS_VIEW", label: "View Payment Methods", module: MODULES.PAYMENT_METHODS, action: "read", moduleScope: "core" },
-    PAYMENT_METHODS_CREATE: { key: "PAYMENT_METHODS_CREATE", label: "Create Payment Method", module: MODULES.PAYMENT_METHODS, action: "create", moduleScope: "core" },
-    PAYMENT_METHODS_UPDATE: { key: "PAYMENT_METHODS_UPDATE", label: "Update Payment Method", module: MODULES.PAYMENT_METHODS, action: "update", moduleScope: "core" },
-    PAYMENT_METHODS_DELETE: { key: "PAYMENT_METHODS_DELETE", label: "Delete Payment Method", module: MODULES.PAYMENT_METHODS, action: "delete", moduleScope: "core" },
-    PAYMENT_DETAILS_VIEW: { key: "PAYMENT_DETAILS_VIEW", label: "View Payment Details", module: MODULES.PAYMENT_METHODS, action: "read", moduleScope: "core" },
-    PAYMENT_DETAILS_CREATE: { key: "PAYMENT_DETAILS_CREATE", label: "Create Payment Detail", module: MODULES.PAYMENT_METHODS, action: "create", moduleScope: "core" },
-    PAYMENT_DETAILS_UPDATE: { key: "PAYMENT_DETAILS_UPDATE", label: "Update Payment Detail", module: MODULES.PAYMENT_METHODS, action: "update", moduleScope: "core" },
-    PAYMENT_DETAILS_DELETE: { key: "PAYMENT_DETAILS_DELETE", label: "Delete Payment Detail", module: MODULES.PAYMENT_METHODS, action: "delete", moduleScope: "core" },
-    PAYMENT_MAKE_SUBSCRIPTION: { key: "PAYMENT_MAKE_SUBSCRIPTION", label: "Make Subscription Payment", module: MODULES.PAYMENT_METHODS, action: "special", moduleScope: "core" },
+    PAYMENT_METHODS_VIEW: { key: "PAYMENT_METHODS_VIEW", label: "View Payment Methods", module: MODULES.PAYMENT_METHODS, action: "read", moduleScope: "pos" },
+    PAYMENT_METHODS_CREATE: { key: "PAYMENT_METHODS_CREATE", label: "Create Payment Method", module: MODULES.PAYMENT_METHODS, action: "create", moduleScope: "pos" },
+    PAYMENT_METHODS_UPDATE: { key: "PAYMENT_METHODS_UPDATE", label: "Update Payment Method", module: MODULES.PAYMENT_METHODS, action: "update", moduleScope: "pos" },
+    PAYMENT_METHODS_DELETE: { key: "PAYMENT_METHODS_DELETE", label: "Delete Payment Method", module: MODULES.PAYMENT_METHODS, action: "delete", moduleScope: "pos" },
+    PAYMENT_DETAILS_VIEW: { key: "PAYMENT_DETAILS_VIEW", label: "View Payment Details", module: MODULES.PAYMENT_METHODS, action: "read", moduleScope: "pos" },
+    PAYMENT_DETAILS_CREATE: { key: "PAYMENT_DETAILS_CREATE", label: "Create Payment Detail", module: MODULES.PAYMENT_METHODS, action: "create", moduleScope: "pos" },
+    PAYMENT_DETAILS_UPDATE: { key: "PAYMENT_DETAILS_UPDATE", label: "Update Payment Detail", module: MODULES.PAYMENT_METHODS, action: "update", moduleScope: "pos" },
+    PAYMENT_DETAILS_DELETE: { key: "PAYMENT_DETAILS_DELETE", label: "Delete Payment Detail", module: MODULES.PAYMENT_METHODS, action: "delete", moduleScope: "pos" },
+    PAYMENT_MAKE_SUBSCRIPTION: { key: "PAYMENT_MAKE_SUBSCRIPTION", label: "Make Subscription Payment", module: MODULES.PAYMENT_METHODS, action: "special", moduleScope: "pos" },
 
     // ── PERMISSIONS ───────────────────────────────────────────────────────────
 
@@ -304,35 +314,35 @@ export const PERMISSIONS: Record<string, Permission> = {
 
     // ── PRODUCTS ──────────────────────────────────────────────────────────────
 
-    PRODUCTS_VIEW: { key: "PRODUCTS_VIEW", label: "View Products", module: MODULES.PRODUCTS, action: "read", moduleScope: "core" },
-    PRODUCTS_CREATE: { key: "PRODUCTS_CREATE", label: "Create Product", module: MODULES.PRODUCTS, action: "create", moduleScope: "core" },
-    PRODUCTS_UPDATE: { key: "PRODUCTS_UPDATE", label: "Update Product", module: MODULES.PRODUCTS, action: "update", moduleScope: "core" },
-    PRODUCTS_DELETE: { key: "PRODUCTS_DELETE", label: "Delete Product", module: MODULES.PRODUCTS, action: "delete", moduleScope: "core" },
+    PRODUCTS_VIEW: { key: "PRODUCTS_VIEW", label: "View Products", module: MODULES.PRODUCTS, action: "read", moduleScope: "pos" },
+    PRODUCTS_CREATE: { key: "PRODUCTS_CREATE", label: "Create Product", module: MODULES.PRODUCTS, action: "create", moduleScope: "pos" },
+    PRODUCTS_UPDATE: { key: "PRODUCTS_UPDATE", label: "Update Product", module: MODULES.PRODUCTS, action: "update", moduleScope: "pos" },
+    PRODUCTS_DELETE: { key: "PRODUCTS_DELETE", label: "Delete Product", module: MODULES.PRODUCTS, action: "delete", moduleScope: "pos" },
 
     // ── PURCHASE ORDERS ───────────────────────────────────────────────────────
 
-    PURCHASE_ORDERS_VIEW: { key: "PURCHASE_ORDERS_VIEW", label: "View Purchase Orders", module: MODULES.PURCHASE_ORDERS, action: "read", moduleScope: "core" },
-    PURCHASE_ORDERS_VIEW_ONE: { key: "PURCHASE_ORDERS_VIEW_ONE", label: "View Purchase Order Details", module: MODULES.PURCHASE_ORDERS, action: "read", moduleScope: "core" },
-    PURCHASE_ORDERS_CREATE: { key: "PURCHASE_ORDERS_CREATE", label: "Create Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "create", moduleScope: "core" },
-    PURCHASE_ORDERS_UPDATE: { key: "PURCHASE_ORDERS_UPDATE", label: "Update Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "update", moduleScope: "core" },
-    PURCHASE_ORDERS_UPDATE_STATUS: { key: "PURCHASE_ORDERS_UPDATE_STATUS", label: "Update Purchase Order Status", module: MODULES.PURCHASE_ORDERS, action: "update", moduleScope: "core" },
-    PURCHASE_ORDERS_DELETE: { key: "PURCHASE_ORDERS_DELETE", label: "Delete Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "delete", moduleScope: "core" },
-    PURCHASE_ORDERS_CREATE_DELIVERY: { key: "PURCHASE_ORDERS_CREATE_DELIVERY", label: "Create Delivery from Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "special", moduleScope: "core" },
-    PURCHASE_ORDERS_VIEW_PENDING_ITEMS: { key: "PURCHASE_ORDERS_VIEW_PENDING_ITEMS", label: "View Pending Items for Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "read", moduleScope: "core" },
-    PURCHASE_ORDERS_VIEW_DELIVERIES: { key: "PURCHASE_ORDERS_VIEW_DELIVERIES", label: "View Deliveries for Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "read", moduleScope: "core" },
+    PURCHASE_ORDERS_VIEW: { key: "PURCHASE_ORDERS_VIEW", label: "View Purchase Orders", module: MODULES.PURCHASE_ORDERS, action: "read", moduleScope: "pos" },
+    PURCHASE_ORDERS_VIEW_ONE: { key: "PURCHASE_ORDERS_VIEW_ONE", label: "View Purchase Order Details", module: MODULES.PURCHASE_ORDERS, action: "read", moduleScope: "pos" },
+    PURCHASE_ORDERS_CREATE: { key: "PURCHASE_ORDERS_CREATE", label: "Create Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "create", moduleScope: "pos" },
+    PURCHASE_ORDERS_UPDATE: { key: "PURCHASE_ORDERS_UPDATE", label: "Update Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "update", moduleScope: "pos" },
+    PURCHASE_ORDERS_UPDATE_STATUS: { key: "PURCHASE_ORDERS_UPDATE_STATUS", label: "Update Purchase Order Status", module: MODULES.PURCHASE_ORDERS, action: "update", moduleScope: "pos" },
+    PURCHASE_ORDERS_DELETE: { key: "PURCHASE_ORDERS_DELETE", label: "Delete Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "delete", moduleScope: "pos" },
+    PURCHASE_ORDERS_CREATE_DELIVERY: { key: "PURCHASE_ORDERS_CREATE_DELIVERY", label: "Create Delivery from Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "special", moduleScope: "pos" },
+    PURCHASE_ORDERS_VIEW_PENDING_ITEMS: { key: "PURCHASE_ORDERS_VIEW_PENDING_ITEMS", label: "View Pending Items for Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "read", moduleScope: "pos" },
+    PURCHASE_ORDERS_VIEW_DELIVERIES: { key: "PURCHASE_ORDERS_VIEW_DELIVERIES", label: "View Deliveries for Purchase Order", module: MODULES.PURCHASE_ORDERS, action: "read", moduleScope: "pos" },
 
     // ── RECIPES ───────────────────────────────────────────────────────────────
 
-    RECIPES_VIEW: { key: "RECIPES_VIEW", label: "View Recipe", module: MODULES.RECIPES, action: "read", moduleScope: "core" },
-    RECIPES_CREATE: { key: "RECIPES_CREATE", label: "Create Recipe", module: MODULES.RECIPES, action: "create", moduleScope: "core" },
-    RECIPES_UPDATE: { key: "RECIPES_UPDATE", label: "Update Recipe", module: MODULES.RECIPES, action: "update", moduleScope: "core" },
-    RECIPES_DELETE: { key: "RECIPES_DELETE", label: "Delete Recipe", module: MODULES.RECIPES, action: "delete", moduleScope: "core" },
+    RECIPES_VIEW: { key: "RECIPES_VIEW", label: "View Recipe", module: MODULES.RECIPES, action: "read", moduleScope: "pos" },
+    RECIPES_CREATE: { key: "RECIPES_CREATE", label: "Create Recipe", module: MODULES.RECIPES, action: "create", moduleScope: "pos" },
+    RECIPES_UPDATE: { key: "RECIPES_UPDATE", label: "Update Recipe", module: MODULES.RECIPES, action: "update", moduleScope: "pos" },
+    RECIPES_DELETE: { key: "RECIPES_DELETE", label: "Delete Recipe", module: MODULES.RECIPES, action: "delete", moduleScope: "pos" },
 
     // ── REPORTS (POS) ─────────────────────────────────────────────────────────
 
-    REPORTS_ITEM_SALES: { key: "REPORTS_ITEM_SALES", label: "View Item Sales Report", module: MODULES.REPORTS, action: "read", moduleScope: "core" },
-    REPORTS_PURCHASE_SUMMARY: { key: "REPORTS_PURCHASE_SUMMARY", label: "View Payment Methods Summary Report", module: MODULES.REPORTS, action: "read", moduleScope: "core" },
-    REPORTS_VAT_SUMMARY: { key: "REPORTS_VAT_SUMMARY", label: "View VAT Summary Report (POS)", module: MODULES.REPORTS, action: "read", moduleScope: "core" },
+    REPORTS_ITEM_SALES: { key: "REPORTS_ITEM_SALES", label: "View Item Sales Report", module: MODULES.REPORTS, action: "read", moduleScope: "pos" },
+    REPORTS_PURCHASE_SUMMARY: { key: "REPORTS_PURCHASE_SUMMARY", label: "View Payment Methods Summary Report", module: MODULES.REPORTS, action: "read", moduleScope: "pos" },
+    REPORTS_VAT_SUMMARY: { key: "REPORTS_VAT_SUMMARY", label: "View VAT Summary Report (POS)", module: MODULES.REPORTS, action: "read", moduleScope: "pos" },
 
     // ── ROLES ─────────────────────────────────────────────────────────────────
 
@@ -343,33 +353,33 @@ export const PERMISSIONS: Record<string, Permission> = {
 
     // ── SCHEDULES ─────────────────────────────────────────────────────────────
 
-    SCHEDULES_VIEW: { key: "SCHEDULES_VIEW", label: "View Schedules", module: MODULES.SCHEDULES, action: "read", moduleScope: "core" },
-    SCHEDULES_CREATE: { key: "SCHEDULES_CREATE", label: "Create Schedule", module: MODULES.SCHEDULES, action: "create", moduleScope: "core" },
-    SCHEDULES_UPDATE: { key: "SCHEDULES_UPDATE", label: "Update Schedule", module: MODULES.SCHEDULES, action: "update", moduleScope: "core" },
-    SCHEDULES_DELETE: { key: "SCHEDULES_DELETE", label: "Delete Schedule", module: MODULES.SCHEDULES, action: "delete", moduleScope: "core" },
+    SCHEDULES_VIEW: { key: "SCHEDULES_VIEW", label: "View Schedules", module: MODULES.SCHEDULES, action: "read", moduleScope: "pos" },
+    SCHEDULES_CREATE: { key: "SCHEDULES_CREATE", label: "Create Schedule", module: MODULES.SCHEDULES, action: "create", moduleScope: "pos" },
+    SCHEDULES_UPDATE: { key: "SCHEDULES_UPDATE", label: "Update Schedule", module: MODULES.SCHEDULES, action: "update", moduleScope: "pos" },
+    SCHEDULES_DELETE: { key: "SCHEDULES_DELETE", label: "Delete Schedule", module: MODULES.SCHEDULES, action: "delete", moduleScope: "pos" },
 
     // ── SHIFTS ────────────────────────────────────────────────────────────────
 
-    SHIFTS_VIEW: { key: "SHIFTS_VIEW", label: "View Shifts", module: MODULES.SHIFTS, action: "read", moduleScope: "core" },
-    SHIFTS_CREATE: { key: "SHIFTS_CREATE", label: "Create Shift", module: MODULES.SHIFTS, action: "create", moduleScope: "core" },
-    SHIFTS_UPDATE: { key: "SHIFTS_UPDATE", label: "Update Shift", module: MODULES.SHIFTS, action: "update", moduleScope: "core" },
-    SHIFTS_DELETE: { key: "SHIFTS_DELETE", label: "Delete Shift", module: MODULES.SHIFTS, action: "delete", moduleScope: "core" },
+    SHIFTS_VIEW: { key: "SHIFTS_VIEW", label: "View Shifts", module: MODULES.SHIFTS, action: "read", moduleScope: "pos" },
+    SHIFTS_CREATE: { key: "SHIFTS_CREATE", label: "Create Shift", module: MODULES.SHIFTS, action: "create", moduleScope: "pos" },
+    SHIFTS_UPDATE: { key: "SHIFTS_UPDATE", label: "Update Shift", module: MODULES.SHIFTS, action: "update", moduleScope: "pos" },
+    SHIFTS_DELETE: { key: "SHIFTS_DELETE", label: "Delete Shift", module: MODULES.SHIFTS, action: "delete", moduleScope: "pos" },
 
     // ── SHOPS ─────────────────────────────────────────────────────────────────
 
-    SHOPS_VIEW: { key: "SHOPS_VIEW", label: "View Shops", module: MODULES.SHOPS, action: "read", moduleScope: "core" },
-    SHOPS_VIEW_ONE: { key: "SHOPS_VIEW_ONE", label: "View Shop Details", module: MODULES.SHOPS, action: "read", moduleScope: "core" },
-    SHOPS_CREATE: { key: "SHOPS_CREATE", label: "Create Shop", module: MODULES.SHOPS, action: "create", moduleScope: "core" },
-    SHOPS_UPDATE: { key: "SHOPS_UPDATE", label: "Update Shop", module: MODULES.SHOPS, action: "update", moduleScope: "core" },
-    SHOPS_UPDATE_POS_MODE: { key: "SHOPS_UPDATE_POS_MODE", label: "Update POS Mode (Restaurant / Retail)", module: MODULES.SHOPS, action: "special", moduleScope: "core" },
-    SHOPS_DELETE: { key: "SHOPS_DELETE", label: "Delete Shop", module: MODULES.SHOPS, action: "delete", moduleScope: "core" },
+    SHOPS_VIEW: { key: "SHOPS_VIEW", label: "View Shops", module: MODULES.SHOPS, action: "read", moduleScope: "pos" },
+    SHOPS_VIEW_ONE: { key: "SHOPS_VIEW_ONE", label: "View Shop Details", module: MODULES.SHOPS, action: "read", moduleScope: "pos" },
+    SHOPS_CREATE: { key: "SHOPS_CREATE", label: "Create Shop", module: MODULES.SHOPS, action: "create", moduleScope: "pos" },
+    SHOPS_UPDATE: { key: "SHOPS_UPDATE", label: "Update Shop", module: MODULES.SHOPS, action: "update", moduleScope: "pos" },
+    SHOPS_UPDATE_POS_MODE: { key: "SHOPS_UPDATE_POS_MODE", label: "Update POS Mode (Restaurant / Retail)", module: MODULES.SHOPS, action: "special", moduleScope: "pos" },
+    SHOPS_DELETE: { key: "SHOPS_DELETE", label: "Delete Shop", module: MODULES.SHOPS, action: "delete", moduleScope: "pos" },
 
     // ── SUPPLIERS ─────────────────────────────────────────────────────────────
 
-    SUPPLIERS_VIEW: { key: "SUPPLIERS_VIEW", label: "View Suppliers", module: MODULES.SUPPLIERS, action: "read", moduleScope: "core" },
-    SUPPLIERS_CREATE: { key: "SUPPLIERS_CREATE", label: "Create Supplier", module: MODULES.SUPPLIERS, action: "create", moduleScope: "core" },
-    SUPPLIERS_UPDATE: { key: "SUPPLIERS_UPDATE", label: "Update Supplier", module: MODULES.SUPPLIERS, action: "update", moduleScope: "core" },
-    SUPPLIERS_DELETE: { key: "SUPPLIERS_DELETE", label: "Delete Supplier", module: MODULES.SUPPLIERS, action: "delete", moduleScope: "core" },
+    SUPPLIERS_VIEW: { key: "SUPPLIERS_VIEW", label: "View Suppliers", module: MODULES.SUPPLIERS, action: "read", moduleScope: "pos" },
+    SUPPLIERS_CREATE: { key: "SUPPLIERS_CREATE", label: "Create Supplier", module: MODULES.SUPPLIERS, action: "create", moduleScope: "pos" },
+    SUPPLIERS_UPDATE: { key: "SUPPLIERS_UPDATE", label: "Update Supplier", module: MODULES.SUPPLIERS, action: "update", moduleScope: "pos" },
+    SUPPLIERS_DELETE: { key: "SUPPLIERS_DELETE", label: "Delete Supplier", module: MODULES.SUPPLIERS, action: "delete", moduleScope: "pos" },
 
     // ── SYSTEM SETUP ──────────────────────────────────────────────────────────
 
@@ -380,25 +390,25 @@ export const PERMISSIONS: Record<string, Permission> = {
 
     // ── TABLES ────────────────────────────────────────────────────────────────
 
-    TABLES_VIEW: { key: "TABLES_VIEW", label: "View Tables", module: MODULES.TABLES, action: "read", moduleScope: "core" },
-    TABLES_CREATE: { key: "TABLES_CREATE", label: "Create Table", module: MODULES.TABLES, action: "create", moduleScope: "core" },
-    TABLES_UPDATE: { key: "TABLES_UPDATE", label: "Update Table", module: MODULES.TABLES, action: "update", moduleScope: "core" },
-    TABLES_DELETE: { key: "TABLES_DELETE", label: "Delete Table", module: MODULES.TABLES, action: "delete", moduleScope: "core" },
-    TABLES_CREATE_AUTO_SLOT: { key: "TABLES_CREATE_AUTO_SLOT", label: "Create Auto Slot (Retail Mode)", module: MODULES.TABLES, action: "special", moduleScope: "core" },
-    TABLE_LOCATIONS_VIEW: { key: "TABLE_LOCATIONS_VIEW", label: "View Table Locations", module: MODULES.TABLES, action: "read", moduleScope: "core" },
-    TABLE_LOCATIONS_CREATE: { key: "TABLE_LOCATIONS_CREATE", label: "Create Table Location", module: MODULES.TABLES, action: "create", moduleScope: "core" },
-    TABLE_LOCATIONS_UPDATE: { key: "TABLE_LOCATIONS_UPDATE", label: "Update Table Location", module: MODULES.TABLES, action: "update", moduleScope: "core" },
-    TABLE_LOCATIONS_DELETE: { key: "TABLE_LOCATIONS_DELETE", label: "Delete Table Location", module: MODULES.TABLES, action: "delete", moduleScope: "core" },
-    TABLES_TRANSFER_CART_ITEMS: { key: "TABLES_TRANSFER_CART_ITEMS", label: "Transfer Cart Items Between Tables", module: MODULES.TABLES, action: "special", moduleScope: "core" },
+    TABLES_VIEW: { key: "TABLES_VIEW", label: "View Tables", module: MODULES.TABLES, action: "read", moduleScope: "pos" },
+    TABLES_CREATE: { key: "TABLES_CREATE", label: "Create Table", module: MODULES.TABLES, action: "create", moduleScope: "pos" },
+    TABLES_UPDATE: { key: "TABLES_UPDATE", label: "Update Table", module: MODULES.TABLES, action: "update", moduleScope: "pos" },
+    TABLES_DELETE: { key: "TABLES_DELETE", label: "Delete Table", module: MODULES.TABLES, action: "delete", moduleScope: "pos" },
+    TABLES_CREATE_AUTO_SLOT: { key: "TABLES_CREATE_AUTO_SLOT", label: "Create Auto Slot (Retail Mode)", module: MODULES.TABLES, action: "special", moduleScope: "pos" },
+    TABLE_LOCATIONS_VIEW: { key: "TABLE_LOCATIONS_VIEW", label: "View Table Locations", module: MODULES.TABLES, action: "read", moduleScope: "pos" },
+    TABLE_LOCATIONS_CREATE: { key: "TABLE_LOCATIONS_CREATE", label: "Create Table Location", module: MODULES.TABLES, action: "create", moduleScope: "pos" },
+    TABLE_LOCATIONS_UPDATE: { key: "TABLE_LOCATIONS_UPDATE", label: "Update Table Location", module: MODULES.TABLES, action: "update", moduleScope: "pos" },
+    TABLE_LOCATIONS_DELETE: { key: "TABLE_LOCATIONS_DELETE", label: "Delete Table Location", module: MODULES.TABLES, action: "delete", moduleScope: "pos" },
+    TABLES_TRANSFER_CART_ITEMS: { key: "TABLES_TRANSFER_CART_ITEMS", label: "Transfer Cart Items Between Tables", module: MODULES.TABLES, action: "special", moduleScope: "pos" },
 
     // ── UNITS OF MEASURE ──────────────────────────────────────────────────────
 
-    UOM_VIEW: { key: "UOM_VIEW", label: "View Units of Measure", module: MODULES.UOM, action: "read", moduleScope: "core" },
-    UOM_CREATE: { key: "UOM_CREATE", label: "Create Unit of Measure", module: MODULES.UOM, action: "create", moduleScope: "core" },
-    UOM_UPDATE: { key: "UOM_UPDATE", label: "Update Unit of Measure", module: MODULES.UOM, action: "update", moduleScope: "core" },
-    UOM_DELETE: { key: "UOM_DELETE", label: "Delete Unit of Measure", module: MODULES.UOM, action: "delete", moduleScope: "core" },
-    UOM_DELETE_MULTIPLE: { key: "UOM_DELETE_MULTIPLE", label: "Delete Multiple Units of Measure", module: MODULES.UOM, action: "delete", moduleScope: "core" },
-    UOM_DELETE_ALL: { key: "UOM_DELETE_ALL", label: "Delete All Units of Measure", module: MODULES.UOM, action: "delete", moduleScope: "core" },
+    UOM_VIEW: { key: "UOM_VIEW", label: "View Units of Measure", module: MODULES.UOM, action: "read", moduleScope: "pos" },
+    UOM_CREATE: { key: "UOM_CREATE", label: "Create Unit of Measure", module: MODULES.UOM, action: "create", moduleScope: "pos" },
+    UOM_UPDATE: { key: "UOM_UPDATE", label: "Update Unit of Measure", module: MODULES.UOM, action: "update", moduleScope: "pos" },
+    UOM_DELETE: { key: "UOM_DELETE", label: "Delete Unit of Measure", module: MODULES.UOM, action: "delete", moduleScope: "pos" },
+    UOM_DELETE_MULTIPLE: { key: "UOM_DELETE_MULTIPLE", label: "Delete Multiple Units of Measure", module: MODULES.UOM, action: "delete", moduleScope: "pos" },
+    UOM_DELETE_ALL: { key: "UOM_DELETE_ALL", label: "Delete All Units of Measure", module: MODULES.UOM, action: "delete", moduleScope: "pos" },
 
     // ── USERS ─────────────────────────────────────────────────────────────────
 
@@ -610,6 +620,75 @@ export const PERMISSIONS: Record<string, Permission> = {
     CRM_BUDGETS_UPDATE_ACTUALS: { key: "CRM_BUDGETS_UPDATE_ACTUALS", label: "Update Budget Actuals", module: MODULES.CRM_SALES_BUDGETS, action: "special", moduleScope: "crm" },
     CRM_BUDGETS_DELETE: { key: "CRM_BUDGETS_DELETE", label: "Delete Sales Budget", module: MODULES.CRM_SALES_BUDGETS, action: "delete", moduleScope: "crm" },
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // DALA / REAL ESTATE MODULE  (moduleScope: "dala")
+    // Visible / assignable only when tenant.modules.dala === true
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // ── Dashboard ─────────────────────────────────────────────────────────────
+
+    DALA_DASHBOARD_VIEW: { key: "DALA_DASHBOARD_VIEW", label: "View Dala Dashboard", module: MODULES.DALA_DASHBOARD, action: "read", moduleScope: "dala" },
+
+    // ── Properties ─────────────────────────────────────────────────────────────
+
+    DALA_PROPERTIES_VIEW: { key: "DALA_PROPERTIES_VIEW", label: "View Properties", module: MODULES.DALA_PROPERTIES, action: "read", moduleScope: "dala" },
+    DALA_PROPERTIES_VIEW_ONE: { key: "DALA_PROPERTIES_VIEW_ONE", label: "View Property Details", module: MODULES.DALA_PROPERTIES, action: "read", moduleScope: "dala" },
+    DALA_PROPERTIES_CREATE: { key: "DALA_PROPERTIES_CREATE", label: "Create Property", module: MODULES.DALA_PROPERTIES, action: "create", moduleScope: "dala" },
+    DALA_PROPERTIES_UPDATE: { key: "DALA_PROPERTIES_UPDATE", label: "Update Property", module: MODULES.DALA_PROPERTIES, action: "update", moduleScope: "dala" },
+    DALA_PROPERTIES_DELETE: { key: "DALA_PROPERTIES_DELETE", label: "Delete Property", module: MODULES.DALA_PROPERTIES, action: "delete", moduleScope: "dala" },
+
+    // ── Property Types ─────────────────────────────────────────────────────────
+
+    DALA_PROPERTY_TYPES_VIEW: { key: "DALA_PROPERTY_TYPES_VIEW", label: "View Property Types", module: MODULES.DALA_PROPERTY_TYPES, action: "read", moduleScope: "dala" },
+    DALA_PROPERTY_TYPES_CREATE: { key: "DALA_PROPERTY_TYPES_CREATE", label: "Create Property Type", module: MODULES.DALA_PROPERTY_TYPES, action: "create", moduleScope: "dala" },
+    DALA_PROPERTY_TYPES_UPDATE: { key: "DALA_PROPERTY_TYPES_UPDATE", label: "Update Property Type", module: MODULES.DALA_PROPERTY_TYPES, action: "update", moduleScope: "dala" },
+    DALA_PROPERTY_TYPES_DELETE: { key: "DALA_PROPERTY_TYPES_DELETE", label: "Delete Property Type", module: MODULES.DALA_PROPERTY_TYPES, action: "delete", moduleScope: "dala" },
+
+    // ── Sales ─────────────────────────────────────────────────────────────────
+
+    DALA_SALES_VIEW: { key: "DALA_SALES_VIEW", label: "View Sales", module: MODULES.DALA_SALES, action: "read", moduleScope: "dala" },
+    DALA_SALES_VIEW_ONE: { key: "DALA_SALES_VIEW_ONE", label: "View Sale Details", module: MODULES.DALA_SALES, action: "read", moduleScope: "dala" },
+    DALA_SALES_CREATE: { key: "DALA_SALES_CREATE", label: "Create Sale", module: MODULES.DALA_SALES, action: "create", moduleScope: "dala" },
+    DALA_SALES_UPDATE: { key: "DALA_SALES_UPDATE", label: "Update Sale", module: MODULES.DALA_SALES, action: "update", moduleScope: "dala" },
+    DALA_SALES_DELETE: { key: "DALA_SALES_DELETE", label: "Delete Sale", module: MODULES.DALA_SALES, action: "delete", moduleScope: "dala" },
+    DALA_SALES_DOWNLOAD_OFFER_LETTER: { key: "DALA_SALES_DOWNLOAD_OFFER_LETTER", label: "Download Offer Letter", module: MODULES.DALA_SALES, action: "special", moduleScope: "dala" },
+
+    // ── Leases ─────────────────────────────────────────────────────────────────
+
+    DALA_LEASES_VIEW: { key: "DALA_LEASES_VIEW", label: "View Leases", module: MODULES.DALA_LEASES, action: "read", moduleScope: "dala" },
+    DALA_LEASES_VIEW_ONE: { key: "DALA_LEASES_VIEW_ONE", label: "View Lease Details", module: MODULES.DALA_LEASES, action: "read", moduleScope: "dala" },
+    DALA_LEASES_CREATE: { key: "DALA_LEASES_CREATE", label: "Create Lease", module: MODULES.DALA_LEASES, action: "create", moduleScope: "dala" },
+    DALA_LEASES_UPDATE: { key: "DALA_LEASES_UPDATE", label: "Update Lease", module: MODULES.DALA_LEASES, action: "update", moduleScope: "dala" },
+    DALA_LEASES_DELETE: { key: "DALA_LEASES_DELETE", label: "Delete Lease", module: MODULES.DALA_LEASES, action: "delete", moduleScope: "dala" },
+
+    // ── Commissions ───────────────────────────────────────────────────────────
+
+    DALA_COMMISSIONS_VIEW: { key: "DALA_COMMISSIONS_VIEW", label: "View Commissions", module: MODULES.DALA_COMMISSIONS, action: "read", moduleScope: "dala" },
+    DALA_COMMISSIONS_VIEW_ONE: { key: "DALA_COMMISSIONS_VIEW_ONE", label: "View Commission Details", module: MODULES.DALA_COMMISSIONS, action: "read", moduleScope: "dala" },
+    DALA_COMMISSIONS_CREATE: { key: "DALA_COMMISSIONS_CREATE", label: "Create Commission", module: MODULES.DALA_COMMISSIONS, action: "create", moduleScope: "dala" },
+    DALA_COMMISSIONS_UPDATE: { key: "DALA_COMMISSIONS_UPDATE", label: "Update Commission", module: MODULES.DALA_COMMISSIONS, action: "update", moduleScope: "dala" },
+    DALA_COMMISSIONS_DELETE: { key: "DALA_COMMISSIONS_DELETE", label: "Delete Commission", module: MODULES.DALA_COMMISSIONS, action: "delete", moduleScope: "dala" },
+
+    // ── Rent Collection ───────────────────────────────────────────────────────
+
+    DALA_RENT_COLLECTION_VIEW: { key: "DALA_RENT_COLLECTION_VIEW", label: "View Rent Collection", module: MODULES.DALA_RENT_COLLECTION, action: "read", moduleScope: "dala" },
+    DALA_RENT_COLLECTION_VIEW_ONE: { key: "DALA_RENT_COLLECTION_VIEW_ONE", label: "View Rent Collection Details", module: MODULES.DALA_RENT_COLLECTION, action: "read", moduleScope: "dala" },
+    DALA_RENT_COLLECTION_CREATE: { key: "DALA_RENT_COLLECTION_CREATE", label: "Record Rent Payment", module: MODULES.DALA_RENT_COLLECTION, action: "create", moduleScope: "dala" },
+    DALA_RENT_COLLECTION_UPDATE: { key: "DALA_RENT_COLLECTION_UPDATE", label: "Update Rent Collection", module: MODULES.DALA_RENT_COLLECTION, action: "update", moduleScope: "dala" },
+    DALA_RENT_COLLECTION_DELETE: { key: "DALA_RENT_COLLECTION_DELETE", label: "Delete Rent Collection", module: MODULES.DALA_RENT_COLLECTION, action: "delete", moduleScope: "dala" },
+
+    // ── Maintenance ───────────────────────────────────────────────────────────
+
+    DALA_MAINTENANCE_VIEW: { key: "DALA_MAINTENANCE_VIEW", label: "View Maintenance Requests", module: MODULES.DALA_MAINTENANCE, action: "read", moduleScope: "dala" },
+    DALA_MAINTENANCE_VIEW_ONE: { key: "DALA_MAINTENANCE_VIEW_ONE", label: "View Maintenance Details", module: MODULES.DALA_MAINTENANCE, action: "read", moduleScope: "dala" },
+    DALA_MAINTENANCE_CREATE: { key: "DALA_MAINTENANCE_CREATE", label: "Create Maintenance Request", module: MODULES.DALA_MAINTENANCE, action: "create", moduleScope: "dala" },
+    DALA_MAINTENANCE_UPDATE: { key: "DALA_MAINTENANCE_UPDATE", label: "Update Maintenance Request", module: MODULES.DALA_MAINTENANCE, action: "update", moduleScope: "dala" },
+    DALA_MAINTENANCE_DELETE: { key: "DALA_MAINTENANCE_DELETE", label: "Delete Maintenance Request", module: MODULES.DALA_MAINTENANCE, action: "delete", moduleScope: "dala" },
+
+    // ── Reports ───────────────────────────────────────────────────────────────
+
+    DALA_REPORTS_VIEW: { key: "DALA_REPORTS_VIEW", label: "View Dala Reports", module: MODULES.DALA_REPORTS, action: "read", moduleScope: "dala" },
+
 } as const;
 
 // ─── Key collections ──────────────────────────────────────────────────────────
@@ -628,6 +707,9 @@ export const ACCOUNTING_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
 export const CRM_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
     (k) => PERMISSIONS[k].moduleScope === "crm"
 );
+export const DALA_PERMISSION_KEYS = ALL_PERMISSION_KEYS.filter(
+    (k) => PERMISSIONS[k].moduleScope === "dala"
+);
 
 // ─── Tenant-aware helpers ─────────────────────────────────────────────────────
 
@@ -635,12 +717,16 @@ export const getPermissionsForTenant = (options: {
     hasHR?: boolean;
     hasAccounting?: boolean;
     hasCRM?: boolean;
+    hasDala?: boolean;
+    hasPOS?: boolean;
 }): Permission[] =>
     Object.values(PERMISSIONS).filter((p) => {
         if (p.moduleScope === "core") return true;
+        if (p.moduleScope === "pos") return !!options.hasPOS;
         if (p.moduleScope === "hr") return !!options.hasHR;
         if (p.moduleScope === "accounting") return !!options.hasAccounting;
         if (p.moduleScope === "crm") return !!options.hasCRM;
+        if (p.moduleScope === "dala") return !!options.hasDala;
         return false;
     });
 
@@ -648,6 +734,8 @@ export const getPermissionsGroupedByModuleForTenant = (options: {
     hasHR?: boolean;
     hasAccounting?: boolean;
     hasCRM?: boolean;
+    hasDala?: boolean;
+    hasPOS?: boolean;
 }): Record<string, Permission[]> =>
     getPermissionsForTenant(options).reduce<Record<string, Permission[]>>((acc, p) => {
         if (!acc[p.module]) acc[p.module] = [];

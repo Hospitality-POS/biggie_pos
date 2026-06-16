@@ -12,13 +12,16 @@ import {
   Modal, Popconfirm, Tooltip, Typography,
 } from "antd";
 import { CSVLink } from "react-csv";
+import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
-import { ENTITY_NAME } from "@utils/config";
+import { ENTITY_NAME, COOP_NAME } from "@utils/config";
+import useSystemDetails from "@hooks/useSystemDetails";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 import {
   CalendarOutlined, DeleteOutlined, DollarOutlined,
   DownloadOutlined, FilterOutlined, RedoOutlined, UserOutlined,
   RiseOutlined, ShoppingCartOutlined, CheckCircleOutlined,
-  WarningOutlined, CreditCardOutlined,
+  WarningOutlined, CreditCardOutlined, FilePdfOutlined, PrinterFilled,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 
@@ -408,13 +411,34 @@ const OrdersTable = () => {
   const [mobilePage, setMobilePage] = useState(1);
   const [mobileTotal, setMobileTotal] = useState(0);
   const [mobileFilters, setMobileFilters] = useState<any>({});
+  const [printModalOpen, setPrintModalOpen] = useState(false);
 
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
   const [dateForm] = Form.useForm();
+  const printRef = useRef<HTMLDivElement>(null);
 
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
+  const { systemDetails } = useSystemDetails();
+  const primaryColor = usePrimaryColor();
+  
+  // Get tenant data from localStorage like login page
+  const [tenant, setTenant] = useState<any>(null);
+  
+  useEffect(() => {
+    const storedTenant = localStorage.getItem("tenant");
+    if (storedTenant) {
+      try {
+        const parsedTenant = JSON.parse(storedTenant);
+        setTenant(parsedTenant);
+      } catch (error) {
+        console.error("Error parsing tenant:", error);
+      }
+    }
+  }, []);
+  
+  const brandName = tenant?.name || systemDetails?.brand_name || COOP_NAME;
 
   const [queryParams, setQueryParams] = useState({
     page: 1, limit: 10,
@@ -523,6 +547,133 @@ const OrdersTable = () => {
     };
   });
 
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+  });
+
+  const handleExportPDF = () => {
+    setPrintModalOpen(true);
+  };
+
+  // ── Print component ─────────────────────────────────────────────────────
+  const OrdersPrintComponent = () => {
+    const startDate = queryParams.start_date;
+    const endDate = queryParams.end_date;
+    const totalRevenue = analyticsData.reduce((s: number, o: any) => {
+      const amt = Array.isArray(o.order_amount)
+        ? o.order_amount.reduce((s: number, a: any) => s + (Number(a) || 0), 0)
+        : Number(o.order_amount) || 0;
+      return s + amt;
+    }, 0);
+
+    // Lighten the primary color for backgrounds
+    const lightenColor = (color: string, percent: number) => {
+      const num = parseInt(color.replace("#", ""), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = (num >> 16) + amt;
+      const G = (num >> 8 & 0x00FF) + amt;
+      const B = (num & 0x0000FF) + amt;
+      return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+    };
+
+    const primaryLight = lightenColor(primaryColor, 90);
+
+    return (
+      <div ref={printRef} style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
+        <style>{`
+          @media print {
+            @page { size: A4; margin: 10mm; }
+            body { -webkit-print-color-adjust: exact; }
+          }
+        `}</style>
+        
+        {/* Header with Logo */}
+        <div style={{ textAlign: "center", marginBottom: "20px", paddingBottom: "15px", borderBottom: `2px solid ${primaryColor}` }}>
+          {tenant?.tenant_logo?.url ? (
+            <img 
+              src={tenant.tenant_logo.url} 
+              alt="tenant-logo"
+              style={{ maxWidth: "150px", maxHeight: "80px", marginBottom: "10px", objectFit: "contain" }}
+            />
+          ) : (
+            <img
+              src="/relia.png"
+              alt="relia-logo"
+              style={{ maxWidth: "150px", maxHeight: "80px", marginBottom: "10px" }}
+            />
+          )}
+          <div style={{ fontSize: "18px", fontWeight: "bold", color: "#333" }}>{brandName}</div>
+          <div style={{ fontSize: "14px", fontWeight: "bold", color: primaryColor, marginTop: "5px" }}>ORDERS REPORT</div>
+          <div style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>
+            {dayjs(startDate).format("MMM DD, YYYY")} - {dayjs(endDate).format("MMM DD, YYYY")}
+          </div>
+          {tenant?.location && (
+            <div style={{ fontSize: "11px", color: "#999", marginTop: "3px" }}>{tenant.location}</div>
+          )}
+        </div>
+
+        {/* Summary */}
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", padding: "15px", background: primaryLight, borderRadius: "8px" }}>
+          <div>
+            <div style={{ fontSize: "12px", color: "#666" }}>Total Orders</div>
+            <div style={{ fontSize: "20px", fontWeight: "bold", color: primaryColor }}>{analyticsData.length}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: "12px", color: "#666" }}>Total Revenue</div>
+            <div style={{ fontSize: "20px", fontWeight: "bold", color: "#10b981" }}>
+              KES {totalRevenue.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          </div>
+        </div>
+
+        {/* Orders Table */}
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
+          <thead>
+            <tr style={{ background: primaryColor, color: "white" }}>
+              <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>Order Number</th>
+              <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>Date</th>
+              <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>Served By</th>
+              <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>Customer Name</th>
+              <th style={{ padding: "8px", textAlign: "left", border: "1px solid #ddd" }}>Payment Method</th>
+              <th style={{ padding: "8px", textAlign: "right", border: "1px solid #ddd" }}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {analyticsData.map((order: any, index: number) => {
+              const servedBy = Array.isArray(order.served_by)
+                ? order.served_by.map((u: any) => typeof u === "string" ? u : u?.username).filter(Boolean).join(", ")
+                : order.served_by?.username || "—";
+              const paymentMethod = order.order_payments?.[0]?.name || "—";
+              const paymentStatus = order.order_payments?.[0]?.payment_status || "—";
+              const totalPayments = order.order_payments?.reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0) || 0;
+              return (
+                <tr key={order._id} style={{ background: index % 2 === 0 ? "#fff" : "#f9f9f9" }}>
+                  <td style={{ padding: "6px", border: "1px solid #ddd" }}>{order.order_no}</td>
+                  <td style={{ padding: "6px", border: "1px solid #ddd" }}>{dayjs(order.createdAt).format("DD/MM/YYYY, HH:mm:ss")}</td>
+                  <td style={{ padding: "6px", border: "1px solid #ddd" }}>{servedBy}</td>
+                  <td style={{ padding: "6px", border: "1px solid #ddd" }}>{order.customer_name || "—"}</td>
+                  <td style={{ padding: "6px", border: "1px solid #ddd" }}>
+                    {paymentMethod} — KES {totalPayments.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {paymentStatus && <span style={{ marginLeft: 4, color: "#10b981" }}>{paymentStatus}</span>}
+                  </td>
+                  <td style={{ padding: "6px", border: "1px solid #ddd", textAlign: "right" }}>
+                    KES {totalPayments.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* Footer */}
+        <div style={{ marginTop: "30px", paddingTop: "15px", borderTop: "1px solid #ddd", textAlign: "center", fontSize: "10px", color: "#999" }}>
+          <div>Generated on {dayjs().format("DD MMM YYYY HH:mm")}</div>
+          <div>{brandName}</div>
+        </div>
+      </div>
+    );
+  };
+
   // ── Desktop columns ────────────────────────────────────────────────────
   const desktopColumns: ProColumns[] = [
     {
@@ -546,8 +697,13 @@ const OrdersTable = () => {
       render: (text: string, record: any) => <TableBadge text={text} orderType={record.order_type} />,
     },
     {
-      title: "Closed By", dataIndex: ["updated_by", "username"], key: "closed-by", hideInSearch: true,
-      render: (text: string) => <ClosedByTag username={text} />,
+      title: "Served By", dataIndex: "served_by", key: "served-by", hideInSearch: true,
+      render: (_: any, record: any) => {
+        const servedBy = Array.isArray(record.served_by)
+          ? record.served_by.map((u: any) => typeof u === "string" ? u : u?.username).filter(Boolean).join(", ")
+          : record.served_by?.username || "—";
+        return <Text style={{ fontSize: 12 }}>{servedBy}</Text>;
+      },
     },
     {
       title: "Amount", dataIndex: "order_amount", key: "order-amount", hideInSearch: true, ellipsis: true,
@@ -675,9 +831,10 @@ const OrdersTable = () => {
             </div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
               <Button size="small" icon={<FilterOutlined />} onClick={() => setFilterOpen(true)} style={{ borderRadius: 8, borderColor: C.border, height: 30, fontSize: 12 }}>Filter</Button>
-              <CSVLink data={csvData} filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}
-                style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 30, padding: "0 10px", borderRadius: 8, fontSize: 12, background: C.primary, color: "#fff", textDecoration: "none", fontWeight: 500, whiteSpace: "nowrap" }}>
-                <DownloadOutlined style={{ fontSize: 12 }} /> CSV
+              <CSVLink data={csvData} filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}>
+                <Button size="small" icon={<DownloadOutlined />} type="primary" style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 30, fontSize: 12 }}>
+                  CSV
+                </Button>
               </CSVLink>
             </div>
           </div>
@@ -742,10 +899,14 @@ const OrdersTable = () => {
         toolbar={{
           title: "Orders", tooltip: "Order Management",
           actions: [
+            <Button key="pdf" icon={<FilePdfOutlined />} onClick={handleExportPDF} style={{ borderRadius: 8 }}>
+              Export PDF
+            </Button>,
             <CSVLink key="csv" data={csvData}
-              filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 15px", borderRadius: 8, fontSize: 13, background: C.primary, color: "#fff", textDecoration: "none", fontWeight: 500 }}>
-              <DownloadOutlined /> Export CSV
+              filename={`${ENTITY_NAME}_Orders_${dayjs().format("YYYY-MM-DD")}.csv`}>
+              <Button type="primary" icon={<DownloadOutlined />} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+                Export CSV
+              </Button>
             </CSVLink>,
           ],
         }}
@@ -805,6 +966,28 @@ const OrdersTable = () => {
         scroll={{ x: 1200 }}
       />
       {EditDateModal}
+
+      {/* PDF Export Modal */}
+      <Modal
+        open={printModalOpen}
+        onCancel={() => setPrintModalOpen(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setPrintModalOpen(false)}>Close</Button>,
+          <Button key="print" type="primary" icon={<PrinterFilled />} onClick={handlePrint} style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+            Print / Save as PDF
+          </Button>,
+        ]}
+        width={800}
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <FilePdfOutlined style={{ color: C.primary }} />
+            <span>Export Orders as PDF</span>
+          </div>
+        }
+        styles={{ body: { padding: "20px", maxHeight: "70vh", overflow: "auto" } }}
+      >
+        <OrdersPrintComponent />
+      </Modal>
     </>
   );
 };

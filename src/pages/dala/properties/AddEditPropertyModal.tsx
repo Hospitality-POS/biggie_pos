@@ -126,6 +126,7 @@ const getFieldPlaceholder = (fieldName: string): string => {
 };
 
 const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actionRef, data, quickMode }) => {
+  const STORAGE_KEY = 'dala_property_draft';
 
   const { data: allUsers } = useQuery({
     queryKey: ['users'],
@@ -205,6 +206,22 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
   const [namingPattern, setNamingPattern] = useState<'sequential' | 'letters' | 'custom'>('sequential');
   const [viewApartmentsModalVisible, setViewApartmentsModalVisible] = useState(false);
   const [selectedUnitForView, setSelectedUnitForView] = useState<Unit | null>(null);
+  const [editUnitModalVisible, setEditUnitModalVisible] = useState(false);
+  const [selectedUnitForEdit, setSelectedUnitForEdit] = useState<Unit | null>(null);
+  const [editUnitForm, setEditUnitForm] = useState({
+    unitNumber: '',
+    unitType: 'one_bedroom',
+    areaSqm: 0,
+    priceStartPoint: 0,
+    totalUnits: 1,
+    bedrooms: 1,
+    bathrooms: 1,
+    status: 'available',
+    blockId: '',
+    floorId: '',
+  });
+  const [editUnitApartments, setEditUnitApartments] = useState<Apartment[]>([]);
+  const [newAptForm, setNewAptForm] = useState({ apartmentName: '', areaValue: 0, price: 0, status: 'available' as 'available' | 'sold' | 'reserved' });
   const [editApartmentModalVisible, setEditApartmentModalVisible] = useState(false);
   const [selectedApartmentForEdit, setSelectedApartmentForEdit] = useState<any>(null);
   const [editApartmentForm, setEditApartmentForm] = useState({
@@ -215,8 +232,79 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
   });
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [undefinedFields, setUndefinedFields] = useState<any[]>([]);
+  const [editUnitActiveTab, setEditUnitActiveTab] = useState<string>('details');
 
   const [formRef] = Form.useForm();
+
+  // Save draft to localStorage
+  const saveDraft = () => {
+    if (edit) return; // Don't save drafts for edit mode
+    const formValues = formRef.getFieldsValue();
+    const draftData = {
+      formValues,
+      phases,
+      units,
+      blocks,
+      floors,
+      propertyType,
+      propertyPurpose,
+      currentPhase,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(draftData));
+  };
+
+  // Load draft from localStorage
+  const loadDraft = () => {
+    if (edit) return; // Don't load drafts for edit mode
+    const savedDraft = localStorage.getItem(STORAGE_KEY);
+    if (savedDraft) {
+      try {
+        const draftData = JSON.parse(savedDraft);
+        // Only load if draft is less than 24 hours old
+        if (Date.now() - draftData.timestamp < 24 * 60 * 60 * 1000) {
+          // Use setTimeout to ensure form is mounted
+          setTimeout(() => {
+            formRef.setFieldsValue(draftData.formValues);
+            setPhases(draftData.phases || []);
+            setUnits(draftData.units || []);
+            setBlocks(draftData.blocks || []);
+            setFloors(draftData.floors || []);
+            setPropertyType(draftData.propertyType || '');
+            setPropertyPurpose(draftData.propertyPurpose || 'sale');
+            setCurrentPhase(draftData.currentPhase || '');
+           // message.info('Draft loaded from previous session');
+          }, 100);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      } catch (error) {
+        console.error('Error loading draft:', error);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  };
+
+  // Clear draft from localStorage
+  const clearDraft = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    message.success('Draft cleared');
+  };
+
+  // Auto-save draft on form changes
+  useEffect(() => {
+    if (!edit) {
+      const timer = setTimeout(saveDraft, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [phases, units, blocks, floors, propertyType, propertyPurpose, currentPhase]);
+
+  // Load draft on mount (only for new properties)
+  useEffect(() => {
+    if (!edit) {
+      loadDraft();
+    }
+  }, [edit]);
 
   // ✅ Count existing apartments of the same unit type across ALL blocks
   const generateApartmentNames = (
@@ -395,17 +483,36 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       }
 
       if (propertyBlocks.length > 0) {
-        const loadedBlocks = propertyBlocks.map((block: any, index: number) => ({
-          ...block,
-          key: block._id || `block_${index}`,
-          tempId: block._id || `temp-block-${index}`,
-          floors: (block.floors || []).map((floor: any, fIndex: number) => ({
-            ...floor,
-            key: floor._id || `floor_${index}_${fIndex}`,
-            tempId: floor._id || `temp-floor-${index}_${fIndex}`,
-            blockTempId: block._id || `temp-block-${index}` 
-          }))
-        }));
+        const loadedBlocks = propertyBlocks.map((block: any, index: number) => {
+          const normalizedFloors = (block.floors || []).map((floor: any, fIndex: number) => {
+            // Normalize floor name from API format "Level 3 (+13.0)" to "3rd Floor"
+            let floorName = floor.name;
+            if (floorName && floorName.includes('Level')) {
+              const match = floorName.match(/Level\s+(\d+)/);
+              if (match) {
+                const floorNum = parseInt(match[1]);
+                if (floorNum === 0) floorName = 'Ground Floor';
+                else if (floorNum === 1) floorName = '1st Floor';
+                else if (floorNum === 2) floorName = '2nd Floor';
+                else if (floorNum === 3) floorName = '3rd Floor';
+                else floorName = `${floorNum}th Floor`;
+              }
+            }
+            return {
+              ...floor,
+              key: floor._id || `floor_${index}_${fIndex}`,
+              tempId: floor._id || `temp-floor-${index}_${fIndex}`,
+              blockTempId: block._id || `temp-block-${index}`,
+              name: floorName || floor.name
+            };
+          });
+          return {
+            ...block,
+            key: block._id || `block_${index}`,
+            tempId: block._id || `temp-block-${index}`,
+            floors: normalizedFloors
+          };
+        });
         setBlocks(loadedBlocks);
         setFloors(loadedBlocks.flatMap((block: any) => block.floors));
       }
@@ -682,8 +789,78 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
   };
 
   const removeUnit = (key: string) => {
-    setUnits(units.filter(u => u.key !== key));
+    setUnits(units.filter(u => (u.key || u._id) !== key));
     message.success('Unit removed successfully');
+  };
+
+  const openEditUnit = (unit: Unit) => {
+    setSelectedUnitForEdit(unit);
+    setEditUnitForm({
+      unitNumber: unit.unitNumber || '',
+      unitType: unit.unitType || 'one_bedroom',
+      areaSqm: (unit as any).areaSqm || 0,
+      priceStartPoint: unit.priceStartPoint || 0,
+      totalUnits: unit.totalUnits || 1,
+      bedrooms: (unit as any).specifications?.bedrooms ?? (unit as any).bedrooms ?? 1,
+      bathrooms: (unit as any).specifications?.bathrooms ?? (unit as any).bathrooms ?? 1,
+      status: unit.status || 'available',
+      blockId: unit.blockId || '',
+      floorId: unit.floorId || '',
+    });
+    setEditUnitApartments(unit.apartments ? [...unit.apartments] : []);
+    setNewAptForm({ apartmentName: '', areaValue: 0, price: 0, status: 'available' });
+    setEditUnitActiveTab('details');
+    setEditUnitModalVisible(true);
+  };
+
+  const handleAddNewApartment = () => {
+    if (!newAptForm.apartmentName.trim()) { message.error('Apartment name is required'); return; }
+    const newApt: Apartment = {
+      key: `apt_${Date.now()}`,
+      apartmentName: newAptForm.apartmentName.trim(),
+      area: newAptForm.areaValue as any,
+      saleListPrice: newAptForm.price,
+      status: newAptForm.status,
+    } as any;
+    setEditUnitApartments(prev => [...prev, newApt]);
+    setNewAptForm({ apartmentName: '', areaValue: 0, price: 0, status: 'available' });
+  };
+
+  const handleRemoveApartmentFromEdit = (key: string | undefined, idx: number) => {
+    setEditUnitApartments(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveUnitEdit = () => {
+    if (!selectedUnitForEdit) return;
+    const hasApts = editUnitApartments.length > 0;
+    setUnits(prev => prev.map(u => {
+      if ((u.key || u._id) === (selectedUnitForEdit.key || selectedUnitForEdit._id)) {
+        return {
+          ...u,
+          unitNumber: editUnitForm.unitNumber,
+          unitType: editUnitForm.unitType,
+          areaSqm: editUnitForm.areaSqm,
+          priceStartPoint: editUnitForm.priceStartPoint,
+          basePrice: editUnitForm.priceStartPoint,
+          totalUnits: hasApts ? editUnitApartments.length : editUnitForm.totalUnits,
+          availableUnits: hasApts ? editUnitApartments.filter(a => a.status === 'available').length : editUnitForm.totalUnits,
+          status: editUnitForm.status,
+          trackIndividualUnits: hasApts,
+          apartments: hasApts ? editUnitApartments : u.apartments,
+          blockId: editUnitForm.blockId || u.blockId,
+          floorId: editUnitForm.floorId || u.floorId,
+          specifications: {
+            ...(u as any).specifications,
+            bedrooms: editUnitForm.bedrooms,
+            bathrooms: editUnitForm.bathrooms,
+          },
+        } as Unit;
+      }
+      return u;
+    }));
+    setEditUnitModalVisible(false);
+    setSelectedUnitForEdit(null);
+    message.success('Unit updated successfully');
   };
 
   const viewApartments = (unit: Unit) => {
@@ -735,7 +912,8 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
     if (propertyType === 'land') return unit.plotSize || unit.unitType;
     const block = blocks.find(b => b.tempId === unit.blockId);
     const floor = floors.find(f => f.tempId === unit.floorId);
-    return [block?.name, floor?.name, unit.unitNumber, unit.unitType.replace('_', ' ')].filter(Boolean).join(' - ');
+    const unitTypeLabel = unit.unitType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return [block?.name, floor?.name, unit.unitNumber, unitTypeLabel].filter(Boolean).join(' - ');
   };
 
   const renderBlockManagement = () => {
@@ -1289,13 +1467,41 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
         title: 'Area (sqm)',
         dataIndex: 'areaSqm',
         key: 'areaSqm',
-        render: (area: number) => `${area?.toLocaleString() || 0} sqm`
+        render: (area: number, record: Unit) => {
+          if (record.trackIndividualUnits && record.apartments && record.apartments.length > 0) {
+            const totalSqm = record.apartments.reduce((sum, apt) => {
+              const a = apt.area;
+              return sum + (typeof a === 'object' ? (a as any)?.value || 0 : a || 0);
+            }, 0);
+            return <span><strong>{totalSqm.toLocaleString()}</strong> sqm <span style={{ color: '#8c8c8c', fontSize: 11 }}>({record.apartments.length} apts)</span></span>;
+          }
+          return `${area?.toLocaleString() || 0} sqm`;
+        }
       }] : []),
-      { title: 'Start Price (KES)', dataIndex: 'priceStartPoint', key: 'priceStartPoint', render: (price: number) => `${price?.toLocaleString() || 0}` },
+      {
+        title: 'Start Price (KES)', dataIndex: 'priceStartPoint', key: 'priceStartPoint',
+        render: (price: number, record: Unit) => {
+          if (record.trackIndividualUnits && record.apartments && record.apartments.length > 0) {
+            const prices = record.apartments
+              .map((a: any) => a.saleListPrice || a.monthlyRent || 0)
+              .filter((p: number) => p > 0);
+            if (prices.length === 0) return <span style={{ color: '#bbb' }}>—</span>;
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            return min === max
+              ? `${min.toLocaleString()}`
+              : <span>{min.toLocaleString()} <span style={{ color: '#8c8c8c' }}>– {max.toLocaleString()}</span></span>;
+          }
+          return price ? price.toLocaleString() : <span style={{ color: '#bbb' }}>—</span>;
+        }
+      },
       {
         title: 'Actions', key: 'actions',
         render: (_: any, record: Unit) => (
           <Space>
+            <Button type="link" icon={<EditOutlined />} onClick={() => openEditUnit(record)} size="small">
+              Edit Unit
+            </Button>
             {record.trackIndividualUnits && record.apartments && (
               <Button type="link" icon={<UnorderedListOutlined />} onClick={() => viewApartments(record)} size="small">
                 View Apartments ({record.apartments.length})
@@ -1608,6 +1814,11 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
             priceStartPoint: 0
           }
         }
+        onValuesChange={() => {
+          if (!edit) {
+            saveDraft();
+          }
+        }}
         onFinish={async (values) => {
           if (!validateBeforeSubmit()) return false;
 
@@ -1711,6 +1922,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
             } else {
               await createProperty(formData);
               message.success('Property created successfully');
+              clearDraft(); // Clear draft after successful submission
             }
             actionRef?.current?.reload();
             setCurrentStep(0);
@@ -1721,9 +1933,16 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           }
         }}
         modalProps={{
-          destroyOnClose: true,
+          destroyOnClose: false,
           centered: true,
           afterClose: () => setCurrentStep(0),
+          styles: {
+            body: {
+              maxHeight: 'calc(100vh - 220px)',
+              overflowY: 'auto',
+              paddingRight: 4,
+            },
+          },
         }}
         autoFocusFirstInput
         width={1200}
@@ -1733,14 +1952,26 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           render: (_, defaultDoms) => {
             if (currentStep === 0) {
               return (
-                <Button type="primary" onClick={goToStep2}>
-                  Next: Units & Pricing →
-                </Button>
+                <Space>
+                  {!edit && (
+                    <Button onClick={clearDraft} type="default">
+                      Clear Draft
+                    </Button>
+                  )}
+                  <Button type="primary" onClick={goToStep2}>
+                    Next: Units & Pricing →
+                  </Button>
+                </Space>
               );
             }
             return (
               <Space>
                 <Button onClick={goToStep1}>← Back</Button>
+                {!edit && (
+                  <Button onClick={clearDraft} type="default">
+                    Clear Draft
+                  </Button>
+                )}
                 {defaultDoms[1]}
               </Space>
             );
@@ -1845,7 +2076,6 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
                           ? 'No types found'
                           : 'Select property type',
                       onChange: (value) => setPropertyType(normalizePropertyType(value)),
-                      disabled: edit,
                     }}
                   />
                 </Col>
@@ -1862,7 +2092,6 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
                 fieldProps={{
                   placeholder: 'Select purpose',
                   onChange: (value: string) => setPropertyPurpose(value),
-                  disabled: edit,
                 }}
                 initialValue={propertyPurpose}
               />
@@ -2020,6 +2249,330 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       {renderApartmentNamingModal()}
       {renderViewApartmentsModal()}
       {renderEditApartmentModal()}
+      <Modal
+        title={<Space><UnorderedListOutlined /> Edit Unit — {selectedUnitForEdit ? getUnitLabel(selectedUnitForEdit) : ''}</Space>}
+        open={editUnitModalVisible}
+        onCancel={() => { setEditUnitModalVisible(false); setSelectedUnitForEdit(null); setEditUnitActiveTab('details'); }}
+        width={800}
+        styles={{ body: { maxHeight: 'calc(100vh - 240px)', overflowY: 'auto' } }}
+        footer={[
+          <Button key="cancel" onClick={() => { setEditUnitModalVisible(false); setSelectedUnitForEdit(null); setEditUnitActiveTab('details'); }}>Cancel</Button>,
+          <Button key="save" type="primary" onClick={handleSaveUnitEdit}>Save Changes</Button>,
+        ]}
+      >
+        <Tabs
+          activeKey={editUnitActiveTab}
+          onChange={setEditUnitActiveTab}
+          items={[
+            {
+              key: 'details',
+              label: 'Unit Details',
+              children: (
+                <div style={{ padding: '16px 0' }}>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Block</label>
+                        <Select
+                          value={editUnitForm.blockId}
+                          onChange={(value) => {
+                            setEditUnitForm({ ...editUnitForm, blockId: value, floorId: '' });
+                          }}
+                          style={{ width: '100%' }}
+                          placeholder="Select block"
+                        >
+                          {blocks.map(block => (
+                            <Select.Option key={block.tempId} value={block.tempId}>
+                              {block.name} ({block.totalFloors} floors)
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </Col>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Floor</label>
+                        <Select
+                          value={editUnitForm.floorId}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, floorId: value })}
+                          style={{ width: '100%' }}
+                          placeholder="Select floor"
+                          disabled={!editUnitForm.blockId}
+                        >
+                          {floors.filter(floor => floor.blockTempId === editUnitForm.blockId).map(floor => (
+                            <Select.Option key={floor.tempId} value={floor.tempId}>
+                              {floor.name}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Unit Number</label>
+                        <Input
+                          value={editUnitForm.unitNumber}
+                          onChange={(e) => setEditUnitForm({ ...editUnitForm, unitNumber: e.target.value })}
+                          placeholder="e.g., 101, A1, BA111"
+                        />
+                      </div>
+                    </Col>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Unit Type</label>
+                        <Select
+                          value={editUnitForm.unitType}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, unitType: value })}
+                          style={{ width: '100%' }}
+                        >
+                          <Select.Option value="studio">Studio</Select.Option>
+                          <Select.Option value="one_bedroom">One Bedroom</Select.Option>
+                          <Select.Option value="two_bedroom">Two Bedroom</Select.Option>
+                          <Select.Option value="three_bedroom">Three Bedroom</Select.Option>
+                          <Select.Option value="penthouse">Penthouse</Select.Option>
+                          <Select.Option value="shop">Shop</Select.Option>
+                          <Select.Option value="other">Other</Select.Option>
+                        </Select>
+                      </div>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Area (sqm)</label>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          value={editUnitForm.areaSqm}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, areaSqm: value || 0 })}
+                          placeholder="Enter area in sqm"
+                        />
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Price Start Point (KES)</label>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          value={editUnitForm.priceStartPoint}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, priceStartPoint: value || 0 })}
+                          formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          placeholder="e.g., 5000000"
+                        />
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Status</label>
+                        <Select
+                          value={editUnitForm.status}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, status: value as 'available' | 'sold' | 'reserved' })}
+                          style={{ width: '100%' }}
+                        >
+                          <Select.Option value="available">Available</Select.Option>
+                          <Select.Option value="reserved">Reserved</Select.Option>
+                          <Select.Option value="sold">Sold</Select.Option>
+                        </Select>
+                      </div>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Bedrooms</label>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          value={editUnitForm.bedrooms}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, bedrooms: value || 0 })}
+                        />
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Bathrooms</label>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          value={editUnitForm.bathrooms}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, bathrooms: value || 0 })}
+                        />
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <label>Total Units</label>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={1}
+                          value={editUnitForm.totalUnits}
+                          onChange={(value) => setEditUnitForm({ ...editUnitForm, totalUnits: value || 1 })}
+                          disabled={editUnitApartments.length > 0}
+                        />
+                        {editUnitApartments.length > 0 && (
+                          <small style={{ color: '#888' }}>Disabled when tracking individual apartments</small>
+                        )}
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+              ),
+            },
+            {
+              key: 'apartments',
+              label: `Apartments (${editUnitApartments.length})`,
+              children: (
+                <div style={{ padding: '16px 0' }}>
+                  {/* Add new apartment row */}
+                  <div style={{ background: '#fafafa', border: '1px dashed #d9d9d9', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                    <Row gutter={8} align="middle">
+                      <Col span={7}>
+                        <Input
+                          placeholder="Name e.g. L2-02"
+                          value={newAptForm.apartmentName}
+                          onChange={(e) => setNewAptForm({ ...newAptForm, apartmentName: e.target.value })}
+                          onPressEnter={handleAddNewApartment}
+                          size="small"
+                        />
+                      </Col>
+                      <Col span={4}>
+                        <InputNumber
+                          placeholder="Area sqm"
+                          value={newAptForm.areaValue}
+                          onChange={(v) => setNewAptForm({ ...newAptForm, areaValue: v || 0 })}
+                          min={0}
+                          style={{ width: '100%' }}
+                          size="small"
+                        />
+                      </Col>
+                      <Col span={5}>
+                        <InputNumber
+                          placeholder="Price (KES)"
+                          value={newAptForm.price}
+                          onChange={(v) => setNewAptForm({ ...newAptForm, price: v || 0 })}
+                          min={0}
+                          style={{ width: '100%' }}
+                          size="small"
+                          formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                        />
+                      </Col>
+                      <Col span={5}>
+                        <Select
+                          value={newAptForm.status}
+                          onChange={(v) => setNewAptForm({ ...newAptForm, status: v })}
+                          size="small"
+                          style={{ width: '100%' }}
+                        >
+                          <Select.Option value="available">Available</Select.Option>
+                          <Select.Option value="reserved">Reserved</Select.Option>
+                          <Select.Option value="sold">Sold</Select.Option>
+                        </Select>
+                      </Col>
+                      <Col span={3}>
+                        <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleAddNewApartment} style={{ width: '100%' }}>
+                          Add
+                        </Button>
+                      </Col>
+                    </Row>
+                  </div>
+
+                  {/* Apartments list */}
+                  <Table
+                    dataSource={editUnitApartments}
+                    rowKey={(_, i) => String(i)}
+                    size="small"
+                    pagination={false}
+                    locale={{ emptyText: 'No apartments yet — add one above' }}
+                    columns={[
+                      { title: '#', render: (_: any, __: any, i: number) => i + 1, width: 40 },
+                      {
+                        title: 'Name', dataIndex: 'apartmentName',
+                        render: (name: string, _: Apartment, i: number) => (
+                          <Input
+                            value={name}
+                            size="small"
+                            onChange={(e) => {
+                              const updated = [...editUnitApartments];
+                              updated[i] = { ...updated[i], apartmentName: e.target.value };
+                              setEditUnitApartments(updated);
+                            }}
+                          />
+                        )
+                      },
+                      {
+                        title: 'Area (sqm)', dataIndex: 'area', width: 100,
+                        render: (area: any, _: Apartment, i: number) => (
+                          <InputNumber
+                            value={typeof area === 'object' ? area?.value : area}
+                            size="small"
+                            min={0}
+                            style={{ width: '100%' }}
+                            onChange={(v) => {
+                              const updated = [...editUnitApartments];
+                              updated[i] = { ...updated[i], area: v || 0 } as Apartment;
+                              setEditUnitApartments(updated);
+                            }}
+                          />
+                        )
+                      },
+                      {
+                        title: 'Price (KES)', dataIndex: 'saleListPrice', width: 120,
+                        render: (price: any, _: Apartment, i: number) => (
+                          <InputNumber
+                            value={price || ((_ as any).monthlyRent) || 0}
+                            size="small"
+                            min={0}
+                            style={{ width: '100%' }}
+                            formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            onChange={(v) => {
+                              const updated = [...editUnitApartments];
+                              updated[i] = { ...updated[i], saleListPrice: v || 0, monthlyRent: v || 0 } as any;
+                              setEditUnitApartments(updated);
+                            }}
+                          />
+                        )
+                      },
+                      {
+                        title: 'Status', dataIndex: 'status', width: 110,
+                        render: (status: string, _: Apartment, i: number) => (
+                          <Select
+                            value={status}
+                            size="small"
+                            style={{ width: '100%' }}
+                            onChange={(v) => {
+                              const updated = [...editUnitApartments];
+                              updated[i] = { ...updated[i], status: v as 'available' | 'sold' | 'reserved' };
+                              setEditUnitApartments(updated);
+                            }}
+                          >
+                            <Select.Option value="available">Available</Select.Option>
+                            <Select.Option value="reserved">Reserved</Select.Option>
+                            <Select.Option value="sold">Sold</Select.Option>
+                          </Select>
+                        )
+                      },
+                      {
+                        title: '', width: 40,
+                        render: (_: any, rec: Apartment, i: number) => (
+                          <Button
+                            type="text" danger size="small"
+                            icon={<DeleteOutlined />}
+                            disabled={rec.status === 'sold' || rec.status === 'reserved'}
+                            onClick={() => handleRemoveApartmentFromEdit(rec.key, i)}
+                          />
+                        )
+                      },
+                    ]}
+                  />
+                </div>
+              ),
+            },
+          ]}
+        />
+      </Modal>
     </>
   );
 };

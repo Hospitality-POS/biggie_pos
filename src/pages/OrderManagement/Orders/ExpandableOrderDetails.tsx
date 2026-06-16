@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ProDescriptions } from "@ant-design/pro-components";
 import {
   Alert, Button, DatePicker, Form, InputNumber,
@@ -55,10 +55,12 @@ const OrderTypeTag: React.FC<{ type: string }> = ({ type }) => {
   return <span style={pill(s.bg, s.color, s.border)}>{s.label}</span>;
 };
 
-const ItemTypeTag: React.FC<{ isSubscription: boolean }> = ({ isSubscription }) =>
-  isSubscription
-    ? <span style={pill("#faf5ff", C.purple, "#e9d5ff")}>Subscription</span>
-    : <span style={pill("#f0fdf4", C.green, "#bbf7d0")}>Regular</span>;
+const ItemTypeTag: React.FC<{ isSubscription: boolean; isMiscellaneous?: boolean }> = ({ isSubscription, isMiscellaneous }) =>
+  isMiscellaneous
+    ? <span style={pill("#fff7ed", C.orange, "#fed7aa")}>Custom</span>
+    : isSubscription
+      ? <span style={pill("#faf5ff", C.purple, "#e9d5ff")}>Subscription</span>
+      : <span style={pill("#f0fdf4", C.green, "#bbf7d0")}>Regular</span>;
 
 const PaymentStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   const ok = status === "COMPLETED";
@@ -73,7 +75,8 @@ interface ProductReference { _id: string; name: string; price: number }
 interface CategoryReference { _id: string; name: string }
 interface OrderItem {
   _id: string; order_id: string; shop_id: string;
-  product_id: ProductReference; product_type: string;
+  product_id: ProductReference | null; product_type: string;
+  miscellaneous_name?: string;
   category_id: CategoryReference; price: number; quantity: number;
   vat_amount: number; is_subscription_item: boolean;
   createdAt: string; updatedAt: string;
@@ -122,16 +125,26 @@ const MobileItemCard: React.FC<{
   onSave: () => void;
   onCancel: () => void;
   onDelete: (id: string) => void;
-}> = ({ item, isEditing, loading, deletingItemId, form, onEdit, onSave, onCancel, onDelete }) => (
+}> = ({ item, isEditing, loading, deletingItemId, form, onEdit, onSave, onCancel, onDelete }) => {
+  const getItemName = () => {
+    if (item.product_type === "Miscellaneous") {
+      return item.miscellaneous_name || item.product_id?.name || "Custom Item";
+    }
+    return item.product_id?.name || "Item";
+  };
+
+  const isMiscellaneous = item.product_type === "Miscellaneous";
+
+  return (
   <div style={{
     background: "#fff", border: `1px solid ${C.border}`,
     borderRadius: 8, padding: "10px 12px", marginBottom: 8,
   }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
       <Text strong style={{ fontSize: 13, color: C.darkText, flex: 1, marginRight: 8 }}>
-        {item.product_id?.name}
+        {getItemName()}
       </Text>
-      <ItemTypeTag isSubscription={item.is_subscription_item} />
+      <ItemTypeTag isSubscription={item.is_subscription_item} isMiscellaneous={isMiscellaneous} />
     </div>
     <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
       <MetaRow label="Category">
@@ -202,7 +215,8 @@ const MobileItemCard: React.FC<{
       )}
     </div>
   </div>
-);
+  );
+};
 
 const ExpandedRowContent = ({
   record,
@@ -235,6 +249,15 @@ const ExpandedRowContent = ({
   const isRegularOrder = order_type === "Regular";
   const needsPayment = isRegularOrder && !hasPayments;
   const orderItemsTotal = order_items.reduce((s, i) => s + i.price * i.quantity, 0);
+
+  // Handle served_by as array or single object
+  const servedByUsers = useMemo(() => {
+    if (!served_by) return [];
+    if (Array.isArray(served_by)) {
+      return served_by.map((u: any) => typeof u === "string" ? { username: u } : u);
+    }
+    return [served_by];
+  }, [served_by]);
 
   // ── Discount display ────────────────────────────────────────────────────
   // Use stored discount_amount if available (backend-calculated).
@@ -367,7 +390,12 @@ const ExpandedRowContent = ({
   const orderItemsColumns = [
     {
       title: "Product", dataIndex: ["product_id", "name"], key: "product_name",
-      render: (text: string) => <Text strong style={{ fontSize: 12 }}>{text}</Text>,
+      render: (_: any, item: OrderItem) => {
+        const itemName = item.product_type === "Miscellaneous"
+          ? item.miscellaneous_name || item.product_id?.name || "Custom Item"
+          : item.product_id?.name || "Item";
+        return <Text strong style={{ fontSize: 12 }}>{itemName}</Text>;
+      },
     },
     {
       title: "Category", dataIndex: ["category_id", "name"], key: "category_name",
@@ -402,7 +430,10 @@ const ExpandedRowContent = ({
     },
     {
       title: "Type", dataIndex: "is_subscription_item", key: "is_subscription_item",
-      render: (isSubscription: boolean) => <ItemTypeTag isSubscription={isSubscription} />,
+      render: (_: any, item: OrderItem) => {
+        const isMiscellaneous = item.product_type === "Miscellaneous";
+        return <ItemTypeTag isSubscription={item.is_subscription_item} isMiscellaneous={isMiscellaneous} />;
+      },
     },
     {
       title: "Created", dataIndex: "createdAt", key: "createdAt",
@@ -616,7 +647,17 @@ const ExpandedRowContent = ({
               <EditableDateSection />
             </MetaRow>
             <MetaRow label="Served By">
-              <Text style={{ fontSize: 12 }}>{served_by?.username || "N/A"}</Text>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "flex-end" }}>
+                {servedByUsers.length > 0 ? (
+                  servedByUsers.map((u: any, i: number) => (
+                    <span key={i} style={{ fontSize: 12 }}>
+                      {u?.username || "N/A"}{i < servedByUsers.length - 1 ? ", " : ""}
+                    </span>
+                  ))
+                ) : (
+                  <Text style={{ fontSize: 12 }}>N/A</Text>
+                )}
+              </div>
             </MetaRow>
             <div style={{ paddingTop: 7 }}>
               <Text style={{ fontSize: 11, color: C.subText }}>Payment</Text>
@@ -736,7 +777,17 @@ const ExpandedRowContent = ({
           </ProDescriptions.Item>
 
           <ProDescriptions.Item label="Served By">
-            <Text style={{ fontSize: 12 }}>{served_by?.username || "N/A"}</Text>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {servedByUsers.length > 0 ? (
+                servedByUsers.map((u: any, i: number) => (
+                  <span key={i} style={{ fontSize: 12 }}>
+                    {u?.username || "N/A"}{i < servedByUsers.length - 1 ? ", " : ""}
+                  </span>
+                ))
+              ) : (
+                <Text style={{ fontSize: 12 }}>N/A</Text>
+              )}
+            </div>
           </ProDescriptions.Item>
 
           {customer_name && (

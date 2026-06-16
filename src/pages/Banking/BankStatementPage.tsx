@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { ProTable, ActionType } from "@ant-design/pro-components";
 import {
     Button, Space, Tag, Tooltip, Popconfirm,
-    Typography, Badge, Card, Tabs, App, Statistic, Row, Col, Progress,
+    Typography, Badge, Card, Tabs, App, Statistic, Row, Col, Progress, Select,
 } from "antd";
 import {
     PlusOutlined, FileExcelOutlined, SettingOutlined,
@@ -17,6 +17,7 @@ import {
     BankStatementImport,
     ImportStatus,
 } from "@services/accounting/bankStatementImport";
+import { getBankAccounts } from "@services/accounting/accounts";
 import { getCurrentTenantId } from "@services/tenants";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 import dayjs from "dayjs";
@@ -50,15 +51,17 @@ const BankStatementPage: React.FC = () => {
     const [reviewOpen, setReviewOpen] = useState(false);
     const [rulesOpen, setRulesOpen] = useState(false);
     const [selectedImport, setSelectedImport] = useState<BankStatementImport | null>(null);
+    const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
 
     const shopId = getCurrentTenantId() || "";
 
     const { data, isLoading, refetch } = useQuery({
-        queryKey: ["bank-imports", shopId, activeStatus, page],
+        queryKey: ["bank-imports", shopId, activeStatus, page, selectedAccountId],
         queryFn: () =>
             getAllImports({
                 shop_id: shopId,
                 status: activeStatus === "ALL" ? undefined : activeStatus,
+                account_id: selectedAccountId,
                 page,
                 limit: 20,
             }),
@@ -70,6 +73,12 @@ const BankStatementPage: React.FC = () => {
         },
     });
 
+    const { data: bankAccountsData } = useQuery({
+        queryKey: ["bank-accounts", shopId],
+        queryFn: () => getBankAccounts(shopId),
+        enabled: !!shopId,
+    });
+
     const { data: summaryData } = useQuery({
         queryKey: ["bank-imports-summary", shopId],
         queryFn: () => getImportSummary(shopId),
@@ -78,6 +87,12 @@ const BankStatementPage: React.FC = () => {
             console.error('Failed to fetch import summary:', error);
         },
     });
+
+    const bankAccounts = bankAccountsData?.accounts || [];
+    const bankAccountOptions = bankAccounts.map((a: any) => ({
+        label: `${a.account_name} (${a.account_code})${a.bank_details?.bank_name ? ` - ${a.bank_details.bank_name}` : ''}`,
+        value: a._id,
+    }));
 
     const voidMutation = useMutation({
         mutationFn: (id: string) => voidImport(id),
@@ -342,6 +357,16 @@ const BankStatementPage: React.FC = () => {
                 }
                 extra={
                     <Space>
+                        <Select
+                            placeholder="Filter by Bank Account"
+                            options={bankAccountOptions}
+                            value={selectedAccountId}
+                            onChange={setSelectedAccountId}
+                            style={{ width: 250 }}
+                            allowClear
+                            showSearch
+                            optionFilterProp="label"
+                        />
                         <Tooltip title="Manage categorization rules and keyword mappings">
                             <Button icon={<SettingOutlined />} onClick={() => setRulesOpen(true)}>
                                 Rules & Mappings

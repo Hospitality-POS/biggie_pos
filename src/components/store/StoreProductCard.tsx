@@ -17,10 +17,11 @@ interface StoreProductCardProps {
   product: any;
   productId: string;
   activateInventory: boolean;
+  onSuccess?: () => void;
 }
 
 const StoreProductCard: React.FC<StoreProductCardProps> = ({
-  name, price, bowls, product, productId, activateInventory,
+  name, price, bowls, product, productId, activateInventory, onSuccess,
 }) => {
   const [isDisabled, setIsDisabled] = React.useState<boolean>(
     product?.is_disabled ?? false
@@ -31,15 +32,16 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
 
-  // Check if user is admin OR manager (for delete and disable operations)
+  // Check if user is admin, manager, or cashier (for delete and disable operations)
   const isAdmin = user?.role === "admin";
   const isManager = user?.role === "manager";
-  const canManageProducts = isAdmin || isManager; // For delete and disable
+  const isCashier = user?.role === "cashier";
+  const canManageProducts = isAdmin || isManager || isCashier; // For delete and disable
   const canEdit = true; // Everyone can edit products
 
   const handleToggleDisabled = async () => {
     if (!canManageProducts) {
-      message.warning("Only admins and managers can enable/disable products");
+      message.warning("Only admins, managers, and cashiers can enable/disable products");
       return;
     }
     setToggling(true);
@@ -58,7 +60,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
 
   const handleDelete = async () => {
     if (!canManageProducts) {
-      message.warning("Only admins and managers can delete products");
+      message.warning("Only admins, managers, and cashiers can delete products");
       return;
     }
     const confirm = await ShowConfirm({
@@ -93,6 +95,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
         <StoreModal
           edit={true}
           data={product}
+          onSuccess={onSuccess}
           trigger={
             <EditOutlined
               style={{
@@ -107,7 +110,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
     </Tooltip>,
     <Tooltip
       key="delete-tooltip"
-      title={!canManageProducts ? "Only admins and managers can delete products" : "Delete product"}
+      title={!canManageProducts ? "Only admins, managers, and cashiers can delete products" : "Delete product"}
     >
       <DeleteFilled
         key="delete"
@@ -138,6 +141,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
         <StoreModal
           edit={true}
           data={product}
+          onSuccess={onSuccess}
           trigger={
             <EditOutlined
               style={{
@@ -152,7 +156,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
     </Tooltip>,
     <Tooltip
       key="delete-tooltip"
-      title={!canManageProducts ? "Only admins and managers can delete products" : "Delete product"}
+      title={!canManageProducts ? "Only admins, managers, and cashiers can delete products" : "Delete product"}
     >
       <DeleteFilled
         key="delete"

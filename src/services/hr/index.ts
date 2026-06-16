@@ -147,10 +147,12 @@ export const deleteEmployeeProfile = async (id: string) => {
   }
 };
 
-export const importEmployeeProfiles = async (file: File) => {
+export const importEmployeeProfiles = async (file: File, shopId: string, updateMode = false) => {
   try {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("shop_id", shopId);
+    formData.append("update_mode", updateMode.toString());
     const response = await axiosInstance.post(`${hr_url}/employee-profile/import`, formData, {
       headers: {
         "Content-Type": "multipart/form-data",
@@ -181,6 +183,28 @@ export const downloadEmployeeProfileTemplate = async () => {
   } catch (error: any) {
     message.error("Failed to download template");
     throw new Error(error.message);
+  }
+};
+
+// ── ANALYSE FILE (preview before import — does NOT import anything) ────────────
+export const analyseEmployeeFile = async (file: File) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await axiosInstance.post(
+      `${hr_url}/employee-profile/analyse-import`,
+      formData,
+      { headers: { "Content-Type": undefined } }
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error("Error analysing employee file:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to analyse file. Please check the file format and try again.";
+    if (error?.response?.status !== 403) message.error(errMsg);
+    throw error;
   }
 };
 
@@ -285,6 +309,28 @@ export const downloadBankTemplate = async () => {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to download template";
     message.error(errorMessage);
     throw new Error(errorMessage);
+  }
+};
+
+// ── ANALYSE BANK FILE (preview before import — does NOT import anything) ────────────
+export const analyseBankFile = async (file: File) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await axiosInstance.post(
+      `${hr_url}/banks/analyse-import`,
+      formData,
+      { headers: { "Content-Type": undefined } }
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error("Error analysing bank file:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to analyse file. Please check the file format and try again.";
+    if (error?.response?.status !== 403) message.error(errMsg);
+    throw error;
   }
 };
 
@@ -795,6 +841,95 @@ export const fetchHRReports = async (params: { start_date: string; end_date: str
   } catch (error: any) {
     console.error("Error fetching HR report:", error);
     return {};
+  }
+};
+
+// New HR Reports API endpoints
+export const fetchEmployeeDirectory = async (filters: { department_id?: string; status?: string; employment_type?: string } = {}) => {
+  try {
+    const response = await axiosInstance.get(`${hr_url}/reports/employee-directory`, { params: filters });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching employee directory:", error);
+    return { total: 0, employees: [] };
+  }
+};
+
+export const fetchAttendanceSummary = async (startDate: string, endDate: string, filters: { department_id?: string } = {}) => {
+  try {
+    const response = await axiosInstance.get(`${hr_url}/reports/attendance-summary`, {
+      params: { start_date: startDate, end_date: endDate, ...filters }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching attendance summary:", error);
+    return { summary: {}, records: [] };
+  }
+};
+
+export const fetchLeaveBalance = async (filters: { department_id?: string; leave_type?: string } = {}) => {
+  try {
+    const response = await axiosInstance.get(`${hr_url}/reports/leave-balance`, { params: filters });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching leave balance:", error);
+    return { total: 0, leave_balances: [] };
+  }
+};
+
+export const fetchLeaveApplications = async (filters: { start_date?: string; end_date?: string; status?: string; leave_type?: string } = {}) => {
+  try {
+    const response = await axiosInstance.get(`${hr_url}/reports/leave-applications`, { params: filters });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching leave applications:", error);
+    return { total_applications: 0, by_status: {}, by_type: {}, applications: [] };
+  }
+};
+
+export const fetchPayrollSummaryReport = async (startDate: string, endDate: string) => {
+  try {
+    const response = await axiosInstance.get(`${hr_url}/reports/payroll-summary`, {
+      params: { start_date: startDate, end_date: endDate }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching payroll summary:", error);
+    return { summary: {}, payroll_runs: [] };
+  }
+};
+
+export const fetchStatutoryDeductions = async (startDate: string, endDate: string) => {
+  try {
+    const response = await axiosInstance.get(`${hr_url}/reports/statutory-deductions`, {
+      params: { start_date: startDate, end_date: endDate }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching statutory deductions:", error);
+    return { statutory_summary: {}, additional_statutory_deductions: [] };
+  }
+};
+
+export const fetchNewHires = async (startDate: string, endDate: string, filters: { department_id?: string } = {}) => {
+  try {
+    const response = await axiosInstance.get(`${hr_url}/reports/new-hires`, {
+      params: { start_date: startDate, end_date: endDate, ...filters }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching new hires:", error);
+    return { report: { total_new_hires: 0, by_department: {}, by_employment_type: {}, hires: [] } };
+  }
+};
+
+export const fetchHRDashboard = async () => {
+  try {
+    const response = await axiosInstance.get(`${hr_url}/reports/dashboard`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching HR dashboard:", error);
+    return { dashboard: {} };
   }
 };
 

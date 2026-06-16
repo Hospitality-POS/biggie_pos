@@ -1,15 +1,18 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { ProDescriptions } from "@ant-design/pro-components";
 import {
   Badge, Button, ColorPicker, DatePicker, Empty,
-  Form, Input, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography, Modal, Row, Col,
+  Form, Input, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography, Modal, Row, Col, Alert, message,
 } from "antd";
 import {
   ArrowRightOutlined, CheckCircleOutlined, CreditCardOutlined,
   DollarOutlined, EditOutlined, FileSearchOutlined, FilePdfOutlined,
   FileTextOutlined, PrinterOutlined, SaveOutlined,
+  SafetyCertificateOutlined, WarningOutlined, ReloadOutlined, LinkOutlined, CopyOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getInvoiceById, patchInvoice, verifyDigiTax, duplicateInvoice } from "@services/accounting/invoice";
+import { refreshInvoiceEtr } from "@services/accounting/digiTax";
 import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
 import { getNotesByInvoice } from "@services/accounting/notes";
@@ -18,6 +21,8 @@ import {
   TEMPLATES, TemplateId, InvoiceForPrint, SystemDetails,
 } from "./InvoiceTemplates";
 import { usePrimaryColor } from "../../../context/PrimaryColorContext";
+import PrintBillModal from "../../../components/MODALS/PrintBillModal";
+import { usePrintDocument, DocumentType } from "../../../components/MODALS/Hooks/usePrintDocument";
 
 const { Text } = Typography;
 
@@ -87,6 +92,25 @@ export interface InvoiceDetailsInterface {
   counterparty_email?: string; counterparty_kra_pin?: string;
   supplier_ref?: string; notes?: string; terms?: string;
   table_id?: { name: string };
+  etr_enabled?: boolean;
+  shop_kra_pin?: string | null;
+  digitax?: {
+    sale_id?: string;
+    serial_number?: string;
+    receipt_number?: number;
+    invoice_number?: number;
+    trader_invoice_number?: string;
+    etims_url?: string;
+    offline_url?: string;
+    receipt_signature?: string;
+    internal_data?: string;
+    receipt_type_code?: string;
+    sale_date?: string;
+    sale_time?: string;
+    submission_status?: "Pending" | "Submitted" | "Verified" | "COMPLETED" | "Failed" | "FAILED";
+    submission_date?: string;
+    error_message?: string | null;
+  } | null;
   [key: string]: any;
 }
 
@@ -223,15 +247,22 @@ const ReceiptTab = ({
   invoiceColor,
   onColorChange,
   primaryColor,
+  printProps,
+  creditNotes,
 }: {
   record: InvoiceDetailsInterface;
   sys: SystemDetails;
   invoiceColor: string;
   onColorChange: (color: string) => void;
   primaryColor: string;
+  printProps: any;
+  creditNotes?: any[];
 }) => {
   const [selected, setSelected] = useState<TemplateId>(1);
-  const inv = record as unknown as InvoiceForPrint;
+  const inv = record ? {
+    ...record,
+    credit_notes: creditNotes || [],
+  } as unknown as InvoiceForPrint : undefined;
 
   const ref1 = useRef<HTMLDivElement>(null);
   const ref2 = useRef<HTMLDivElement>(null);
@@ -278,6 +309,20 @@ const ReceiptTab = ({
             style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}>
             Download / Print PDF
           </Button>
+          <PrintBillModal
+            cartDetails={record}
+            data={(record.items || []).map((item: any) => ({
+              ...item,
+              product_id: typeof item.product_id === 'string' 
+                ? { _id: item.product_id, name: item.description || 'Item' }
+                : item.product_id,
+              price: item.unit_price || item.price || 0,
+            }))}
+            subtotal={record.subtotal}
+            totalVatAmount={record.total_vat_amount}
+            grandTotal={record.grand_total}
+            {...printProps}
+          />
         </div>
       </div>
 
@@ -655,6 +700,21 @@ const PaymentsTab = ({
   const total = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const amountDue = record.amount_due || 0;
   const grandTotal = record.grand_total || 0;
+  const queryClient = useQueryClient();
+
+  // Duplicate mutation
+  const duplicateMutation = useMutation({
+    mutationFn: () => duplicateInvoice(record._id),
+    onSuccess: () => {
+      message.success("Invoice duplicated successfully");
+      queryClient.invalidateQueries({ queryKey: ["invoice", record._id] });
+      queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+    },
+  });
+
+  const handleDuplicate = () => {
+    duplicateMutation.mutate();
+  };
 
   const columns = [
     {
@@ -726,6 +786,13 @@ const PaymentsTab = ({
         <Button icon={<PrinterOutlined />} onClick={onOpenPrint}
           style={{ alignSelf: "center", borderRadius: 8, borderColor: C.primary, color: C.primary }}>
           Download Receipt
+        </Button>
+        <Button 
+          icon={<CopyOutlined />} 
+          onClick={handleDuplicate}
+          loading={duplicateMutation.isPending}
+          style={{ alignSelf: "center", borderRadius: 8, borderColor: C.primary, color: C.primary }}>
+          Duplicate
         </Button>
       </div>
       {!payments.length ? (
@@ -831,6 +898,299 @@ const NotesTab = ({ invoiceId, shopId, onOpenNote }: { invoiceId: string; shopId
 };
 
 // ═══════════════════════════════════════════════════════════════
+// TAB 5 — ETR / DigiTax
+// ═══════════════════════════════════════════════════════════════
+const EtrTab = ({ record }: { record: InvoiceDetailsInterface }) => {
+  const queryClient = useQueryClient();
+  const [polling, setPolling] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activePollRef = useRef(false);
+
+  const digitax = record.digitax;
+  const etrEnabled = record.etr_enabled;
+  const shopKraPin = record.shop_kra_pin;
+
+  // Poll for ETR updates
+  const startPoll = () => {
+    if (pollRef.current) clearTimeout(pollRef.current);
+    const TERMINAL = ["Verified", "COMPLETED", "Failed", "FAILED"];
+    activePollRef.current = true;
+    setPolling(true);
+    const doPoll = () => {
+      pollRef.current = setTimeout(async () => {
+        if (!activePollRef.current) return;
+        try {
+          const res = await getInvoiceById(record._id);
+          if (!activePollRef.current) return;
+          const st = res.invoice?.digitax?.submission_status;
+          if (st && TERMINAL.includes(st)) {
+            setPolling(false);
+            activePollRef.current = false;
+            queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+          } else {
+            doPoll();
+          }
+        } catch {
+          setPolling(false);
+          activePollRef.current = false;
+        }
+      }, 4000);
+    };
+    doPoll();
+  };
+
+  const stopPoll = () => {
+    activePollRef.current = false;
+    if (pollRef.current) clearTimeout(pollRef.current);
+    setPolling(false);
+  };
+
+  useEffect(() => {
+    if (etrEnabled && digitax && !["Verified", "COMPLETED", "Failed", "FAILED"].includes(digitax.submission_status || "")) {
+      startPoll();
+    }
+    return stopPoll;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etrEnabled, digitax?.submission_status]);
+
+  // Retry ETR submission
+  const retryMutation = useMutation({
+    mutationFn: () => patchInvoice(record._id, { etr_enabled: true }),
+    onSuccess: () => {
+      message.success("ETR re-submission triggered");
+      startPoll();
+      queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+    },
+    onError: () => message.error("Failed to trigger ETR retry"),
+  });
+
+  // Refresh ETR status from DigiTax
+  const refreshMutation = useMutation({
+    mutationFn: () => refreshInvoiceEtr(record._id),
+    onSuccess: (res) => {
+      if (res.success) {
+        message.success("ETR status refreshed");
+        stopPoll();
+        queryClient.invalidateQueries({ queryKey: ["invoice", record._id] });
+        queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+      } else {
+        message.error(res.error || "ETR refresh failed");
+      }
+    },
+    onError: () => message.error("ETR refresh failed"),
+  });
+
+  // Manual verification with KRA
+  const verifyMutation = useMutation({
+    mutationFn: () => verifyDigiTax(record._id),
+    onSuccess: (res) => {
+      if (res.verified) {
+        message.success("Invoice verified with KRA");
+        queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+      } else {
+        message.warning("Verification not yet confirmed by KRA");
+      }
+    },
+    onError: () => message.error("Failed to verify with KRA"),
+  });
+
+  // Status badge
+  const st = digitax?.submission_status;
+  let statusBadge: React.ReactNode;
+  if (!etrEnabled) {
+    statusBadge = <Tag color="default">ETR Disabled</Tag>;
+  } else if (!digitax || !st) {
+    statusBadge = <Tag color="default" icon={polling ? <Spin size="small" /> : undefined}>In Flight</Tag>;
+  } else if (st === "Verified" || st === "COMPLETED") {
+    statusBadge = <Tag color="success">ETR Verified</Tag>;
+  } else if (st === "Submitted") {
+    statusBadge = <Tag color="processing">Submitted to KRA</Tag>;
+  } else if (st === "Failed" || st === "FAILED") {
+    statusBadge = <Tag color="error">ETR Failed</Tag>;
+  } else {
+    statusBadge = <Tag color="default">Pending</Tag>;
+  }
+
+  if (!etrEnabled) {
+    return (
+      <div style={{ padding: "12px 16px" }}>
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={<Text style={{ fontSize: 12, color: C.subText }}>ETR is not enabled for this invoice</Text>}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "12px 16px" }}>
+      {/* Header with status */}
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.border}`,
+      }}>
+        <Space>
+          <SafetyCertificateOutlined style={{ color: "#16a34a" }} />
+          <Text strong style={{ fontSize: 13 }}>ETR / KRA DigiTax</Text>
+          {statusBadge}
+        </Space>
+        <Space>
+          {(st === "Pending" || !st) && etrEnabled && (
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              loading={refreshMutation.isLoading}
+              onClick={() => refreshMutation.mutate()}
+            >
+              Refresh ETR Status
+            </Button>
+          )}
+          {st === "Submitted" && (
+            <Button
+              size="small"
+              icon={<CheckCircleOutlined />}
+              loading={verifyMutation.isLoading}
+              onClick={() => verifyMutation.mutate()}
+              type="primary"
+            >
+              Verify with KRA
+            </Button>
+          )}
+          {(st === "Failed" || st === "FAILED") && (
+            <Button
+              size="small"
+              icon={<ReloadOutlined />}
+              loading={retryMutation.isLoading}
+              onClick={() => retryMutation.mutate()}
+              danger
+            >
+              Retry
+            </Button>
+          )}
+        </Space>
+      </div>
+
+      {!shopKraPin ? (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<WarningOutlined />}
+          message="KRA PIN not configured"
+          description="Go to Settings → Company to add your shop's KRA PIN."
+          style={{ marginBottom: 12 }}
+        />
+      ) : (
+        <>
+          {/* KRA PIN */}
+          <div style={{
+            background: "#f0fdf4", border: "1px solid #bbf7d0",
+            borderRadius: 8, padding: "10px 14px", marginBottom: 12,
+          }}>
+            <Text style={{ fontSize: 11, color: C.subText, display: "block", marginBottom: 4 }}>Shop KRA PIN</Text>
+            <Text code style={{ fontSize: 13, fontFamily: "monospace" }}>{shopKraPin}</Text>
+          </div>
+
+          {/* DigiTax details */}
+          {digitax ? (
+            <Row gutter={16} style={{ marginBottom: 12 }}>
+              {digitax.serial_number && (
+                <Col span={12}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>CU Serial No.</Text>
+                    <Text code style={{ fontSize: 12, fontFamily: "monospace" }}>{digitax.serial_number}</Text>
+                  </div>
+                </Col>
+              )}
+              {digitax.receipt_number != null && (
+                <Col span={12}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>Receipt No.</Text>
+                    <Text strong style={{ fontSize: 12 }}>{digitax.receipt_number}</Text>
+                  </div>
+                </Col>
+              )}
+              {digitax.receipt_signature && (
+                <Col span={24}>
+                  <div style={{ marginBottom: 8 }}>
+                    <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>Receipt Signature</Text>
+                    <Text code style={{ fontSize: 11, fontFamily: "monospace", wordBreak: "break-all" }}>{digitax.receipt_signature}</Text>
+                  </div>
+                </Col>
+              )}
+            </Row>
+          ) : (
+            <Space style={{ marginBottom: 12 }}>
+              {polling && <Spin size="small" />}
+              <Text style={{ fontSize: 12, color: C.subText }}>
+                {polling ? "Awaiting KRA DigiTax response…" : "ETR submission in progress"}
+              </Text>
+            </Space>
+          )}
+
+          {/* Error message */}
+          {digitax?.error_message && (
+            <Alert
+              type="error"
+              showIcon
+              message="DigiTax Error"
+              description={digitax.error_message}
+              style={{ marginBottom: 12 }}
+            />
+          )}
+
+          {/* Verification links */}
+          <Space direction="vertical" size={4} style={{ width: "100%" }}>
+            {digitax?.etims_url && (
+              <a
+                href={digitax.etims_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: 12 }}
+              >
+                <LinkOutlined style={{ marginRight: 4 }} />
+                Verify on KRA eTIMS
+              </a>
+            )}
+            {digitax?.offline_url && (st === "Verified" || st === "COMPLETED") ? (
+              <a
+                href={digitax.offline_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: 12, color: C.green }}
+              >
+                <LinkOutlined style={{ marginRight: 4 }} />
+                View KRA Receipt
+              </a>
+            ) : digitax?.offline_url ? (
+              <Text style={{ fontSize: 11, color: C.subText }}>
+                Receipt link available once ETR is verified
+              </Text>
+            ) : null}
+          </Space>
+
+          {/* QR Code — only show when receipt is verified */}
+          {(digitax?.etims_url || digitax?.offline_url) && (st === "Verified" || st === "COMPLETED") && (
+            <div style={{ marginTop: 16, textAlign: "center" }}>
+              <SectionLabel>QR Code for Verification</SectionLabel>
+              <div style={{
+                display: "inline-block", padding: 12, background: "white",
+                borderRadius: 8, border: "1px solid #e5e7eb",
+              }}>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(digitax.etims_url || digitax.offline_url!)}`}
+                  alt="ETR QR Code"
+                  style={{ width: 150, height: 150, display: "block" }}
+                />
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
 // Root export
 // ═══════════════════════════════════════════════════════════════
 export interface ExpandableInvoiceProps {
@@ -845,6 +1205,54 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
   const [activeTab, setActiveTab] = useState(defaultTab);
   const primaryColor = usePrimaryColor();
   const [invoiceColor, setInvoiceColor] = useState(primaryColor);
+  const queryClient = useQueryClient();
+
+  // Use usePrintDocument for print status
+  const orderNo = useMemo(() => record.order_no, [record.order_no]);
+  const documentType: DocumentType = "invoice";
+
+  console.log('Invoice totals passed to usePrintDocument:', {
+    subtotal: record.subtotal,
+    total_vat_amount: record.total_vat_amount,
+    grand_total: record.grand_total,
+  });
+
+  const {
+    canPrint,
+    isReprint,
+    printsRemaining,
+    printStatus,
+    statusLoading,
+    recordPrint,
+  } = usePrintDocument({
+    orderNo,
+    documentType,
+    cartDetails: record,
+    data: record.items || [],
+    subtotal: record.subtotal,
+    totalVatAmount: record.total_vat_amount,
+    grandTotal: record.grand_total,
+  });
+
+  const printProps = {
+    canPrint,
+    isReprint,
+    printsRemaining,
+    printStatus,
+    statusLoading,
+    recordPrint,
+  };
+
+  // Fetch fresh invoice data to support ETR refresh
+  const { data: freshInvoice } = useQuery({
+    queryKey: ["invoice", record._id],
+    queryFn: () => getInvoiceById(record._id),
+    enabled: !!record._id,
+    staleTime: 5000,
+  });
+
+  // Use fresh data if available, otherwise fall back to prop
+  const invoiceData = freshInvoice?.invoice || record;
 
   // Persist color per invoice
   useEffect(() => {
@@ -886,11 +1294,13 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
       ),
       children: (
         <ReceiptTab
-          record={record}
+          record={invoiceData}
           sys={sys}
           invoiceColor={invoiceColor}
           onColorChange={handleColorChange}
           primaryColor={primaryColor}
+          printProps={printProps}
+          creditNotes={notesData?.notes || []}
         />
       ),
     },
@@ -947,6 +1357,16 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
         </div>
       ),
     },
+    ...(record.etr_enabled ? [{
+      key: "etr",
+      label: (
+        <Space size={4}>
+          <SafetyCertificateOutlined />
+          <span>ETR / DigiTax</span>
+        </Space>
+      ),
+      children: <EtrTab record={invoiceData as InvoiceDetailsInterface} />,
+    }] : []),
   ];
 
   return (

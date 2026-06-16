@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Box,
@@ -60,8 +60,8 @@ import {
   type PrintStatusResult,
   type SavePrintResult,
 } from "../MODALS/Hooks/usePrintDocument";
-import DigiTaxInvoiceGenerator from "../DigiTaxInvoiceGenerator";
 import { useIPPrinter } from "../../hooks/useIPPrinter";
+import { printFromCart } from "@services/printAgent";
 
 // ── Props ──────────────────────────────────────────────────────────────────
 interface PrintBillProps {
@@ -172,22 +172,23 @@ async function attemptSave(
 
 // ── Receipt styles helper — supports font size and weight ───────────────
 const makeReceiptStyles = (bold: boolean, fontSize: number) => {
-  const weight = bold ? 700 : 400;
-  const headerWeight = bold ? 900 : 600;
+  const clampedFontSize = Math.min(Math.max(fontSize, 12), 22);
+  const weight = bold ? 700 : 500;
+  const headerWeight = bold ? 900 : 700;
   const base = { fontFamily: "'Courier New', Courier, monospace", color: "#000000" };
-  const baseFontSize = `${fontSize}px`;
-  const smallFontSize = `${fontSize - 1}px`;
-  const smallerFontSize = `${fontSize - 1.5}px`;
+  const baseFontSize = `${clampedFontSize}px`;
+  const smallFontSize = `${clampedFontSize - 1}px`;
+  const smallerFontSize = `${clampedFontSize - 1.5}px`;
 
   return {
-    shopName: { ...base, fontSize: `${fontSize + 2}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
-    docType: { ...base, fontSize: `${fontSize + 4}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
+    shopName: { ...base, fontSize: `${clampedFontSize + 3}px`, fontWeight: headerWeight, letterSpacing: "0.5px" },
+    docType: { ...base, fontSize: `${clampedFontSize + 5}px`, fontWeight: headerWeight, textAlign: "center" as const, letterSpacing: "2px" },
     meta: { ...base, fontSize: smallFontSize, fontWeight: weight },
-    label: { ...base, fontSize: baseFontSize, fontWeight: bold ? 700 : 500 },
+    label: { ...base, fontSize: baseFontSize, fontWeight: bold ? 700 : 600 },
     value: { ...base, fontSize: baseFontSize, fontWeight: weight },
-    tblHdr: { padding: "4px 2px", fontWeight: headerWeight, fontSize: baseFontSize, color: "#000", borderBottom: "1px solid #000" },
-    tblData: { padding: "3px 2px", fontWeight: weight, fontSize: smallFontSize, color: "#000" },
-    total: { ...base, fontSize: `${fontSize + 2}px`, fontWeight: headerWeight },
+    tblHdr: { padding: "5px 3px", fontWeight: headerWeight, fontSize: baseFontSize, color: "#000", borderBottom: "2px solid #000" },
+    tblData: { padding: "4px 3px", fontWeight: weight, fontSize: smallFontSize, color: "#000" },
+    total: { ...base, fontSize: `${clampedFontSize + 3}px`, fontWeight: headerWeight },
     footer: { ...base, fontSize: smallerFontSize, fontWeight: weight, textAlign: "center" as const },
     clientHdr: { ...base, fontSize: baseFontSize, fontWeight: headerWeight, letterSpacing: "1px" },
   };
@@ -207,7 +208,7 @@ const DoubleLine = () => (
 const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const { subtotal, totalVatAmount, grandTotal } = useAppSelector((state) => state.cart);
   const { user } = useAppSelector((state) => state.auth);
-  const { printHtmlContent, loading: ipPrinterLoading } = useIPPrinter();
+  const { loading: ipPrinterLoading } = useIPPrinter();
 
   const componentRef = useRef<HTMLDivElement | null>(null);
   const [refReady, setRefReady] = useState(false);
@@ -220,7 +221,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   const [isPdfView, setIsPdfView] = useState(false);
   const [isBold, setIsBold] = useState(true);
-  const [fontSize, setFontSize] = useState(11);
+  const [fontSize, setFontSize] = useState(14);
   const [showDiscount, setShowDiscount] = useState(true);
   const [showVat, setShowVat] = useState(true);
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
@@ -228,20 +229,29 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [useDigiTax, setUseDigiTax] = useState(false);
-  const [digiTaxData, setDigiTaxData] = useState<any>(null);
 
   const pendingPrintRef = useRef(false);
   const [printTrigger, setPrintTrigger] = useState(0);
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
-  const isEtimsEnabled = tenant?.etims_config?.enabled === true;
+  
+  // ETR data from invoice
+  const etrEnabled = cartDetails?.etr_enabled === true;
+  const digitax = cartDetails?.digitax;
+  const shopKraPin = cartDetails?.shop_kra_pin || tenant?.kra_pin;
 
   const {
     BRAND_NAME1, EMAIL_URL, PIN, PHONE_NO,
     QR_Code, Paybill_bs, Paybill_ac, TILL_NO,
+    receipt_font_size, receipt_text_bold,
   } = useSystemDetails();
+
+  // Sync receipt appearance defaults from system settings when they load
+  useEffect(() => {
+    if (receipt_font_size > 0) setFontSize(receipt_font_size);
+    setIsBold(receipt_text_bold);
+  }, [receipt_font_size, receipt_text_bold]);
 
   // Get VAT mode from tenant settings
   const vatMode: "INCLUSIVE" | "EXCLUSIVE" = tenant?.vat_pricing_mode || "EXCLUSIVE";
@@ -285,6 +295,9 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     [showDiscount, discountAmount, subtotal]
   );
 
+  // Strip trailing .00 from whole numbers to save column space on thermal receipts
+  const fmtN = (n: number) => n % 1 === 0 ? String(Math.round(n)) : n.toFixed(2);
+
   const triggerPrint = useReactToPrint({
     content: () => componentRef.current,
     onBeforeGetContent: () =>
@@ -301,14 +314,22 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     pageStyle: isPdfView
       ? `@page { size: A4; margin: 20mm; }
          @media print { * { color-adjust: exact !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } body { margin: 0; padding: 0; } }`
-      : `@media print {
+      : `@page { size: 80mm auto; margin: 4mm 4mm 24mm 4mm; }
+         @media print {
            * {
              color-adjust: exact !important;
              -webkit-print-color-adjust: exact !important;
              print-color-adjust: exact !important;
              color: black !important;
+             box-sizing: border-box !important;
+             max-width: 100% !important;
+             word-break: break-word !important;
+             overflow-wrap: break-word !important;
              ${isBold ? "font-weight: bold !important;" : ""}
            }
+           body { margin: 0; padding: 0; width: 100%; }
+           table { width: 100% !important; table-layout: fixed !important; }
+           td, th { overflow: hidden !important; }
          }`,
   });
 
@@ -318,6 +339,12 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
       triggerPrint();
     }
   }, [printTrigger, refReady, triggerPrint]);
+
+  // Load global print_by_agent setting from localStorage
+  useEffect(() => {
+    const savedPrintByAgent = localStorage.getItem("print_by_agent_enabled");
+    setUseIPPrinterMode(savedPrintByAgent === "true");
+  }, []);
 
   const getDocumentTypeConfig = () => {
     switch (documentType) {
@@ -339,30 +366,29 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     
     try {
       if (useIPPrinterMode) {
-        // Use IP printer - capture HTML content from thermal receipt
-        console.log('🔍 PrintSpaBillModal - IP Printer Mode - Capturing HTML content');
+        // Use agent-based printing via new /api/printer/print endpoint
+        console.log('🔍 PrintSpaBillModal - Agent Printer Mode - Using /api/printer/print endpoint');
         
-        if (!componentRef.current) {
-          message.error("Receipt content not ready for IP printing");
+        const cartId = cartDetails?._id;
+        const shopId = localStorage.getItem("shopId") ?? "";
+        
+        const t = localStorage.getItem("tenant");
+        const companyCode = t ? (JSON.parse(t)?.tenant_code ?? "") : "";
+
+        if (!cartId) {
+          message.error("Cart ID not found for printing");
           setIsPrinting(false);
           return;
         }
+
+        const result = await printFromCart(cartId, shopId, companyCode);
         
-        // Capture the HTML content from the thermal receipt section
-        const htmlContent = componentRef.current.innerHTML;
-        console.log('🔍 PrintSpaBillModal - Captured HTML content length:', htmlContent.length);
-        
-        const result = await printHtmlContent(htmlContent, 'spa_bill');
-        if (result.success) {
-          // Record the print if IP printing was successful
-          const printFormat: PrintFormat = "thermal";
-          const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
-          if (blocked) { setIsPrinting(false); return; }
-          if (saved) {
-            message.success(`Spa bill printed via IP printer and recorded successfully`);
-          }
-        } else {
-          message.error(result.message);
+        // Record the print
+        const printFormat: PrintFormat = "thermal";
+        const { saved, blocked } = await attemptSave(recordPrint, { print_format: printFormat, reason });
+        if (blocked) { setIsPrinting(false); return; }
+        if (saved) {
+          message.success(result.message || "Print job sent successfully");
         }
       } else {
         // Use browser printing
@@ -386,7 +412,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     } finally {
       setIsPrinting(false);
     }
-  }, [canPrint, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, printHtmlContent]);
+  }, [canPrint, isPdfView, refReady, recordPrint, isReprint, useIPPrinterMode, cartDetails]);
 
   const handleFinish = async () => {
     if (!canPrint) { message.error("Print limit reached."); return false; }
@@ -438,12 +464,12 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
 
   // ── Font size presets — extended for larger options ────────────────────
   const fontSizes = [
-    { value: 9, label: "Small" },
-    { value: 11, label: "Normal" },
-    { value: 13, label: "Large" },
-    { value: 15, label: "X-Large" },
-    { value: 17, label: "XX-Large" },
-    { value: 20, label: "Huge" },
+    { value: 10, label: "Small" },
+    { value: 13, label: "Normal" },
+    { value: 15, label: "Large" },
+    { value: 17, label: "X-Large" },
+    { value: 19, label: "XX-Large" },
+    { value: 22, label: "Huge" },
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -589,19 +615,19 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     <ZoomOutOutlined style={{ fontSize: 16, color: "#6b7280" }} />
                   </Tooltip>
                   <AntSlider
-                    min={8}
-                    max={20}
+                    min={10}
+                    max={22}
                     value={fontSize}
                     onChange={setFontSize}
                     style={{ width: 130, margin: 0 }}
                     tooltip={{ formatter: (v) => `${v}px` }}
                     marks={{
-                      8: "",
-                      11: "",
+                      10: "",
                       13: "",
                       15: "",
                       17: "",
-                      20: "",
+                      19: "",
+                      22: "",
                     }}
                   />
                   <Tooltip title="Increase Font Size">
@@ -676,16 +702,6 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           </div>
         </div>
 
-        {/* DigiTax ETR Toggle - Only show if ETIMS is enabled */}
-        {isEtimsEnabled && (
-          <DigiTaxInvoiceGenerator
-            invoiceId={cartDetails?.order_no}
-            orderNo={cartDetails?.order_no}
-            onDigiTaxChange={setUseDigiTax}
-            onDigiTaxData={setDigiTaxData}
-            disabled={!canPrint}
-          />
-        )}
 
         {/* ── THERMAL RECEIPT ─────────────────────────────────────────── */}
         <div
@@ -699,15 +715,20 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             <div style={S.shopName}>{BRAND_NAME1}</div>
             <div style={S.docType}>{docConfig.label}</div>
             
-            {/* DigiTax ETR Information */}
-            {useDigiTax && digiTaxData?.success && (
+            {/* ETR Information */}
+            {etrEnabled && digitax && (
               <div style={{ marginBottom: 4, textAlign: "center" }}>
                 <div style={{ ...S.meta, fontSize: `${fontSize - 1}px`, color: "#52c41a", fontWeight: 700 }}>
                   ETR RECEIPT
                 </div>
-                {digiTaxData.taxReceiptNumber && (
+                {digitax.receipt_number && (
                   <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#389e0d" }}>
-                    Tax Receipt: {digiTaxData.taxReceiptNumber}
+                    Receipt No: {digitax.receipt_number}
+                  </div>
+                )}
+                {digitax.serial_number && (
+                  <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#389e0d" }}>
+                    CU: {digitax.serial_number}
                   </div>
                 )}
               </div>
@@ -765,9 +786,9 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                <th style={{ ...S.tblHdr, textAlign: "left", width: "8%" }}>QTY</th>
+                <th style={{ ...S.tblHdr, textAlign: "left", width: "12%", whiteSpace: "nowrap" }}>QTY</th>
                 <th style={{ ...S.tblHdr, textAlign: "left" }}>DESCRIPTION</th>
-                <th style={{ ...S.tblHdr, textAlign: "right", width: "28%" }}>AMOUNT</th>
+                <th style={{ ...S.tblHdr, textAlign: "right", width: "28%", whiteSpace: "nowrap" }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -775,17 +796,22 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                 const displayPrice = getDisplayPrice(item);
                 return (
                   <tr key={item._id || index}>
-                    <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top" }}>{item.quantity}</td>
+                    <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top", whiteSpace: "nowrap" }}>{item.quantity}</td>
                     <td style={{ ...S.tblData, textAlign: "left", verticalAlign: "top", wordBreak: "break-word" }}>
-                      {item?.product_id?.name}
+                      {item?.product_id?.name || item?.description || 'Item'}
+                      {item.notes && (
+                        <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#666" }}>
+                          ({item.notes})
+                        </div>
+                      )}
                       {item.quantity > 1 && (
                         <div style={{ ...S.meta, fontSize: `${fontSize - 2}px`, color: "#555" }}>
-                          @ {displayPrice.toFixed(2)} each
+                          @ {fmtN(displayPrice)} each
                         </div>
                       )}
                     </td>
-                    <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top" }}>
-                      {(displayPrice * item.quantity).toFixed(2)}
+                    <td style={{ ...S.tblData, textAlign: "right", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                      {fmtN(displayPrice * item.quantity)}
                     </td>
                   </tr>
                 );
@@ -838,13 +864,13 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
           <DashedLine />
           <div style={{ textAlign: "center", marginTop: 6 }}>
             {/* ETR QR Code - replaces regular QR code when present */}
-            {useDigiTax && digiTaxData?.success && digiTaxData.qrCode ? (
+            {etrEnabled && digitax?.offline_url ? (
               <div style={{ marginBottom: 8 }}>
                 <div style={{ fontSize: `${fontSize - 2}px`, color: "#52c41a", marginBottom: 2, fontWeight: 600 }}>
                   ETR VERIFICATION
                 </div>
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
-                  <QRCodeCanvas value={digiTaxData.qrCode} size={60} className="etr-qrcode" />
+                  <QRCodeCanvas value={digitax.offline_url} size={60} className="etr-qrcode" />
                 </div>
                 <div style={{ fontSize: `${fontSize - 3}px`, color: "#666" }}>
                   Scan to verify tax receipt
@@ -859,7 +885,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
             <div style={S.footer}>{EMAIL_URL}</div>
             <div style={S.footer}>Printed: {printDateStr} {printTimeStr}</div>
             <div style={{ ...S.footer, marginTop: 4, fontSize: `${fontSize - 2}px`, color: "#555" }}>
-              Powered By BasePoint Cloud
+              Powered By BasePoint
             </div>
           </div>
         </div>
@@ -900,15 +926,20 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                   <Typography variant="h5" style={{ fontSize: "20px", fontWeight: 700, color: "#fff", margin: 0 }}>{docConfig.label}</Typography>
                 </Box>
                 
-                {/* DigiTax ETR Information */}
-                {useDigiTax && digiTaxData?.success && (
+                {/* ETR Information */}
+                {etrEnabled && digitax && (
                   <Box sx={{ mt: 1, p: 1, backgroundColor: "#f6ffed", border: "1px solid #b7eb8f", borderRadius: 1 }}>
                     <Typography variant="body2" style={{ color: "#52c41a", fontWeight: 700, fontSize: "12px" }}>
                       ETR RECEIPT
                     </Typography>
-                    {digiTaxData.taxReceiptNumber && (
+                    {digitax.receipt_number && (
                       <Typography variant="body2" style={{ color: "#389e0d", fontSize: "11px" }}>
-                        Tax Receipt: {digiTaxData.taxReceiptNumber}
+                        Receipt No: {digitax.receipt_number}
+                      </Typography>
+                    )}
+                    {digitax.serial_number && (
+                      <Typography variant="body2" style={{ color: "#389e0d", fontSize: "11px" }}>
+                        CU: {digitax.serial_number}
                       </Typography>
                     )}
                   </Box>
@@ -928,7 +959,20 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     <Typography variant="body1" style={pdfNorm}>Till No: {TILL_NO}</Typography>
                   )}
                 </Box>
-                <Box><QRCodeCanvas value={QR_Code} size={120} /></Box>
+                {/* ETR QR Code - replaces regular QR code when present */}
+                {etrEnabled && digitax?.offline_url ? (
+                  <Box sx={{ textAlign: "center" }}>
+                    <Typography variant="body2" style={{ color: "#52c41a", fontWeight: 600, fontSize: "10px", marginBottom: 1 }}>
+                      ETR VERIFICATION
+                    </Typography>
+                    <QRCodeCanvas value={digitax.offline_url} size={100} />
+                    <Typography variant="body2" style={{ color: "#666", fontSize: "8px", marginTop: 1 }}>
+                      Scan to verify tax receipt
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box><QRCodeCanvas value={QR_Code} size={120} /></Box>
+                )}
               </Box>
             </Box>
 
@@ -980,7 +1024,14 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
                     return (
                       <TableRow key={item._id || index}>
                         <TableCell sx={pdfTD}>{item.quantity}</TableCell>
-                        <TableCell sx={pdfTD}>{item?.product_id?.name}</TableCell>
+                        <TableCell sx={pdfTD}>
+                          {item?.product_id?.name || item?.description || 'Item'}
+                          {item.notes && (
+                            <Typography variant="body2" sx={{ fontSize: "10px", color: "#666" }}>
+                              ({item.notes})
+                            </Typography>
+                          )}
+                        </TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{displayPrice.toFixed(2)}</TableCell>
                         <TableCell sx={{ ...pdfTD, textAlign: "right" }}>{(displayPrice * item.quantity).toFixed(2)}</TableCell>
                       </TableRow>
@@ -1051,7 +1102,7 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               </Typography>
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Email: {EMAIL_URL}</Typography>
               <Typography style={{ ...pdfNorm, mb: 0.5 }}>Printed: {printDateStr} {printTimeStr}</Typography>
-              <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By BasePoint Cloud</Typography>
+              <Typography style={{ ...pdfNorm, color: "#666" }}>Powered By Basepoint</Typography>
             </Box>
           </div>
         ) : (

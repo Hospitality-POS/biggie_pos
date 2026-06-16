@@ -75,50 +75,46 @@ const useAdminProLayoutNav = () => {
   });
 
   // ── Common routes (always shown) ──────────────────────────────────────────
-  const commonRoutes = [
+  const commonRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [
+    { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
     { path: "/admin/reports", name: "Reports", icon: <ReconciliationOutlined /> },
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
     { path: "/admin/staff-management", name: "Crew Management", icon: <UsergroupAddOutlined /> },
   ];
 
   // ── Duka (POS) routes ─────────────────────────────────────────────────────
-  const dukaRoutes = [
-    { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
+  const dukaRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
   // ── Pesa (Accounting) routes ──────────────────────────────────────────────
   // FIX: paths now match router exactly
   //   /admin/accounts          → /admin/accounting/accounts  (was 404)
-  //   /admin/dashboard         → Unified dashboard page (includes POS, Accounting, Mteja)
-  const pesaRoutes = [
-    { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
+  const pesaRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [
     { path: "/admin/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
   // ── Mteja (CRM) routes — only when Mteja is the sole module ──────────────
-  const mtejaRoutes = [
+  const mtejaRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [
     { path: "/admin/mteja", name: "Mteja Dashboard", icon: <CustomerServiceOutlined /> },
   ];
 
   // ── Dala (Real Estate) routes ─────────────────────────────────────────────
-  const dalaRoutes = [];
+  const dalaRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [];
 
   // ── Bandu (HR & Payroll) routes ───────────────────────────────────────────
-  const banduRoutes = [
-    { path: "/admin/hr", name: "HR Dashboard", icon: <TeamOutlined /> },
+  const banduRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [
     { path: "/admin/hr/employees", name: "Employees", icon: <UsergroupAddOutlined /> },
     { path: "/admin/hr/payroll", name: "Payroll", icon: <DollarOutlined /> },
     { path: "/admin/hr/payslips", name: "Payslips", icon: <FileTextOutlined /> },
     { path: "/admin/hr/shifts", name: "Shift Schedules", icon: <CalendarOutlined /> },
     { path: "/admin/hr/deductions", name: "Deductions", icon: <SettingOutlined /> },
     { path: "/admin/hr/banks", name: "Banks", icon: <BankOutlined /> },
-    { path: "/admin/hr/reports", name: "HR Reports", icon: <ReconciliationOutlined /> },
   ];
 
   // ── Help Center (always last) ─────────────────────────────────────────────
-  const helpRoute = {
+  const helpRoute: { path: string; name: string; icon?: React.ReactNode } = {
     path: "/admin/help-center",
     name: "Help Center",
     icon: <CompassOutlined />,
@@ -130,7 +126,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...banduRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, helpRoute],
       },
     };
   }
@@ -141,7 +137,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...mtejaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...mtejaRoutes, helpRoute],
       },
     };
   }
@@ -152,7 +148,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...dukaRoutes, helpRoute],
       },
     };
   }
@@ -163,21 +159,58 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...pesaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...pesaRoutes, helpRoute],
       },
     };
   }
 
   // ── CASE 4: Duka + Pesa ───────────────────────────────────────────────────
-  // FIX: deduplicate Document Center and Dashboard — appears in both dukaRoutes and pesaRoutes.
-  // When combined, filter them out of pesaRoutes to avoid duplicate nav items.
-  if (hasDuka && hasPesa) {
+  // FIX: deduplicate Document Center — appears in both dukaRoutes and pesaRoutes.
+  // When combined, filter it out of pesaRoutes to avoid duplicate nav items.
+  if (hasDuka && hasPesa && !hasMteja && !hasDala) {
     console.log("[AdminNav] ✅ Duka + Pesa (POS + Accounting)");
-    const pesaWithoutDocsAndDashboard = pesaRoutes.filter((r) => r.path !== "/admin/documents" && r.path !== "/admin/dashboard");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...commonRoutes, ...pesaWithoutDocsAndDashboard, helpRoute],
+        routes: [...commonRoutes, ...dukaWithoutDocs, ...pesaWithoutDocs, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 4b: Duka + Mteja ─────────────────────────────────────────────────
+  if (hasDuka && hasMteja && !hasPesa && !hasDala) {
+    console.log("[AdminNav] ✅ Duka + Mteja (POS + CRM)");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, ...dukaRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 4c: Pesa + Mteja ─────────────────────────────────────────────────
+  if (hasPesa && hasMteja && !hasDuka && !hasDala) {
+    console.log("[AdminNav] ✅ Pesa + Mteja (Accounting + CRM)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, ...pesaWithoutDocs, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 4d: Duka + Pesa + Mteja ─────────────────────────────────────────
+  if (hasDuka && hasPesa && hasMteja && !hasDala) {
+    console.log("[AdminNav] ✅ Duka + Pesa + Mteja (POS + Accounting + CRM)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, ...dukaWithoutDocs, ...pesaWithoutDocs, helpRoute],
       },
     };
   }
@@ -188,7 +221,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...mtejaRoutes, ...dalaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...dalaRoutes, helpRoute],
       },
     };
   }
@@ -199,7 +232,7 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...dalaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...dukaRoutes, ...dalaRoutes, helpRoute],
       },
     };
   }
@@ -211,19 +244,45 @@ const useAdminProLayoutNav = () => {
     return {
       route: {
         path: "/admin",
-        routes: [...pesaWithoutDocs, ...dalaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...pesaWithoutDocs, ...dalaRoutes, helpRoute],
       },
     };
   }
 
-  // ── CASE 8: Duka + Pesa + Dala ─────────────────────────────────────────────
-  if (hasDuka && hasPesa && hasDala) {
-    console.log("[AdminNav] ✅ Duka + Pesa + Dala (POS + Accounting + Real Estate)");
-    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+  // ── CASE 8: Duka + Mteja + Dala ─────────────────────────────────────────────
+  if (hasDuka && hasMteja && hasDala && !hasPesa) {
+    console.log("[AdminNav] ✅ Duka + Mteja + Dala (POS + CRM + Real Estate)");
+    const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
     return {
       route: {
         path: "/admin",
-        routes: [...dukaRoutes, ...pesaWithoutDocs, ...dalaRoutes, ...commonRoutes, helpRoute],
+        routes: [...commonRoutes, ...dukaWithoutDocs, ...dalaRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 9: Duka + Pesa + Dala ─────────────────────────────────────────────
+  if (hasDuka && hasPesa && hasDala && !hasMteja) {
+    console.log("[AdminNav] ✅ Duka + Pesa + Dala (POS + Accounting + Real Estate)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, ...dukaWithoutDocs, ...pesaWithoutDocs, ...dalaRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 10: Duka + Pesa + Mteja + Dala ────────────────────────────────────
+  if (hasDuka && hasPesa && hasMteja && hasDala) {
+    console.log("[AdminNav] ✅ Duka + Pesa + Mteja + Dala (All modules)");
+    const pesaWithoutDocs = pesaRoutes.filter((r) => r.path !== "/admin/documents");
+    const dukaWithoutDocs = dukaRoutes.filter((r) => r.path !== "/admin/documents");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, ...dukaWithoutDocs, ...pesaWithoutDocs, ...dalaRoutes, helpRoute],
       },
     };
   }
@@ -231,12 +290,12 @@ const useAdminProLayoutNav = () => {
   // ── FALLBACK: no modules or unexpected combination ─────────────────────────────
   console.log("[AdminNav] ⚠️ Fallback — no modules or unexpected combination");
   const routesToShow = [
+    ...commonRoutes,
     ...(hasDuka ? dukaRoutes : []),
     ...(hasPesa ? pesaRoutes : []),
     ...(hasDala ? dalaRoutes : []),
-    ...(hasMteja ? mtejaRoutes : []),
-    ...(hasBandu ? banduRoutes : []),
-    ...commonRoutes,
+    // Only show Mteja Dashboard if it's the sole module
+    ...(isMtejaOnly ? mtejaRoutes : []),
     helpRoute,
   ];
   // Deduplicate routes based on path

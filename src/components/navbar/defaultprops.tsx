@@ -46,6 +46,7 @@ const ICONS = {
   expense: 'M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM20 7H4L2 12v3h1v6h4v-6h5v6h4v-6h1v-3l-2-5zm-1 4l1 2.5H4L5 11h14z',
   bill: 'M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm-7 6H7V8h6v2zm4 4H7v-2h10v2zm0-4h-2V8h2v2z',
   income: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z',
+  salesReceipt: 'M18 17H6v-2h12v2zm0-4H6v-2h12v2zm0-4H6V7h12v2zM3 22l1.5-1.5L6 22l1.5-1.5L9 22l1.5-1.5L12 22l1.5-1.5L15 22l1.5-1.5L18 22l1.5-1.5L21 22V2l-1.5 1.5L18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5L6 2 4.5 3.5L3 2v20z',
   documents: 'M20 6h-2.18c.07-.44.18-.88.18-1.38 0-2.57-2.04-4.62-4.5-4.62S9 2.05 9 4.62c0 .5.11.94.18 1.38H7C5.9 6 5 6.9 5 8v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 0H10V4.62C10 3.17 11.12 2 12.5 2S15 3.17 15 4.62V6h-1zm1 5H9v-2h6v2zm4 4H9v-2h10v2z',
   omnichannel: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z',
   mteja: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z',
@@ -80,6 +81,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/mteja": "CUSTOMERS_VIEW",
   "/currencies": "ACCOUNTING_COA_VIEW",
+  "/staff-management": "USERS_VIEW",
   // CRM routes — only reachable when hasMteja, permission-gated here too
   "/crm/leads": "CRM_LEADS_VIEW",
   "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
@@ -90,6 +92,8 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
 const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting": "ACCOUNTING_DASHBOARD_VIEW",
   "/orders": "ACCOUNTING_INVOICE_VIEW",
+  "/store": "PRODUCTS_VIEW",
+  "/Category-settings": "CATEGORIES_VIEW",
   "/accounting/notes": "ACCOUNTING_NOTES_VIEW",
   "/accounting/journals": "ACCOUNTING_JOURNAL_VIEW",
   "/accounting/bank-statements": "ACCOUNTING_BANK_STMT_VIEW",
@@ -98,6 +102,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting/expenses": "ACCOUNTING_INCOME_POST_EXPENSE",
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/income": "ACCOUNTING_INCOME_VIEW_HISTORY",
+  "/accounting/sales-receipts": "ACCOUNTING_INCOME_VIEW_HISTORY",
   "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS",
   "/accounting/currencies": "ACCOUNTING_COA_VIEW",
   "/inventory": "INVENTORY_VIEW",
@@ -109,6 +114,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/omnichannel": "OMNICHANNEL_VIEW",
   "/mteja": "CUSTOMERS_VIEW",
   "/currencies": "ACCOUNTING_COA_VIEW",
+  "/staff-management": "USERS_VIEW",
   // CRM routes
   "/crm/leads": "CRM_LEADS_VIEW",
   "/crm/campaigns": "CRM_CAMPAIGNS_VIEW",
@@ -123,6 +129,7 @@ const POS_APP_PERMISSIONS: Record<string, string> = {
   "/payment-methods": "PAYMENT_METHODS_VIEW",
   "/suppliers": "SUPPLIERS_VIEW",
   "/system-setup": "SYSTEM_SETUP_VIEW",
+  "/staff-management": "USERS_VIEW",
   "/fss-faqs": "FAQ_VIEW",
   "/website-builder": "GALLERY_VIEW",
   "/documents": "DOCUMENTS_VIEW",
@@ -140,6 +147,7 @@ const ACCOUNTING_APP_PERMISSIONS: Record<string, string> = {
   "/orders": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/notes": "ACCOUNTING_NOTES_VIEW",
   "/accounting/journals": "ACCOUNTING_JOURNAL_VIEW",
+  "/accounting/sales-receipts": "ACCOUNTING_INCOME_VIEW_HISTORY",
   "/accounting/bank-statements": "ACCOUNTING_BANK_STMT_VIEW",
   "/accounting/reconciliation": "ACCOUNTING_RECON_VIEW",
   "/accounting/accounts": "ACCOUNTING_COA_VIEW",
@@ -173,18 +181,17 @@ const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
   "/dala/rent-collection": "DALA_RENT_COLLECTION_VIEW",
   "/dala/maintenance": "DALA_MAINTENANCE_VIEW",
   "/dala/reports": "DALA_REPORTS_VIEW",
+  "/staff-management": "USERS_VIEW",
 };
 
 const HR_ROUTE_PERMISSIONS: Record<string, string> = {
   "/hr": "USERS_VIEW",
-  "/hr/dashboard": "USERS_VIEW",
   "/hr/employees": "USERS_VIEW",
   "/hr/payroll": "USERS_VIEW",
   "/hr/payslips": "USERS_VIEW",
   "/hr/shifts": "USERS_VIEW",
   "/hr/deductions": "USERS_VIEW",
   "/hr/banks": "USERS_VIEW",
-  "/hr/reports": "REPORTS_ITEM_SALES",
 };
 
 // ─── Tenant feature flags ─────────────────────────────────────────────────────
@@ -224,14 +231,27 @@ const useProLayoutNav = () => {
   const canSee = (bare: string, permMap: Record<string, string>): boolean => {
     const gate = permMap[bare];
     if (!gate) return true;
+    
+    // Special case: if Dala module is enabled, show all Dala navigation
+    if (hasDala && bare.startsWith("/dala")) {
+      return true;
+    }
+    
     return can(gate);
   };
 
   const posMode = (localStorage.getItem("posMode") ?? "restaurant") as string;
   const isHospitalMode = posMode === "hospital";
+  const isHotelMode = posMode === "hotel";
 
-  const homeRouteName = "POS";
+  const homeRouteName = isHotelMode ? "Rooms" : "POS";
   const homeRouteIcon = isHospitalMode ? <MedicineBoxOutlined /> : <HomeFilled />;
+
+  const getCustomerLabel = () => {
+    if (isHospitalMode) return "Patients";
+    if (isHotelMode) return "Guests";
+    return "Customers";
+  };
 
   const { hasPOS, hasAccounting, hasMteja, hasDala, hasBandu } = getTenantFlags();
   const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting && !hasDala && !hasBandu;
@@ -240,7 +260,7 @@ const useProLayoutNav = () => {
   const inventoryBarePath = "/inventory";
   const inventoryRoute = {
     path: p(inventoryBarePath),
-    name: isHospitalMode ? "Pharmacy" : "Inventory",
+    name: isHospitalMode ? "Pharmacy" : isHotelMode ? "Store" : "Inventory",
     icon: isHospitalMode ? <MedicineBoxOutlined /> : <AppstoreOutlined />,
   };
 
@@ -277,7 +297,7 @@ const useProLayoutNav = () => {
   // ── Mteja Customers (sole module only) ───────────────────────────────────
   const mtejaCustomersRoute = (isMtejaOnly && can("CUSTOMERS_VIEW")) ? [{
     path: p("/customers"),
-    name: isHospitalMode ? "Patients" : "Customers",
+    name: getCustomerLabel(),
     icon: <UserOutlined />,
     _bare: "/customers",
   }] : [];
@@ -351,19 +371,24 @@ const useProLayoutNav = () => {
 
   // ── POS routes ────────────────────────────────────────────────────────────
   const posRoutesFullAccessBase = [
-    { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
+    { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
     ...(posMode !== "retail"
       ? [{ path: p("/store"), name: isHospitalMode ? "Services" : "Services", icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled />, _bare: "/store" }]
       : []),
     { ...inventoryRoute, _bare: inventoryBarePath },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
-    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
+    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
     { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
     { path: p("/petty-cash"), name: "Petty Cash", icon: <WalletOutlined />, _bare: "/petty-cash" },
     { path: p("/refunds"), name: "Refunds", icon: <SwapOutlined />, _bare: "/refunds" },
+    { path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" },
+    { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
+    { path: p("/table-settings"), name: "Tables", icon: <AppstoreOutlined />, _bare: "/table-settings" },
+    { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
+    { path: p("/help-center"), name: "Help Center", icon: <CustomerServiceOutlined />, _bare: "/help-center" },
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,
@@ -375,16 +400,21 @@ const useProLayoutNav = () => {
     .map(({ _bare: _b, ...rest }) => rest);
 
   const posRoutesStaffBase = [
-    { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
+    { path: p("/tables"), name: homeRouteName, icon: homeRouteIcon, _bare: "/tables" },
     { path: p("/orders"), name: "Orders", icon: <CalculatorFilled />, _bare: "/orders" },
     ...(posMode !== "retail"
       ? [{ path: p("/store"), name: isHospitalMode ? "Services" : "Services", icon: isHospitalMode ? <ExperimentOutlined /> : <FolderFilled />, _bare: "/store" }]
       : []),
     { ...inventoryRoute, _bare: inventoryBarePath },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
-    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: isHospitalMode ? "Patients" : "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
+    ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
     { ...documentRoute, _bare: "/documents" },
+    { path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" },
+    { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
+    { path: p("/table-settings"), name: "Tables", icon: <AppstoreOutlined />, _bare: "/table-settings" },
+    { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
+    { path: p("/help-center"), name: "Help Center", icon: <CustomerServiceOutlined />, _bare: "/help-center" },
     ...mtejaConversationsRoute,
     // CRM sub-routes — only visible when hasMteja
     ...crmRoutes,
@@ -398,8 +428,9 @@ const useProLayoutNav = () => {
   // ── Accounting routes ─────────────────────────────────────────────────────
   const buildAccountingRoutes = () => {
     const routesBase = [
-      { path: p("/accounting"), name: "Overview", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
+      { path: p("/accounting"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
       { path: p("/orders"), name: "Invoices", icon: <FileTextOutlined />, _bare: "/orders" },
+      { path: p("/accounting/sales-receipts"), name: "Sales Receipts", icon: <AccountBookOutlined />, _bare: "/accounting/sales-receipts" },
       { path: p("/accounting/expenses"), name: "Expenses", icon: <ArrowUpOutlined />, _bare: "/accounting/expenses" },
       { path: p("/accounting/bills"), name: "Bills", icon: <FileTextOutlined />, _bare: "/accounting/bills" },
       { path: p("/accounting/notes"), name: "Debit/Credit Notes", icon: <FileSearchOutlined />, _bare: "/accounting/notes" },
@@ -410,11 +441,16 @@ const useProLayoutNav = () => {
       { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
       // { path: p("/accounting/currencies"), name: "Currencies", icon: <GlobalOutlined />, _bare: "/accounting/currencies" },
       { ...inventoryRoute, _bare: inventoryBarePath },
-      ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
+      ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
       { path: p("/suppliers"), name: "Suppliers", icon: <FolderFilled />, _bare: "/suppliers" },
       { path: p("/payment-methods"), name: "Payment Methods", icon: <CalculatorFilled />, _bare: "/payment-methods" },
       { path: p("/system-setup"), name: "System Setup", icon: <SettingOutlined />, _bare: "/system-setup" },
+      { path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" },
       { ...documentRoute, _bare: "/documents" },
+      ...(!hasPOS ? [
+        { path: p("/store"), name: "Services", icon: <FolderFilled />, _bare: "/store" },
+        { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },
+      ] : []),
       ...mtejaConversationsRoute,
       // CRM routes under accounting layout too — only when hasMteja
       ...crmRoutes,
@@ -431,6 +467,7 @@ const useProLayoutNav = () => {
   // ── Dala routes ───────────────────────────────────────────────────────────
   const buildDalaRoutes = () => {
     const routesBase = [
+      { path: p("/home-dashboard"), name: "Dashboard", icon: <BarChartOutlined />, _bare: "/home-dashboard" },
       { path: p("/dala/properties"), name: "Portfolio", icon: <HomeOutlined />, _bare: "/dala/properties" },
       { path: p("/dala/property-types"), name: "Property Types", icon: <ApartmentOutlined />, _bare: "/dala/property-types" },
       { path: p("/dala/sales"), name: "Sales", icon: <ReconciliationOutlined />, _bare: "/dala/sales" },
@@ -438,6 +475,7 @@ const useProLayoutNav = () => {
       { path: p("/dala/commissions"), name: "Commissions", icon: <ReconciliationOutlined />, _bare: "/dala/commissions" },
       { path: p("/dala/rent-collection"), name: "Rent Collection", icon: <AccountBookOutlined />, _bare: "/dala/rent-collection" },
       { path: p("/dala/maintenance"), name: "Maintenance", icon: <BuildOutlined />, _bare: "/dala/maintenance" },
+      { path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" },
     ];
 
     return routesBase
@@ -457,7 +495,6 @@ const useProLayoutNav = () => {
       { path: p("/hr/shifts"), name: "Shift Schedules", icon: <CalendarOutlined />, _bare: "/hr/shifts" },
       { path: p("/hr/deductions"), name: "Deductions", icon: <SettingOutlined />, _bare: "/hr/deductions" },
       { path: p("/hr/banks"), name: "Banks", icon: <BankOutlined />, _bare: "/hr/banks" },
-      { path: p("/hr/reports"), name: "HR Reports", icon: <ReconciliationOutlined />, _bare: "/hr/reports" },
     ];
 
     return routesBase
@@ -483,6 +520,7 @@ const useProLayoutNav = () => {
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: p("/payment-methods"), _bare: "/payment-methods" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: p("/suppliers"), _bare: "/suppliers" },
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: p("/system-setup"), _bare: "/system-setup" },
+    { icon: makeTile("#3b82f6", ICONS.customers), title: "Staff Management", desc: "Manage staff accounts, roles and permissions.", url: p("/staff-management"), _bare: "/staff-management" },
     { icon: makeTile("#64748b", ICONS.faq), title: "FAQs", desc: "Get answers to your most common questions.", url: p("/fss-faqs"), _bare: "/fss-faqs" },
     { icon: makeTile("#06b6d4", ICONS.web), title: "Gallery", desc: "Store your store images.", url: p("/website-builder"), _bare: "/website-builder" },
     { icon: makeTile("#2f54eb", ICONS.documents), title: "Document Center", desc: "Manage folders, cheques, invoices and files.", url: p("/documents"), _bare: "/documents" },
@@ -507,6 +545,7 @@ const useProLayoutNav = () => {
     { icon: makeTile("#3b82f6", ICONS.invoice), title: "Invoices & Bills", desc: "Manage customer invoices and supplier bills.", url: p("/orders"), _bare: "/orders" },
     { icon: makeTile("#f59e0b", ICONS.debit), title: "Debit/Credit Notes", desc: "Create and manage debit and credit notes.", url: p("/accounting/notes"), _bare: "/accounting/notes" },
     { icon: makeTile("#8b5cf6", ICONS.journal), title: "Journal Entries", desc: "Record and post journal entries.", url: p("/accounting/journals"), _bare: "/accounting/journals" },
+    { icon: makeTile("#22c55e", ICONS.salesReceipt), title: "Sales Receipts", desc: "Record direct sales without invoices.", url: p("/accounting/sales-receipts"), _bare: "/accounting/sales-receipts" },
     { icon: makeTile("#16a34a", ICONS.bankStatement), title: "Bank Statements", desc: "Import and categorize bank statement transactions.", url: p("/accounting/bank-statements"), _bare: "/accounting/bank-statements" },
     { icon: makeTile("#0ea5e9", ICONS.bank), title: "Reconciliation", desc: "Reconcile bank statements with your books.", url: p("/accounting/reconciliation"), _bare: "/accounting/reconciliation" },
     { icon: makeTile("#534AB7", ICONS.coa), title: "Chart of Accounts", desc: "Manage your account structure and codes.", url: p("/accounting/accounts"), _bare: "/accounting/accounts" },
@@ -515,7 +554,11 @@ const useProLayoutNav = () => {
     { icon: makeTile("#22c55e", ICONS.reports), title: "Reports", desc: "View financial reports and analytics.", url: p("/reports"), _bare: "/reports" },
     { icon: makeTile("#10b981", ICONS.income), title: "Income", desc: "View all inbound and outbound payments.", url: p("/accounting/income"), _bare: "/accounting/income" },
     { icon: makeTile("#10b981", ICONS.inventory), title: "Inventory", desc: "Track and manage your stock levels.", url: p("/inventory"), _bare: "/inventory" },
-    { icon: makeTile("#06b6d4", ICONS.customers), title: "Customers", desc: "Manage your customer relationships.", url: p("/customers"), _bare: "/customers" },
+    ...(!hasPOS ? [
+      { icon: makeTile("#6366f1", ICONS.checklist), title: "Services", desc: "Manage products and services for your customers.", url: p("/store"), _bare: "/store" },
+      { icon: makeTile("#6366f1", ICONS.checklist), title: "Categories", desc: "Organize your products and services with clear categories.", url: p("/Category-settings"), _bare: "/Category-settings" },
+    ] : []),
+    { icon: makeTile("#06b6d4", ICONS.customers), title: getCustomerLabel(), desc: "Manage your customer relationships.", url: p("/customers"), _bare: "/customers" },
     { icon: makeTile("#8b5cf6", ICONS.supplier), title: "Suppliers", desc: "Manage your supplier relationships.", url: p("/suppliers"), _bare: "/suppliers" },
     { icon: makeTile("#f59e0b", ICONS.payment), title: "Payment Methods", desc: "Set up and manage how customers pay.", url: p("/payment-methods"), _bare: "/payment-methods" },
     { icon: makeTile("#6c1c2c", ICONS.settings), title: "System Setup", desc: "Configure your RELIA system for optimal use.", url: p("/system-setup"), _bare: "/system-setup" },
@@ -545,7 +588,7 @@ const useProLayoutNav = () => {
     }] : []),
     ...(can("CUSTOMERS_VIEW") ? [{
       icon: makeTile("#06b6d4", ICONS.customers),
-      title: "Customers",
+      title: getCustomerLabel(),
       desc: "Manage your customer relationships and subscriptions.",
       url: p("/customers"),
     }] : []),
@@ -554,6 +597,12 @@ const useProLayoutNav = () => {
       title: "Conversations",
       desc: "Manage WhatsApp, Messenger and Instagram conversations.",
       url: p("/omnichannel"),
+    }] : []),
+    ...(can("USERS_VIEW") ? [{
+      icon: makeTile("#3b82f6", ICONS.customers),
+      title: "Staff Management",
+      desc: "Manage staff accounts, roles and permissions.",
+      url: p("/staff-management"),
     }] : []),
     // CRM tiles are always shown in Mteja-only mode (already hasMteja-gated by isMtejaOnly)
     ...crmAppTiles,
@@ -565,6 +614,7 @@ const useProLayoutNav = () => {
     ...mtejaDashboardRoute,
     ...mtejaCustomersRoute,
     ...mtejaConversationsRoute,
+    ...(can("USERS_VIEW") ? [{ path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" }] : []),
     // CRM routes are always injected in Mteja-only mode
     ...crmRoutes,
     // ...(can("ACCOUNTING_COA_VIEW") ? [{
@@ -587,7 +637,6 @@ const useProLayoutNav = () => {
       { icon: makeTile("#3b82f6", ICONS.invoice), title: "Payslips", desc: "View and manage employee payslips.", url: p("/hr/payslips"), _bare: "/hr/payslips" },
       { icon: makeTile("#f59e0b", ICONS.settings), title: "Shift Schedules", desc: "Manage employee shift schedules.", url: p("/hr/shifts"), _bare: "/hr/shifts" },
       { icon: makeTile("#8b5cf6", ICONS.settings), title: "Deductions", desc: "Configure PAYE, NHIF, NSSF and other deductions.", url: p("/hr/deductions"), _bare: "/hr/deductions" },
-      { icon: makeTile("#22c55e", ICONS.reports), title: "HR Reports", desc: "View HR analytics and reports.", url: p("/hr/reports"), _bare: "/hr/reports" },
     ];
     return {
       route: { path: "/", routes: banduRoutes },
@@ -638,11 +687,11 @@ const useProLayoutNav = () => {
       route: {
         path: "/",
         routes: [
-          { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           ...dalaRoutes.map(({ _bare: _b, ...rest }: any) => rest),
-          { path: p("/customers"), name: "Customers", icon: <UserOutlined />, _bare: "/customers" },
+          { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" },
           ...mtejaConversationsRoute.map(({ _bare: _b, ...rest }: any) => rest),
           ...crmRoutes.map(({ _bare: _b, ...rest }: any) => rest),
+          ...(can("USERS_VIEW") ? [{ path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" }] : []),
           { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
         ],
       },
@@ -705,7 +754,7 @@ const useProLayoutNav = () => {
         routes: [
           { path: p("/home-dashboard"), name: "Dashboard", icon: <DashboardOutlined />, _bare: "/home-dashboard" },
           { path: p("/reports"), name: "Reports", icon: <FileTextOutlined />, _bare: "/reports" },
-          ...(hasMteja ? [{ path: p("/customers"), name: "Customers", icon: <UserOutlined />, _bare: "/customers" }] : []),
+          ...(hasMteja ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
           {
             path: p("/accounting"),
             name: "Accounting",
@@ -777,7 +826,7 @@ const useProLayoutNav = () => {
     );
     // Add Customers if Mteja is enabled
     if (hasMteja) {
-      baseRoutes.splice(2, 0, { path: p("/customers"), name: "Customers", icon: <UserOutlined /> });
+      baseRoutes.splice(2, 0, { path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined /> });
     }
   }
   return { route: { path: "/", routes: baseRoutes }, appList: posAppList };

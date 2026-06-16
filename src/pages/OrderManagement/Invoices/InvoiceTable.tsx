@@ -7,20 +7,25 @@ import {
 import ExpandedRowContent from "./ExpandableInvoice";
 import {
   Button, DatePicker, Drawer, Form, Input, InputNumber,
-  Modal, Select, App, Tooltip, Typography, Dropdown,
+  Modal, Select, App, Tooltip, Typography, Dropdown, Tag, Divider,
 } from "antd";
 import {
   DollarOutlined, EditOutlined, FileDoneOutlined,
   FileTextOutlined, FilterOutlined, MoreOutlined,
-  PrinterOutlined, UserOutlined,
+  PrinterOutlined, UserOutlined, SafetyCertificateOutlined,
+  DeleteOutlined, PlusOutlined, CopyOutlined, StopOutlined,
 } from "@ant-design/icons";
 import { getAllInvoices } from "@services/cart";
-import { convertQuoteToInvoice, recordInvoicePayment } from "@services/accounting/invoice";
+import { convertQuoteToInvoice, recordInvoicePayment, deleteInvoice, duplicateInvoice, voidInvoice } from "@services/accounting/invoice";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
+import { getAllAccounts } from "@services/accounting/accounts";
+import { generateTaxInvoice } from "@services/accounting/digiTax";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import InvoiceReprintModal from "./InvoiceReprintModal";
 import ManualInvoiceModal from "./ManualInvoiceModal";
 import NoteDetailDrawer from "../../Notes/NoteDetailDrawer";
+import NoteFormDrawer from "../../Notes/NoteFormDrawer";
+import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -192,10 +197,12 @@ const MobileInvoiceCard: React.FC<{
   onEdit: (r: any) => void;
   onExpand: (r: any) => void;
   onOpenNote: (noteId: string) => void;
+  onEtr: (r: any) => void;
   expanded: boolean;
-}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, expanded }) => {
+}> = ({ record, onConvert, onPay, onEdit, onExpand, onOpenNote, onEtr, expanded }) => {
   const isDraft = record.status === "Draft";
   const isPayable = ["Pending", "Partially_Paid", "Overdue"].includes(record.status);
+  const needsEtr = !isDraft && !record.etr_enabled;
 
   const actionItems = [
     ...(isDraft ? [
@@ -203,7 +210,9 @@ const MobileInvoiceCard: React.FC<{
       { key: "convert", label: "Convert to Invoice", icon: <FileDoneOutlined /> },
     ] : []),
     ...(isPayable ? [{ key: "pay", label: "Record Payment", icon: <DollarOutlined /> }] : []),
+    ...(needsEtr ? [{ key: "etr", label: "Submit Etims", icon: <SafetyCertificateOutlined /> }] : []),
     { key: "edit", label: "Edit", icon: <EditOutlined /> },
+    ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
   ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -211,6 +220,8 @@ const MobileInvoiceCard: React.FC<{
     if (key === "convert") onConvert(record);
     if (key === "pay") onPay(record);
     if (key === "edit") onEdit(record);
+    if (key === "etr") onEtr(record);
+    if (key === "delete") setDeleteTarget(record);
   };
 
   return (
@@ -238,6 +249,17 @@ const MobileInvoiceCard: React.FC<{
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <StatusTag status={record.status} />
+          {record.status !== "Draft" && (
+            record.etr_enabled ? (
+              <Tag color="green" style={{ fontSize: 9, borderRadius: 4 }}>
+                ETR
+              </Tag>
+            ) : (
+              <Tag color="orange" style={{ fontSize: 9, borderRadius: 4 }}>
+                No ETR
+              </Tag>
+            )
+          )}
           <Dropdown
             menu={{ items: actionItems, onClick: handleMenuClick }}
             trigger={["click"]}
@@ -333,10 +355,57 @@ const PaymentModal: React.FC<{
 }> = ({ invoice, open, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const { message } = App.useApp();
+  const queryClient = useQueryClient();
+  const [addDepositAccountOpen, setAddDepositAccountOpen] = useState(false);
+  
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const shopId = tenant?.shop_id || "";
+  
   const { data: methodsData } = useQuery({
     queryKey: ["payment-methods"], queryFn: () => fetchAllPaymentMethods({}), enabled: open,
   });
+  
+     const { data: accountsData } = useQuery({
+         queryKey: ["chart-of-accounts"],
+         queryFn: () => getAllAccounts({}),
+         enabled: open,
+     });
+     
+  const allAccounts = accountsData?.accounts || [];
+
+     const assetAccounts = allAccounts.filter(
+        (a: any) => a.account_type === "ASSET" && a.is_active
+    );
+  const assetAccountOptions = assetAccounts.map((a: any) => ({
+    label: `${a.account_code} — ${a.account_name}`,
+    value: a._id,
+  }));
+  
   const methodOptions = (methodsData || []).map((m: any) => ({ label: m.name, value: m._id }));
+  
+  // ── Helper: dropdown footer factory ─────────────────────────────────────────
+  const dropdownFooter = (label: string, onAdd: () => void) => (
+    <>
+      <Divider style={{ margin: "4px 0" }} />
+      <Button
+        type="link"
+        icon={<PlusOutlined />}
+        style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onAdd();
+        }}
+      >
+        {label}
+      </Button>
+    </>
+  );
+  
+  const handleAccountAdded = () => {
+    queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
+  };
+  
   const amountDue = invoice?.amount_due ?? invoice?.grand_total ?? 0;
   const mutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => recordInvoicePayment(id, data),
@@ -347,14 +416,24 @@ const PaymentModal: React.FC<{
   });
   const handleOk = async () => {
     const v = await form.validateFields();
-    mutation.mutate({ id: invoice._id, data: { amount: v.amount, method_id: v.method_id, reference: v.reference, notes: v.notes } });
+    mutation.mutate({ 
+      id: invoice._id, 
+      data: { 
+        amount: v.amount, 
+        method_id: v.method_id, 
+        account_id: v.account_id,
+        reference: v.reference, 
+        notes: v.notes,
+      } 
+    });
   };
   return (
+    <>
     <Modal open={open} onCancel={onClose} destroyOnClose
       style={{ top: 20 }} width="min(480px, 96vw)"
       styles={{ body: { padding: "20px 24px" } }}
       title={modalTitle(<DollarOutlined />, C.green, `Record Payment — ${invoice?.order_no}`)}
-      footer={modalFooter(onClose, handleOk, mutation.isPending, "Record Payment", C.green)}
+      footer={modalFooter(onClose, handleOk, mutation.isLoading, "Record Payment", C.green)}
     >
       <div style={{
         background: "#f0fdf4", border: "1px solid #bbf7d0",
@@ -368,6 +447,28 @@ const PaymentModal: React.FC<{
         <Form.Item name="method_id" label="Payment Method" rules={[{ required: true }]}>
           <Select showSearch placeholder="M-Pesa / Bank / Cash"
             options={methodOptions} optionFilterProp="label" style={{ borderRadius: 8 }} />
+        </Form.Item>
+        <Form.Item 
+          name="account_id" 
+          label="Deposit Account"
+          rules={[{ required: true, message: "Select the account receiving payment" }]}
+          tooltip="Choose the cash or bank account where this payment is deposited."
+        >
+          <Select 
+            showSearch 
+            placeholder="e.g. Cash on Hand, Bank, M-Pesa Float"
+            optionFilterProp="label"
+            options={assetAccountOptions}
+            notFoundContent="No asset accounts found — add them in Chart of Accounts"
+            allowClear
+            style={{ borderRadius: 8 }} 
+            dropdownRender={(menu) => (
+              <>
+                {menu}
+                {dropdownFooter("Add Asset Account", () => setAddDepositAccountOpen(true))}
+              </>
+            )}
+          />
         </Form.Item>
         <Form.Item name="amount" label="Amount (KES)"
           rules={[{ required: true }, { type: "number", min: 0.01, max: amountDue }]}>
@@ -384,6 +485,18 @@ const PaymentModal: React.FC<{
         </Form.Item>
       </Form>
     </Modal>
+
+    <AccountFormDrawer
+      open={addDepositAccountOpen}
+      onClose={() => setAddDepositAccountOpen(false)}
+      onSuccess={() => {
+        setAddDepositAccountOpen(false);
+        handleAccountAdded();
+      }}
+      accounts={allAccounts}
+      shopId={shopId}
+    />
+    </>
   );
 };
 
@@ -466,12 +579,29 @@ const InvoicesTable = () => {
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
+
+  // Check if Pesa (accounting) is enabled
+  const storedTenant = localStorage.getItem("tenant");
+  const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const hasPesa = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
+  const shopId = tenant?.shop_id || "";
+
+  // Check if user is admin
+  const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : null;
+  const isAdmin = user?.role === "admin";
 
   const [convertTarget, setConvertTarget] = useState<any>(null);
   const [payTarget, setPayTarget] = useState<any>(null);
   const [editTarget, setEditTarget] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [voidTarget, setVoidTarget] = useState<any>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [creditNoteTarget, setCreditNoteTarget] = useState<any>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
   const [mobileData, setMobileData] = useState<any[]>([]);
   const [mobileLoading, setMobileLoading] = useState(false);
   const [mobilePage, setMobilePage] = useState(1);
@@ -480,6 +610,7 @@ const InvoicesTable = () => {
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [noteDetailOpen, setNoteDetailOpen] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [etrSubmitting, setEtrSubmitting] = useState<string | null>(null);
 
   const [queryParams, setQueryParams] = useState({
     page: 1, limit: 10,
@@ -534,9 +665,29 @@ const InvoicesTable = () => {
     loadMobileData(next, mobileFilters);
   };
 
+  const handleEtrSubmit = async (record: any) => {
+    setEtrSubmitting(record._id);
+    try {
+      const result = await generateTaxInvoice(record._id, true);
+      if (result.success) {
+        message.success(`ETR submitted successfully! Receipt: ${result.taxReceiptNumber}`);
+        refreshTable();
+        // Invalidate specific invoice query to refresh expanded view
+        queryClient.invalidateQueries({ queryKey: ["invoice", record._id] });
+      } else {
+        message.error(result.error || 'Failed to submit Etims');
+      }
+    } catch (error) {
+      message.error('Failed to submit Etims to KRA');
+    } finally {
+      setEtrSubmitting(null);
+    }
+  };
+
   // Row action menu for desktop
   const getRowActionItems = (record: any) => [
     { key: "edit", label: "Edit", icon: <EditOutlined /> },
+    ...(record.status !== "Voided" ? [{ key: "duplicate", label: "Duplicate", icon: <CopyOutlined /> }] : []),
     ...(record.status === "Draft" ? [
       { key: "print", label: "Print Quote", icon: <PrinterOutlined /> },
       { key: "convert", label: "Convert to Invoice", icon: <FileDoneOutlined /> },
@@ -544,13 +695,61 @@ const InvoicesTable = () => {
     ...(["Pending", "Partially_Paid", "Overdue"].includes(record.status) ? [
       { key: "pay", label: "Record Payment", icon: <DollarOutlined /> },
     ] : []),
+    ...(record.status !== "Draft" && record.status !== "Voided" ? [
+      { key: "credit-note", label: "Create Credit Note", icon: <FileTextOutlined /> },
+    ] : []),
+    ...(record.status !== "Draft" && record.status !== "Voided" && !record.etr_enabled ? [
+      { key: "void", label: "Void Invoice", icon: <StopOutlined />, danger: true },
+    ] : []),
+    ...(record.status !== "Draft" && record.status !== "Voided" && !record.etr_enabled ? [
+      { key: "etr", label: "Submit Etims", icon: <SafetyCertificateOutlined /> },
+    ] : []),
+    ...(isAdmin && !record.etr_enabled ? [{ key: "delete", label: "Delete", icon: <DeleteOutlined />, danger: true }] : []),
   ];
 
   const handleRowMenuClick = (key: string, record: any) => {
     if (key === "edit") setEditTarget(record);
+    if (key === "duplicate") handleDuplicate(record);
     if (key === "print") printQuote(record);
     if (key === "convert") setConvertTarget(record);
     if (key === "pay") setPayTarget(record);
+    if (key === "credit-note") setCreditNoteTarget(record);
+    if (key === "void") setVoidTarget(record);
+    if (key === "etr") handleEtrSubmit(record);
+    if (key === "delete") setDeleteTarget(record);
+  };
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteInvoice(id),
+    onSuccess: () => {
+      message.success("Invoice deleted successfully");
+      setDeleteTarget(null);
+      refreshTable();
+    },
+  });
+
+  // Void mutation
+  const voidMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => voidInvoice(id, reason),
+    onSuccess: () => {
+      message.success("Invoice voided successfully");
+      setVoidTarget(null);
+      setVoidReason("");
+      refreshTable();
+    },
+  });
+
+  // Duplicate mutation
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => duplicateInvoice(id),
+    onSuccess: (data) => {
+      refreshTable();
+    },
+  });
+
+  const handleDuplicate = (record: any) => {
+    duplicateMutation.mutate(record._id);
   };
 
   const desktopColumns = [
@@ -568,7 +767,22 @@ const InvoicesTable = () => {
     },
     {
       title: "Status", dataIndex: "status", hideInSearch: true,
-      render: (status: string) => <StatusTag status={status} />,
+      render: (status: string, record: any) => (
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <StatusTag status={status} />
+          {record.status !== "Draft" && (
+            record.etr_enabled ? (
+              <Tag color="green" style={{ fontSize: 10, borderRadius: 4 }}>
+                ETR
+              </Tag>
+            ) : (
+              <Tag color="orange" style={{ fontSize: 10, borderRadius: 4 }}>
+                No ETR
+              </Tag>
+            )
+          )}
+        </div>
+      ),
     },
     {
       title: "Customer", dataIndex: ["customer_id", "customer_name"], hideInSearch: true,
@@ -634,6 +848,13 @@ const InvoicesTable = () => {
       title: "Table", dataIndex: ["table_id", "name"], key: "table",
       hideInSearch: false, fieldProps: { placeholder: "Enter table name" },
       render: (text: string) => <Text style={{ fontSize: 12 }}>{text || "—"}</Text>,
+    },
+    {
+      title: "ETR Status", dataIndex: "etr_enabled", key: "etr_status",
+      hideInTable: true, valueEnum: {
+        true: { text: "With ETR" },
+        false: { text: "Without ETR" },
+      },
     },
     {
       title: "Closed By", dataIndex: ["served_by", "username"], key: "closed-by", hideInSearch: true,
@@ -731,6 +952,7 @@ const InvoicesTable = () => {
                 expanded={expandedId === record._id}
                 onExpand={(r) => setExpandedId(expandedId === r._id ? null : r._id)}
                 onOpenNote={handleOpenNote}
+                onEtr={handleEtrSubmit}
               />
             ))}
             {mobileData.length < mobileTotal && (
@@ -791,15 +1013,17 @@ const InvoicesTable = () => {
           optionRender: (_, __, dom) => [...dom],
         }}
         toolBarRender={() => [
-          <Button
-            key="new-invoice"
-            type="primary"
-            icon={<FileDoneOutlined />}
-            onClick={() => setManualModalOpen(true)}
-            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
-          >
-            New Invoice
-          </Button>,
+          ...(hasPesa ? [
+            <Button
+              key="new-invoice"
+              type="primary"
+              icon={<FileDoneOutlined />}
+              onClick={() => setManualModalOpen(true)}
+              style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}
+            >
+              New Invoice
+            </Button>,
+          ] : []),
         ]}
         pagination={{
           pageSize: queryParams.limit, current: queryParams.page,
@@ -810,6 +1034,7 @@ const InvoicesTable = () => {
           {
             title: "Date Range", dataIndex: "dateRange",
             valueType: "dateRange", hideInTable: true,
+            initialValue: [dayjs().startOf("day"), dayjs().endOf("day")],
             fieldProps: {
               ranges: {
                 Today: [dayjs().startOf("day"), dayjs().endOf("day")],
@@ -860,7 +1085,24 @@ const InvoicesTable = () => {
           defaultExpandAllRows: false,
           expandIconColumnIndex: 1,
           columnTitle: " ",
+          expandedRowKeys: expandedRowKeys,
+          onExpandedRowsChange: (keys) => setExpandedRowKeys(keys),
         }}
+        onRow={(record) => ({
+          onClick: (e) => {
+            // Don't expand if clicking on action dropdown or its children
+            const target = e.target as HTMLElement;
+            if (target.closest('.ant-dropdown-trigger') || target.closest('.ant-btn')) {
+              return;
+            }
+            // Toggle expansion
+            const newKeys = expandedRowKeys.includes(record._id)
+              ? expandedRowKeys.filter((k) => k !== record._id)
+              : [...expandedRowKeys, record._id];
+            setExpandedRowKeys(newKeys);
+          },
+          style: { cursor: 'pointer' },
+        })}
         dateFormatter="string"
         rowClassName={(record) => record.status === "Draft" ? "row-quote" : ""}
       />
@@ -885,6 +1127,104 @@ const InvoicesTable = () => {
         noteId={selectedNoteId}
         onSuccess={() => {}} // No refresh needed for notes from invoice view
         onOpenInvoice={() => {}} // No need to navigate back to invoice from here
+      />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={!!deleteTarget}
+        onCancel={() => setDeleteTarget(null)}
+        title={modalTitle(<DeleteOutlined />, C.red, "Delete Invoice")}
+        okText="Delete"
+        okButtonProps={{ danger: true, style: { background: C.red, borderColor: C.red } }}
+        onOk={() => deleteTarget && deleteMutation.mutate(deleteTarget._id)}
+        confirmLoading={deleteMutation.isLoading}
+        destroyOnClose
+      >
+        <div style={{ padding: "16px 0" }}>
+          <p style={{ marginBottom: 12 }}>
+            Are you sure you want to delete invoice <strong>{deleteTarget?.order_no}</strong>?
+          </p>
+          <p style={{ fontSize: 12, color: C.subText, marginBottom: 8 }}>
+            This action will:
+          </p>
+          <ul style={{ fontSize: 12, color: C.subText, paddingLeft: 20, marginBottom: 12 }}>
+            <li>Delete all invoice items</li>
+            <li>Reverse stock updates</li>
+            <li>Delete the journal entry</li>
+            <li>Delete associated payments</li>
+            <li>Delete the invoice record</li>
+          </ul>
+          <p style={{ fontSize: 12, color: C.red, fontWeight: 500 }}>
+            This action cannot be undone.
+          </p>
+        </div>
+      </Modal>
+
+      {/* Void Invoice Modal */}
+      <Modal
+        open={!!voidTarget}
+        onCancel={() => { setVoidTarget(null); setVoidReason(""); }}
+        title={modalTitle(<StopOutlined />, C.red, "Void Invoice")}
+        okText="Void Invoice"
+        okButtonProps={{ danger: true, style: { background: C.red, borderColor: C.red } }}
+        onOk={() => voidTarget && voidMutation.mutate({ id: voidTarget._id, reason: voidReason })}
+        confirmLoading={voidMutation.isLoading}
+        destroyOnClose
+      >
+        <div style={{ padding: "16px 0" }}>
+          <p style={{ marginBottom: 12 }}>
+            Are you sure you want to void invoice <strong>{voidTarget?.order_no}</strong>?
+          </p>
+          <p style={{ fontSize: 12, color: C.subText, marginBottom: 8 }}>
+            This action will:
+          </p>
+          <ul style={{ fontSize: 12, color: C.subText, paddingLeft: 20, marginBottom: 12 }}>
+            <li>Set invoice status to "Voided"</li>
+            <li>Void the associated journal entry</li>
+            <li>Add void reason to internal notes</li>
+          </ul>
+          <div style={{ marginTop: 16 }}>
+            <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+              Void Reason <span style={{ color: C.red }}>*</span>
+            </label>
+            <Input.TextArea
+              placeholder="Enter the reason for voiding this invoice..."
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              rows={4}
+              maxLength={500}
+              showCount
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <NoteFormDrawer
+        open={!!creditNoteTarget}
+        onClose={() => setCreditNoteTarget(null)}
+        onSuccess={refreshTable}
+        shopId={shopId}
+        noteType="CREDIT_NOTE"
+        readonlyFields={true}
+        editingNote={creditNoteTarget ? {
+          _id: "",
+          note_no: "",
+          note_type: "CREDIT_NOTE",
+          direction: creditNoteTarget.direction === "supplier" ? "supplier" : "customer",
+          original_invoice_id: creditNoteTarget._id,
+          original_invoice_no: creditNoteTarget.order_no,
+          customer_id: creditNoteTarget.customer_id,
+          supplier_id: creditNoteTarget.supplier_id,
+          issue_date: new Date().toISOString(),
+          lines: [],
+          subtotal: 0,
+          total_vat: 0,
+          total_discount: 0,
+          grand_total: 0,
+          status: "Draft",
+          reason: "",
+          shop_id: shopId,
+        } as any : undefined}
       />
     </>
   );

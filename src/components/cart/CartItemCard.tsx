@@ -11,12 +11,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty, updateCartItems } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
-import { Space } from "antd/lib";
-import { Button, Typography, notification, Tooltip, Input, Popconfirm } from "antd";
-import { DeleteOutlined, LoadingOutlined, EditOutlined, FileTextOutlined } from "@ant-design/icons";
+import { Button, Typography, notification, Tooltip, Input, Popconfirm, Checkbox, Space, Tag } from "antd";
+import { DeleteOutlined, LoadingOutlined, EditOutlined, FileTextOutlined, TagOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import useCartItemsData from "@hooks/cartItemsData";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
-import axiosInstance from "../../services/axiosInstance";
+import axiosInstance from "../../services/request";
+import { BASE_URL } from "@utils/config";
+import { Modal, Form, InputNumber, Select } from "antd";
+import { fetchMainCategories } from "../../services/categories";
 
 interface cartItemCardProps {
   cartItem: any;
@@ -45,6 +47,15 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(cartItem?.notes || "");
   const [notesLoading, setNotesLoading] = useState(false);
+  const [addonNames, setAddonNames] = useState<string[]>([]);
+  const [isAddonModalOpen, setIsAddonModalOpen] = useState(false);
+  const [isEditingAddons, setIsEditingAddons] = useState(false);
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [allAvailableAddons, setAllAvailableAddons] = useState<any[]>([]);
+  const [isEditMiscModalOpen, setIsEditMiscModalOpen] = useState(false);
+  const [editMiscLoading, setEditMiscLoading] = useState(false);
+  const [mainCategories, setMainCategories] = useState<{ value: string; label: string }[]>([]);
+  const [editMiscForm] = Form.useForm();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const canEditQty = user?.role === "admin" || user?.role === "cashier";
@@ -63,6 +74,125 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     }
   }, [cartItem?.notes, isEditingNotes]);
 
+  // Load main categories
+  useEffect(() => {
+    const loadMainCategories = async () => {
+      try {
+        const categories = await fetchMainCategories();
+        setMainCategories(categories.map((cat: any) => ({ value: cat._id, label: cat.name })));
+      } catch (error) {
+        console.error("Failed to load main categories:", error);
+      }
+    };
+    loadMainCategories();
+  }, []);
+
+  // Fetch addon names when cart item changes
+  useEffect(() => {
+    const fetchAddonNames = async () => {
+      if (cartItem?.addons && cartItem.addons.length > 0) {
+        try {
+          // Fetch both modifiers and addons to handle both cases
+          const [modifiersResponse, addonsResponse] = await Promise.all([
+            axiosInstance.get(`${BASE_URL}/modifiers/fetch-modifiers`),
+            axiosInstance.get(`${BASE_URL}/modifiers/fetch-addons`)
+          ]);
+          
+          const allModifiers = modifiersResponse.data || [];
+          const allAddons = addonsResponse.data || [];
+          const addonIds = cartItem.addons;
+          
+          const names: string[] = [];
+          
+          // Check if any IDs match modifier names
+          allModifiers.forEach((modifier: any) => {
+            if (addonIds.includes(modifier._id)) {
+              names.push(modifier.name);
+            }
+            // Also check child addons
+            modifier.addons?.forEach((addon: any) => {
+              if (addonIds.includes(addon._id)) {
+                names.push(addon.name);
+              }
+            });
+          });
+          
+          // Check if any IDs match standalone addons
+          allAddons.forEach((addon: any) => {
+            if (addonIds.includes(addon._id)) {
+              names.push(addon.name);
+            }
+          });
+          
+          setAddonNames(names);
+          setSelectedAddons(addonIds);
+          console.log('Cart item addons:', addonIds);
+          console.log('Fetched addon names:', names);
+        } catch (error) {
+          console.error('Failed to fetch addon names:', error);
+        }
+      } else {
+        setAddonNames([]);
+        setSelectedAddons([]);
+      }
+    };
+    fetchAddonNames();
+  }, [cartItem?.addons]);
+
+  // Fetch all available addons when modal opens
+  useEffect(() => {
+    const fetchAllAddons = async () => {
+      if (isAddonModalOpen) {
+        try {
+          const [modifiersResponse, addonsResponse] = await Promise.all([
+            axiosInstance.get(`${BASE_URL}/modifiers/fetch-modifiers`),
+            axiosInstance.get(`${BASE_URL}/modifiers/fetch-addons`)
+          ]);
+          
+          const allModifiers = modifiersResponse.data || [];
+          const allAddons = addonsResponse.data || [];
+          
+          const availableAddons: any[] = [];
+          
+          // Add modifiers with their addons
+          allModifiers.forEach((modifier: any) => {
+            availableAddons.push({
+              _id: modifier._id,
+              name: modifier.name,
+              type: 'modifier',
+              addons: modifier.addons || []
+            });
+            // Add child addons as individual options
+            modifier.addons?.forEach((addon: any) => {
+              availableAddons.push({
+                _id: addon._id,
+                name: addon.name,
+                price: addon.price,
+                type: 'addon',
+                parentId: modifier._id
+              });
+            });
+          });
+          
+          // Add standalone addons
+          allAddons.forEach((addon: any) => {
+            availableAddons.push({
+              _id: addon._id,
+              name: addon.name,
+              price: addon.price,
+              type: 'addon'
+            });
+          });
+          
+          setAllAvailableAddons(availableAddons);
+        } catch (error) {
+          console.error('Failed to fetch all addons:', error);
+        }
+      }
+    };
+    fetchAllAddons();
+  }, [isAddonModalOpen]);
+
   // Auto-focus when entering edit mode
   useEffect(() => {
     if (isEditingQty && inputRef.current) {
@@ -73,6 +203,15 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
   const formattedPrice = useMemo(() => formatPrice(cartItem?.price), [cartItem?.price]);
   const formattedQuantity = useMemo(() => formatQuantity(cartItem?.quantity), [cartItem?.quantity]);
+
+  const getItemName = () => {
+    if (cartItem?.product_type === "Miscellaneous") {
+      return cartItem?.miscellaneous_name || cartItem?.product_id?.name || "Custom Item";
+    }
+    return cartItem?.product_id?.name || "Product Name";
+  };
+
+  const isMiscellaneous = cartItem?.product_type === "Miscellaneous";
 
   const discountedPrice = useMemo(() => {
     if (!cartItem?.price || !cartDetails?.discount) return null;
@@ -167,65 +306,169 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
     }
   };
 
+  const handleDeleteNotes = async () => {
+    try {
+      await dispatch(updateCartItems({ _id: cartItem._id, cart_id: cartDetails._id, notes: "" } as any));
+      invalidate();
+      notification.success({ message: "Notes deleted successfully" });
+    } catch {
+      notification.error({ message: "Failed to delete notes" });
+    }
+  };
+
+  const handleSaveAddons = async () => {
+    setIsEditingAddons(false);
+    try {
+      await dispatch(updateCartItems({
+        _id: cartItem._id,
+        cart_id: cartDetails._id,
+        addons: selectedAddons
+      } as any));
+      invalidate();
+      notification.success({ message: "Addons updated successfully" });
+    } catch {
+      notification.error({ message: "Failed to update addons" });
+    }
+  };
+
+  const handleEditMiscItem = () => {
+    editMiscForm.setFieldsValue({
+      name: cartItem?.miscellaneous_name,
+      main_category: cartItem?.main_category?._id || cartItem?.main_category,
+      price: cartItem?.price,
+      quantity: cartItem?.quantity,
+      notes: cartItem?.notes,
+    });
+    setIsEditMiscModalOpen(true);
+  };
+
+  const handleUpdateMiscItem = async () => {
+    try {
+      const values = await editMiscForm.validateFields();
+      setEditMiscLoading(true);
+      await dispatch(updateCartItems({
+        _id: cartItem._id,
+        cart_id: cartDetails._id,
+        miscellaneous_name: values.name,
+        main_category: values.main_category,
+        price: values.price,
+        quantity: values.quantity,
+        notes: values.notes,
+      } as any));
+      notification.success({ message: "Miscellaneous item updated successfully" });
+      setIsEditMiscModalOpen(false);
+    } catch (error) {
+      notification.error({ message: "Failed to update miscellaneous item" });
+    } finally {
+      setEditMiscLoading(false);
+    }
+  };
+
   if (!cartItem) return null;
 
   const isSent = cartItem.sent;
   const textColor = isSent ? "#fff" : "#000";
 
   return (
-    <Card
-      key={cartItem._id}
-      sx={{
-        mb: 1,
-        boxShadow: "none",
-        backgroundColor: isSent ? primaryColor : "#f6ffed",
-        color: textColor,
-        transition: "background-color 0.2s ease",
-      }}
-    >
-      <CardContent sx={{ pb: "8px !important", pt: "10px !important", px: "12px !important" }}>
-        <Grid container spacing={1} alignItems="center">
+    <>
+      <Card
+        key={cartItem._id}
+        sx={{
+          mb: 1,
+          boxShadow: "none",
+          backgroundColor: isSent ? primaryColor : "#f6ffed",
+          color: textColor,
+          transition: "background-color 0.2s ease",
+        }}
+      >
+        <CardContent sx={{ pb: "8px !important", pt: "10px !important", px: "12px !important" }}>
+          <Grid container spacing={1} alignItems="center">
 
-          {/* Item Name */}
-          <Grid item xs={4}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <Typography.Text
-                ellipsis={{ tooltip: cartItem?.product_id?.name }}
-                style={{ color: textColor, fontSize: 13, fontWeight: 500 }}
-              >
-                {cartItem?.product_id?.name || "Product Name"}
-              </Typography.Text>
-              <Tooltip
-                title={
-                  <div style={{ maxWidth: 250 }}>
-                    {cartItem?.notes ? (
-                      <div style={{ background: "#fef08a", padding: 8, borderRadius: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-                        <div style={{ fontWeight: 600, fontSize: 11, marginBottom: 4, color: "#854d0e" }}>📝 Notes:</div>
-                        <div style={{ fontSize: 12, color: "#713f12" }}>{cartItem.notes}</div>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: 12, color: "#94a3b8" }}>No notes</div>
+            {/* Item Name */}
+            <Grid item xs={4}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <Typography.Text
+                  ellipsis={{ tooltip: getItemName() }}
+                  style={{ color: textColor, fontSize: 13, fontWeight: 500 }}
+                >
+                  {getItemName()}
+                </Typography.Text>
+                
+                {/* Miscellaneous badge */}
+                {isMiscellaneous && (
+                  <Tag
+                    style={{
+                      fontSize: 10,
+                      borderRadius: 4,
+                      margin: 0,
+                      padding: "0 6px",
+                      background: primaryColor,
+                      color: "#fff",
+                      border: "none",
+                    }}
+                  >
+                    Custom
+                  </Tag>
+                )}
+                
+                {/* Addons icon - hide for miscellaneous items */}
+                {!isMiscellaneous && addonNames.length > 0 && (
+                  <Tooltip title="View addons">
+                    <TagOutlined
+                      style={{
+                        fontSize: 14,
+                        color: primaryColor,
+                        cursor: "pointer",
+                        flexShrink: 0
+                      }}
+                      onClick={() => setIsAddonModalOpen(true)}
+                    />
+                  </Tooltip>
+                )}
+
+                {/* Notes icon */}
+                <Tooltip
+                  title={
+                    <div style={{ maxWidth: 250 }}>
+                      {cartItem?.notes ? (
+                        <div style={{ background: "#fef08a", padding: 8, borderRadius: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+                          <div style={{ fontWeight: 600, fontSize: 11, marginBottom: 4, color: "#854d0e" }}>📝 Notes:</div>
+                          <div style={{ fontSize: 12, color: "#713f12" }}>{cartItem.notes}</div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: "#94a3b8" }}>No notes</div>
+                      )}
+                    </div>
+                  }
+                  placement="top"
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <FileTextOutlined
+                      style={{
+                        fontSize: 14,
+                        color: cartItem?.notes ? primaryColor : "#94a3b8",
+                        cursor: "pointer",
+                        flexShrink: 0
+                      }}
+                      onClick={() => {
+                        setNotesValue(cartItem?.notes || "");
+                        setIsEditingNotes(true);
+                      }}
+                    />
+                    {cartItem?.notes && (
+                      <CloseCircleOutlined
+                        style={{
+                          fontSize: 14,
+                          color: "#ff4d4f",
+                          cursor: "pointer",
+                          flexShrink: 0
+                        }}
+                        onClick={handleDeleteNotes}
+                      />
                     )}
                   </div>
-                }
-                placement="top"
-              >
-                <FileTextOutlined
-                  style={{
-                    fontSize: 14,
-                    color: cartItem?.notes ? primaryColor : "#94a3b8",
-                    cursor: canEditQty ? "pointer" : "default",
-                    flexShrink: 0
-                  }}
-                  onClick={() => {
-                    if (canEditQty) {
-                      setNotesValue(cartItem?.notes || "");
-                      setIsEditingNotes(true);
-                    }
-                  }}
-                />
-              </Tooltip>
-            </div>
+                </Tooltip>
+              </div>
             {/* Notes editing input */}
             {isEditingNotes && (
               <div style={{ marginTop: 6 }}>
@@ -427,6 +670,14 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
           <Grid item xs={2}>
             {isSent ? (
               <Space>
+                {isMiscellaneous && (
+                  <Button
+                    size="small"
+                    style={{ width: "32px", padding: 0 }}
+                    icon={<EditOutlined />}
+                    onClick={handleEditMiscItem}
+                  />
+                )}
                 {user?.role === "admin" && (
                   <Button
                     danger
@@ -446,18 +697,28 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 </IconButton>
               </Space>
             ) : (
-              <Button
-                danger
-                size="small"
-                style={{ width: "32px", padding: 0 }}
-                icon={<DeleteOutlined />}
-                onClick={() => {
-                  if (cartItem._id) {
-                    dispatch(deleteCartItem(cartItem._id));
-                    invalidate();
-                  }
-                }}
-              />
+              <Space>
+                {isMiscellaneous && (
+                  <Button
+                    size="small"
+                    style={{ width: "32px", padding: 0 }}
+                    icon={<EditOutlined />}
+                    onClick={handleEditMiscItem}
+                  />
+                )}
+                <Button
+                  danger
+                  size="small"
+                  style={{ width: "32px", padding: 0 }}
+                  icon={<DeleteOutlined />}
+                  onClick={() => {
+                    if (cartItem._id) {
+                      dispatch(deleteCartItem(cartItem._id));
+                      invalidate();
+                    }
+                  }}
+                />
+              </Space>
             )}
           </Grid>
 
@@ -465,6 +726,200 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       </CardContent>
       <Divider sx={{ my: 0 }} />
     </Card>
+
+    {/* Addons Modal - disabled for miscellaneous items */}
+    {!isMiscellaneous && (
+      <Modal
+        open={isAddonModalOpen}
+        onCancel={() => {
+          setIsAddonModalOpen(false);
+          setIsEditingAddons(false);
+        }}
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <TagOutlined style={{ color: primaryColor }} />
+            <span>Product Addons</span>
+          </div>
+        }
+        footer={
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {isEditingAddons ? (
+              <Space>
+                <Button onClick={() => setIsEditingAddons(false)}>Cancel</Button>
+                <Button type="primary" onClick={handleSaveAddons}>Save Changes</Button>
+              </Space>
+            ) : (
+              <Button type="primary" onClick={() => setIsAddonModalOpen(false)}>
+                Close
+              </Button>
+            )}
+            {!isEditingAddons && (
+              <Button
+                type="default"
+                onClick={() => setIsEditingAddons(true)}
+              >
+                Edit
+              </Button>
+            )}
+          </div>
+        }
+        width={500}
+      >
+      <div style={{ padding: "16px 0" }}>
+        <Typography.Text strong style={{ fontSize: 14, display: "block", marginBottom: 12 }}>
+          {cartItem?.product_id?.name || "Product"}
+        </Typography.Text>
+
+        {isEditingAddons ? (
+          <div style={{
+            background: "#f5f5f5",
+            padding: "12px",
+            borderRadius: "8px",
+            border: "1px solid #e0e0e0",
+            maxHeight: "300px",
+            overflowY: "auto"
+          }}>
+            {allAvailableAddons.length > 0 ? (
+              allAvailableAddons.map((addon) => (
+                <div key={addon._id} style={{ marginBottom: "8px" }}>
+                  <Checkbox
+                    checked={selectedAddons.includes(addon._id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedAddons(prev => [...prev, addon._id]);
+                      } else {
+                        setSelectedAddons(prev => prev.filter(id => id !== addon._id));
+                      }
+                    }}
+                  >
+                    <Space size="small">
+                      <Typography.Text style={{ fontSize: 13 }}>
+                        {addon.name}
+                      </Typography.Text>
+                      {addon.price && (
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          (+Ksh {addon.price})
+                        </Typography.Text>
+                      )}
+                    </Space>
+                  </Checkbox>
+                </div>
+              ))
+            ) : (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                No addons available
+              </Typography.Text>
+            )}
+          </div>
+        ) : (
+          <div style={{
+            background: "#f5f5f5",
+            padding: "12px",
+            borderRadius: "8px",
+            border: "1px solid #e0e0e0"
+          }}>
+            {addonNames.length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {addonNames.map((name, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      background: primaryColor,
+                      color: "white",
+                      padding: "6px 12px",
+                      borderRadius: "16px",
+                      fontSize: 12,
+                      fontWeight: 500,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4
+                    }}
+                  >
+                    <TagOutlined style={{ fontSize: 10 }} />
+                    {name}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                No addons selected
+              </Typography.Text>
+            )}
+          </div>
+        )}
+      </div>
+    </Modal>
+    )}
+
+    {/* Edit Miscellaneous Item Modal */}
+    {isMiscellaneous && (
+      <Modal
+        open={isEditMiscModalOpen}
+        onCancel={() => setIsEditMiscModalOpen(false)}
+        title="Edit Miscellaneous Item"
+        onOk={handleUpdateMiscItem}
+        confirmLoading={editMiscLoading}
+        okText="Update Item"
+        cancelText="Cancel"
+        width={500}
+        destroyOnClose={false}
+      >
+        <Form form={editMiscForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="name"
+            label="Item Name"
+            rules={[{ required: true, message: "Please enter item name" }]}
+          >
+            <Input placeholder="e.g., Custom Service Fee" />
+          </Form.Item>
+          <Form.Item
+            name="main_category"
+            label="Main Category"
+            rules={[{ required: true, message: "Please select main category" }]}
+          >
+            <Select
+              placeholder="Select main category"
+              options={mainCategories}
+              loading={!mainCategories.length}
+            />
+          </Form.Item>
+          <Form.Item
+            name="price"
+            label="Price"
+            rules={[{ required: true, message: "Please enter price" }]}
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              min={0}
+              precision={2}
+              placeholder="0.00"
+              prefix="KES"
+            />
+          </Form.Item>
+          <Form.Item
+            name="quantity"
+            label="Quantity"
+            rules={[{ required: true, message: "Please enter quantity" }]}
+          >
+            <InputNumber
+              style={{ width: "100%" }}
+              min={1}
+              precision={0}
+            />
+          </Form.Item>
+          <Form.Item
+            name="notes"
+            label="Notes (Optional)"
+          >
+            <Input.TextArea
+              rows={2}
+              placeholder="Add any additional notes..."
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+    )}
+    </>
   );
 };
 

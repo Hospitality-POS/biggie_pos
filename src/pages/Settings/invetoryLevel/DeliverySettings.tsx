@@ -3,24 +3,33 @@ import { ActionType, ProTable } from "@ant-design/pro-components";
 import {
   Button,
   Card,
+  DatePicker,
   Empty,
   message,
   Popconfirm,
   Skeleton,
   Space,
+  Tabs,
   Tag,
+  Table,
   Typography,
 } from "antd";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { deleteDelivery, fetchAllDeliveries } from "@services/deliveries";
 import {
   CalendarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   PhoneOutlined,
   ReloadOutlined,
   TruckOutlined,
   UserOutlined,
+  InboxOutlined,
+  BarChartOutlined,
 } from "@ant-design/icons";
 import ExpandedDeliveryItems from "./ExpandedDeliveryItems";
 import AcceptDeliveryModal from "@components/MODALS/pro/AcceptDeliveryModal";
@@ -52,6 +61,66 @@ const useIsMobile = () => {
     return () => window.removeEventListener("resize", handler);
   }, []);
   return isMobile;
+};
+
+// ── Display helpers ───────────────────────────────────────────────────────────────
+const displayDeliveredBy = (record: any) => {
+  const isCustomerDirection = record.direction === 'customer';
+  const deliveredBy = record.delivered_by;
+  
+  if (isCustomerDirection) {
+    // Customer delivery: delivered_by is ObjectId (employee)
+    if (typeof deliveredBy === 'object' && deliveredBy?.fullname) {
+      return deliveredBy.fullname;
+    }
+    if (typeof deliveredBy === 'string' && record.delivered_by_user?.fullname) {
+      return record.delivered_by_user.fullname;
+    }
+    return "—";
+  } else {
+    // Supplier delivery: delivered_by is string (driver name)
+    return deliveredBy || "—";
+  }
+};
+
+const displayReceivedBy = (record: any) => {
+  const isCustomerDirection = record.direction === 'customer';
+  const receivedBy = record.received_by;
+  
+  if (isCustomerDirection) {
+    // Customer delivery: received_by is string (customer name)
+    return receivedBy || "—";
+  } else {
+    // Supplier delivery: received_by is ObjectId (employee)
+    if (typeof receivedBy === 'object' && receivedBy?.fullname) {
+      return receivedBy.fullname;
+    }
+    if (typeof receivedBy === 'string' && record.received_by_user?.fullname) {
+      return record.received_by_user.fullname;
+    }
+    return "—";
+  }
+};
+
+// ── Direction tag ────────────────────────────────────────────────────────────────
+const DeliveryDirectionTag: React.FC<{ direction?: string }> = ({ direction }) => {
+  const isSupplier = direction !== 'customer';
+  return (
+    <Tag
+      icon={isSupplier ? <InboxOutlined /> : <UserOutlined />}
+      style={{
+        background: isSupplier ? "#eff6ff" : "#f0fdf4",
+        color: isSupplier ? "#1d4ed8" : "#10b981",
+        border: "none",
+        borderRadius: 6,
+        fontSize: 10,
+        fontWeight: 600,
+        padding: "2px 8px",
+      }}
+    >
+      {isSupplier ? "Supplier" : "Customer"}
+    </Tag>
+  );
 };
 
 // ── Status tag ────────────────────────────────────────────────────────────────
@@ -123,14 +192,14 @@ const DeliveryCard: React.FC<DeliveryCardProps> = ({
             <Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11, fontWeight: 700, padding: "1px 7px" }}>
               {record.code || "—"}
             </Tag>
+            <DeliveryDirectionTag direction={record.direction} />
             <DeliveryStatusTag status={isDelivered} />
           </Space>
-          {record.delivered_by && (
-            <Space size={4}>
-              <UserOutlined style={{ fontSize: 10, color: "#94a3b8" }} />
-              <Text style={{ fontSize: 12, color: C.subText }}>{record.delivered_by}</Text>
-            </Space>
-          )}
+          <Text style={{ fontSize: 13, color: C.subText }}>
+            {record.direction === 'customer' 
+              ? (record.customer_id?.customer_name || "No customer")
+              : (record.supplier_id?.name || "No supplier")}
+          </Text>
         </div>
         {/* Status icon bubble */}
         <div
@@ -172,20 +241,40 @@ const DeliveryCard: React.FC<DeliveryCardProps> = ({
           gap: 5,
         }}
       >
-        {record?.supplier_id?.name && (
+        {record.direction === 'supplier' && record?.supplier_id?.name && (
           <InfoRow icon={<TruckOutlined />} label="Supplier" value={record.supplier_id.name} />
         )}
-        {record?.supplier_id?.phone && (
+        {record.direction === 'customer' && record?.customer_id?.customer_name && (
+          <InfoRow icon={<UserOutlined />} label="Customer" value={record.customer_id.customer_name} />
+        )}
+        {record.direction === 'supplier' && record?.supplier_id?.phone && (
           <InfoRow icon={<PhoneOutlined />} label="Phone" value={record.supplier_id.phone} copyable />
         )}
-        {record?.received_by?.fullname && (
-          <InfoRow icon={<UserOutlined />} label="Received by" value={record.received_by.fullname} />
+        {record.direction === 'customer' && record?.customer_id?.phone && (
+          <InfoRow icon={<PhoneOutlined />} label="Phone" value={record.customer_id.phone} copyable />
+        )}
+        {record.delivered_by && (
+          <InfoRow icon={<UserOutlined />} label="Delivered by" value={displayDeliveredBy(record)} />
+        )}
+        {record.direction === 'supplier' && record?.received_by && (
+          <InfoRow icon={<UserOutlined />} label="Received by" value={displayReceivedBy(record)} />
+        )}
+        {record.direction === 'customer' && record?.received_by && (
+          <InfoRow icon={<UserOutlined />} label="Received by (Customer)" value={displayReceivedBy(record)} />
         )}
         {record?.createdAt && (
           <InfoRow
             icon={<CalendarOutlined />}
             label="Date"
-            value={new Date(record.createdAt).toLocaleDateString("en-KE", { dateStyle: "medium" })}
+            value={(() => {
+              try {
+                const date = new Date(record.createdAt);
+                if (isNaN(date.getTime())) return "Invalid date";
+                return date.toLocaleDateString("en-KE", { dateStyle: "medium" });
+              } catch {
+                return "Invalid date";
+              }
+            })()}
           />
         )}
       </div>
@@ -272,7 +361,8 @@ const MobileDeliveryList: React.FC<{
       !searchText ||
       item.code?.toLowerCase().includes(searchText.toLowerCase()) ||
       item.delivered_by?.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.supplier_id?.name?.toLowerCase().includes(searchText.toLowerCase())
+      (item.direction === 'supplier' && item.supplier_id?.name?.toLowerCase().includes(searchText.toLowerCase())) ||
+      (item.direction === 'customer' && item.customer_id?.customer_name?.toLowerCase().includes(searchText.toLowerCase()))
   );
 
   const deliveredCount = items.filter((i) => i.delivery_status).length;
@@ -355,15 +445,302 @@ const MobileDeliveryList: React.FC<{
   );
 };
 
+// ── Date-based Delivery Rate Report Component ─────────────────────────────────────
+const DeliveryRateReport: React.FC<{ deliveries: any[] }> = ({ deliveries }) => {
+  const [activeTab, setActiveTab] = useState('supplier');
+  const [supplierDateRange, setSupplierDateRange] = useState<any>(null);
+  const [customerDateRange, setCustomerDateRange] = useState<any>(null);
+  
+  const filterDeliveriesByDateRange = (deliveries: any[], dateRange: any) => {
+    if (!dateRange || !dateRange[0] || !dateRange[1]) return deliveries;
+    const [startDate, endDate] = dateRange;
+    return deliveries.filter(d => {
+      const deliveryDate = new Date(d.createdAt);
+      return deliveryDate >= startDate && deliveryDate <= endDate;
+    });
+  };
+
+  // Separate supplier and customer deliveries
+  const supplierDeliveries = deliveries.filter(d => d.direction !== 'customer');
+  const customerDeliveries = deliveries.filter(d => d.direction === 'customer');
+
+  // Apply date range filters
+  const filteredSupplierDeliveries = filterDeliveriesByDateRange(supplierDeliveries, supplierDateRange);
+  const filteredCustomerDeliveries = filterDeliveriesByDateRange(customerDeliveries, customerDateRange);
+
+  // Flatten all delivery items into separate arrays for supplier and customer
+  const supplierItems = filteredSupplierDeliveries.flatMap(delivery => 
+    (delivery.delivery_items || []).map((item: any) => ({
+      deliveryCode: delivery.code || `DN-${delivery._id?.slice(-6).toUpperCase()}`,
+      direction: 'Supplier',
+      counterparty: delivery.supplier_id?.name || '—',
+      itemName: item.inventory_id?.name || 'N/A',
+      quantity: item.quantity || 0,
+      unit: item.unit_id?.name || '—',
+      unitPrice: item.supplier_price || 0,
+      totalPrice: (item.supplier_price || 0) * (item.quantity || 0),
+      deliveryDate: new Date(delivery.createdAt).toLocaleDateString('en-KE', { dateStyle: 'medium' }),
+      deliveredBy: delivery.delivered_by || '—',
+      receivedBy: delivery.received_by || '—',
+    }))
+  );
+
+  const customerItems = filteredCustomerDeliveries.flatMap(delivery => 
+    (delivery.delivery_items || []).map((item: any) => ({
+      deliveryCode: delivery.code || `DN-${delivery._id?.slice(-6).toUpperCase()}`,
+      direction: 'Customer',
+      counterparty: delivery.customer_id?.customer_name || '—',
+      itemName: item.inventory_id?.name || 'N/A',
+      quantity: item.quantity || 0,
+      unit: item.unit_id?.name || '—',
+      unitPrice: item.supplier_price || 0,
+      totalPrice: (item.supplier_price || 0) * (item.quantity || 0),
+      deliveryDate: new Date(delivery.createdAt).toLocaleDateString('en-KE', { dateStyle: 'medium' }),
+      deliveredBy: delivery.delivered_by || '—',
+      receivedBy: delivery.received_by || '—',
+    }))
+  );
+
+  const exportToExcel = (items: any[], type: string) => {
+    const ws = XLSX.utils.json_to_sheet(items);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `${type} Delivery Items`);
+    const dateRange = type === 'Supplier' ? supplierDateRange : customerDateRange;
+    const dateStr = dateRange && dateRange[0] && dateRange[1]
+      ? `${dateRange[0].toISOString().split('T')[0]}_to_${dateRange[1].toISOString().split('T')[0]}`
+      : 'all';
+    XLSX.writeFile(wb, `${type.toLowerCase()}_delivery_items_${dateStr}.xlsx`);
+    message.success(`Exported ${type} delivery items to Excel successfully`);
+  };
+
+  const exportToPDF = (items: any[], type: string) => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(`${type} Delivery Items Report`, 14, 20);
+    doc.setFontSize(10);
+    const dateRange = type === 'Supplier' ? supplierDateRange : customerDateRange;
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      doc.text(`Date Range: ${dateRange[0].toLocaleDateString('en-KE', { dateStyle: 'medium' })} to ${dateRange[1].toLocaleDateString('en-KE', { dateStyle: 'medium' })}`, 14, 28);
+    } else {
+      doc.text(`Date Range: All dates`, 14, 28);
+    }
+    doc.text(`Total Items: ${items.length}`, 14, 34);
+
+    const tableData = items.map(item => [
+      item.deliveryCode,
+      item.direction,
+      item.counterparty,
+      item.itemName,
+      item.quantity.toString(),
+      item.unit,
+      `Ksh ${item.unitPrice.toLocaleString()}`,
+      `Ksh ${item.totalPrice.toLocaleString()}`,
+      item.deliveryDate,
+    ]);
+
+    (doc as any).autoTable({
+      head: [['Delivery Code', 'Direction', 'Counterparty', 'Item', 'Qty', 'Unit', 'Unit Price', 'Total', 'Date']],
+      body: tableData,
+      startY: 40,
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [108, 28, 44] }
+    });
+
+    doc.save(`${type.toLowerCase()}_delivery_items_${dateStr}.pdf`);
+    message.success(`Exported ${type} delivery items to PDF successfully`);
+  };
+
+  const formatDateRangeText = (dateRange: any) => {
+    if (!dateRange || !dateRange[0] || !dateRange[1]) return 'all dates';
+    const startDate = new Date(dateRange[0]);
+    const endDate = new Date(dateRange[1]);
+    return `${startDate.toLocaleDateString('en-KE', { dateStyle: 'medium' })} to ${endDate.toLocaleDateString('en-KE', { dateStyle: 'medium' })}`;
+  };
+
+  const columns = [
+    {
+      title: 'Delivery Code',
+      dataIndex: 'deliveryCode',
+      key: 'deliveryCode',
+      width: 120,
+    },
+    {
+      title: 'Direction',
+      dataIndex: 'direction',
+      key: 'direction',
+      width: 80,
+    },
+    {
+      title: 'Counterparty',
+      dataIndex: 'counterparty',
+      key: 'counterparty',
+      width: 150,
+    },
+    {
+      title: 'Item',
+      dataIndex: 'itemName',
+      key: 'itemName',
+      width: 150,
+    },
+    {
+      title: 'Qty',
+      dataIndex: 'quantity',
+      key: 'quantity',
+      width: 60,
+      align: 'right' as const,
+    },
+    {
+      title: 'Unit',
+      dataIndex: 'unit',
+      key: 'unit',
+      width: 80,
+    },
+    {
+      title: 'Unit Price',
+      dataIndex: 'unitPrice',
+      key: 'unitPrice',
+      width: 100,
+      align: 'right' as const,
+      render: (val: number) => `Ksh ${val.toLocaleString()}`,
+    },
+    {
+      title: 'Total',
+      dataIndex: 'totalPrice',
+      key: 'totalPrice',
+      width: 100,
+      align: 'right' as const,
+      render: (val: number) => `Ksh ${val.toLocaleString()}`,
+    },
+    {
+      title: 'Date',
+      dataIndex: 'deliveryDate',
+      key: 'deliveryDate',
+      width: 120,
+    },
+  ];
+
+  return (
+    <Tabs
+      activeKey={activeTab}
+      onChange={setActiveTab}
+      items={[
+        {
+          key: 'supplier',
+          label: (
+            <Space>
+              <InboxOutlined style={{ color: C.blue }} />
+              <span>Supplier Deliveries</span>
+            </Space>
+          ),
+          children: (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Space size={12}>
+                  <DatePicker.RangePicker
+                    placeholder={['Start date', 'End date']}
+                    onChange={setSupplierDateRange}
+                    style={{ borderRadius: 8 }}
+                  />
+                  <Text type="secondary">
+                    Showing {supplierItems.length} supplier item{supplierItems.length !== 1 ? 's' : ''}
+                    {supplierDateRange && ` for ${formatDateRangeText(supplierDateRange)}`}
+                  </Text>
+                </Space>
+                <Space>
+                  <Button size="small" icon={<DownloadOutlined />} onClick={() => exportToExcel(supplierItems, 'Supplier')}>
+                    Export Excel
+                  </Button>
+                  <Button size="small" icon={<DownloadOutlined />} onClick={() => exportToPDF(supplierItems, 'Supplier')}>
+                    Export PDF
+                  </Button>
+                </Space>
+              </div>
+              <Table
+                dataSource={supplierItems}
+                columns={columns}
+                rowKey={(record, index) => `supplier-${record.deliveryCode}-${index}`}
+                pagination={{ pageSize: 20 }}
+                scroll={{ x: 1200 }}
+                size="small"
+              />
+            </div>
+          ),
+        },
+        {
+          key: 'customer',
+          label: (
+            <Space>
+              <UserOutlined style={{ color: C.green }} />
+              <span>Customer Deliveries</span>
+            </Space>
+          ),
+          children: (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Space size={12}>
+                  <DatePicker.RangePicker
+                    placeholder={['Start date', 'End date']}
+                    onChange={setCustomerDateRange}
+                    style={{ borderRadius: 8 }}
+                  />
+                  <Text type="secondary">
+                    Showing {customerItems.length} customer item{customerItems.length !== 1 ? 's' : ''}
+                    {customerDateRange && ` for ${formatDateRangeText(customerDateRange)}`}
+                  </Text>
+                </Space>
+                <Space>
+                  <Button size="small" icon={<DownloadOutlined />} onClick={() => exportToExcel(customerItems, 'Customer')}>
+                    Export Excel
+                  </Button>
+                  <Button size="small" icon={<DownloadOutlined />} onClick={() => exportToPDF(customerItems, 'Customer')}>
+                    Export PDF
+                  </Button>
+                </Space>
+              </div>
+              <Table
+                dataSource={customerItems}
+                columns={columns}
+                rowKey={(record, index) => `customer-${record.deliveryCode}-${index}`}
+                pagination={{ pageSize: 20 }}
+                scroll={{ x: 1200 }}
+                size="small"
+              />
+            </div>
+          ),
+        },
+      ]}
+    />
+  );
+};
+
 // ── Main component ────────────────────────────────────────────────────────────
 const DeliverySettings = () => {
   const deliveryRef = useRef<ActionType>();
   const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState('table');
+  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [loadingDeliveries, setLoadingDeliveries] = useState(false);
 
   const deleteDeliveryMutation = useMutation(deleteDelivery, {
     onSuccess: () => { deliveryRef.current?.reload(); message.success("Delivery deleted"); },
     onError: () => message.error("Failed to delete delivery"),
   });
+
+  // Fetch all deliveries for the report
+  useEffect(() => {
+    const loadDeliveriesForReport = async () => {
+      setLoadingDeliveries(true);
+      try {
+        const data = await fetchAllDeliveries({});
+        setDeliveries(data);
+      } catch (error) {
+        message.error("Failed to load deliveries for report");
+      } finally {
+        setLoadingDeliveries(false);
+      }
+    };
+    loadDeliveriesForReport();
+  }, []);
 
   // ── Mobile ──────────────────────────────────────────────────────────────────
   if (isMobile) {
@@ -396,209 +773,272 @@ const DeliverySettings = () => {
 
   // ── Desktop ProTable ────────────────────────────────────────────────────────
   return (
-    <ProTable
-      rowKey="_id"
-      cardBordered
-      style={{ borderRadius: 12 }}
-      headerTitle={
-        <Space size={8}>
-          <div
-            style={{
-              background: "#eff6ff",
-              borderRadius: 8,
-              padding: "5px 6px",
-              color: C.blue,
-              fontSize: 15,
-              lineHeight: 1,
-            }}
-          >
-            <TruckOutlined />
-          </div>
-          <Text strong style={{ fontSize: 14, color: C.darkText }}>Deliveries</Text>
-        </Space>
-      }
-      search={{
-        labelWidth: "auto",
-        filterType: "light",
-        searchText: "Search",
-        resetText: "Reset",
-      }}
-      pagination={{
-        pageSize: 10,
-        showQuickJumper: true,
-        showSizeChanger: true,
-        showTotal: (total, range) => (
-          <Text style={{ fontSize: 12, color: C.subText }}>
-            {range[0]}–{range[1]} of {total} deliveries
-          </Text>
-        ),
-      }}
-      columns={[
+    <Tabs
+      activeKey={activeTab}
+      onChange={setActiveTab}
+      items={[
         {
-          title: "Delivery Code",
-          dataIndex: "code",
-          sorter: true,
-          fieldProps: { placeholder: "Search delivery code" },
-          render: (text: any) => (
-            <Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11, fontWeight: 700, padding: "2px 8px" }}>
-              {text || "—"}
-            </Tag>
-          ),
-        },
-        {
-          title: "Delivered By",
-          dataIndex: "delivered_by",
-          sorter: true,
-          fieldProps: { placeholder: "Search deliverer" },
-          render: (text: any) => (
-            <Space size={6}>
-              <UserOutlined style={{ color: "#94a3b8", fontSize: 12 }} />
-              <Text style={{ fontSize: 13, color: "#374151" }}>{text || "—"}</Text>
+          key: 'table',
+          label: (
+            <Space>
+              <TruckOutlined />
+              <span>Deliveries</span>
             </Space>
           ),
-        },
-        {
-          title: "Supplier",
-          dataIndex: ["supplier_id", "name"],
-          hideInSearch: true,
-          render: (_: any, record: any) =>
-            record?.supplier_id?.name ? (
-              <Text style={{ fontSize: 13, color: "#374151" }}>{record.supplier_id.name}</Text>
-            ) : (
-              <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
-            ),
-        },
-        {
-          title: "Contact",
-          dataIndex: ["supplier_id", "phone"],
-          hideInSearch: true,
-          width: 130,
-          render: (_: any, record: any) =>
-            record?.supplier_id?.phone ? (
-              <Typography.Text copyable style={{ fontSize: 12, color: "#374151" }}>
-                {record.supplier_id.phone}
-              </Typography.Text>
-            ) : (
-              <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
-            ),
-        },
-        {
-          title: "Received By",
-          dataIndex: ["received_by", "fullname"],
-          hideInSearch: true,
-          render: (_: any, record: any) =>
-            record?.received_by?.fullname ? (
-              <Space size={6}>
-                <UserOutlined style={{ color: "#94a3b8", fontSize: 12 }} />
-                <Text style={{ fontSize: 13, color: "#374151" }}>{record.received_by.fullname}</Text>
-              </Space>
-            ) : (
-              <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
-            ),
-        },
-        {
-          title: "Items",
-          hideInSearch: true,
-          width: 70,
-          align: "center" as const,
-          render: (_: any, record: any) => {
-            const count = record.delivery_items?.length || 0;
-            return (
-              <div style={{ background: "#eef2ff", borderRadius: 6, padding: "2px 10px", display: "inline-block" }}>
-                <Text strong style={{ color: C.indigo, fontSize: 13 }}>{count}</Text>
-              </div>
-            );
-          },
-        },
-        {
-          title: "Total Value",
-          hideInSearch: true,
-          width: 130,
-          render: (_: any, record: any) => {
-            const total = record.delivery_items?.reduce(
-              (acc: number, item: any) => acc + (item.supplier_price || 0) * (item.quantity || 0), 0
-            ) || 0;
-            return (
-              <Text strong style={{ color: C.green, fontSize: 13 }}>
+          children: (
+            <ProTable
+              rowKey="_id"
+              cardBordered
+              style={{ borderRadius: 12 }}
+              headerTitle={
+                <Space size={8}>
+                  <div
+                    style={{
+                      background: "#eff6ff",
+                      borderRadius: 8,
+                      padding: "5px 6px",
+                      color: C.blue,
+                      fontSize: 15,
+                      lineHeight: 1,
+                    }}
+                  >
+                    <TruckOutlined />
+                  </div>
+                  <Text strong style={{ fontSize: 14, color: C.darkText }}>Deliveries</Text>
+                </Space>
+              }
+              search={{
+                labelWidth: "auto",
+                filterType: "light",
+                searchText: "Search",
+                resetText: "Reset",
+              }}
+              pagination={{
+                pageSize: 10,
+                showQuickJumper: true,
+                showSizeChanger: true,
+                showTotal: (total, range) => (
+                  <Text style={{ fontSize: 12, color: C.subText }}>
+                    {range[0]}–{range[1]} of {total} deliveries
+                  </Text>
+                ),
+              }}
+              columns={[
+                {
+                  title: "Delivery Code",
+                  dataIndex: "code",
+                  sorter: true,
+                  fieldProps: { placeholder: "Search delivery code" },
+                  render: (text: any) => (
+                    <Tag style={{ background: "#eff6ff", color: "#1d4ed8", border: "none", borderRadius: 5, fontSize: 11, fontWeight: 700, padding: "2px 8px" }}>
+                      {text || "—"}
+                    </Tag>
+                  ),
+                },
+                {
+                  title: "Direction",
+                  dataIndex: "direction",
+                  width: 100,
+                  filters: [
+                    { text: "Supplier", value: "supplier" },
+                    { text: "Customer", value: "customer" },
+                  ],
+                  onFilter: (value: any, record: any) => record.direction === value,
+                  render: (direction: string) => <DeliveryDirectionTag direction={direction} />,
+                },
+                {
+                  title: "Delivered By",
+                  dataIndex: "delivered_by",
+                  sorter: true,
+                  fieldProps: { placeholder: "Search deliverer" },
+                  render: (_: any, record: any) => (
+                    <Space size={6}>
+                      <UserOutlined style={{ color: "#94a3b8", fontSize: 12 }} />
+                      <Text style={{ fontSize: 13, color: "#374151" }}>{displayDeliveredBy(record)}</Text>
+                    </Space>
+                  ),
+                },
+                {
+                  title: "Counterparty",
+                  dataIndex: "supplier_id",
+                  hideInSearch: true,
+                  render: (_: any, record: any) => {
+                    const isSupplier = record.direction !== 'customer';
+                    const name = isSupplier 
+                      ? record.supplier_id?.name 
+                      : record.customer_id?.customer_name;
+                    return (
+                      <Text style={{ fontSize: 13, color: "#374151" }}>{name || "—"}</Text>
+                    );
+                  },
+                },
+                {
+                  title: "Contact",
+                  dataIndex: "supplier_id",
+                  hideInSearch: true,
+                  width: 130,
+                  render: (_: any, record: any) => {
+                    const isSupplier = record.direction !== 'customer';
+                    const phone = isSupplier 
+                      ? record.supplier_id?.phone 
+                      : record.customer_id?.phone;
+                    return phone ? (
+                      <Typography.Text copyable style={{ fontSize: 12, color: "#374151" }}>
+                        {phone}
+                      </Typography.Text>
+                    ) : (
+                      <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+                    );
+                  },
+                },
+                {
+                  title: "Received By",
+                  dataIndex: "received_by",
+                  hideInSearch: true,
+                  render: (_: any, record: any) => {
+                    const receivedByValue = displayReceivedBy(record);
+                    return receivedByValue !== "—" ? (
+                      <Space size={6}>
+                        <UserOutlined style={{ color: "#94a3b8", fontSize: 12 }} />
+                        <Text style={{ fontSize: 13, color: "#374151" }}>{receivedByValue}</Text>
+                      </Space>
+                    ) : (
+                      <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+                    );
+                  },
+                },
+                {
+                  title: "Items",
+                  hideInSearch: true,
+                  width: 70,
+                  align: "center" as const,
+                  render: (_: any, record: any) => {
+                    const count = record.delivery_items?.length || 0;
+                    return (
+                      <div style={{ background: "#eef2ff", borderRadius: 6, padding: "2px 10px", display: "inline-block" }}>
+                        <Text strong style={{ color: C.indigo, fontSize: 13 }}>{count}</Text>
+                      </div>
+                    );
+                  },
+                },
+                {
+                  title: "Total Value",
+                  hideInSearch: true,
+                  width: 130,
+                  render: (_: any, record: any) => {
+                    const total = record.delivery_items?.reduce(
+                      (acc: number, item: any) => acc + (item.supplier_price || 0) * (item.quantity || 0), 0
+                    ) || 0;
+                    return (
+                      <Text strong style={{ color: C.green, fontSize: 13 }}>
                 {total > 0 ? `Ksh ${fmtK(total)}` : "—"}
-              </Text>
-            );
-          },
-        },
-        {
-          title: "Status",
-          dataIndex: "delivery_status",
-          hideInSearch: true,
-          width: 120,
-          filters: [
-            { text: "Delivered", value: true },
-            { text: "Pending", value: false },
-          ],
-          onFilter: (value: any, record: any) => record.delivery_status === value,
-          render: (status: boolean) => <DeliveryStatusTag status={status} />,
-        },
-        {
-          title: "Date",
-          dataIndex: "createdAt",
-          hideInSearch: true,
-          valueType: "dateTime",
-          sorter: true,
-          width: 150,
-          render: (val: any) => (
-            <Space size={4}>
-              <CalendarOutlined style={{ fontSize: 11, color: "#94a3b8" }} />
-              <Text style={{ fontSize: 12, color: "#374151" }}>
-                {val ? new Date(val).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" }) : "—"}
-              </Text>
-            </Space>
+                      </Text>
+                    );
+                  },
+                },
+                {
+                  title: "Status",
+                  dataIndex: "delivery_status",
+                  hideInSearch: true,
+                  width: 120,
+                  filters: [
+                    { text: "Delivered", value: true },
+                    { text: "Pending", value: false },
+                  ],
+                  onFilter: (value: any, record: any) => record.delivery_status === value,
+                  render: (status: boolean) => <DeliveryStatusTag status={status} />,
+                },
+                {
+                  title: "Date",
+                  dataIndex: "createdAt",
+                  hideInSearch: true,
+                  valueType: "dateTime",
+                  sorter: true,
+                  width: 150,
+                  render: (val: any) => (
+                    <Space size={4}>
+                      <CalendarOutlined style={{ fontSize: 11, color: "#94a3b8" }} />
+                      <Text style={{ fontSize: 12, color: "#374151" }}>
+                        {(() => {
+                          try {
+                            if (!val) return "—";
+                            const date = new Date(val);
+                            if (isNaN(date.getTime())) return "Invalid date";
+                            return date.toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" });
+                          } catch {
+                            return "Invalid date";
+                          }
+                        })()}
+                      </Text>
+                    </Space>
+                  ),
+                },
+                {
+                  title: "Actions",
+                  dataIndex: "actions",
+                  hideInSearch: true,
+                  width: 100,
+                  fixed: "right" as const,
+                  render: (_: any, record: any) => (
+                    <Space size={6}>
+                      <AcceptDeliveryModal actionRef={deliveryRef} data={record} edit />
+                      <Popconfirm
+                        title="Delete this delivery?"
+                        description="This action cannot be undone."
+                        onConfirm={() => deleteDeliveryMutation.mutate(record._id)}
+                        okText="Delete"
+                        okButtonProps={{ danger: true }}
+                        cancelText="Cancel"
+                      >
+                        <Button
+                          danger
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          style={{ borderRadius: 6, height: 28, width: 28, padding: 0 }}
+                        />
+                      </Popconfirm>
+                    </Space>
+                  ),
+                },
+              ]}
+              request={async (params) => {
+                const data = await fetchAllDeliveries(params);
+                return { data, success: true, total: data.length };
+              }}
+              actionRef={deliveryRef}
+              dateFormatter="string"
+              scroll={{ x: 1200 }}
+              options={{
+                fullScreen: true,
+                reload: true,
+                density: true,
+                setting: true,
+              }}
+              expandable={{
+                expandedRowRender: (record) => <ExpandedDeliveryItems record={record} />,
+              }}
+              toolBarRender={() => [
+                <AcceptDeliveryModal key="add" edit={false} actionRef={deliveryRef} />,
+              ]}
+            />
           ),
         },
         {
-          title: "Actions",
-          dataIndex: "actions",
-          hideInSearch: true,
-          width: 100,
-          fixed: "right" as const,
-          render: (_: any, record: any) => (
-            <Space size={6}>
-              <AcceptDeliveryModal actionRef={deliveryRef} data={record} edit />
-              <Popconfirm
-                title="Delete this delivery?"
-                description="This action cannot be undone."
-                onConfirm={() => deleteDeliveryMutation.mutate(record._id)}
-                okText="Delete"
-                okButtonProps={{ danger: true }}
-                cancelText="Cancel"
-              >
-                <Button
-                  danger
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  style={{ borderRadius: 6, height: 28, width: 28, padding: 0 }}
-                />
-              </Popconfirm>
+          key: 'report',
+          label: (
+            <Space>
+              <BarChartOutlined />
+              <span>Delivery Rate Report</span>
             </Space>
           ),
+          children: loadingDeliveries ? (
+            <div style={{ padding: 40, textAlign: 'center' }}>
+              <Skeleton active />
+            </div>
+          ) : (
+            <DeliveryRateReport deliveries={deliveries} />
+          ),
         },
-      ]}
-      request={async (params) => {
-        const data = await fetchAllDeliveries(params);
-        return { data, success: true, total: data.length };
-      }}
-      actionRef={deliveryRef}
-      dateFormatter="string"
-      scroll={{ x: 1200 }}
-      options={{
-        fullScreen: true,
-        reload: true,
-        density: true,
-        setting: true,
-      }}
-      expandable={{
-        expandedRowRender: (record) => <ExpandedDeliveryItems record={record} />,
-      }}
-      toolBarRender={() => [
-        <AcceptDeliveryModal key="add" edit={false} actionRef={deliveryRef} />,
       ]}
     />
   );

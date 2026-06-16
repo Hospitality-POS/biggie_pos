@@ -354,7 +354,14 @@ const createBestSellerColumns = (isMobile: boolean, hospital: boolean) =>
         key: "name",
         render: (name: string, record: any) => (
           <div>
-            <div style={{ fontWeight: 500, marginBottom: 2, color: COLORS.text }}>{name}</div>
+            <div style={{ fontWeight: 500, marginBottom: 2, color: COLORS.text }}>
+              {name}
+              {record.product_type === "Miscellaneous" && (
+                <Tag style={{ fontSize: 10, marginLeft: 6, background: "#fff7ed", color: "#f97316", border: "1px solid #fed7aa" }}>
+                  Custom
+                </Tag>
+              )}
+            </div>
             <div style={{ fontSize: 12, color: COLORS.gray }}>
               {record.category?.name || "Uncategorized"} • {record.product_type}
             </div>

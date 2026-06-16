@@ -9,7 +9,7 @@ import {
   DeleteOutlined, ShopOutlined, ArrowRightOutlined,
   BranchesOutlined, DollarOutlined, TeamOutlined,
   EnvironmentOutlined, ReloadOutlined, MedicineBoxOutlined,
-  GlobalOutlined, LinkOutlined, SolutionOutlined, PrinterOutlined,
+  GlobalOutlined, LinkOutlined, SolutionOutlined, PrinterOutlined, HomeOutlined,
 } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -65,13 +65,7 @@ const useTenantConfig = () => {
   const isDalaOnly = hasDala && !hasPOS && !hasAccounting && !hasMteja;
 
   /** Where "Open Shop" should navigate */
-  const shopLandingPath = isMtejaOnly
-    ? "/mteja"
-    : isAccountingOnly
-      ? "/accounting"
-      : isDalaOnly
-        ? "/dala"
-        : "/home-dashboard";
+  const shopLandingPath = "/home-dashboard";
 
   /** Whether the Print Settings tab should be visible */
   const showPrintSettings = hasPOS && !isMtejaOnly;
@@ -99,6 +93,7 @@ const POS_MODE_CONFIG: Record<string, { label: string; icon: React.ReactNode; co
   restaurant: { label: "Duka Services", icon: <SolutionOutlined />, color: "#c2410c", bg: "#fff7ed" },
   retail: { label: "Retail", icon: <ShopOutlined />, color: "#1d4ed8", bg: "#eff6ff" },
   hospital: { label: "Hospital", icon: <MedicineBoxOutlined />, color: "#059669", bg: "#f0fdf4" },
+  hotel: { label: "Hotel", icon: <HomeOutlined />, color: "#7c3aed", bg: "#f5f3ff" },
 };
 
 // ── POS Mode Tag ──────────────────────────────────────────────────────────────
@@ -428,7 +423,11 @@ const MobileShopList: React.FC<{
 
   const handleOpen = (shopId: string) => {
     localStorage.setItem("shopId", shopId);
-    navigate(shopLandingPath);
+    // Clear localStorage posMode to force refetch from shop settings
+    localStorage.removeItem("posMode");
+    // Navigate to shop-level home-dashboard (not admin version)
+    // Use navigate with replace to stay within React Router
+    navigate("/home-dashboard", { replace: true });
   };
 
   const filtered = shops.filter(s =>
@@ -520,7 +519,10 @@ const ShopManagementTable: React.FC = () => {
 
   const handleShopClick = (shopId: string) => {
     localStorage.setItem("shopId", shopId);
-    navigate(shopLandingPath);
+    // Clear localStorage posMode to force refetch from shop settings
+    localStorage.removeItem("posMode");
+    // Navigate to shop-level home-dashboard
+    navigate("/home-dashboard", { replace: true });
   };
 
   const shopsWithLocation = useMemo(
@@ -566,6 +568,7 @@ const ShopManagementTable: React.FC = () => {
         restaurant: { text: "Duka Services" },
         retail: { text: "Retail" },
         hospital: { text: "Hospital" },
+        hotel: { text: "Hotel" },
       },
       render: (_: any, record: any) =>
         record.pos_mode ? <PosModeTag mode={record.pos_mode} /> : <Text type="secondary">—</Text>,

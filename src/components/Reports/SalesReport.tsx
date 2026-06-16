@@ -114,14 +114,34 @@ const ThermalReceipt = forwardRef<HTMLDivElement, ReportProps>(({
               <span>KSh. {fmt(catTotal)}</span>
             </div>
             {/* Sub-items */}
-            {item.orderItems?.map((oi: any, idx: number) => (
-              <div key={idx} style={{ paddingLeft: 8, paddingTop: 2 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5 }}>
-                  <span>×{Number(oi.quantity || 0).toFixed(1)} {oi.name || "Item"}</span>
-                  <span>{fmt(oi.total_amount || 0)}</span>
+            {item.orderItems?.map((oi: any, idx: number) => {
+              const itemName = oi.product_type === "Miscellaneous"
+                ? oi.miscellaneous_name || oi.name || "Custom Item"
+                : oi.name || "Item";
+              const isMiscellaneous = oi.product_type === "Miscellaneous";
+              return (
+                <div key={idx} style={{ paddingLeft: 8, paddingTop: 2 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5 }}>
+                    <span>
+                      ×{Number(oi.quantity || 0).toFixed(1)} {itemName}
+                      {isMiscellaneous && (
+                        <span style={{
+                          fontSize: 8,
+                          marginLeft: 4,
+                          background: "#fff7ed",
+                          color: "#f97316",
+                          padding: "0 2px",
+                          borderRadius: 1,
+                        }}>
+                          *
+                        </span>
+                      )}
+                    </span>
+                    <span>{fmt(oi.total_amount || 0)}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         );
       })}
@@ -224,13 +244,33 @@ const A4Report = forwardRef<HTMLDivElement, ReportProps>(({
                     <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, fontSize: 12, color: C.primary }}>{fmt(catTotal)}</td>
                   </tr>
                   {/* Sub-items */}
-                  {item.orderItems?.map((oi: any, idx: number) => (
-                    <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : C.bg }}>
-                      <td style={{ padding: "6px 12px 6px 24px", borderBottom: `1px solid ${C.border}` }}>{oi.name || "Item"}</td>
-                      <td style={{ padding: "6px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", color: C.subText }}>{Number(oi.quantity || 0).toFixed(1)}</td>
-                      <td style={{ padding: "6px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", fontWeight: 600 }}>{fmt(oi.total_amount || 0)}</td>
-                    </tr>
-                  ))}
+                  {item.orderItems?.map((oi: any, idx: number) => {
+                    const itemName = oi.product_type === "Miscellaneous"
+                      ? oi.miscellaneous_name || oi.name || "Custom Item"
+                      : oi.name || "Item";
+                    const isMiscellaneous = oi.product_type === "Miscellaneous";
+                    return (
+                      <tr key={idx} style={{ background: idx % 2 === 0 ? "#fff" : C.bg }}>
+                        <td style={{ padding: "6px 12px 6px 24px", borderBottom: `1px solid ${C.border}` }}>
+                          {itemName}
+                          {isMiscellaneous && (
+                            <span style={{
+                              fontSize: 9,
+                              marginLeft: 6,
+                              background: "#fff7ed",
+                              color: "#f97316",
+                              padding: "1px 4px",
+                              borderRadius: 2,
+                            }}>
+                              Custom
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: "6px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", color: C.subText }}>{Number(oi.quantity || 0).toFixed(1)}</td>
+                        <td style={{ padding: "6px 12px", borderBottom: `1px solid ${C.border}`, textAlign: "right", fontWeight: 600 }}>{fmt(oi.total_amount || 0)}</td>
+                      </tr>
+                    );
+                  })}
                 </React.Fragment>
               );
             })}

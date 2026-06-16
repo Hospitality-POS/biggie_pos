@@ -9,7 +9,6 @@ import { addNewCategory, fetchSubCategories, updateCategory } from "@services/ca
 import { ApartmentOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAppSelector } from "src/store";
 import SubCategoryModal from "./SubCategoryModal";
 
 interface AddCategoryDialogProps {
@@ -25,6 +24,14 @@ interface AddCategoryDialogProps {
   onExternalClose?: () => void;
 }
 
+const getHasPOS = () => {
+  try {
+    return JSON.parse(localStorage.getItem("tenant") || "{}")?.pos_integration?.enabled === true;
+  } catch {
+    return true;
+  }
+};
+
 const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
   actionRef,
   edit,
@@ -37,14 +44,13 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const [addSubCategoryOpen, setAddSubCategoryOpen] = useState(false);
+  const hasPOS = getHasPOS();
 
   // ── Persist field values across child modal open/close cycles ─────────────
   // destroyOnClose on ModalForm wipes the DOM — we save values in a ref and
   // restore them after the child modal closes so nothing is lost.
   const savedValuesRef = useRef<Record<string, any>>({});
 
-  const { user } = useAppSelector((state) => state.auth);
-  const isAdmin = user?.role === "admin";
 
   // Sync external open state
   useEffect(() => {
@@ -118,7 +124,6 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
         trigger={
           externalOpen !== undefined ? undefined : edit ? (
             <Button
-              disabled={!isAdmin}
               size="small"
               key="button"
               icon={<EditOutlined style={{ color: "#914F1E" }} />}
@@ -127,7 +132,7 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
               Edit
             </Button>
           ) : (
-            <Button type="primary" disabled={!isAdmin} key="button" icon={<ApartmentOutlined />}>
+            <Button type="primary" key="button" icon={<ApartmentOutlined />}>
               New Category
             </Button>
           )
@@ -188,41 +193,43 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
            *   React Query invalidations → newly added items don't appear until refresh.
            * - options= reads live from the React Query cache → instant updates.
            */}
-          <Form.Item
-            name="subcategory_id"
-            label="Subcategory"
-            rules={[{ required: true, message: "Subcategory is required" }]}
-            style={{ width: 328 }}
-          >
-            <Select
-              showSearch
-              placeholder="Select subcategory"
-              optionFilterProp="label"
-              options={subCategoryOptions}
-              onChange={(v) => {
-                savedValuesRef.current = { ...savedValuesRef.current, subcategory_id: v };
-              }}
-              dropdownRender={(menu) => (
-                <>
-                  {menu}
-                  <Divider style={{ margin: "4px 0" }} />
-                  <Button
-                    type="link"
-                    icon={<PlusOutlined />}
-                    style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      // Snapshot current values before child modal opens
-                      savedValuesRef.current = form.getFieldsValue();
-                      setAddSubCategoryOpen(true);
-                    }}
-                  >
-                    Add New Subcategory
-                  </Button>
-                </>
-              )}
-            />
-          </Form.Item>
+          {hasPOS && (
+            <Form.Item
+              name="subcategory_id"
+              label="Subcategory"
+              rules={[{ required: true, message: "Subcategory is required" }]}
+              style={{ width: 328 }}
+            >
+              <Select
+                showSearch
+                placeholder="Select subcategory"
+                optionFilterProp="label"
+                options={subCategoryOptions}
+                onChange={(v) => {
+                  savedValuesRef.current = { ...savedValuesRef.current, subcategory_id: v };
+                }}
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <Divider style={{ margin: "4px 0" }} />
+                    <Button
+                      type="link"
+                      icon={<PlusOutlined />}
+                      style={{ width: "100%", textAlign: "left", padding: "4px 8px" }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        // Snapshot current values before child modal opens
+                        savedValuesRef.current = form.getFieldsValue();
+                        setAddSubCategoryOpen(true);
+                      }}
+                    >
+                      Add New Subcategory
+                    </Button>
+                  </>
+                )}
+              />
+            </Form.Item>
+          )}
         </ProForm.Group>
       </ModalForm>
 
@@ -230,11 +237,13 @@ const AddProCategoryModal: React.FC<AddCategoryDialogProps> = ({
        * SubCategoryModal is rendered OUTSIDE the ModalForm fragment so it is
        * never destroyed when the parent modal re-renders or loses visibility.
        */}
-      <SubCategoryModal
-        actionRef={{ current: { reload: handleSubCategoryAdded, reset: handleSubCategoryAdded } }}
-        externalOpen={addSubCategoryOpen}
-        onExternalClose={handleSubCategoryModalClose}
-      />
+      {hasPOS && (
+        <SubCategoryModal
+          actionRef={{ current: { reload: handleSubCategoryAdded, reset: handleSubCategoryAdded } }}
+          externalOpen={addSubCategoryOpen}
+          onExternalClose={handleSubCategoryModalClose}
+        />
+      )}
     </>
   );
 };

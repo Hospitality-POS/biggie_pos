@@ -31,7 +31,8 @@ export interface InvoiceItem {
     product_id?: { _id: string; name: string; price?: number };
     description?: string;
     quantity: number;
-    price: number;
+    price?: number;
+    unit_price?: number;
     vat_amount?: number;
 }
 
@@ -113,19 +114,47 @@ export interface InvoiceForPrint {
     payments?: PaymentRecord[];
     payment_ids?: PaymentRecord[];
 
-    // Notes
-    notes?: string;
-    terms?: string;
-    internal_notes?: string;
-
-    // Notes adjustment (credit/debit notes)
+    // Credit/Debit Notes
+    credit_notes?: any[];
     notes_adjustment?: number;
 
     // System
     shop_id?: string;
     table_id?: { name: string };
 
+    // ETR / DigiTax
+    etr_enabled?: boolean;
+    shop_kra_pin?: string | null;
+    digitax?: {
+        sale_id?: string;
+        serial_number?: string;
+        receipt_number?: number;
+        invoice_number?: number;
+        trader_invoice_number?: string;
+        etims_url?: string;
+        offline_url?: string;
+        receipt_signature?: string;
+        internal_data?: string;
+        receipt_type_code?: string;
+        sale_date?: string;
+        sale_time?: string;
+        submission_status?: "Submitted" | "Verified" | "COMPLETED" | "Failed" | "FAILED";
+        submission_date?: string;
+        error_message?: string | null;
+    } | null;
+
     [key: string]: any;
+}
+
+export interface BankDetail {
+    _id?: string;
+    bank_name: string;
+    branch: string;
+    account_no: string;
+    account_name: string;
+    swift_code: string;
+    paybill_no: string;
+    is_primary: boolean;
 }
 
 export interface SystemDetails {
@@ -138,6 +167,7 @@ export interface SystemDetails {
     Paybill_ac?: string;
     QR_Code?: string;
     tenant_logo?: { url?: string };
+    bank_details?: BankDetail[];
 }
 
 // ── Resolve counterparty ───────────────────────────────────────────────────
@@ -168,7 +198,7 @@ export const resolveParty = (inv: InvoiceForPrint) => {
     const c = inv.customer_id;
     if (c && typeof c === "object") {
         return {
-            label: "Customer",
+            label: "",
             name: c.customer_name || c.name || "—",
             phone: c.phone || c.customer_phone || "",
             email: c.email || c.customer_email || "",
@@ -179,7 +209,7 @@ export const resolveParty = (inv: InvoiceForPrint) => {
         };
     }
     return {
-        label: "Customer",
+        label: "",
         name: inv.counterparty_name || "—",
         phone: inv.counterparty_phone || "",
         email: inv.counterparty_email || "",
@@ -196,6 +226,39 @@ interface SharedProps {
     sys: SystemDetails;
     accentColor?: string;
 }
+
+// ETR QR Code component for print templates
+const EtrQrCode = ({ inv }: { inv: InvoiceForPrint }) => {
+    const st = inv.digitax?.submission_status;
+    const qrUrl = inv.digitax?.etims_url || inv.digitax?.offline_url;
+    if (!inv.etr_enabled || !qrUrl || !(st === "Verified" || st === "COMPLETED")) return null;
+
+    return (
+        <div style={{ marginTop: 20, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: C.subText, marginBottom: 6, fontWeight: 600, textTransform: "uppercase" }}>
+                Scan to Verify ETR
+            </div>
+            <div style={{
+                display: "inline-block",
+                padding: 8,
+                background: "#fff",
+                border: "1px solid #e2e8f0",
+                borderRadius: 6,
+            }}>
+                <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrUrl)}`}
+                    alt="ETR QR Code"
+                    style={{ width: 120, height: 120, display: "block" }}
+                />
+            </div>
+            {inv.digitax.serial_number && (
+                <div style={{ fontSize: 9, color: C.subText, marginTop: 4, fontFamily: "monospace" }}>
+                    CU: {inv.digitax.serial_number}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
     const items = inv.items || [];
@@ -230,7 +293,7 @@ const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
                             </td>
                             <td style={{ padding: "7px 10px", textAlign: "center", borderBottom: "1px solid #f1f5f9" }}>{item.quantity}</td>
                             <td style={{ padding: "7px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9" }}>
-                                {fmt(item.price)}
+                                {fmt(item.unit_price || item.price)}
                             </td>
                             <td style={{ padding: "7px 10px", textAlign: "right", borderBottom: "1px solid #f1f5f9", color: "#3b82f6" }}>
                                 {(item.vat_amount || 0) > 0 ? fmt(item.vat_amount!) : "—"}
@@ -296,6 +359,77 @@ const TotalsBlock = ({ inv, accentColor }: { inv: InvoiceForPrint; accentColor: 
     </div>
 );
 
+const BankDetailsBlock = ({
+    sys,
+    bgColor = "#f8fafc",
+    borderColor = "#e2e8f0",
+    accentColor = C.primary,
+}: {
+    sys: SystemDetails;
+    bgColor?: string;
+    borderColor?: string;
+    accentColor?: string;
+}) => {
+    // Get primary bank from bank_details array
+    const primaryBank = sys.bank_details?.find((b) => b.is_primary);
+    
+    // Fallback to legacy Paybill fields if no bank_details
+    const useLegacy = !primaryBank && (sys.Paybill_bs || sys.Paybill_ac);
+
+    if (!primaryBank && !useLegacy) return null;
+
+    return (
+        <div style={{ marginTop: 20, textAlign: "center" }}>
+            <div
+                style={{
+                    display: "inline-block",
+                    background: bgColor,
+                    border: `1px solid ${borderColor}`,
+                    borderRadius: 7,
+                    padding: "10px 14px",
+                    minWidth: 200,
+                }}
+            >
+                {primaryBank ? (
+                    <>
+                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>
+                            Bank Details
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: accentColor, marginBottom: 2 }}>
+                            {primaryBank.bank_name}
+                        </div>
+                        {primaryBank.branch && (
+                            <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>
+                                {primaryBank.branch}
+                            </div>
+                        )}
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.darkText, marginBottom: 2 }}>
+                            A/C: {primaryBank.account_no}
+                        </div>
+                        {primaryBank.account_name && (
+                            <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>
+                                {primaryBank.account_name}
+                            </div>
+                        )}
+                        {primaryBank.paybill_no && (
+                            <div style={{ fontSize: 11, fontWeight: 600, color: accentColor }}>
+                                Paybill: {primaryBank.paybill_no}
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Paybill / Account</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: accentColor }}>
+                            {sys.Paybill_bs} / {sys.Paybill_ac || "—"}
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const PaymentDetailsBlock = ({
     inv,
     sys,
@@ -310,6 +444,12 @@ const PaymentDetailsBlock = ({
     accentColor?: string;
 }) => {
     const payments: PaymentRecord[] = inv.payments || inv.payment_ids || [];
+    const creditNotes = inv.credit_notes || [];
+    const hasCreditNotes = creditNotes.length > 0;
+    const hasPayments = payments.length > 0;
+
+    // Show credit notes if they exist, otherwise show payments
+    const showCreditNotes = hasCreditNotes;
 
     return (
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${borderColor}` }}>
@@ -327,7 +467,7 @@ const PaymentDetailsBlock = ({
                 Payment Details
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const, marginBottom: 14 }}>
-                {sys.TILL_NO && (
+                {sys.TILL_NO && !sys.Paybill_bs && (
                     <div
                         style={{
                             flex: "1 1 120px",
@@ -341,22 +481,37 @@ const PaymentDetailsBlock = ({
                         <div style={{ fontSize: 15, fontWeight: 700, color: accentColor }}>{sys.TILL_NO}</div>
                     </div>
                 )}
-                {sys.Paybill_bs && (
-                    <div
-                        style={{
-                            flex: "1 1 140px",
-                            background: bgColor,
-                            border: `1px solid ${borderColor}`,
-                            borderRadius: 7,
-                            padding: "9px 12px",
-                        }}
-                    >
-                        <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Paybill / Account</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: accentColor }}>
-                            {sys.Paybill_bs} / {sys.Paybill_ac || "—"}
+                {(() => {
+                    const st = inv.digitax?.submission_status;
+                    const qrUrl = inv.digitax?.etims_url || inv.digitax?.offline_url;
+                    if (!inv.etr_enabled || !qrUrl || !(st === "Verified" || st === "COMPLETED")) return null;
+                    return (
+                        <div
+                            style={{
+                                flex: "1 1 120px",
+                                background: bgColor,
+                                border: `1px solid ${borderColor}`,
+                                borderRadius: 7,
+                                padding: "9px 12px",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                            }}
+                        >
+                            <div style={{ fontSize: 10, color: C.subText, marginBottom: 4 }}>Scan to Verify</div>
+                            <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(qrUrl)}`}
+                                alt="ETR QR Code"
+                                style={{ width: 80, height: 80, display: "block" }}
+                            />
+                            {inv.digitax?.serial_number && (
+                                <div style={{ fontSize: 9, color: C.subText, marginTop: 4, fontFamily: "monospace" }}>
+                                    CU: {inv.digitax.serial_number}
+                                </div>
+                            )}
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
                 <div
                     style={{
                         flex: "1 1 120px",
@@ -388,7 +543,110 @@ const PaymentDetailsBlock = ({
             </div>
 
             {/* Payment history table */}
-            {payments.length > 0 && (
+            {showCreditNotes && creditNotes.length > 0 ? (
+                <>
+                    <div
+                        style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: "0.5px",
+                            textTransform: "uppercase" as const,
+                            color: C.subText,
+                            marginBottom: 7,
+                        }}
+                    >
+                        Credit Notes Applied
+                    </div>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                        <thead>
+                            <tr style={{ background: "#f1f5f9" }}>
+                                {["Date", "Note No.", "Type", "Reason", "Status", "Amount"].map((h) => (
+                                    <th
+                                        key={h}
+                                        style={{
+                                            padding: "5px 8px",
+                                            textAlign: h === "Amount" ? "right" : "left",
+                                            fontWeight: 700,
+                                            fontSize: 10,
+                                            borderBottom: "1px solid #e2e8f0",
+                                            color: "#374151",
+                                        }}
+                                    >
+                                        {h}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {creditNotes.map((note, i) => {
+                                const isCredit = note.note_type === "CREDIT_NOTE";
+                                const statusColor =
+                                    note.status === "Applied"
+                                        ? C.green
+                                        : note.status === "Approved"
+                                            ? C.orange
+                                            : note.status === "Voided"
+                                                ? C.red
+                                                : C.subText;
+                                return (
+                                    <tr key={note._id || i} style={{ background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                                        <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9", color: C.subText }}>
+                                            {fmtDateShort(note.issue_date)}
+                                        </td>
+                                        <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9", fontFamily: "monospace", fontSize: 10 }}>
+                                            {note.note_no}
+                                        </td>
+                                        <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                                            <span
+                                                style={{
+                                                    background: isCredit ? "#f0fdf4" : "#fff7ed",
+                                                    color: isCredit ? C.green : C.orange,
+                                                    border: `1px solid ${isCredit ? "#bbf7d0" : "#fed7aa"}`,
+                                                    borderRadius: 4,
+                                                    padding: "1px 6px",
+                                                    fontSize: 10,
+                                                    fontWeight: 700,
+                                                }}
+                                            >
+                                                {isCredit ? "Credit" : "Debit"}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                                            {note.reason}
+                                        </td>
+                                        <td style={{ padding: "5px 8px", borderBottom: "1px solid #f1f5f9" }}>
+                                            <span
+                                                style={{
+                                                    fontSize: 10,
+                                                    fontWeight: 700,
+                                                    color: statusColor,
+                                                    background: `${statusColor}15`,
+                                                    border: `1px solid ${statusColor}40`,
+                                                    borderRadius: 4,
+                                                    padding: "1px 6px",
+                                                }}
+                                            >
+                                                {note.status}
+                                            </span>
+                                        </td>
+                                        <td
+                                            style={{
+                                                padding: "5px 8px",
+                                                borderBottom: "1px solid #f1f5f9",
+                                                textAlign: "right",
+                                                fontWeight: 700,
+                                                color: isCredit ? C.green : C.orange,
+                                            }}
+                                        >
+                                            {isCredit ? "−" : "+"}KES {fmt(note.grand_total)}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </>
+            ) : payments.length > 0 ? (
                 <>
                     <div
                         style={{
@@ -503,72 +761,68 @@ const PaymentDetailsBlock = ({
                         </tbody>
                     </table>
                 </>
-            )}
+            ) : null}
 
-            {/* Notes / Terms */}
-            {(inv.notes || inv.terms) && (
-                <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" as const }}>
-                    {inv.notes && (
-                        <div
-                            style={{
-                                flex: "1 1 200px",
-                                background: "#fffbeb",
-                                border: "1px solid #fde68a",
-                                borderRadius: 7,
-                                padding: "9px 12px",
-                            }}
-                        >
-                            <div style={{ fontSize: 10, fontWeight: 700, color: "#92400e", marginBottom: 3 }}>Notes</div>
-                            <div style={{ fontSize: 12, color: "#78350f" }}>{inv.notes}</div>
-                        </div>
-                    )}
-                    {inv.terms && (
-                        <div
-                            style={{
-                                flex: "1 1 200px",
-                                background: bgColor,
-                                border: `1px solid ${borderColor}`,
-                                borderRadius: 7,
-                                padding: "9px 12px",
-                            }}
-                        >
-                            <div style={{ fontSize: 10, fontWeight: 700, color: C.subText, marginBottom: 3 }}>Terms</div>
-                            <div style={{ fontSize: 12, color: C.darkText }}>{inv.terms}</div>
-                        </div>
-                    )}
+            {/* Notes */}
+            {inv.notes && (
+                <div style={{ marginTop: 14 }}>
+                    <div
+                        style={{
+                            background: "#fffbeb",
+                            border: "1px solid #fde68a",
+                            borderRadius: 7,
+                            padding: "9px 12px",
+                        }}
+                    >
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#92400e", marginBottom: 3 }}>Notes</div>
+                        <div style={{ fontSize: 12, color: "#78350f" }}>{inv.notes}</div>
+                    </div>
                 </div>
             )}
         </div>
     );
 };
 
-const Footer = ({ sys, borderColor = C.border }: { sys: SystemDetails; borderColor?: string }) => (
+const Footer = ({ sys, borderColor = C.border, accentColor = C.primary }: { sys: SystemDetails; borderColor?: string; accentColor?: string }) => {
+    // Determine which logo to use based on background color
+    // Light backgrounds (Ocean: #eff6ff, Forest: #f0fdf4) need dark logo
+    // Dark backgrounds (Classic: #6c1c2c, Slate: #1e293b, Minimal: #374151) need light logo
+    const isLightBackground = accentColor === '#3b82f6' || accentColor === '#16a34a';
+    const logoSrc = isLightBackground ? '/relia2.png' : '/relia.png';
+
+    return (
     <div
         style={{
             marginTop: 24,
             borderTop: `2px solid ${borderColor}`,
             paddingTop: 14,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap" as const,
-            gap: 8,
         }}
     >
-        <div style={{ fontSize: 11, color: C.subText }}>
-            {sys.EMAIL_URL && <span>{sys.EMAIL_URL} · </span>}
-            {sys.PHONE_NO && <span>{sys.PHONE_NO}</span>}
-            {sys.PIN && <span> · KRA PIN: {sys.PIN}</span>}
+        {/* Row 1: Logo and POWERED BY */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8 }}>
+            <img 
+                src={logoSrc} 
+                alt="Relia" 
+                style={{ height: 20 }} 
+            />
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>POWERED BY Basepoint</span>
         </div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>Thank you for your business!</div>
-        <div style={{ fontSize: 11, color: C.subText }}>
-            {sys.Paybill_bs && sys.Paybill_ac && (
-                <span>Paybill: {sys.Paybill_bs} · Acc: {sys.Paybill_ac} · </span>
-            )}
-            Printed {new Date().toLocaleDateString("en-KE")}
+        
+        {/* Row 2: Contact info, thank you, printed date */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 8 }}>
+            <div style={{ fontSize: 11, color: C.subText }}>
+                {sys.EMAIL_URL && <span>{sys.EMAIL_URL} · </span>}
+                {sys.PHONE_NO && <span>{sys.PHONE_NO}</span>}
+                {sys.PIN && <span> · KRA PIN: {sys.PIN}</span>}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.darkText }}>Thank you for your business!</div>
+            <div style={{ fontSize: 11, color: C.subText }}>
+                Printed {new Date().toLocaleDateString("en-KE")}
+            </div>
         </div>
     </div>
-);
+    );
+};
 
 const LogoOrText = ({
     sys,
@@ -623,7 +877,9 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
                 color: C.darkText,
                 background: "#fff",
                 padding: 32,
-                minWidth: 640,
+                width: "100%",
+                maxWidth: 730,
+                boxSizing: "border-box" as const,
             }}
         >
             {/* Header */}
@@ -666,22 +922,6 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
                     <div style={{ fontSize: 11, opacity: 0.75, marginTop: 2 }}>{fmtDate(inv.issue_date || inv.createdAt)}</div>
                     {inv.due_date && (
                         <div style={{ fontSize: 11, opacity: 0.75 }}>Due: {fmtDateShort(inv.due_date)}</div>
-                    )}
-                    {inv.status && (
-                        <div
-                            style={{
-                                marginTop: 4,
-                                display: "inline-block",
-                                background: inv.status === "Paid" ? "#10b981" : "rgba(255,255,255,0.15)",
-                                border: inv.status !== "Paid" ? `1px solid ${accentColor}` : "none",
-                                borderRadius: 4,
-                                padding: "2px 8px",
-                                fontSize: 10,
-                                fontWeight: 700,
-                            }}
-                        >
-                            {inv.status.toUpperCase()}
-                        </div>
                     )}
                 </div>
             </div>
@@ -762,7 +1002,8 @@ export const Template1Classic = React.forwardRef<HTMLDivElement, SharedProps>(({
             <ItemsTable inv={inv} />
             <TotalsBlock inv={inv} accentColor={C.primary} />
             <PaymentDetailsBlock inv={inv} sys={sys} accentColor={C.primary} />
-            <Footer sys={sys} />
+            <BankDetailsBlock sys={sys} accentColor={C.primary} />
+            <Footer sys={sys} accentColor={C.primary} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -781,7 +1022,7 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
     return (
         <div
             ref={ref}
-            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 32, minWidth: 640 }}
+            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 32, width: "100%", maxWidth: 730, boxSizing: "border-box" as const }}
         >
             {/* Header */}
             <div
@@ -818,23 +1059,6 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
                     <div style={{ fontSize: 28, fontWeight: 700, color: navy, letterSpacing: "-0.5px" }}>{docLabel}</div>
                     <div style={{ fontSize: 12, color: C.subText, marginTop: 2 }}>{inv.order_no || inv.invoice_no}</div>
                     <div style={{ fontSize: 11, color: C.subText }}>{fmtDate(inv.issue_date || inv.createdAt)}</div>
-                    {inv.status && (
-                        <span
-                            style={{
-                                background: "#eff6ff",
-                                color: C.blue,
-                                border: "1px solid #bfdbfe",
-                                borderRadius: 4,
-                                padding: "2px 8px",
-                                fontSize: 10,
-                                fontWeight: 700,
-                                marginTop: 4,
-                                display: "inline-block",
-                            }}
-                        >
-                            {inv.status}
-                        </span>
-                    )}
                 </div>
             </div>
 
@@ -892,7 +1116,7 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
                     )}
                     {inv.terms && (
                         <div style={{ fontSize: 12 }}>
-                            Terms: <strong>{inv.terms}</strong>
+                            : <strong>{inv.terms}</strong>
                         </div>
                     )}
                     {inv.served_by && (
@@ -906,7 +1130,8 @@ export const Template2SlatePro = React.forwardRef<HTMLDivElement, SharedProps>((
             <ItemsTable inv={inv} />
             <TotalsBlock inv={inv} accentColor={navy} />
             <PaymentDetailsBlock inv={inv} sys={sys} accentColor={navy} />
-            <Footer sys={sys} />
+            <BankDetailsBlock sys={sys} accentColor={navy} />
+            <Footer sys={sys} accentColor={navy} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -924,7 +1149,7 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
     return (
         <div
             ref={ref}
-            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 0, minWidth: 640 }}
+            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 0, width: "100%", maxWidth: 730, boxSizing: "border-box" as const }}
         >
             {/* Gradient header */}
             <div
@@ -991,25 +1216,14 @@ export const Template3Ocean = React.forwardRef<HTMLDivElement, SharedProps>(({ i
                                 <div style={{ fontWeight: 700, fontSize: 12, color: C.red }}>{fmtDateShort(inv.due_date)}</div>
                             </div>
                         )}
-                        {inv.status && (
-                            <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "10px 14px", minWidth: 90 }}>
-                                <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Status</div>
-                                <div style={{ fontWeight: 700, fontSize: 12, color: C.blue }}>{inv.status}</div>
-                            </div>
-                        )}
-                        {inv.terms && (
-                            <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", minWidth: 110 }}>
-                                <div style={{ fontSize: 10, color: C.subText, marginBottom: 2 }}>Terms</div>
-                                <div style={{ fontWeight: 700, fontSize: 12 }}>{inv.terms}</div>
-                            </div>
-                        )}
-                    </div>
+                                            </div>
                 </div>
 
                 <ItemsTable inv={inv} />
                 <TotalsBlock inv={inv} accentColor={C.blue} />
                 <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#eff6ff" borderColor="#bfdbfe" accentColor={C.blue} />
-                <Footer sys={sys} borderColor="#bfdbfe" />
+                <BankDetailsBlock sys={sys} bgColor="#eff6ff" borderColor="#bfdbfe" accentColor={C.blue} />
+                <Footer sys={sys} borderColor="#bfdbfe" accentColor={C.blue} />
             </div>
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
@@ -1034,7 +1248,9 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                 color: C.darkText,
                 background: "#fff",
                 padding: 36,
-                minWidth: 640,
+                width: "100%",
+                maxWidth: 730,
+                boxSizing: "border-box" as const,
             }}
         >
             {/* Header */}
@@ -1132,23 +1348,6 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                     {inv.due_date && (
                         <div style={{ fontSize: 12, color: C.subText, marginTop: 2 }}>by {fmtDateShort(inv.due_date)}</div>
                     )}
-                    {inv.status && (
-                        <div
-                            style={{
-                                display: "inline-block",
-                                marginTop: 6,
-                                background: C.bg,
-                                border: `1px solid ${C.border}`,
-                                borderRadius: 4,
-                                padding: "2px 8px",
-                                fontSize: 10,
-                                fontWeight: 700,
-                                color: charcoal,
-                            }}
-                        >
-                            {inv.status}
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -1158,7 +1357,8 @@ export const Template4Minimal = React.forwardRef<HTMLDivElement, SharedProps>(({
                 <PaymentDetailsBlock inv={inv} sys={sys} accentColor={charcoal} />
             </div>
 
-            <Footer sys={sys} />
+            <BankDetailsBlock sys={sys} accentColor={charcoal} />
+            <Footer sys={sys} accentColor={charcoal} />
 
             <style>{`@media print{@page{size:A4 portrait;margin:14mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
         </div>
@@ -1177,7 +1377,7 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
     return (
         <div
             ref={ref}
-            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 0, minWidth: 640 }}
+            style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: C.darkText, background: "#fff", padding: 0, width: "100%", maxWidth: 730, boxSizing: "border-box" as const }}
         >
             {/* Header bar */}
             <div style={{ background: forest, color: "#fff", display: "flex", alignItems: "stretch", overflow: "hidden" }}>
@@ -1257,29 +1457,14 @@ export const Template5Forest = React.forwardRef<HTMLDivElement, SharedProps>(({ 
                                 <div style={{ fontSize: 14, fontWeight: 700, color: C.red }}>{fmtDateShort(inv.due_date)}</div>
                             </div>
                         )}
-                        {inv.status && (
-                            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px" }}>
-                                <div style={{ fontSize: 10, textTransform: "uppercase" as const, fontWeight: 700, color: forest, marginBottom: 2 }}>
-                                    Status
-                                </div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: forest }}>{inv.status}</div>
-                            </div>
-                        )}
-                        {inv.terms && (
-                            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px" }}>
-                                <div style={{ fontSize: 10, textTransform: "uppercase" as const, fontWeight: 700, color: forest, marginBottom: 2 }}>
-                                    Terms
-                                </div>
-                                <div style={{ fontSize: 12, color: forest }}>{inv.terms}</div>
-                            </div>
-                        )}
                     </div>
                 </div>
 
                 <ItemsTable inv={inv} />
                 <TotalsBlock inv={inv} accentColor={forest} />
                 <PaymentDetailsBlock inv={inv} sys={sys} bgColor="#f0fdf4" borderColor="#bbf7d0" accentColor={forest} />
-                <Footer sys={sys} borderColor="#d1fae5" />
+                <BankDetailsBlock sys={sys} bgColor="#f0fdf4" borderColor="#bbf7d0" accentColor={forest} />
+                <Footer sys={sys} borderColor="#d1fae5" accentColor={forest} />
             </div>
 
             <style>{`@media print{@page{size:A4 portrait;margin:12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
@@ -1290,6 +1475,14 @@ Template5Forest.displayName = "Template5Forest";
 
 // ── Template meta ──────────────────────────────────────────────────────────
 export const TEMPLATES = [
+    {
+        id: 4,
+        name: "Minimal",
+        description: "Serif editorial, clean double-rule",
+        component: Template4Minimal,
+        thumbBg: "#f1f5f9",
+        thumbAccent: "#374151",
+    },
     {
         id: 1,
         name: "Classic",
@@ -1313,14 +1506,6 @@ export const TEMPLATES = [
         component: Template3Ocean,
         thumbBg: "#1d4ed8",
         thumbAccent: "#fff",
-    },
-    {
-        id: 4,
-        name: "Minimal",
-        description: "Serif editorial, clean double-rule",
-        component: Template4Minimal,
-        thumbBg: "#f1f5f9",
-        thumbAccent: "#374151",
     },
     {
         id: 5,

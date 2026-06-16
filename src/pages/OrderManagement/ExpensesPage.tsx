@@ -4,7 +4,7 @@ import {
     Form, Input, App, Space, Tooltip,
 } from "antd";
 import {
-    ArrowUpOutlined, PlusOutlined, CheckCircleOutlined, StopOutlined,
+    ArrowUpOutlined, PlusOutlined, CheckCircleOutlined, StopOutlined, ReloadOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -154,11 +154,19 @@ function ExpensesPage() {
     const expenses: Expense[] = data?.expenses || [];
     const total = data?.total || 0;
     const summaryRows = summaryData?.summary || [];
-    const totalExpenses = summaryRows.reduce((s, r) => s + r.total_amount, 0);
-    const totalVat = summaryRows.reduce((s, r) => s + r.total_vat, 0);
-    const approvedTotal = summaryRows
-        .filter((r) => r._id === "Approved")
-        .reduce((s, r) => s + r.total_amount, 0);
+
+    // Calculate from summary API if available, otherwise fallback to expenses list
+    const totalExpenses = summaryRows.length > 0
+        ? summaryRows.reduce((s, r) => s + r.total_amount, 0)
+        : expenses.reduce((s, r) => s + (r.grand_total || 0), 0);
+
+    const totalVat = summaryRows.length > 0
+        ? summaryRows.reduce((s, r) => s + r.total_vat, 0)
+        : expenses.reduce((s, r) => s + (r.total_vat_amount || 0), 0);
+
+    const approvedTotal = summaryRows.length > 0
+        ? summaryRows.filter((r) => r._id === "Approved").reduce((s, r) => s + r.total_amount, 0)
+        : expenses.filter((r) => r.status === "Approved").reduce((s, r) => s + (r.grand_total || 0), 0);
 
     const refresh = () => {
         queryClient.invalidateQueries({ queryKey: ["expenses"] });
@@ -316,13 +324,22 @@ function ExpensesPage() {
                                 { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
                             ]}
                         />
-                        <Button
-                            type="primary" icon={<PlusOutlined />}
-                            onClick={() => setModalOpen(true)}
-                            style={{ background: C.red, borderColor: C.red, borderRadius: 8, fontWeight: 600 }}
-                        >
-                            Post Expense
-                        </Button>
+                        <Space>
+                            <Tooltip title="Refresh records">
+                                <Button
+                                    icon={<ReloadOutlined />}
+                                    onClick={refresh}
+                                    style={{ borderRadius: 8 }}
+                                />
+                            </Tooltip>
+                            <Button
+                                type="primary" icon={<PlusOutlined />}
+                                onClick={() => setModalOpen(true)}
+                                style={{ background: C.red, borderColor: C.red, borderRadius: 8, fontWeight: 600 }}
+                            >
+                                Post Expense
+                            </Button>
+                        </Space>
                     </div>
 
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

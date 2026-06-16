@@ -18,6 +18,24 @@ export type InvoiceStatus =
 export type InvoiceSource = "pos" | "accounting" | "standalone";
 export type InvoiceDirection = "customer" | "supplier";
 
+export interface DigiTaxData {
+    sale_id?: string;
+    serial_number?: string;
+    receipt_number?: number;
+    invoice_number?: number;
+    trader_invoice_number?: string;
+    etims_url?: string;
+    offline_url?: string;
+    receipt_signature?: string;
+    internal_data?: string;
+    receipt_type_code?: string;
+    sale_date?: string;
+    sale_time?: string;
+    submission_status?: "Pending" | "Submitted" | "Verified" | "COMPLETED" | "Failed" | "FAILED";
+    submission_date?: string;
+    error_message?: string | null;
+}
+
 export interface InvoiceAttachment {
     url: string;
     filename: string;
@@ -86,6 +104,11 @@ export interface Invoice {
     order_id?: string;
     supplier_ref?: string;
 
+    // ETR / DigiTax
+    etr_enabled?: boolean;
+    shop_kra_pin?: string | null;
+    digitax?: DigiTaxData | null;
+
     // Meta
     notes?: string;
     terms?: string;
@@ -148,6 +171,7 @@ export interface CreateInvoiceParams {
     supplier_ref?: string;
     discount_amount?: number;
     currency?: string;
+    etr_enabled?: boolean;
     // Optional: record payment immediately on creation
     record_payment?: boolean;
     payment_method_id?: string;
@@ -161,6 +185,7 @@ export interface RecordInvoicePaymentParams {
     method_id: string;
     reference?: string;
     notes?: string;
+    bank_account_id?: string;
 }
 
 // ============================================
@@ -218,6 +243,20 @@ export const getInvoiceById = async (id: string) => {
             `${BASE_URL}/accounting/invoices/${id}`
         );
         return response.data as { invoice: Invoice };
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Manually verify an invoice with KRA DigiTax (optional immediate verification)
+ */
+export const verifyDigiTax = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/invoices/${id}/verify-digita`
+        );
+        return response.data;
     } catch (error) {
         throw error;
     }
@@ -338,6 +377,32 @@ export const recordInvoicePayment = async (
 };
 
 /**
+ * Patch arbitrary fields on an invoice (e.g. DigiTax CU data).
+ * Use for PATCH /accounting/invoices/:id
+ */
+export const patchInvoice = async (id: string, data: Partial<{
+    digitax: Partial<DigiTaxData>;
+    etr_enabled: boolean;
+    status: InvoiceStatus;
+    internal_notes: string;
+}>) => {
+    try {
+        const response = await axiosInstance.patch(
+            `${BASE_URL}/accounting/invoices/${id}`,
+            data
+        );
+        return response.data as { invoice: Invoice };
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error updating invoice");
+        }
+        throw error;
+    }
+};
+
+/**
  * Convert a Draft quote to a Posted invoice.
  * Creates the journal entry (DR AR, CR Revenue) at this point.
  * Optionally pass due_date if not already set on the quote.
@@ -358,6 +423,58 @@ export const convertQuoteToInvoice = async (
             message.error(error.response.data.message);
         } else {
             message.error("Error converting quote to invoice");
+        }
+        throw error;
+    }
+};
+
+/**
+ * Delete an invoice.
+ * Only available for admin users.
+ * Backend prevents deletion of paid or voided invoices.
+ * Cleans up: invoice items, journal entry, payments, and stock updates.
+ */
+export const deleteInvoice = async (id: string) => {
+    try {
+        const response = await axiosInstance.delete(
+            `${BASE_URL}/accounting/invoices/${id}`
+        );
+        message.success("Invoice deleted successfully");
+        return response.data;
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error deleting invoice");
+        }
+        throw error;
+    }
+};
+
+/**
+ * Duplicate an invoice with a new invoice number.
+ * Creates a copy of the invoice with all line items but with:
+ * - New invoice ID and number
+ * - Reset payment status to "Pending"
+ * - Reset amounts (amount_paid = 0, amount_due = grand_total)
+ * - Cleared ETR/DigiTax data
+ * - Current issue date
+ */
+export const duplicateInvoice = async (id: string) => {
+    try {
+        const response = await axiosInstance.post(
+            `${BASE_URL}/accounting/invoices/${id}/duplicate`
+        );
+        message.success(`Invoice duplicated: ${response.data.invoice.order_no}`);
+        return response.data as {
+            invoice: Invoice;
+            items: InvoiceLineItem[];
+        };
+    } catch (error) {
+        if (error?.response?.data?.message) {
+            message.error(error.response.data.message);
+        } else {
+            message.error("Error duplicating invoice");
         }
         throw error;
     }

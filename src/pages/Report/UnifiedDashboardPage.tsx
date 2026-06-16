@@ -3,7 +3,7 @@ import { Tabs } from "antd";
 import DashboardAdminPage from "src/AdminDashboard/DashboardPage/DashboardPage";
 import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDashboardPage";
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
-import BanduHRDashboard from "src/pages/Report/BanduDashboard";
+import BanduDashboardPage from "src/pages/hr/BanduDashboardPage";
 import UnifiedDalaDashboard from "src/pages/dala/UnifiedDalaDashboard";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ const AccountingDashboardContent: React.FC = () => <AccountingDashboardPage />;
 const MtejaDashboardContent: React.FC = () => <MtejaDashboard />;
 
 // ── Bandu Dashboard Component ─────────────────────────────────────────────────────
-const BanduDashboardContent: React.FC = () => <BanduHRDashboard />;
+const BanduDashboardContent: React.FC = () => <BanduDashboardPage />;
 
 // ── Dala Dashboard Component ─────────────────────────────────────────────────────
 const DalaDashboardContent: React.FC = () => <UnifiedDalaDashboard />;
@@ -74,7 +74,7 @@ const UnifiedDashboardPage: React.FC = () => {
     ...(hasBandu
       ? [{
           key: "bandu",
-          label: "Bandu HR Dashboard",
+          label: "Bandu",
           children: <BanduDashboardContent />,
         }]
       : []),

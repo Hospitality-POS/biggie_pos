@@ -31,6 +31,40 @@ import PaymentCallback from "@components/payment/PaymentCallback";
 import { getPrimaryColor } from "@utils/getPrimaryColor";
 const PermissionRoute = lazy(() => import("@components/PermissionRoute"));
 
+// ─── Fallback spinners ────────────────────────────────────────────────────────
+const fullscreenSpin = (
+  <Spin size="large" fullscreen style={{ color: getPrimaryColor() }} />
+);
+
+// ─── Page wrappers ────────────────────────────────────────────────────────────
+const adminPage = (Component: React.ComponentType) => (
+  <Suspense fallback={<NubaLoader />}>
+    <AdminRoute>
+      <Component />
+    </AdminRoute>
+  </Suspense>
+);
+
+const privatePage = (Component: React.ComponentType) => (
+  <Suspense fallback={fullscreenSpin}>
+    <Private>
+      <Component />
+    </Private>
+  </Suspense>
+);
+
+const guardedPage = (Component: React.ComponentType, permission: string) => (
+  <PermissionRoute permission={permission}>
+    {privatePage(Component)}
+  </PermissionRoute>
+);
+
+const guardedAdminPage = (Component: React.ComponentType, permission: string) => (
+  <PermissionRoute permission={permission}>
+    {adminPage(Component)}
+  </PermissionRoute>
+);
+
 // ─── Wages Module ─────────────────────────────────────────────────────────────
 const WagesList = lazy(() => import("src/AdminDashboard/Wages/WageList"));
 
@@ -69,6 +103,7 @@ const MtejaDashboard = lazy(() => import("src/pages/Dashboard/MtejaDashboard"));
 const AccountingDashboardPage = lazy(() => import("src/pages/AccountingDashboard/AccountingDashboardPage"));
 const ChartOfAccountsPage = lazy(() => import("src/pages/ChartOfAccounts/ChartOfAccountsPage"));
 const JournalEntriesPage = lazy(() => import("src/pages/JournalEntry/JournalEntriesPage"));
+const SalesReceiptsPage = lazy(() => import("src/pages/SalesReceipts/SalesReceiptsPage"));
 const NotesPage = lazy(() => import("src/pages/Notes/NotesPage"));
 const BankStatementPage = lazy(() => import("src/pages/Banking/BankStatementPage"));
 const BankReconciliationPage = lazy(() => import("src/pages/Reconciliation/BankReconciliationPage"));
@@ -125,11 +160,6 @@ const ShiftSwapDetail = lazy(() => import("src/pages/hr/shifts/ShiftSwapDetail")
 const DeductionRulesList = lazy(() => import("src/pages/hr/deductions/DeductionRulesList"));
 const BanksList = lazy(() => import("src/pages/hr/banks/BanksList"));
 const BanduReportsPage = lazy(() => import("src/pages/hr/BanduReportsPage"));
-
-// ─── Fallback spinners ────────────────────────────────────────────────────────
-const fullscreenSpin = (
-  <Spin size="large" fullscreen style={{ color: getPrimaryColor() }} />
-);
 
 // ─── Mteja guard ─────────────────────────────────────────────────────────────
 const getMtejaEnabled = (): boolean => {
@@ -190,39 +220,6 @@ const AdminBanduRoute: React.FC<{ children: React.ReactNode }> = ({ children }) 
   if (!getBanduEnabled()) return <Navigate to="/admin/customers" replace />;
   return <>{children}</>;
 };
-
-// ─── Page wrappers ────────────────────────────────────────────────────────────
-const adminPage = (Component: React.ComponentType) => (
-  <Suspense fallback={<NubaLoader />}>
-    <AdminRoute>
-      <Component />
-    </AdminRoute>
-  </Suspense>
-);
-
-const privatePage = (Component: React.ComponentType) => (
-  <Suspense fallback={fullscreenSpin}>
-    <Private>
-      <Component />
-    </Private>
-  </Suspense>
-);
-
-const guardedPage = (Component: React.ComponentType, permission: string) => (
-  <Suspense fallback={fullscreenSpin}>
-    <PermissionRoute permission={permission}>
-      {privatePage(Component)}
-    </PermissionRoute>
-  </Suspense>
-);
-
-const guardedAdminPage = (Component: React.ComponentType, permission: string) => (
-  <Suspense fallback={fullscreenSpin}>
-    <PermissionRoute permission={permission}>
-      {adminPage(Component)}
-    </PermissionRoute>
-  </Suspense>
-);
 
 // ─── CRM page wrapper — private + Mteja guard ────────────────────────────────
 const mtejaPage = (Component: React.ComponentType, permission: string) => (
@@ -314,20 +311,15 @@ const SmartShopRouter = () => {
 
 const SmartDashboardRouter = () => {
   const user = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
-  const tenant = (() => { try { return JSON.parse(localStorage.getItem("tenant") || "{}"); } catch { return {}; } })();
 
   if (!user?.role) return <Navigate to="/login" replace />;
 
-  const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
-  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
-  const hasMteja = tenant?.modules?.crm === true;
-  const hasDala = tenant?.modules?.dala === true;
-  const hasBandu = tenant?.modules?.payroll === true;
+  // If shopId is set, redirect to shop-level dashboard
+  const shopId = localStorage.getItem("shopId");
+  if (shopId && shopId !== "undefined" && shopId !== "null") {
+    return <Navigate to="/home-dashboard" replace />;
+  }
 
-  if (hasBandu && !hasPOS && !hasAccounting && !hasMteja && !hasDala) return <Navigate to="/admin/hr" replace />;
-  if (hasDala && !hasPOS && !hasAccounting && !hasMteja && !hasBandu) return <Navigate to="/admin/dala" replace />;
-  if (hasMteja && !hasPOS && !hasAccounting && !hasBandu) return <Navigate to="/admin/mteja" replace />;
-  if (hasAccounting && !hasPOS && !hasBandu) return <Navigate to="/admin/dashboard" replace />;
   return <Navigate to="/admin/dashboard" replace />;
 };
 
@@ -365,6 +357,12 @@ const routes = createBrowserRouter(
         <Route path="dashboard/:id" errorElement={<NotFound />}
           element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
 
+        <Route path="dashboard" errorElement={<NotFound />}
+          element={<Navigate to="/home-dashboard" replace />} />
+
+        <Route path="cart/cart/:cartId" errorElement={<NotFound />}
+          element={guardedPage(RestaurantPage, "ORDERS_VIEW_DASHBOARD")} />
+
         <Route path="home-dashboard" errorElement={<NotFound />}
           element={guardedPage(UnifiedShopDashboardPage, "ORDERS_VIEW_DASHBOARD")} />
 
@@ -388,6 +386,14 @@ const routes = createBrowserRouter(
 
         <Route path="users-settings" errorElement={<NotFound />}
           element={guardedPage(UsersMainSettings, "USERS_VIEW")} />
+
+        <Route path="staff-management" errorElement={<NotFound />}
+          element={
+            <Suspense fallback={fullscreenSpin}>
+              <AdminRoute><UsersMainSettings /></AdminRoute>
+            </Suspense>
+          }
+        />
 
         <Route path="supplier-settings" errorElement={<NotFound />}
           element={guardedPage(SupplierMainSettings, "SUPPLIERS_VIEW")} />
@@ -434,6 +440,9 @@ const routes = createBrowserRouter(
         <Route path="documents" errorElement={<NotFound />}
           element={guardedPage(DocumentCenter, "DOCUMENTS_VIEW")} />
 
+        <Route path="help-center" errorElement={<NotFound />}
+          element={<Suspense fallback={fullscreenSpin}><HelpCenter /></Suspense>} />
+
         {/* Petty Cash & Refunds (Duka Only) */}
         <Route path="petty-cash" errorElement={<NotFound />}
           element={guardedPage(PettyCashListPage, "ORDERS_VIEW_DASHBOARD")} />
@@ -459,6 +468,8 @@ const routes = createBrowserRouter(
             element={guardedPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
             element={guardedPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
+          <Route path="sales-receipts" errorElement={<NotFound />}
+            element={guardedPage(SalesReceiptsPage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
           <Route path="notes" errorElement={<NotFound />}
             element={guardedPage(NotesPage, "ACCOUNTING_NOTES_VIEW")} />
           <Route path="bank-statements" errorElement={<NotFound />}
@@ -533,9 +544,7 @@ const routes = createBrowserRouter(
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="hr" element={<BanduLayout />}>
           <Route index errorElement={<NotFound />}
-            element={banduPage(BanduDashboardPage, "USERS_VIEW")} />
-          <Route path="dashboard" errorElement={<NotFound />}
-            element={banduPage(BanduDashboardPage, "USERS_VIEW")} />
+            element={<Navigate to="/home-dashboard" replace />} />
           <Route path="employees" errorElement={<NotFound />}
             element={banduPage(EmployeeProfilesList, "USERS_VIEW")} />
           <Route path="employees/:id" errorElement={<NotFound />}
@@ -558,8 +567,6 @@ const routes = createBrowserRouter(
             element={banduPage(ShiftSwapDetail, "USERS_VIEW")} />
           <Route path="deductions" errorElement={<NotFound />}
             element={banduPage(DeductionRulesList, "USERS_VIEW")} />
-          <Route path="reports" errorElement={<NotFound />}
-            element={banduPage(BanduReportsPage, "USERS_VIEW")} />
           <Route path="banks" errorElement={<NotFound />}
             element={banduPage(BanksList, "USERS_VIEW")} />
         </Route>
@@ -580,7 +587,7 @@ const routes = createBrowserRouter(
           element={guardedAdminPage(Table, "CART_VIEW_ITEMS")} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
-          element={guardedAdminPage(DashboardAdminPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={<Navigate to="/home-dashboard" replace />} />
 
         <Route path="orders" errorElement={<NotFound />}
           element={guardedAdminPage(MainOrders, "ORDERS_VIEW")} />
@@ -720,6 +727,8 @@ const routes = createBrowserRouter(
             element={guardedAdminPage(ChartOfAccountsPage, "ACCOUNTING_COA_VIEW")} />
           <Route path="journals" errorElement={<NotFound />}
             element={guardedAdminPage(JournalEntriesPage, "ACCOUNTING_JOURNAL_VIEW")} />
+          <Route path="sales-receipts" errorElement={<NotFound />}
+            element={guardedAdminPage(SalesReceiptsPage, "ACCOUNTING_INCOME_VIEW_HISTORY")} />
           <Route path="notes" errorElement={<NotFound />}
             element={guardedAdminPage(NotesPage, "ACCOUNTING_NOTES_VIEW")} />
           <Route path="bank-statements" errorElement={<NotFound />}
@@ -790,9 +799,7 @@ const routes = createBrowserRouter(
         ─────────────────────────────────────────────────────────────────── */}
         <Route path="hr" element={<BanduLayout />}>
           <Route index errorElement={<NotFound />}
-            element={banduAdminPage(BanduDashboardPage, "USERS_VIEW")} />
-          <Route path="dashboard" errorElement={<NotFound />}
-            element={banduAdminPage(BanduDashboardPage, "USERS_VIEW")} />
+            element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="employees" errorElement={<NotFound />}
             element={banduAdminPage(EmployeeProfilesList, "USERS_VIEW")} />
           <Route path="employees/:id" errorElement={<NotFound />}
@@ -815,8 +822,6 @@ const routes = createBrowserRouter(
             element={banduAdminPage(ShiftSwapDetail, "USERS_VIEW")} />
           <Route path="deductions" errorElement={<NotFound />}
             element={banduAdminPage(DeductionRulesList, "USERS_VIEW")} />
-          <Route path="reports" errorElement={<NotFound />}
-            element={banduAdminPage(BanduReportsPage, "USERS_VIEW")} />
           <Route path="banks" errorElement={<NotFound />}
             element={banduAdminPage(BanksList, "USERS_VIEW")} />
         </Route>

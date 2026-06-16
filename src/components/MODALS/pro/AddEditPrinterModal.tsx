@@ -206,6 +206,7 @@ const AddEditPrinterModal: React.FC<AddEditPrinterModalProps> = ({ actionRef, ed
           request={mainCategoryRequest}
         />
       </ProForm.Group>
+
     </ModalForm>
   );
 };

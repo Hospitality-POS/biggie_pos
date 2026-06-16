@@ -47,8 +47,10 @@ export interface StageHistoryEntry {
 
 export interface Lead {
     _id: string;
-    lead_name: string;
+    entity_type?: 'individual' | 'company';
+    lead_name?: string;
     company_name?: string;
+    contact_person?: string;
     email?: string;
     phone?: string;
     website?: string;
@@ -79,6 +81,7 @@ export interface Lead {
     updatedAt: string;
     // attached by getById
     activities?: import("./crm/leadActivities").LeadActivity[];
+    documents?: any[];
 }
 
 export interface PipelineStageSummary {
@@ -279,3 +282,146 @@ export const deleteLead = createAsyncThunk(
         }
     }
 );
+
+/* ============================================================
+   EXCEL IMPORT
+============================================================ */
+
+export interface AnalyseLeadResult {
+    sheetUsed: string;
+    headerRowDetectedAt: number;
+    totalDataRows: number;
+    mappedColumns: string[];
+    columnMapping: Record<string, string>;
+    missingRequired: string[];
+    missingRecommended: string[];
+    unmappedColumns: string[];
+    advice: Array<{ level: "error" | "warning" | "info"; message: string }>;
+    canImport: boolean;
+    previewRows: any[];
+}
+
+export interface ImportLeadResult {
+    summary: {
+        total: number;
+        created: number;
+        updated: number;
+        skipped: number;
+        errors: number;
+        auto_created?: {
+            staff?: string[];
+        };
+        format_detected?: {
+            sheet: string;
+            header_row: number;
+            mapped_columns: number;
+        };
+    };
+    errors: Array<{ row: number; name: string; reason: string }>;
+}
+
+export const downloadLeadTemplate = async (): Promise<void> => {
+    try {
+        const response = await axiosInstance.get(`${BASE}/template`, {
+            responseType: "blob",
+        });
+
+        const blob = new Blob([response.data], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "leads_import_template.xlsx";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+
+        message.success("Template downloaded successfully");
+    } catch (error) {
+        console.error("Error downloading lead template:", error);
+        message.error("Failed to download template");
+        throw new Error("Failed to download lead template");
+    }
+};
+
+export const analyseLeadFile = async (file: File): Promise<AnalyseLeadResult> => {
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await axiosInstance.post<AnalyseLeadResult>(
+            `${BASE}/analyse-import`,
+            formData,
+            { headers: { "Content-Type": undefined } }
+        );
+
+        return response.data;
+    } catch (error: any) {
+        console.error("Error analysing lead file:", error);
+        const errMsg =
+            error?.response?.data?.error ||
+            error?.response?.data?.message ||
+            "Failed to analyse file. Please check the file format and try again.";
+        if (error?.response?.status !== 403) message.error(errMsg);
+        throw error;
+    }
+};
+
+export const importLeadsFromExcel = async (
+    file: File,
+    shopId: string,
+    assignedTo?: string,
+    rowAssignments?: Record<number, string>
+): Promise<ImportLeadResult> => {
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("shop_id", shopId);
+        if (assignedTo) {
+            formData.append("assigned_to", assignedTo);
+        }
+        if (rowAssignments && Object.keys(rowAssignments).length > 0) {
+            formData.append("row_assignments", JSON.stringify(rowAssignments));
+        }
+
+        const response = await axiosInstance.post<ImportLeadResult>(
+            `${BASE}/import`,
+            formData,
+            { headers: { "Content-Type": undefined } }
+        );
+
+        const data = response.data;
+
+        if (data.summary.created > 0 || data.summary.updated > 0) {
+            const createdMsg = data.summary.created > 0 ? `${data.summary.created} lead(s) created` : "";
+            const updatedMsg = data.summary.updated > 0 ? `${data.summary.updated} lead(s) updated` : "";
+            const itemsMsg = [createdMsg, updatedMsg].filter(Boolean).join(", ");
+            const skippedMsg = data.summary.skipped > 0 ? `, ${data.summary.skipped} skipped` : "";
+            message.success(
+                `Import complete — ${itemsMsg}${skippedMsg}`
+            );
+        } else if (data.summary.errors > 0) {
+            const firstErr = data.errors?.[0];
+            message.warning(
+                firstErr
+                    ? `Import issue: ${firstErr.reason}`
+                    : "No leads were imported — check the error details below."
+            );
+        } else {
+            message.warning("No leads were imported. Check the error details.");
+        }
+
+        return data;
+    } catch (error: any) {
+        console.error("Error importing leads from Excel:", error);
+        const errMsg =
+            error?.response?.data?.error ||
+            error?.response?.data?.message ||
+            "Failed to import leads. Please check the file format and try again.";
+        message.error(errMsg);
+        throw error;
+    }
+};

@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { Alert, Button, List, Select, Space, Spin, Tag, Typography, Divider } from "antd";
+import { Alert, Button, List, Select, Space, Spin, Tag, Typography, Divider, Switch, message } from "antd";
 import { ProCard } from "@ant-design/pro-components";
 import {
   ApiOutlined, CheckCircleOutlined, CloseCircleOutlined,
   PrinterOutlined, ReloadOutlined, SendOutlined, PlusOutlined, DeleteOutlined,
-  DownloadOutlined, AppleOutlined, WindowsOutlined,
+  DownloadOutlined, AppleOutlined, WindowsOutlined, SettingOutlined,
 } from "@ant-design/icons";
 import {
   getConnectedAgents, sendPrintJob,
@@ -29,6 +29,8 @@ const PrinterSettings: React.FC = () => {
   const [editingAgent, setEditingAgent] = useState<string | null>(null);
   const [newCategoryId, setNewCategoryId] = useState("");
   const [mainCategories, setMainCategories] = useState<Array<{ _id: string; name: string }>>([]);
+  const [captainOrderEnabled, setCaptainOrderEnabled] = useState(false);
+  const [printByAgentEnabled, setPrintByAgentEnabled] = useState(false);
 
   const shopId = localStorage.getItem("shopId") ?? "";
   const companyCode = useMemo(() => {
@@ -57,6 +59,14 @@ const PrinterSettings: React.FC = () => {
     loadMappings();
     loadMainCategories();
   }, [loadMappings, loadMainCategories]);
+
+  // Load global printing behavior settings from localStorage
+  useEffect(() => {
+    const savedCaptainOrder = localStorage.getItem("captain_order_enabled");
+    const savedPrintByAgent = localStorage.getItem("print_by_agent_enabled");
+    setCaptainOrderEnabled(savedCaptainOrder === "true");
+    setPrintByAgentEnabled(savedPrintByAgent === "true");
+  }, []);
 
   const checkStatus = useCallback(async () => {
     if (!shopId || !companyCode) { setError("Shop ID or Company Code not found."); return; }
@@ -131,6 +141,22 @@ const PrinterSettings: React.FC = () => {
       if (aid === agentId) result.push(catName);
     });
     return result;
+  };
+
+  const handleToggleCaptainOrder = (checked: boolean) => {
+    setCaptainOrderEnabled(checked);
+    localStorage.setItem("captain_order_enabled", checked.toString());
+    message.success(checked ? "Captain Order Mode enabled" : "Captain Order Mode disabled");
+  };
+
+  const handleTogglePrintByAgent = (checked: boolean) => {
+    if (checked && agents.length === 0) {
+      message.warning("Cannot enable agent printing: No print agents connected. Please install and configure the Print Agent app first.");
+      return;
+    }
+    setPrintByAgentEnabled(checked);
+    localStorage.setItem("print_by_agent_enabled", checked.toString());
+    message.success(checked ? "Agent-based printing enabled" : "Browser printing enabled");
   };
 
   return (
@@ -460,7 +486,7 @@ const PrinterSettings: React.FC = () => {
                   <Space>
                     <WindowsOutlined style={{ fontSize: 20, color: "#6c1c2c" }} />
                     <Text strong style={{ fontSize: 14 }}>Windows (64-bit)</Text>
-                    <Tag color="blue" style={{ fontSize: 11 }}>v0.4.2</Tag>
+                    <Tag color="blue" style={{ fontSize: 11 }}>v0.6.2</Tag>
                   </Space>
                   <Text style={{ fontSize: 12, color: C.subText }}>
                     For Windows 10/11 computers (64-bit)
@@ -468,7 +494,7 @@ const PrinterSettings: React.FC = () => {
                   <Button
                     type="primary"
                     icon={<DownloadOutlined />}
-                    href="https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.4.2_x64-setup%20(1).exe"
+                    href="https://reliatechdocs.nyc3.digitaloceanspaces.com/Print%20Agents/PrintAgent_0.6.2_x64-setup.exe"
                     download
                     style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}
                   >
@@ -493,6 +519,90 @@ const PrinterSettings: React.FC = () => {
                   <li>Click "Connect" - the agent will appear in the Connected Agents tab</li>
                   <li>Assign categories to each printer agent to route print jobs correctly</li>
                 </ol>
+              </div>
+            </Space>
+          </ProCard>
+        </ProCard.TabPane>
+
+        {/* ── Printing Controls Tab ─────────────────────────────────────────────── */}
+        <ProCard.TabPane
+          key="controls"
+          tab={
+            <Space>
+              <SettingOutlined style={{ color: C.primary }} />
+              <Text>Printing Controls</Text>
+            </Space>
+          }
+        >
+          <ProCard
+            bordered
+            title={
+              <Space>
+                <PrinterOutlined style={{ color: C.primary }} />
+                <Text strong>Global Printing Behavior Settings</Text>
+              </Space>
+            }
+            bodyStyle={{ padding: "14px 16px" }}
+          >
+            {/* Global Settings */}
+            <Space direction="vertical" size="large" style={{ width: "100%" }}>
+              {/* Captain Order Mode */}
+              <div style={{ 
+                background: "#fff", 
+                border: "1px solid #e2e8f0", 
+                borderRadius: 8, 
+                padding: "16px 18px" 
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ flex: 1 }}>
+                    <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                      🧑‍✈️ Captain Order Mode
+                    </Text>
+                    <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                      When enabled, shows the Send button in cart drawer for sending orders to kitchen
+                    </Text>
+                  </div>
+                  <Switch
+                    checked={captainOrderEnabled}
+                    onChange={handleToggleCaptainOrder}
+                    style={{ minWidth: 48, marginLeft: 16 }}
+                    checkedChildren="ON"
+                    unCheckedChildren="OFF"
+                  />
+                </div>
+              </div>
+
+              {/* Agent-Based Printing */}
+              <div style={{ 
+                background: "#fff", 
+                border: agents.length === 0 ? "1px dashed #f59e0b" : "1px solid #e2e8f0", 
+                borderRadius: 8, 
+                padding: "16px 18px",
+                opacity: agents.length === 0 ? 0.7 : 1
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ flex: 1 }}>
+                    <Text strong style={{ fontSize: 15, display: "block", marginBottom: 6 }}>
+                      🖨️ Print Method
+                    </Text>
+                    <Text style={{ fontSize: 13, color: C.subText, display: "block" }}>
+                      {printByAgentEnabled ? "Print via API (Agent)" : "Print via Browser (Default)"}
+                    </Text>
+                    {agents.length === 0 && (
+                      <Text style={{ fontSize: 12, color: "#f59e0b", display: "block", marginTop: 6 }}>
+                        ⚠️ No agents connected - agent printing unavailable
+                      </Text>
+                    )}
+                  </div>
+                  <Switch
+                    checked={printByAgentEnabled}
+                    onChange={handleTogglePrintByAgent}
+                    disabled={agents.length === 0}
+                    style={{ minWidth: 48, marginLeft: 16 }}
+                    checkedChildren="API"
+                    unCheckedChildren="Browser"
+                  />
+                </div>
               </div>
             </Space>
           </ProCard>

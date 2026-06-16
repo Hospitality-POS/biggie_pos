@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Button, Form, Input, Modal, Typography, message, Row, Col, Checkbox, AutoComplete } from "antd";
+import { Button, Form, Input, Modal, Typography, message, Row, Col, Checkbox, AutoComplete, Radio } from "antd";
 import {
     EditOutlined, EnvironmentOutlined, IdcardOutlined,
-    MailOutlined, SaveOutlined, UserAddOutlined, UserOutlined,
+    MailOutlined, SaveOutlined, UserAddOutlined, UserOutlined, ShopOutlined,
 } from "@ant-design/icons";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
@@ -35,9 +35,12 @@ interface AddCustomerModalProps {
      */
     leadPrefill?: {
         customer_name?: string;
+        company_name?: string;
+        contact_person?: string;
         phone?: string;
         email?: string;
         location?: string;
+        entity_type?: 'individual' | 'company';
     };
 }
 
@@ -172,6 +175,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
 }) => {
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
+    const [entityType, setEntityType] = useState<'individual' | 'company'>('individual');
     const { options, loading: placesLoading, getPlacePredictions, getPlaceDetails } = useGooglePlacesAutocomplete();
 
     // leadPrefill always forces create mode regardless of mode prop
@@ -182,22 +186,31 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
         if (!visible) return;
 
         if (isFromLead) {
+            const entityTypeValue = leadPrefill?.entity_type || 'individual';
+            setEntityType(entityTypeValue);
             form.setFieldsValue({
-                customer_name: leadPrefill?.customer_name || "",
+                entity_type: entityTypeValue,
+                customer_name: entityTypeValue === 'individual' ? (leadPrefill?.customer_name || "") : undefined,
+                company_name: entityTypeValue === 'company' ? (leadPrefill?.company_name || "") : undefined,
+                contact_person: leadPrefill?.contact_person || "",
                 phoneNumber: leadPrefill?.phone ? parsePhoneForInput(leadPrefill.phone) : undefined,
                 email: leadPrefill?.email || "",
                 location: leadPrefill?.location || "",
             });
         } else if (isEdit && customer) {
+            const entityTypeValue = customer.entity_type || 'individual';
+            setEntityType(entityTypeValue);
             form.setFieldsValue({
-                customer_name: customer.customer_name || "",
+                entity_type: entityTypeValue,
+                customer_name: entityTypeValue === 'individual' ? (customer.customer_name || "") : undefined,
+                company_name: entityTypeValue === 'company' ? (customer.company_name || "") : undefined,
+                contact_person: customer.contact_person || "",
                 phoneNumber: parsePhoneForInput(customer.phone),
                 email: customer.email || "",
                 location: customer.location || "",
                 kra_pin: customer.kra_pin || "",
                 address: customer.address || {},
                 type: customer.type || "individual",
-                company_name: customer.company_name || "",
                 payment_terms: customer.payment_terms,
                 credit_limit: customer.credit_limit,
                 assigned_to: customer.assigned_to || "",
@@ -205,6 +218,8 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             });
         } else {
             form.resetFields();
+            setEntityType('individual');
+            form.setFieldsValue({ entity_type: 'individual' });
         }
     }, [visible, mode, customer, leadPrefill, form]);
 
@@ -228,13 +243,15 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
             } : undefined;
 
             const payload = {
-                customer_name: values.customer_name,
+                entity_type: values.entity_type || 'individual',
+                customer_name: values.entity_type === 'individual' ? values.customer_name : undefined,
+                company_name: values.entity_type === 'company' ? values.company_name : undefined,
+                contact_person: values.contact_person,
                 phone: values.phoneNumber?.phone ? parseInt(values.phoneNumber.phone) : undefined,
                 email: values.email || undefined,
                 address: address,
-                billing_addresses: [], // Can be extended for multiple addresses
+                billing_addresses: [],
                 type: values.type || "individual",
-                company_name: values.company_name || undefined,
                 kra_pin: values.kra_pin || undefined,
                 payment_terms: values.payment_terms ? parseInt(values.payment_terms) : undefined,
                 credit_limit: values.credit_limit ? parseFloat(values.credit_limit) : undefined,
@@ -332,18 +349,59 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         Basic Information
                     </Text>
                     
-                    <Form.Item
-                        name="customer_name" label="Customer Name"
-                        rules={[
-                            { required: true, message: "Please enter customer name" },
-                            { min: 2, message: "Name must be at least 2 characters" },
-                        ]}
-                    >
-                        <Input
+                    {/* Entity Type */}
+                    <Form.Item name="entity_type" label="Entity Type" initialValue="individual">
+                        <Radio.Group 
+                            onChange={(e) => setEntityType(e.target.value)}
+                            style={{ width: '100%' }}
+                        >
+                            <Radio.Button value="individual" style={{ marginRight: 8 }}>
+                                <UserOutlined /> Individual
+                            </Radio.Button>
+                            <Radio.Button value="company">
+                                <ShopOutlined /> Company
+                            </Radio.Button>
+                        </Radio.Group>
+                    </Form.Item>
+
+                    {/* Name fields based on entity type */}
+                    {entityType === 'individual' ? (
+                        <Form.Item
+                            name="customer_name" label="Customer Name"
+                            rules={[
+                                { required: true, message: "Customer name is required for individual customers" },
+                                { min: 2, message: "Name must be at least 2 characters" },
+                            ]}
+                        >
+                            <Input
+                                prefix={<UserOutlined style={{ color: C.subText }} />}
+                                placeholder="Enter customer full name"
+                                style={{ borderRadius: 8 }}
+                                autoFocus
+                            />
+                        </Form.Item>
+                    ) : (
+                        <Form.Item
+                            name="company_name" label="Company Name"
+                            rules={[
+                                { required: true, message: "Company name is required for company customers" },
+                            ]}
+                        >
+                            <Input
+                                prefix={<ShopOutlined style={{ color: C.subText }} />}
+                                placeholder="Enter company name"
+                                style={{ borderRadius: 8 }}
+                                autoFocus
+                            />
+                        </Form.Item>
+                    )}
+
+                    {/* Contact Person (optional for both, recommended for company) */}
+                    <Form.Item name="contact_person" label="Contact Person">
+                        <Input 
                             prefix={<UserOutlined style={{ color: C.subText }} />}
-                            placeholder="Enter customer full name"
-                            style={{ borderRadius: 8 }}
-                            autoFocus
+                            placeholder={entityType === 'company' ? "Primary contact person" : "Contact person (optional)"}
+                            style={{ borderRadius: 8 }} 
                         />
                     </Form.Item>
 
@@ -375,65 +433,63 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({
                         Address Information
                     </Text>
                     
-                    <Form.Item name="address" label="">
-                        <Row gutter={[12, 8]}>
-                            <Col span={24}>
-                                <Form.Item name={["address", "street"]} label="Street Address" style={{ marginBottom: 8 }}>
-                                    <AutoComplete
-                                        options={options}
-                                        onSearch={getPlacePredictions}
-                                        onSelect={async (value: string, option: any) => {
-                                            const details = await getPlaceDetails(option.place_id);
-                                            if (details) {
-                                                form.setFieldsValue({
-                                                    address: {
-                                                        street: details.street,
-                                                        building: details.building,
-                                                        city: details.city,
-                                                        county: details.county,
-                                                        postal_code: details.postal_code,
-                                                        country: details.country,
-                                                    }
-                                                });
-                                            }
-                                        }}
-                                        placeholder="Start typing address for Google Places autocomplete..."
-                                        style={{ width: '100%' }}
-                                    >
-                                        <Input 
-                                            prefix={<EnvironmentOutlined style={{ color: C.subText }} />}
-                                            placeholder="e.g. 123 Main Street, Apartment 4B" 
-                                        />
-                                    </AutoComplete>
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item name={["address", "building"]} label="Building/Landmark" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="e.g. Westgate Tower" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item name={["address", "city"]} label="City/Town" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="e.g. Nairobi" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                                <Form.Item name={["address", "postal_code"]} label="Postal Code" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="e.g. 00100" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                                <Form.Item name={["address", "county"]} label="County/State" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="e.g. Nairobi" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                                <Form.Item name={["address", "country"]} label="Country" style={{ marginBottom: 8 }}>
-                                    <Input placeholder="e.g. Kenya" />
-                                </Form.Item>
-                            </Col>
-                        </Row>
-                    </Form.Item>
+                    <Row gutter={[12, 8]}>
+                        <Col span={24}>
+                            <Form.Item name={["address", "street"]} label="Street Address" style={{ marginBottom: 8 }}>
+                                <AutoComplete
+                                    options={options}
+                                    onSearch={getPlacePredictions}
+                                    onSelect={async (value: string, option: any) => {
+                                        const details = await getPlaceDetails(option.place_id);
+                                        if (details) {
+                                            form.setFieldsValue({
+                                                address: {
+                                                    ...form.getFieldValue('address'),
+                                                    street: details.street || value,
+                                                    building: details.building,
+                                                    city: details.city,
+                                                    county: details.county,
+                                                    postal_code: details.postal_code,
+                                                    country: details.country,
+                                                }
+                                            });
+                                        }
+                                    }}
+                                    style={{ width: '100%' }}
+                                >
+                                    <Input
+                                        prefix={<EnvironmentOutlined style={{ color: C.subText }} />}
+                                        placeholder="Start typing street address..."
+                                    />
+                                </AutoComplete>
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name={["address", "building"]} label="Building/Landmark" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Westgate Tower" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item name={["address", "city"]} label="City/Town" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Nairobi" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name={["address", "postal_code"]} label="Postal Code" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. 00100" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name={["address", "county"]} label="County/State" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Nairobi" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={8}>
+                            <Form.Item name={["address", "country"]} label="Country" style={{ marginBottom: 8 }}>
+                                <Input placeholder="e.g. Kenya" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
                 </div>
 
                 {/* Additional Address Fields - Hidden */}

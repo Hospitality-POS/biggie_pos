@@ -114,23 +114,12 @@ const PropertyTypesList: React.FC = () => {
   };
 
   const handleSubmit = async (values: any) => {
-    // Get shop_id and tenant_id from localStorage
-    const tenantStr = localStorage.getItem('tenant');
-    let tenantId = '';
-    let shopId = '';
-    
-    try {
-      const tenant = JSON.parse(tenantStr || '{}');
-      tenantId = tenant._id || '';
-      shopId = tenant.shop_id || '';
-    } catch (error) {
-      console.error('Error parsing tenant:', error);
-    }
+    // Get shop_id from localStorage
+    const shopId = localStorage.getItem("shopId") || '';
 
     const dataWithIds = {
       ...values,
       shop_id: shopId,
-      tenant_id: tenantId,
     };
 
     if (editingType) {

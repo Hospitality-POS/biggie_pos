@@ -45,6 +45,9 @@ import { addNewInventory, editInventory } from "@services/inventory";
 import { UploadFile } from "antd/lib/upload";
 import { ProCard } from "@ant-design/pro-components";
 import AddEditVariantModal from "./AddEditVariantModal";
+import AddProCategoryModal from "./AddProCategoryModal";
+import SubCategoryModal from "./SubCategoryModal";
+import UomModal from "./UomModal";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INTERFACES
@@ -1731,6 +1734,36 @@ const AddEditProInventoryModal: React.FC<AddInventoryDialogProps> = ({
         onSubmit={handleVariantSubmit}
         editingVariant={editingVariant}
         productName={form.getFieldValue("name")}
+      />
+
+      {/* ── Category add modal ── */}
+      <AddProCategoryModal
+        actionRef={{ current: { reload: refetchCategories, reset: refetchCategories } }}
+        externalOpen={addCategoryOpen}
+        onExternalClose={() => {
+          setAddCategoryOpen(false);
+          refetchCategories();
+        }}
+      />
+
+      {/* ── Subcategory add modal ── */}
+      <SubCategoryModal
+        actionRef={{ current: { reload: refetchCategories, reset: refetchCategories } }}
+        externalOpen={addSubCategoryOpen}
+        onExternalClose={() => {
+          setAddSubCategoryOpen(false);
+          refetchCategories();
+        }}
+      />
+
+      {/* ── Unit of Measure add modal ── */}
+      <UomModal
+        actionRef={{ current: { reload: refetchUnits, reset: refetchUnits } }}
+        externalOpen={addUomOpen}
+        onExternalClose={() => {
+          setAddUomOpen(false);
+          refetchUnits();
+        }}
       />
     </>
   );

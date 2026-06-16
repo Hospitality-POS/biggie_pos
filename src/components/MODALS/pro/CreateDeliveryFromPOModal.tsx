@@ -14,9 +14,10 @@ import {
     Row,
     Col,
     Card,
-    Tag
+    Tag,
+    Alert,
 } from 'antd';
-import { TruckOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { TruckOutlined, CheckCircleOutlined, InboxOutlined, UserOutlined, WarningOutlined } from '@ant-design/icons';
 import { createDeliveryFromPO } from '@services/purchaseOrder';
 import { fetchAllUsersList } from '@services/users';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -218,7 +219,7 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
             ),
         },
         {
-            title: 'Deliver Now',
+            title: purchaseOrder?.direction === 'customer' ? 'Ship Now' : 'Deliver Now',
             dataIndex: 'quantity_to_deliver',
             width: 120,
             render: (_, record: any) => (
@@ -232,7 +233,7 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
             ),
         },
         {
-            title: 'Supplier Price',
+            title: purchaseOrder?.direction === 'customer' ? 'Unit Price' : 'Supplier Price',
             dataIndex: 'supplier_price',
             width: 120,
             render: (_, record: any) => (
@@ -286,7 +287,7 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
                     <Space>
                         <TruckOutlined />
                         <Title level={4} style={{ margin: 0 }}>
-                            Create Delivery from PO: {purchaseOrder?.po_number}
+                            {purchaseOrder?.direction === 'customer' ? 'Ship to Customer' : 'Receive Delivery'} from PO: {purchaseOrder?.po_number}
                         </Title>
                     </Space>
                 }
@@ -303,36 +304,75 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
                         loading={createDeliveryMutation.isLoading}
                         onClick={handleSubmit}
                     >
-                        Create Delivery
+                        {purchaseOrder?.direction === 'customer' ? 'Ship Delivery' : 'Create Delivery'}
                     </Button>,
                 ]}
             >
                 <Form form={form} layout="vertical">
+                    {purchaseOrder?.direction === 'customer' && (
+                        <Alert
+                            message="Inventory Warning"
+                            description="This delivery will reduce inventory quantities as items are shipped to the customer."
+                            type="warning"
+                            showIcon
+                            icon={<WarningOutlined />}
+                            style={{ marginBottom: 16 }}
+                        />
+                    )}
                     <Row gutter={16}>
-                        <Col span={12}>
-                            <Form.Item
-                                name="delivered_by"
-                                label="Delivered By"
-                                rules={[{ required: true, message: 'Please enter who delivered' }]}
-                            >
-                                <Input placeholder="Enter delivery person name" />
-                            </Form.Item>
-                        </Col>
-                        <Col span={12}>
-                            <Form.Item
-                                name="received_by"
-                                label="Received By"
-                                rules={[{ required: true, message: 'Please select who received' }]}
-                            >
-                                <Select
-                                    placeholder="Select receiver"
-                                    options={userOptions}
-                                    showSearch
-                                    loading={!users}
-                                    notFoundContent={users?.length ? "No users found" : "Loading users..."}
-                                />
-                            </Form.Item>
-                        </Col>
+                        {purchaseOrder?.direction === 'customer' ? (
+                            <>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="delivered_by"
+                                        label="Delivered By (Employee)"
+                                        rules={[{ required: true, message: 'Please select who delivered' }]}
+                                    >
+                                        <Select
+                                            placeholder="Select employee"
+                                            options={userOptions}
+                                            showSearch
+                                            loading={!users}
+                                            notFoundContent={users?.length ? "No users found" : "Loading users..."}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="received_by"
+                                        label="Received By (Customer Name)"
+                                    >
+                                        <Input placeholder="Enter customer name (optional)" />
+                                    </Form.Item>
+                                </Col>
+                            </>
+                        ) : (
+                            <>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="delivered_by"
+                                        label="Delivered By (Driver Name)"
+                                        rules={[{ required: true, message: 'Please enter who delivered' }]}
+                                    >
+                                        <Input placeholder="Enter delivery person name" />
+                                    </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                    <Form.Item
+                                        name="received_by"
+                                        label="Received By (Employee)"
+                                    >
+                                        <Select
+                                            placeholder="Select receiver (optional)"
+                                            options={userOptions}
+                                            showSearch
+                                            loading={!users}
+                                            notFoundContent={users?.length ? "No users found" : "Loading users..."}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                            </>
+                        )}
                     </Row>
 
                     <Form.Item name="delivery_notes" label="Delivery Notes">
@@ -341,9 +381,9 @@ const CreateDeliveryFromPOModal: React.FC<CreateDeliveryFromPOModalProps> = ({
 
                     <Divider />
 
-                    <Title level={5}>Items to Deliver</Title>
+                    <Title level={5}>Items to {purchaseOrder?.direction === 'customer' ? 'Ship' : 'Deliver'}</Title>
                     <Text type="secondary" style={{ marginBottom: 16, display: 'block' }}>
-                        Specify the quantities and supplier prices for each item you want to deliver. You can do partial deliveries.
+                        Specify the quantities and prices for each item you want to {purchaseOrder?.direction === 'customer' ? 'ship to the customer' : 'receive'}. You can do partial deliveries.
                     </Text>
 
                     <Table

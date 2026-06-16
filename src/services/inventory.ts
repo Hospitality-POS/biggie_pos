@@ -69,6 +69,7 @@ interface ImportInventoryResult {
   summary: {
     total: number;
     created: number;
+    updated: number;
     skipped: number;
     errors: number;
     auto_created?: AutoCreated;
@@ -102,6 +103,8 @@ interface AnalyseInventoryResult {
     category: string;
     supplier: string;
     barcode: string;
+    variant_attribute?: string;
+    variant_value?: string;
   }>;
 }
 
@@ -171,12 +174,14 @@ export const analyseInventoryFile = async (file: File): Promise<AnalyseInventory
 // ── EXCEL IMPORT ──────────────────────────────────────────────────────────────
 export const importInventoryFromExcel = async (
   file: File,
-  shopId: string
+  shopId: string,
+  updateMode = false
 ): Promise<ImportInventoryResult> => {
   try {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("shop_id", shopId);
+    formData.append("update_mode", updateMode.toString());
 
     const response = await axiosInstance.post<ImportInventoryResult>(
       `${inventoryUrl}/import`,
@@ -186,16 +191,18 @@ export const importInventoryFromExcel = async (
 
     const data = response.data;
 
-    if (data.summary.created > 0) {
+    if (data.summary.created > 0 || data.summary.updated > 0) {
       const ac = data.summary.auto_created;
       const totalAC = ac
         ? Object.values(ac).reduce((s, arr) => s + (arr?.length ?? 0), 0)
         : 0;
       const autoNote = totalAC > 0 ? ` (${totalAC} supporting record(s) auto-created)` : "";
+      const createdMsg = data.summary.created > 0 ? `${data.summary.created} item(s) created` : "";
+      const updatedMsg = data.summary.updated > 0 ? `${data.summary.updated} item(s) updated` : "";
+      const itemsMsg = [createdMsg, updatedMsg].filter(Boolean).join(", ");
+      const skippedMsg = data.summary.skipped > 0 ? `, ${data.summary.skipped} skipped` : "";
       message.success(
-        `Import complete — ${data.summary.created} item(s) created` +
-        (data.summary.skipped > 0 ? `, ${data.summary.skipped} skipped` : "") +
-        autoNote
+        `Import complete — ${itemsMsg}${skippedMsg}${autoNote}`
       );
     } else if (data.summary.errors > 0) {
       const firstErr = data.errors?.[0];

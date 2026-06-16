@@ -132,14 +132,18 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const navigate = (path: string) => (window.location.href = path);
 
   const rawId = window.location.pathname.split("/").pop();
-  const { isRetailMode, isHospitalMode } = usePOSMode();
+  const { isRetailMode, isHospitalMode, isHotelMode } = usePOSMode();
   const { activeTable } = useRetailQueue();
-
-  const isSlotMode = isRetailMode || isHospitalMode;
-  const id = isSlotMode ? activeTable?._id : (rawId && rawId !== "tables" ? rawId : undefined);
 
   // ── Single source of truth from store ────────────────────────────────────
   const { cartDetails, subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
+
+  const isSlotMode = isRetailMode || isHospitalMode;
+  const id = isSlotMode
+    ? activeTable?._id
+    : isHotelMode
+      ? (cartDetails?.table_id as unknown as string | undefined)
+      : (rawId && rawId !== "tables" ? rawId : undefined);
   const { loading } = useAppSelector((s) => s.order);
   const { user } = useAppSelector((s) => s.auth);
 
@@ -516,7 +520,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           setDrawerVisible(true);
         }}
       >
-        Proceed to Payment
+        {isHotelMode ? "Checkout & Pay" : "Proceed to Payment"}
       </Button>
 
       <DrawerForm

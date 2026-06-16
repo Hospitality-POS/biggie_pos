@@ -10,6 +10,7 @@ import { useReactToPrint } from "react-to-print";
 import { useQuery } from "@tanstack/react-query";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { getAllInvoices } from "@services/cart";
+import { getNotesByInvoice } from "@services/accounting/notes";
 import {
   TEMPLATES,
   TemplateId,
@@ -153,7 +154,18 @@ const InvoiceReprintModal: React.FC<InvoiceReprintModalProps> = ({
     placeholderData: invoiceData,
   });
 
-  const inv: InvoiceForPrint = freshInvoice ?? invoiceData;
+  // Fetch credit notes for the invoice
+  const { data: notesData } = useQuery({
+    queryKey: ["notes-by-invoice", invoiceId],
+    queryFn: () => getNotesByInvoice(invoiceId, localStorage.getItem("shopId") || ""),
+    enabled: open && !!invoiceId,
+    staleTime: 30_000,
+  });
+
+  const inv: InvoiceForPrint = freshInvoice ? {
+    ...freshInvoice,
+    credit_notes: notesData?.notes || [],
+  } : invoiceData;
 
   const PAGE_STYLE = `
     @page { size: A4 portrait; margin: 12mm; }

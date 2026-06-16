@@ -20,6 +20,8 @@ interface TenantModules {
     hasHR: boolean;
     hasAccounting: boolean;
     hasMteja: boolean;  // tenant.modules.crm === true  →  Mteja CRM module
+    hasDala: boolean;  // tenant.modules.dala === true  →  Dala Property Management module
+    hasPOS: boolean;   // tenant.pos_integration?.enabled === true  →  Duka by Base POS module
 }
 
 // ── Try to pluck the tenant object from any known Redux shape ─────────────────
@@ -47,7 +49,7 @@ const isEnabled = (v: any): boolean => {
 
 // ── Parse module flags from a raw tenant object ───────────────────────────────
 function parseModules(tenant: any): TenantModules {
-    if (!tenant) return { hasHR: false, hasAccounting: false, hasMteja: false };
+    if (!tenant) return { hasHR: false, hasAccounting: false, hasMteja: false, hasDala: false, hasPOS: false };
 
     const mods = tenant.modules ?? tenant.module_flags ?? tenant.features ?? {};
 
@@ -71,6 +73,18 @@ function parseModules(tenant: any): TenantModules {
             mods.CRM ??
             mods.mteja ??
             mods.customer_engagement
+        ),
+        hasDala: isEnabled(
+            mods.dala ??
+            mods.DALA ??
+            mods.property_management ??
+            mods.real_estate
+        ),
+        hasPOS: isEnabled(
+            tenant?.pos_integration?.enabled ??
+            mods.pos ??
+            mods.POS ??
+            mods.duka
         ),
     };
 }
@@ -97,7 +111,7 @@ export function useTenantModules(): TenantModules {
             // If any flag is true we have good data — use it.
             // If all are false it might be legit OR an empty redux slice,
             // so fall through to localStorage to be sure.
-            if (parsed.hasHR || parsed.hasAccounting || parsed.hasMteja) return parsed;
+            if (parsed.hasHR || parsed.hasAccounting || parsed.hasMteja || parsed.hasDala || parsed.hasPOS) return parsed;
         }
 
         // 2. localStorage fallback (always fresh after login)
@@ -105,7 +119,7 @@ export function useTenantModules(): TenantModules {
         if (lsTenant) return parseModules(lsTenant);
 
         // 3. No data at all
-        return { hasHR: false, hasAccounting: false, hasMteja: false };
+        return { hasHR: false, hasAccounting: false, hasMteja: false, hasDala: false, hasPOS: false };
     }, [reduxTenant]);
 }
 

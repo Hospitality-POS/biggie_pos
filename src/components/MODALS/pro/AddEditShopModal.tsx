@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Button, Form, Input, Modal, Space, Tag, Typography } from "antd";
 import {
   CheckCircleFilled, EditOutlined,
-  EnvironmentOutlined, LoadingOutlined, MedicineBoxOutlined,
+  EnvironmentOutlined, HomeOutlined, LoadingOutlined, MedicineBoxOutlined,
   SearchOutlined, ShopOutlined, SolutionOutlined,
 } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
@@ -11,7 +11,7 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 interface ShopModalProps { actionRef: any; edit?: boolean; data?: any; }
 
-type PosMode = "restaurant" | "retail" | "hospital";
+type PosMode = "restaurant" | "retail" | "hospital" | "hotel";
 
 // ── Load Google Maps SDK on demand ───────────────────────────────────────────
 const loadGoogleMaps = (): Promise<void> => {
@@ -289,7 +289,7 @@ const ModeCard: React.FC<{
   <div
     onClick={onClick}
     style={{
-      flex: 1, border: `2px solid ${active ? primaryColor : "#e2e8f0"}`,
+      minWidth: 140, border: `2px solid ${active ? primaryColor : "#e2e8f0"}`,
       borderRadius: 10, padding: "14px 16px", cursor: "pointer",
       background: active ? `${primaryColor}0d` : "#fafafa",
       transition: "all 0.18s", display: "flex", flexDirection: "column",
@@ -308,6 +308,7 @@ const normalisePosMode = (mode: string | undefined): PosMode => {
   if (mode === "restaurant") return "restaurant";
   if (mode === "retail") return "retail";
   if (mode === "hospital") return "hospital";
+  if (mode === "hotel") return "hotel";
   return "restaurant";
 };
 
@@ -361,6 +362,10 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
         ? await updateShop({ ...values, _id: data?._id, pos_mode: posMode })
         : await createShop({ ...values, pos_mode: posMode });
       actionRef?.current?.reload?.() || actionRef?.current?.reset?.();
+      // Clear localStorage posMode when shop is updated to force refetch
+      if (edit) {
+        localStorage.removeItem('posMode');
+      }
       setOpen(false);
       form.resetFields();
     } catch { /* validation shown inline */ }
@@ -409,7 +414,7 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
           {/* POS Mode selector — only shown when POS module is active */}
           {showPosModeSelector && (
             <Form.Item label="POS Mode" style={{ marginBottom: 0 }}>
-              <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
                 <ModeCard
                   active={posMode === "restaurant"}
                   onClick={() => setPosMode("restaurant")}
@@ -433,6 +438,14 @@ const AddEditShopModal: React.FC<ShopModalProps> = ({ actionRef, edit, data }) =
                   icon={<MedicineBoxOutlined />}
                   title="Hospital"
                   desc="Patient-first. Appointments, wards, and billing."
+                />
+                <ModeCard
+                  active={posMode === "hotel"}
+                  onClick={() => setPosMode("hotel")}
+                  primaryColor={primaryColor}
+                  icon={<HomeOutlined />}
+                  title="Hotel"
+                  desc="Room bookings, guest services, and front desk operations."
                 />
               </div>
             </Form.Item>

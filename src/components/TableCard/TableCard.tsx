@@ -1,6 +1,7 @@
-import { Card, CardMedia, Typography, Box } from "@mui/material";
+import { Card, CardMedia, Typography, Box, Tooltip } from "@mui/material";
+import { LockOutlined } from "@ant-design/icons";
 import classes from "./table.module.css";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { clearcart } from "../../features/Cart/CartSlice";
 import useCheckIfUserIsLoggedIn from "../../hooks/useCheckIfUserIsLoggedIn";
@@ -14,6 +15,8 @@ interface Table {
   isOccupied: boolean;
   _id: string;
   name: string;
+  isLocked?: boolean;
+  status?: string;
 }
 
 interface itemProps {
@@ -31,6 +34,51 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
 
   // Color state management
   const primaryColor = usePrimaryColor();
+
+  // Compute isLocked based on privacy settings
+  const [isLocked, setIsLocked] = React.useState(false);
+  const [enablePrivacy, setEnablePrivacy] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchPrivacySetting = async () => {
+      try {
+        const { fetchSystemSetupDetailsById } = await import('../../services/systemsetup');
+        const systemSettings = await fetchSystemSetupDetailsById();
+        setEnablePrivacy(systemSettings?.enable_privacy || false);
+      } catch (err) {
+        setEnablePrivacy(false);
+      }
+    };
+    fetchPrivacySetting();
+  }, []);
+
+  React.useEffect(() => {
+    if (!enablePrivacy) {
+      setIsLocked(false);
+      return;
+    }
+
+    const currentUser = user?._id || user?.id;
+    const userRole = (typeof user?.role === 'string' ? user?.role : user?.roleData?.role_type)?.toLowerCase();
+
+    if (userRole !== "waiter" || !currentUser) {
+      setIsLocked(false);
+      return;
+    }
+
+    // If cart_amount is 0, allow any waiter to open the table
+    if (item.cart_amount === 0) {
+      setIsLocked(false);
+      console.log(`🔍 [TableCard] Table ${item.name}: cart_amount=0, allowing access`);
+      return;
+    }
+
+    const servedByCurrentUser = item.served_by === currentUser || item.served_by === user?.name;
+    const isEmpty = !item.isOccupied && item.status !== 'occupied';
+    const locked = !servedByCurrentUser && !isEmpty;
+    setIsLocked(locked);
+    console.log(`🔍 [TableCard] Table ${item.name}: served_by=${item.served_by}, user=${user?.name}, isLocked=${locked}`);
+  }, [enablePrivacy, user, item.served_by, item.isOccupied, item.status, item.cart_amount]);
 
 
   // Helper function to lighten color (reduced percentage to maintain color identity)
@@ -68,6 +116,7 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
   };
 
   const handleOpen = () => {
+    if (isLocked) return; // Prevent opening locked tables
     dispatch(clearcart());
     checkIfUserIsLoggedIn(item._id, user, error, openModal);
     if (!isUserLoggedIn) {
@@ -86,7 +135,8 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
     color: item.isOccupied ? "white" : "black",
     position: "relative",
     textAlign: "center",
-    cursor: "pointer",
+    cursor: isLocked ? "not-allowed" : "pointer",
+    opacity: isLocked ? 0.5 : 1,
   };
 
   const imageStyles = {
@@ -140,6 +190,16 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
           <Box sx={overlayStyles} />
 
           <Box sx={textOverlayStyles}>
+            {isLocked && (
+              <LockOutlined
+                style={{
+                  fontSize: 32,
+                  color: "white",
+                  textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
+                  marginBottom: "8px",
+                }}
+              />
+            )}
             <Typography
               variant="h5"
               fontWeight={"bold"}
@@ -162,7 +222,7 @@ const TableCard: React.FC<itemProps> = ({ item, openModal }) => {
             >
               Amount: {item.cart_amount.toLocaleString()}
             </Typography>
-            {item?.served_by && (
+            {item?.served_by && item.cart_amount > 0 && (
               <Typography
                 variant="body2"
                 fontWeight={"bold"}

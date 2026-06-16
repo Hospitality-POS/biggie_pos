@@ -18,6 +18,7 @@ import {
   Upload,
   message,
 } from "antd";
+import { useLocation } from "react-router-dom";
 import {
   ModalForm,
   ProForm,
@@ -77,11 +78,13 @@ const useIsMobile = () => {
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface AddEditProUserModalProps {
   onAddUser?: (user: User) => void;
-  actionRef: any;
+  actionRef?: any;
   edit?: boolean;
   data?: any;
   isProfile?: boolean;
   userId?: string;
+  onUserSaved?: () => void;
+  onModalClose?: () => void;
 }
 
 // ── Section label ─────────────────────────────────────────────────────────────
@@ -298,6 +301,7 @@ const MobileDetailsFields: React.FC<{
   shops: any[];
   userRoles: any[];
   handleShopChange: (id: string) => void;
+  isShopLevelStaffManagement: boolean;
 }> = ({
   form,
   isAdmin,
@@ -311,6 +315,7 @@ const MobileDetailsFields: React.FC<{
   shops,
   userRoles,
   handleShopChange,
+  isShopLevelStaffManagement,
 }) => {
     const fieldLabel = (label: string) => (
       <Text style={{ fontSize: 12, color: C.subText }}>{label}</Text>
@@ -411,7 +416,6 @@ const MobileDetailsFields: React.FC<{
           <Form.Item
             name="idNumber"
             label={fieldLabel("National ID")}
-            rules={[{ required: true, message: "National ID is required" }]}
             style={{ marginBottom: 10 }}
           >
             <InputNumber
@@ -420,7 +424,7 @@ const MobileDetailsFields: React.FC<{
               controls={false}
             />
           </Form.Item>
-          {userRole !== "cashier" && (!isAdmin || !isEditingOwnProfile) && (
+          {userRole !== "cashier" && (!isAdmin || !isEditingOwnProfile) && !isShopLevelStaffManagement && (
             <Form.Item
               name="shop_id"
               label={fieldLabel("Branch")}
@@ -440,7 +444,7 @@ const MobileDetailsFields: React.FC<{
               />
             </Form.Item>
           )}
-          <PhoneInput label="Phone" owner="phoneNumber" />
+          <PhoneInput label="Phone" owner="phoneNumber" required={false} />
         </FormSection>
       </>
     );
@@ -454,6 +458,8 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   data,
   isProfile,
   userId,
+  onUserSaved,
+  onModalClose,
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef<any>();
@@ -463,6 +469,11 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   const isAdmin = user?.role === "admin";
   const isEditingOwnProfile = edit && data?._id === userId;
   const queryClient = useQueryClient();
+  const location = useLocation();
+
+  // Check if we're on shop-level staff-management route
+  const isShopLevelStaffManagement = location.pathname === "/staff-management";
+  const currentShopId = localStorage.getItem("shopId");
 
   // Image upload state
   const [fileList, setFileList] = useState<UploadFile[]>([]);
@@ -471,7 +482,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
   // Categories state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [currentShopId, setCurrentShopId] = useState<string | null>(null);
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [categoriesData, setCategoriesData] = useState<any[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
@@ -498,11 +509,21 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
   // ── Populate on open ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!open || !data) return;
+    if (!open) return;
+
+    // For create mode on shop-level route, auto-set shop_id
+    if (!edit && isShopLevelStaffManagement && currentShopId) {
+      form.setFieldsValue({
+        shop_id: currentShopId,
+      });
+      setSelectedShopId(currentShopId);
+    }
+
+    if (!data) return;
 
     const shopId =
       typeof data?.shop_id === "object" ? data?.shop_id?._id : data?.shop_id;
-    setCurrentShopId(shopId);
+    setSelectedShopId(shopId);
 
     form.setFieldsValue({
       ...data,
@@ -529,18 +550,19 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       setPreviewImage(data.thumbnail);
       setFileList([{ uid: "-1", name: "profile.png", status: "done", url: data.thumbnail }]);
     }
-  }, [open, data, form]);
+  }, [open, data, form, edit, isShopLevelStaffManagement, currentShopId]);
 
   // ── Fetch categories when shop changes ────────────────────────────────────
   useEffect(() => {
-    if (!currentShopId) return;
+    const shopIdToUse = isShopLevelStaffManagement ? currentShopId : selectedShopId;
+    if (!shopIdToUse) return;
     const load = async () => {
       setCategoriesLoading(true);
       try {
         const result = await fetchAllCategories({
           name: "",
           state: "all",
-          shop_id: String(currentShopId).trim(),
+          shop_id: String(shopIdToUse).trim(),
         });
         setCategoriesData(Array.isArray(result) ? result : []);
       } catch {
@@ -551,7 +573,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       }
     };
     load();
-  }, [currentShopId]);
+  }, [selectedShopId, isShopLevelStaffManagement, currentShopId]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const handleOpenChange = (next: boolean) => {
@@ -562,8 +584,9 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       setPreviewImage(null);
       setUploadedFile(null);
       setSelectedCategories([]);
-      setCurrentShopId(null);
+      setSelectedShopId(null);
       setCategoriesData([]);
+      onModalClose?.();
     }
   };
 
@@ -592,7 +615,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
   const handleShopChange = (value: any) => {
     const shopId = typeof value === "object" ? value.value : value;
-    setCurrentShopId(shopId);
+    setSelectedShopId(shopId);
     setSelectedCategories([]);
     setCategoriesData([]);
   };
@@ -608,6 +631,16 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
     const payload: any = { ...values, phone: phoneNumber };
     if (uploadedFile) payload.imageFile = uploadedFile;
     if (selectedCategories.length > 0) payload.categories = selectedCategories;
+    // Add company code to prevent logout
+    const companyCode = localStorage.getItem("companyCode");
+    if (companyCode) {
+      payload.companyCode = companyCode;
+      payload.tenant_code = companyCode;
+    }
+    // For shop-level route, ensure shop_id is included from localStorage
+    if (isShopLevelStaffManagement && currentShopId) {
+      payload.shop_id = currentShopId;
+    }
     return payload;
   };
 
@@ -620,6 +653,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
         await handleConfirmAddUser(payload);
       }
       actionRef.current?.reload();
+      onUserSaved?.();
       return true;
     } catch {
       message.error("Failed to save user");
@@ -679,7 +713,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
 
   const categoriesContent = (
     <CategoriesTabContent
-      currentShopId={currentShopId}
+      currentShopId={isShopLevelStaffManagement ? currentShopId : selectedShopId}
       categoriesLoading={categoriesLoading}
       categoriesData={categoriesData}
       selectedCategories={selectedCategories}
@@ -844,10 +878,9 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
             width="xl"
             name="idNumber"
             label="National ID"
-            rules={[{ required: true, message: "National ID is required" }]}
             placeholder="Enter national ID number"
           />
-          {user?.role !== "cashier" && (!isAdmin || !isEditingOwnProfile) && (
+          {user?.role !== "cashier" && (!isAdmin || !isEditingOwnProfile) && !isShopLevelStaffManagement && (
             <ProFormSelect
               hasFeedback
               width="xl"
@@ -860,7 +893,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
               fieldProps={{ onChange: handleShopChange }}
             />
           )}
-          <PhoneInput label="Phone" owner="phoneNumber" />
+          <PhoneInput label="Phone" owner="phoneNumber" required={false} />
         </ProForm.Group>
       </div>
     </>
@@ -934,6 +967,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
                       isProfile={!!isProfile}
                       isEditingOwnProfile={!!isEditingOwnProfile}
                       userRole={user?.role || ""}
+                      isShopLevelStaffManagement={isShopLevelStaffManagement}
                       fileList={fileList}
                       previewImage={previewImage}
                       beforeUpload={beforeUpload}

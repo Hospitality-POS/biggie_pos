@@ -8,7 +8,7 @@ import {
     ProFormTextArea,
     StepsForm,
 } from '@ant-design/pro-components';
-import { Button, Form, message, Space, Row, Col, Card, Typography, Alert, Tag } from 'antd';
+import { Button, Form, message, Space, Row, Col, Card, Typography, Alert, Tag, Radio } from 'antd';
 import {
     EditOutlined,
     PlusOutlined,
@@ -18,9 +18,12 @@ import {
     ArrowLeftOutlined,
     ArrowRightOutlined,
     CheckCircleOutlined,
+    InboxOutlined,
+    UserOutlined,
 } from '@ant-design/icons';
 import { addNewPurchaseOrder, editPurchaseOrder } from '@services/purchaseOrder';
 import { fetchAllSuppliers } from '@services/supplier';
+import { fetchAllCustomers } from '@services/customers';
 import { fetchAllInventory } from '@services/inventory';
 import { fetchAllUnits } from '@services/products';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -47,16 +50,24 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
     const [totalAmount, setTotalAmount] = useState(0);
     const formRef = useRef<any>();
     const [stepFormValues, setStepFormValues] = useState<any>({});
+    const [direction, setDirection] = useState<'supplier' | 'customer'>('supplier');
 
     const primaryColor = usePrimaryColor();
 
     useEffect(() => {
         if (open && data && edit) {
+            const dir = data.direction || 'supplier';
+            setDirection(dir);
             const initialValues = {
-                supplier_id: {
+                direction: dir,
+                supplier_id: dir === 'supplier' ? {
                     value: data.supplier_id?._id,
                     label: data.supplier_id?.name,
-                },
+                } : undefined,
+                customer_id: dir === 'customer' ? {
+                    value: data.customer_id?._id,
+                    label: data.customer_id?.customer_name,
+                } : undefined,
                 expected_delivery_date: data.expected_delivery_date,
                 notes: data.notes,
                 po_items: data.po_items?.map((item: any) => ({
@@ -84,6 +95,7 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
             form.resetFields();
             setTotalAmount(0);
             setStepFormValues({});
+            setDirection('supplier');
         }
     };
 
@@ -99,6 +111,22 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
         const data = suppliers?.map((supplier: { name: string; _id: string }) => ({
             label: supplier.name,
             value: supplier._id,
+        }));
+        return data || [];
+    };
+
+    const { data: customers } = useQuery({
+        queryKey: ["customers"],
+        queryFn: fetchAllCustomers,
+        retry: 1,
+        refetchInterval: 5000,
+        networkMode: "always",
+    });
+
+    const CustomerRequest = async () => {
+        const data = customers?.map((customer: { customer_name: string; _id: string }) => ({
+            label: customer.customer_name,
+            value: customer._id,
         }));
         return data || [];
     };
@@ -190,7 +218,9 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                 })) || [];
 
                 const submitData = {
-                    supplier_id: values.supplier_id?.value || values.supplier_id,
+                    direction: values.direction || 'supplier',
+                    supplier_id: values.direction === 'supplier' ? (values.supplier_id?.value || values.supplier_id) : null,
+                    customer_id: values.direction === 'customer' ? (values.customer_id?.value || values.customer_id) : null,
                     expected_delivery_date: values.expected_delivery_date,
                     notes: values.notes,
                     po_items: processedItems,
@@ -336,39 +366,85 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                     initialValues={
                         edit
                             ? {
-                                supplier_id: {
+                                direction: data?.direction || 'supplier',
+                                supplier_id: data?.direction === 'supplier' ? {
                                     value: data?.supplier_id?._id,
                                     label: data?.supplier_id?.name,
-                                },
+                                } : undefined,
+                                customer_id: data?.direction === 'customer' ? {
+                                    value: data?.customer_id?._id,
+                                    label: data?.customer_id?.customer_name,
+                                } : undefined,
                                 expected_delivery_date: data?.expected_delivery_date,
                                 notes: data?.notes,
                             }
-                            : {}
+                            : { direction: 'supplier' }
                     }
                 >
                     <Alert
                         message="Purchase Order Information "
-                        description="Enter the basic details for your purchase order. Select the supplier and expected delivery date."
+                        description="Enter the basic details for your purchase order. Select the direction (Supplier/Customer) and the appropriate counterparty."
                         type="info"
                         showIcon
                         style={{ marginBottom: 24 }}
                     />
 
                     <Row gutter={[16, 16]}>
-                        <Col xs={24} md={12}>
-                            <ProFormSelect
-                                name="supplier_id"
-                                width="md"
-                                showSearch
-                                label="Supplier"
-                                placeholder="Select supplier"
-                                rules={[{ required: true }]}
-                                request={SupplierRequest}
-                                fieldProps={{
-                                    notFoundContent: suppliers?.length ? "No suppliers found" : "Loading suppliers..."
-                                }}
-                            />
+                        <Col xs={24}>
+                            <Form.Item label="Direction" name="direction" initialValue="supplier">
+                                <Radio.Group 
+                                    onChange={(e) => setDirection(e.target.value)}
+                                    buttonStyle="solid"
+                                >
+                                    <Radio.Button value="supplier">
+                                        <Space>
+                                            <InboxOutlined />
+                                            Supplier (Purchase)
+                                        </Space>
+                                    </Radio.Button>
+                                    <Radio.Button value="customer">
+                                        <Space>
+                                            <UserOutlined />
+                                            Customer (Sales)
+                                        </Space>
+                                    </Radio.Button>
+                                </Radio.Group>
+                            </Form.Item>
                         </Col>
+                    </Row>
+
+                    <Row gutter={[16, 16]}>
+                        {direction === 'supplier' ? (
+                            <Col xs={24} md={12}>
+                                <ProFormSelect
+                                    name="supplier_id"
+                                    width="md"
+                                    showSearch
+                                    label="Supplier"
+                                    placeholder="Select supplier"
+                                    rules={[{ required: true, message: 'Please select a supplier' }]}
+                                    request={SupplierRequest}
+                                    fieldProps={{
+                                        notFoundContent: suppliers?.length ? "No suppliers found" : "Loading suppliers..."
+                                    }}
+                                />
+                            </Col>
+                        ) : (
+                            <Col xs={24} md={12}>
+                                <ProFormSelect
+                                    name="customer_id"
+                                    width="md"
+                                    showSearch
+                                    label="Customer"
+                                    placeholder="Select customer"
+                                    rules={[{ required: true, message: 'Please select a customer' }]}
+                                    request={CustomerRequest}
+                                    fieldProps={{
+                                        notFoundContent: customers?.length ? "No customers found" : "Loading customers..."
+                                    }}
+                                />
+                            </Col>
+                        )}
 
                         <Col xs={24} md={12}>
                             <ProFormDatePicker
@@ -616,7 +692,9 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                                 ...currentFormValues
                             };
 
+                            const directionValue = values?.direction || 'supplier';
                             const supplierValue = values?.supplier_id;
+                            const customerValue = values?.customer_id;
                             const dateValue = values?.expected_delivery_date;
                             const notesValue = values?.notes;
                             const itemsValue = values?.po_items;
@@ -626,17 +704,34 @@ const AddEditPurchaseOrderModal: React.FC<AddEditPurchaseOrderModalProps> = ({
                                     <Card title="Purchase Order Summary" style={{ marginBottom: 16 }}>
                                         <Row gutter={[16, 16]}>
                                             <Col xs={24} md={12}>
-                                                <Text strong>Supplier: </Text>
+                                                <Text strong>Direction: </Text>
+                                                <Tag color={directionValue === 'supplier' ? 'blue' : 'green'}>
+                                                    {directionValue === 'supplier' ? 'Supplier (Purchase)' : 'Customer (Sales)'}
+                                                </Tag>
+                                            </Col>
+                                            <Col xs={24} md={12}>
+                                                <Text strong>{directionValue === 'supplier' ? 'Supplier' : 'Customer'}: </Text>
                                                 <Text>
                                                     {(() => {
-                                                        if (typeof supplierValue === 'object' && supplierValue?.label) {
-                                                            return supplierValue.label;
+                                                        if (directionValue === 'supplier') {
+                                                            if (typeof supplierValue === 'object' && supplierValue?.label) {
+                                                                return supplierValue.label;
+                                                            }
+                                                            if (typeof supplierValue === 'string' && suppliers) {
+                                                                const supplier = suppliers.find((s: any) => s._id === supplierValue);
+                                                                return supplier?.name || 'Unknown Supplier';
+                                                            }
+                                                            return 'Not selected';
+                                                        } else {
+                                                            if (typeof customerValue === 'object' && customerValue?.label) {
+                                                                return customerValue.label;
+                                                            }
+                                                            if (typeof customerValue === 'string' && customers) {
+                                                                const customer = customers.find((c: any) => c._id === customerValue);
+                                                                return customer?.customer_name || 'Unknown Customer';
+                                                            }
+                                                            return 'Not selected';
                                                         }
-                                                        if (typeof supplierValue === 'string' && suppliers) {
-                                                            const supplier = suppliers.find((s: any) => s._id === supplierValue);
-                                                            return supplier?.name || 'Unknown Supplier';
-                                                        }
-                                                        return 'Not selected';
                                                     })()}
                                                 </Text>
                                             </Col>

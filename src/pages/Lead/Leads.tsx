@@ -4,7 +4,8 @@ import { PlusOutlined, TeamOutlined } from "@ant-design/icons";
 import LeadTable, { LeadTableHandle } from "./LeadTable";
 import LeadFormModal from "./LeadFormModal";
 import LeadDetailDrawer from "./LeadDetailDrawer";
-import { Lead } from "@services/crm/leads";
+import ImportLeadsModal from "./ImportLeadsModal";
+import { Lead, getLeadById } from "@services/crm/leads";
 
 const { Text } = Typography;
 
@@ -41,6 +42,23 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
     const handleView = (l: Lead) => { setSelectedLead(l); setDrawerOpen(true); };
     const handleSuccess = () => tableRef.current?.reload();
 
+    const handleRefreshLead = async () => {
+        if (selectedLead) {
+            const shopData = localStorage.getItem("shop");
+            const shop = shopData ? JSON.parse(shopData) : null;
+            const shop_id = shop?._id;
+            
+            try {
+                const updatedLead = await getLeadById(selectedLead._id, shop_id || "");
+                if (updatedLead) {
+                    setSelectedLead(updatedLead);
+                }
+            } catch (error) {
+                console.error("Error refreshing lead:", error);
+            }
+        }
+    };
+
     return (
         <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
             {/* Header */}
@@ -60,10 +78,13 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
                         <Text style={{ fontSize: 11, color: C.subText }}>Track and manage your sales pipeline</Text>
                     </div>
                 </div>
-                <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}
-                    style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 36, fontSize: 13 }}>
-                    Add Lead
-                </Button>
+                <div style={{ display: "flex", gap: 8 }}>
+                    <ImportLeadsModal onSuccess={handleSuccess} />
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}
+                        style={{ background: C.primary, borderColor: C.primary, borderRadius: 8, height: 36, fontSize: 13 }}>
+                        Add Lead
+                    </Button>
+                </div>
             </div>
 
             {/* Table */}
@@ -87,6 +108,7 @@ const Leads: React.FC<LeadsProps> = ({ onConvertWithForm }) => {
                 onClose={() => setDrawerOpen(false)}
                 onUpdated={handleSuccess}
                 onConvertWithForm={onConvertWithForm}
+                onRefreshLead={handleRefreshLead}
             />
         </div>
     );

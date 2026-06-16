@@ -1,17 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-    Button, Drawer, Form, Input, Modal, Select, Tag, Timeline, Typography, message,
+    Button, Drawer, Form, Input, Modal, Select, Tag, Timeline, Typography, message, Tabs, Upload,
 } from "antd";
 import {
     CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined,
     MailOutlined, PhoneOutlined, SwapOutlined, TeamOutlined,
-    UserOutlined, UserAddOutlined, WalletOutlined,
+    UserOutlined, UserAddOutlined, WalletOutlined, FileOutlined, UploadOutlined, DeleteOutlined,
+    DownloadOutlined, EyeOutlined,
 } from "@ant-design/icons";
 import { useAppDispatch } from "src/store";
-import { Lead, LeadStage, updateLeadStage, convertLead } from "@services/crm/leads";
+import { Lead, LeadStage, updateLeadStage, convertLead, getLeadById } from "@services/crm/leads";
 import { createLeadActivity } from "@services/crm/leadActivities";
+import { uploadLeadDocument, deleteLeadDocument, LeadDocument } from "@services/crm/leadDocuments";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -46,6 +48,29 @@ const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string;
 
 const ACTIVITY_TYPES = ["call", "email", "meeting", "demo", "note", "task", "whatsapp", "site_visit", "other"];
 
+const INDIVIDUAL_DOCUMENT_TYPES = [
+    { value: 'kra_pin_certificate_individual', label: 'KRA PIN Certificate (Individual)' },
+    { value: 'proof_of_residence', label: 'Proof of Residence' },
+    { value: 'bank_statement_individual', label: 'Bank Statement (Individual)' },
+    { value: 'pay_slip', label: 'Pay Slip' },
+    { value: 'id_passport', label: 'ID/Passport' },
+    { value: 'contract_agreement', label: 'Contract/Agreement' },
+    { value: 'proposal', label: 'Proposal' },
+    { value: 'quotation', label: 'Quotation' }
+];
+
+const COMPANY_DOCUMENT_TYPES = [
+    { value: 'kra_pin_certificate_company', label: 'KRA PIN Certificate (Company)' },
+    { value: 'certificate_of_incorporation', label: 'Certificate of Incorporation' },
+    { value: 'business_permit', label: 'Business Permit' },
+    { value: 'bank_statement_company', label: 'Bank Statement (Company)' },
+    { value: 'memorandum_of_association', label: 'Memorandum of Association' },
+    { value: 'directors_resolution', label: 'Directors Resolution' },
+    { value: 'contract_agreement', label: 'Contract/Agreement' },
+    { value: 'proposal', label: 'Proposal' },
+    { value: 'quotation', label: 'Quotation' }
+];
+
 interface LeadDetailDrawerProps {
     open: boolean;
     onClose: () => void;
@@ -53,19 +78,71 @@ interface LeadDetailDrawerProps {
     onUpdated?: () => void;
     /** Called when user wants to convert via the customer form (pre-fills data from lead) */
     onConvertWithForm?: (prefill: { customer_name: string; phone?: string; email?: string; location?: string }) => void;
+    /** Called to refresh the lead data after activity logging */
+    onRefreshLead?: () => void;
 }
 
-const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead, onUpdated, onConvertWithForm }) => {
+const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead, onUpdated, onConvertWithForm, onRefreshLead }) => {
     const dispatch = useAppDispatch();
     const [stageLoading, setStageLoading] = useState(false);
     const [convertLoading, setConvertLoading] = useState(false);
     const [activityLoading, setActivityLoading] = useState(false);
     const [activityForm] = Form.useForm();
     const [stageForm] = Form.useForm();
+    const [documentForm] = Form.useForm();
+    const [documents, setDocuments] = useState<LeadDocument[]>([]);
+    const [documentsLoading, setDocumentsLoading] = useState(false);
+    const [uploadLoading, setUploadLoading] = useState(false);
+    const [fileList, setFileList] = useState<any[]>([]);
+
+    const shop_id = JSON.parse(localStorage.getItem("shop") || "{}")?._id;
+    const entityType = lead?.entity_type || 'individual';
+    const documentTypes = entityType === 'company' ? COMPANY_DOCUMENT_TYPES : INDIVIDUAL_DOCUMENT_TYPES;
+
+    // Fetch documents when drawer opens - documents are embedded in lead object
+    useEffect(() => {
+        if (open && lead) {
+            const docs = lead.documents || [];
+            setDocuments(Array.isArray(docs) ? docs.filter((d: any) => d.document_type !== 'folder') : []);
+            // Auto-populate document name with lead name
+            documentForm.setFieldValue('name', lead.company_name || lead.lead_name);
+        }
+    }, [open, lead, documentForm]);
 
     if (!lead) return null;
 
-    const shop_id = JSON.parse(localStorage.getItem("shop") || "{}")?._id;
+    const handleDocumentUpload = async (values: any) => {
+        setUploadLoading(true);
+        try {
+            await uploadLeadDocument(lead._id, {
+                shop_id,
+                document_type: values.document_type,
+                name: values.name,
+                description: values.description,
+                files: fileList.map(f => f.originFileObj).filter(Boolean),
+            });
+            documentForm.resetFields();
+            setFileList([]);
+            // Refresh lead data to get updated documents
+            onUpdated?.();
+            message.success("Document uploaded successfully");
+        } catch (error) {
+            message.error("Failed to upload document");
+        } finally {
+            setUploadLoading(false);
+        }
+    };
+
+    const handleDeleteDocument = async (documentId: string) => {
+        try {
+            await deleteLeadDocument(lead._id, documentId, shop_id);
+            // Refresh lead data to get updated documents
+            onUpdated?.();
+            message.success("Document deleted");
+        } catch (error) {
+            message.error("Failed to delete document");
+        }
+    };
 
     const handleStageUpdate = async (values: any) => {
         setStageLoading(true);
@@ -93,8 +170,11 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
 
     // Convert with form — opens AddCustomerModal pre-filled with lead data
     const handleConvertWithForm = () => {
+        const displayName = entityType === 'company' ? (lead.company_name || 'Unnamed Company') : (lead.lead_name || 'Unnamed Individual');
         const prefill = {
-            customer_name: lead.lead_name,
+            customer_name: entityType === 'individual' ? lead.lead_name : lead.company_name,
+            company_name: entityType === 'company' ? lead.company_name : undefined,
+            contact_person: lead.contact_person,
             phone: lead.phone,
             email: lead.email,
             location: lead.address?.city || lead.address?.county,
@@ -104,7 +184,7 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
         } else {
             // Fallback: confirm then convert directly
             Modal.confirm({
-                title: `Convert "${lead.lead_name}" to customer?`,
+                title: `Convert "${displayName}" to customer?`,
                 content: "This will create a customer record linked to this lead.",
                 okText: "Convert",
                 okButtonProps: { style: { background: C.green, borderColor: C.green } },
@@ -125,6 +205,7 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
             })).unwrap();
             activityForm.resetFields();
             onUpdated?.();
+            onRefreshLead?.();
             message.success("Activity logged");
         } catch { } finally {
             setActivityLoading(false);
@@ -155,8 +236,15 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                         <TeamOutlined />
                     </div>
                     <div>
-                        <Text strong style={{ fontSize: 14, color: C.darkText, display: "block" }}>{lead.lead_name}</Text>
-                        {lead.company_name && <Text style={{ fontSize: 11, color: C.subText }}>{lead.company_name}</Text>}
+                        <Text strong style={{ fontSize: 14, color: C.darkText, display: "block" }}>
+                            {entityType === 'company' ? (lead.company_name || 'Unnamed Company') : (lead.lead_name || 'Unnamed Individual')}
+                        </Text>
+                        {entityType === 'company' && lead.contact_person && (
+                            <Text style={{ fontSize: 11, color: C.subText }}>Contact: {lead.contact_person}</Text>
+                        )}
+                        {entityType === 'individual' && lead.company_name && (
+                            <Text style={{ fontSize: 11, color: C.subText }}>{lead.company_name}</Text>
+                        )}
                     </div>
                     <Tag color={STAGE_COLORS[lead.stage]} style={{ marginLeft: "auto", borderRadius: 10, fontSize: 11 }}>
                         {lead.stage.toUpperCase()}
@@ -195,6 +283,14 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                 ) : null
             }
         >
+            <Tabs
+                defaultActiveKey="info"
+                items={[
+                    {
+                        key: 'info',
+                        label: 'Details',
+                        children: (
+                            <>
             {/* ── Contact Info ─────────────────────────────────────── */}
             <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
                 <SectionTitle label="Contact Info" />
@@ -279,11 +375,40 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                         <TextArea rows={2} placeholder="What happened…" style={{ borderRadius: 8 }} />
                     </Form.Item>
                     <Button htmlType="submit" loading={activityLoading}
-                        style={{ background: C.blue, borderColor: C.blue, color: "#fff", borderRadius: 8, width: "100%" }}>
+                        style={{ background: C.primary, borderColor: C.primary, color: "#fff", borderRadius: 8, width: "100%" }}>
                         Log Activity
                     </Button>
                 </Form>
             </div>
+
+            {/* ── Activity History ─────────────────────────────────────── */}
+            {lead.activities?.length ? (
+                <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                    <SectionTitle label="Activity History" />
+                    <Timeline
+                        items={[...lead.activities].reverse().map(activity => ({
+                            color: C.blue,
+                            children: (
+                                <div>
+                                    <Text strong style={{ fontSize: 12 }}>
+                                        {activity.type?.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) || "Activity"}
+                                    </Text>
+                                    {activity.subject && <Text style={{ fontSize: 11, color: C.darkText, display: "block" }}>{activity.subject}</Text>}
+                                    {activity.description && <Text style={{ fontSize: 11, color: C.subText, display: "block" }}>{activity.description}</Text>}
+                                    {activity.outcome && (
+                                        <Tag style={{ fontSize: 10, marginTop: 4, borderRadius: 4 }}>
+                                            {activity.outcome.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                                        </Tag>
+                                    )}
+                                    <Text style={{ fontSize: 10, color: C.subText, display: "block", marginTop: 4 }}>
+                                        {new Date(activity.activity_date || activity.createdAt).toLocaleString("en-GB")}
+                                    </Text>
+                                </div>
+                            ),
+                        }))}
+                    />
+                </div>
+            ) : null}
 
             {/* ── Stage History ─────────────────────────────────────── */}
             {lead.stage_history?.length ? (
@@ -308,6 +433,137 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                     />
                 </div>
             ) : null}
+                            </>
+                        ),
+                    },
+                    {
+                        key: 'documents',
+                        label: 'Documents',
+                        children: (
+                            <>
+                                {/* ── Upload Document ─────────────────────────────────────── */}
+                                <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                                    <SectionTitle label="Upload Document" />
+                                    <Form form={documentForm} layout="vertical" onFinish={handleDocumentUpload}>
+                                        <Form.Item name="document_type" label="Document Type"
+                                            rules={[{ required: true, message: "Select document type" }]}
+                                        >
+                                            <Select placeholder="Select document type">
+                                                {documentTypes.map(t => (
+                                                    <Option key={t.value} value={t.value}>{t.label}</Option>
+                                                ))}
+                                            </Select>
+                                        </Form.Item>
+                                        <Form.Item name="name" label="Document Name">
+                                            <Input placeholder="Optional document name" style={{ borderRadius: 8 }} />
+                                        </Form.Item>
+                                        <Form.Item name="description" label="Description">
+                                            <TextArea rows={2} placeholder="Optional description" style={{ borderRadius: 8 }} />
+                                        </Form.Item>
+                                        <Form.Item label="Files">
+                                            <Upload
+                                                fileList={fileList}
+                                                onChange={({ fileList }) => setFileList(fileList)}
+                                                beforeUpload={() => false}
+                                                multiple
+                                                style={{ borderRadius: 8 }}
+                                            >
+                                                <Button icon={<UploadOutlined />}>Select Files</Button>
+                                            </Upload>
+                                        </Form.Item>
+                                        <Button htmlType="submit" loading={uploadLoading} icon={<UploadOutlined />}
+                                            style={{ background: C.primary, borderColor: C.primary, color: "#fff", borderRadius: 8, width: "100%" }}>
+                                            Upload Document
+                                        </Button>
+                                    </Form>
+                                </div>
+
+                                {/* ── Documents List ─────────────────────────────────────── */}
+                                <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px" }}>
+                                    <SectionTitle label="Documents" />
+                                    {documentsLoading ? (
+                                        <div style={{ textAlign: "center", padding: 20 }}>Loading...</div>
+                                    ) : documents.length === 0 ? (
+                                        <div style={{ textAlign: "center", padding: 20, color: C.subText }}>No documents uploaded</div>
+                                    ) : (
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                            {documents.map(doc => (
+                                                <div key={doc._id} style={{
+                                                    display: "flex", flexDirection: "column", gap: 8,
+                                                    padding: "12px", border: `1px solid ${C.border}`,
+                                                    borderRadius: 8, background: C.bg
+                                                }}>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                        <FileOutlined style={{ color: C.primary, fontSize: 18 }} />
+                                                        <div style={{ flex: 1 }}>
+                                                            <Text strong style={{ fontSize: 12, display: "block" }}>
+                                                                {doc.name || documentTypes.find(t => t.value === doc.document_type)?.label || doc.document_type}
+                                                            </Text>
+                                                            {doc.description && (
+                                                                <Text style={{ fontSize: 11, color: C.subText }}>{doc.description}</Text>
+                                                            )}
+                                                            <Text style={{ fontSize: 10, color: C.subText, display: "block" }}>
+                                                                {doc.attachments?.length || 0} file(s) · {new Date(doc.createdAt).toLocaleDateString("en-GB")}
+                                                            </Text>
+                                                        </div>
+                                                        <Button
+                                                            danger
+                                                            size="small"
+                                                            icon={<DeleteOutlined />}
+                                                            onClick={() => handleDeleteDocument(doc._id)}
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    </div>
+                                                    {doc.attachments && doc.attachments.length > 0 && (
+                                                        <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 28 }}>
+                                                            {doc.attachments.map((attachment: any) => (
+                                                                <div key={attachment._id} style={{
+                                                                    display: "flex", alignItems: "center", gap: 8,
+                                                                    padding: "6px 10px", background: "#fff",
+                                                                    borderRadius: 6, border: `1px solid ${C.border}`
+                                                                }}>
+                                                                    <FileOutlined style={{ color: C.subText, fontSize: 14 }} />
+                                                                    <Text style={{ fontSize: 11, flex: 1, color: C.darkText }}>
+                                                                        {attachment.file_name}
+                                                                    </Text>
+                                                                    <Button
+                                                                        size="small"
+                                                                        type="link"
+                                                                        icon={<EyeOutlined />}
+                                                                        onClick={() => window.open(attachment.file_url, '_blank')}
+                                                                        style={{ padding: "0 4px", fontSize: 11 }}
+                                                                    >
+                                                                        View
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="small"
+                                                                        type="link"
+                                                                        icon={<DownloadOutlined />}
+                                                                        onClick={() => {
+                                                                            const link = document.createElement('a');
+                                                                            link.href = attachment.file_url;
+                                                                            link.download = attachment.file_name;
+                                                                            link.click();
+                                                                        }}
+                                                                        style={{ padding: "0 4px", fontSize: 11 }}
+                                                                    >
+                                                                        Download
+                                                                    </Button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        ),
+                    },
+                ]}
+            />
         </Drawer>
     );
 };

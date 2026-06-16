@@ -66,9 +66,11 @@ const ACTION_CFG: Record<ActionType, { color: string; bg: string; label: string 
 // ── Scope badge config ────────────────────────────────────────────────────────
 const SCOPE_CFG: Record<string, { color: string; bg: string; antColor: string; label: string }> = {
   core: { color: C.indigo, bg: "#eef2ff", antColor: "default", label: "Core" },
+  pos: { color: C.blue, bg: "#eff6ff", antColor: "blue", label: "POS" },
   hr: { color: C.blue, bg: "#eff6ff", antColor: "blue", label: "HR" },
   accounting: { color: C.purple, bg: "#faf5ff", antColor: "purple", label: "Accounting" },
   crm: { color: C.teal, bg: "#f0fdfa", antColor: "cyan", label: "CRM" },
+  dala: { color: C.orange, bg: "#fff7ed", antColor: "orange", label: "Dala" },
 };
 
 // ── Mobile hook ───────────────────────────────────────────────────────────────
@@ -90,16 +92,18 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 );
 
 // ── Active module tags ────────────────────────────────────────────────────────
-const ModuleTags: React.FC<{ hasHR: boolean; hasAccounting: boolean; hasMteja: boolean; size?: "small" | "normal" }> = ({
-  hasHR, hasAccounting, hasMteja, size = "normal",
+const ModuleTags: React.FC<{ hasHR: boolean; hasAccounting: boolean; hasMteja: boolean; hasDala: boolean; hasPOS: boolean; size?: "small" | "normal" }> = ({
+  hasHR, hasAccounting, hasMteja, hasDala, hasPOS, size = "normal",
 }) => {
   const fs = size === "small" ? 10 : 11;
   return (
     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
       <Tag color="default" style={{ fontSize: fs, margin: 0 }}>✓ Core</Tag>
+      {hasPOS ? <Tag color="blue" style={{ fontSize: fs, margin: 0 }}>✓ POS</Tag> : null}
       {hasHR ? <Tag color="blue" style={{ fontSize: fs, margin: 0 }}>✓ HR</Tag> : null}
       {hasAccounting ? <Tag color="purple" style={{ fontSize: fs, margin: 0 }}>✓ Accounting</Tag> : null}
       {hasMteja ? <Tag color="cyan" style={{ fontSize: fs, margin: 0 }}>✓ CRM</Tag> : null}
+      {hasDala ? <Tag color="orange" style={{ fontSize: fs, margin: 0 }}>✓ Dala</Tag> : null}
     </div>
   );
 };
@@ -206,7 +210,9 @@ const StepBasicInfo: React.FC<{
   hasHR: boolean;
   hasAccounting: boolean;
   hasMteja: boolean;
-}> = ({ roleType, onChange, error, onApplyPreset, hasHR, hasAccounting, hasMteja }) => {
+  hasDala: boolean;
+  hasPOS: boolean;
+}> = ({ roleType, onChange, error, onApplyPreset, hasHR, hasAccounting, hasMteja, hasDala, hasPOS }) => {
 
   // Filter presets to only show those relevant to enabled modules
   const presetOptions = Object.entries(ROLE_PRESETS)
@@ -217,6 +223,8 @@ const StepBasicInfo: React.FC<{
       if ((name === "ACCOUNTANT" || name === "ACCOUNTING_VIEWER") && !hasAccounting) return false;
       // Hide CRM presets when Mteja not enabled
       if ((name.startsWith("CRM_")) && !hasMteja) return false;
+      // Hide Dala presets when Dala not enabled
+      if ((name.startsWith("DALA_")) && !hasDala) return false;
       return true;
     })
     .map(([name, keys]) => ({
@@ -251,13 +259,17 @@ const StepBasicInfo: React.FC<{
       <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 16px" }}>
         <SectionLabel>Active Modules — Permissions Available</SectionLabel>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          <Tag color="default" style={{ fontSize: 11 }}>✓ Core (POS)</Tag>
+          <Tag color="default" style={{ fontSize: 11 }}>✓ Core</Tag>
+          {hasPOS ? <Tag color="blue" style={{ fontSize: 11 }}>✓ POS Module</Tag>
+            : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ POS (not enabled)</Tag>}
           {hasHR ? <Tag color="blue" style={{ fontSize: 11 }}>✓ HR Module</Tag>
             : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ HR (not enabled)</Tag>}
           {hasAccounting ? <Tag color="purple" style={{ fontSize: 11 }}>✓ Accounting</Tag>
             : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ Accounting (not enabled)</Tag>}
           {hasMteja ? <Tag color="cyan" style={{ fontSize: 11 }}>✓ CRM / Mteja</Tag>
             : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ CRM (not enabled)</Tag>}
+          {hasDala ? <Tag color="orange" style={{ fontSize: 11 }}>✓ Dala / Property</Tag>
+            : <Tag style={{ fontSize: 11, color: "#94a3b8", borderColor: C.border }}>✗ Dala (not enabled)</Tag>}
         </div>
         <Text style={{ fontSize: 11, color: C.subText }}>
           Only permissions for your active modules are shown on Step 2.
@@ -308,10 +320,12 @@ const StepPermissions: React.FC<{
   hasHR: boolean;
   hasAccounting: boolean;
   hasMteja: boolean;
+  hasDala: boolean;
+  hasPOS: boolean;
   selected: string[];
   onToggle: (key: string, checked: boolean) => void;
   onToggleAll: (keys: string[], checked: boolean) => void;
-}> = ({ groupedPermissions, hasHR, hasAccounting, hasMteja, selected, onToggle, onToggleAll }) => {
+}> = ({ groupedPermissions, hasHR, hasAccounting, hasMteja, hasDala, hasPOS, selected, onToggle, onToggleAll }) => {
   const [search, setSearch] = useState("");
   const [filterScope, setFilterScope] = useState<ModuleScope | "all">("all");
 
@@ -336,14 +350,16 @@ const StepPermissions: React.FC<{
 
   // Only show scope filter tabs for enabled modules
   const scopeOptions = useMemo(() => {
-    const opts: { label: string; value: string }[] = [{ label: "All modules", value: "all" }, { label: "Core (POS)", value: "core" }];
+    const opts: { label: string; value: string }[] = [{ label: "All modules", value: "all" }, { label: "Core", value: "core" }];
+    if (hasPOS) opts.push({ label: "POS", value: "pos" });
     if (hasHR) opts.push({ label: "HR", value: "hr" });
     if (hasAccounting) opts.push({ label: "Accounting", value: "accounting" });
     if (hasMteja) opts.push({ label: "CRM / Mteja", value: "crm" });
+    if (hasDala) opts.push({ label: "Dala", value: "dala" });
     return opts;
-  }, [hasHR, hasAccounting, hasMteja]);
+  }, [hasPOS, hasHR, hasAccounting, hasMteja, hasDala]);
 
-  const activeModuleCount = 1 + (hasHR ? 1 : 0) + (hasAccounting ? 1 : 0) + (hasMteja ? 1 : 0);
+  const activeModuleCount = 1 + (hasPOS ? 1 : 0) + (hasHR ? 1 : 0) + (hasAccounting ? 1 : 0) + (hasMteja ? 1 : 0) + (hasDala ? 1 : 0);
 
   return (
     <>
@@ -394,9 +410,11 @@ const StepPermissions: React.FC<{
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
           <span style={{ fontSize: 11, color: C.subText }}>Showing permissions for:</span>
           <Tag color="default" style={{ fontSize: 11, margin: 0 }}>Core</Tag>
+          {hasPOS && <Tag color="blue" style={{ fontSize: 11, margin: 0 }}>POS</Tag>}
           {hasHR && <Tag color="blue" style={{ fontSize: 11, margin: 0 }}>HR</Tag>}
           {hasAccounting && <Tag color="purple" style={{ fontSize: 11, margin: 0 }}>Accounting</Tag>}
           {hasMteja && <Tag color="cyan" style={{ fontSize: 11, margin: 0 }}>CRM / Mteja</Tag>}
+          {hasDala && <Tag color="orange" style={{ fontSize: 11, margin: 0 }}>Dala</Tag>}
         </div>
       )}
 
@@ -514,14 +532,14 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
   const isMobile = useIsMobile();
 
   // ── Tenant module flags ────────────────────────────────────────────────────
-  // useTenantModules must expose hasHR, hasAccounting, hasMteja
-  const { hasHR, hasAccounting, hasMteja } = useTenantModules();
+  // useTenantModules must expose hasHR, hasAccounting, hasMteja, hasDala, hasPOS
+  const { hasHR, hasAccounting, hasMteja, hasDala, hasPOS } = useTenantModules();
 
   // Rebuild permission groups whenever module flags change.
   // hasCRM maps to hasMteja — the CRM scope is gated on tenant.modules.crm.
   const groupedPermissions = useMemo(
-    () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting, hasCRM: hasMteja }),
-    [hasHR, hasAccounting, hasMteja]
+    () => getPermissionsGroupedByModuleForTenant({ hasHR, hasAccounting, hasCRM: hasMteja, hasDala, hasPOS }),
+    [hasHR, hasAccounting, hasMteja, hasDala, hasPOS]
   );
 
   const [open, setOpen] = useState(false);
@@ -622,6 +640,8 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
       hasHR={hasHR}
       hasAccounting={hasAccounting}
       hasMteja={hasMteja}
+      hasDala={hasDala}
+      hasPOS={hasPOS}
     />,
     <StepPermissions
       key="perms"
@@ -629,6 +649,8 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
       hasHR={hasHR}
       hasAccounting={hasAccounting}
       hasMteja={hasMteja}
+      hasDala={hasDala}
+      hasPOS={hasPOS}
       selected={selectedPermissions}
       onToggle={handleToggle}
       onToggleAll={handleToggleAll}
@@ -666,7 +688,7 @@ const RoleModal: React.FC<{ edit?: boolean; data?: any; actionRef?: any }> = ({ 
       <Text strong style={{ fontSize: 13, color: C.darkText }}>
         {edit ? `Edit Role — ${data?.role_type || ""}` : "New Role"}
       </Text>
-      <ModuleTags hasHR={hasHR} hasAccounting={hasAccounting} hasMteja={hasMteja} size="small" />
+      <ModuleTags hasHR={hasHR} hasAccounting={hasAccounting} hasMteja={hasMteja} hasDala={hasDala} hasPOS={hasPOS} size="small" />
     </Space>
   );
 

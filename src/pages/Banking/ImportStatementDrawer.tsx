@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-    ProForm, ProFormSelect, ProFormText,
+    ProForm, ProFormText,
     ProFormDateRangePicker, ProFormDigit, ProFormTextArea,
 } from "@ant-design/pro-components";
 import {
@@ -11,7 +11,7 @@ import {
 import {
     InboxOutlined, FileExcelOutlined, CheckCircleOutlined,
     ArrowRightOutlined, SettingOutlined, FilePdfOutlined,
-    CloudUploadOutlined, ReloadOutlined,
+    CloudUploadOutlined, ReloadOutlined, BankOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
@@ -21,6 +21,8 @@ import {
     getColumnMappings,
     ColumnMapping,
     ImportStatementInput,
+    downloadExcelTemplate,
+    downloadPDFTemplate,
 } from "@services/accounting/bankStatementImport";
 import { getAllAccounts } from "@services/accounting/accounts";
 import dayjs from "dayjs";
@@ -64,6 +66,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
     const [fileName, setFileName] = useState<string>("");
     const [uploadProgress, setUploadProgress] = useState(0);
     const [autoDetectedData, setAutoDetectedData] = useState<any>(null);
+    const [selectedAccountId, setSelectedAccountId] = useState<string>("");
 
     const { data: mappingsData } = useQuery({
         queryKey: ["column-mappings", shopId],
@@ -102,12 +105,15 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
             setUploadProgress(0);
             const errorMessage = error?.response?.data?.message || error?.message || 'Upload failed. Please try again.';
             message.error(errorMessage);
+            if (errorMessage.includes('account_id')) {
+                setSelectedAccountId("");
+            }
         },
     });
 
-    const columnMappings = mappingsData?.mappings || [];
+    const columnMappings = useMemo(() => mappingsData?.mappings || [], [mappingsData?.mappings]);
     const accounts = (accountsData?.accounts || []).filter((a: any) =>
-        a.is_bank_account || a.account_type === "ASSET" || a.account_type === "BANK"
+        a.account_subtype === "Cash & Bank" && a.is_bank_account === true
     );
 
     useEffect(() => {
@@ -127,6 +133,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
         setFileName("");
         setUploadProgress(0);
         setAutoDetectedData(null);
+        setSelectedAccountId("");
         form.resetFields();
     };
 
@@ -164,9 +171,14 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
     };
 
     const parsePDFFile = (file: File) => {
+        if (!selectedAccountId) {
+            message.error("Please select a bank account before uploading");
+            return false;
+        }
         const formData = new FormData();
         formData.append("file", file);
         formData.append("shop_id", shopId);
+        formData.append("account_id", selectedAccountId);
         formData.append("bank_format", "auto");
 
         // Reset progress
@@ -273,7 +285,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                 // Use auto-detected data
                 payload = {
                     shop_id: shopId,
-                    account_id: values.account_id,
+                    account_id: selectedAccountId || values.account_id,
                     source_type: "pdf",
                     original_filename: fileName,
                     statement_from: values.period?.[0]?.toISOString() || autoDetectedData.statement_from,
@@ -295,7 +307,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                 // Manual mapping
                 payload = {
                     shop_id: shopId,
-                    account_id: values.account_id,
+                    account_id: selectedAccountId || values.account_id,
                     source_type: fileName.endsWith(".csv") ? "csv" : "excel",
                     original_filename: fileName,
                     column_mapping_id: selectedMapping || undefined,
@@ -353,7 +365,7 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
     ];
 
     const accountOptions = accounts.map((a: any) => ({
-        label: `${a.account_code} — ${a.account_name}`,
+        label: `${a.account_name} (${a.account_code})${a.bank_details?.bank_name ? ` - ${a.bank_details.bank_name}` : ''}`,
         value: a._id,
     }));
 
@@ -436,6 +448,62 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                             </div>
                         }
                     />
+
+                    <Card size="small" title={<Space><CloudUploadOutlined /><Text>Download Templates</Text></Space>}>
+                        <Space direction="vertical" style={{ width: "100%" }} size={8}>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                Download pre-formatted templates to help you prepare your bank statement data
+                            </Text>
+                            <Space>
+                                <Button
+                                    icon={<FileExcelOutlined />}
+                                    onClick={() => {
+                                        if (!selectedAccountId) {
+                                            message.warning("Please select a bank account first");
+                                            return;
+                                        }
+                                        downloadExcelTemplate(selectedAccountId);
+                                    }}
+                                    size="small"
+                                    disabled={!selectedAccountId}
+                                >
+                                    Download Excel Template
+                                </Button>
+                                <Button
+                                    icon={<FilePdfOutlined />}
+                                    onClick={() => {
+                                        if (!selectedAccountId) {
+                                            message.warning("Please select a bank account first");
+                                            return;
+                                        }
+                                        downloadPDFTemplate(selectedAccountId);
+                                    }}
+                                    size="small"
+                                    disabled={!selectedAccountId}
+                                >
+                                    Download PDF Template
+                                </Button>
+                            </Space>
+                        </Space>
+                    </Card>
+
+                    <Card size="small" title={<Space><BankOutlined /><Text>Select Bank Account</Text></Space>}>
+                        <Select
+                            placeholder="Select the bank / cash account for this import"
+                            options={accountOptions}
+                            value={selectedAccountId}
+                            onChange={setSelectedAccountId}
+                            style={{ width: "100%" }}
+                            showSearch
+                            optionFilterProp="label"
+                            status={!selectedAccountId ? "error" : undefined}
+                        />
+                        {!selectedAccountId && (
+                            <Text type="danger" style={{ fontSize: 12, marginTop: 4, display: "block" }}>
+                                Bank account is required before uploading
+                            </Text>
+                        )}
+                    </Card>
 
                     <Tabs
                         activeKey={importMethod}
@@ -596,17 +664,9 @@ const ImportStatementDrawer: React.FC<Props> = ({ open, onClose, onSuccess, shop
                         initialValues={{
                             opening_balance: autoDetectedData?.opening_balance || 0,
                             closing_balance: autoDetectedData?.closing_balance || 0,
+                            account_id: selectedAccountId,
                         }}
                     >
-                        <ProFormSelect
-                            name="account_id"
-                            label="Bank Account"
-                            options={accountOptions}
-                            placeholder="Select the bank / cash account"
-                            rules={[{ required: true, message: "Account is required" }]}
-                            showSearch
-                            fieldProps={{ optionFilterProp: "label" }}
-                        />
                         <Row gutter={12}>
                             <Col span={12}>
                                 <ProFormDigit

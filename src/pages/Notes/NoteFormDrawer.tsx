@@ -64,6 +64,7 @@ interface Props {
     editingNote?: Note | null;
     shopId: string;
     noteType: NoteType;
+    readonlyFields?: boolean;
 }
 
 const emptyLine = (): LineItem => ({
@@ -90,11 +91,11 @@ const calcLineTotal = (l: LineItem, vatMode: "INCLUSIVE" | "EXCLUSIVE") => {
 };
 
 const NoteFormDrawer: React.FC<Props> = ({
-    open, onClose, onSuccess, editingNote, shopId, noteType,
+    open, onClose, onSuccess, editingNote, shopId, noteType, readonlyFields = false,
 }) => {
     const [form] = ProForm.useForm();
     const queryClient = useQueryClient();
-    const isEdit = !!editingNote;
+    const isEdit = !!editingNote && !!editingNote._id;
     const isCredit = noteType === "CREDIT_NOTE";
 
     const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
@@ -223,6 +224,30 @@ const NoteFormDrawer: React.FC<Props> = ({
                     };
                 })
             );
+        } else if (editingNote && !editingNote._id) {
+            // Pre-fill for new note from invoice (has data but no valid _id)
+            const dir = editingNote.direction || "customer";
+            setDirection(dir);
+            setVatMode(editingNote.vat_pricing_mode || "EXCLUSIVE");
+
+            const custId = typeof editingNote.customer_id === "object"
+                ? (editingNote.customer_id as any)?._id
+                : editingNote.customer_id;
+            const suppId = typeof editingNote.supplier_id === "object"
+                ? (editingNote.supplier_id as any)?._id
+                : editingNote.supplier_id;
+
+            setSelectedCustomerId(custId || null);
+            setSelectedSupplierId(suppId || null);
+            setSelectedInvoiceNo(editingNote.original_invoice_no || null);
+
+            form.setFieldsValue({
+                note_type: noteType,
+                direction: dir,
+                original_invoice_no: editingNote.original_invoice_no,
+                customer_id: custId || undefined,
+                supplier_id: suppId || undefined,
+            });
         } else {
             form.resetFields();
             setLines([emptyLine()]);
@@ -643,6 +668,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                         onSearch: setCustomerSearch,
                                         loading: customersFetching,
                                         allowClear: true,
+                                        disabled: readonlyFields,
                                         onChange: (val: string) => {
                                             setSelectedCustomerId(val || null);
                                             setSelectedInvoiceNo(null);
@@ -673,6 +699,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                         onSearch: setSupplierSearch,
                                         loading: suppliersFetching,
                                         allowClear: true,
+                                        disabled: readonlyFields,
                                         onChange: (val: string) => {
                                             setSelectedSupplierId(val || null);
                                             setSelectedInvoiceNo(null);
@@ -707,6 +734,7 @@ const NoteFormDrawer: React.FC<Props> = ({
                                 }
                                 fieldProps={{
                                     disabled:
+                                        readonlyFields ||
                                         (direction === "customer" && !selectedCustomerId) ||
                                         (direction === "supplier" && !selectedSupplierId),
                                     optionFilterProp: "label",

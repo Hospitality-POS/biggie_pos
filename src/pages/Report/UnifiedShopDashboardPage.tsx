@@ -3,7 +3,7 @@ import { Tabs } from "antd";
 import Dashboard from "src/pages/Dashboard/Dashboard";
 import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDashboardPage";
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
-import BanduHRDashboard from "src/pages/Report/BanduDashboard";
+import BanduDashboardPage from "src/pages/hr/BanduDashboardPage";
 import DalaDashboard from "src/pages/dala/Dashboard";
 
 // ── Module activation checks ─────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ const AccountingDashboardContent: React.FC = () => <AccountingDashboardPage />;
 const MtejaDashboardContent: React.FC = () => <MtejaDashboard />;
 
 // ── Bandu Dashboard Component ─────────────────────────────────────────────────────
-const BanduDashboardContent: React.FC = () => <BanduHRDashboard />;
+const BanduDashboardContent: React.FC = () => <BanduDashboardPage />;
 
 // ── Dala Dashboard Component ─────────────────────────────────────────────────────
 const DalaDashboardContent: React.FC = () => <DalaDashboard />;

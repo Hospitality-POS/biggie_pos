@@ -27,7 +27,10 @@ export const createPrinter = async (data: any) => {
 
 export const updatePrinter = async (data: any) => {
   try {
-    const response = await axiosInstance.put(`${printerUrl}/${data._id}`, { ...data?.values, main_category: data?.values?.main_category?.value || data.values.main_category });
+    const response = await axiosInstance.put(`${printerUrl}/${data._id}`, { 
+      ...data?.values, 
+      main_category: data?.values?.main_category?.value || data.values.main_category
+    });
     message.success("Printer updated successfully");
     return response.data;
   } catch (error) {
