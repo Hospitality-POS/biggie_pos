@@ -45,6 +45,7 @@ import {
   ShopOutlined,
   CopyOutlined,
   MedicineBoxOutlined,
+  HomeOutlined,
 } from "@ant-design/icons";
 import { Line } from "@ant-design/charts";
 import {
@@ -63,6 +64,8 @@ const getPosMode = (): string =>
   localStorage.getItem("posMode") ?? "service";
 
 const isHospitalMode = (): boolean => getPosMode() === "hospital";
+
+const isHotelMode = (): boolean => getPosMode() === "hotel";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const COLORS = {
@@ -224,10 +227,10 @@ const calculateBusinessIndicators = (chartData: any, apiData: any, periodFilter:
 };
 
 // ── Table columns ─────────────────────────────────────────────────────────────
-const createOrderColumns = (isMobile: boolean, hospital: boolean) =>
+const createOrderColumns = (isMobile: boolean, hospital: boolean, hotel: boolean) =>
   isMobile
     ? [
-      { title: hospital ? "Bill No" : "Order No", dataIndex: "order_no", key: "order_no", width: 100 },
+      { title: hospital ? "Bill No" : hotel ? "Booking No" : "Order No", dataIndex: "order_no", key: "order_no", width: 100 },
       {
         title: "Amount",
         dataIndex: "order_amount",
@@ -236,11 +239,11 @@ const createOrderColumns = (isMobile: boolean, hospital: boolean) =>
           <Text strong style={{ color: COLORS.success, fontSize: 12 }}>Ksh {amount?.toFixed(2)}</Text>
         ),
       },
-      { title: hospital ? "Ward/Bed" : "Table", dataIndex: "table", key: "table", width: 70 },
+      { title: hospital ? "Ward/Bed" : hotel ? "Room" : "Table", dataIndex: "table", key: "table", width: 70 },
     ]
     : [
-      { title: hospital ? "Bill No" : "Order No", dataIndex: "order_no", key: "order_no", width: 120 },
-      { title: hospital ? "Ward/Bed" : "Table", dataIndex: "table", key: "table", width: 80 },
+      { title: hospital ? "Bill No" : hotel ? "Booking No" : "Order No", dataIndex: "order_no", key: "order_no", width: 120 },
+      { title: hospital ? "Ward/Bed" : hotel ? "Room" : "Table", dataIndex: "table", key: "table", width: 80 },
       {
         title: "Amount",
         dataIndex: "order_amount",
@@ -250,13 +253,13 @@ const createOrderColumns = (isMobile: boolean, hospital: boolean) =>
           <Text strong style={{ color: COLORS.success }}>Ksh {amount?.toFixed(2)}</Text>
         ),
       },
-      { title: hospital ? "Attended By" : "Served By", dataIndex: "servedBy", key: "servedBy", ellipsis: true },
+      { title: hospital ? "Attended By" : hotel ? "Checked In By" : "Served By", dataIndex: "servedBy", key: "servedBy", ellipsis: true },
     ];
 
-const createStockColumns = (isMobile: boolean, hospital: boolean) =>
+const createStockColumns = (isMobile: boolean, hospital: boolean, hotel: boolean) =>
   isMobile
     ? [
-      { title: hospital ? "Medicine/Item" : "Item", dataIndex: "name", key: "name", ellipsis: true },
+      { title: hospital ? "Medicine/Item" : hotel ? "Amenity/Item" : "Item", dataIndex: "name", key: "name", ellipsis: true },
       {
         title: "Qty",
         dataIndex: "quantity",
@@ -276,7 +279,7 @@ const createStockColumns = (isMobile: boolean, hospital: boolean) =>
       },
     ]
     : [
-      { title: hospital ? "Medicine / Item" : "Item Name", dataIndex: "name", key: "name", ellipsis: true },
+      { title: hospital ? "Medicine / Item" : hotel ? "Amenity / Item" : "Item Name", dataIndex: "name", key: "name", ellipsis: true },
       {
         title: "Current",
         dataIndex: "quantity",
@@ -296,14 +299,14 @@ const createStockColumns = (isMobile: boolean, hospital: boolean) =>
           return (
             <Badge
               status={isOutOfStock ? "error" : "warning"}
-              text={isOutOfStock ? (hospital ? "Out of stock" : "Out of stock") : `${record.quantity} left`}
+              text={isOutOfStock ? (hospital ? "Out of stock" : hotel ? "Out of stock" : "Out of stock") : `${record.quantity} left`}
             />
           );
         },
       },
     ];
 
-const createBestSellerColumns = (isMobile: boolean, hospital: boolean) =>
+const createBestSellerColumns = (isMobile: boolean, hospital: boolean, hotel: boolean) =>
   isMobile
     ? [
       {
@@ -316,13 +319,13 @@ const createBestSellerColumns = (isMobile: boolean, hospital: boolean) =>
           ),
       },
       {
-        title: hospital ? "Service / Medicine" : "Product",
+        title: hospital ? "Service / Medicine" : hotel ? "Service / Amenity" : "Product",
         dataIndex: "name",
         key: "name",
         render: (name: string, record: any) => (
           <div>
             <div style={{ fontWeight: 500, fontSize: 13, color: COLORS.text }}>{name}</div>
-            <div style={{ fontSize: 11, color: COLORS.gray }}>{record.sales_metrics.order_count} {hospital ? "visits" : "orders"}</div>
+            <div style={{ fontSize: 11, color: COLORS.gray }}>{record.sales_metrics.order_count} {hospital ? "visits" : hotel ? "bookings" : "orders"}</div>
           </div>
         ),
       },
@@ -349,7 +352,7 @@ const createBestSellerColumns = (isMobile: boolean, hospital: boolean) =>
         ),
       },
       {
-        title: hospital ? "Service / Medicine" : "Product",
+        title: hospital ? "Service / Medicine" : hotel ? "Service / Amenity" : "Product",
         dataIndex: "name",
         key: "name",
         render: (name: string, record: any) => (
@@ -369,14 +372,14 @@ const createBestSellerColumns = (isMobile: boolean, hospital: boolean) =>
         ),
       },
       {
-        title: hospital ? "Dispensed" : "Sales",
+        title: hospital ? "Dispensed" : hotel ? "Booked" : "Sales",
         dataIndex: ["sales_metrics", "total_quantity_sold"],
         key: "quantity_sold",
         sorter: (a: any, b: any) => a.sales_metrics.total_quantity_sold - b.sales_metrics.total_quantity_sold,
         render: (quantity: number, record: any) => (
           <div>
-            <div style={{ fontWeight: 600, color: COLORS.success }}>{quantity} {hospital ? "units" : "units"}</div>
-            <div style={{ fontSize: 12, color: COLORS.gray }}>{record.sales_metrics.order_count} {hospital ? "visits" : "orders"}</div>
+            <div style={{ fontWeight: 600, color: COLORS.success }}>{quantity} {hospital ? "units" : hotel ? "bookings" : "units"}</div>
+            <div style={{ fontSize: 12, color: COLORS.gray }}>{record.sales_metrics.order_count} {hospital ? "visits" : hotel ? "bookings" : "orders"}</div>
           </div>
         ),
       },
@@ -403,10 +406,10 @@ const createBestSellerColumns = (isMobile: boolean, hospital: boolean) =>
               color: record.performance_indicators?.is_top_performer ? "#a16207" : "#1d4ed8",
               border: "none", fontSize: 11, borderRadius: 4,
             }}>
-              {record.performance_indicators?.is_top_performer ? "⭐ Top" : hospital ? "Frequently Used" : "Popular"}
+              {record.performance_indicators?.is_top_performer ? "⭐ Top" : hospital ? "Frequently Used" : hotel ? "Popular" : "Popular"}
             </Tag>
             <div style={{ fontSize: 11, color: COLORS.gray, marginTop: 4 }}>
-              {record.performance_indicators?.avg_quantity_per_order?.toFixed(1)}/{hospital ? "visit" : "order"}
+              {record.performance_indicators?.avg_quantity_per_order?.toFixed(1)}/{hospital ? "visit" : hotel ? "booking" : "order"}
             </div>
           </div>
         ),
@@ -480,6 +483,7 @@ const SalesChart: React.FC<{
   }, [data]);
 
   const hospital = isHospitalMode();
+  const hotel = isHotelMode();
 
   const config = useMemo(() => ({
     data: chartData,
@@ -492,7 +496,7 @@ const SalesChart: React.FC<{
     tooltip: {
       formatter: (datum: any) => [
         { name: "Revenue", value: `Ksh ${Number(datum.sales)?.toLocaleString()}` },
-        { name: hospital ? "Visits" : "Orders", value: `${datum.orders}` },
+        { name: hospital ? "Visits" : hotel ? "Bookings" : "Orders", value: `${datum.orders}` },
         { name: "Avg", value: `Ksh ${Number(datum.avgOrderValue)?.toLocaleString()}` },
         { name: "Cumulative", value: `Ksh ${Number(datum.cumulativeSales)?.toLocaleString()}` },
       ],
@@ -515,7 +519,7 @@ const SalesChart: React.FC<{
       grid: { line: { style: { stroke: "#f1f5f9", lineWidth: 1, lineDash: [3, 3] } } },
     },
     animation: { appear: { animation: "path-in", duration: 1000 } },
-  }), [chartData, hospital]);
+  }), [chartData, hospital, hotel]);
 
   return (
     <ProCard
@@ -576,6 +580,7 @@ const BestSellersCard: React.FC<{
   bestSellersData: any; loading: boolean; dateRange: string; isMobile: boolean;
 }> = ({ bestSellersData, loading, dateRange, isMobile }) => {
   const hospital = isHospitalMode();
+  const hotel = isHotelMode();
 
   const bestSellers = useMemo(() => {
     if (!bestSellersData?.data?.best_sellers?.length) return [];
@@ -583,7 +588,7 @@ const BestSellersCard: React.FC<{
   }, [bestSellersData]);
 
   const summary = bestSellersData?.data?.summary || {};
-  const cardTitle = hospital ? `Top Services & Medicines (${dateRange})` : `Top Selling Products (${dateRange})`;
+  const cardTitle = hospital ? `Top Services & Medicines (${dateRange})` : hotel ? `Top Services & Amenities (${dateRange})` : `Top Selling Products (${dateRange})`;
 
   if (!bestSellers.length && !loading) {
     return (
@@ -591,7 +596,7 @@ const BestSellersCard: React.FC<{
         title={<Space size={6}><FireOutlined style={{ color: COLORS.orange }} /><Text strong style={{ fontSize: 14 }}>{cardTitle}</Text></Space>}
         style={{ borderRadius: 12 }}
       >
-        <Empty description={hospital ? "No services or medicines dispensed in this period." : "No products sold in this period."} style={{ padding: "24px 0" }} />
+        <Empty description={hospital ? "No services or medicines dispensed in this period." : hotel ? "No services or amenities booked in this period." : "No products sold in this period."} style={{ padding: "24px 0" }} />
       </ProCard>
     );
   }
@@ -620,8 +625,8 @@ const BestSellersCard: React.FC<{
             }}>
               {[
                 { label: "Total Revenue", value: `Ksh ${fmtK(summary.total_revenue)}`, color: COLORS.success },
-                { label: hospital ? "Units Dispensed" : "Units Sold", value: summary.total_quantity_sold, color: COLORS.primary },
-                { label: hospital ? "Avg Bill" : "Avg Order", value: `Ksh ${fmtK(summary.average_order_value)}`, color: COLORS.orange },
+                { label: hospital ? "Units Dispensed" : hotel ? "Bookings" : "Units Sold", value: summary.total_quantity_sold, color: COLORS.primary },
+                { label: hospital ? "Avg Bill" : hotel ? "Avg Booking" : "Avg Order", value: `Ksh ${fmtK(summary.average_order_value)}`, color: COLORS.orange },
               ].map((s, i) => (
                 <div key={i}>
                   <Text style={{ fontSize: 10, color: COLORS.gray, display: "block" }}>{s.label}</Text>
@@ -631,7 +636,7 @@ const BestSellersCard: React.FC<{
             </div>
           )}
           <Table
-            columns={createBestSellerColumns(isMobile, hospital)}
+            columns={createBestSellerColumns(isMobile, hospital, hotel)}
             dataSource={bestSellers}
             pagination={{ pageSize: 10, showSizeChanger: false }}
             size="small"
@@ -666,6 +671,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const hospital = isHospitalMode();
+  const hotel = isHotelMode();
   const [messageApi, contextHolder] = message.useMessage();
   const [periodFilter, setPeriodFilter] = useState("day");
   const [customDateRange, setCustomDateRange] = useState<any[]>([]);
@@ -776,9 +782,11 @@ const Dashboard: React.FC = () => {
     {
       title: hospital
         ? (periodFilter === "day" ? "Today's Visits" : "Total Visits")
+        : hotel
+        ? (periodFilter === "day" ? "Today's Bookings" : "Total Bookings")
         : (periodFilter === "day" ? "Today's Orders" : "Total Orders"),
       value: chartData?.data?.summary?.total_orders || data?.totalOrderCount || 0,
-      icon: hospital ? <MedicineBoxOutlined /> : <ShoppingCartOutlined />,
+      icon: hospital ? <MedicineBoxOutlined /> : hotel ? <HomeOutlined /> : <ShoppingCartOutlined />,
       color: "#3b82f6", bg: "#eff6ff",
       pctChange: growthRate || null,
       prefix: "",
@@ -791,9 +799,9 @@ const Dashboard: React.FC = () => {
       pctChange: null, prefix: "Ksh",
     },
     {
-      title: hospital ? "Active Patients" : "Active Orders",
+      title: hospital ? "Active Patients" : hotel ? "Active Bookings" : "Active Orders",
       value: data?.activeOrders || 0,
-      icon: hospital ? <MedicineBoxOutlined /> : <SnippetsOutlined />,
+      icon: hospital ? <MedicineBoxOutlined /> : hotel ? <HomeOutlined /> : <SnippetsOutlined />,
       color: COLORS.orange, bg: "#fff7ed",
       pctChange: null, prefix: "",
     },
@@ -803,7 +811,7 @@ const Dashboard: React.FC = () => {
       icon: <TeamOutlined />, color: COLORS.cyan, bg: "#ecfeff",
       pctChange: null, prefix: "",
     },
-  ], [chartData, data, growthRate, navigate, periodFilter, hospital]);
+  ], [chartData, data, growthRate, navigate, periodFilter, hospital, hotel]);
 
   return (
     <>
@@ -835,15 +843,15 @@ const Dashboard: React.FC = () => {
       <div style={{ marginBottom: 20 }}>
         <Flex justify="space-between" align="flex-start" wrap gap={12}>
           <Space align="center" size={10}>
-            <div style={{ background: hospital ? "#f0fdf4" : "#fff7ed", borderRadius: 10, padding: "8px 10px", color: hospital ? COLORS.success : COLORS.orange, fontSize: 18 }}>
-              {hospital ? <MedicineBoxOutlined /> : <ShopOutlined />}
+            <div style={{ background: hospital ? "#f0fdf4" : hotel ? "#f0fdf4" : "#fff7ed", borderRadius: 10, padding: "8px 10px", color: hospital ? COLORS.success : hotel ? COLORS.success : COLORS.orange, fontSize: 18 }}>
+              {hospital ? <MedicineBoxOutlined /> : hotel ? <HomeOutlined /> : <ShopOutlined />}
             </div>
             <div>
               <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: COLORS.text }}>
-                {PERIOD_LABELS[periodFilter]} {hospital ? "Hospital Overview" : "Shop Overview"}
+                {PERIOD_LABELS[periodFilter]} {hospital ? "Hospital Overview" : hotel ? "Hotel Overview" : "Duka"}
               </Title>
               <Text style={{ fontSize: 12, color: COLORS.subtext }}>
-                {getFormattedDateRange()} · {hospital ? "Individual Branch Performance" : "Individual Shop Performance"}
+                {getFormattedDateRange()} · {hospital ? "Individual Branch Performance" : hotel ? "Individual Hotel Performance" : "Individual Shop Performance"}
               </Text>
             </div>
           </Space>
@@ -857,7 +865,7 @@ const Dashboard: React.FC = () => {
                 <Tooltip title="Copy Staff Clock-In URL">
                   <Button icon={<TeamOutlined />} onClick={handleCopyStaffUrl} size="middle" />
                 </Tooltip>
-                <Tooltip title={hospital ? "Copy Patient Portal URL" : "Copy Customer Order URL"}>
+                <Tooltip title={hospital ? "Copy Patient Portal URL" : hotel ? "Copy Hotel Booking URL" : "Copy Customer Order URL"}>
                   <Button icon={<ShoppingCartOutlined />} onClick={handleCopyCustomerUrl} size="middle" />
                 </Tooltip>
                 <Button type="primary" icon={<ReloadOutlined spin={isRefetching} />} onClick={handleRefresh} loading={isDataLoading} size="middle" />
@@ -885,9 +893,9 @@ const Dashboard: React.FC = () => {
                     Staff Clock-In URL
                   </Button>
                 </Tooltip>
-                <Tooltip title={hospital ? "Share patient portal link" : "Share with customers to allow ordering"}>
+                <Tooltip title={hospital ? "Share patient portal link" : hotel ? "Share hotel booking link" : "Share with customers to allow ordering"}>
                   <Button icon={<ShoppingCartOutlined />} onClick={handleCopyCustomerUrl} style={{ fontWeight: 500 }}>
-                    {hospital ? "Patient Portal URL" : "Customer Order URL"}
+                    {hospital ? "Patient Portal URL" : hotel ? "Hotel Booking URL" : "Customer Order URL"}
                   </Button>
                 </Tooltip>
                 <Button type="primary" icon={<ReloadOutlined spin={isRefetching} />} onClick={handleRefresh} loading={isDataLoading} style={{ fontWeight: 500 }}>
@@ -911,7 +919,7 @@ const Dashboard: React.FC = () => {
             title={
               <Space size={6}>
                 <FileTextOutlined style={{ color: COLORS.purple }} />
-                <Text strong style={{ fontSize: 14 }}>{hospital ? "Pharmacy Purchase Orders" : "Purchase Orders"}</Text>
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Pharmacy Purchase Orders" : hotel ? "Hotel Purchase Orders" : "Purchase Orders"}</Text>
               </Space>
             }
             extra={<Button type="link" size="small" onClick={() => navigate("/purchase-orders")}>View All</Button>}
@@ -976,8 +984,8 @@ const Dashboard: React.FC = () => {
           <ProCard bordered headerBordered size="small"
             title={
               <Space size={6}>
-                {hospital ? <MedicineBoxOutlined style={{ color: "#3b82f6" }} /> : <ShoppingCartOutlined style={{ color: "#3b82f6" }} />}
-                <Text strong style={{ fontSize: 14 }}>{hospital ? "Recent Patient Bills" : "Recent Orders"}</Text>
+                {hospital ? <MedicineBoxOutlined style={{ color: "#3b82f6" }} /> : hotel ? <HomeOutlined style={{ color: "#3b82f6" }} /> : <ShoppingCartOutlined style={{ color: "#3b82f6" }} />}
+                <Text strong style={{ fontSize: 14 }}>{hospital ? "Recent Patient Bills" : hotel ? "Recent Bookings" : "Recent Orders"}</Text>
               </Space>
             }
             extra={
@@ -992,12 +1000,12 @@ const Dashboard: React.FC = () => {
               <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 4 }} /></div>
             ) : (
               <Table
-                columns={createOrderColumns(isMobile, hospital)}
+                columns={createOrderColumns(isMobile, hospital, hotel)}
                 dataSource={Array.isArray(data?.currentOrders) ? data.currentOrders : []}
                 pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
                 size="small"
                 scroll={{ x: isMobile ? 300 : undefined }}
-                locale={{ emptyText: <Empty description={hospital ? "No patient bills yet" : "No recent orders"} style={{ padding: 20 }} /> }}
+                locale={{ emptyText: <Empty description={hospital ? "No patient bills yet" : hotel ? "No bookings yet" : "No recent orders"} style={{ padding: 20 }} /> }}
               />
             )}
           </ProCard>
@@ -1025,7 +1033,7 @@ const Dashboard: React.FC = () => {
               <div style={{ padding: 16 }}><Skeleton active paragraph={{ rows: 4 }} /></div>
             ) : (
               <Table
-                columns={createStockColumns(isMobile, hospital)}
+                columns={createStockColumns(isMobile, hospital, hotel)}
                 dataSource={Array.isArray(data?.lowStockItems) ? data.lowStockItems : []}
                 pagination={{ pageSize: 5, hideOnSinglePage: true, showSizeChanger: false }}
                 size="small"
@@ -1034,7 +1042,7 @@ const Dashboard: React.FC = () => {
                   emptyText: (
                     <Empty
                       image={<CheckCircleOutlined style={{ fontSize: 28, color: COLORS.success }} />}
-                      description={hospital ? "Pharmacy fully stocked" : "All items are well stocked"}
+                      description={hospital ? "Pharmacy fully stocked" : hotel ? "All amenities are well stocked" : "All items are well stocked"}
                       style={{ padding: 20 }}
                     />
                   ),

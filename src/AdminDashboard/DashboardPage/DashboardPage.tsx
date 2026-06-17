@@ -1009,7 +1009,7 @@ const DashboardAdminPage: React.FC = () => {
             </div>
             <div>
               <Title level={isMobile ? 5 : 4} style={{ margin: 0, color: COLORS.text }}>
-                {PERIOD_LABELS[periodFilter]} Overview
+                {PERIOD_LABELS[periodFilter]} Duka
               </Title>
               <Text style={{ fontSize: 12, color: COLORS.subtext }}>
                 {getFormattedDateRange()} · All Shops

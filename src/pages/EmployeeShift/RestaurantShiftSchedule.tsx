@@ -452,7 +452,8 @@ const RestaurantShiftSchedule: React.FC = () => {
         select: (data: any[]) =>
             data?.filter((u: any) => {
                 const rt = u.roleId?.role_type?.toLowerCase() ?? u.role?.role_type?.toLowerCase();
-                return rt !== "admin" && rt !== "cleaner";
+                const isSuspended = u.is_suspended === true || u.status === "suspended";
+                return rt !== "admin" && rt !== "cleaner" && !isSuspended;
             }) ?? [],
     });
 

@@ -205,7 +205,7 @@ const AccountingDashboardPage: React.FC = () => {
         return (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: 12 }}>
                 <Spin size="large" />
-                <span style={{ color: "#64748b", fontSize: 13 }}>Loading accounting dashboard…</span>
+                <span style={{ color: "#64748b", fontSize: 13 }}>Loading Pesa…</span>
             </div>
         );
     }
@@ -216,7 +216,7 @@ const AccountingDashboardPage: React.FC = () => {
                 <Alert
                     type="error"
                     showIcon
-                    message="Failed to load accounting dashboard"
+                    message="Failed to load Pesa"
                     description="Could not connect to the accounting service. Check your connection and try again."
                     action={
                         <Button size="small" onClick={() => refetch()}>
@@ -338,7 +338,7 @@ const AccountingDashboardPage: React.FC = () => {
                         </div>
                         <div>
                             <Title level={4} style={{ margin: 0, color: "#0f172a" }}>
-                                Accounting Dashboard
+                                Pesa
                             </Title>
                             <Text style={{ fontSize: 12, color: "#64748b" }}>
                                 {MONTH_LABELS[fiscalMonth]} {fiscalYear} · Financial overview

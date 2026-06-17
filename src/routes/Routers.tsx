@@ -697,16 +697,7 @@ const routes = createBrowserRouter(
 
 function Routers() {
   return (
-    <Suspense
-      fallback={
-        <Spin
-          size="large"
-          fullscreen
-          tip={`Welcome to ${COOP_NAME}`}
-          style={{ color: getPrimaryColor() }}
-        />
-      }
-    >
+    <Suspense fallback={<Spin size="large" />}>
       <RouterProvider router={routes} />
     </Suspense>
   );
