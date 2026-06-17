@@ -95,12 +95,6 @@ const NotificationSettings: React.FC = () => {
       return;
     }
 
-    // Validate production mode requires WhatsApp sender setup
-    if (whatsappMode === 'production' && !systemSettings?.whatsapp_sender && !systemSettings?.whatsapp_sender_id) {
-      message.error("Please register a WhatsApp sender in the WhatsApp Registration tab before switching to production mode");
-      return;
-    }
-
     try {
       await saveMutation.mutateAsync({
         notification_settings: {
