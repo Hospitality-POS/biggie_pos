@@ -12,6 +12,7 @@ import {
   Spin,
   Collapse,
   Radio,
+  Tag,
 } from "antd";
 import {
   BellOutlined,
@@ -163,8 +164,8 @@ const NotificationSettings: React.FC = () => {
     }
 
     // Validate production mode requires WhatsApp sender setup
-    if (whatsappMode === 'production' && !systemSettings?.whatsapp_sender_id) {
-      message.error("Please register and verify a WhatsApp sender in the WhatsApp Registration tab before switching to production mode");
+    if (whatsappMode === 'production' && !systemSettings?.whatsapp_sender && !systemSettings?.whatsapp_sender_id) {
+      message.error("Please register a WhatsApp sender in the WhatsApp Registration tab before switching to production mode");
       return;
     }
 
@@ -268,7 +269,23 @@ const NotificationSettings: React.FC = () => {
                   </Space>
                   {channels.includes("whatsapp") && (
                     <div style={{ marginTop: 8, marginLeft: 32 }}>
-                      {systemSettings?.phone ? (
+                      {systemSettings?.whatsapp_sender ? (
+                        <Space size={4} wrap>
+                          <CheckCircleOutlined style={{ color: "#52c41a" }} />
+                          <Text style={{ fontSize: 12 }}>
+                            {systemSettings.whatsapp_sender.display_name || systemSettings.whatsapp_sender.phone_number}
+                          </Text>
+                          <Text type="secondary" style={{ fontSize: 11 }}>
+                            ({systemSettings.whatsapp_sender.phone_number})
+                          </Text>
+                          <Tag
+                            color={systemSettings.whatsapp_sender.mode === "production" ? "green" : "orange"}
+                            style={{ fontSize: 11, marginLeft: 4 }}
+                          >
+                            {systemSettings.whatsapp_sender.mode === "production" ? "Production" : "Sandbox"}
+                          </Tag>
+                        </Space>
+                      ) : systemSettings?.phone ? (
                         <Space>
                           <CheckCircleOutlined style={{ color: "#52c41a" }} />
                           <Text style={{ fontSize: 12 }}>
@@ -280,7 +297,7 @@ const NotificationSettings: React.FC = () => {
                           type="warning"
                           showIcon
                           icon={<WarningOutlined />}
-                          message="Add a phone number in Business Info to enable WhatsApp sending"
+                          message="Register a WhatsApp sender in the WhatsApp Registration tab"
                           style={{ fontSize: 11, padding: "4px 8px" }}
                         />
                       )}
