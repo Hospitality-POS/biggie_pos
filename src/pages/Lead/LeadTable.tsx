@@ -198,7 +198,13 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
                 actionRef={actionRef}
                 request={async (params) => {
                     try {
-                        const res = await fetchAllLeads(params as any);
+                        const { current, pageSize, ...rest } = params;
+                        const res = await fetchAllLeads({
+                            ...rest,
+                            page: current,
+                            limit: pageSize,
+                            shop_id,
+                        } as any);
                         return { data: res.leads, success: true, total: res.total };
                     } catch (error) {
                         console.error("Error fetching leads:", error);
