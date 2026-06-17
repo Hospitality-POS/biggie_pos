@@ -194,11 +194,12 @@ export const markNotificationAsRead = async (id: string) => {
 };
 
 // Mark all notifications as read for current user
-export const markAllNotificationsAsRead = async () => {
+export const markAllNotificationsAsRead = async (filters?: { priority?: string; type?: string; read?: boolean }) => {
     try {
         const response = await axiosInstance.patch(`${notification_url}/mark-all-read`, {}, {
             params: {
                 limit: 1000, // Ensure all notifications are marked, not just first 10
+                ...filters,
             },
         });
         message.success("All notifications marked as read");

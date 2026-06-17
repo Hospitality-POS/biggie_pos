@@ -509,7 +509,11 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
     };
 
     const markAllMutation = useMutation({
-        mutationFn: markAllNotificationsAsRead,
+        mutationFn: () => markAllNotificationsAsRead({
+            priority: filterPriority || undefined,
+            type: filterType || (notificationtype === "system" ? "system" : undefined),
+            read: notificationtype === "unread" ? false : undefined,
+        }),
         onSuccess: () => {
             message.success("All notifications marked as read");
             invalidate();
