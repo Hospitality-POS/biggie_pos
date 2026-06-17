@@ -8,9 +8,6 @@ import {
   Divider,
   Alert,
   Switch,
-  Checkbox,
-  Spin,
-  Collapse,
   Radio,
   Tag,
 } from "antd";
@@ -20,7 +17,6 @@ import {
   WhatsAppOutlined,
   CheckCircleOutlined,
   WarningOutlined,
-  TeamOutlined,
 } from "@ant-design/icons";
 import {
   fetchSystemSetupDetailsById,
@@ -28,49 +24,17 @@ import {
   createSystemSetup,
 } from "@services/systemsetup";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axiosInstance from "@services/request";
 
 const { Text, Title } = Typography;
 
 interface NotificationSettings {
   channels: string[];
-  events: {
-    invoice_issued: boolean;
-    payment_received: boolean;
-    receipt_issued: boolean;
-    payment_reminder: boolean;
-    account_statement: boolean;
-  };
-  role_events?: Record<string, string[]>;
-}
-
-interface Role {
-  _id: string;
-  role_type: string;
-  description?: string;
-  permissions?: string[];
 }
 
 const NotificationSettings: React.FC = () => {
   const queryClient = useQueryClient();
   const [channels, setChannels] = useState<string[]>(["email"]);
-  const [events, setEvents] = useState<NotificationSettings["events"]>({
-    invoice_issued: true,
-    payment_received: true,
-    receipt_issued: true,
-    payment_reminder: false,
-    account_statement: false,
-  });
-  const [roleEvents, setRoleEvents] = useState<Record<string, string[]>>({});
   const [whatsappMode, setWhatsappMode] = useState<'sandbox' | 'production'>('sandbox');
-
-  const eventLabels: Record<keyof NotificationSettings["events"], string> = {
-    invoice_issued: "Invoice Issued",
-    payment_received: "Payment Received",
-    receipt_issued: "Receipt Issued",
-    payment_reminder: "Payment Reminder",
-    account_statement: "Account Statement",
-  };
 
   // Fetch existing system settings
   const { data: systemSettings, isLoading: isLoadingSettings } = useQuery({
@@ -81,32 +45,13 @@ const NotificationSettings: React.FC = () => {
 
   // Load notification settings from system settings
   useEffect(() => {
-    if (systemSettings?.notification_settings) {
-      const notifSettings = systemSettings.notification_settings;
-      if (notifSettings.channels) {
-        setChannels(notifSettings.channels);
-      }
-      if (notifSettings.events) {
-        setEvents(notifSettings.events);
-      }
-      if (notifSettings.role_events) {
-        setRoleEvents(notifSettings.role_events);
-      }
+    if (systemSettings?.notification_settings?.channels) {
+      setChannels(systemSettings.notification_settings.channels);
     }
     if (systemSettings?.whatsapp_mode) {
       setWhatsappMode(systemSettings.whatsapp_mode);
     }
   }, [systemSettings]);
-
-  // Fetch available roles
-  const { data: rolesData, isLoading: isLoadingRoles } = useQuery({
-    queryKey: ["roleTypes"],
-    queryFn: async () => {
-      const response = await axiosInstance.get("/users/fetch-role-type/all");
-      return response.data as Role[];
-    },
-    retry: false,
-  });
 
   // Handle channel toggle
   const handleChannelToggle = (channel: string, checked: boolean) => {
@@ -117,19 +62,6 @@ const NotificationSettings: React.FC = () => {
     }
   };
 
-  // Handle event toggle
-  const handleEventToggle = (event: keyof NotificationSettings["events"], checked: boolean) => {
-    setEvents({ ...events, [event]: checked });
-  };
-
-  // Handle role event toggle
-  const handleRoleEventToggle = (role: string, event: string, checked: boolean) => {
-    setRoleEvents((prev) => {
-      const events = prev[role] || [];
-      const updated = checked ? [...events, event] : events.filter((e) => e !== event);
-      return { ...prev, [role]: updated };
-    });
-  };
 
   // Save mutation
   const saveMutation = useMutation({
@@ -173,8 +105,6 @@ const NotificationSettings: React.FC = () => {
       await saveMutation.mutateAsync({
         notification_settings: {
           channels,
-          events,
-          role_events: roleEvents,
         },
         whatsapp_mode: whatsappMode,
       });
@@ -379,116 +309,6 @@ const NotificationSettings: React.FC = () => {
             )}
           </Card>
 
-          {/* Notification Events */}
-          <Card
-            title={
-              <Space>
-                <BellOutlined style={{ color: "#1890ff" }} />
-                <Text strong>Notify Customers When...</Text>
-              </Space>
-            }
-            style={{ borderRadius: 8 }}
-          >
-            <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-              <EventToggle
-                label="Invoice Issued"
-                description="When an invoice is generated"
-                checked={events.invoice_issued}
-                onChange={(checked) => handleEventToggle("invoice_issued", checked)}
-              />
-              <EventToggle
-                label="Payment Received"
-                description="When a payment is successfully processed"
-                checked={events.payment_received}
-                onChange={(checked) => handleEventToggle("payment_received", checked)}
-              />
-              <EventToggle
-                label="Receipt Issued"
-                description="When a receipt is generated"
-                checked={events.receipt_issued}
-                onChange={(checked) => handleEventToggle("receipt_issued", checked)}
-              />
-              <EventToggle
-                label="Payment Reminder"
-                description="Reminder for upcoming or overdue payments"
-                checked={events.payment_reminder}
-                onChange={(checked) => handleEventToggle("payment_reminder", checked)}
-              />
-              <EventToggle
-                label="Account Statement"
-                description="When an account statement is generated"
-                checked={events.account_statement}
-                onChange={(checked) => handleEventToggle("account_statement", checked)}
-              />
-            </Space>
-          </Card>
-
-          {/* Role-Based Notifications */}
-          <Card
-            title={
-              <Space>
-                <TeamOutlined style={{ color: "#1890ff" }} />
-                <Text strong>Role-Based Notifications</Text>
-              </Space>
-            }
-            style={{ borderRadius: 8 }}
-          >
-            {isLoadingRoles ? (
-              <div style={{ textAlign: "center", padding: 20 }}>
-                <Spin />
-              </div>
-            ) : !rolesData || rolesData.length === 0 ? (
-              <Alert
-                message="No Roles Found"
-                description="Create roles in your system to configure role-based notifications."
-                type="warning"
-                showIcon
-                icon={<WarningOutlined />}
-              />
-            ) : (
-              <Collapse
-                accordion={false}
-                defaultActiveKey={rolesData.length <= 3 ? rolesData.map((r) => r._id) : []}
-                style={{ backgroundColor: "transparent" }}
-              >
-                {rolesData.map((role) => (
-                  <Collapse.Panel
-                    key={role._id}
-                    header={
-                      <Space>
-                        <Text strong>{role.role_type}</Text>
-                        {role.description && (
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            - {role.description}
-                          </Text>
-                        )}
-                      </Space>
-                    }
-                  >
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
-                        gap: 12,
-                        paddingTop: 8,
-                      }}
-                    >
-                      {Object.entries(eventLabels).map(([eventKey, eventLabel]) => (
-                        <Checkbox
-                          key={eventKey}
-                          checked={roleEvents[role.role_type]?.includes(eventKey)}
-                          onChange={(e) => handleRoleEventToggle(role.role_type, eventKey, e.target.checked)}
-                        >
-                          {eventLabel}
-                        </Checkbox>
-                      ))}
-                    </div>
-                  </Collapse.Panel>
-                ))}
-              </Collapse>
-            )}
-          </Card>
-
           {/* Save Button */}
           <div style={{ textAlign: "right" }}>
             <Button
@@ -502,36 +322,6 @@ const NotificationSettings: React.FC = () => {
           </div>
         </Space>
       )}
-    </div>
-  );
-};
-
-// Helper component for event toggles
-interface EventToggleProps {
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}
-
-const EventToggle: React.FC<EventToggleProps> = ({ label, description, checked, onChange }) => {
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      <div>
-        <Text strong style={{ fontSize: 14, display: "block" }}>
-          {label}
-        </Text>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {description}
-        </Text>
-      </div>
-      <Switch
-        checked={checked}
-        onChange={onChange}
-        checkedChildren="ON"
-        unCheckedChildren="OFF"
-        style={{ minWidth: 48 }}
-      />
     </div>
   );
 };
