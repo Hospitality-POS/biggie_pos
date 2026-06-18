@@ -146,3 +146,31 @@ export const fetchShop = async (id: string) => {
     throw error;
   }
 };
+
+export const sendCheckinInfo = async (data: {
+  shop_id: string;
+  customer_name: string;
+  customer_email?: string;
+  customer_phone?: string;
+  room_number?: string;
+  check_in_date?: string;
+  check_out_date?: string;
+}) => {
+  try {
+    const response = await axiosInstance.post(`${url}/send-checkin-info`, data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error sending check-in info:', error);
+    throw error;
+  }
+};
+
+export const updateShopHotelSettings = async (shopId: string, hotelSettings: any) => {
+  try {
+    const response = await axiosInstance.patch(`${url}/${shopId}`, { hotel_settings: hotelSettings });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error updating shop hotel settings:', error);
+    throw error;
+  }
+};
