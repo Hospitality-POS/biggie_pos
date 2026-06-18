@@ -11,6 +11,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import CartLoader from "../spinner/cartLoader";
 import { fetchAllUsersByShopId } from "../../services/users";
 import { fetchMainCategories } from "../../services/categories";
+import { useQuery } from "@tanstack/react-query";
+import { fetchShop, sendCheckinInfo } from "../../services/shops";
+import { getCustomerById, fetchAllCustomers } from "../../services/customers";
 import {
   Button, Space, Typography, Tag, Empty, Divider,
   Flex, Avatar, Tooltip, Select, Popconfirm, message, Modal, Form, InputNumber, Input,
@@ -19,7 +22,7 @@ import {
   ClearOutlined, CloseCircleOutlined, OrderedListOutlined,
   PlusCircleOutlined, RestOutlined, SmileFilled,
   SwitcherOutlined, UserOutlined, EditOutlined,
-  CalendarOutlined, PrinterOutlined, UserDeleteOutlined, SendOutlined,
+  CalendarOutlined, PrinterOutlined, UserDeleteOutlined, SendOutlined, HomeOutlined,
 } from "@ant-design/icons";
 import TransferBillModal from "@components/MODALS/pro/TransferBill";
 import ClientPin from "@components/MODALS/ClientPin";
@@ -134,12 +137,22 @@ const CartDrawer: React.FC = () => {
   const [isCustomItemModalOpen, setIsCustomItemModalOpen] = useState(false);
   const [customItemLoading, setCustomItemLoading] = useState(false);
   const [mainCategories, setMainCategories] = useState<{ value: string; label: string }[]>([]);
+  const [sendingHotelInfo, setSendingHotelInfo] = useState(false);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
 
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
+  const shopId = localStorage.getItem("shopId");
+
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId!),
+    enabled: !!shopId,
+  });
+
+  const isHotelMode = shopData?.pos_mode === "hotel";
 
   const {
     cartDetails, subtotal, totalVatAmount, grandTotal,
@@ -147,6 +160,40 @@ const CartDrawer: React.FC = () => {
   } = useAppSelector((s) => s.cart);
   const { user } = useAppSelector((s) => s.auth);
   const { tableData: td } = useAppSelector((s) => s.Tables);
+
+  const { data: customerData } = useQuery({
+    queryKey: ["customer", cartDetails?.customer_id],
+    queryFn: async () => {
+      const customerId = cartDetails?.customer_id;
+      if (!customerId) return null;
+      
+      // If customer_id is an object with _id, always fetch full data to get email/phone
+      if (typeof customerId === 'object' && customerId !== null && customerId._id) {
+        try {
+          return await getCustomerById(customerId._id);
+        } catch (error) {
+          console.error("Failed to fetch customer by _id from object:", { customerId, error });
+          return customerId; // Return the partial object as fallback
+        }
+      }
+      
+      // If it's a customer code (e.g., CUST-8979), use fetchAllCustomers with code filter
+      if (typeof customerId === 'string' && customerId.startsWith('CUST-')) {
+        const result = await fetchAllCustomers({ code: customerId });
+        // fetchAllCustomers returns an array, get the first match
+        return Array.isArray(result) && result.length > 0 ? result[0] : null;
+      }
+      
+      // Otherwise try to fetch by ID
+      try {
+        return await getCustomerById(customerId);
+      } catch (error) {
+        console.error("Failed to fetch customer by ID:", { customerId, error });
+        return null;
+      }
+    },
+    enabled: !!cartDetails?.customer_id,
+  });
 
   const { id } = useParams();
   const dispatch = useAppDispatch();
@@ -474,6 +521,34 @@ const CartDrawer: React.FC = () => {
     }
   };
 
+  const handleResendHotelInfo = async () => {
+    if (!shopId || !customerDetails) {
+      message.error("Missing required information");
+      return;
+    }
+    
+    setSendingHotelInfo(true);
+    try {
+      // Use customerData if available (has full customer details), otherwise fall back to cartDetails
+      const customerName = customerData?.fullname || customerDetails.customer_name || "";
+      const customerEmail = customerData?.email || customerDetails.customer_email;
+      const customerPhone = customerData?.phone || customerDetails.customer_phone;
+      
+      await sendCheckinInfo({
+        shop_id: shopId,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+      });
+      message.success("Hotel check-in information resent successfully");
+    } catch (error) {
+      console.error("Failed to resend hotel info:", error);
+      message.error("Failed to resend hotel information");
+    } finally {
+      setSendingHotelInfo(false);
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#fff", overflow: "hidden" }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px", scrollbarWidth: "thin", scrollbarColor: "#e2e8f0 transparent" }}>
@@ -609,6 +684,25 @@ const CartDrawer: React.FC = () => {
                   />
                 </Tooltip>
               </Popconfirm>
+            )}
+
+            {/* ── Resend hotel info button — hotel mode only ───────────────── */}
+            {isHotelMode && (
+              <Tooltip title="Resend hotel check-in information">
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<HomeOutlined style={{ fontSize: 14, color: primaryColor }} />}
+                  loading={sendingHotelInfo}
+                  onClick={handleResendHotelInfo}
+                  style={{
+                    flexShrink: 0,
+                    borderRadius: 6,
+                    padding: "0 6px",
+                    height: 26,
+                  }}
+                />
+              </Tooltip>
             )}
           </Flex>
         )}

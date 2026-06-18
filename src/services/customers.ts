@@ -118,7 +118,20 @@ export const getCustomerById = async (customerId: string) => {
   } catch (error: any) {
     const errorMessage =
       error?.response?.data?.message || error?.message || "Failed to fetch customer";
-    message.error(errorMessage);
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Get customer by code (e.g., CUST-8979)
+export const getCustomerByCode = async (customerCode: string) => {
+  try {
+    const response = await axiosInstance.get(`${categ_url}/code/${customerCode}`);
+    return response.data;
+  } catch (error: any) {
+    const errorMessage =
+      error?.response?.data?.message || error?.message || "Failed to fetch customer";
+    console.error(errorMessage);
     throw new Error(errorMessage);
   }
 };

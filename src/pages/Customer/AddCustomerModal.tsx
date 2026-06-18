@@ -1,11 +1,10 @@
-import { useEffect, useState, useRef, useCallback } from "react";
-import { Button, Form, Input, Modal, Typography, message, Row, Col, Checkbox, AutoComplete, Radio } from "antd";
+import { useEffect, useState, useCallback } from "react";
+import { Button, Form, Input, Modal, Typography, message, Row, Col, AutoComplete, Radio } from "antd";
 import {
     EditOutlined, EnvironmentOutlined, IdcardOutlined,
     MailOutlined, SaveOutlined, UserAddOutlined, UserOutlined, ShopOutlined,
 } from "@ant-design/icons";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
-import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import { addNewCustomer, updateCustomer } from "@services/customers";
 
 const { Text } = Typography;
