@@ -12,6 +12,7 @@ import {
     Row,
     Col,
     Popconfirm,
+    message,
 } from "antd";
 import {
     EditOutlined,
@@ -24,6 +25,7 @@ import {
     getSalesReceiptById,
     postSalesReceipt,
     voidSalesReceipt,
+    fixVoidedJournalEntries,
     SalesReceipt,
     SalesReceiptStatus,
 } from "@services/accounting/salesReceipts";
@@ -71,6 +73,18 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
         },
     });
 
+    const fixJournalMutation = useMutation({
+        mutationFn: fixVoidedJournalEntries,
+        onSuccess: (result) => {
+            message.success(result.message);
+            queryClient.invalidateQueries({ queryKey: ["sales-receipt", receiptId] });
+            onSuccess();
+        },
+        onError: (error: any) => {
+            message.error(error.response?.data?.message || "Failed to fix journal entry");
+        },
+    });
+
     const handlePost = () => {
         if (receiptId) {
             postMutation.mutate(receiptId);
@@ -84,9 +98,14 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
         }
     };
 
+    const handleFixJournal = () => {
+        fixJournalMutation.mutate();
+    };
+
     const canEdit = receipt?.status === "Pending";
     const canPost = receipt?.status === "Pending";
     const canVoid = receipt?.status === "Pending" || receipt?.status === "Posted";
+    const needsJournalFix = receipt?.status === "Voided" && receipt?.journal_entry_id?.status === "Posted";
 
     const lineColumns = [
         {
@@ -173,6 +192,23 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
             footer={
                 <Space style={{ textAlign: "right", width: "100%" }}>
                     <Button icon={<PrinterOutlined />}>Print</Button>
+                    {needsJournalFix && (
+                        <Popconfirm
+                            title="Fix journal entry?"
+                            description="This will void the associated journal entry for this voided receipt."
+                            onConfirm={handleFixJournal}
+                            okText="Yes"
+                            cancelText="No"
+                        >
+                            <Button 
+                                type="primary" 
+                                style={{ backgroundColor: "#faad14", borderColor: "#faad14" }}
+                                loading={fixJournalMutation.isLoading}
+                            >
+                                Fix Journal Entry
+                            </Button>
+                        </Popconfirm>
+                    )}
                     {canEdit && (
                         <Button icon={<EditOutlined />} onClick={() => {/* Open edit drawer */}}>
                             Edit
@@ -186,7 +222,7 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
                             okText="Yes"
                             cancelText="No"
                         >
-                            <Button type="primary" icon={<CheckOutlined />} loading={postMutation.isPending}>
+                            <Button type="primary" icon={<CheckOutlined />} loading={postMutation.isLoading}>
                                 Post
                             </Button>
                         </Popconfirm>
@@ -199,7 +235,7 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
                             okText="Yes"
                             cancelText="No"
                         >
-                            <Button danger icon={<StopOutlined />} loading={voidMutation.isPending}>
+                            <Button danger icon={<StopOutlined />} loading={voidMutation.isLoading}>
                                 Void
                             </Button>
                         </Popconfirm>

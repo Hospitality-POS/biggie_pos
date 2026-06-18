@@ -205,3 +205,14 @@ export const getSalesReceiptSummary = async (params: {
         throw error;
     }
 };
+
+export const fixVoidedJournalEntries = async (): Promise<{ message: string; fixed_count: number }> => {
+    try {
+        const response = await axiosInstance.post(`${API_BASE}/fix-voided-journals`);
+        message.success(`Fixed ${response.data.fixed_count} voided journal entries`);
+        return response.data;
+    } catch (error: any) {
+        message.error(error.response?.data?.message || "Failed to fix voided journal entries");
+        throw error;
+    }
+};
