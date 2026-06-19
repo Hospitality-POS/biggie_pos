@@ -15,6 +15,16 @@ export interface CartDetailsInterface {
   discount_type: string;
   clientPin: string;
   clientName: string;
+  address?: {
+    street?: string;
+    building?: string;
+    floor?: string;
+    city?: string;
+    county?: string;
+    postal_code?: string;
+    country?: string;
+    landmark?: string;
+  };
   createdAt: string;
   updatedAt: string;
   __v: number;

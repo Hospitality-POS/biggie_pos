@@ -6,6 +6,7 @@ import {
   ProTable,
 } from "@ant-design/pro-components";
 import ExpandedRowContent from "./ExpandableOrderDetails";
+import AddOrderModal from "./AddOrderModal";
 import { deleteOrderById, getAllOrders, updateOrder, repostOrderPayment } from "@services/orders";
 import {
   Button, DatePicker, Drawer, Form, message,
@@ -412,6 +413,7 @@ const OrdersTable = () => {
   const [mobileTotal, setMobileTotal] = useState(0);
   const [mobileFilters, setMobileFilters] = useState<any>({});
   const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [addOrderModalOpen, setAddOrderModalOpen] = useState(false);
 
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
@@ -899,6 +901,9 @@ const OrdersTable = () => {
         toolbar={{
           title: "Orders", tooltip: "Order Management",
           actions: [
+            <Button key="add" type="primary" icon={<ShoppingCartOutlined />} onClick={() => setAddOrderModalOpen(true)} style={{ background: primaryColor, borderColor: primaryColor, borderRadius: 8 }}>
+              Add Order
+            </Button>,
             <Button key="pdf" icon={<FilePdfOutlined />} onClick={handleExportPDF} style={{ borderRadius: 8 }}>
               Export PDF
             </Button>,
@@ -966,6 +971,13 @@ const OrdersTable = () => {
         scroll={{ x: 1200 }}
       />
       {EditDateModal}
+
+      {/* Add Order Modal */}
+      <AddOrderModal
+        open={addOrderModalOpen}
+        onClose={() => setAddOrderModalOpen(false)}
+        onSuccess={() => actionRef.current?.reload()}
+      />
 
       {/* PDF Export Modal */}
       <Modal
