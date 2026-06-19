@@ -408,3 +408,40 @@ export const batchRepostOrderPayments = async (
 
   return results;
 };
+
+/**
+ * ✅ NEW: Get orders grouped by location
+ * Groups orders by country > county > city hierarchy
+ * 
+ * @param params - Optional filters
+ * @param params.country - Filter by country
+ * @param params.county - Filter by county
+ * @param params.city - Filter by city
+ * @param params.shop_id - Filter by shop
+ * @param params.from - Start date filter
+ * @param params.to - End date filter
+ * 
+ * @returns Grouped orders data with total amount and order count per location
+ */
+export const getOrdersByLocation = async (params: {
+  country?: string;
+  county?: string;
+  city?: string;
+  shop_id?: string;
+  from?: string;
+  to?: string;
+} = {}) => {
+  try {
+    const response = await axiosInstance.get(`${BASE_URL}/orders/by-location`, {
+      params,
+    });
+    return response.data;
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      message.error(error.response.data.message);
+    } else {
+      message.error("Error fetching orders by location");
+    }
+    throw error;
+  }
+};
