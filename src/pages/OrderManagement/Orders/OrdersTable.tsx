@@ -6,11 +6,11 @@ import {
   ProTable,
 } from "@ant-design/pro-components";
 import ExpandedRowContent from "./ExpandableOrderDetails";
-import AddOrderModal from "./AddOrderModal";
 import { deleteOrderById, getAllOrders, updateOrder, repostOrderPayment } from "@services/orders";
+import { fetchAllCustomers } from "@services/customers";
 import {
   Button, DatePicker, Drawer, Form, message,
-  Modal, Popconfirm, Tooltip, Typography,
+  Modal, Popconfirm, Tooltip, Typography, Select, Input,
 } from "antd";
 import { CSVLink } from "react-csv";
 import { useReactToPrint } from "react-to-print";
@@ -413,7 +413,10 @@ const OrdersTable = () => {
   const [mobileTotal, setMobileTotal] = useState(0);
   const [mobileFilters, setMobileFilters] = useState<any>({});
   const [printModalOpen, setPrintModalOpen] = useState(false);
-  const [addOrderModalOpen, setAddOrderModalOpen] = useState(false);
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [selectedOrderForCustomer, setSelectedOrderForCustomer] = useState<any>(null);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [customerForm] = Form.useForm();
 
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
@@ -515,6 +518,53 @@ const OrdersTable = () => {
   };
 
   const handleCancelEdit = () => { setDateModalVisible(false); setEditingOrderId(null); dateForm.resetFields(); };
+
+  const handleAttachCustomer = async (record: any) => {
+    setSelectedOrderForCustomer(record);
+    setCustomerModalOpen(true);
+    customerForm.resetFields();
+    
+    // Load customers
+    try {
+      const response = await fetchAllCustomers({ pagination: false });
+      setCustomers(response || []);
+    } catch (error) {
+      message.error("Failed to load customers");
+    }
+  };
+
+  const handleSaveCustomer = async () => {
+    try {
+      const values = await customerForm.validateFields();
+      setLoading(true);
+      
+      const customerData = customers.find((c: any) => c._id === values.customer_id);
+      
+      await updateOrder(selectedOrderForCustomer._id, {
+        customer_id: values.customer_id,
+        customer_name: customerData?.customer_name || values.customer_name,
+        customer_phone: customerData?.phone || values.customer_phone,
+        customer_email: customerData?.email || values.customer_email,
+      });
+      
+      message.success("Customer attached successfully");
+      setCustomerModalOpen(false);
+      setSelectedOrderForCustomer(null);
+      customerForm.resetFields();
+      actionRef.current?.reload();
+      if (isMobile) refreshMobile();
+    } catch (error) {
+      message.error("Failed to attach customer");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelCustomer = () => {
+    setCustomerModalOpen(false);
+    setSelectedOrderForCustomer(null);
+    customerForm.resetFields();
+  };
 
   const handleRepostOrderPayment = async (orderId: string, forceRecreate = false) => {
     try {
@@ -742,6 +792,7 @@ const OrdersTable = () => {
         const hasPayments = record.order_payments?.length > 0;
         const isRegular = record.order_type === "Regular";
         const needsPayment = isRegular && !hasPayments;
+        const hasCustomer = record.customer_id || record.customer_name;
         return (
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
             <Tooltip title="Edit order date/time">
@@ -751,6 +802,16 @@ const OrdersTable = () => {
                 Date
               </Button>
             </Tooltip>
+
+            {!hasCustomer && (
+              <Tooltip title="Attach customer to this order">
+                <Button type="link" size="small" icon={<UserOutlined />}
+                  onClick={() => handleAttachCustomer(record)}
+                  style={{ padding: "0 4px", color: C.primary }}>
+                  Add Customer
+                </Button>
+              </Tooltip>
+            )}
 
             {isRegular && (
               <Tooltip title={needsPayment ? "Create missing payment records" : "Recreate payment records"}>
@@ -818,6 +879,53 @@ const OrdersTable = () => {
     </Modal>
   );
 
+  const CustomerAttachmentModal = (
+    <Modal
+      open={customerModalOpen} onOk={handleSaveCustomer} onCancel={handleCancelCustomer}
+      confirmLoading={loading} okText="Attach Customer" cancelText="Cancel"
+      width="min(480px, 96vw)" style={{ top: 20 }}
+      styles={{ body: { padding: "20px 24px" } }}
+      okButtonProps={{ style: { background: C.primary, borderColor: C.primary, borderRadius: 8 } }}
+      title={
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ background: C.primaryLight, borderRadius: 7, padding: "4px 6px", color: C.primary, fontSize: 14, lineHeight: 1 }}><UserOutlined /></div>
+          <Text strong style={{ fontSize: 14, color: C.darkText }}>Attach Customer to Order</Text>
+        </div>
+      }
+    >
+      <Form form={customerForm} layout="vertical">
+        <Form.Item name="customer_id" label="Select Customer"
+          rules={[{ required: true, message: "Please select a customer" }]}
+        >
+          <Select
+            showSearch
+            placeholder="Search and select a customer"
+            optionFilterProp="children"
+            filterOption={(input, option) =>
+              (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+            }
+            style={{ borderRadius: 8 }}
+          >
+            {customers.map((customer: any) => (
+              <Select.Option key={customer._id} value={customer._id} label={customer.customer_name}>
+                {customer.customer_name} {customer.phone && `(${customer.phone})`}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+        <Form.Item name="customer_name" label="Customer Name" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="customer_phone" label="Customer Phone" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="customer_email" label="Customer Email" hidden>
+          <Input />
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+
   // ── Mobile render ──────────────────────────────────────────────────────
   if (isMobile) {
     return (
@@ -871,6 +979,7 @@ const OrdersTable = () => {
         )}
         <MobileFilterDrawer open={filterOpen} onClose={() => setFilterOpen(false)} onSearch={handleMobileFilter} />
         {EditDateModal}
+        {CustomerAttachmentModal}
       </>
     );
   }
@@ -901,9 +1010,6 @@ const OrdersTable = () => {
         toolbar={{
           title: "Orders", tooltip: "Order Management",
           actions: [
-            <Button key="add" type="primary" icon={<ShoppingCartOutlined />} onClick={() => setAddOrderModalOpen(true)} style={{ background: primaryColor, borderColor: primaryColor, borderRadius: 8 }}>
-              Add Order
-            </Button>,
             <Button key="pdf" icon={<FilePdfOutlined />} onClick={handleExportPDF} style={{ borderRadius: 8 }}>
               Export PDF
             </Button>,
@@ -971,13 +1077,7 @@ const OrdersTable = () => {
         scroll={{ x: 1200 }}
       />
       {EditDateModal}
-
-      {/* Add Order Modal */}
-      <AddOrderModal
-        open={addOrderModalOpen}
-        onClose={() => setAddOrderModalOpen(false)}
-        onSuccess={() => actionRef.current?.reload()}
-      />
+      {CustomerAttachmentModal}
 
       {/* PDF Export Modal */}
       <Modal

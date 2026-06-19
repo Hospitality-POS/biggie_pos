@@ -214,6 +214,10 @@ interface UpdateOrderParams {
   updated_by?: string;
   order_no?: string;
   createdAt?: string;  // ✅ NEW: Support timestamp update
+  customer_id?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
 }
 
 /**
