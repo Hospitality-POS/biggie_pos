@@ -3,7 +3,6 @@ import {
     Button,
     Card,
     Drawer,
-    Dropdown,
     Empty,
     message,
     Modal,
@@ -410,13 +409,11 @@ const Toolbar: React.FC<{
     filterPriority: string | null;
     filterType: string | null;
     onClearFilter: () => void;
-    priorityMenu: any;
-    typeMenu: any;
     onMarkAll: () => void;
     markAllLoading: boolean;
     isMobile: boolean;
     onReload?: () => void;
-}> = ({ notificationtype, filterPriority, filterType, onClearFilter, priorityMenu, typeMenu, onMarkAll, markAllLoading, isMobile, onReload }) => (
+}> = ({ notificationtype, filterPriority, filterType, onClearFilter, onMarkAll, markAllLoading, isMobile, onReload }) => (
     <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         flexWrap: "wrap", gap: 10, padding: "0 0 14px",
@@ -447,28 +444,6 @@ const Toolbar: React.FC<{
             {isMobile && onReload && (
                 <Button size="small" icon={<ReloadOutlined />} onClick={onReload} style={{ borderRadius: 7 }} />
             )}
-            <Dropdown menu={priorityMenu}>
-                <Button size="small" icon={<FilterOutlined />} style={{
-                    borderRadius: 7,
-                    background: filterPriority ? C.primaryLight : undefined,
-                    color: filterPriority ? C.primary : undefined,
-                }}>
-                    {filterPriority
-                        ? filterPriority.charAt(0).toUpperCase() + filterPriority.slice(1)
-                        : "Priority"}
-                </Button>
-            </Dropdown>
-            <Dropdown menu={typeMenu}>
-                <Button size="small" icon={<MailOutlined />} style={{
-                    borderRadius: 7,
-                    background: filterType ? C.primaryLight : undefined,
-                    color: filterType ? C.primary : undefined,
-                }}>
-                    {filterType
-                        ? TYPE_CFG[filterType]?.label || filterType.replace(/_/g, " ")
-                        : "Type"}
-                </Button>
-            </Dropdown>
             {notificationtype !== "system" && (
                 <Button size="small" type="primary" icon={<CheckOutlined />}
                     loading={markAllLoading}
@@ -556,39 +531,6 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
         setSelectedKeys([]);
     };
 
-    const priorityMenu = {
-        items: [
-            { key: "low", label: <PriorityTag priority="low" /> },
-            { key: "medium", label: <PriorityTag priority="medium" /> },
-            { key: "high", label: <PriorityTag priority="high" /> },
-            { key: "urgent", label: <PriorityTag priority="urgent" /> },
-            { key: "clear", label: "Clear", danger: true },
-        ],
-        onClick: ({ key }: { key: string }) => {
-            const next = key === "clear" ? null : key;
-            setFilterPriority(next);
-            actionRef.current?.reload();
-            setMobileReloadKey((k) => k + 1);
-        },
-    };
-
-    const typeMenu = {
-        items: [
-            { key: "new_appointment_booking", label: <TypeTag type="new_appointment_booking" /> },
-            { key: "new_appointment", label: <TypeTag type="new_appointment" /> },
-            { key: "inventory_out_of_stock", label: <TypeTag type="inventory_out_of_stock" /> },
-            { key: "low_inventory", label: <TypeTag type="low_inventory" /> },
-            { key: "system", label: <TypeTag type="system" /> },
-            { key: "clear", label: "Clear", danger: true },
-        ],
-        onClick: ({ key }: { key: string }) => {
-            const next = key === "clear" ? null : key;
-            setFilterType(next);
-            actionRef.current?.reload();
-            setMobileReloadKey((k) => k + 1);
-        },
-    };
-
     // ── Desktop: show detail full-page view ────────────────────────────────────
     if (showDetails) {
         return (
@@ -605,8 +547,6 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
             filterPriority={filterPriority}
             filterType={filterType}
             onClearFilter={() => { setFilterPriority(null); setFilterType(null); actionRef.current?.reload(); setMobileReloadKey((k) => k + 1); }}
-            priorityMenu={priorityMenu}
-            typeMenu={typeMenu}
             onMarkAll={() => markAllMutation.mutate()}
             markAllLoading={markAllMutation.isLoading}
             isMobile={isMobile}
@@ -676,6 +616,19 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                         ),
                     },
                     subTitle: {
+                        title: <span style={{ color: C.primary }}><MailOutlined /> Type</span>,
+                        dataIndex: "type",
+                        render: (_, record) => <TypeTag type={record.type} />,
+                        valueType: "select",
+                        valueEnum: {
+                            new_appointment_booking: "New Booking",
+                            inventory_out_of_stock: "Out of Stock",
+                            new_appointment: "Appointment",
+                            low_inventory: "Low Inventory",
+                            system: "System",
+                        },
+                    },
+                    content: {
                         title: <span style={{ color: C.primary }}><FilterOutlined /> Priority</span>,
                         dataIndex: "priority",
                         render: (_, record) => <PriorityTag priority={record.priority} />,
@@ -684,8 +637,8 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                     },
                     avatar: {
                         search: notificationtype !== "unread",
-                        title: <span style={{ color: C.primary }}><MailOutlined /> Priority</span>,
-                        dataIndex: "priority",
+                        title: <span style={{ color: C.primary }}><MailOutlined /> Status</span>,
+                        dataIndex: "read",
                         render: (_, record) => {
                             const cfg = PRIORITY_CFG[record.priority?.toLowerCase()] || { color: C.subText };
                             return (
