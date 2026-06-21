@@ -126,7 +126,8 @@ function MainOrders() {
     () =>
       TAB_CFG
         .filter((t) => {
-          if (t.key === "orders") return hasPOS;
+          // Orders list and Order Analysis are Duka (POS) features only.
+          if (t.key === "orders" || t.key === "done") return hasPOS;
           return true;
         })
         .map((t) => ({ ...t, allowed: can(t.permissionKey) })),

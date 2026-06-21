@@ -29,6 +29,8 @@ import DiscoverPage from "src/AdminDashboard/DiscoverPage";
 import PaymentCallback from "@components/payment/PaymentCallback";
 import { getPrimaryColor } from "@utils/getPrimaryColor";
 import PermissionRoute from "@components/PermissionRoute";
+import PrivacyPolicy from "@pages/Legal/PrivacyPolicy";
+import TermsAndConditions from "@pages/Legal/TermsAndConditions";
 
 // ─── Fallback spinners ────────────────────────────────────────────────────────
 const fullscreenSpin = (
@@ -264,6 +266,18 @@ const routes = createBrowserRouter(
         path="/omnichannel/oauth/callback"
         errorElement={<NotFound />}
         element={<Suspense fallback={fullscreenSpin}><OAuthCallbackPage /></Suspense>}
+      />
+
+      {/* Public — Legal pages (unauthenticated) */}
+      <Route
+        path="/privacy-policy"
+        errorElement={<NotFound />}
+        element={<Suspense fallback={fullscreenSpin}><PrivacyPolicy /></Suspense>}
+      />
+      <Route
+        path="/terms-and-conditions"
+        errorElement={<NotFound />}
+        element={<Suspense fallback={fullscreenSpin}><TermsAndConditions /></Suspense>}
       />
 
       {/* ══════════════════════════════════════════════════════════════════
