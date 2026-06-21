@@ -135,6 +135,22 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
   const { isRetailMode, isHospitalMode, isHotelMode } = usePOSMode();
   const { activeTable } = useRetailQueue();
 
+  // Get tenant primary color for branding
+  const getPrimaryColor = () => {
+    try {
+      const storedTenant = localStorage.getItem("tenant");
+      if (storedTenant) {
+        const tenant = JSON.parse(storedTenant);
+        return tenant?.color_scheme?.primary || tenant?.primary_color || "#6c1c2c";
+      }
+    } catch (error) {
+      console.error("Error parsing tenant:", error);
+    }
+    return "#6c1c2c";
+  };
+
+  const primaryColor = getPrimaryColor();
+
   // ── Single source of truth from store ────────────────────────────────────
   const { cartDetails, subtotal, totalVatAmount, grandTotal } = useAppSelector((s) => s.cart);
 
@@ -577,11 +593,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
         <Space direction="vertical" style={{ width: "100%" }} size={16}>
 
           {/* ── Order summary ────────────────────────────────────────────── */}
-          <div style={{ background: "#f8fafc", borderRadius: 12, padding: "14px 16px", border: "1px solid #e2e8f0" }}>
-            <Text strong style={{ fontSize: 13, color: "#64748b", letterSpacing: 0.5, textTransform: "uppercase" }}>
+          <div style={{ background: "#f8fafc", borderRadius: 12, padding: "14px 16px", border: `1px solid ${primaryColor}20` }}>
+            <Text strong style={{ fontSize: 13, color: primaryColor, letterSpacing: 0.5, textTransform: "uppercase" }}>
               Order Summary
             </Text>
-            <Divider style={{ margin: "10px 0 8px" }} />
+            <Divider style={{ margin: "10px 0 8px", borderColor: `${primaryColor}30` }} />
             <Space direction="vertical" style={{ width: "100%" }} size={4}>
 
               {discountAmount > 0 ? (
@@ -614,11 +630,11 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                 <Text style={{ fontSize: 13 }}>{fmtKsh(displayVat)}</Text>
               </Flex>
 
-              <Divider style={{ margin: "8px 0" }} />
+              <Divider style={{ margin: "8px 0", borderColor: `${primaryColor}30` }} />
 
               <Flex justify="space-between" align="center">
                 <Text strong style={{ fontSize: 15 }}>Amount Due</Text>
-                <Text strong style={{ fontSize: 17, color: "#6c1c2c" }}>
+                <Text strong style={{ fontSize: 17, color: primaryColor }}>
                   {fmtKsh(useSubscription ? 0 : grandTotal)}
                 </Text>
               </Flex>
@@ -642,10 +658,10 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
           {/* ── Customer search ──────────────────────────────────────────── */}
           {hasActivePackages && (
             <>
-              <div style={{ borderRadius: 12, border: selectedCustomerId ? "2px solid #10b981" : "1px solid #e2e8f0", overflow: "hidden", transition: "border-color 0.2s" }}>
-                <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
+              <div style={{ borderRadius: 12, border: selectedCustomerId ? `2px solid ${primaryColor}` : "1px solid #e2e8f0", overflow: "hidden", transition: "border-color 0.2s" }}>
+                <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${primaryColor}20`, background: `${primaryColor}08` }}>
                   <Flex align="center" gap={8}>
-                    <UserOutlined style={{ color: "#6c1c2c", fontSize: 13 }} />
+                    <UserOutlined style={{ color: primaryColor, fontSize: 13 }} />
                     <Text strong style={{ fontSize: 13 }}>Customer</Text>
                     {selectedCustomerId && (
                       <Tag color="success" style={{ fontSize: 11, margin: 0, borderRadius: 10 }}>Selected</Tag>
@@ -694,7 +710,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                     {customers.map((customer: any) => (
                       <Select.Option key={customer._id} value={customer._id}>
                         <Flex align="center" gap={10} style={{ padding: "6px 0" }}>
-                          <Avatar icon={<UserOutlined />} size={28} style={{ background: "#6c1c2c", flexShrink: 0 }} />
+                          <Avatar icon={<UserOutlined />} size={28} style={{ background: primaryColor, flexShrink: 0 }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <Text strong style={{ fontSize: 13, display: "block" }}>{customer.customer_name}</Text>
                             <Flex gap={10} style={{ fontSize: 11, color: "#94a3b8" }}>
@@ -713,7 +729,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                       style={{ marginTop: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 10px" }}
                     >
                       <CheckCircleOutlined style={{ color: "#10b981", fontSize: 14 }} />
-                      <Avatar icon={<UserOutlined />} size={22} style={{ background: "#6c1c2c" }} />
+                      <Avatar icon={<UserOutlined />} size={22} style={{ background: primaryColor }} />
                       <div>
                         <Text strong style={{ fontSize: 13 }}>
                           {customers.find((c) => c._id === selectedCustomerId)?.customer_name || selectedCustomer?.customer_name}
@@ -742,10 +758,10 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
 
           {/* ── Payment methods ──────────────────────────────────────────── */}
           {!useSubscription && (
-            <div style={{ borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden" }}>
-              <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
+            <div style={{ borderRadius: 12, border: `1px solid ${primaryColor}20`, overflow: "hidden" }}>
+              <div style={{ padding: "10px 14px 8px", borderBottom: `1px solid ${primaryColor}20`, background: `${primaryColor}08` }}>
                 <Flex align="center" gap={8}>
-                  <WalletOutlined style={{ color: "#6c1c2c", fontSize: 13 }} />
+                  <WalletOutlined style={{ color: primaryColor, fontSize: 13 }} />
                   <Text strong style={{ fontSize: 13 }}>Payment Method</Text>
                   {selectedMethod && (
                     <Tag color="blue" style={{ fontSize: 11, margin: 0, borderRadius: 10 }}>
@@ -768,17 +784,17 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                         style={{
                           display: "flex", flexDirection: "column", alignItems: "center",
                           justifyContent: "center", gap: 6, padding: "14px 8px", borderRadius: 10,
-                          border: isSelected ? "2px solid #6c1c2c" : "1.5px solid #e2e8f0",
-                          background: isSelected ? "#6c1c2c" : "#fff",
+                          border: isSelected ? `2px solid ${primaryColor}` : "1.5px solid #e2e8f0",
+                          background: isSelected ? primaryColor : "#fff",
                           color: isSelected ? "white" : "#374151",
                           cursor: isDisabled ? "not-allowed" : "pointer",
                           opacity: isDisabled ? 0.45 : 1,
                           transition: "all 0.18s ease", outline: "none",
-                          boxShadow: isSelected ? "0 2px 10px rgba(108,28,44,0.25)" : "none",
+                          boxShadow: isSelected ? `0 2px 10px ${primaryColor}40` : "none",
                         }}
                         onMouseEnter={(e) => {
                           if (!isSelected && !isDisabled)
-                            (e.currentTarget as HTMLButtonElement).style.borderColor = "#6c1c2c";
+                            (e.currentTarget as HTMLButtonElement).style.borderColor = primaryColor;
                         }}
                         onMouseLeave={(e) => {
                           if (!isSelected)
@@ -807,7 +823,7 @@ const PaymentDrawer: React.FC<PaymentDrawerProps> = ({ customerDetails }) => {
                     )}
                     {(user?.role === "admin" || user?.role === "cashier") && (
                       <Button size="small" onClick={handleVoidBill} icon={<StopOutlined />}
-                        style={{ color: "#6c1c2c", borderColor: "#6c1c2c", borderRadius: 6 }}>
+                        style={{ color: primaryColor, borderColor: primaryColor, borderRadius: 6 }}>
                         Void Bill
                       </Button>
                     )}
