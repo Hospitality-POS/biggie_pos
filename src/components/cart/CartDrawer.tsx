@@ -2,7 +2,7 @@ import React, { Key, useEffect, useMemo, useState } from "react";
 import CartItemCard from "./CartItemCard";
 import PrintBillModal from "../MODALS/PrintBillModal";
 import PrintBillSpaModal from "../MODALS/printBillSpaModal";
-import { deleteAllCartItems, getCart, addItemToCart, fetchCartItems } from "../../features/Cart/CartActions";
+import { deleteAllCartItems, getCart, addItemToCart, fetchCartItems, updateCart } from "../../features/Cart/CartActions";
 import { updateCart as updateCartService } from "../../services/cart";
 import PaymentDrawer from "../payment/PaymentDrawer";
 import SkeletonCartItemCard from "./SkeletonCartItemCard";
@@ -181,7 +181,9 @@ const CartDrawer: React.FC = () => {
       if (typeof customerId === 'string' && customerId.startsWith('CUST-')) {
         const result = await fetchAllCustomers({ code: customerId });
         // fetchAllCustomers returns an array, get the first match
-        return Array.isArray(result) && result.length > 0 ? result[0] : null;
+        const customer = Array.isArray(result) && result.length > 0 ? result[0] : null;
+        console.log("Fetched customer by code:", customerId, customer);
+        return customer;
       }
       
       // Otherwise try to fetch by ID
@@ -461,14 +463,17 @@ const CartDrawer: React.FC = () => {
     if (!cartId) return;
     setDelinkingCustomer(true);
     try {
-      await updateCartService(cartId, {
-        customer_id: undefined,
-        client_name: undefined,
-        client_pin: undefined,
-        client_email: undefined,
-        client_phone: undefined,
-      });
-      if (tableId) await dispatch(getCart(tableId));
+      console.log("Delinking customer from cart:", cartId);
+      const updateData = {
+        customer_id: null,
+        client_name: null,
+        client_pin: null,
+        client_email: null,
+        client_phone: null,
+      };
+      console.log("Update data:", updateData);
+      // Use Redux action to update state automatically
+      await dispatch(updateCart({ cart: cartDetails, data: updateData } as any));
       message.success("Customer delinked successfully");
     } catch (e) {
       console.error("Failed to delink customer", e);
@@ -530,15 +535,26 @@ const CartDrawer: React.FC = () => {
     setSendingHotelInfo(true);
     try {
       // Use customerData if available (has full customer details), otherwise fall back to cartDetails
-      const customerName = customerData?.fullname || customerDetails.customer_name || "";
+      const customerName = customerData?.fullname || customerData?.customer_name || customerDetails.customer_name || "";
       const customerEmail = customerData?.email || customerDetails.customer_email;
       const customerPhone = customerData?.phone || customerDetails.customer_phone;
+      const roomNumber = activeTable?.name || cartDetails?.table_id?.name || cartDetails?.table_id;
+      
+      console.log("Check-in payload data:", {
+        customerData,
+        customerDetails,
+        customerName,
+        customerEmail,
+        customerPhone,
+        roomNumber,
+      });
       
       await sendCheckinInfo({
         shop_id: shopId,
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone,
+        room_number: roomNumber,
       });
       message.success("Hotel check-in information resent successfully");
     } catch (error) {

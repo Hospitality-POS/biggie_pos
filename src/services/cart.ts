@@ -187,17 +187,19 @@ export const createCart = async (cartData: {
 export const updateCart = async (
   cartId: string,
   cartData: {
-    discount_type?: string;
-    discount?: number;
-    client_pin?: string;
-    tip_type?: string;
-    tip_amount?: number;
-    client_name?: string;
-    customer_id?: string;
-    use_subscription?: boolean;
-    payment_type?: string;
-    subscription_id?: string;
-    served_by?: string;
+    discount_type?: string | null;
+    discount?: number | null;
+    client_pin?: string | null;
+    tip_type?: string | null;
+    tip_amount?: number | null;
+    client_name?: string | null;
+    client_email?: string | null;
+    client_phone?: string | null;
+    customer_id?: string | null;
+    use_subscription?: boolean | null;
+    payment_type?: string | null;
+    subscription_id?: string | null;
+    served_by?: string | null;
   }
 ) => {
   try {
