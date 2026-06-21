@@ -713,7 +713,7 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                         current: params.current,
                         pageSize: params.pageSize,
                         priority: filterPriority || params.priority?.toLowerCase(),
-                        type: filterType || (notificationtype === "system" ? "system" : ""),
+                        type: filterType || params.type || (notificationtype === "system" ? "system" : ""),
                         read: notificationtype === "unread" ? false : params.read,
                     });
                     const list = data?.data || [];
