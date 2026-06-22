@@ -1452,6 +1452,29 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
 
     const columns = [
       {
+        title: 'Actions', key: 'actions', fixed: 'left' as const, width: 160,
+        render: (_: any, record: Unit) => (
+          <Space size={0}>
+            <Button type="link" icon={<EditOutlined />} onClick={() => openEditUnit(record)} size="small" style={{ padding: '0 4px' }} />
+            {record.trackIndividualUnits && record.apartments && (
+              <Button type="link" icon={<UnorderedListOutlined />} onClick={() => viewApartments(record)} size="small" style={{ padding: '0 4px' }} />
+            )}
+            <Popconfirm
+              title="Delete this unit?"
+              onConfirm={() => removeUnit(record.key || record._id!)}
+              okText="Yes" cancelText="No"
+              disabled={!!(record._id && edit && record.totalUnits !== record.availableUnits)}
+            >
+              <Button
+                type="text" danger icon={<DeleteOutlined />} size="small"
+                disabled={!!(record._id && edit && record.totalUnits !== record.availableUnits)}
+                style={{ padding: '0 4px' }}
+              />
+            </Popconfirm>
+          </Space>
+        )
+      },
+      {
         title: propertyType === 'land' ? 'Plot Type' : 'Unit Details',
         dataIndex: 'unitType', key: 'unitType',
         render: (_: any, record: Unit) => (
@@ -1495,32 +1518,6 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           return price ? price.toLocaleString() : <span style={{ color: '#bbb' }}>—</span>;
         }
       },
-      {
-        title: 'Actions', key: 'actions',
-        render: (_: any, record: Unit) => (
-          <Space>
-            <Button type="link" icon={<EditOutlined />} onClick={() => openEditUnit(record)} size="small">
-              Edit Unit
-            </Button>
-            {record.trackIndividualUnits && record.apartments && (
-              <Button type="link" icon={<UnorderedListOutlined />} onClick={() => viewApartments(record)} size="small">
-                View Apartments ({record.apartments.length})
-              </Button>
-            )}
-            <Popconfirm
-              title="Delete this unit?"
-              onConfirm={() => removeUnit(record.key || record._id!)}
-              okText="Yes" cancelText="No"
-              disabled={!!(record._id && edit && record.totalUnits !== record.availableUnits)}
-            >
-              <Button
-                type="text" danger icon={<DeleteOutlined />}
-                disabled={!!(record._id && edit && record.totalUnits !== record.availableUnits)}
-              />
-            </Popconfirm>
-          </Space>
-        )
-      }
     ];
 
     return propertyType === 'apartment' && groupedUnits ? (
