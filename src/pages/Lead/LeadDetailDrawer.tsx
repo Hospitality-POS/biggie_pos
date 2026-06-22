@@ -252,7 +252,7 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ open, onClose, lead
                 </div>
             }
             footer={
-                lead.stage !== "won" && lead.stage !== "disqualified" && !lead.customer_id ? (
+                lead.stage !== "disqualified" && !lead.customer_id ? (
                     <div style={{ display: "flex", gap: 8, padding: "8px 0", flexWrap: "wrap" }}>
                         {/* Primary: open AddCustomerModal pre-filled */}
                         <Button
