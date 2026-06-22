@@ -217,7 +217,7 @@ export const createExpense = async (data: CreateExpenseParams) => {
             `${BASE_URL}/accounting/expenses`,
             data
         );
-        message.success("Expense created successfully");
+        // message.success("Expense created successfully");
         return response.data as { expense: Expense };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -239,7 +239,7 @@ export const updateExpense = async (id: string, data: UpdateExpenseParams) => {
             `${BASE_URL}/accounting/expenses/${id}`,
             data
         );
-        message.success("Expense updated");
+        // message.success("Expense updated");
         return response.data as { expense: Expense };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -261,7 +261,7 @@ export const approveExpense = async (id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/expenses/${id}/approve`
         );
-        message.success("Expense approved and posted to books");
+        // message.success("Expense approved and posted to books");
         return response.data as { expense: Expense };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -283,7 +283,7 @@ export const voidExpense = async (id: string, reason: string) => {
             `${BASE_URL}/accounting/expenses/${id}/void`,
             { reason }
         );
-        message.success("Expense voided");
+        // message.success("Expense voided");
         return response.data as { expense: Expense };
     } catch (error) {
         if (error?.response?.data?.message) {

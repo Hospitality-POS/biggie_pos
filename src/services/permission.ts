@@ -23,7 +23,7 @@ export const fetchAllPermissions = async (params: ParamsType) => {
 export const createPermission = async (roleData: Permission) => {
     try {
         const response = await axiosInstance.post(`${permissionUrl}/new-permission`, roleData);
-        message.success("permission created successfully");
+        // message.success("permission created successfully");
         return response.data;
     } catch (error: unknown) {
         if (error?.response?.status != 403) {
@@ -36,7 +36,7 @@ export const createPermission = async (roleData: Permission) => {
 export const updatePermission = async (roleData: Permission) => {
     try {
         const response = await axiosInstance.put(`${permissionUrl}/update-permission/${roleData._id}`, roleData);
-        message.success("permission updated successfully");
+        // message.success("permission updated successfully");
         return response.data;
     } catch (error: unknown) {
 
@@ -50,7 +50,7 @@ export const updatePermission = async (roleData: Permission) => {
 export const deletePermission = async (id: string) => {
     try {
         const response = await axiosInstance.delete(`${permissionUrl}/remove-permission/${id}`);
-        message.success("permission deleted successfully");
+        // message.success("permission deleted successfully");
         return response.data;
     } catch (error: unknown) {
         if (error?.response?.status != 403) {

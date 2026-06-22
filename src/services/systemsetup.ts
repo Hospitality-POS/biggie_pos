@@ -33,7 +33,7 @@ export const createSystemSetup = async (data: ParamsType) => {
     const response = await axiosInstance.post(url, data);
     localStorage.setItem("businessId", response?.data?._id);
     // console.log("create..", response.data);
-    message.success("System Setup created successfully");
+    // message.success("System Setup created successfully");
     return response.data;
   } catch (error) {
     message.error("Failed to create a new System Setup");

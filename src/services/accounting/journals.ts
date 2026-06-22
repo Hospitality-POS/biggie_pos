@@ -192,11 +192,11 @@ export const createManualEntry = async (data: CreateManualEntryParams) => {
             `${BASE_URL}/accounting/journal-entries`,
             data
         );
-        message.success(
-            data.auto_post
-                ? "Journal entry created and posted"
-                : "Journal entry created as Draft"
-        );
+        // message.success(
+        //     data.auto_post
+        //         ? "Journal entry created and posted"
+        //         : "Journal entry created as Draft"
+        // );
         return response.data as { entry: JournalEntry };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -218,7 +218,7 @@ export const createExpenseEntry = async (data: CreateExpenseEntryParams) => {
             `${BASE_URL}/accounting/journal-entries/expense`,
             data
         );
-        message.success("Expense entry created and posted");
+        // message.success("Expense entry created and posted");
         return response.data as { entry: JournalEntry };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -238,7 +238,7 @@ export const postJournalEntry = async (id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/journal-entries/${id}/post`
         );
-        message.success("Journal entry posted successfully");
+        // message.success("Journal entry posted successfully");
         return response.data as { entry: JournalEntry };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -260,7 +260,7 @@ export const voidJournalEntry = async (id: string, reason: string) => {
             `${BASE_URL}/accounting/journal-entries/${id}/void`,
             { reason }
         );
-        message.success("Journal entry voided and reversal created");
+        // message.success("Journal entry voided and reversal created");
         return response.data as {
             voided_entry: JournalEntry;
             reversal_entry: JournalEntry;

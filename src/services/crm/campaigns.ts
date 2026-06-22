@@ -164,7 +164,7 @@ export const createCampaign = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.post(BASE, data);
-            message.success("Campaign created successfully");
+            // message.success("Campaign created successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to create campaign";
@@ -186,7 +186,7 @@ export const updateCampaign = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.put(`${BASE}/${id}`, data);
-            message.success("Campaign updated successfully");
+            // message.success("Campaign updated successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update campaign";
@@ -208,7 +208,7 @@ export const updateCampaignStatus = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.patch(`${BASE}/${id}/status`, { shop_id, status });
-            message.success(`Campaign status updated to '${status}'`);
+            // message.success(`Campaign status updated to '${status}'`);
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update campaign status";
@@ -239,7 +239,7 @@ export const updateCampaignActuals = createAsyncThunk(
             const response = await axiosInstance.patch(`${BASE}/${id}/actuals`, {
                 shop_id, actual_spend, actual_revenue, actual_leads, actual_conversions,
             });
-            message.success("Campaign actuals updated");
+            // message.success("Campaign actuals updated");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update actuals";
@@ -258,7 +258,7 @@ export const deleteCampaign = createAsyncThunk(
     async ({ id, shop_id }: { id: string; shop_id: string }, { rejectWithValue }) => {
         try {
             await axiosInstance.delete(`${BASE}/${id}`, { params: { shop_id } });
-            message.success("Campaign deleted successfully");
+            // message.success("Campaign deleted successfully");
             return id;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to delete campaign";

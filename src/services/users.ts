@@ -27,7 +27,7 @@ const getTenant = () => {
 export const updateUserStatus = async (id: string, status: 'Active' | 'Suspended' | 'Terminated') => {
   try {
     const response = await axiosInstance.patch(`${userUrl}/${id}/status`, { status });
-    message.success(`User status updated to ${status}`);
+    // message.success(`User status updated to ${status}`);
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || "Failed to update user status";
@@ -339,7 +339,7 @@ export const addUser = async (userData) => {
         throw new Error(responseData.message || "Failed to add user");
       }
 
-      message.success("User added successfully");
+      // message.success("User added successfully");
       return responseData;
     } else {
       // No file to upload, use regular JSON request
@@ -367,7 +367,7 @@ export const addUser = async (userData) => {
         }
       });
 
-      message.success("User added successfully");
+      // message.success("User added successfully");
       return response.data;
     }
   } catch (error: any) {

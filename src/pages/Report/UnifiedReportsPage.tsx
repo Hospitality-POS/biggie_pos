@@ -9,7 +9,7 @@ import {
 import AdminReports from "src/AdminDashboard/ReportsPage/Reports";
 import AccountingReportsPage from "./AccountingReportsPage";
 import MtejaReports from "./MtejaReports";
-import BanduReports from "./BanduReports";
+import BanduReportsPage from "../hr/BanduReportsPage";
 import DalaReports from "../dala/reports/Reports";
 
 const { Text } = Typography;
@@ -33,7 +33,7 @@ const getModuleFlags = () => {
 };
 
 // ── Bandu/HR Report Components ─────────────────────────────────────────────────────
-const BanduReportsContent: React.FC = () => <BanduReports />;
+const BanduReportsContent: React.FC = () => <BanduReportsPage />;
 
 // ── Mteja/CRM Report Components ────────────────────────────────────────────────────
 const MtejaReportsContent: React.FC = () => <MtejaReports />;
@@ -64,58 +64,52 @@ const UnifiedReportsPage: React.FC = () => {
   }, [moduleFlags]);
 
   // Build tab items dynamically based on enabled modules
-  const tabItems = [
-    ...(moduleFlags.hasDuka
-      ? [
-          {
-            key: "duka",
-            label: "Duka (Store)",
-            icon: <ShoppingOutlined />,
-            children: <AdminReports />,
-          },
-        ]
-      : []),
-    ...(moduleFlags.hasPesa
-      ? [
-          {
-            key: "pesa",
-            label: "Pesa (Accounting)",
-            icon: <AccountBookOutlined />,
-            children: <AccountingReportsPage />,
-          },
-        ]
-      : []),
-    ...(moduleFlags.hasMteja
-      ? [
-          {
-            key: "mteja",
-            label: "Mteja (CRM)",
-            icon: <TeamOutlined />,
-            children: <MtejaReportsContent />,
-          },
-        ]
-      : []),
-    ...(moduleFlags.hasDala
-      ? [
-          {
-            key: "dala",
-            label: "Dala (Real Estate)",
-            icon: <HomeOutlined />,
-            children: <DalaReportsContent />,
-          },
-        ]
-      : []),
-    ...(moduleFlags.hasBandu
-      ? [
-          {
-            key: "bandu",
-            label: "Bandu (HR)",
-            icon: <TeamOutlined />,
-            children: <BanduReportsContent />,
-          },
-        ]
-      : []),
-  ];
+  const tabItems: any[] = [];
+
+  if (moduleFlags.hasDuka) {
+    tabItems.push({
+      key: "duka",
+      label: "Duka (Store)",
+      icon: <ShoppingOutlined />,
+      children: <AdminReports />,
+    });
+  }
+
+  if (moduleFlags.hasPesa) {
+    tabItems.push({
+      key: "pesa",
+      label: "Pesa (Accounting)",
+      icon: <AccountBookOutlined />,
+      children: <AccountingReportsPage />,
+    });
+  }
+
+  if (moduleFlags.hasMteja) {
+    tabItems.push({
+      key: "mteja",
+      label: "Mteja (CRM)",
+      icon: <TeamOutlined />,
+      children: <MtejaReportsContent />,
+    });
+  }
+
+  if (moduleFlags.hasDala) {
+    tabItems.push({
+      key: "dala",
+      label: "Dala (Real Estate)",
+      icon: <HomeOutlined />,
+      children: <DalaReportsContent />,
+    });
+  }
+
+  if (moduleFlags.hasBandu) {
+    tabItems.push({
+      key: "bandu",
+      label: "Bandu",
+      icon: <TeamOutlined />,
+      children: <BanduReportsContent />,
+    });
+  }
 
   // If no modules are enabled, show empty state
   if (tabItems.length === 0) {

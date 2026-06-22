@@ -23,7 +23,7 @@ export const fetchAllRoles = async (params: ParamsType) => {
 export const createRole = async (roleData: Role) => {
   try {
     const response = await axiosInstance.post(`${roleUrl}/new-role-type`, roleData);
-    message.success("Role created successfully");
+    // message.success("Role created successfully");
     return response.data;
   } catch (error: unknown) {
     if (error?.response?.status != 403) {
@@ -37,7 +37,7 @@ export const updateRole = async (roleData: Role) => {
   try {
     console.log('my data', roleData);
     const response = await axiosInstance.put(`${roleUrl}/update-role-type/${roleData._id}`, roleData);
-    message.success("Role updated successfully");
+    // message.success("Role updated successfully");
     return response.data;
   } catch (error: unknown) {
 
@@ -51,7 +51,7 @@ export const updateRole = async (roleData: Role) => {
 export const deleteRole = async (id: string) => {
   try {
     const response = await axiosInstance.delete(`${roleUrl}/remove-role-type/${id}`);
-    message.success("Role deleted successfully");
+    // message.success("Role deleted successfully");
     return response.data;
   } catch (error: unknown) {
     if (error?.response?.status != 403) {

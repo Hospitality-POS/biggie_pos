@@ -150,7 +150,7 @@ export const seedDefaultAccounts = async (shop_id: string) => {
             `${BASE_URL}/accounting/chart-of-accounts/seed`,
             { shop_id }
         );
-        message.success("Default chart of accounts seeded successfully");
+        // message.success("Default chart of accounts seeded successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -246,7 +246,7 @@ export const createAccount = async (data: CreateAccountParams) => {
             `${BASE_URL}/accounting/chart-of-accounts`,
             data
         );
-        message.success("Account created successfully");
+        // message.success("Account created successfully");
         return response.data as { account: ChartOfAccount };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -268,7 +268,7 @@ export const updateAccount = async (id: string, data: UpdateAccountParams) => {
             `${BASE_URL}/accounting/chart-of-accounts/${id}`,
             data
         );
-        message.success("Account updated successfully");
+        // message.success("Account updated successfully");
         return response.data as { account: ChartOfAccount };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -293,7 +293,7 @@ export const updateOpeningBalance = async (
             `${BASE_URL}/accounting/chart-of-accounts/${id}/opening-balance`,
             { opening_balance, opening_balance_date }
         );
-        message.success("Opening balance updated successfully");
+        // message.success("Opening balance updated successfully");
         return response.data as { account: ChartOfAccount };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -313,7 +313,7 @@ export const toggleAccountActive = async (id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/chart-of-accounts/${id}/toggle-active`
         );
-        message.success(response.data.message);
+        // message.success(response.data.message);
         return response.data as { account: ChartOfAccount };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -334,7 +334,7 @@ export const deleteAccount = async (id: string) => {
         await axiosInstance.delete(
             `${BASE_URL}/accounting/chart-of-accounts/${id}`
         );
-        message.success("Account deleted successfully");
+        // message.success("Account deleted successfully");
         return true;
     } catch (error) {
         if (error?.response?.data?.message) {

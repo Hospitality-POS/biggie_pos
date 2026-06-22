@@ -7,7 +7,8 @@ import {
   Outlet,
 } from "react-router-dom";
 import { Suspense, lazy } from "react";
-import Private, { AdminRoute } from "@components/layout/private/Private";
+const Private = lazy(() => import("@components/layout/private/Private").then(m => ({ default: m.Private })));
+const AdminRoute = lazy(() => import("@components/layout/private/Private").then(m => ({ default: m.AdminRoute })));
 import MainCategory from "@pages/main_category/Main_category";
 import NotFound from "@routes/NotFound";
 import { Spin } from "antd/lib";
@@ -145,6 +146,23 @@ const LeaseDetail = lazy(() => import("src/pages/dala/leases/LeaseDetail"));
 const RentCollection = lazy(() => import("src/pages/dala/rent/RentCollection"));
 const MaintenanceManagement = lazy(() => import("src/pages/dala/maintenance/MaintenanceManagement"));
 
+// ─── Bandu HR & Payroll Module ─────────────────────────────────────────────────
+// All Bandu pages are lazy-loaded and only reachable when hasBandu === true.
+const BanduDashboardPage = lazy(() => import("src/pages/hr/BanduDashboardPage"));
+const EmployeeProfilesList = lazy(() => import("src/pages/hr/employees/EmployeeProfilesList"));
+const EmployeeProfileDetail = lazy(() => import("src/pages/hr/employees/EmployeeProfileDetail"));
+const PayrollList = lazy(() => import("src/pages/hr/payroll/PayrollList"));
+const PayrollDetail = lazy(() => import("src/pages/hr/payroll/PayrollDetail"));
+const PayslipsList = lazy(() => import("src/pages/hr/payslips/PayslipsList"));
+const PayslipDetail = lazy(() => import("src/pages/hr/payslips/PayslipDetail"));
+const ShiftSchedulesList = lazy(() => import("src/pages/hr/shifts/ShiftSchedulesList"));
+const ShiftScheduleDetail = lazy(() => import("src/pages/hr/shifts/ShiftScheduleDetail"));
+const ShiftSwapsList = lazy(() => import("src/pages/hr/shifts/ShiftSwapsList"));
+const ShiftSwapDetail = lazy(() => import("src/pages/hr/shifts/ShiftSwapDetail"));
+const DeductionRulesList = lazy(() => import("src/pages/hr/deductions/DeductionRulesList"));
+const BanksList = lazy(() => import("src/pages/hr/banks/BanksList"));
+const BanduReportsPage = lazy(() => import("src/pages/hr/BanduReportsPage"));
+
 // ─── Mteja guard ─────────────────────────────────────────────────────────────
 const getMtejaEnabled = (): boolean => {
   try {
@@ -185,38 +203,87 @@ const AdminDalaRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// ─── Bandu guard ─────────────────────────────────────────────────────────────
+const getBanduEnabled = (): boolean => {
+  try {
+    const tenant = JSON.parse(localStorage.getItem("tenant") || "{}");
+    return tenant?.modules?.payroll === true;
+  } catch {
+    return false;
+  }
+};
+
+const BanduRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!getBanduEnabled()) return <Navigate to="/customers" replace />;
+  return <>{children}</>;
+};
+
+const AdminBanduRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!getBanduEnabled()) return <Navigate to="/admin/customers" replace />;
+  return <>{children}</>;
+};
+
 // ─── CRM page wrapper — private + Mteja guard ────────────────────────────────
 const mtejaPage = (Component: React.ComponentType, permission: string) => (
   <MtejaRoute>
-    <PermissionRoute permission={permission}>
-      {privatePage(Component)}
-    </PermissionRoute>
+    <Suspense fallback={fullscreenSpin}>
+      <PermissionRoute permission={permission}>
+        {privatePage(Component)}
+      </PermissionRoute>
+    </Suspense>
   </MtejaRoute>
 );
 
 const mtejaAdminPage = (Component: React.ComponentType, permission: string) => (
   <AdminMtejaRoute>
-    <PermissionRoute permission={permission}>
-      {adminPage(Component)}
-    </PermissionRoute>
+    <Suspense fallback={fullscreenSpin}>
+      <PermissionRoute permission={permission}>
+        {adminPage(Component)}
+      </PermissionRoute>
+    </Suspense>
   </AdminMtejaRoute>
 );
 
 // ─── Dala page wrapper — private + Dala guard ───────────────────────────────────
 const dalaPage = (Component: React.ComponentType, permission: string) => (
   <DalaRoute>
-    <PermissionRoute permission={permission}>
-      {privatePage(Component)}
-    </PermissionRoute>
+    <Suspense fallback={fullscreenSpin}>
+      <PermissionRoute permission={permission}>
+        {privatePage(Component)}
+      </PermissionRoute>
+    </Suspense>
   </DalaRoute>
 );
 
 const dalaAdminPage = (Component: React.ComponentType, permission: string) => (
   <AdminDalaRoute>
-    <PermissionRoute permission={permission}>
-      {adminPage(Component)}
-    </PermissionRoute>
+    <Suspense fallback={fullscreenSpin}>
+      <PermissionRoute permission={permission}>
+        {adminPage(Component)}
+      </PermissionRoute>
+    </Suspense>
   </AdminDalaRoute>
+);
+
+// ─── Bandu page wrapper — private + Bandu guard ─────────────────────────────────
+const banduPage = (Component: React.ComponentType, permission: string) => (
+  <BanduRoute>
+    <Suspense fallback={fullscreenSpin}>
+      <PermissionRoute permission={permission}>
+        {privatePage(Component)}
+      </PermissionRoute>
+    </Suspense>
+  </BanduRoute>
+);
+
+const banduAdminPage = (Component: React.ComponentType, permission: string) => (
+  <AdminBanduRoute>
+    <Suspense fallback={fullscreenSpin}>
+      <PermissionRoute permission={permission}>
+        {adminPage(Component)}
+      </PermissionRoute>
+    </Suspense>
+  </AdminBanduRoute>
 );
 
 // ─── Accounting layout wrapper ────────────────────────────────────────────────
@@ -225,6 +292,9 @@ const AccountingLayout = () => <Outlet />;
 // ─── CRM layout wrapper ───────────────────────────────────────────────────────
 const CrmLayout = () => <Outlet />;
 
+// ─── Bandu layout wrapper ─────────────────────────────────────────────────────
+const BanduLayout = () => <Outlet />;
+
 // ─── Smart routers ────────────────────────────────────────────────────────────
 const SmartShopRouter = () => {
   const tenant = (() => { try { return JSON.parse(localStorage.getItem("tenant") || "{}"); } catch { return {}; } })();
@@ -232,26 +302,26 @@ const SmartShopRouter = () => {
   const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
   const hasMteja = tenant?.modules?.crm === true;
   const hasDala = tenant?.modules?.dala === true;
+  const hasBandu = tenant?.modules?.payroll === true;
 
-  if (hasDala && !hasPOS && !hasAccounting && !hasMteja) return <Navigate to="/dala" replace />;
-  if (hasMteja && !hasPOS && !hasAccounting) return <Navigate to="/mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/accounting" replace />;
+  if (hasBandu && !hasPOS && !hasAccounting && !hasMteja && !hasDala) return <Navigate to="/hr" replace />;
+  if (hasDala && !hasPOS && !hasAccounting && !hasMteja && !hasBandu) return <Navigate to="/dala" replace />;
+  if (hasMteja && !hasPOS && !hasAccounting && !hasBandu) return <Navigate to="/mteja" replace />;
+  if (hasAccounting && !hasPOS && !hasBandu) return <Navigate to="/accounting" replace />;
   return privatePage(Table);
 };
 
 const SmartDashboardRouter = () => {
   const user = (() => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } })();
-  const tenant = (() => { try { return JSON.parse(localStorage.getItem("tenant") || "{}"); } catch { return {}; } })();
 
   if (!user?.role) return <Navigate to="/login" replace />;
 
-  const hasPOS = !!(tenant?.pos_integration?.enabled ?? true);
-  const hasAccounting = !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting);
-  const hasMteja = tenant?.modules?.crm === true;
-  const hasDala = tenant?.modules?.dala === true;
+  // If shopId is set, redirect to shop-level dashboard
+  const shopId = localStorage.getItem("shopId");
+  if (shopId && shopId !== "undefined" && shopId !== "null") {
+    return <Navigate to="/home-dashboard" replace />;
+  }
 
-  if (hasMteja && !hasPOS && !hasAccounting && !hasDala) return <Navigate to="/admin/mteja" replace />;
-  if (hasAccounting && !hasPOS) return <Navigate to="/admin/dashboard" replace />;
   return <Navigate to="/admin/dashboard" replace />;
 };
 
@@ -481,6 +551,40 @@ const routes = createBrowserRouter(
             element={dalaPage(MaintenanceManagement, "DALA_MAINTENANCE_VIEW")} />
         </Route>
 
+        {/* ── Bandu HR & Payroll — shop level (/hr/...) ───────────────────────
+            ALL routes here require hasBandu === true (BanduRoute guard).
+            Permission: USERS_VIEW gates all HR pages for now —
+            add dedicated HR permissions when roles are extended.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="hr" element={<BanduLayout />}>
+          <Route index errorElement={<NotFound />}
+            element={<Navigate to="/home-dashboard" replace />} />
+          <Route path="employees" errorElement={<NotFound />}
+            element={banduPage(EmployeeProfilesList, "USERS_VIEW")} />
+          <Route path="employees/:id" errorElement={<NotFound />}
+            element={banduPage(EmployeeProfileDetail, "USERS_VIEW")} />
+          <Route path="payroll" errorElement={<NotFound />}
+            element={banduPage(PayrollList, "USERS_VIEW")} />
+          <Route path="payroll/:id" errorElement={<NotFound />}
+            element={banduPage(PayrollDetail, "USERS_VIEW")} />
+          <Route path="payslips" errorElement={<NotFound />}
+            element={banduPage(PayslipsList, "USERS_VIEW")} />
+          <Route path="payslips/:id" errorElement={<NotFound />}
+            element={banduPage(PayslipDetail, "USERS_VIEW")} />
+          <Route path="shifts" errorElement={<NotFound />}
+            element={banduPage(ShiftSchedulesList, "USERS_VIEW")} />
+          <Route path="shifts/:id" errorElement={<NotFound />}
+            element={banduPage(ShiftScheduleDetail, "USERS_VIEW")} />
+          <Route path="shift-swaps" errorElement={<NotFound />}
+            element={banduPage(ShiftSwapsList, "USERS_VIEW")} />
+          <Route path="shift-swaps/:id" errorElement={<NotFound />}
+            element={banduPage(ShiftSwapDetail, "USERS_VIEW")} />
+          <Route path="deductions" errorElement={<NotFound />}
+            element={banduPage(DeductionRulesList, "USERS_VIEW")} />
+          <Route path="banks" errorElement={<NotFound />}
+            element={banduPage(BanksList, "USERS_VIEW")} />
+        </Route>
+
         <Route path="*" element={<NotFound />} />
       </Route>
 
@@ -497,7 +601,7 @@ const routes = createBrowserRouter(
           element={guardedAdminPage(Table, "CART_VIEW_ITEMS")} />
 
         <Route path="home-dashboard" errorElement={<NotFound />}
-          element={guardedAdminPage(DashboardAdminPage, "ORDERS_VIEW_DASHBOARD")} />
+          element={<Navigate to="/home-dashboard" replace />} />
 
         <Route path="orders" errorElement={<NotFound />}
           element={guardedAdminPage(MainOrders, "ORDERS_VIEW")} />
@@ -701,6 +805,39 @@ const routes = createBrowserRouter(
             element={dalaAdminPage(RentCollection, "DALA_RENT_COLLECTION_VIEW")} />
           <Route path="maintenance" errorElement={<NotFound />}
             element={dalaAdminPage(MaintenanceManagement, "DALA_MAINTENANCE_VIEW")} />
+        </Route>
+
+        {/* ── Bandu HR & Payroll — admin level (/admin/hr/...) ─────────────
+            Mirrors the shop-level Bandu routes above.
+            All gated behind AdminBanduRoute so non-Bandu tenants can't access.
+        ─────────────────────────────────────────────────────────────────── */}
+        <Route path="hr" element={<BanduLayout />}>
+          <Route index errorElement={<NotFound />}
+            element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="employees" errorElement={<NotFound />}
+            element={banduAdminPage(EmployeeProfilesList, "USERS_VIEW")} />
+          <Route path="employees/:id" errorElement={<NotFound />}
+            element={banduAdminPage(EmployeeProfileDetail, "USERS_VIEW")} />
+          <Route path="payroll" errorElement={<NotFound />}
+            element={banduAdminPage(PayrollList, "USERS_VIEW")} />
+          <Route path="payroll/:id" errorElement={<NotFound />}
+            element={banduAdminPage(PayrollDetail, "USERS_VIEW")} />
+          <Route path="payslips" errorElement={<NotFound />}
+            element={banduAdminPage(PayslipsList, "USERS_VIEW")} />
+          <Route path="payslips/:id" errorElement={<NotFound />}
+            element={banduAdminPage(PayslipDetail, "USERS_VIEW")} />
+          <Route path="shifts" errorElement={<NotFound />}
+            element={banduAdminPage(ShiftSchedulesList, "USERS_VIEW")} />
+          <Route path="shifts/:id" errorElement={<NotFound />}
+            element={banduAdminPage(ShiftScheduleDetail, "USERS_VIEW")} />
+          <Route path="shift-swaps" errorElement={<NotFound />}
+            element={banduAdminPage(ShiftSwapsList, "USERS_VIEW")} />
+          <Route path="shift-swaps/:id" errorElement={<NotFound />}
+            element={banduAdminPage(ShiftSwapDetail, "USERS_VIEW")} />
+          <Route path="deductions" errorElement={<NotFound />}
+            element={banduAdminPage(DeductionRulesList, "USERS_VIEW")} />
+          <Route path="banks" errorElement={<NotFound />}
+            element={banduAdminPage(BanksList, "USERS_VIEW")} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

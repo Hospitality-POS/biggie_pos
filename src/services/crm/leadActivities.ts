@@ -125,7 +125,7 @@ export const createLeadActivity = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.post(BASE, data);
-            message.success("Activity logged successfully");
+            // message.success("Activity logged successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to log activity";
@@ -147,7 +147,7 @@ export const updateLeadActivity = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.put(`${BASE}/${id}`, data);
-            message.success("Activity updated successfully");
+            // message.success("Activity updated successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update activity";
@@ -166,7 +166,7 @@ export const deleteLeadActivity = createAsyncThunk(
     async (id: string, { rejectWithValue }) => {
         try {
             await axiosInstance.delete(`${BASE}/${id}`);
-            message.success("Activity deleted successfully");
+            // message.success("Activity deleted successfully");
             return id;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to delete activity";

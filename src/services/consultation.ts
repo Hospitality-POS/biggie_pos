@@ -85,7 +85,7 @@ export const createConsultation = createAsyncThunk(
                 consultation_url,
                 consultationData
             );
-            message.success("Consultation booked successfully!");
+            // message.success("Consultation booked successfully!");
             return response.data;
         } catch (error: any) {
             const errorMessage = error?.response?.data?.message || error?.message || "Failed to book consultation";
@@ -120,7 +120,7 @@ export const updateConsultationStatus = async (
             `${consultation_url}/${id}/status`,
             statusData
         );
-        message.success("Status updated successfully!");
+        // message.success("Status updated successfully!");
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.message || error?.message || "Failed to update status";
@@ -136,7 +136,7 @@ export const updateConsultation = async (id: string, updateData: Partial<Consult
             `${consultation_url}/${id}`,
             updateData
         );
-        message.success("Consultation updated successfully!");
+        // message.success("Consultation updated successfully!");
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.message || error?.message || "Failed to update consultation";
@@ -149,7 +149,7 @@ export const updateConsultation = async (id: string, updateData: Partial<Consult
 export const deleteConsultation = async (id: string) => {
     try {
         const response = await axiosInstance.delete(`${consultation_url}/${id}`);
-        message.success("Consultation deleted successfully!");
+        // message.success("Consultation deleted successfully!");
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete consultation";
@@ -196,7 +196,7 @@ export const sendConsultationReminder = async (id: string) => {
         const response = await axiosInstance.post(
             `${consultation_url}/${id}/reminder`
         );
-        message.success("Reminder sent successfully!");
+        // message.success("Reminder sent successfully!");
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.message || error?.message || "Failed to send reminder";

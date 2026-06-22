@@ -306,7 +306,7 @@ export const updateTenant = async (id: string, tenantData: UpdateTenantData | Fo
             }
         }
 
-        message.success("Tenant updated successfully");
+        // message.success("Tenant updated successfully");
 
         setTimeout(() => {
             window.location.replace(window.location.href);
@@ -364,11 +364,11 @@ export const reseedChartOfAccounts = async (id: string) => {
             {},
             { headers: getPOSHeaders() }
         );
-        message.success(
-            response.data.data?.chart_of_accounts?.skipped
-                ? "Chart of accounts already exists (26 accounts)"
-                : `Chart of accounts created successfully! (${response.data.data?.chart_of_accounts?.accounts_count || 26} accounts)`
-        );
+        // message.success(
+        //     response.data.data?.chart_of_accounts?.skipped
+        //         ? "Chart of accounts already exists (26 accounts)"
+        //         : `Chart of accounts created successfully! (${response.data.data?.chart_of_accounts?.accounts_count || 26} accounts)`
+        // );
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to reseed chart of accounts";
@@ -459,7 +459,7 @@ export const updatePosIntegrationConfig = async (id: string, config: any) => {
             config,
             { headers: getPOSHeaders() }
         );
-        message.success("POS integration configuration updated successfully!");
+        // message.success("POS integration configuration updated successfully!");
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to update POS integration configuration";
@@ -661,7 +661,7 @@ export const enableEtims = async (id: string, config: EtimsConfigData) => {
             { headers: getPOSHeaders() }
         );
         await refreshTenantInStorage(id);
-        message.success("ETIMS integration enabled successfully!");
+        // message.success("ETIMS integration enabled successfully!");
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to enable ETIMS integration";
@@ -678,7 +678,7 @@ export const disableEtims = async (id: string) => {
             { headers: getPOSHeaders() }
         );
         await refreshTenantInStorage(id);
-        message.success("ETIMS integration disabled successfully!");
+        // message.success("ETIMS integration disabled successfully!");
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to disable ETIMS integration";
@@ -695,7 +695,7 @@ export const updateEtimsConfig = async (id: string, config: EtimsConfigData) => 
             { headers: getPOSHeaders() }
         );
         await refreshTenantInStorage(id);
-        message.success("ETIMS configuration updated successfully!");
+        // message.success("ETIMS configuration updated successfully!");
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to update ETIMS configuration";
@@ -724,7 +724,7 @@ export const syncEtims = async (id: string) => {
             {},
             { headers: getPOSHeaders() }
         );
-        message.success("ETIMS sync initiated successfully!");
+        // message.success("ETIMS sync initiated successfully!");
         return response.data;
     } catch (error: any) {
         const errorMessage = error?.response?.data?.error || "Failed to sync ETIMS";

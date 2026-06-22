@@ -96,7 +96,7 @@ export const sendEmail = async (
 ): Promise<boolean> => {
     try {
         await axiosInstance.post(EMAIL_URL, params);
-        message.success(successMsg);
+        // message.success(successMsg);
         return true;
     } catch (error: any) {
         message.error(

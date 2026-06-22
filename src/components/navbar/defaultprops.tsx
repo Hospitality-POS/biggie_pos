@@ -4,12 +4,12 @@ import {
   FolderFilled, GlobalOutlined, HomeFilled, HomeOutlined, UserOutlined, SettingOutlined,
   SwapOutlined, UsergroupAddOutlined, WalletOutlined,
   TeamOutlined, NotificationOutlined, AimOutlined, RiseOutlined,
-  MedicineBoxOutlined, MessageOutlined, ArrowUpOutlined, ArrowDownOutlined,
+  MedicineBoxOutlined, MessageOutlined, ArrowUpOutlined,
   AuditOutlined, BankOutlined, CustomerServiceOutlined, AccountBookOutlined,
-  ReconciliationOutlined, BuildOutlined, ShopOutlined,
+  ReconciliationOutlined, BuildOutlined, DollarOutlined, CalendarOutlined,
+   ShopOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
-import React from "react";
 import { makePermissionChecker } from "@utils/accessControl";
 
 // ─── SVG tile helper ──────────────────────────────────────────────────────────
@@ -184,6 +184,15 @@ const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
   "/staff-management": "USERS_VIEW",
 };
 
+const HR_ROUTE_PERMISSIONS: Record<string, string> = {
+  "/hr": "USERS_VIEW",
+  "/hr/employees": "USERS_VIEW",
+  "/hr/payroll": "USERS_VIEW",
+  "/hr/payslips": "USERS_VIEW",
+  "/hr/shifts": "USERS_VIEW",
+  "/hr/deductions": "USERS_VIEW",
+  "/hr/banks": "USERS_VIEW",
+};
 // ─── Top-nav grouping (hybrid) ────────────────────────────────────────────────
 // High-frequency daily items stay flat in the top bar.
 const NAV_FLAT_BARES = ["/home-dashboard", "/accounting", "/tables", "/orders", "/inventory", "/reports"];
@@ -200,16 +209,17 @@ const NAV_SETUP_BARES = ["/Category-settings", "/table-settings", "/suppliers", 
 const getTenantFlags = () => {
   try {
     const stored = localStorage.getItem("tenant");
-    if (!stored) return { hasPOS: true, hasAccounting: false, hasMteja: false, hasDala: false };
+    if (!stored) return { hasPOS: true, hasAccounting: false, hasMteja: false, hasDala: false, hasBandu: false };
     const tenant = JSON.parse(stored);
     return {
       hasPOS: tenant?.pos_integration?.enabled === true,
       hasAccounting: !!(tenant?.accounting_database?.enabled || tenant?.modules?.accounting),
       hasMteja: tenant?.modules?.crm === true,
       hasDala: tenant?.modules?.dala === true,
+      hasBandu: tenant?.modules?.payroll === true,
     };
   } catch {
-    return { hasPOS: true, hasAccounting: false, hasMteja: false, hasDala: false };
+    return { hasPOS: true, hasAccounting: false, hasMteja: false, hasDala: false, hasBandu: false };
   }
 };
 
@@ -248,15 +258,15 @@ const useProLayoutNav = () => {
   const homeRouteName = isHotelMode ? "Rooms" : "POS";
   const homeRouteIcon = isHospitalMode ? <MedicineBoxOutlined /> : <HomeFilled />;
 
-  // Helper to get customer label based on Dala and hospital mode
   const getCustomerLabel = () => {
     if (isHospitalMode) return "Patients";
-    if (hasDala) return "Clients";
+    if (isHotelMode) return "Guests";
     return "Customers";
   };
 
-  const { hasPOS, hasAccounting, hasMteja, hasDala } = getTenantFlags();
-  const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting && !hasDala;
+  const { hasPOS, hasAccounting, hasMteja, hasDala, hasBandu } = getTenantFlags();
+  const isMtejaOnly = hasMteja && !hasPOS && !hasAccounting && !hasDala && !hasBandu;
+  const isBanduOnly = hasBandu && !hasPOS && !hasAccounting && !hasMteja && !hasDala;
 
   const inventoryBarePath = "/inventory";
   const inventoryRoute = {
@@ -486,6 +496,25 @@ const useProLayoutNav = () => {
 
   const dalaRoutes = buildDalaRoutes();
 
+  // ── Bandu (HR & Payroll) routes ───────────────────────────────────────────
+  const buildBanduRoutes = () => {
+    const routesBase = [
+      { path: p("/hr"), name: "HR Dashboard", icon: <TeamOutlined />, _bare: "/hr" },
+      { path: p("/hr/employees"), name: "Employees", icon: <UsergroupAddOutlined />, _bare: "/hr/employees" },
+      { path: p("/hr/payroll"), name: "Payroll", icon: <DollarOutlined />, _bare: "/hr/payroll" },
+      { path: p("/hr/payslips"), name: "Payslips", icon: <FileTextOutlined />, _bare: "/hr/payslips" },
+      { path: p("/hr/shifts"), name: "Shift Schedules", icon: <CalendarOutlined />, _bare: "/hr/shifts" },
+      { path: p("/hr/deductions"), name: "Deductions", icon: <SettingOutlined />, _bare: "/hr/deductions" },
+      { path: p("/hr/banks"), name: "Banks", icon: <BankOutlined />, _bare: "/hr/banks" },
+    ];
+
+    return routesBase
+      .filter((r) => canSee(r._bare, HR_ROUTE_PERMISSIONS))
+      .map(({ _bare: _b, ...rest }) => rest);
+  };
+
+  const banduRoutes = buildBanduRoutes();
+
   // ── App tiles ─────────────────────────────────────────────────────────────
   const currencyTile = {
     icon: makeTile("#0d9488", ICONS.currency),
@@ -684,9 +713,27 @@ const useProLayoutNav = () => {
   };
 
   // ════════════════════════════════════════════════════════════════════════════
-  // CASE 1: Dala ONLY
+  // CASE 1: Bandu ONLY
   // ════════════════════════════════════════════════════════════════════════════
-  if (hasDala && !hasPOS && !hasAccounting && !hasMteja) {
+  if (isBanduOnly) {
+    const banduAppList = [
+      { icon: makeTile("#6c1c2c", ICONS.customers), title: "HR Dashboard", desc: "HR & Payroll overview — employees, attendance and insights.", url: p("/hr"), _bare: "/hr" },
+      { icon: makeTile("#06b6d4", ICONS.customers), title: "Employees", desc: "Manage employee profiles and information.", url: p("/hr/employees"), _bare: "/hr/employees" },
+      { icon: makeTile("#10b981", ICONS.income), title: "Payroll", desc: "Process and manage payroll runs.", url: p("/hr/payroll"), _bare: "/hr/payroll" },
+      { icon: makeTile("#3b82f6", ICONS.invoice), title: "Payslips", desc: "View and manage employee payslips.", url: p("/hr/payslips"), _bare: "/hr/payslips" },
+      { icon: makeTile("#f59e0b", ICONS.settings), title: "Shift Schedules", desc: "Manage employee shift schedules.", url: p("/hr/shifts"), _bare: "/hr/shifts" },
+      { icon: makeTile("#8b5cf6", ICONS.settings), title: "Deductions", desc: "Configure PAYE, NHIF, NSSF and other deductions.", url: p("/hr/deductions"), _bare: "/hr/deductions" },
+    ];
+    return {
+      route: { path: "/", routes: banduRoutes },
+      appList: banduAppList,
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // CASE 2: Dala ONLY
+  // ════════════════════════════════════════════════════════════════════════════
+  if (hasDala && !hasPOS && !hasAccounting && !hasMteja && !hasBandu) {
     return {
       route: { path: "/", routes: dalaRoutes },
       appList: [], // TODO: Add Dala app tiles

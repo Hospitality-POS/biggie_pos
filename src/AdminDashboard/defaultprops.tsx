@@ -7,6 +7,12 @@ import {
   CompassOutlined,
   UsergroupAddOutlined,
   ReconciliationOutlined,
+  TeamOutlined,
+  FileTextOutlined,
+  DollarOutlined,
+  CalendarOutlined,
+  SettingOutlined,
+  BankOutlined,
 } from "@ant-design/icons";
 
 /**
@@ -17,6 +23,7 @@ import {
  *  - Pesa (Accounting) only  → Accounting Dashboard, Branch, Staff, CoA, Reports, Documents, Help
  *  - Duka + Pesa both        → Dashboard, Branch, Staff, POS Reports, Accounting Dashboard, CoA, Reports, Documents, Help
  *  - Mteja ONLY              → Mteja Dashboard, Branch, Staff, Help
+ *  - Bandu ONLY              → HR Dashboard, Employees, Payroll, Payslips, Shifts, Deductions, Reports, Branch, Staff, Help
  *  - Mteja + any other       → Mteja routes hidden; only the other module(s) show
  *
  * Router paths (Routers.tsx) — must match exactly:
@@ -29,6 +36,13 @@ import {
  *  /admin/shop-management
  *  /admin/staff-management
  *  /admin/mteja
+ *  /admin/hr                        ← Bandu HR Dashboard
+ *  /admin/hr/employees              ← Employee Profiles
+ *  /admin/hr/payroll                ← Payroll Management
+ *  /admin/hr/payslips               ← Payslips
+ *  /admin/hr/shifts                 ← Shift Schedules
+ *  /admin/hr/deductions             ← Deduction Rules
+ *  /admin/hr/reports                ← HR Reports
  *  /admin/help-center
  */
 const useAdminProLayoutNav = () => {
@@ -40,23 +54,28 @@ const useAdminProLayoutNav = () => {
   const hasPesa = tenant?.modules?.accounting === true;
   const hasMteja = tenant?.modules?.crm === true;
   const hasDala = tenant?.modules?.dala === true;
+  const hasBandu = tenant?.modules?.payroll === true;
 
-  const isMtejaOnly = hasMteja && !hasDuka && !hasPesa && !hasDala;
+  const isMtejaOnly = hasMteja && !hasDuka && !hasPesa && !hasDala && !hasBandu;
+  const isBanduOnly = hasBandu && !hasDuka && !hasPesa && !hasMteja && !hasDala;
 
   console.log("[AdminNav] Module check:", {
     "Duka (POS)": tenant?.pos_integration?.enabled,
     "Pesa (Accounting)": tenant?.modules?.accounting,
     "Mteja (CRM)": tenant?.modules?.crm,
     "Dala (Real Estate)": tenant?.modules?.dala,
+    "Bandu (HR & Payroll)": tenant?.modules?.payroll,
     hasDuka,
     hasPesa,
     hasMteja,
     hasDala,
+    hasBandu,
     isMtejaOnly,
+    isBanduOnly,
   });
 
   // ── Common routes (always shown) ──────────────────────────────────────────
-  const commonRoutes = [
+  const commonRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [
     { path: "/admin/dashboard", name: "Dashboard", icon: <DashboardOutlined /> },
     { path: "/admin/reports", name: "Reports", icon: <ReconciliationOutlined /> },
     { path: "/admin/shop-management", name: "Branch Management", icon: <ShopOutlined /> },
@@ -64,34 +83,55 @@ const useAdminProLayoutNav = () => {
   ];
 
   // ── Duka (POS) routes ─────────────────────────────────────────────────────
-  const dukaRoutes = [
+  const dukaRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
   // ── Pesa (Accounting) routes ──────────────────────────────────────────────
   // FIX: paths now match router exactly
   //   /admin/accounts          → /admin/accounting/accounts  (was 404)
-  const pesaRoutes = [
+  const pesaRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [
     { path: "/admin/accounting/accounts", name: "Chart of Accounts", icon: <AuditOutlined /> },
     { path: "/admin/documents", name: "Document Center", icon: <FileDoneOutlined /> },
   ];
 
   // ── Mteja (CRM) routes — only when Mteja is the sole module ──────────────
-  const mtejaRoutes = [
+  const mtejaRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [
     { path: "/admin/mteja", name: "Mteja Dashboard", icon: <CustomerServiceOutlined /> },
   ];
 
   // ── Dala (Real Estate) routes ─────────────────────────────────────────────
-  const dalaRoutes = [];
+  const dalaRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [];
+
+  // ── Bandu (HR & Payroll) routes ───────────────────────────────────────────
+  const banduRoutes: Array<{ path: string; name: string; icon?: React.ReactNode }> = [
+    { path: "/admin/hr/employees", name: "Employees", icon: <UsergroupAddOutlined /> },
+    { path: "/admin/hr/payroll", name: "Payroll", icon: <DollarOutlined /> },
+    { path: "/admin/hr/payslips", name: "Payslips", icon: <FileTextOutlined /> },
+    { path: "/admin/hr/shifts", name: "Shift Schedules", icon: <CalendarOutlined /> },
+    { path: "/admin/hr/deductions", name: "Deductions", icon: <SettingOutlined /> },
+    { path: "/admin/hr/banks", name: "Banks", icon: <BankOutlined /> },
+  ];
 
   // ── Help Center (always last) ─────────────────────────────────────────────
-  const helpRoute = {
+  const helpRoute: { path: string; name: string; icon?: React.ReactNode } = {
     path: "/admin/help-center",
     name: "Help Center",
     icon: <CompassOutlined />,
   };
 
-  // ── CASE 1: Mteja ONLY ────────────────────────────────────────────────────
+  // ── CASE 1: Bandu ONLY ────────────────────────────────────────────────────
+  if (isBanduOnly) {
+    console.log("[AdminNav] ✅ Bandu ONLY (HR & Payroll)");
+    return {
+      route: {
+        path: "/admin",
+        routes: [...commonRoutes, helpRoute],
+      },
+    };
+  }
+
+  // ── CASE 2: Mteja ONLY ────────────────────────────────────────────────────
   if (isMtejaOnly) {
     console.log("[AdminNav] ✅ Mteja ONLY");
     return {

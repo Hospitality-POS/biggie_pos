@@ -333,7 +333,7 @@ export const updatePropertyType = async (id: string, data: Partial<PropertyType>
     const response = await axiosInstance.put(`${dalaUrl}/property-types/${id}`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Property type updated successfully");
+    // message.success("Property type updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to update property type";
@@ -347,7 +347,7 @@ export const deletePropertyType = async (id: string) => {
     const response = await axiosInstance.delete(`${dalaUrl}/property-types/${id}`, {
       headers: getDalaHeaders()
     });
-    message.success("Property type deleted successfully");
+    // message.success("Property type deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to delete property type";
@@ -405,7 +405,7 @@ export const updateProperty = async (id: string, data: Partial<Property>) => {
       headers: getDalaHeaders(),
       params: { populate: false }
     });
-    message.success("Property updated successfully");
+    // message.success("Property updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to update property";
@@ -460,7 +460,7 @@ export const createBlock = async (data: Partial<Block>) => {
     const response = await axiosInstance.post(`${dalaUrl}/blocks`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Block created successfully");
+    // message.success("Block created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to create block";
@@ -474,7 +474,7 @@ export const updateBlock = async (id: string, data: Partial<Block>) => {
     const response = await axiosInstance.put(`${dalaUrl}/blocks/${id}`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Block updated successfully");
+    // message.success("Block updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to update block";
@@ -488,7 +488,7 @@ export const deleteBlock = async (id: string) => {
     const response = await axiosInstance.delete(`${dalaUrl}/blocks/${id}`, {
       headers: getDalaHeaders()
     });
-    message.success("Block deleted successfully");
+    // message.success("Block deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to delete block";
@@ -517,7 +517,7 @@ export const createFloor = async (data: Partial<Floor>) => {
     const response = await axiosInstance.post(`${dalaUrl}/floors`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Floor created successfully");
+    // message.success("Floor created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to create floor";
@@ -531,7 +531,7 @@ export const updateFloor = async (id: string, data: Partial<Floor>) => {
     const response = await axiosInstance.put(`${dalaUrl}/floors/${id}`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Floor updated successfully");
+    // message.success("Floor updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to update floor";
@@ -545,7 +545,7 @@ export const deleteFloor = async (id: string) => {
     const response = await axiosInstance.delete(`${dalaUrl}/floors/${id}`, {
       headers: getDalaHeaders()
     });
-    message.success("Floor deleted successfully");
+    // message.success("Floor deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to delete floor";
@@ -592,7 +592,7 @@ export const createUnit = async (data: Partial<Unit>) => {
     const response = await axiosInstance.post(`${dalaUrl}/units`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Unit created successfully");
+    // message.success("Unit created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to create unit";
@@ -606,7 +606,7 @@ export const updateUnit = async (id: string, data: Partial<Unit>) => {
     const response = await axiosInstance.put(`${dalaUrl}/units/${id}`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Unit updated successfully");
+    // message.success("Unit updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to update unit";
@@ -620,7 +620,7 @@ export const deleteUnit = async (id: string) => {
     const response = await axiosInstance.delete(`${dalaUrl}/units/${id}`, {
       headers: getDalaHeaders()
     });
-    message.success("Unit deleted successfully");
+    // message.success("Unit deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to delete unit";
@@ -657,7 +657,7 @@ export const createPropertySale = async (data: Partial<PropertySale>) => {
     const response = await axiosInstance.post(`${dalaUrl}/sales`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Property sale created successfully");
+    // message.success("Property sale created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to create property sale";
@@ -671,7 +671,7 @@ export const updatePropertySale = async (id: string, data: Partial<PropertySale>
     const response = await axiosInstance.put(`${dalaUrl}/sales/${id}`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Property sale updated successfully");
+    // message.success("Property sale updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to update property sale";
@@ -727,7 +727,7 @@ export const recordSalePayment = async (data: {
     const response = await axiosInstance.post(`${dalaUrl}/sale-payments`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Sale payment recorded successfully");
+    // message.success("Sale payment recorded successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to record sale payment";
@@ -743,7 +743,7 @@ export const reverseSalePayment = async (id: string, reversalReason?: string) =>
     }, {
       headers: getDalaHeaders()
     });
-    message.success("Sale payment reversed successfully");
+    // message.success("Sale payment reversed successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to reverse sale payment";
@@ -896,7 +896,7 @@ export const activateLease = async (id: string) => {
     const response = await axiosInstance.post(`${dalaUrl}/leases/${id}/activate`, {}, {
       headers: getDalaHeaders()
     });
-    message.success("Lease activated successfully");
+    // message.success("Lease activated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to activate lease";
@@ -913,7 +913,7 @@ export const noticeLease = async (id: string, data: {
     const response = await axiosInstance.post(`${dalaUrl}/leases/${id}/notice`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Notice period set successfully");
+    // message.success("Notice period set successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to set notice period";
@@ -930,7 +930,7 @@ export const terminateLease = async (id: string, data: {
     const response = await axiosInstance.post(`${dalaUrl}/leases/${id}/terminate`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Lease terminated successfully");
+    // message.success("Lease terminated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to terminate lease";
@@ -948,7 +948,7 @@ export const renewLease = async (id: string, data: {
     const response = await axiosInstance.post(`${dalaUrl}/leases/${id}/renew`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Lease renewed successfully");
+    // message.success("Lease renewed successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to renew lease";
@@ -1006,7 +1006,7 @@ export const recordRentPayment = async (data: {
     const response = await axiosInstance.post(`${dalaUrl}/rent-payments`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Rent payment recorded successfully");
+    // message.success("Rent payment recorded successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to record rent payment";
@@ -1022,7 +1022,7 @@ export const reverseRentPayment = async (id: string, reversalReason?: string) =>
     }, {
       headers: getDalaHeaders()
     });
-    message.success("Payment reversed successfully");
+    // message.success("Payment reversed successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to reverse payment";
@@ -1078,7 +1078,7 @@ export const createRentInvoice = async (data: {
     const response = await axiosInstance.post(`${dalaUrl}/rent-invoices`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Invoice created successfully");
+    // message.success("Invoice created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to create invoice";
@@ -1092,7 +1092,7 @@ export const issueRentInvoice = async (id: string) => {
     const response = await axiosInstance.post(`${dalaUrl}/rent-invoices/${id}/issue`, {}, {
       headers: getDalaHeaders()
     });
-    message.success("Invoice issued successfully");
+    // message.success("Invoice issued successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to issue invoice";
@@ -1106,7 +1106,7 @@ export const waiveRentInvoice = async (id: string, reason?: string) => {
     const response = await axiosInstance.post(`${dalaUrl}/rent-invoices/${id}/waive`, { reason }, {
       headers: getDalaHeaders()
     });
-    message.success("Invoice waived successfully");
+    // message.success("Invoice waived successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to waive invoice";
@@ -1186,7 +1186,7 @@ export const createMaintenanceTicket = async (data: any) => {
     const response = await axiosInstance.post(`${dalaUrl}/maintenance`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Maintenance ticket created successfully");
+    // message.success("Maintenance ticket created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to create maintenance ticket";
@@ -1200,7 +1200,7 @@ export const updateMaintenanceTicket = async (id: string, data: any) => {
     const response = await axiosInstance.put(`${dalaUrl}/maintenance/${id}`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Maintenance ticket updated successfully");
+    // message.success("Maintenance ticket updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to update maintenance ticket";
@@ -1214,7 +1214,7 @@ export const deleteMaintenanceTicket = async (id: string) => {
     const response = await axiosInstance.delete(`${dalaUrl}/maintenance/${id}`, {
       headers: getDalaHeaders()
     });
-    message.success("Maintenance ticket deleted successfully");
+    // message.success("Maintenance ticket deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to delete maintenance ticket";
@@ -1228,7 +1228,7 @@ export const updateMaintenanceTicketStatus = async (id: string, data: any) => {
     const response = await axiosInstance.patch(`${dalaUrl}/maintenance/${id}/status`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Ticket status updated successfully");
+    // message.success("Ticket status updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to update ticket status";
@@ -1242,7 +1242,7 @@ export const addMaintenanceTicketUpdate = async (id: string, data: any) => {
     const response = await axiosInstance.post(`${dalaUrl}/maintenance/${id}/updates`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Ticket update added successfully");
+    // message.success("Ticket update added successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to add ticket update";
@@ -1256,7 +1256,7 @@ export const addMaintenanceTicketCost = async (id: string, data: any) => {
     const response = await axiosInstance.post(`${dalaUrl}/maintenance/${id}/costs`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Ticket cost added successfully");
+    // message.success("Ticket cost added successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to add ticket cost";
@@ -1331,7 +1331,7 @@ export const createMaintenanceCategory = async (data: Partial<MaintenanceCategor
     const response = await axiosInstance.post(`${dalaUrl}/maintenance-categories`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Maintenance category created successfully");
+    // message.success("Maintenance category created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to create maintenance category";
@@ -1345,7 +1345,7 @@ export const updateMaintenanceCategory = async (id: string, data: Partial<Mainte
     const response = await axiosInstance.put(`${dalaUrl}/maintenance-categories/${id}`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Maintenance category updated successfully");
+    // message.success("Maintenance category updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to update maintenance category";
@@ -1359,7 +1359,7 @@ export const deleteMaintenanceCategory = async (id: string) => {
     const response = await axiosInstance.delete(`${dalaUrl}/maintenance-categories/${id}`, {
       headers: getDalaHeaders()
     });
-    message.success("Maintenance category deleted successfully");
+    // message.success("Maintenance category deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to delete maintenance category";
@@ -1373,7 +1373,7 @@ export const toggleMaintenanceCategoryStatus = async (id: string) => {
     const response = await axiosInstance.patch(`${dalaUrl}/maintenance-categories/${id}/toggle-status`, {}, {
       headers: getDalaHeaders()
     });
-    message.success("Category status updated successfully");
+    // message.success("Category status updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to toggle category status";
@@ -1387,7 +1387,7 @@ export const reorderMaintenanceCategories = async (data: { categories: Array<{ i
     const response = await axiosInstance.post(`${dalaUrl}/maintenance-categories/reorder`, data, {
       headers: getDalaHeaders()
     });
-    message.success("Categories reordered successfully");
+    // message.success("Categories reordered successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to reorder categories";

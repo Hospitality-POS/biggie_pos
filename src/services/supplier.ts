@@ -22,7 +22,7 @@ export const addNewSupplier = async (params: ParamsType) => {
     const response = await axiosInstance.post(`${supplierUrl}`, {
       ...params,
     });
-    message.success("Supplier added successfully");
+    // message.success("Supplier added successfully");
     return response.data;
   } catch (error) {
     throw new Error(error);
@@ -34,7 +34,7 @@ export const editSupplier = async (params: ParamsType) => {
     const response = await axiosInstance.put(`${supplierUrl}/${params?._id}`, {
       ...params.value,
     });
-    message.success("Supplier updated successfully");
+    // message.success("Supplier updated successfully");
     return response.data;
   } catch (error) {
     throw new Error(error);

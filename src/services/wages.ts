@@ -131,7 +131,7 @@ export const updateWage = async (data: ParamsType) => {
             }
         });
 
-        message.success("Wage updated successfully");
+        // message.success("Wage updated successfully");
         return response.data;
     } catch (error: any) {
         console.error("Error updating wage:", error);
@@ -174,7 +174,7 @@ export const addWage = async (wageData: any) => {
             }
         });
 
-        message.success("Wage added successfully");
+        // message.success("Wage added successfully");
         return response.data;
     } catch (error: any) {
         console.error("Error adding wage:", error);
@@ -211,7 +211,7 @@ export const addWagesBulk = async (wagesData: any[]) => {
             }
         });
 
-        message.success("Wages added successfully");
+        // message.success("Wages added successfully");
         return response.data;
     } catch (error: any) {
         console.error("Error adding wages:", error);
@@ -225,7 +225,7 @@ export const addWagesBulk = async (wagesData: any[]) => {
 export const deactivateWage = async (id: string) => {
     try {
         const response = await axiosInstance.put(`${wageUrl}/${id}/deactivate`);
-        message.success("Wage deactivated successfully");
+        // message.success("Wage deactivated successfully");
         return response.data;
     } catch (error: any) {
         console.error("Error deactivating wage:", error);

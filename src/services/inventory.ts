@@ -139,7 +139,7 @@ export const downloadInventoryTemplate = async (): Promise<void> => {
     link.remove();
     window.URL.revokeObjectURL(url);
 
-    message.success("Template downloaded successfully");
+    // message.success("Template downloaded successfully");
   } catch (error) {
     console.error("Error downloading inventory template:", error);
     message.error("Failed to download template");
@@ -201,9 +201,9 @@ export const importInventoryFromExcel = async (
       const updatedMsg = data.summary.updated > 0 ? `${data.summary.updated} item(s) updated` : "";
       const itemsMsg = [createdMsg, updatedMsg].filter(Boolean).join(", ");
       const skippedMsg = data.summary.skipped > 0 ? `, ${data.summary.skipped} skipped` : "";
-      message.success(
-        `Import complete — ${itemsMsg}${skippedMsg}${autoNote}`
-      );
+      // message.success(
+    //   `Import complete — ${itemsMsg}${skippedMsg}${autoNote}`
+    // );
     } else if (data.summary.errors > 0) {
       const firstErr = data.errors?.[0];
       message.warning(
@@ -312,7 +312,7 @@ export const addNewInventory = async (params) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Failed to add inventory");
 
-      message.success("Inventory added successfully");
+      // message.success("Inventory added successfully");
       return data;
     } else {
       const subcategory_id = params.subcategory_id?.value || params.subcategory_id;
@@ -329,7 +329,7 @@ export const addNewInventory = async (params) => {
         shop_id: shopId
       });
 
-      message.success("Inventory added successfully");
+      // message.success("Inventory added successfully");
       return response.data;
     }
   } catch (error) {
@@ -429,7 +429,7 @@ export const deleteInventory = async (inventoryId: string) => {
     const response = await axiosInstance.delete(`${inventoryUrl}/${inventoryId}`, {
       data: { tenant }
     });
-    message.success("Inventory deleted successfully");
+    // message.success("Inventory deleted successfully");
     return response.data;
   } catch (error) {
     console.error("Error deleting inventory:", error);
@@ -571,7 +571,7 @@ export const completeTransfer = async (transferId: string, params?: CompleteTran
 export const rejectTransfer = async (transferId: string, params: RejectTransferParams) => {
   try {
     const response = await axiosInstance.post(`${transferUrl}/${transferId}/reject`, params);
-    message.success("Transfer rejected successfully");
+    // message.success("Transfer rejected successfully");
     return response.data;
   } catch (error) {
     console.error("Error rejecting transfer:", error);
@@ -584,7 +584,7 @@ export const rejectTransfer = async (transferId: string, params: RejectTransferP
 export const cancelTransfer = async (transferId: string) => {
   try {
     const response = await axiosInstance.post(`${transferUrl}/${transferId}/cancel`, {});
-    message.success("Transfer cancelled successfully");
+    // message.success("Transfer cancelled successfully");
     return response.data;
   } catch (error) {
     console.error("Error cancelling transfer:", error);

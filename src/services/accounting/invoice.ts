@@ -273,7 +273,7 @@ export const createInvoice = async (data: CreateInvoiceParams) => {
             `${BASE_URL}/accounting/invoices`,
             data
         );
-        message.success("Invoice created successfully");
+        // message.success("Invoice created successfully");
         return response.data as {
             invoice: Invoice;
             items: InvoiceLineItem[];
@@ -309,7 +309,7 @@ export const updateInvoice = async (id: string, data: Partial<{
             `${BASE_URL}/accounting/invoices/${id}`,
             data
         );
-        message.success("Invoice updated");
+        // message.success("Invoice updated");
         return response.data as { invoice: Invoice };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -331,7 +331,7 @@ export const voidInvoice = async (id: string, reason: string) => {
             `${BASE_URL}/accounting/invoices/${id}/void`,
             { reason }
         );
-        message.success("Invoice voided");
+        // message.success("Invoice voided");
         return response.data as { invoice: Invoice };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -361,7 +361,7 @@ export const recordInvoicePayment = async (
             `${BASE_URL}/accounting/invoices/${invoiceId}/payment`,
             data
         );
-        message.success("Payment recorded successfully");
+        // message.success("Payment recorded successfully");
         return response.data as {
             payment: InvoicePaymentRef;
             invoice: Invoice;
@@ -416,7 +416,7 @@ export const convertQuoteToInvoice = async (
             `${BASE_URL}/accounting/invoices/${id}/convert`,
             data || {}
         );
-        message.success("Quote converted to invoice — posted to books");
+        // message.success("Quote converted to invoice — posted to books");
         return response.data as { invoice: Invoice };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -439,7 +439,7 @@ export const deleteInvoice = async (id: string) => {
         const response = await axiosInstance.delete(
             `${BASE_URL}/accounting/invoices/${id}`
         );
-        message.success("Invoice deleted successfully");
+        // message.success("Invoice deleted successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -465,7 +465,7 @@ export const duplicateInvoice = async (id: string) => {
         const response = await axiosInstance.post(
             `${BASE_URL}/accounting/invoices/${id}/duplicate`
         );
-        message.success(`Invoice duplicated: ${response.data.invoice.order_no}`);
+        // message.success(`Invoice duplicated: ${response.data.invoice.order_no}`);
         return response.data as {
             invoice: Invoice;
             items: InvoiceLineItem[];

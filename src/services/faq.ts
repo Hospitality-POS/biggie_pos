@@ -33,7 +33,7 @@ export const addNewFaqCategory = async (params: ParamsType) => {
         const response = await axiosInstance.post(`${faq_url}/category`, {
             name: params.name,
         });
-        message.success("FAQ category added successfully");
+        // message.success("FAQ category added successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {
@@ -51,7 +51,7 @@ export const updateFaqCategory = async (data: ParamsType) => {
                 name: data?.name || data?.values?.name,
             }
         );
-        message.success("FAQ category updated successfully");
+        // message.success("FAQ category updated successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {
@@ -64,7 +64,7 @@ export const updateFaqCategory = async (data: ParamsType) => {
 export const deleteFaqCategory = async (id: string) => {
     try {
         const response = await axiosInstance.delete(`${faq_url}/category/${id}`);
-        message.success("FAQ category deleted successfully");
+        // message.success("FAQ category deleted successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status === 400) {
@@ -110,7 +110,7 @@ export const addNewFaq = async (params: ParamsType) => {
             answer: params.answer,
             faq_category_id: params.faq_category_id?._id || params.faq_category_id,
         });
-        message.success("FAQ added successfully");
+        // message.success("FAQ added successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {
@@ -131,7 +131,7 @@ export const updateFaq = async (data: ParamsType) => {
                 data?.faq_category_id ||
                 data?.values?.faq_category_id,
         });
-        message.success("FAQ updated successfully");
+        // message.success("FAQ updated successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {
@@ -144,7 +144,7 @@ export const updateFaq = async (data: ParamsType) => {
 export const deleteFaq = async (id: string) => {
     try {
         const response = await axiosInstance.delete(`${faq_url}/${id}`);
-        message.success("FAQ deleted successfully");
+        // message.success("FAQ deleted successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {

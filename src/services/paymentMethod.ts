@@ -23,7 +23,7 @@ export const fetchAllPaymentMethods = async (data?: ParamsType) => {
 export const addNewPaymentDetail = async (params: ParamsType) => {
   try {
     const response = await axiosInstance.post(paymentDetailUrl + '/new-payment-detail', params, { headers });
-    message.success("Payment detail created successfully");
+    // message.success("Payment detail created successfully");
     return response.data;
   } catch (error) {
     message.error("Failed to add new payment detail");
@@ -57,7 +57,7 @@ export const updateDetail = async (data: ParamsType) => {
       data?.values,
       { headers }
     );
-    message.success("Payment detail updated successfully");
+    // message.success("Payment detail updated successfully");
     return response.data;
   } catch (error) {
     message.error("Failed to update payment detail");
@@ -68,7 +68,7 @@ export const updateDetail = async (data: ParamsType) => {
 export const addNewPaymentMethod = async (params: ParamsType) => {
   try {
     const response = await axiosInstance.post(method_url, params, { headers });
-    message.success("Payment method created successfully");
+    // message.success("Payment method created successfully");
     return response.data;
   } catch (error) {
     message.error("Failed to add new payment method");
@@ -79,7 +79,7 @@ export const addNewPaymentMethod = async (params: ParamsType) => {
 export const makeSubscriptionPayment = async (params: ParamsType) => {
   try {
     const response = await axiosInstance.post(method_url + '/make-payment', params, { headers });
-    message.success("Payment submitted successfully");
+    // message.success("Payment submitted successfully");
     return response.data;
   } catch (error) {
     message.error("Failed to make payment");
@@ -91,7 +91,7 @@ export const makeSubscriptionPayment = async (params: ParamsType) => {
 export const updateMethod = async (data: ParamsType) => {
   try {
     const response = await axiosInstance.put(`${method_url}/${data?._id}`, data?.values, { headers })
-    message.success("Payment method updated successfully");
+    // message.success("Payment method updated successfully");
     return response.data
   } catch (error) {
     message.error("Failed to update payment method");

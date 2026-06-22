@@ -138,7 +138,7 @@ export const createDepartment = createAsyncThunk(
     async (data: CreateDepartmentData, { rejectWithValue }) => {
         try {
             const response = await axiosInstance.post(BASE, data);
-            message.success("Department created successfully");
+            // message.success("Department created successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to create department";
@@ -160,7 +160,7 @@ export const updateDepartment = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.put(`${BASE}/${id}`, data);
-            message.success("Department updated successfully");
+            // message.success("Department updated successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update department";
@@ -187,11 +187,11 @@ export const assignUsersToDepartment = createAsyncThunk(
                 user_ids,
                 mode,
             });
-            message.success(
-                mode === "remove"
-                    ? "Users removed from department"
-                    : "Users assigned to department"
-            );
+            // message.success(
+            //     mode === "remove"
+            //         ? "Users removed from department"
+            //         : "Users assigned to department"
+            // );
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to assign users";
@@ -211,7 +211,7 @@ export const deleteDepartment = createAsyncThunk(
     async (id: string, { rejectWithValue }) => {
         try {
             const response = await axiosInstance.delete(`${BASE}/${id}`);
-            message.success("Department deleted successfully");
+            // message.success("Department deleted successfully");
             return { id, members_unassigned: response.data?.members_unassigned ?? 0 };
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to delete department";

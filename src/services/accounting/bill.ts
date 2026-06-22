@@ -246,7 +246,7 @@ export const createBill = async (data: CreateBillParams) => {
             `${BASE_URL}/accounting/bills`,
             data
         );
-        message.success("Bill created successfully");
+        // message.success("Bill created successfully");
         return response.data as {
             bill: Bill;
             payment: BillPaymentRef | null;
@@ -272,7 +272,7 @@ export const updateBill = async (id: string, data: UpdateBillParams) => {
             `${BASE_URL}/accounting/bills/${id}`,
             data
         );
-        message.success("Bill updated");
+        // message.success("Bill updated");
         return response.data as { bill: Bill };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -303,7 +303,7 @@ export const recordBillPayment = async (
             `${BASE_URL}/accounting/bills/${billId}/payment`,
             data
         );
-        message.success("Payment recorded successfully");
+        // message.success("Payment recorded successfully");
         return response.data as {
             payment: BillPaymentRef;
             bill: Bill;
@@ -328,7 +328,7 @@ export const voidBill = async (id: string, reason: string) => {
             `${BASE_URL}/accounting/bills/${id}/void`,
             { reason }
         );
-        message.success("Bill voided");
+        // message.success("Bill voided");
         return response.data as { bill: Bill };
     } catch (error) {
         if (error?.response?.data?.message) {

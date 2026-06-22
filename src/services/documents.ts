@@ -307,7 +307,7 @@ export const updateFolder = async (
 ): Promise<DocumentRecord> => {
     try {
         const response = await axiosInstance.put(`${documentUrl}/folders/${folderId}`, params, { headers });
-        message.success("Folder updated successfully");
+        // message.success("Folder updated successfully");
         return response.data.folder;
     } catch (error) {
         if (error?.response?.status !== 403) message.error("Failed to update folder");
@@ -321,7 +321,7 @@ export const updateFolder = async (
 export const deleteFolder = async (folderId: string): Promise<void> => {
     try {
         await axiosInstance.delete(`${documentUrl}/folders/${folderId}`, { headers });
-        message.success("Folder deleted successfully");
+        // message.success("Folder deleted successfully");
     } catch (error) {
         if (error?.response?.status !== 403) message.error("Failed to delete folder");
         throw error;
@@ -438,7 +438,7 @@ export const createDocument = async (params: {
             );
         }
 
-        message.success("Document created successfully");
+        // message.success("Document created successfully");
         return response.data.document;
     } catch (error) {
         if (error?.response?.status !== 403) message.error("Failed to create document");
@@ -528,7 +528,7 @@ export const updateDocument = async (
             );
         }
 
-        message.success("Document updated successfully");
+        // message.success("Document updated successfully");
         return response.data.document;
     } catch (error) {
         if (error?.response?.status !== 403) message.error("Failed to update document");
@@ -554,7 +554,7 @@ export const updateDocumentStatus = async (
             { status, meta },
             { headers }
         );
-        message.success("Status updated successfully");
+        // message.success("Status updated successfully");
         return response.data.document;
     } catch (error) {
         if (error?.response?.status !== 403) message.error("Failed to update status");
@@ -568,7 +568,7 @@ export const updateDocumentStatus = async (
 export const deleteDocument = async (documentId: string): Promise<void> => {
     try {
         await axiosInstance.delete(`${documentUrl}/${documentId}`, { headers });
-        message.success("Document deleted successfully");
+        // message.success("Document deleted successfully");
     } catch (error) {
         if (error?.response?.status !== 403) message.error("Failed to delete document");
         throw error;
@@ -664,9 +664,9 @@ export const embedAllDocuments = async (params?: EmbedBatchParams): Promise<Embe
             },
             { headers }
         );
-        message.success(
-            `Embeddings updated: ${response.data.success} succeeded, ${response.data.failed} failed`
-        );
+        // message.success(
+        //     `Embeddings updated: ${response.data.success} succeeded, ${response.data.failed} failed`
+        // );
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) message.error("Failed to run batch embedding");
@@ -745,7 +745,7 @@ export const addAttachments = async (
             formData,
             { headers: { ...headers, "Content-Type": undefined } }
         );
-        message.success(`${files.length} file(s) uploaded successfully`);
+        // message.success(`${files.length} file(s) uploaded successfully`);
         return response.data.attachments;
     } catch (error) {
         if (error?.response?.status !== 403) message.error("Failed to upload attachments");
@@ -766,7 +766,7 @@ export const removeAttachments = async (
             `${documentUrl}/${documentId}/attachments`,
             { headers, data: { file_urls: fileUrls } }
         );
-        message.success("Attachment(s) removed successfully");
+        // message.success("Attachment(s) removed successfully");
         return response.data.attachments;
     } catch (error) {
         if (error?.response?.status !== 403) message.error("Failed to remove attachments");

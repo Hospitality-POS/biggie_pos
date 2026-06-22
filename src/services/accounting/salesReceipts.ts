@@ -162,7 +162,7 @@ export const updateSalesReceipt = async (
 ): Promise<{ message: string; receipt: SalesReceipt }> => {
     try {
         const response = await axiosInstance.put(`${API_BASE}/${id}`, data);
-        message.success("Sales receipt updated successfully");
+        // message.success("Sales receipt updated successfully");
         return response.data;
     } catch (error: any) {
         message.error(error.response?.data?.message || "Failed to update sales receipt");
@@ -173,7 +173,7 @@ export const updateSalesReceipt = async (
 export const postSalesReceipt = async (id: string): Promise<{ message: string; receipt: SalesReceipt; journal_entry: any }> => {
     try {
         const response = await axiosInstance.patch(`${API_BASE}/${id}/post`);
-        message.success("Sales receipt posted successfully");
+        // message.success("Sales receipt posted successfully");
         return response.data;
     } catch (error: any) {
         message.error(error.response?.data?.message || "Failed to post sales receipt");
@@ -184,7 +184,7 @@ export const postSalesReceipt = async (id: string): Promise<{ message: string; r
 export const voidSalesReceipt = async (id: string, reason: string): Promise<{ message: string; receipt: SalesReceipt }> => {
     try {
         const response = await axiosInstance.patch(`${API_BASE}/${id}/void`, { reason });
-        message.success("Sales receipt voided successfully");
+        // message.success("Sales receipt voided successfully");
         return response.data;
     } catch (error: any) {
         message.error(error.response?.data?.message || "Failed to void sales receipt");
@@ -209,7 +209,7 @@ export const getSalesReceiptSummary = async (params: {
 export const fixVoidedJournalEntries = async (): Promise<{ message: string; fixed_count: number }> => {
     try {
         const response = await axiosInstance.post(`${API_BASE}/fix-voided-journals`);
-        message.success(`Fixed ${response.data.fixed_count} voided journal entries`);
+        // message.success(`Fixed ${response.data.fixed_count} voided journal entries`);
         return response.data;
     } catch (error: any) {
         message.error(error.response?.data?.message || "Failed to fix voided journal entries");

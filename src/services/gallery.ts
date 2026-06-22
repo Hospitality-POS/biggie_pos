@@ -40,7 +40,7 @@ export const uploadImage = async (formData: FormData) => {
                 'Content-Type': 'multipart/form-data',
             },
         });
-        message.success("Image uploaded successfully");
+        // message.success("Image uploaded successfully");
         return response.data;
     } catch (error) {
         console.error("Upload error:", error);
@@ -75,7 +75,7 @@ export const updateImage = async (imageId: string, data: ParamsType, newFile?: F
                 'Content-Type': 'multipart/form-data',
             },
         });
-        message.success("Image updated successfully");
+        // message.success("Image updated successfully");
         return response.data;
     } catch (error) {
         console.error("Update error:", error);
@@ -90,7 +90,7 @@ export const updateImage = async (imageId: string, data: ParamsType, newFile?: F
 export const deleteImage = async (id: string) => {
     try {
         const response = await axiosInstance.delete(`${gallery_url}/delete/${id}`);
-        message.success("Image deleted successfully");
+        // message.success("Image deleted successfully");
         return response.data;
     } catch (error) {
         console.error("Delete error:", error);
@@ -105,7 +105,7 @@ export const deleteImage = async (id: string) => {
 export const toggleImageStatus = async (id: string) => {
     try {
         const response = await axiosInstance.patch(`${gallery_url}/toggle-status/${id}`);
-        message.success("Image status updated successfully");
+        // message.success("Image status updated successfully");
         return response.data;
     } catch (error) {
         console.error("Toggle status error:", error);

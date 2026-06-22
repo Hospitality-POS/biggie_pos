@@ -101,7 +101,7 @@ export const addNewNotification = async (params: ParamsType) => {
             relatedData: params.relatedData,
             expiresAt: params.expiresAt,
         });
-        message.success("Notification added successfully");
+        // message.success("Notification added successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {
@@ -117,7 +117,7 @@ export const addBulkNotifications = async (notifications: Array<ParamsType>) => 
         const response = await axiosInstance.post(`${notification_url}/bulk`, {
             notifications,
         });
-        message.success(`${response.data.count} notifications added successfully`);
+        // message.success(`${response.data.count} notifications added successfully`);
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {
@@ -142,7 +142,7 @@ export const updateNotification = async (data: ParamsType) => {
                 expiresAt: data?.expiresAt || data?.values?.expiresAt,
             }
         );
-        message.success("Notification updated successfully");
+        // message.success("Notification updated successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {
@@ -156,7 +156,7 @@ export const updateNotification = async (data: ParamsType) => {
 export const deleteNotification = async (id: string) => {
     try {
         const response = await axiosInstance.delete(`${notification_url}/${id}`);
-        message.success("Notification deleted successfully");
+        // message.success("Notification deleted successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {
@@ -172,7 +172,7 @@ export const deleteBulkNotifications = async (criteria: ParamsType) => {
         const response = await axiosInstance.delete(`${notification_url}/bulk`, {
             data: criteria, // For DELETE requests, data must be in the 'data' property
         });
-        message.success(`${response.data.deletedCount} notifications deleted successfully`);
+        // message.success(`${response.data.deletedCount} notifications deleted successfully`);
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {
@@ -202,7 +202,7 @@ export const markAllNotificationsAsRead = async (filters?: { priority?: string; 
                 ...filters,
             },
         });
-        message.success("All notifications marked as read");
+        // message.success("All notifications marked as read");
         return response.data;
     } catch (error) {
         console.log(error);
@@ -214,7 +214,7 @@ export const markAllNotificationsAsRead = async (filters?: { priority?: string; 
 export const markAllUserNotificationsAsRead = async (userId: string) => {
     try {
         const response = await axiosInstance.patch(`${notification_url}/mark-all-read/${userId}`);
-        message.success("All notifications for user marked as read");
+        // message.success("All notifications for user marked as read");
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {
@@ -239,7 +239,7 @@ export const getNotificationCountsByType = async () => {
 export const deleteExpiredNotifications = async () => {
     try {
         const response = await axiosInstance.delete(`${notification_url}/cleanup/expired`);
-        message.success(`${response.data.deletedCount} expired notifications deleted`);
+        // message.success(`${response.data.deletedCount} expired notifications deleted`);
         return response.data;
     } catch (error) {
         if (error?.response?.status !== 403) {

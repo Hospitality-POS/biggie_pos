@@ -106,7 +106,7 @@ export const uploadPropertyDocument = async (
         }
       }
     );
-    message.success("Document uploaded successfully");
+    // message.success("Document uploaded successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.response?.data?.error || "Failed to upload document";
@@ -146,7 +146,7 @@ export const updatePropertyDocument = async (
         }
       }
     );
-    message.success("Document updated successfully");
+    // message.success("Document updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.response?.data?.error || "Failed to update document";
@@ -164,7 +164,7 @@ export const deletePropertyDocument = async (property_id: string, document_id: s
         headers: getDalaHeaders()
       }
     );
-    message.success("Document deleted successfully");
+    // message.success("Document deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.response?.data?.error || "Failed to delete document";

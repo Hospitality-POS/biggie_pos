@@ -69,7 +69,7 @@ export const fetchAllShops = async (params?: ParamsType) => {
 export const createShop = async (params: ParamsType) => {
   try {
     const response = await axiosInstance.post(url, params);
-    message.success("Shop created successfully");
+    // message.success("Shop created successfully");
     return response.data;
   } catch (error: any) {
     if (error?.response?.status !== 403) {
@@ -82,7 +82,7 @@ export const createShop = async (params: ParamsType) => {
 export const updateShop = async (params: ParamsType) => {
   try {
     const response = await axiosInstance.put(`${url}/${params?._id}`, params);
-    message.success("Shop updated successfully");
+    // message.success("Shop updated successfully");
     return response.data;
   } catch (error: any) {
     if (error?.response?.status !== 403) {
@@ -95,7 +95,7 @@ export const updateShop = async (params: ParamsType) => {
 export const updatePosMode = async (shopId: string, posMode: "restaurant" | "retail") => {
   try {
     const response = await axiosInstance.patch(`${url}/${shopId}/pos-mode`, { pos_mode: posMode });
-    message.success("POS mode updated");
+    // message.success("POS mode updated");
     return response.data;
   } catch (error: any) {
     if (error?.response?.status !== 403) {
@@ -114,7 +114,7 @@ export const updateShopPrintSettings = async (
       `${BASE_URL}/printed-documents/shop-settings/${shopId}`,
       settings
     );
-    message.success("Print settings saved");
+    // message.success("Print settings saved");
     return true;
   } catch (error: any) {
     if (error?.response?.status !== 403) {
@@ -127,7 +127,7 @@ export const updateShopPrintSettings = async (
 export const deleteShop = async (id: string) => {
   try {
     const response = await axiosInstance.delete(`${url}/${id}`);
-    message.success("Shop deleted successfully");
+    // message.success("Shop deleted successfully");
     return response.data;
   } catch (error: any) {
     if (error?.response?.status !== 403) {

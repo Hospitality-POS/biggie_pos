@@ -19,7 +19,7 @@ export const applyForLeave = async (params: {
 }) => {
     try {
         const response = await axiosInstance.post(`${hr_url}/leave`, params);
-        message.success("Leave application submitted successfully");
+        // message.success("Leave application submitted successfully");
         return response.data;
     } catch (error: any) {
         const errorMessage =
@@ -68,7 +68,7 @@ export const approveLeave = createAsyncThunk(
     async (leaveId: string, { rejectWithValue }) => {
         try {
             const response = await axiosInstance.patch(`${hr_url}/leave/${leaveId}/approve`);
-            message.success("Leave approved successfully");
+            // message.success("Leave approved successfully");
             return response.data;
         } catch (error: any) {
             const errorMessage =
@@ -91,7 +91,7 @@ export const rejectLeave = createAsyncThunk(
                 `${hr_url}/leave/${leaveId}/reject`,
                 { rejection_reason }
             );
-            message.success("Leave rejected");
+            // message.success("Leave rejected");
             return response.data;
         } catch (error: any) {
             const errorMessage =
@@ -108,7 +108,7 @@ export const cancelLeave = createAsyncThunk(
     async (leaveId: string, { rejectWithValue }) => {
         try {
             const response = await axiosInstance.patch(`${hr_url}/leave/${leaveId}/cancel`);
-            message.success("Leave cancelled");
+            // message.success("Leave cancelled");
             return response.data;
         } catch (error: any) {
             const errorMessage =
@@ -153,7 +153,7 @@ export const seedLeaveBalance = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.post(`${hr_url}/leave/balance/seed`, data);
-            message.success("Leave balances updated successfully");
+            // message.success("Leave balances updated successfully");
             return response.data;
         } catch (error: any) {
             const errorMessage =
@@ -172,7 +172,7 @@ export const seedLeaveBalance = createAsyncThunk(
 export const clockIn = async () => {
     try {
         const response = await axiosInstance.post(`${hr_url}/attendance/clock-in`);
-        message.success(response.data?.message || "Clocked in successfully");
+        // message.success(response.data?.message || "Clocked in successfully");
         return response.data;
     } catch (error: any) {
         const errorMessage =
@@ -186,7 +186,7 @@ export const clockIn = async () => {
 export const clockOut = async () => {
     try {
         const response = await axiosInstance.post(`${hr_url}/attendance/clock-out`);
-        message.success(response.data?.message || "Clocked out successfully");
+        // message.success(response.data?.message || "Clocked out successfully");
         return response.data;
     } catch (error: any) {
         const errorMessage =
@@ -264,7 +264,7 @@ export const fetchAttendanceReport = async (params: {
                 send_email: params.send_email ? "true" : undefined,
             },
         });
-        if (params.send_email) message.success("Attendance report emailed successfully");
+        if (params.send_email) // message.success("Attendance report emailed successfully");
         return response.data;
     } catch (error: any) {
         console.error("Error fetching attendance report:", error);
@@ -281,7 +281,7 @@ export const reconcileAttendance = createAsyncThunk(
             const response = await axiosInstance.post(`${hr_url}/attendance/reconcile`, {
                 date,
             });
-            message.success(response.data?.message || "Attendance reconciled successfully");
+            // message.success(response.data?.message || "Attendance reconciled successfully");
             return response.data;
         } catch (error: any) {
             const errorMessage =

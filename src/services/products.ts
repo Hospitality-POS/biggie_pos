@@ -96,7 +96,7 @@ export const addNewProduct = async (params: ParamsType) => {
       const data = await fetchResponse.json();
       if (!fetchResponse.ok) throw new Error(data.message || "Failed to create product");
 
-      message.success("Product added successfully");
+      // message.success("Product added successfully");
       return data;
     } else {
       const { thumbnailFile: _, ...cleanParams } = params;
@@ -112,7 +112,7 @@ export const addNewProduct = async (params: ParamsType) => {
         headers: { ...(companyCode ? { 'companyCode': companyCode } : {}) },
       });
 
-      message.success("Product added successfully");
+      // message.success("Product added successfully");
       return response.data;
     }
   } catch (error) {
@@ -169,7 +169,7 @@ export const editProduct = async (data: any, silent = false) => {
 
     // Only show the toast when NOT in a bulk operation
     if (!silent) {
-      message.success("Product updated successfully");
+      // message.success("Product updated successfully");
     }
 
     return response.data;
@@ -189,7 +189,7 @@ export const deleteProduct = async (productId: string) => {
       headers,
       data: { tenant },
     });
-    message.success("Product deleted successfully");
+    // message.success("Product deleted successfully");
     return productId;
   } catch (error) {
     if (error?.response?.status !== 403) message.error("Failed to delete product");

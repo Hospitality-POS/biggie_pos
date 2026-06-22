@@ -65,15 +65,7 @@ const useTenantConfig = () => {
   const isDalaOnly = hasDala && !hasPOS && !hasAccounting && !hasMteja;
 
   /** Where "Open Shop" should navigate */
-  const shopLandingPath = isMtejaOnly
-    ? "/mteja"
-    : isAccountingOnly
-      ? "/accounting"
-      : isDalaOnly
-        ? "/home-dashboard"
-        : hasPOS
-          ? "/tables"
-          : "/home-dashboard";
+  const shopLandingPath = "/home-dashboard";
 
   /** Whether the Print Settings tab should be visible */
   const showPrintSettings = hasPOS && !isMtejaOnly;
@@ -431,7 +423,11 @@ const MobileShopList: React.FC<{
 
   const handleOpen = (shopId: string) => {
     localStorage.setItem("shopId", shopId);
-    navigate(shopLandingPath);
+    // Clear localStorage posMode to force refetch from shop settings
+    localStorage.removeItem("posMode");
+    // Navigate to shop-level home-dashboard (not admin version)
+    // Use navigate with replace to stay within React Router
+    navigate("/home-dashboard", { replace: true });
   };
 
   const filtered = shops.filter(s =>
@@ -525,7 +521,8 @@ const ShopManagementTable: React.FC = () => {
     localStorage.setItem("shopId", shopId);
     // Clear localStorage posMode to force refetch from shop settings
     localStorage.removeItem("posMode");
-    navigate(shopLandingPath);
+    // Navigate to shop-level home-dashboard
+    navigate("/home-dashboard", { replace: true });
   };
 
   const shopsWithLocation = useMemo(
