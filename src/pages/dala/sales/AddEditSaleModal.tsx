@@ -22,6 +22,7 @@ import { PlusOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined } from '
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllCustomers } from '@services/customers';
 import { fetchAllUsersList } from '@services/users';
+import { fetchFloors } from '@services/dala';
 import { generateOfferLetterPDF } from '@utils/offerLetterPDF';
 import { getPermissionChecker } from '@utils/getPermissionChecker';
 import { PERMISSIONS } from '@utils/accessControl';
@@ -62,7 +63,9 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [selectedUnit, setSelectedUnit] = useState<any>(null);
+  const [selectedFloor, setSelectedFloor] = useState<any>(null);
   const [availableApartments, setAvailableApartments] = useState<any[]>([]);
+  const [propertyFloors, setPropertyFloors] = useState<any[]>([]);
 
   // Payment plan state
   const [paymentFrequency, setPaymentFrequency] = useState<string>('monthly');
@@ -88,6 +91,22 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     queryKey: ['customers'],
     queryFn: () => fetchAllCustomers({}),
     enabled: visible,
+  });
+
+  useQuery({
+    queryKey: ['property-floors', selectedPropertyId],
+    queryFn: async () => {
+      const property = properties.find((p: any) => p._id === selectedPropertyId);
+      const blockIds: string[] = (property?.blocks || []).map((b: any) => b._id).filter(Boolean);
+      if (blockIds.length === 0) {
+        const res = await fetchFloors();
+        return res?.data || res || [];
+      }
+      const results = await Promise.all(blockIds.map((bid: string) => fetchFloors(bid)));
+      return results.flatMap((r: any) => r?.data || r || []);
+    },
+    enabled: visible && !!selectedPropertyId,
+    onSuccess: (data: any[]) => setPropertyFloors(data),
   });
 
   const { data: users } = useQuery({
@@ -188,7 +207,9 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     setSelectedProperty(property);
     setSelectedPropertyId(value);
     setSelectedUnit(null);
+    setSelectedFloor(null);
     setAvailableApartments([]);
+    setPropertyFloors([]);
     form.setFieldsValue({
       unit_id: undefined,
       apartment_id: undefined,
@@ -203,22 +224,25 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     const unit = property?.units?.find((u: any) => u._id === value);
     setSelectedUnit(unit);
 
+    // Find floor for this unit — check fetched floors, then property-embedded floors
+    const floor =
+      propertyFloors.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId) ||
+      property?.floors?.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId) ||
+      null;
+    setSelectedFloor(floor || null);
+
     if (unit?.trackIndividualUnits && unit.apartments) {
       setAvailableApartments(unit.apartments);
+      // Don't auto-set price for individual tracking — wait for apartment selection
+      form.setFieldsValue({ apartment_id: undefined, list_price: undefined, sale_price: undefined, discount: 0 });
     } else {
       setAvailableApartments([]);
+      // Set price based on current phase
+      const currentPhase = property?.currentPhase;
+      const phasePricing = unit?.phasePricing?.find((p: any) => p.phaseName === currentPhase?.name);
+      const price = phasePricing?.price || unit?.listPrice || unit?.pricing?.basePrice || 0;
+      form.setFieldsValue({ list_price: price, sale_price: price, discount: 0 });
     }
-
-    // Set price based on current phase
-    const currentPhase = property?.currentPhase;
-    const phasePricing = unit?.phasePricing?.find((p: any) => p.phaseName === currentPhase?.name);
-    const price = phasePricing?.price || unit?.listPrice || unit?.pricing?.basePrice || 0;
-
-    form.setFieldsValue({
-      list_price: price,
-      sale_price: price,
-      discount: 0,
-    });
   };
 
   const handleApartmentChange = (value: string) => {
@@ -461,20 +485,48 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
   const getUnitsForProperty = (propertyId: string) => {
     const property = properties.find((p: any) => p._id === propertyId);
     if (!property) return [];
-    return property.units || [];
+    const units = property.units || [];
+
+    const getFloorNumber = (unit: any) => {
+      const floor =
+        propertyFloors.find((f: any) => f._id === unit.floorId || f.tempId === unit.floorId) ||
+        property?.floors?.find((f: any) => f._id === unit.floorId || f.tempId === unit.floorId);
+      if (!floor?.name) return 0;
+      const match = floor.name.match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+
+    return [...units].sort((a: any, b: any) => getFloorNumber(a) - getFloorNumber(b));
   };
 
   const formatUnitLabel = (unit: any) => {
     const type = unit.unitType || unit.type || 'Unit';
     const typeLabel = type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+    const floor =
+      propertyFloors.find((f: any) => f._id === unit.floorId || f.tempId === unit.floorId) ||
+      selectedProperty?.floors?.find((f: any) => f._id === unit.floorId || f.tempId === unit.floorId);
+    const block = selectedProperty?.blocks?.find((b: any) => b._id === unit.blockId || b.tempId === unit.blockId);
+
+    const parts = [
+      block?.name,
+      floor?.name,
+      unit.unitNumber,
+      typeLabel,
+    ].filter(Boolean);
+
+    const baseLabel = parts.join(' - ');
+
+    if (unit.trackIndividualUnits) {
+      const apts = unit.apartments || [];
+      const available = apts.filter((a: any) => a.status === 'available').length;
+      const prices = apts.map((a: any) => a.saleListPrice || 0).filter((p: number) => p > 0);
+      const minPrice = prices.length ? Math.min(...prices).toLocaleString('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }) : 'See apartments';
+      return `${baseLabel} — ${available}/${apts.length} available — from ${minPrice}`;
+    }
     const price = unit.listPrice || unit.pricing?.basePrice || 0;
-    const formattedPrice = price.toLocaleString('en-KE', {
-      style: 'currency',
-      currency: 'KES',
-      minimumFractionDigits: 0,
-    });
-    const trackingLabel = unit.trackIndividualUnits ? ` [${unit.apartments?.length || 0} apartments]` : '';
-    return `${typeLabel} - ${formattedPrice} (${unit.availableUnits || 1} available)${trackingLabel}`;
+    const formattedPrice = price.toLocaleString('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 });
+    return `${baseLabel} — ${formattedPrice} (${unit.availableUnits || 1} available)`;
   };
 
   const steps = [
@@ -563,20 +615,31 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                   </Select>
                 </Form.Item>
 
+                {selectedUnit && selectedFloor && (
+                  <div style={{ marginBottom: 16, padding: '8px 12px', background: '#f0f5ff', borderRadius: 6, border: '1px solid #adc6ff', display: 'flex', gap: 24 }}>
+                    <span><strong>Floor:</strong> {selectedFloor.name}</span>
+                    {selectedUnit.blockId && selectedProperty?.blocks?.find((b: any) => b._id === selectedUnit.blockId || b.tempId === selectedUnit.blockId) && (
+                      <span><strong>Block:</strong> {selectedProperty.blocks.find((b: any) => b._id === selectedUnit.blockId || b.tempId === selectedUnit.blockId)?.name}</span>
+                    )}
+                    <span><strong>Type:</strong> {(selectedUnit.unitType || '').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span>
+                  </div>
+                )}
+
                 {selectedUnit?.trackIndividualUnits && availableApartments.length > 0 && (
                   <Form.Item
-                    label="Apartment"
+                    label="Apartment (Price auto-fills on selection)"
                     name="apartment_id"
                     rules={[{ required: true, message: 'Please select an apartment' }]}
                   >
                     <Select
-                      placeholder="Select apartment"
+                      placeholder="Select apartment — price will be applied automatically"
                       onChange={handleApartmentChange}
                       showSearch
                       filterOption={(input, option) =>
                         (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
                       }
                       optionLabelProp="label"
+                      size="large"
                     >
                       {availableApartments.map((apt: any) => {
                         const area = typeof apt.area === 'object' ? apt.area?.value : apt.area;
@@ -589,15 +652,15 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                             key={apt._id}
                             value={apt._id}
                             disabled={!isAvailable}
-                            label={`${apt.apartmentName} - ${area} sqm`}
+                            label={`${apt.apartmentName}${area ? ` — ${area} sqm` : ''}${price ? ` — KES ${price.toLocaleString()}` : ''}`}
                           >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0' }}>
                               <span>
                                 <strong>{apt.apartmentName}</strong>
-                                {area ? <span style={{ color: '#8c8c8c', marginLeft: 8 }}>{area} sqm</span> : null}
+                                {area ? <span style={{ color: '#8c8c8c', marginLeft: 8, fontSize: 12 }}>{area} sqm</span> : null}
                               </span>
                               <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                {price > 0 && <span style={{ color: '#1677ff', fontSize: 12 }}>KES {price.toLocaleString()}</span>}
+                                {price > 0 && <span style={{ color: '#1677ff', fontSize: 13, fontWeight: 600 }}>KES {price.toLocaleString()}</span>}
                                 <span style={{ color: statusColor, fontSize: 11, fontWeight: 600, background: `${statusColor}18`, padding: '1px 6px', borderRadius: 4 }}>{statusLabel}</span>
                               </span>
                             </div>
