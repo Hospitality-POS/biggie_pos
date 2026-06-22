@@ -21,6 +21,7 @@ import {
     EyeOutlined,
     AccountBookOutlined,
     FilterOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -38,6 +39,22 @@ import dayjs, { Dayjs } from "dayjs";
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
+
+// ── Color Palette ───────────────────────────────────────────────────────────────
+
+const C = {
+  primary: "#6c1c2c",
+  primaryLight: "#f9f0f2",
+  green: "#10b981",
+  red: "#ef4444",
+  blue: "#3b82f6",
+  orange: "#f59e0b",
+  purple: "#8b5cf6",
+  subText: "#64748b",
+  darkText: "#0f172a",
+  border: "#e2e8f0",
+  bg: "#f8fafc",
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -179,6 +196,20 @@ const SalesReceiptsPage: React.FC = () => {
             ),
         },
         {
+            title: "Linked Invoice",
+            dataIndex: "invoice_id",
+            key: "invoice_id",
+            width: 150,
+            render: (invoice: any) =>
+                invoice ? (
+                    <Text style={{ color: C.primary }}>
+                        {invoice.order_no}
+                    </Text>
+                ) : (
+                    <Text style={{ color: C.subText }}>—</Text>
+                ),
+        },
+        {
             title: "Amount",
             dataIndex: "grand_total",
             key: "grand_total",
@@ -238,6 +269,9 @@ const SalesReceiptsPage: React.FC = () => {
                 title="Sales Receipts"
                 extra={
                     <Space>
+                        <Button icon={<ReloadOutlined />} onClick={() => actionRef.current?.reload()}>
+                            Refresh
+                        </Button>
                         {activeStatus === "Voided" && (
                             <Button 
                                 onClick={handleFixVoidedJournals}
