@@ -144,7 +144,7 @@ export const createSalesBudget = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.post(BASE, data);
-            message.success("Budget created successfully");
+            // message.success("Budget created successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to create budget";
@@ -172,7 +172,7 @@ export const updateSalesBudget = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.put(`${BASE}/${id}`, data);
-            message.success("Budget updated successfully");
+            // message.success("Budget updated successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update budget";
@@ -191,7 +191,7 @@ export const submitSalesBudget = createAsyncThunk(
     async ({ id, shop_id }: { id: string; shop_id: string }, { rejectWithValue }) => {
         try {
             const response = await axiosInstance.patch(`${BASE}/${id}/submit`, { shop_id });
-            message.success("Budget submitted for approval");
+            // message.success("Budget submitted for approval");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to submit budget";
@@ -221,7 +221,7 @@ export const approveSalesBudget = createAsyncThunk(
             const response = await axiosInstance.patch(`${BASE}/${id}/approve`, {
                 shop_id, action, rejection_reason,
             });
-            message.success(action === "approve" ? "Budget approved" : "Budget rejected");
+            // message.success(action === "approve" ? "Budget approved" : "Budget rejected");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to process budget approval";
@@ -250,7 +250,7 @@ export const updateBudgetActuals = createAsyncThunk(
             const response = await axiosInstance.patch(`${BASE}/${id}/actuals`, {
                 shop_id, actual_revenue, actual_cogs, actual_expenses,
             });
-            message.success("Budget actuals updated");
+            // message.success("Budget actuals updated");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update budget actuals";
@@ -269,7 +269,7 @@ export const deleteSalesBudget = createAsyncThunk(
     async ({ id, shop_id }: { id: string; shop_id: string }, { rejectWithValue }) => {
         try {
             await axiosInstance.delete(`${BASE}/${id}`, { params: { shop_id } });
-            message.success("Budget deleted successfully");
+            // message.success("Budget deleted successfully");
             return id;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to delete budget";

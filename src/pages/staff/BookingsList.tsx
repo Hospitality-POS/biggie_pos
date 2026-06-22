@@ -10,7 +10,6 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { fetchAllSchedules, removeSchedule, fetchAllCustomers } from "@services/customers";
-import { fetchAllUsersList } from "@services/users";
 import { getAllProducts } from "@services/products";
 import { useMutation } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -236,7 +235,11 @@ const BookingDetailModal = ({ open, record, onClose, onEdit }: {
           title="Appointment"
         >
           <MetaRow label="Service"><Text style={{ fontSize: 12 }}>{record.service_id?.name || "—"}</Text></MetaRow>
-          <MetaRow label="Staff"><Text style={{ fontSize: 12 }}>{record.staff_id?.fullname || "Unassigned"}</Text></MetaRow>
+          {record.table ? (
+            <MetaRow label="Table/Room"><Text style={{ fontSize: 12 }}>{record.table}</Text></MetaRow>
+          ) : (
+            <MetaRow label="Staff"><Text style={{ fontSize: 12 }}>{record.staff_id?.fullname || "Unassigned"}</Text></MetaRow>
+          )}
           {record.service_id?.price && (
             <MetaRow label="Price">
               <Text strong style={{ fontSize: 12, color: C.primary }}>KES {fmt(record.service_id.price)}</Text>
@@ -284,18 +287,6 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking, refreshTrigg
     }
   }, [refreshTrigger]);
 
-  // Fetch staff data using React Query
-  const { data: staffData = [] } = useQuery({
-    queryKey: ["staff"],
-    queryFn: async () => {
-      const response = await fetchAllUsersList({ shop_id: localStorage.getItem("shopId") || "" });
-      console.log('Staff data:', response);
-      return response || [];
-    },
-    staleTime: 0,
-    gcTime: 0,
-  });
-
   // Fetch customer data using React Query
   const { data: customerData = [] } = useQuery({
     queryKey: ["customers"],
@@ -333,10 +324,13 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking, refreshTrigg
 
   const handleEditClick = (record: any) => {
     if (onEditBooking) {
+      const resourceType = record.table ? "table" : "staff";
       onEditBooking({
         id: record._id,
+        resourceType: resourceType,
         staff: record.staff_id?.fullname || "Unknown Staff",
         staffId: record.staff_id?._id,
+        table: record.table || "",
         start_time: record.start_time,
         end_time: record.end_time,
         client: resolveClientName(record),
@@ -367,16 +361,6 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking, refreshTrigg
         return acc;
       }, {} as Record<string, { text: string }>);
   }, [customerData]);
-
-  const staffOptions = useMemo(() => {
-    return staffData
-      .filter((staff: any) => staff.fullname && staff._id)
-      .sort((a: any, b: any) => a.fullname.localeCompare(b.fullname))
-      .reduce((acc: Record<string, { text: string }>, staff: any) => {
-        acc[staff._id] = { text: staff.fullname };
-        return acc;
-      }, {} as Record<string, { text: string }>);
-  }, [staffData]);
 
   const serviceOptions = useMemo(() => {
     const allProducts: any[] = [];
@@ -449,17 +433,19 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking, refreshTrigg
       ),
     },
     {
-      title: "Staff", key: "staff", width: 130,
-      search: {
-        transform: (value: any) => ({ staff_id: value }),
-      },
-      valueType: "select",
-      valueEnum: staffOptions,
-      fieldProps: {
-        showSearch: true,
-        optionFilterProp: "text",
-      },
+      title: "Resource", key: "resource", width: 130,
+      search: false,
       render: (_: any, record: any) => {
+        if (record.table) {
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <div style={{ width: 26, height: 26, borderRadius: "6px", background: C.primaryLight, display: "flex", alignItems: "center", justifyContent: "center", color: C.primary, fontWeight: 700, fontSize: 10, flexShrink: 0 }}>
+                T
+              </div>
+              <Text style={{ fontSize: 12 }}>{record.table}</Text>
+            </div>
+          );
+        }
         const text = record.staff_id?.fullname;
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -545,6 +531,12 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking, refreshTrigg
         optionFilterProp: "text",
       },
     },
+    {
+      title: "Table", key: "table", hideInTable: true,
+      search: {
+        transform: (value: any) => ({ table: value }),
+      },
+    },
   ];
 
   return (
@@ -563,6 +555,7 @@ const BookingsList: React.FC<BookingsListProps> = ({ onEditBooking, refreshTrigg
             start_date: params.start_date,
             end_date: params.end_date,
             booking_type: params.booking_type,
+            table: params.table,
           });
           const data = result.data || [];
           setAllBookings(data);

@@ -200,7 +200,7 @@ export const createPettyCashTransaction = async (data: CreatePettyCashParams) =>
             `${BASE_URL}/accounting/petty-cash`,
             data
         );
-        message.success("Petty cash transaction created successfully");
+        // message.success("Petty cash transaction created successfully");
         return response.data as { transaction: PettyCashTransaction };
     } catch (error: any) {
         if (error?.response?.data?.message) {
@@ -221,7 +221,7 @@ export const updatePettyCashTransaction = async (id: string, data: UpdatePettyCa
             `${BASE_URL}/accounting/petty-cash/${id}`,
             data
         );
-        message.success("Petty cash transaction updated");
+        // message.success("Petty cash transaction updated");
         return response.data as { transaction: PettyCashTransaction };
     } catch (error: any) {
         if (error?.response?.data?.message) {
@@ -241,7 +241,7 @@ export const approvePettyCashTransaction = async (id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/petty-cash/${id}/approve`
         );
-        message.success("Petty cash transaction approved");
+        // message.success("Petty cash transaction approved");
         return response.data as { transaction: PettyCashTransaction };
     } catch (error: any) {
         if (error?.response?.data?.message) {
@@ -262,7 +262,7 @@ export const voidPettyCashTransaction = async (id: string, reason: string) => {
             `${BASE_URL}/accounting/petty-cash/${id}/void`,
             { reason }
         );
-        message.success("Petty cash transaction voided");
+        // message.success("Petty cash transaction voided");
         return response.data as { transaction: PettyCashTransaction };
     } catch (error: any) {
         if (error?.response?.data?.message) {

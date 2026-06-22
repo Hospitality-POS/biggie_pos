@@ -118,7 +118,20 @@ export const getCustomerById = async (customerId: string) => {
   } catch (error: any) {
     const errorMessage =
       error?.response?.data?.message || error?.message || "Failed to fetch customer";
-    message.error(errorMessage);
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+};
+
+// Get customer by code (e.g., CUST-8979)
+export const getCustomerByCode = async (customerCode: string) => {
+  try {
+    const response = await axiosInstance.get(`${categ_url}/code/${customerCode}`);
+    return response.data;
+  } catch (error: any) {
+    const errorMessage =
+      error?.response?.data?.message || error?.message || "Failed to fetch customer";
+    console.error(errorMessage);
     throw new Error(errorMessage);
   }
 };
@@ -217,7 +230,7 @@ export const createAnonymousFeedback = createAsyncThunk(
         `${categ_url}/feedback/anonymous`,
         feedbackData
       );
-      message.success("Thank you for your feedback!");
+      // message.success("Thank you for your feedback!");
       return response.data;
     } catch (error: any) {
       const errorMessage =
@@ -255,7 +268,7 @@ export const updateGiftCard = createAsyncThunk(
         `${categ_url}/update-gift-card/${id}`,
         data
       );
-      message.success("Gift card updated successfully");
+      // message.success("Gift card updated successfully");
       return response.data;
     } catch (error: any) {
       const errorMessage = error?.message || "Failed to update gift card";
@@ -288,7 +301,7 @@ export const createGiftCard = createAsyncThunk(
         `${categ_url}/new-card`,
         giftCardData
       );
-      message.success("Gift card created successfully");
+      // message.success("Gift card created successfully");
       return response.data;
     } catch (error: any) {
       const errorMessage = error?.message || "Failed to create gift card";
@@ -306,7 +319,7 @@ export const sendGiftCard = createAsyncThunk(
         `${categ_url}/new-card-email`,
         data
       );
-      message.success("Gift card email sent successfully");
+      // message.success("Gift card email sent successfully");
       return response.data;
     } catch (error: any) {
       const errorMessage = error?.message || "Failed to send gift card email";
@@ -328,7 +341,7 @@ export const createSchedule = createAsyncThunk(
         `${categ_url}/new-schedule`,
         scheduleData
       );
-      message.success("Schedule created successfully");
+      // message.success("Schedule created successfully");
       return response.data;
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error?.message || "Failed to create schedule";
@@ -400,7 +413,7 @@ export const removeSchedule = async (scheduleId: string) => {
     const response = await axiosInstance.delete(
       `${categ_url}/delete-schedule/${scheduleId}`
     );
-    message.success("Schedule deleted successfully");
+    // message.success("Schedule deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.message || "Failed to delete schedule";

@@ -1249,6 +1249,33 @@ const StaffLoginPage = () => {
                                     )}
                                 </Space>
                             )}
+
+                            {/* Legal Links - shown in both steps */}
+                            <div style={{ 
+                                display: "flex", 
+                                justifyContent: "center", 
+                                gap: 20, 
+                                marginTop: 20,
+                                fontSize: 12 
+                            }}>
+                                <a 
+                                    href="/privacy-policy" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    style={{ color: "#666", textDecoration: "none" }}
+                                >
+                                    Privacy Policy
+                                </a>
+                                <span style={{ color: "#ccc" }}>|</span>
+                                <a 
+                                    href="/terms-and-conditions" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    style={{ color: "#666", textDecoration: "none" }}
+                                >
+                                    Terms and Conditions
+                                </a>
+                            </div>
                         </div>
                     </Col>
                 </Row>

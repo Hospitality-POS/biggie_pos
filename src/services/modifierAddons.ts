@@ -25,7 +25,7 @@ export const createModifierAddon = async (data: ParamsType) => {
       ...data,
       createdBy: user?.id,
     });
-    message.success("Modifier created successfully");
+    // message.success("Modifier created successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -48,7 +48,7 @@ export const editModifierAddon = async (data: ParamsType) => {
         createdBy: user?.id,
       }
     );
-    message.success("Modifier updated successfully");
+    // message.success("Modifier updated successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -99,7 +99,7 @@ export const getAllAddons = async (data: ParamsType) => {
 export const createAddon = async (data: ParamsType) => {
   try {
     const response = await axiosInstance.post(`${BASE_URL}/modifiers/create-addons`, data);
-    message.success("Addon created successfully");
+    // message.success("Addon created successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -117,7 +117,7 @@ export const editAddon = async (data: ParamsType) => {
         ...data.values,
       }
     );
-    message.success("Addon updated successfully");
+    // message.success("Addon updated successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {

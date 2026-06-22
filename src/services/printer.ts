@@ -18,7 +18,7 @@ export const getAllPrinters = async (params: ParamsType) => {
 export const createPrinter = async (data: any) => {
   try {
     const response = await axiosInstance.post(`${printerUrl}`, data);
-    message.success("Printer added successfully");
+    // message.success("Printer added successfully");
     return response.data;
   } catch (error) {
     console.log(error);
@@ -31,7 +31,7 @@ export const updatePrinter = async (data: any) => {
       ...data?.values, 
       main_category: data?.values?.main_category?.value || data.values.main_category
     });
-    message.success("Printer updated successfully");
+    // message.success("Printer updated successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {

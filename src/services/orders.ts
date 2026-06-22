@@ -70,7 +70,7 @@ export const getTodayOrdersCount = async (data: ParamsType) => {
 export const deleteOrderById = async (id: string) => {
   try {
     await axiosInstance.delete(`${BASE_URL}/orders/${id}`);
-    message.success("Order deleted successfully");
+    // message.success("Order deleted successfully");
     return true;
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -171,7 +171,7 @@ export const updateOrderItem = async (itemId: string, data: UpdateOrderItemParam
       `${BASE_URL}/orders/items/${itemId}`,
       data
     );
-    message.success("Order item updated successfully");
+    // message.success("Order item updated successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.data?.message) {
@@ -191,7 +191,7 @@ export const deleteOrderItem = async (itemId: string) => {
     const response = await axiosInstance.delete(
       `${BASE_URL}/orders/items/${itemId}`
     );
-    message.success("Order item deleted successfully");
+    // message.success("Order item deleted successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.data?.message) {
@@ -214,6 +214,10 @@ interface UpdateOrderParams {
   updated_by?: string;
   order_no?: string;
   createdAt?: string;  // ✅ NEW: Support timestamp update
+  customer_id?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
 }
 
 /**
@@ -254,9 +258,9 @@ export const updateOrderTimestamp = async (orderId: string, createdAt: string) =
       { createdAt }
     );
 
-    message.success(
-      `Order timestamp updated. ${response.data.timestamp_update?.order_items_updated || 0} items and ${response.data.timestamp_update?.order_payments_updated || 0} payments updated.`
-    );
+    // message.success(
+    //   `Order timestamp updated. ${response.data.timestamp_update?.order_items_updated || 0} items and ${response.data.timestamp_update?.order_payments_updated || 0} payments updated.`
+    // );
 
     return response.data;
   } catch (error) {
@@ -336,16 +340,16 @@ export const repostOrderPayment = async (
 
     // Show success message with details
     if (data.summary.was_forced) {
-      message.success(
-        `Payment records recreated for order ${data.order.order_no}. ` +
-        `Created ${data.summary.total_payments} payment(s) totaling ${data.summary.total_amount}. ` +
-        `Deleted ${data.summary.deleted_old_payments} old payment(s).`
-      );
+      // message.success(
+      //   `Payment records recreated for order ${data.order.order_no}. ` +
+      //   `Created ${data.summary.total_payments} payment(s) totaling ${data.summary.total_amount}. ` +
+      //   `Deleted ${data.summary.deleted_old_payments} old payment(s).`
+      // );
     } else {
-      message.success(
-        `Payment records created for order ${data.order.order_no}. ` +
-        `Created ${data.summary.total_payments} payment(s) totaling ${data.summary.total_amount}.`
-      );
+      // message.success(
+    //   `Payment records created for order ${data.order.order_no}. ` +
+    //   `Created ${data.summary.total_payments} payment(s) totaling ${data.summary.total_amount}.`
+    // );
     }
 
     return data;
@@ -392,9 +396,9 @@ export const batchRepostOrderPayments = async (
 
   // Show summary message
   if (results.failed.length === 0) {
-    message.success(
-      `Successfully reposted payments for all ${results.total} orders`
-    );
+    // message.success(
+    //   `Successfully reposted payments for all ${results.total} orders`
+    // );
   } else if (results.success.length === 0) {
     message.error(
       `Failed to repost payments for all ${results.total} orders`
@@ -407,4 +411,41 @@ export const batchRepostOrderPayments = async (
   }
 
   return results;
+};
+
+/**
+ * ✅ NEW: Get orders grouped by location
+ * Groups orders by country > county > city hierarchy
+ * 
+ * @param params - Optional filters
+ * @param params.country - Filter by country
+ * @param params.county - Filter by county
+ * @param params.city - Filter by city
+ * @param params.shop_id - Filter by shop
+ * @param params.from - Start date filter
+ * @param params.to - End date filter
+ * 
+ * @returns Grouped orders data with total amount and order count per location
+ */
+export const getOrdersByLocation = async (params: {
+  country?: string;
+  county?: string;
+  city?: string;
+  shop_id?: string;
+  from?: string;
+  to?: string;
+} = {}) => {
+  try {
+    const response = await axiosInstance.get(`${BASE_URL}/orders/by-location`, {
+      params,
+    });
+    return response.data;
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      message.error(error.response.data.message);
+    } else {
+      message.error("Error fetching orders by location");
+    }
+    throw error;
+  }
 };

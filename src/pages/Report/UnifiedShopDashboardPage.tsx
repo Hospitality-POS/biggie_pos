@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Tabs } from "antd";
+import { ShopOutlined, DollarOutlined, CustomerServiceOutlined, TeamOutlined, HomeOutlined } from "@ant-design/icons";
 import Dashboard from "src/pages/Dashboard/Dashboard";
 import AccountingDashboardPage from "src/pages/AccountingDashboard/AccountingDashboardPage";
 import MtejaDashboard from "src/pages/Dashboard/MtejaDashboard";
@@ -49,45 +50,45 @@ const UnifiedShopDashboardPage: React.FC = () => {
     ...(hasDuka
       ? [{
           key: "pos",
-          label: "POS Dashboard",
+          label: <><ShopOutlined /> Duka</>,
           children: <POSDashboardContent />,
         }]
       : []),
     ...(hasPesa
       ? [{
           key: "accounting",
-          label: "Accounting Dashboard",
+          label: <><DollarOutlined /> Pesa</>,
           children: <AccountingDashboardContent />,
         }]
       : []),
     ...(hasMteja
       ? [{
           key: "mteja",
-          label: "Mteja",
+          label: <><CustomerServiceOutlined /> Mteja</>,
           children: <MtejaDashboardContent />,
         }]
       : []),
     ...(hasDala
       ? [{
           key: "dala",
-          label: "Dala Dashboard",
+          label: <><HomeOutlined /> Dala</>,
           children: <DalaDashboardContent />,
         }]
       : []),
     ...(hasBandu
       ? [{
           key: "bandu",
-          label: "Bandu HR Dashboard",
+          label: <><TeamOutlined /> Bandu</>,
           children: <BanduDashboardContent />,
         }]
       : []),
   ];
 
-  // Fallback: if no tabs, show POS dashboard by default
+  // Fallback: if no tabs, show Duka dashboard by default
   if (tabItems.length === 0) {
     tabItems = [{
       key: "pos",
-      label: "POS Dashboard",
+      label: <><ShopOutlined /> Duka</>,
       children: <POSDashboardContent />,
     }];
   }

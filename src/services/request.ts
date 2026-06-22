@@ -56,6 +56,7 @@ const NON_AUTH_401_ROUTES = [
     '/messages',
     '/conversations',
     '/channels',
+    '/users/register', // New Staff modal - don't logout on errors
 ];
 
 const isExcludedRoute = (url: string = ''): boolean =>

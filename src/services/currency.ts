@@ -206,7 +206,7 @@ export const getFunctionalCurrency = async (): Promise<Currency | null> => {
 export const createCurrency = async (params: CreateCurrencyParams): Promise<Currency> => {
     try {
         const res = await axiosInstance.post(CURRENCY_URL, params);
-        message.success(res.data.message || "Currency created");
+        // message.success(res.data.message || "Currency created");
         return res.data.currency;
     } catch (err: any) {
         const msg = err?.response?.data?.message || "Failed to create currency";
@@ -221,7 +221,7 @@ export const updateCurrency = async (
 ): Promise<Currency> => {
     try {
         const res = await axiosInstance.put(`${CURRENCY_URL}/${code}`, params);
-        message.success("Currency updated");
+        // message.success("Currency updated");
         return res.data.currency;
     } catch (err: any) {
         const msg = err?.response?.data?.message || "Failed to update currency";
@@ -233,7 +233,7 @@ export const updateCurrency = async (
 export const deactivateCurrency = async (code: string): Promise<Currency> => {
     try {
         const res = await axiosInstance.delete(`${CURRENCY_URL}/${code}`);
-        message.success("Currency deactivated");
+        // message.success("Currency deactivated");
         return res.data.currency;
     } catch (err: any) {
         const msg = err?.response?.data?.message || "Failed to deactivate currency";
@@ -245,7 +245,7 @@ export const deactivateCurrency = async (code: string): Promise<Currency> => {
 export const setFunctionalCurrency = async (code: string): Promise<Currency> => {
     try {
         const res = await axiosInstance.patch(`${CURRENCY_URL}/${code}/set-functional`);
-        message.success(`${code} is now the functional currency`);
+        // message.success(`${code} is now the functional currency`);
         return res.data.currency;
     } catch (err: any) {
         const msg = err?.response?.data?.message || "Failed to set functional currency";
@@ -257,7 +257,7 @@ export const setFunctionalCurrency = async (code: string): Promise<Currency> => 
 export const seedCurrencies = async (): Promise<{ inserted: number }> => {
     try {
         const res = await axiosInstance.post(`${CURRENCY_URL}/seed`);
-        message.success(res.data.message || "Currencies seeded");
+        // message.success(res.data.message || "Currencies seeded");
         return { inserted: res.data.inserted };
     } catch (err: any) {
         const msg = err?.response?.data?.message || "Failed to seed currencies";
@@ -352,7 +352,7 @@ export const getRateForDate = async (
 export const createRate = async (params: CreateRateParams): Promise<ExchangeRate> => {
     try {
         const res = await axiosInstance.post(`${CURRENCY_URL}/rates`, params);
-        message.success("Exchange rate created");
+        // message.success("Exchange rate created");
         return res.data.rate;
     } catch (err: any) {
         const msg = err?.response?.data?.message || "Failed to create rate";
@@ -367,7 +367,7 @@ export const updateRate = async (
 ): Promise<ExchangeRate> => {
     try {
         const res = await axiosInstance.put(`${CURRENCY_URL}/rates/${id}`, params);
-        message.success("Exchange rate updated");
+        // message.success("Exchange rate updated");
         return res.data.rate;
     } catch (err: any) {
         const msg = err?.response?.data?.message || "Failed to update rate";
@@ -379,7 +379,7 @@ export const updateRate = async (
 export const deleteRate = async (id: string): Promise<void> => {
     try {
         await axiosInstance.delete(`${CURRENCY_URL}/rates/${id}`);
-        message.success("Exchange rate deleted");
+        // message.success("Exchange rate deleted");
     } catch (err: any) {
         const msg = err?.response?.data?.message || "Failed to delete rate";
         message.error(msg);
@@ -392,7 +392,7 @@ export const bulkUpsertRates = async (
 ): Promise<{ upserted: number; modified: number }> => {
     try {
         const res = await axiosInstance.post(`${CURRENCY_URL}/rates/bulk`, { rates });
-        message.success(res.data.message || "Rates imported");
+        // message.success(res.data.message || "Rates imported");
         return res.data;
     } catch (err: any) {
         const msg = err?.response?.data?.message || "Failed to import rates";

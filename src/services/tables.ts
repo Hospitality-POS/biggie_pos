@@ -132,7 +132,7 @@ export const editLocation = async (data: ParamsType) => {
     const response = await axiosInstance.put(`${tableUrl}/locations/${data._id}`, {
       locationName: data?.values?.name,
     });
-    message.success("Successfully edited location");
+    // message.success("Successfully edited location");
     return response.data;
   } catch (error: any) {
     if (error?.response?.status != 403) {
@@ -165,7 +165,7 @@ export const addNewTableLocation = async (data: ParamsType) => {
     const response = await axiosInstance.post(`${tableUrl}/locations`, {
       locationName: data?.name,
     });
-    message.success("Successfully added new location");
+    // message.success("Successfully added new location");
     return response.data;
   } catch (error: any) {
     if (error?.response?.status != 403) {
@@ -210,7 +210,7 @@ export const addNewTable = async (data: ParamsType) => {
       name: data?.name,
       locatedAt: data?.locatedAt,
     });
-    message.success("Successfully added new Table");
+    // message.success("Successfully added new Table");
     return response.data;
   } catch (error: any) {
     if (error?.response?.status != 403) {
@@ -226,7 +226,7 @@ export const updateTable = async (data: ParamsType) => {
       name: data?.values?.name,
       locatedAt: data?.values?.locatedAt?._id,
     });
-    message.success("Successfully updated Table");
+    // message.success("Successfully updated Table");
     return response.data;
   } catch (error: any) {
     if (error?.response?.status != 403) {

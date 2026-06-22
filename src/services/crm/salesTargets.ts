@@ -187,7 +187,7 @@ export const createSalesTarget = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.post(BASE, data);
-            message.success("Sales target created successfully");
+            // message.success("Sales target created successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to create sales target";
@@ -221,7 +221,7 @@ export const updateSalesTarget = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.put(`${BASE}/${id}`, data);
-            message.success("Sales target updated successfully");
+            // message.success("Sales target updated successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update sales target";
@@ -246,7 +246,7 @@ export const updateTargetActual = createAsyncThunk(
                 shop_id,
                 actual_value,
             });
-            message.success("Actual value updated");
+            // message.success("Actual value updated");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update actual value";
@@ -265,7 +265,7 @@ export const deleteSalesTarget = createAsyncThunk(
     async ({ id, shop_id }: { id: string; shop_id: string }, { rejectWithValue }) => {
         try {
             await axiosInstance.delete(`${BASE}/${id}`, { params: { shop_id } });
-            message.success("Sales target deleted successfully");
+            // message.success("Sales target deleted successfully");
             return id;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to delete sales target";

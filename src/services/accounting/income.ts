@@ -86,7 +86,7 @@ export const postDirectIncome = async (data: PostDirectIncomeParams) => {
             `${BASE_URL}/accounting/income/direct`,
             data
         );
-        message.success("Income posted successfully");
+        // message.success("Income posted successfully");
         return response.data as {
             payment: IncomePayment;
             journal_entry: { _id: string; entry_no: string; status: string };
@@ -117,7 +117,7 @@ export const postExpense = async (data: PostExpenseParams) => {
             `${BASE_URL}/accounting/income/expense`,
             data
         );
-        message.success("Expense posted successfully");
+        // message.success("Expense posted successfully");
         return response.data as {
             payment: IncomePayment;
             journal_entry: { _id: string; entry_no: string; status: string };
@@ -153,7 +153,7 @@ export const settleInvoice = async (
             `${BASE_URL}/accounting/income/settle/${invoiceId}`,
             data
         );
-        message.success("Payment settled successfully");
+        // message.success("Payment settled successfully");
         return response.data as {
             payment: IncomePayment;
             invoice: Invoice;

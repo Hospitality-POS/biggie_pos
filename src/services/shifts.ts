@@ -27,7 +27,7 @@ export const fetchAllShifts = async () => {
 export const createShift = async (shiftData: Shift) => {
   try {
     const response = await axiosInstance.post(shiftUrl, shiftData);
-    message.success("Shift created successfully");
+    // message.success("Shift created successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -41,7 +41,7 @@ export const createShift = async (shiftData: Shift) => {
 export const updateShift = async (shiftData: Shift) => {
   try {
     const response = await axiosInstance.put(`${shiftUrl}/${shiftData._id}`, shiftData);
-    message.success("Shift updated successfully");
+    // message.success("Shift updated successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -55,7 +55,7 @@ export const updateShift = async (shiftData: Shift) => {
 export const deleteShift = async (id: string) => {
   try {
     const response = await axiosInstance.delete(`${shiftUrl}/${id}`);
-    message.success("Shift deleted successfully");
+    // message.success("Shift deleted successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {

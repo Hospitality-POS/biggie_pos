@@ -173,7 +173,7 @@ export const openReconciliation = async (data: OpenReconciliationParams) => {
             `${BASE_URL}/accounting/bank-reconciliations`,
             data
         );
-        message.success("Reconciliation session opened successfully");
+        // message.success("Reconciliation session opened successfully");
         return response.data as {
             reconciliation: BankReconciliation;
             unreconciled_je_count: number;
@@ -200,7 +200,7 @@ export const importStatementLines = async (
             `${BASE_URL}/accounting/bank-reconciliations/${id}/import-lines`,
             { lines }
         );
-        message.success(`${lines.length} statement lines imported`);
+        // message.success(`${lines.length} statement lines imported`);
         return response.data as { reconciliation: BankReconciliation };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -221,7 +221,7 @@ export const addStatementLine = async (id: string, data: StatementLineInput) => 
             `${BASE_URL}/accounting/bank-reconciliations/${id}/lines`,
             data
         );
-        message.success("Statement line added");
+        // message.success("Statement line added");
         return response.data as {
             line: StatementLine;
             reconciliation_summary: {
@@ -254,7 +254,7 @@ export const updateStatementLine = async (
             `${BASE_URL}/accounting/bank-reconciliations/${id}/lines/${line_id}`,
             data
         );
-        message.success("Statement line updated");
+        // message.success("Statement line updated");
         return response.data as { line: StatementLine };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -275,7 +275,7 @@ export const deleteStatementLine = async (id: string, line_id: string) => {
         await axiosInstance.delete(
             `${BASE_URL}/accounting/bank-reconciliations/${id}/lines/${line_id}`
         );
-        message.success("Statement line deleted");
+        // message.success("Statement line deleted");
         return true;
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -301,7 +301,7 @@ export const matchLine = async (
             `${BASE_URL}/accounting/bank-reconciliations/${id}/lines/${line_id}/match`,
             { journal_entry_id, journal_line_id }
         );
-        message.success("Line matched successfully");
+        // message.success("Line matched successfully");
         return response.data as {
             line: StatementLine;
             reconciliation_summary: {
@@ -329,7 +329,7 @@ export const unmatchLine = async (id: string, line_id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/bank-reconciliations/${id}/lines/${line_id}/unmatch`
         );
-        message.success("Line unmatched");
+        // message.success("Line unmatched");
         return response.data as {
             reconciliation_summary: {
                 matched_count: number;
@@ -357,7 +357,7 @@ export const excludeLine = async (id: string, line_id: string, notes?: string) =
             `${BASE_URL}/accounting/bank-reconciliations/${id}/lines/${line_id}/exclude`,
             { notes }
         );
-        message.success(response.data.message);
+        // message.success(response.data.message);
         return response.data as {
             line: StatementLine;
             reconciliation_summary: {
@@ -386,7 +386,7 @@ export const autoMatch = async (id: string) => {
         const response = await axiosInstance.post(
             `${BASE_URL}/accounting/bank-reconciliations/${id}/auto-match`
         );
-        message.success(`Auto-matched ${response.data.matched_count} lines`);
+        // message.success(`Auto-matched ${response.data.matched_count} lines`);
         return response.data as {
             matched_count: number;
             reconciliation_summary: {
@@ -415,7 +415,7 @@ export const completeReconciliation = async (id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/bank-reconciliations/${id}/complete`
         );
-        message.success("Reconciliation completed successfully");
+        // message.success("Reconciliation completed successfully");
         return response.data as { reconciliation: BankReconciliation };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -437,7 +437,7 @@ export const voidReconciliation = async (id: string, reason: string) => {
             `${BASE_URL}/accounting/bank-reconciliations/${id}/void`,
             { reason }
         );
-        message.success("Reconciliation voided");
+        // message.success("Reconciliation voided");
         return response.data as { reconciliation: BankReconciliation };
     } catch (error) {
         if (error?.response?.data?.message) {

@@ -294,7 +294,7 @@ export const createNote = async (data: CreateNoteParams) => {
             `${BASE_URL}/accounting/notes`,
             payload
         );
-        message.success("Credit note created and auto-approved");
+        // message.success("Credit note created and auto-approved");
         return response.data as { note: Note };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -315,7 +315,7 @@ export const updateNote = async (id: string, data: UpdateNoteParams) => {
             `${BASE_URL}/accounting/notes/${id}`,
             data
         );
-        message.success("Note updated successfully");
+        // message.success("Note updated successfully");
         return response.data as { note: Note };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -338,7 +338,7 @@ export const approveNote = async (id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/notes/${id}/approve`
         );
-        message.success("Note approved and journal entry created");
+        // message.success("Note approved and journal entry created");
         return response.data as { note: Note; journal_entry: object };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -358,7 +358,7 @@ export const applyNote = async (id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/notes/${id}/apply`
         );
-        message.success("Note applied successfully");
+        // message.success("Note applied successfully");
         return response.data as { note: Note };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -380,7 +380,7 @@ export const voidNote = async (id: string, reason: string) => {
             `${BASE_URL}/accounting/notes/${id}/void`,
             { reason }
         );
-        message.success("Note voided successfully");
+        // message.success("Note voided successfully");
         return response.data as { note: Note; reversal_entry?: object };
     } catch (error) {
         if (error?.response?.data?.message) {
@@ -399,7 +399,7 @@ export const voidNote = async (id: string, reason: string) => {
 export const deleteNote = async (id: string) => {
     try {
         await axiosInstance.delete(`${BASE_URL}/accounting/notes/${id}`);
-        message.success("Note deleted successfully");
+        // message.success("Note deleted successfully");
         return true;
     } catch (error) {
         if (error?.response?.data?.message) {

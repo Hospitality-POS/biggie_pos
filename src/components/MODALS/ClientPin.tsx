@@ -1,14 +1,14 @@
-import { KeyOutlined, SearchOutlined, UserOutlined, IdcardOutlined } from "@ant-design/icons";
-import ProForm, { ModalForm, ProFormText } from "@ant-design/pro-form";
+import { KeyOutlined, SearchOutlined, UserOutlined, IdcardOutlined, EnvironmentOutlined } from "@ant-design/icons";
+import { ModalForm, ProFormText } from "@ant-design/pro-form";
 import { updateCart } from "@features/Cart/CartActions";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { Button, Form, Input, Select, Space, Typography, Divider, Radio, message, Tag } from "antd";
+import { Button, Form, Input, Select, Space, Typography, Divider, Radio, message, Tag, Row, Col, AutoComplete } from "antd";
 import { CartDetailsInterface } from "src/interfaces/CartDetailsTypes";
 import { useAppDispatch } from "src/store";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
-import { fetchAllCustomers, addNewCustomer } from "@services/customers";
+import { fetchAllCustomers, addNewCustomer, updateCustomer } from "@services/customers";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface ClientPinProps {
   cart: CartDetailsInterface;
@@ -22,6 +22,8 @@ function ClientPin({ cart }: ClientPinProps) {
   const [customerSearch, setCustomerSearch] = useState("");
   const [savingCustomer, setSavingCustomer] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [addressOptions, setAddressOptions] = useState<any[]>([]);
+  const [addressLoading, setAddressLoading] = useState(false);
 
   const { data: customers = [], isLoading: loadingCustomers, refetch: refetchCustomers } = useQuery({
     queryKey: ["customers"],
@@ -29,6 +31,115 @@ function ClientPin({ cart }: ClientPinProps) {
     retry: 1,
     staleTime: 30000,
   });
+
+  // ── Google Places functionality ───────────────────────────────────────────────
+  const loadGoogleMaps = useCallback((): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).google?.maps?.places) { resolve(); return; }
+      if (document.getElementById("gmap-script")) {
+        const check = setInterval(() => {
+          if ((window as any).google?.maps?.places) { clearInterval(check); resolve(); }
+        }, 100);
+        setTimeout(() => { clearInterval(check); reject("timeout"); }, 10000);
+        return;
+      }
+      const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+      if (!key) { reject("no key"); return; }
+      const script = document.createElement("script");
+      script.id = "gmap-script";
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&loading=async`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        const check = setInterval(() => {
+          if ((window as any).google?.maps?.places) { clearInterval(check); resolve(); }
+        }, 100);
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await loadGoogleMaps();
+      } catch (error) {
+        console.log("Google Maps not available");
+      }
+    };
+    init();
+  }, [loadGoogleMaps]);
+
+  const getPlacePredictions = useCallback(async (input: string) => {
+    if (!input || !(window as any).google?.maps?.places) {
+      setAddressOptions([]);
+      return;
+    }
+
+    setAddressLoading(true);
+    try {
+      const service = new (window as any).google.maps.places.AutocompleteService();
+      const predictions = await new Promise<any[]>((resolve, reject) => {
+        service.getPlacePredictions(
+          { input, componentRestrictions: { country: "KE" } },
+          (results: any[], status: string) => {
+            if (status === "OK") {
+              resolve(results);
+            } else {
+              reject(status);
+            }
+          }
+        );
+      });
+      
+      setAddressOptions(predictions.map(p => ({
+        value: p.description,
+        label: p.description,
+        place_id: p.place_id,
+      })));
+    } catch (error) {
+      setAddressOptions([]);
+    } finally {
+      setAddressLoading(false);
+    }
+  }, []);
+
+  const getPlaceDetails = useCallback(async (placeId: string) => {
+    if (!placeId || !(window as any).google?.maps?.places) {
+      return null;
+    }
+
+    try {
+      const service = new (window as any).google.maps.places.PlacesService(document.createElement("div"));
+      const details = await new Promise<any>((resolve, reject) => {
+        service.getDetails(
+          { placeId, fields: ['address_components', 'formatted_address'] },
+          (result: any, status: string) => {
+            if (status === "OK") {
+              resolve(result);
+            } else {
+              reject(status);
+            }
+          }
+        );
+      });
+
+      const getComponent = (type: string) =>
+        details.address_components?.find((c: any) => c.types.includes(type))?.long_name ?? null;
+
+      return {
+        street: getComponent("route") ? `${getComponent("street_number") || ""} ${getComponent("route")}`.trim() : null,
+        building: getComponent("establishment") || getComponent("point_of_interest"),
+        city: getComponent("locality") || getComponent("administrative_area_level_2"),
+        county: getComponent("administrative_area_level_1"),
+        postal_code: getComponent("postal_code"),
+        country: getComponent("country"),
+      };
+    } catch (error) {
+      return null;
+    }
+  }, []);
 
   // Handle customer selection and prefill form
   const handleCustomerSelect = (customerId: string) => {
@@ -43,6 +154,15 @@ function ClientPin({ cart }: ClientPinProps) {
         client_phone: customer.phone?.toString() || "",
         client_pin: customer.pin?.toString() || customer.kra_pin?.toString() || customer.client_pin?.toString() || "",
         client_email: customer.email || "",
+        // Address fields
+        address: {
+          street: customer.address?.street || "",
+          building: customer.address?.building || "",
+          city: customer.address?.city || "",
+          county: customer.address?.county || "",
+          postal_code: customer.address?.postal_code || "",
+          country: customer.address?.country || "",
+        },
       };
 
       form.setFieldsValue(formValues);
@@ -80,6 +200,7 @@ function ClientPin({ cart }: ClientPinProps) {
       "client_phone",
       "client_pin",
       "client_email",
+      "address",
     ]);
 
     // If switching to manual, keep existing cart values as defaults
@@ -89,6 +210,14 @@ function ClientPin({ cart }: ClientPinProps) {
         client_phone: cart?.client_phone ?? cart?.clientPhone ?? "",
         client_pin: cart?.client_pin ?? cart?.clientPin ?? "",
         client_email: cart?.client_email ?? cart?.clientEmail ?? "",
+        address: {
+          street: cart?.address?.street ?? "",
+          building: cart?.address?.building ?? "",
+          city: cart?.address?.city ?? "",
+          county: cart?.address?.county ?? "",
+          postal_code: cart?.address?.postal_code ?? "",
+          country: cart?.address?.country ?? "",
+        },
       });
     }
   };
@@ -101,6 +230,14 @@ function ClientPin({ cart }: ClientPinProps) {
         client_phone: cart?.client_phone ?? cart?.clientPhone ?? "",
         client_pin: cart?.client_pin ?? cart?.clientPin ?? "",
         client_email: cart?.client_email ?? cart?.clientEmail ?? "",
+        address: {
+          street: cart?.address?.street ?? "",
+          building: cart?.address?.building ?? "",
+          city: cart?.address?.city ?? "",
+          county: cart?.address?.county ?? "",
+          postal_code: cart?.address?.postal_code ?? "",
+          country: cart?.address?.country ?? "",
+        },
         customer_id: cart?.customer_id || null,
       });
     }
@@ -144,6 +281,14 @@ function ClientPin({ cart }: ClientPinProps) {
         client_phone: cart?.client_phone ?? cart?.clientPhone ?? null,
         client_pin: cart?.client_pin ?? cart?.clientPin ?? null,
         client_email: cart?.client_email ?? cart?.clientEmail ?? null,
+        address: {
+          street: cart?.address?.street ?? null,
+          building: cart?.address?.building ?? null,
+          city: cart?.address?.city ?? null,
+          county: cart?.address?.county ?? null,
+          postal_code: cart?.address?.postal_code ?? null,
+          country: cart?.address?.country ?? null,
+        },
         input_mode: cart?.customer_id ? "select" : "select",
         customer_id: cart?.customer_id || null,
       }}
@@ -154,7 +299,7 @@ function ClientPin({ cart }: ClientPinProps) {
         </Space>
       }
       form={form}
-      width={520}
+      width={800}
       modalProps={{
         destroyOnClose: true,
         centered: true,
@@ -178,22 +323,32 @@ function ClientPin({ cart }: ClientPinProps) {
 
         let resolvedCustomerId = rest.customer_id || null;
 
-        // ── Manual entry: create a new customer record if name or phone provided ──
-        if (input_mode === "manual" && (rest.client_name || rest.client_phone)) {
+        // ── Manual entry: create a new customer record ──
+        if (input_mode === "manual") {
           setSavingCustomer(true);
           try {
+            const addressData = {
+              street: rest.address?.street || undefined,
+              building: rest.address?.building || undefined,
+              city: rest.address?.city || undefined,
+              county: rest.address?.county || undefined,
+              postal_code: rest.address?.postal_code || undefined,
+              country: rest.address?.country || undefined,
+            };
+
             const response = await addNewCustomer({
-              customer_name: rest.client_name,
-              phone: rest.client_phone,
-              pin: rest.client_pin,
-              kra_pin: rest.client_pin,
+              customer_name: rest.client_name || undefined,
+              phone: rest.client_phone || undefined,
+              pin: rest.client_pin || undefined,
+              kra_pin: rest.client_pin || undefined,
               email: rest.client_email || undefined,
+              address: addressData,
             });
 
             const newCustomer = response?.data;
             if (newCustomer?._id) {
               resolvedCustomerId = newCustomer._id;
-              message.success(`Customer "${rest.client_name || rest.client_phone}" saved with KRA PIN: ${rest.client_pin || "None"}`);
+              message.success(`Customer "${rest.client_name || rest.client_phone || "New Customer"}" created successfully`);
               // Refresh customer list
               refetchCustomers();
             }
@@ -205,11 +360,57 @@ function ClientPin({ cart }: ClientPinProps) {
           }
         }
 
+        // ── Update existing customer address if address fields are filled ──
+        if (input_mode === "select" && resolvedCustomerId) {
+          const hasAddressData = !!(
+            rest.address?.street ||
+            rest.address?.building ||
+            rest.address?.city ||
+            rest.address?.county ||
+            rest.address?.postal_code ||
+            rest.address?.country
+          );
+
+          if (hasAddressData) {
+            setSavingCustomer(true);
+            try {
+              const addressData = {
+                street: rest.address?.street || undefined,
+                building: rest.address?.building || undefined,
+                city: rest.address?.city || undefined,
+                county: rest.address?.county || undefined,
+                postal_code: rest.address?.postal_code || undefined,
+                country: rest.address?.country || undefined,
+              };
+
+              await updateCustomer(resolvedCustomerId, { address: addressData });
+              message.success("Customer address updated successfully");
+              // Refresh customer list
+              refetchCustomers();
+            } catch (err) {
+              console.error("Could not update customer address:", err);
+              message.error("Failed to update customer address");
+            } finally {
+              setSavingCustomer(false);
+            }
+          }
+        }
+
+        const addressData = {
+          street: rest.address?.street || undefined,
+          building: rest.address?.building || undefined,
+          city: rest.address?.city || undefined,
+          county: rest.address?.county || undefined,
+          postal_code: rest.address?.postal_code || undefined,
+          country: rest.address?.country || undefined,
+        };
+
         const cartData = {
           client_name: rest.client_name || null,
           client_phone: rest.client_phone || null,
           client_pin: rest.client_pin || null,
           client_email: rest.client_email || null,
+          address: addressData,
           customer_id: resolvedCustomerId,
         };
 
@@ -221,6 +422,7 @@ function ClientPin({ cart }: ClientPinProps) {
         if (cartData.client_phone) savedFields.push("Phone");
         if (cartData.client_pin) savedFields.push("KRA PIN");
         if (cartData.client_email) savedFields.push("Email");
+        if (cartData.address && Object.values(cartData.address).some(v => v)) savedFields.push("Address");
 
         message.success(`Client details saved: ${savedFields.join(", ")}`);
         return true;
@@ -314,45 +516,111 @@ function ClientPin({ cart }: ClientPinProps) {
             <Input type="hidden" />
           </Form.Item>
 
-          <ProForm.Group>
-            <ProFormText
-              width="md"
-              name="client_name"
-              label="Client Name"
-              placeholder="Auto-filled or type to override"
-              rules={[{ required: false, message: "Client name is optional" }]}
-            />
-          </ProForm.Group>
-          <ProForm.Group>
-            <ProFormText
-              width="md"
-              name="client_phone"
-              label="Phone Number"
-              placeholder="Auto-filled or type to override"
-              fieldProps={{ type: "tel" }}
-            />
-          </ProForm.Group>
-          <ProForm.Group>
-            <ProFormText
-              width="md"
-              name="client_pin"
-              label="KRA PIN"
-              placeholder="Auto-filled or type to override"
-              fieldProps={{
-                prefix: <IdcardOutlined style={{ color: primaryColor }} />,
-                maxLength: 11,
-              }}
-            />
-          </ProForm.Group>
-          <ProForm.Group>
-            <ProFormText
-              width="md"
-              name="client_email"
-              label="Client Email"
-              placeholder="Auto-filled or type to override"
-              fieldProps={{ type: "email" }}
-            />
-          </ProForm.Group>
+          <Row gutter={[12, 8]}>
+            <Col span={12}>
+              <ProFormText
+                width="md"
+                name="client_name"
+                label="Client Name"
+                placeholder="Auto-filled or type to override"
+                rules={[{ required: false, message: "Client name is optional" }]}
+              />
+            </Col>
+            <Col span={12}>
+              <ProFormText
+                width="md"
+                name="client_phone"
+                label="Phone Number"
+                placeholder="Auto-filled or type to override"
+                fieldProps={{ type: "tel" }}
+              />
+            </Col>
+            <Col span={12}>
+              <ProFormText
+                width="md"
+                name="client_pin"
+                label="KRA PIN"
+                placeholder="Auto-filled or type to override"
+                fieldProps={{
+                  prefix: <IdcardOutlined style={{ color: primaryColor }} />,
+                  maxLength: 11,
+                }}
+              />
+            </Col>
+            <Col span={12}>
+              <ProFormText
+                width="md"
+                name="client_email"
+                label="Client Email"
+                placeholder="Auto-filled or type to override"
+                fieldProps={{ type: "email" }}
+              />
+            </Col>
+          </Row>
+
+          <Divider style={{ margin: "12px 0" }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Address Information (Editable)
+            </Typography.Text>
+          </Divider>
+
+          <Row gutter={[12, 8]}>
+            <Col span={24}>
+              <Form.Item name={["address", "street"]} label="Street Address" style={{ marginBottom: 8 }}>
+                <AutoComplete
+                  options={addressOptions}
+                  onSearch={getPlacePredictions}
+                  onSelect={async (value: string, option: any) => {
+                    const details = await getPlaceDetails(option.place_id);
+                    if (details) {
+                      form.setFieldsValue({
+                        address: {
+                          ...form.getFieldValue('address'),
+                          street: details.street || value,
+                          building: details.building,
+                          city: details.city,
+                          county: details.county,
+                          postal_code: details.postal_code,
+                          country: details.country,
+                        }
+                      });
+                    }
+                  }}
+                  style={{ width: '100%' }}
+                >
+                  <Input
+                    prefix={<EnvironmentOutlined style={{ color: primaryColor }} />}
+                    placeholder="Start typing street address..."
+                  />
+                </AutoComplete>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name={["address", "building"]} label="Building/Landmark" style={{ marginBottom: 8 }}>
+                <Input placeholder="Auto-filled or type to override" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name={["address", "city"]} label="City/Town" style={{ marginBottom: 8 }}>
+                <Input placeholder="Auto-filled or type to override" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name={["address", "postal_code"]} label="Postal Code" style={{ marginBottom: 8 }}>
+                <Input placeholder="Auto-filled or type to override" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name={["address", "county"]} label="County/State" style={{ marginBottom: 8 }}>
+                <Input placeholder="Auto-filled or type to override" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name={["address", "country"]} label="Country" style={{ marginBottom: 8 }}>
+                <Input placeholder="Auto-filled or type to override" />
+              </Form.Item>
+            </Col>
+          </Row>
         </>
       ) : (
         <>
@@ -367,44 +635,110 @@ function ClientPin({ cart }: ClientPinProps) {
             A new customer record will be created automatically on save. All fields are optional.
           </Typography.Text>
 
-          <ProForm.Group>
-            <ProFormText
-              width="md"
-              name="client_name"
-              label="Client Name"
-              placeholder="e.g. Rachel"
-            />
-          </ProForm.Group>
-          <ProForm.Group>
-            <ProFormText
-              width="md"
-              name="client_phone"
-              label="Phone Number"
-              placeholder="e.g. 0712345678"
-              fieldProps={{ type: "tel" }}
-            />
-          </ProForm.Group>
-          <ProForm.Group>
-            <ProFormText
-              width="md"
-              name="client_pin"
-              label="KRA PIN"
-              placeholder="e.g. A123456789Z"
-              fieldProps={{
-                prefix: <IdcardOutlined style={{ color: primaryColor }} />,
-                maxLength: 11,
-              }}
-            />
-          </ProForm.Group>
-          <ProForm.Group>
-            <ProFormText
-              width="md"
-              name="client_email"
-              label="Client Email"
-              placeholder="e.g. rachel@email.com"
-              fieldProps={{ type: "email" }}
-            />
-          </ProForm.Group>
+          <Row gutter={[12, 8]}>
+            <Col span={12}>
+              <ProFormText
+                width="md"
+                name="client_name"
+                label="Client Name"
+                placeholder="e.g. Rachel"
+              />
+            </Col>
+            <Col span={12}>
+              <ProFormText
+                width="md"
+                name="client_phone"
+                label="Phone Number"
+                placeholder="e.g. 0712345678"
+                fieldProps={{ type: "tel" }}
+              />
+            </Col>
+            <Col span={12}>
+              <ProFormText
+                width="md"
+                name="client_pin"
+                label="KRA PIN"
+                placeholder="e.g. A123456789Z"
+                fieldProps={{
+                  prefix: <IdcardOutlined style={{ color: primaryColor }} />,
+                  maxLength: 11,
+                }}
+              />
+            </Col>
+            <Col span={12}>
+              <ProFormText
+                width="md"
+                name="client_email"
+                label="Client Email"
+                placeholder="e.g. rachel@email.com"
+                fieldProps={{ type: "email" }}
+              />
+            </Col>
+          </Row>
+
+          <Divider style={{ margin: "12px 0" }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              Address Information
+            </Typography.Text>
+          </Divider>
+
+          <Row gutter={[12, 8]}>
+            <Col span={24}>
+              <Form.Item name={["address", "street"]} label="Street Address" style={{ marginBottom: 8 }}>
+                <AutoComplete
+                  options={addressOptions}
+                  onSearch={getPlacePredictions}
+                  onSelect={async (value: string, option: any) => {
+                    const details = await getPlaceDetails(option.place_id);
+                    if (details) {
+                      form.setFieldsValue({
+                        address: {
+                          ...form.getFieldValue('address'),
+                          street: details.street || value,
+                          building: details.building,
+                          city: details.city,
+                          county: details.county,
+                          postal_code: details.postal_code,
+                          country: details.country,
+                        }
+                      });
+                    }
+                  }}
+                  style={{ width: '100%' }}
+                >
+                  <Input
+                    prefix={<EnvironmentOutlined style={{ color: primaryColor }} />}
+                    placeholder="Start typing street address..."
+                  />
+                </AutoComplete>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name={["address", "building"]} label="Building/Landmark" style={{ marginBottom: 8 }}>
+                <Input placeholder="e.g. Westgate Mall" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name={["address", "city"]} label="City/Town" style={{ marginBottom: 8 }}>
+                <Input placeholder="e.g. Nairobi" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name={["address", "postal_code"]} label="Postal Code" style={{ marginBottom: 8 }}>
+                <Input placeholder="e.g. 00100" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name={["address", "county"]} label="County/State" style={{ marginBottom: 8 }}>
+                <Input placeholder="e.g. Westlands" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name={["address", "country"]} label="Country" style={{ marginBottom: 8 }}>
+                <Input placeholder="e.g. Kenya" />
+              </Form.Item>
+            </Col>
+          </Row>
         </>
       )}
     </ModalForm>

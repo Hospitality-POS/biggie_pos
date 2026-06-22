@@ -123,7 +123,12 @@ const ImportBanksModal: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =>
       const result = await importBanks(file);
       setImportResult(result);
       setStep("result");
-      if (result.successful > 0) onSuccess();
+      // Refresh bank list
+      onSuccess();
+      // Close modal after showing result
+      setTimeout(() => {
+        handleClose();
+      }, 2000);
     } catch (err: any) {
       console.error("Import failed:", err);
       message.error(err?.message || "Import failed");
@@ -192,15 +197,18 @@ const ImportBanksModal: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =>
           ))}
         </div>
         <div style={{ display: "flex", flexDirection: "column" as const, gap: 8, marginBottom: 14 }}>
-          {analysis.advice.map((item, i) => {
-            const cfg = ADVICE_CONFIG[item.level];
-            return (
-              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 8, padding: "10px 12px" }}>
-                <span style={{ color: cfg.color, fontSize: 14, flexShrink: 0, marginTop: 1 }}>{cfg.icon}</span>
-                <Text style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{item.message}</Text>
-              </div>
-            );
-          })}
+          {(() => {
+            const adviceArray = Array.isArray(analysis.advice) ? analysis.advice : (analysis.advice ? [analysis.advice] : []);
+            return adviceArray.map((item, i) => {
+              const cfg = ADVICE_CONFIG[item.level];
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 8, padding: "10px 12px" }}>
+                  <span style={{ color: cfg.color, fontSize: 14, flexShrink: 0, marginTop: 1 }}>{cfg.icon}</span>
+                  <Text style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{item.message}</Text>
+                </div>
+              );
+            });
+          })()}
         </div>
         <div style={{ marginBottom: 14 }}>
           <Text strong style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 8 }}>
@@ -208,10 +216,10 @@ const ImportBanksModal: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =>
             <Text style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400, marginLeft: 8 }}>* required · † recommended</Text>
           </Text>
           <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8 }}>
-            {Object.entries(analysis.columnMapping).map(([field, header]) => (
-              <div key={field} style={{ padding: "8px 12px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between" }}>
-                <Text style={{ fontSize: 12, color: "#64748b" }}>{header}</Text>
-                <Text style={{ fontSize: 12, fontWeight: 500, color: "#0f172a" }}>{FIELD_LABELS[field] || field}</Text>
+            {Array.isArray(analysis.mappedColumns) && analysis.mappedColumns.map((mapping) => (
+              <div key={mapping.field} style={{ padding: "8px 12px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 12, color: "#64748b" }}>{mapping.header}</Text>
+                <Text style={{ fontSize: 12, fontWeight: 500, color: "#0f172a" }}>{FIELD_LABELS[mapping.field] || mapping.field}</Text>
               </div>
             ))}
           </div>
@@ -254,14 +262,15 @@ const ImportBanksModal: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =>
   const renderResult = () => {
     if (!importResult) return null;
     const { summary, errors } = importResult;
+    if (!summary) return null;
     return (
       <div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 16 }}>
           {[
-            { label: "Total Rows", value: summary.total, color: "#6366f1", bg: "#eef2ff" },
-            { label: "Created", value: summary.created, color: "#059669", bg: "#f0fdf4" },
-            { label: "Updated", value: summary.updated, color: "#3b82f6", bg: "#eff6ff" },
-            { label: "Failed", value: summary.errors, color: summary.errors ? "#f59e0b" : "#10b981", bg: summary.errors ? "#fffbeb" : "#f0fdf4" },
+            { label: "Total Rows", value: summary.total || 0, color: "#6366f1", bg: "#eef2ff" },
+            { label: "Created", value: summary.created || 0, color: "#059669", bg: "#f0fdf4" },
+            { label: "Updated", value: summary.updated || 0, color: "#3b82f6", bg: "#eff6ff" },
+            { label: "Failed", value: summary.errors || 0, color: summary.errors ? "#f59e0b" : "#10b981", bg: summary.errors ? "#fffbeb" : "#f0fdf4" },
           ].map((s) => (
             <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "10px 8px", textAlign: "center" as const }}>
               <Text style={{ fontSize: 22, fontWeight: 700, color: s.color, display: "block" }}>{s.value}</Text>
@@ -269,7 +278,7 @@ const ImportBanksModal: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =>
             </div>
           ))}
         </div>
-        {errors.length > 0 && (
+        {errors && errors.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <Text strong style={{ fontSize: 12, color: "#374151", display: "block", marginBottom: 6 }}>
               <CloseCircleOutlined style={{ color: "#ef4444", marginRight: 4 }} />{errors.length} row(s) had errors

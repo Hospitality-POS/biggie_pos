@@ -21,7 +21,7 @@ export const addNewDelivery = async (params: ParamsType) => {
     const response = await axiosInstance.post(url, {
       ...params,
     });
-    message.success("Delivery added successfully");
+    // message.success("Delivery added successfully");
     return response.data;
   } catch (error) {
     throw new Error(error);
@@ -41,7 +41,7 @@ export const editDelivery = async (params: ParamsType) => {
         quantity: item.quantity,
       })),
     });
-    message.success("Delivery updated successfully");
+    // message.success("Delivery updated successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {

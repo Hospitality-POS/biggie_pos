@@ -61,7 +61,7 @@ export const addNewCategory = async (params: ParamsType) => {
       sub_category: params.subcategory_id,
       shop_id: params.shop_id,
     });
-    message.success("Category added successfully");
+    // message.success("Category added successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -77,7 +77,7 @@ export const updateCategory = async (data: ParamsType) => {
       name: data?.name,
       sub_category: data?.subcategory_id.value || data?.subcategory_id,
     });
-    message.success("Category updated successfully");
+    // message.success("Category updated successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -105,7 +105,7 @@ export const addNewSubCategory = async (params: ParamsType) => {
       name: params.name,
       main_category: params.main_category,
     });
-    message.success("Subcategory added successfully");
+    // message.success("Subcategory added successfully");
 
     return response.data;
   } catch (error) {
@@ -126,7 +126,7 @@ export const editSubCategory = async (data: ParamsType) => {
           data?.values.main_category || data?.values.main_category?.value,
       }
     );
-    message.success("Subcategory updated successfully");
+    // message.success("Subcategory updated successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -140,7 +140,7 @@ export const deleteSubCategory = async (params: ParamsType) => {
   const url = `${categ_url}/sub-categories`;
   try {
     const response = await axiosInstance.delete(`${url}/${params}`);
-    message.success("Subcategory deleted successfully");
+    // message.success("Subcategory deleted successfully");
     return response.data;
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -175,7 +175,7 @@ export const addNewMainCategory = async (params: ParamsType) => {
     const response = await axiosInstance.post(`${categ_url}/main-categories`, {
       name: params.name,
     });
-    message.success("Main-Category created successfully");
+    // message.success("Main-Category created successfully");
     return response.data;
   } catch (error) {
     throw new Error("Error creating main-category");
@@ -190,7 +190,7 @@ export const editMainCategory = async (data: ParamsType) => {
         name: data?.values.name,
       }
     );
-    message.success("Main-Category updated successfully");
+    // message.success("Main-Category updated successfully");
     return response.data;
   } catch (error) {
     throw new Error("Error updating main-category");

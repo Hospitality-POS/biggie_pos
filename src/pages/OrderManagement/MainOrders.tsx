@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { Typography } from "antd";
-import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined , LockOutlined } from "@ant-design/icons";
+import { OrderedListOutlined, ShoppingCartOutlined, FileDoneOutlined , LockOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import OrdersTable from "./Orders/OrdersTable";
+import OrdersByLocation from "./Orders/OrdersByLocation";
 import InvoiceTable from "./Invoices/InvoiceTable";
 import ManualInvoiceModal from "./Invoices/ManualInvoiceModal";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
@@ -26,6 +27,13 @@ const TAB_CFG = [
     icon: <ShoppingCartOutlined />,
     iconColor: C.blue,
     label: "Orders",
+    permissionKey: "ORDERS_VIEW",
+  },
+  {
+    key: "done",
+    icon: <CheckCircleOutlined />,
+    iconColor: C.green,
+    label: "Order Analysis",
     permissionKey: "ORDERS_VIEW",
   },
   {
@@ -118,7 +126,8 @@ function MainOrders() {
     () =>
       TAB_CFG
         .filter((t) => {
-          if (t.key === "orders") return hasPOS;
+          // Orders list and Order Analysis are Duka (POS) features only.
+          if (t.key === "orders" || t.key === "done") return hasPOS;
           return true;
         })
         .map((t) => ({ ...t, allowed: can(t.permissionKey) })),
@@ -145,6 +154,8 @@ function MainOrders() {
     switch (activeTab) {
       case "orders":
         return <OrdersTable />;
+      case "done":
+        return <OrdersByLocation />;
       case "invoices":
         return <AccountingInvoicesTab />;
       default:

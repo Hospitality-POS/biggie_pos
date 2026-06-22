@@ -61,7 +61,7 @@ export const printInvoice = async (printData: PrintData): Promise<void> => {
       await writable.write(blob);
       await writable.close();
 
-      message.success(`Invoice saved successfully`);
+      // message.success(`Invoice saved successfully`);
     } catch (fileError) {
       console.log("Falling back to traditional download due to:", fileError);
 
@@ -72,7 +72,7 @@ export const printInvoice = async (printData: PrintData): Promise<void> => {
       link.click();
       window.URL.revokeObjectURL(url);
 
-      message.success("Invoice downloaded successfully");
+      // message.success("Invoice downloaded successfully");
     }
   } catch (error) {
     if (error?.response?.status != 403) {
@@ -108,7 +108,7 @@ export const rePrintInvoice = async (invoiceId: string) => {
     const response = await axiosInstance.put(`${baseUrl}/cart/re-print-inv`, {
       invoice_id: invoiceId,
     });
-    message.success("Invoice re-printed successfully");
+    // message.success("Invoice re-printed successfully");
     return response.data || [];
   } catch (error: any) {
     if (error?.response?.status != 403) {
@@ -187,17 +187,19 @@ export const createCart = async (cartData: {
 export const updateCart = async (
   cartId: string,
   cartData: {
-    discount_type?: string;
-    discount?: number;
-    client_pin?: string;
-    tip_type?: string;
-    tip_amount?: number;
-    client_name?: string;
-    customer_id?: string;
-    use_subscription?: boolean;
-    payment_type?: string;
-    subscription_id?: string;
-    served_by?: string;
+    discount_type?: string | null;
+    discount?: number | null;
+    client_pin?: string | null;
+    tip_type?: string | null;
+    tip_amount?: number | null;
+    client_name?: string | null;
+    client_email?: string | null;
+    client_phone?: string | null;
+    customer_id?: string | null;
+    use_subscription?: boolean | null;
+    payment_type?: string | null;
+    subscription_id?: string | null;
+    served_by?: string | null;
   }
 ) => {
   try {
@@ -347,7 +349,7 @@ export const sendCart = async (cartId: string) => {
     const response = await axiosInstance.put(`${baseUrl}/cart/send-cart`, {
       cart_id: cartId,
     });
-    message.success("Order sent to kitchen");
+    // message.success("Order sent to kitchen");
     return response.data;
   } catch (error: any) {
     const errorMessage =
@@ -367,7 +369,7 @@ export const voidCart = async (cartId: string) => {
     const response = await axiosInstance.put(`${baseUrl}/cart/void-cart`, {
       cart_id: cartId,
     });
-    message.success("Order voided successfully");
+    // message.success("Order voided successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage =
@@ -391,7 +393,7 @@ export const transferCartItems = async (data: {
       `${baseUrl}/cart/transfer-items`,
       data
     );
-    message.success("Items transferred successfully");
+    // message.success("Items transferred successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage =

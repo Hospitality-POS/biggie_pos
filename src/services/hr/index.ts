@@ -103,7 +103,7 @@ export const updateEmployeeProfile = async (id: string, data: Partial<EmployeePr
 export const terminateEmployee = async (id: string, data: { termination_date: string; termination_reason: string }) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/employee-profile/${id}/terminate`, data);
-    message.success("Employee terminated successfully");
+    // message.success("Employee terminated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to terminate employee";
@@ -115,7 +115,7 @@ export const terminateEmployee = async (id: string, data: { termination_date: st
 export const acceptResignation = async (id: string, data: { resignation_date: string; resignation_reason: string }) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/employee-profile/${id}/resign`, data);
-    message.success("Resignation accepted successfully");
+    // message.success("Resignation accepted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to accept resignation";
@@ -127,7 +127,7 @@ export const acceptResignation = async (id: string, data: { resignation_date: st
 export const updateEmployeeStatus = async (id: string, data: { employee_status: string }) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/employee-profile/${id}/status`, data);
-    message.success("Employee status updated successfully");
+    // message.success("Employee status updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to update employee status";
@@ -139,7 +139,7 @@ export const updateEmployeeStatus = async (id: string, data: { employee_status: 
 export const deleteEmployeeProfile = async (id: string) => {
   try {
     const response = await axiosInstance.delete(`${hr_url}/employee-profile/${id}`);
-    message.success("Employee profile deleted successfully");
+    // message.success("Employee profile deleted successfully");
     return response.data;
   } catch (error: any) {
     message.error("Failed to delete employee profile");
@@ -158,7 +158,7 @@ export const importEmployeeProfiles = async (file: File, shopId: string, updateM
         "Content-Type": "multipart/form-data",
       },
     });
-    message.success("Employee profiles imported successfully");
+    // message.success("Employee profiles imported successfully");
     return response.data;
   } catch (error: any) {
     message.error("Failed to import employee profiles");
@@ -179,7 +179,7 @@ export const downloadEmployeeProfileTemplate = async () => {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
-    message.success("Template downloaded successfully");
+    // message.success("Template downloaded successfully");
   } catch (error: any) {
     message.error("Failed to download template");
     throw new Error(error.message);
@@ -406,7 +406,7 @@ export const getPayrollById = async (id: string) => {
 export const processPayroll = async (id: string) => {
   try {
     const response = await axiosInstance.post(`${hr_url}/payroll/${id}/process`);
-    message.success("Payroll processed successfully");
+    // message.success("Payroll processed successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to process payroll";
@@ -418,7 +418,7 @@ export const processPayroll = async (id: string) => {
 export const approvePayroll = async (id: string) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/payroll/${id}/approve`);
-    message.success("Payroll approved successfully");
+    // message.success("Payroll approved successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve payroll";
@@ -430,7 +430,7 @@ export const approvePayroll = async (id: string) => {
 export const cancelPayroll = async (id: string) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/payroll/${id}/cancel`);
-    message.success("Payroll cancelled successfully");
+    // message.success("Payroll cancelled successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to cancel payroll";
@@ -442,7 +442,7 @@ export const cancelPayroll = async (id: string) => {
 export const deletePayroll = async (id: string) => {
   try {
     const response = await axiosInstance.delete(`${hr_url}/payroll/${id}`);
-    message.success("Payroll deleted successfully");
+    // message.success("Payroll deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete payroll";
@@ -532,7 +532,7 @@ export const getPayslipsByUser = async (userId: string) => {
 export const updatePayslipPayment = async (id: string, data: { payment_status: string; payment_reference?: string }) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/payslips/${id}/payment`, data);
-    message.success("Payment status updated successfully");
+    // message.success("Payment status updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to update payment status";
@@ -571,7 +571,7 @@ export interface ShiftSchedule {
 export const createShiftSchedule = async (data: Partial<ShiftSchedule>) => {
   try {
     const response = await axiosInstance.post(`${hr_url}/shift-schedules`, data);
-    message.success("Shift schedule created successfully");
+    // message.success("Shift schedule created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to create shift schedule";
@@ -605,7 +605,7 @@ export const getShiftScheduleById = async (id: string) => {
 export const updateShiftSchedule = async (id: string, data: Partial<ShiftSchedule>) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/shift-schedules/${id}`, data);
-    message.success("Shift schedule updated successfully");
+    // message.success("Shift schedule updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to update shift schedule";
@@ -617,7 +617,7 @@ export const updateShiftSchedule = async (id: string, data: Partial<ShiftSchedul
 export const publishShiftSchedule = async (id: string) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/shift-schedules/${id}/publish`);
-    message.success("Shift schedule published successfully");
+    // message.success("Shift schedule published successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to publish shift schedule";
@@ -629,7 +629,7 @@ export const publishShiftSchedule = async (id: string) => {
 export const deleteShiftSchedule = async (id: string) => {
   try {
     const response = await axiosInstance.delete(`${hr_url}/shift-schedules/${id}`);
-    message.success("Shift schedule deleted successfully");
+    // message.success("Shift schedule deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete shift schedule";
@@ -689,7 +689,7 @@ export interface ShiftSwap {
 export const createShiftSwap = async (data: Partial<ShiftSwap>) => {
   try {
     const response = await axiosInstance.post(`${hr_url}/shift-swaps`, data);
-    message.success("Shift swap request created successfully");
+    // message.success("Shift swap request created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to create shift swap";
@@ -723,7 +723,7 @@ export const getShiftSwapById = async (id: string) => {
 export const respondToShiftSwap = async (id: string, data: { status: string; rejection_reason?: string }) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/shift-swaps/${id}/respond`, data);
-    message.success("Response submitted successfully");
+    // message.success("Response submitted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to respond to shift swap";
@@ -735,7 +735,7 @@ export const respondToShiftSwap = async (id: string, data: { status: string; rej
 export const approveShiftSwap = async (id: string) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/shift-swaps/${id}/approve`);
-    message.success("Shift swap approved successfully");
+    // message.success("Shift swap approved successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to approve shift swap";
@@ -747,7 +747,7 @@ export const approveShiftSwap = async (id: string) => {
 export const cancelShiftSwap = async (id: string) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/shift-swaps/${id}/cancel`);
-    message.success("Shift swap cancelled successfully");
+    // message.success("Shift swap cancelled successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to cancel shift swap";
@@ -759,7 +759,7 @@ export const cancelShiftSwap = async (id: string) => {
 export const completeShiftSwap = async (id: string) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/shift-swaps/${id}/complete`);
-    message.success("Shift swap completed successfully");
+    // message.success("Shift swap completed successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to complete shift swap";
@@ -990,7 +990,7 @@ export interface DeductionRule {
 export const createDeductionType = async (data: Partial<DeductionType>) => {
   try {
     const response = await axiosInstance.post(`${hr_url}/deductions/types`, data);
-    message.success("Deduction type created successfully");
+    // message.success("Deduction type created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to create deduction type";
@@ -1012,7 +1012,7 @@ export const fetchDeductionTypes = async (params: ParamsType = {}) => {
 export const updateDeductionType = async (id: string, data: Partial<DeductionType>) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/deductions/types/${id}`, data);
-    message.success("Deduction type updated successfully");
+    // message.success("Deduction type updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to update deduction type";
@@ -1024,7 +1024,7 @@ export const updateDeductionType = async (id: string, data: Partial<DeductionTyp
 export const createDeductionRule = async (data: Partial<DeductionRule>) => {
   try {
     const response = await axiosInstance.post(`${hr_url}/deductions/rules`, data);
-    message.success("Deduction rule created successfully");
+   // message.success("Deduction rule created successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to create deduction rule";
@@ -1057,7 +1057,7 @@ export const getDeductionRuleById = async (id: string) => {
 export const updateDeductionRule = async (id: string, data: Partial<DeductionRule>) => {
   try {
     const response = await axiosInstance.patch(`${hr_url}/deductions/rules/${id}`, data);
-    message.success("Deduction rule updated successfully");
+    // message.success("Deduction rule updated successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to update deduction rule";
@@ -1069,7 +1069,7 @@ export const updateDeductionRule = async (id: string, data: Partial<DeductionRul
 export const deleteDeductionRule = async (id: string) => {
   try {
     const response = await axiosInstance.delete(`${hr_url}/deductions/rules/${id}`);
-    message.success("Deduction rule deleted successfully");
+    // message.success("Deduction rule deleted successfully");
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete deduction rule";

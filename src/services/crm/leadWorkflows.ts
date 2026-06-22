@@ -158,7 +158,7 @@ export const createWorkflow = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.post(BASE, data);
-            message.success("Workflow created successfully");
+            // message.success("Workflow created successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to create workflow";
@@ -180,7 +180,7 @@ export const updateWorkflow = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.put(`${BASE}/${id}`, data);
-            message.success("Workflow updated successfully");
+            // message.success("Workflow updated successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update workflow";
@@ -204,7 +204,7 @@ export const toggleWorkflowActive = createAsyncThunk(
             const response = await axiosInstance.patch(`${BASE}/${id}/toggle`, {
                 shop_id,
             });
-            message.success(response.data.message);
+            // message.success(response.data.message);
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to toggle workflow";
@@ -229,7 +229,7 @@ export const triggerWorkflowForLead = createAsyncThunk(
                 shop_id,
                 lead_id,
             });
-            message.success("Workflow triggered successfully");
+            // message.success("Workflow triggered successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to trigger workflow";
@@ -251,7 +251,7 @@ export const deleteWorkflow = createAsyncThunk(
     ) => {
         try {
             await axiosInstance.delete(`${BASE}/${id}`, { params: { shop_id } });
-            message.success("Workflow deleted successfully");
+            // message.success("Workflow deleted successfully");
             return id;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to delete workflow";

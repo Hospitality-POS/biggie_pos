@@ -2,14 +2,12 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { Button, Typography } from "antd";
 import {
     CalendarOutlined, CreditCardOutlined, GiftOutlined,
-    LockOutlined, MessageOutlined, StarOutlined, UserAddOutlined,
+    LockOutlined, StarOutlined, UserAddOutlined,
     UserOutlined, WalletOutlined, TeamOutlined,
 } from "@ant-design/icons";
 import CustomerTable from "./CustomerTable";
 import Schedule from "../staff/schedule";
 import AdminCustomersTable from "./CustomerTable";
-import FeedbackTable from "./FeedbackTable";
-import ConsultationTable from "./ConsultationTable";
 import SubscriptionPackagesTable from "./SubscriptionPackagesTable";
 import CustomerSubscriptionsTable from "./CustomerSubscriptionsTable";
 import AddCustomerModal from "./AddCustomerModal";
@@ -69,7 +67,6 @@ const getTabConfig = (): TabItem[] => {
         return [
             { key: "customers", label: "Patients", icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
             { key: "schedule", label: "Appointments", icon: <CalendarOutlined />, permissionKey: "CONSULTATIONS_VIEW_SLOTS" },
-            { key: "consultations", label: "Consultations", icon: <StarOutlined />, permissionKey: "CONSULTATIONS_VIEW" },
             { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
         ];
@@ -82,8 +79,6 @@ const getTabConfig = (): TabItem[] => {
             { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
-            { key: "consultations", label: "Consultations", icon: <StarOutlined />, permissionKey: "CONSULTATIONS_VIEW" },
-            { key: "feedback", label: "Feedback", icon: <MessageOutlined />, permissionKey: "FEEDBACK_VIEW" },
             { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
         ];
     }
@@ -101,8 +96,6 @@ const getTabConfig = (): TabItem[] => {
         { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
         { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
         ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
-        { key: "consultations", label: "Consultations", icon: <StarOutlined />, permissionKey: "CONSULTATIONS_VIEW" },
-        { key: "feedback", label: "Feedback", icon: <MessageOutlined />, permissionKey: "FEEDBACK_VIEW" },
         { key: "giftCards", label: "Gift Cards", icon: <GiftOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
     ];
 };
@@ -292,10 +285,6 @@ function Customers() {
                 return <CustomerSubscriptionsTable />;
             case "schedule":
                 return <Schedule />;
-            case "consultations":
-                return <ConsultationTable />;
-            case "feedback":
-                return <FeedbackTable />;
             case "giftCards":
                 return <AdminCustomersTable nonCustomerEnabled={true} />;
             default:

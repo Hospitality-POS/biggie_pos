@@ -26,6 +26,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     getSalesReceipts,
     getSalesReceiptSummary,
+    fixVoidedJournalEntries,
     SalesReceipt,
     SalesReceiptStatus,
     PaymentMethod,
@@ -141,6 +142,18 @@ const SalesReceiptsPage: React.FC = () => {
         setFormOpen(true);
     };
 
+    const handleFixVoidedJournals = async () => {
+        try {
+            const result = await fixVoidedJournalEntries();
+            message.success(result.message);
+            // Refresh data after fixing
+            queryClient.invalidateQueries({ queryKey: ["sales-receipts"] });
+            queryClient.invalidateQueries({ queryKey: ["sales-receipts-summary"] });
+        } catch (error) {
+            console.error("Failed to fix voided journals:", error);
+        }
+    };
+
     const columns = [
         {
             title: "Receipt No",
@@ -224,9 +237,19 @@ const SalesReceiptsPage: React.FC = () => {
             <ProCard
                 title="Sales Receipts"
                 extra={
-                    <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-                        New Receipt
-                    </Button>
+                    <Space>
+                        {activeStatus === "Voided" && (
+                            <Button 
+                                onClick={handleFixVoidedJournals}
+                                style={{ marginRight: 8 }}
+                            >
+                                Fix Voided Journals
+                            </Button>
+                        )}
+                        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                            New Receipt
+                        </Button>
+                    </Space>
                 }
                 headerBordered
             >

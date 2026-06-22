@@ -35,7 +35,7 @@ export const addNewPurchaseOrder = async (params: ParamsType) => {
                 notes: item.notes,
             })),
         });
-        message.success("Purchase order created successfully");
+        // message.success("Purchase order created successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status != 403) {
@@ -59,7 +59,7 @@ export const editPurchaseOrder = async (params: ParamsType) => {
                 notes: item.notes,
             })),
         });
-        message.success("Purchase order updated successfully");
+        // message.success("Purchase order updated successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status != 403) {
@@ -126,7 +126,7 @@ export const getPendingItemsForPO = async (id: string) => {
 export const deletePurchaseOrder = async (id: string) => {
     try {
         const response = await axiosInstance.delete(`${url}/${id}`);
-        message.success("Purchase order deleted successfully");
+        // message.success("Purchase order deleted successfully");
         return response.data;
     } catch (error) {
         if (error?.response?.status != 403) {

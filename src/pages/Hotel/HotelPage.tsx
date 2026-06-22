@@ -44,7 +44,6 @@ const RoomCard: React.FC<RoomCardProps> = ({ room, onOpen, primaryColor, cartIte
       style={{
         borderRadius: 14,
         border: `1.5px solid ${isOccupied ? "#fecaca" : "#d1fae5"}`,
-        background: "#fff",
         cursor: "pointer",
         boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
         position: "relative",
@@ -504,9 +503,9 @@ const HotelPage: React.FC = () => {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <>
+    <div style={{ padding: "24px", minHeight: "100vh" }}>
       <ProCard
-        bordered
+        bordered={false}
         title={
           <Space size={8} align="center">
             <div
@@ -548,7 +547,7 @@ const HotelPage: React.FC = () => {
             />
           </Space>
         }
-        style={{ borderRadius: 12 }}
+        style={{ borderRadius: 12, boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02)" }}
       >
         <Tabs
           activeKey={activeFloorId}
@@ -754,8 +753,7 @@ const HotelPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-
-    </>
+    </div>
   );
 };
 

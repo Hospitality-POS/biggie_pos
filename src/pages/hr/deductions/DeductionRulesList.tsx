@@ -3,6 +3,7 @@ import { Typography, Card, Table, Button, Space, Tag, Modal, Form, Input, InputN
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchDeductionRules, createDeductionRule, updateDeductionRule, deleteDeductionRule, getDeductionRuleById } from "@services/hr";
+import dayjs from "dayjs";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -74,10 +75,11 @@ const DeductionRulesList: React.FC = () => {
       key: "name",
     },
     {
-      title: "Type",
-      dataIndex: "type",
-      key: "type",
-      render: (type: string) => {
+      title: "Deduction Type",
+      dataIndex: "deduction_type_id",
+      key: "deduction_type_id",
+      render: (deductionType: any) => {
+        const type = deductionType?.name || deductionType?.code || "-";
         const colorMap: Record<string, string> = {
           PAYE: "red",
           NHIF: "blue",
@@ -89,16 +91,16 @@ const DeductionRulesList: React.FC = () => {
       },
     },
     {
-      title: "Rate (%)",
-      dataIndex: "rate",
-      key: "rate",
-      render: (rate: number) => `${rate}%`,
+      title: "Rule Type",
+      dataIndex: "rule_type",
+      key: "rule_type",
+      render: (type: string) => <Tag>{type || "-"}</Tag>,
     },
     {
-      title: "Fixed Amount",
-      dataIndex: "fixed_amount",
-      key: "fixed_amount",
-      render: (amount: number) => `KES ${amount?.toLocaleString() || 0}`,
+      title: "Rate (%)",
+      dataIndex: "percentage_rate",
+      key: "percentage_rate",
+      render: (rate: number) => `${rate || 0}%`,
     },
     {
       title: "Max Amount",
@@ -107,11 +109,17 @@ const DeductionRulesList: React.FC = () => {
       render: (amount: number) => `KES ${amount?.toLocaleString() || 0}`,
     },
     {
+      title: "Salary Min",
+      dataIndex: "salary_min",
+      key: "salary_min",
+      render: (amount: number) => `KES ${amount?.toLocaleString() || 0}`,
+    },
+    {
       title: "Status",
-      dataIndex: "status",
-      key: "status",
-      render: (status: string) => (
-        <Tag color={status === "Active" ? "green" : "red"}>{status}</Tag>
+      dataIndex: "is_active",
+      key: "is_active",
+      render: (isActive: boolean) => (
+        <Tag color={isActive ? "green" : "red"}>{isActive ? "Active" : "Inactive"}</Tag>
       ),
     },
     {

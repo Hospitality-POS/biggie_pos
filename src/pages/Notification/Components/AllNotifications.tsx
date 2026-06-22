@@ -3,7 +3,6 @@ import {
     Button,
     Card,
     Drawer,
-    Dropdown,
     Empty,
     message,
     Modal,
@@ -327,7 +326,8 @@ const MobileNotificationList: React.FC<{
     onMarkRead: (id: string) => void;
     onDelete: (id: string) => void;
     filterPriority: string | null;
-}> = ({ notificationtype, onViewDetails, onMarkRead, onDelete, filterPriority }) => {
+    filterType: string | null;
+}> = ({ notificationtype, onViewDetails, onMarkRead, onDelete, filterPriority, filterType }) => {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -341,8 +341,8 @@ const MobileNotificationList: React.FC<{
                 current: p,
                 pageSize: PAGE_SIZE,
                 priority: filterPriority || undefined,
+                type: filterType || (notificationtype === "system" ? "system" : ""),
                 read: notificationtype === "unread" ? false : undefined,
-                type: notificationtype === "system" ? "system" : "",
             });
             const list = data?.data || [];
             setNotifications(list);
@@ -355,7 +355,7 @@ const MobileNotificationList: React.FC<{
         }
     };
 
-    React.useEffect(() => { load(1); }, [notificationtype, filterPriority]);
+    React.useEffect(() => { load(1); }, [notificationtype, filterPriority, filterType]);
 
     if (loading) {
         return (
@@ -407,13 +407,13 @@ const MobileNotificationList: React.FC<{
 const Toolbar: React.FC<{
     notificationtype?: string;
     filterPriority: string | null;
+    filterType: string | null;
     onClearFilter: () => void;
-    priorityMenu: any;
     onMarkAll: () => void;
     markAllLoading: boolean;
     isMobile: boolean;
     onReload?: () => void;
-}> = ({ notificationtype, filterPriority, onClearFilter, priorityMenu, onMarkAll, markAllLoading, isMobile, onReload }) => (
+}> = ({ notificationtype, filterPriority, filterType, onClearFilter, onMarkAll, markAllLoading, isMobile, onReload }) => (
     <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         flexWrap: "wrap", gap: 10, padding: "0 0 14px",
@@ -431,10 +431,10 @@ const Toolbar: React.FC<{
                     ? `${notificationtype.charAt(0).toUpperCase() + notificationtype.slice(1)} Notifications`
                     : "All Notifications"}
             </Text>
-            {filterPriority && (
+            {(filterPriority || filterType) && (
                 <Button size="small" icon={<ReloadOutlined />} onClick={onClearFilter}
                     style={{ borderRadius: 6, fontSize: 11 }}>
-                    Clear filter
+                    Clear filters
                 </Button>
             )}
         </div>
@@ -444,17 +444,6 @@ const Toolbar: React.FC<{
             {isMobile && onReload && (
                 <Button size="small" icon={<ReloadOutlined />} onClick={onReload} style={{ borderRadius: 7 }} />
             )}
-            <Dropdown menu={priorityMenu}>
-                <Button size="small" icon={<FilterOutlined />} style={{
-                    borderRadius: 7,
-                    background: filterPriority ? C.primaryLight : undefined,
-                    color: filterPriority ? C.primary : undefined,
-                }}>
-                    {filterPriority
-                        ? filterPriority.charAt(0).toUpperCase() + filterPriority.slice(1)
-                        : "Priority"}
-                </Button>
-            </Dropdown>
             {notificationtype !== "system" && (
                 <Button size="small" type="primary" icon={<CheckOutlined />}
                     loading={markAllLoading}
@@ -482,6 +471,7 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
     const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
     const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
     const [filterPriority, setFilterPriority] = useState<string | null>(null);
+    const [filterType, setFilterType] = useState<string | null>(null);
     const [mobileReloadKey, setMobileReloadKey] = useState(0);
 
     const { deleteNotificationMutation, markAsReadMutation } =
@@ -494,7 +484,11 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
     };
 
     const markAllMutation = useMutation({
-        mutationFn: markAllNotificationsAsRead,
+        mutationFn: () => markAllNotificationsAsRead({
+            priority: filterPriority || undefined,
+            type: filterType || (notificationtype === "system" ? "system" : undefined),
+            read: notificationtype === "unread" ? false : undefined,
+        }),
         onSuccess: () => {
             message.success("All notifications marked as read");
             invalidate();
@@ -537,22 +531,6 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
         setSelectedKeys([]);
     };
 
-    const priorityMenu = {
-        items: [
-            { key: "low", label: <PriorityTag priority="low" /> },
-            { key: "medium", label: <PriorityTag priority="medium" /> },
-            { key: "high", label: <PriorityTag priority="high" /> },
-            { key: "urgent", label: <PriorityTag priority="urgent" /> },
-            { key: "clear", label: "Clear", danger: true },
-        ],
-        onClick: ({ key }: { key: string }) => {
-            const next = key === "clear" ? null : key;
-            setFilterPriority(next);
-            actionRef.current?.reload();
-            setMobileReloadKey((k) => k + 1);
-        },
-    };
-
     // ── Desktop: show detail full-page view ────────────────────────────────────
     if (showDetails) {
         return (
@@ -567,8 +545,8 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
         <Toolbar
             notificationtype={notificationtype}
             filterPriority={filterPriority}
-            onClearFilter={() => { setFilterPriority(null); actionRef.current?.reload(); setMobileReloadKey((k) => k + 1); }}
-            priorityMenu={priorityMenu}
+            filterType={filterType}
+            onClearFilter={() => { setFilterPriority(null); setFilterType(null); actionRef.current?.reload(); setMobileReloadKey((k) => k + 1); }}
             onMarkAll={() => markAllMutation.mutate()}
             markAllLoading={markAllMutation.isLoading}
             isMobile={isMobile}
@@ -590,6 +568,7 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                     onMarkRead={handleMarkRead}
                     onDelete={handleDelete}
                     filterPriority={filterPriority}
+                    filterType={filterType}
                 />
 
                 <DetailDrawer
@@ -637,6 +616,19 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                         ),
                     },
                     subTitle: {
+                        title: <span style={{ color: C.primary }}><MailOutlined /> Type</span>,
+                        dataIndex: "type",
+                        render: (_, record) => <TypeTag type={record.type} />,
+                        valueType: "select",
+                        valueEnum: {
+                            new_appointment_booking: "New Booking",
+                            inventory_out_of_stock: "Out of Stock",
+                            new_appointment: "Appointment",
+                            low_inventory: "Low Inventory",
+                            system: "System",
+                        },
+                    },
+                    content: {
                         title: <span style={{ color: C.primary }}><FilterOutlined /> Priority</span>,
                         dataIndex: "priority",
                         render: (_, record) => <PriorityTag priority={record.priority} />,
@@ -645,8 +637,8 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                     },
                     avatar: {
                         search: notificationtype !== "unread",
-                        title: <span style={{ color: C.primary }}><MailOutlined /> Priority</span>,
-                        dataIndex: "priority",
+                        title: <span style={{ color: C.primary }}><MailOutlined /> Status</span>,
+                        dataIndex: "read",
                         render: (_, record) => {
                             const cfg = PRIORITY_CFG[record.priority?.toLowerCase()] || { color: C.subText };
                             return (
@@ -721,8 +713,8 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                         current: params.current,
                         pageSize: params.pageSize,
                         priority: filterPriority || params.priority?.toLowerCase(),
+                        type: filterType || params.type || (notificationtype === "system" ? "system" : ""),
                         read: notificationtype === "unread" ? false : params.read,
-                        type: notificationtype === "system" ? "system" : "",
                     });
                     const list = data?.data || [];
                     return { data: list, success: true, total: data?.pagination?.total || list.length };
@@ -743,7 +735,9 @@ const AllNotifications: React.FC<AllNotificationsProps> = ({ notificationtype })
                 scroll={{ x: "inherit" }}
                 options={{ fullScreen: true, setting: false, reload: () => actionRef.current?.reload() }}
                 pagination={{
-                    pageSize: 10,
+                    defaultPageSize: 10,
+                    pageSizeOptions: ["10", "20", "50", "100"],
+                    showSizeChanger: true,
                     responsive: true,
                     showTotal: (total, range) => (
                         <Text style={{ fontSize: 12, color: C.subText }}>{range[0]}–{range[1]} of {total}</Text>

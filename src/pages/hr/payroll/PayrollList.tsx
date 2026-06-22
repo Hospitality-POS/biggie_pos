@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Typography, Card, Table, Button, Space, Tag, DatePicker, Select, Modal, Form, message, Drawer, Descriptions } from "antd";
 import { PlusOutlined, EyeOutlined, CheckOutlined, CloseOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchPayrolls, createPayroll, approvePayroll, cancelPayroll, getPayrollById, fetchEmployeeProfiles } from "@services/hr";
+import { fetchPayrolls, createPayroll, approvePayroll, cancelPayroll, getPayrollById, processPayroll, deletePayroll, fetchEmployeeProfiles } from "@services/hr";
 import dayjs from "dayjs";
 
 const { Title } = Typography;
@@ -78,6 +78,28 @@ const PayrollList: React.FC = () => {
     },
   });
 
+  const processMutation = useMutation({
+    mutationFn: processPayroll,
+    onSuccess: () => {
+      message.success("Payroll processed successfully");
+      queryClient.invalidateQueries({ queryKey: ["hr-payrolls"] });
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || "Failed to process payroll");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deletePayroll,
+    onSuccess: () => {
+      message.success("Payroll deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["hr-payrolls"] });
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || "Failed to delete payroll");
+    },
+  });
+
   const columns = [
     {
       title: "Payroll Period",
@@ -132,24 +154,96 @@ const PayrollList: React.FC = () => {
             View
           </Button>
           {record.status === "Processed" && (
-            <Button
-              type="link"
-              icon={<CheckOutlined />}
-              onClick={() => approveMutation.mutate(record._id)}
-              loading={approveMutation.isPending}
-            >
-              Approve
-            </Button>
+            <>
+              <Button
+                type="link"
+                icon={<CheckOutlined />}
+                onClick={() => approveMutation.mutate(record._id)}
+                loading={approveMutation.isPending}
+              >
+                Approve
+              </Button>
+              <Button
+                type="link"
+                danger
+                onClick={() => {
+                  Modal.confirm({
+                    title: "Delete Payroll",
+                    content: "Are you sure you want to delete this payroll?",
+                    onOk: () => deleteMutation.mutate(record._id),
+                  });
+                }}
+                loading={deleteMutation.isPending}
+              >
+                Delete
+              </Button>
+            </>
           )}
           {record.status === "Draft" && (
+            <>
+              <Button
+                type="link"
+                icon={<ReloadOutlined />}
+                onClick={() => processMutation.mutate(record._id)}
+                loading={processMutation.isPending}
+              >
+                Process
+              </Button>
+              <Button
+                type="link"
+                danger
+                icon={<CloseOutlined />}
+                onClick={() => cancelMutation.mutate(record._id)}
+                loading={cancelMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="link"
+                danger
+                onClick={() => {
+                  Modal.confirm({
+                    title: "Delete Payroll",
+                    content: "Are you sure you want to delete this payroll?",
+                    onOk: () => deleteMutation.mutate(record._id),
+                  });
+                }}
+                loading={deleteMutation.isPending}
+              >
+                Delete
+              </Button>
+            </>
+          )}
+          {record.status === "Cancelled" && (
             <Button
               type="link"
               danger
-              icon={<CloseOutlined />}
-              onClick={() => cancelMutation.mutate(record._id)}
-              loading={cancelMutation.isPending}
+              onClick={() => {
+                Modal.confirm({
+                  title: "Delete Payroll",
+                  content: "Are you sure you want to delete this payroll?",
+                  onOk: () => deleteMutation.mutate(record._id),
+                });
+              }}
+              loading={deleteMutation.isPending}
             >
-              Cancel
+              Delete
+            </Button>
+          )}
+          {record.status === "Processing" && (
+            <Button
+              type="link"
+              danger
+              onClick={() => {
+                Modal.confirm({
+                  title: "Delete Payroll",
+                  content: "Are you sure you want to delete this payroll?",
+                  onOk: () => deleteMutation.mutate(record._id),
+                });
+              }}
+              loading={deleteMutation.isPending}
+            >
+              Delete
             </Button>
           )}
         </Space>

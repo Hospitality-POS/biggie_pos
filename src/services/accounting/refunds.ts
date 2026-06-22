@@ -217,7 +217,7 @@ export const createRefund = async (data: CreateRefundParams) => {
             `${BASE_URL}/accounting/refunds`,
             data
         );
-        message.success("Refund created successfully");
+        // message.success("Refund created successfully");
         return response.data as { refund: Refund };
     } catch (error: any) {
         if (error?.response?.data?.message) {
@@ -238,7 +238,7 @@ export const updateRefund = async (id: string, data: UpdateRefundParams) => {
             `${BASE_URL}/accounting/refunds/${id}`,
             data
         );
-        message.success("Refund updated");
+        // message.success("Refund updated");
         return response.data as { refund: Refund };
     } catch (error: any) {
         if (error?.response?.data?.message) {
@@ -258,7 +258,7 @@ export const approveRefund = async (id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/refunds/${id}/approve`
         );
-        message.success("Refund approved");
+        // message.success("Refund approved");
         return response.data as { refund: Refund };
     } catch (error: any) {
         if (error?.response?.data?.message) {
@@ -278,7 +278,7 @@ export const processRefund = async (id: string) => {
         const response = await axiosInstance.patch(
             `${BASE_URL}/accounting/refunds/${id}/process`
         );
-        message.success("Refund processed successfully");
+        // message.success("Refund processed successfully");
         return response.data as { refund: Refund };
     } catch (error: any) {
         if (error?.response?.data?.message) {
@@ -299,7 +299,7 @@ export const voidRefund = async (id: string, reason: string) => {
             `${BASE_URL}/accounting/refunds/${id}/void`,
             { reason }
         );
-        message.success("Refund voided");
+        // message.success("Refund voided");
         return response.data as { refund: Refund };
     } catch (error: any) {
         if (error?.response?.data?.message) {

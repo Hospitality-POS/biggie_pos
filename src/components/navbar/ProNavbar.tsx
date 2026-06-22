@@ -266,11 +266,18 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   const fakeActionRef = { current: { reload: invalidateAll, reset: invalidateAll } };
 
   // ── Calculate selected key for navigation ─────────────────────────────────
+  // Routes can now be nested (module dropdowns), so flatten before matching.
+  const flattenNavRoutes = (routes: any[]): any[] =>
+    (routes || []).flatMap((route: any) =>
+      route?.routes ? [route, ...flattenNavRoutes(route.routes)] : [route]
+    );
+
   const selectedKey = (() => {
-    const routes = navRoutes?.route?.routes || [];
-    const matchingRoutes = routes.filter((route: any) => 
-      location.pathname === route.path ||
-      (route.path !== "/" && location.pathname.startsWith(route.path + "/"))
+    const routes = flattenNavRoutes(navRoutes?.route?.routes || []);
+    const matchingRoutes = routes.filter((route: any) =>
+      route?.path &&
+      (location.pathname === route.path ||
+        (route.path !== "/" && location.pathname.startsWith(route.path + "/")))
     );
     if (matchingRoutes.length === 0) return location.pathname;
     const mostSpecific = matchingRoutes.reduce((longest: any, current: any) => 
@@ -789,6 +796,8 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
   );
 
   const mobileNavItems = navRoutes?.route?.routes || [];
+  // Flattened navigable leaves (excludes group containers) for active matching.
+  const mobileLeaves = flattenNavRoutes(mobileNavItems).filter((r: any) => r?.path && !r?.routes);
 
   const MobileDrawer = (
     <Drawer
@@ -883,36 +892,66 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
       )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
-        {mobileNavItems.map((item: any) => {
-          // Find the most specific path match to avoid multiple active states
-          const matchingItems = mobileNavItems.filter(navItem => 
-            location.pathname === navItem.path ||
-            (navItem.path !== "/" && location.pathname.startsWith(navItem.path + "/"))
+        {(() => {
+          // Only real navigable leaves participate in active-state matching.
+          const leaves = mobileLeaves;
+          const matchingItems = leaves.filter((navItem: any) =>
+            navItem.path &&
+            (location.pathname === navItem.path ||
+              (navItem.path !== "/" && location.pathname.startsWith(navItem.path + "/")))
           );
-          const mostSpecificMatch = matchingItems.reduce((longest, current) => 
-            current.path.length > longest.path.length ? current : longest
+          const mostSpecificMatch = matchingItems.reduce((longest: any, current: any) =>
+            (current.path?.length || 0) > (longest?.path?.length || 0) ? current : longest
           , matchingItems[0]);
-          const isActive = mostSpecificMatch?.path === item.path;
-          return (
-            <NavLink key={item.path || item.key} to={item.path || "/"} style={{ textDecoration: "none" }}>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 12,
-                padding: "11px 20px", margin: "2px 8px", borderRadius: 10,
-                background: isActive ? `${primaryColor}12` : "transparent",
-                borderLeft: isActive ? `3px solid ${primaryColor}` : "3px solid transparent",
-                cursor: "pointer",
-              }}>
-                <span style={{ fontSize: 16, color: isActive ? primaryColor : C.subText, width: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {item.icon}
-                </span>
-                <span style={{ fontSize: 14, fontWeight: isActive ? 600 : 400, color: isActive ? primaryColor : C.darkText, flex: 1 }}>
-                  {item.name}
-                </span>
-                <RightOutlined style={{ fontSize: 10, color: "#94a3b8" }} />
-              </div>
-            </NavLink>
-          );
-        })}
+          const activePath = mostSpecificMatch?.path;
+
+          const renderLeaf = (item: any, indented = false) => {
+            const isActive = activePath === item.path;
+            return (
+              <NavLink key={item.path || item.name} to={item.path || "/"} style={{ textDecoration: "none" }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "11px 20px", margin: "2px 8px", borderRadius: 10,
+                  paddingLeft: indented ? 36 : 20,
+                  background: isActive ? `${primaryColor}12` : "transparent",
+                  borderLeft: isActive ? `3px solid ${primaryColor}` : "3px solid transparent",
+                  cursor: "pointer",
+                }}>
+                  <span style={{ fontSize: 16, color: isActive ? primaryColor : C.subText, width: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {item.icon}
+                  </span>
+                  <span style={{ fontSize: 14, fontWeight: isActive ? 600 : 400, color: isActive ? primaryColor : C.darkText, flex: 1 }}>
+                    {item.name}
+                  </span>
+                  <RightOutlined style={{ fontSize: 10, color: "#94a3b8" }} />
+                </div>
+              </NavLink>
+            );
+          };
+
+          return mobileNavItems.map((item: any) => {
+            // Grouped module dropdowns: render a section header + indented children.
+            if (item.routes && item.routes.length) {
+              return (
+                <div key={item.name} style={{ marginTop: 6 }}>
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 20px 4px",
+                  }}>
+                    <span style={{ fontSize: 13, color: "#94a3b8", display: "flex", alignItems: "center" }}>
+                      {item.icon}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", color: "#94a3b8" }}>
+                      {item.name}
+                    </span>
+                  </div>
+                  {item.routes.map((child: any) => renderLeaf(child, true))}
+                </div>
+              );
+            }
+            return renderLeaf(item);
+          });
+        })()}
       </div>
 
       <div style={{ borderTop: `1px solid ${C.border}`, padding: "8px 0" }}>
@@ -970,6 +1009,185 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-menu-overflow-item-rest > .ant-menu-submenu-title::after { display: none !important; }
         @media (max-width: 767px) { .ant-pro-page-container { padding: 12px !important; } .ant-pro-global-header { padding: 0 12px !important; } }
         .notification-popover-overlay .ant-popover-inner { padding: 0 !important; }
+        /* ── Module dropdown (Duka / Pesa / Mteja / Dala / Setup) submenus ── */
+        /* Lay items out 3 per row in a grid so long menus (e.g. Pesa) stay compact. */
+        .ant-menu-submenu-popup { max-width: none !important; }
+        .ant-menu-submenu-popup .ant-menu {
+          display: grid !important;
+          grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          grid-auto-rows: 42px !important;
+          align-content: start !important;
+          gap: 6px !important;
+          width: 684px !important;
+          max-width: 684px !important;
+          height: auto !important;
+          min-height: 0 !important;
+          box-sizing: border-box !important;
+          padding: 8px !important;
+          border-radius: 12px !important;
+          box-shadow: 0 10px 32px rgba(0,0,0,0.16) !important;
+          border: 1px solid rgba(0,0,0,0.06) !important;
+        }
+        /* AntD adds clearfix ::before/::after with content:""; in a grid these
+           become phantom grid items that push the first row off by one cell. */
+        .ant-menu-submenu-popup .ant-menu::before,
+        .ant-menu-submenu-popup .ant-menu::after {
+          display: none !important;
+          content: none !important;
+        }
+        .ant-menu-submenu-popup .ant-menu-item {
+          height: 42px !important;
+          min-height: 42px !important;
+          line-height: 42px !important;
+          width: 100% !important;
+          border-radius: 8px !important;
+          margin: 0 !important;
+          margin-block: 0 !important;
+          margin-inline: 0 !important;
+          inset-block-start: 0 !important;
+          top: 0 !important;
+          padding: 0 14px !important;
+          color: rgba(255,255,255,0.85) !important;
+          font-size: 14px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          text-align: left !important;
+        }
+        .ant-menu-submenu-popup .ant-menu-item .ant-menu-item-icon,
+        .ant-menu-submenu-popup .ant-menu-item > .anticon {
+          font-size: 16px !important;
+          color: rgba(255,255,255,0.85) !important;
+          min-width: 18px !important;
+        }
+        .ant-menu-submenu-popup .ant-menu-title-content {
+          flex: 1 !important;
+          display: flex !important;
+          align-items: center !important;
+          text-align: left !important;
+          overflow: hidden !important;
+        }
+        .ant-menu-submenu-popup .ant-menu-title-content > a {
+          display: flex !important;
+          align-items: center !important;
+          width: 100% !important;
+        }
+        /* Neutralize ProLayout's horizontal-bar item wrappers inside the vertical popup. */
+        .ant-menu-submenu-popup .ant-pro-base-menu-horizontal-item-title {
+          display: flex !important;
+          align-items: center !important;
+          height: auto !important;
+          line-height: 1 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+        /* We inject our own icon, so hide ProLayout's duplicate native icon slot here. */
+        .ant-menu-submenu-popup .ant-pro-base-menu-horizontal-item-icon {
+          display: none !important;
+        }
+        .ant-menu-submenu-popup .ant-menu-item:hover {
+          background: rgba(255,255,255,0.1) !important;
+          color: #ffffff !important;
+        }
+        .ant-menu-submenu-popup .ant-menu-item:hover .anticon {
+          color: #ffffff !important;
+        }
+        .ant-menu-submenu-popup .ant-menu-item-selected {
+          background: rgba(255,255,255,0.15) !important;
+          color: #ffffff !important;
+          font-weight: 600;
+        }
+        .ant-menu-submenu-popup .ant-menu-item-selected .anticon {
+          color: #ffffff !important;
+        }
+        /* Header background and nav item colors */
+        .ant-pro-header {
+          background: ${primaryColor} !important;
+        }
+        .ant-pro-top-nav-header {
+          background: ${primaryColor} !important;
+        }
+        .ant-pro-top-nav-header .ant-menu {
+          background: transparent !important;
+        }
+        .ant-pro-top-nav-header .ant-menu-item,
+        .ant-pro-top-nav-header .ant-menu-submenu-title {
+          color: rgba(255,255,255,0.85) !important;
+        }
+        .ant-pro-top-nav-header .ant-menu-item:hover,
+        .ant-pro-top-nav-header .ant-menu-submenu-title:hover {
+          color: #ffffff !important;
+        }
+        .ant-pro-top-nav-header .ant-menu-item-selected,
+        .ant-pro-top-nav-header .ant-menu-submenu-selected .ant-menu-submenu-title {
+          color: #ffffff !important;
+        }
+        .ant-pro-top-nav-header .ant-menu-item .anticon,
+        .ant-pro-top-nav-header .ant-menu-submenu-title .anticon {
+          color: rgba(255,255,255,0.85) !important;
+        }
+        .ant-pro-top-nav-header .ant-menu-item:hover .anticon,
+        .ant-pro-top-nav-header .ant-menu-submenu-title:hover .anticon {
+          color: #ffffff !important;
+        }
+        /* Additional icon selectors for ProLayout */
+        .ant-pro-top-nav-header .ant-pro-base-menu-horizontal-item-icon {
+          color: rgba(255,255,255,0.85) !important;
+        }
+        .ant-pro-top-nav-header .ant-menu-item:hover .ant-pro-base-menu-horizontal-item-icon,
+        .ant-pro-top-nav-header .ant-menu-submenu-title:hover .ant-pro-base-menu-horizontal-item-icon {
+          color: #ffffff !important;
+        }
+        .ant-pro-top-nav-header .ant-menu-item-selected .ant-pro-base-menu-horizontal-item-icon,
+        .ant-pro-top-nav-header .ant-menu-submenu-selected .ant-pro-base-menu-horizontal-item-icon {
+          color: #ffffff !important;
+        }
+        /* Hide ProLayout's native icons in top nav to avoid duplication with our custom icons */
+        .ant-pro-top-nav-header .ant-menu-item .ant-pro-base-menu-horizontal-item-icon,
+        .ant-pro-top-nav-header .ant-menu-submenu-title .ant-pro-base-menu-horizontal-item-icon {
+          display: none !important;
+        }
+        /* Hide ProLayout's native icons in overflow popup */
+        .nav-overflow-popup .ant-pro-base-menu-horizontal-item-icon {
+          display: none !important;
+        }
+        /* Submenu popup background */
+        .ant-menu-submenu-popup {
+          background: ${primaryColor} !important;
+        }
+        .ant-menu-submenu-popup .ant-menu {
+          background: ${primaryColor} !important;
+        }
+        /* Overflow popup (More dropdown) styling */
+        .nav-overflow-popup {
+          background: ${primaryColor} !important;
+        }
+        .nav-overflow-popup .ant-menu {
+          background: ${primaryColor} !important;
+        }
+        .nav-overflow-popup .ant-menu-item {
+          color: rgba(255,255,255,0.85) !important;
+        }
+        .nav-overflow-popup .ant-menu-item:hover {
+          color: #ffffff !important;
+          background: rgba(255,255,255,0.1) !important;
+        }
+        .nav-overflow-popup .ant-menu-item-selected {
+          color: #ffffff !important;
+          background: rgba(255,255,255,0.15) !important;
+        }
+        .nav-overflow-popup .ant-menu-item .anticon {
+          color: rgba(255,255,255,0.85) !important;
+        }
+        .nav-overflow-popup .ant-menu-item:hover .anticon {
+          color: #ffffff !important;
+        }
+        .nav-overflow-popup .ant-menu-item-selected .anticon {
+          color: #ffffff !important;
+        }
       `}</style>
 
       {MobileDrawer}
@@ -1109,9 +1327,23 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
             colorBgMenuItemHover: "#f6ffed",
           },
         }}
-        menuItemRender={(item: any, dom: any) => (
-          <NavLink to={item?.path || "/"}>{dom}</NavLink>
-        )}
+        menuItemRender={(item: any, dom: any) => {
+          // ProLayout only renders icons on top-level items; submenu children
+          // (those with parent keys) lose them, so we re-add the icon manually.
+          // Also add icons for overflow popup items.
+          return (
+            <NavLink to={item?.path || "/"}>
+              {item?.icon ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 10, width: "100%" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", fontSize: 15, color: "rgba(255,255,255,0.85)" }}>
+                    {item.icon}
+                  </span>
+                  <span style={{ flex: 1 }}>{dom}</span>
+                </span>
+              ) : dom}
+            </NavLink>
+          );
+        }}
       >
         {children}
 

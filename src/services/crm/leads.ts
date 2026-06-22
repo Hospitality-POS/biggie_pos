@@ -174,7 +174,7 @@ export const createLead = createAsyncThunk(
     async (data: Partial<Lead> & { shop_id: string; lead_name: string }, { rejectWithValue }) => {
         try {
             const response = await axiosInstance.post(BASE, data);
-            message.success("Lead created successfully");
+            // message.success("Lead created successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to create lead";
@@ -196,7 +196,7 @@ export const updateLead = createAsyncThunk(
     ) => {
         try {
             const response = await axiosInstance.put(`${BASE}/${id}`, data);
-            message.success("Lead updated successfully");
+            // message.success("Lead updated successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update lead";
@@ -227,7 +227,7 @@ export const updateLeadStage = createAsyncThunk(
                 stage,
                 note,
             });
-            message.success(`Lead moved to '${stage}'`);
+            // message.success(`Lead moved to '${stage}'`);
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to update stage";
@@ -251,7 +251,7 @@ export const convertLead = createAsyncThunk(
             const response = await axiosInstance.post(`${BASE}/${id}/convert`, {
                 shop_id,
             });
-            message.success("Lead converted to customer successfully");
+            // message.success("Lead converted to customer successfully");
             return response.data;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to convert lead";
@@ -273,7 +273,7 @@ export const deleteLead = createAsyncThunk(
     ) => {
         try {
             await axiosInstance.delete(`${BASE}/${id}`, { params: { shop_id } });
-            message.success("Lead deleted successfully");
+            // message.success("Lead deleted successfully");
             return id;
         } catch (error: any) {
             const msg = error?.response?.data?.message || error?.message || "Failed to delete lead";
@@ -339,7 +339,7 @@ export const downloadLeadTemplate = async (): Promise<void> => {
         link.remove();
         window.URL.revokeObjectURL(url);
 
-        message.success("Template downloaded successfully");
+        // message.success("Template downloaded successfully");
     } catch (error) {
         console.error("Error downloading lead template:", error);
         message.error("Failed to download template");
@@ -400,9 +400,9 @@ export const importLeadsFromExcel = async (
             const updatedMsg = data.summary.updated > 0 ? `${data.summary.updated} lead(s) updated` : "";
             const itemsMsg = [createdMsg, updatedMsg].filter(Boolean).join(", ");
             const skippedMsg = data.summary.skipped > 0 ? `, ${data.summary.skipped} skipped` : "";
-            message.success(
-                `Import complete — ${itemsMsg}${skippedMsg}`
-            );
+            // message.success(
+            //     `Import complete — ${itemsMsg}${skippedMsg}`
+            // );
         } else if (data.summary.errors > 0) {
             const firstErr = data.errors?.[0];
             message.warning(

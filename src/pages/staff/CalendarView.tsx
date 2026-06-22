@@ -13,6 +13,8 @@ import {
   removeSchedule, updateSchedule,
 } from "@services/customers";
 import { getAllProducts } from "@services/products";
+import { fetchShop } from "@services/shops";
+import { getAllTables } from "@services/tables";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import dayjs from "dayjs";
@@ -66,18 +68,16 @@ HOUR_RANGE.forEach(hour => {
 
 const matchSlotIndex = (timeStr: string): number => {
   const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
-  let idx = ALL_TIME_SLOTS.findIndex(s => norm(s) === norm(timeStr));
+  const idx = ALL_TIME_SLOTS.findIndex(s => norm(s) === norm(timeStr));
   if (idx !== -1) return idx;
   const [tp, ap] = timeStr.split(" ");
-  let [h, m] = tp.split(":").map(Number);
-  if (ap?.toUpperCase() === "PM" && h < 12) h += 12;
-  if (ap?.toUpperCase() === "AM" && h === 12) h = 0;
+  const [h, m] = tp.split(":").map(Number);
+  const h24 = ap?.toUpperCase() === "PM" && h < 12 ? h + 12 : (ap?.toUpperCase() === "AM" && h === 12 ? 0 : h);
   return ALL_TIME_SLOTS.findIndex(s => {
     const [tp2, ap2] = s.split(" ");
-    let [h2, m2] = tp2.split(":").map(Number);
-    if (ap2?.toUpperCase() === "PM" && h2 < 12) h2 += 12;
-    if (ap2?.toUpperCase() === "AM" && h2 === 12) h2 = 0;
-    return h2 === h && m2 === m;
+    const [h2, m2] = tp2.split(":").map(Number);
+    const h24_2 = ap2?.toUpperCase() === "PM" && h2 < 12 ? h2 + 12 : (ap2?.toUpperCase() === "AM" && h2 === 12 ? 0 : h2);
+    return h24_2 === h24 && m2 === m;
   });
 };
 
@@ -112,6 +112,37 @@ const AppointmentForm = ({
   const [maxCapacity, setMaxCapacity] = useState(1);
   const [selectedCusts, setSelectedCusts] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  
+  const shopId = localStorage.getItem("shopId");
+  
+  // Fetch shop details to get pos_mode
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId!),
+    enabled: !!shopId,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+  
+  const isHotel = shopData?.pos_mode === "hotel";
+  
+  // Fetch tables/rooms for hotel mode
+  const { data: tablesData, isLoading: loadingTables } = useQuery({
+    queryKey: ["tables", shopId],
+    queryFn: () => getAllTables({ shop_id: shopId! }),
+    enabled: !!shopId && isHotel,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+  
+  const tablesOptions = useMemo(() => {
+    if (!tablesData || !Array.isArray(tablesData)) return [];
+    return tablesData
+      .filter((table: any) => table.name && table._id)
+      .sort((a: any, b: any) => a.name.localeCompare(b.name))
+      .map((table: any) => ({
+        label: table.name,
+        value: table.name,
+      }));
+  }, [tablesData]);
 
   // ── Pre-fill form whenever the drawer opens or defaults change ────────────
   useEffect(() => {
@@ -139,16 +170,25 @@ const AppointmentForm = ({
     return () => clearTimeout(timer);
   }, [open, formDefaults, form]);
 
-  const isTimeRangeAvailable = (staffName: string, start: string, end: string, excludeId?: string): boolean => {
+  const isTimeRangeAvailable = (staffName: string | null, table: string | null, start: string, end: string, excludeId?: string): boolean => {
     const si = matchSlotIndex(start), ei = matchSlotIndex(end);
     if (si === -1 || ei === -1 || si >= ei) return false;
     for (let i = si; i < ei; i++) {
       const conflict = formattedSchedules.find(appt => {
         if (excludeId && appt.id === excludeId) return false;
-        if (appt.staff !== staffName) return false;
-        const as = matchSlotIndex(appt.start_time);
-        const ae = matchSlotIndex(appt.end_time);
-        return i >= as && i < ae;
+        // Check conflict by staff if staff is provided
+        if (staffName && appt.staff === staffName) {
+          const as = matchSlotIndex(appt.start_time);
+          const ae = matchSlotIndex(appt.end_time);
+          return i >= as && i < ae;
+        }
+        // Check conflict by table if table is provided
+        if (table && appt.table === table) {
+          const as = matchSlotIndex(appt.start_time);
+          const ae = matchSlotIndex(appt.end_time);
+          return i >= as && i < ae;
+        }
+        return false;
       });
       if (conflict) return false;
     }
@@ -169,6 +209,7 @@ const AppointmentForm = ({
     }
 
     const staffMember = values.staff;
+    const table = values.table;
     const appointmentDate = values.appointmentDate
       ? dayjs(values.appointmentDate).format("YYYY-MM-DD")
       : dayjs(selectedDate).format("YYYY-MM-DD");
@@ -194,13 +235,19 @@ const AppointmentForm = ({
     const startSlot = ALL_TIME_SLOTS[si];
     const endSlot = ALL_TIME_SLOTS[ei];
 
-    if (!isTimeRangeAvailable(staffName, startSlot, endSlot, editingId)) {
-      message.error(`Time range conflicts with an existing appointment for ${staffName}.`);
+    // Validate: at least one of staff or table must be provided
+    if (!staffMember && !table) {
+      message.error("Please select a staff member or enter a table/room number");
+      return;
+    }
+    
+    if (!isTimeRangeAvailable(staffName, table, startSlot, endSlot, editingId)) {
+      const conflictTarget = staffName ? staffName : table;
+      message.error(`Time range conflicts with an existing appointment for ${conflictTarget}.`);
       return;
     }
 
-    const payload = {
-      staff_id: staffMember,
+    const payload: any = {
       start_time: startSlot,
       end_time: endSlot,
       client_id: clientId,
@@ -217,6 +264,21 @@ const AppointmentForm = ({
       max_capacity: maxCapacity,
       notes: values.notes,
     };
+    
+    // Include staff_id if a staff member is selected
+    if (staffMember) {
+      payload.staff_id = staffMember;
+    }
+    
+    // Include table if a table is specified
+    if (table) {
+      payload.table = table;
+    }
+    
+    // Include reminder_frequency if in hotel mode
+    if (isHotel && values.reminder_frequency) {
+      payload.reminder_frequency = values.reminder_frequency;
+    }
 
     setSubmitting(true);
     try {
@@ -277,7 +339,7 @@ const AppointmentForm = ({
     >
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
 
-        {/* Date & Staff */}
+        {/* Date & Resource */}
         <FormSection>
           <SectionLabel text="Schedule" />
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -288,12 +350,27 @@ const AppointmentForm = ({
                 format="YYYY-MM-DD"
                 disabledDate={c => c && c < dayjs().startOf("day")} />
             </Form.Item>
-            <Form.Item name="staff" label="Staff Member"
-              rules={[{ required: true, message: "Select staff" }]}
+            <Form.Item name="staff" label={isHotel ? "Reminder Staff" : "Staff Member"}
+              rules={[{ required: !isHotel, message: "Select staff" }]}
               style={{ flex: "1 1 160px", marginBottom: 12 }}>
               <Select placeholder="Select staff" loading={loadingStaff} style={{ borderRadius: 8 }}
                 options={staffMembers.map(s => ({ label: s.name, value: s.id }))} />
             </Form.Item>
+            {isHotel && (
+              <Form.Item name="table" label="Table/Room"
+                rules={[{ required: true, message: "Select a table or room" }]}
+                style={{ flex: "1 1 160px", marginBottom: 12 }}>
+                <Select 
+                  placeholder="Select table or room" 
+                  loading={loadingTables} 
+                  showSearch
+                  allowClear
+                  style={{ borderRadius: 8 }}
+                  options={tablesOptions}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+            )}
           </div>
           <Form.Item name="timeRange" label="Time Range"
             rules={[{ required: true, message: "Select time range" }]}
@@ -420,6 +497,20 @@ const AppointmentForm = ({
           <Form.Item name="specialRequests" label="Special Requests" style={{ marginBottom: 12 }}>
             <TextArea rows={3} placeholder="Special requests…" style={{ borderRadius: 8 }} />
           </Form.Item>
+          {isHotel && (
+            <Form.Item name="reminder_frequency" label="Reminder Frequency" style={{ marginBottom: 12 }}>
+              <Select placeholder="Select reminder frequency" style={{ borderRadius: 8 }}>
+                <Select.Option value="none">None</Select.Option>
+                <Select.Option value="15_minutes">15 minutes before</Select.Option>
+                <Select.Option value="30_minutes">30 minutes before</Select.Option>
+                <Select.Option value="1_hour">1 hour before</Select.Option>
+                <Select.Option value="2_hours">2 hours before</Select.Option>
+                <Select.Option value="24_hours">24 hours before</Select.Option>
+                <Select.Option value="48_hours">48 hours before</Select.Option>
+                <Select.Option value="1_week">1 week before</Select.Option>
+              </Select>
+            </Form.Item>
+          )}
           {bookingType === "group" && (
             <Form.Item name="notes" label="Group Notes" style={{ marginBottom: 12 }}>
               <TextArea rows={2} placeholder="Notes for this group booking…" style={{ borderRadius: 8 }} />
@@ -699,6 +790,7 @@ const CalendarView = ({ onRegisterEditHandler, onAppointmentUpdate }: CalendarVi
         id: appt._id,
         staff: appt.staff_id?.fullname || "Unknown",
         staffId: appt.staff_id?._id,
+        table: appt.table || null,
         start_time: appt.start_time,
         end_time: appt.end_time,
         client: appt.customer_id?.customer_name || appt.custom_client_name || "Unknown",
@@ -796,6 +888,7 @@ const CalendarView = ({ onRegisterEditHandler, onAppointmentUpdate }: CalendarVi
     if (!loadingCustomers && !loadingProducts && customers.length > 0 && formattedProducts.length > 0) {
       const defaults: any = {
         staff: appt.staffId,
+        table: appt.table || "",
         appointmentDate: orig?.appointment_date ? dayjs(orig.appointment_date) : dayjs(selectedDate),
         timeRange: [dayjs(appt.start_time, "h:mm A"), dayjs(appt.end_time, "h:mm A")],
         service: appt.serviceId,
@@ -804,6 +897,7 @@ const CalendarView = ({ onRegisterEditHandler, onAppointmentUpdate }: CalendarVi
         bookingType: orig?.booking_type || "individual",
         maxCapacity: orig?.max_capacity || 1,
         customClientName: appt.customClientName || "",
+        reminder_frequency: orig?.reminder_frequency || "none",
       };
       
       // Verify client ID exists in customers array
@@ -831,6 +925,7 @@ const CalendarView = ({ onRegisterEditHandler, onAppointmentUpdate }: CalendarVi
       // If data isn't loaded yet, set a minimal default and retry after a short delay
       const minimalDefaults: any = {
         staff: appt.staffId,
+        table: appt.table || "",
         appointmentDate: orig?.appointment_date ? dayjs(orig.appointment_date) : dayjs(selectedDate),
         timeRange: [dayjs(appt.start_time, "h:mm A"), dayjs(appt.end_time, "h:mm A")],
         specialRequests: appt.specialRequests || "",
@@ -838,6 +933,7 @@ const CalendarView = ({ onRegisterEditHandler, onAppointmentUpdate }: CalendarVi
         bookingType: orig?.booking_type || "individual",
         maxCapacity: orig?.max_capacity || 1,
         customClientName: appt.customClientName || "",
+        reminder_frequency: orig?.reminder_frequency || "none",
       };
       setFormDefaults(minimalDefaults);
       setFormOpen(true);

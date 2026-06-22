@@ -207,7 +207,7 @@ export const fetchWhatsappChannels = fetchChannels;
 export const updateChannel = async (channelId: string, values: Partial<Channel>) => {
     try {
         const response = await axiosInstance.put(`${channelUrl}/${channelId}`, values);
-        message.success("Channel updated successfully");
+        // message.success("Channel updated successfully");
         return response.data;
     } catch (error) {
         handleError(error, "Error updating channel");
@@ -222,7 +222,7 @@ export const updateWhatsappChannel = updateChannel;
 export const disconnectChannel = async (channelId: string) => {
     try {
         const response = await axiosInstance.delete(`${channelUrl}/${channelId}`);
-        message.success("Channel disconnected");
+        // message.success("Channel disconnected");
         return response.data;
     } catch (error) {
         handleError(error, "Error disconnecting channel");
@@ -284,7 +284,7 @@ export const assignConversation = async (conversationId: string, assignedTo: str
             `${conversationUrl}/${conversationId}/assign`,
             { assigned_to: assignedTo }
         );
-        message.success("Conversation assigned successfully");
+        // message.success("Conversation assigned successfully");
         return response.data;
     } catch (error) {
         handleError(error, "Error assigning conversation");
@@ -297,7 +297,7 @@ export const updateConversationStatus = async (conversationId: string, status: s
             `${conversationUrl}/${conversationId}/status`,
             { status }
         );
-        message.success(`Conversation marked as ${status}`);
+        // message.success(`Conversation marked as ${status}`);
         return response.data;
     } catch (error) {
         handleError(error, "Error updating conversation status");
@@ -356,7 +356,7 @@ export const sendTemplateMessage = async (params: {
             language_code: params.language_code || "en_US",
             template_params: params.template_params || [],
         });
-        message.success("Template message sent");
+        // message.success("Template message sent");
         return response.data;
     } catch (error) {
         handleError(error, "Error sending template message");

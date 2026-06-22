@@ -4,10 +4,11 @@ import {
   ProForm,
   ProFormDigit,
   ProFormSelect,
+  ProFormSwitch,
   ProFormText,
 } from "@ant-design/pro-components";
 import { PhoneInput } from "@components/PhoneNumber/PhoneNumber";
-import { Form, Typography, Card, Row, Col, Space, Skeleton, Divider, message } from "antd";
+import { Form, Typography, Card, Row, Col, Space, Skeleton, Divider, Select, message } from "antd";
 import {
   ContactsOutlined,
   RedoOutlined,
@@ -17,6 +18,7 @@ import {
   GlobalOutlined,
   NumberOutlined,
   HomeOutlined,
+  WhatsAppOutlined,
 } from "@ant-design/icons";
 import { getPhoneNumber } from "@components/PhoneNumber/utils/formatPhoneNumberUtil";
 import ShowConfirm from "@utils/ConfirmUtil";
@@ -58,6 +60,8 @@ interface SystemSetupData {
   account_no?: number;
   business_no?: number;
   till_no?: number;
+  whatsapp_notify_secondary?: boolean;
+  secondary_phones?: string[];
 }
 
 function SystemSetup() {
@@ -109,31 +113,15 @@ function SystemSetup() {
       }
     }
 
-    // Build bank_details object - only include non-undefined values
-    const bank_details: BankDetails = {};
-    if (values.bank_name !== undefined && values.bank_name !== "") bank_details.bank_name = values.bank_name;
-    if (values.branch !== undefined && values.branch !== "") bank_details.branch = values.branch;
-    if (values.bank_account_no !== undefined && values.bank_account_no !== "") bank_details.account_no = String(values.bank_account_no);
-    if (values.account_name !== undefined && values.account_name !== "") bank_details.account_name = values.account_name;
-    if (values.swift_code !== undefined && values.swift_code !== "") bank_details.swift_code = values.swift_code;
-    if (values.paybill_no !== undefined && values.paybill_no !== "") bank_details.paybill_no = String(values.paybill_no);
-
     const formData: any = {
       ...values,
       phone: phoneNumber,
       paymentDetailId: paymentDetailIdValue,
       shop_id: shopId,
-      bank_details: Object.keys(bank_details).length > 0 ? bank_details : null,
     };
 
     // Remove legacy fields that shouldn't be sent to the API
     delete formData.phoneNumber;
-    delete formData.bank_name;
-    delete formData.branch;
-    delete formData.bank_account_no;
-    delete formData.account_name;
-    delete formData.swift_code;
-    delete formData.paybill_no;
     delete formData.paymentDetails; // Remove nested paymentDetails if present
 
     // Remove undefined or null values to avoid overwriting with empty data
@@ -142,11 +130,6 @@ function SystemSetup() {
         delete formData[key];
       }
     });
-
-    // If bank_details is empty object, remove it
-    if (formData.bank_details && Object.keys(formData.bank_details).length === 0) {
-      delete formData.bank_details;
-    }
 
     const confirmed = await ShowConfirm({
       title: `Are you sure you want to ${data ? "Update" : "Add new"} system setup details?`,
@@ -185,8 +168,6 @@ function SystemSetup() {
     return <Skeleton active />;
   }
 
-  const bankDetails = data?.bank_details ?? {};
-
   // Prepare initial values for the form
   const getInitialValues = () => {
     if (!data) return {};
@@ -197,12 +178,8 @@ function SystemSetup() {
       paymentDetailId: data?.paymentDetails?._id
         ? { value: data.paymentDetails._id, label: data.paymentDetails.name }
         : null,
-      bank_name: bankDetails.bank_name,
-      branch: bankDetails.branch,
-      bank_account_no: bankDetails.account_no,
-      account_name: bankDetails.account_name,
-      swift_code: bankDetails.swift_code,
-      paybill_no: bankDetails.paybill_no,
+      whatsapp_notify_secondary: data?.whatsapp_notify_secondary ?? false,
+      secondary_phones: data?.secondary_phones ?? [],
     };
   };
 
@@ -340,7 +317,7 @@ function SystemSetup() {
               rules={[{ required: true, message: "Payment detail is required" }]}
               options={paymentDetailsList}
               fieldProps={{
-                onSelect: (value, option) => onPaymentDetailsChange(value, option),
+                onSelect: (value: string, option) => onPaymentDetailsChange(value, option),
                 size: "large",
                 allowClear: true,
               }}
@@ -404,80 +381,46 @@ function SystemSetup() {
           </Col>
         </Row>
 
-        {/* ── Bank Details ── */}
-        <Divider orientation="left">Bank Details (Optional)</Divider>
+        {/* ── WhatsApp Secondary Alerts ── */}
+        <Divider orientation="left">WhatsApp Secondary Alerts</Divider>
 
         <Row gutter={24}>
           <Col xs={24} sm={24} md={12}>
-            <ProFormText
-              name="bank_name"
-              label="Bank Name"
-              placeholder="e.g. Equity Bank"
-              fieldProps={{
-                prefix: <BankOutlined className="site-form-item-icon" />,
-                size: "large",
-              }}
-            />
-          </Col>
-          <Col xs={24} sm={24} md={12}>
-            <ProFormText
-              name="branch"
-              label="Branch"
-              placeholder="e.g. Westlands Branch"
-              fieldProps={{ size: "large" }}
+            <ProFormSwitch
+              name="whatsapp_notify_secondary"
+              label="Notify Secondary Phones"
+              fieldProps={{ checkedChildren: "ON", unCheckedChildren: "OFF" }}
+              tooltip="When enabled, WhatsApp booking alerts are also sent to the numbers below"
             />
           </Col>
         </Row>
 
         <Row gutter={24}>
-          <Col xs={24} sm={24} md={12}>
-            <ProFormText
-              name="bank_account_no"
-              label="Account Number"
-              placeholder="Enter bank account number"
-              fieldProps={{
-                prefix: <NumberOutlined className="site-form-item-icon" />,
-                size: "large",
-              }}
-            />
-          </Col>
-          <Col xs={24} sm={24} md={12}>
-            <ProFormText
-              name="account_name"
-              label="Account Name"
-              placeholder="Registered name on account"
-              fieldProps={{ size: "large" }}
-            />
-          </Col>
-        </Row>
-
-        <Row gutter={24}>
-          <Col xs={24} sm={24} md={12}>
-            <ProFormText
-              name="swift_code"
-              label="SWIFT Code"
-              placeholder="e.g. EQBLKENA"
-              fieldProps={{ size: "large" }}
-            />
-          </Col>
-          <Col xs={24} sm={24} md={12}>
-            <ProFormText
-              name="paybill_no"
-              label="Bank Paybill No."
-              placeholder="M-Pesa Paybill for this bank"
-              fieldProps={{ size: "large" }}
-            />
-          </Col>
-        </Row>
-
-        {/* Info note */}
-        <Row>
-          <Col span={24}>
-            <Divider />
-            <Typography.Text type="secondary" style={{ fontSize: "12px" }}>
-              Note: Bank details will appear on customer receipts and invoices.
-              Fill in only the fields you want to display.
-            </Typography.Text>
+          <Col xs={24}>
+            <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.whatsapp_notify_secondary !== currentValues.whatsapp_notify_secondary}>
+              {({ getFieldValue }) =>
+                getFieldValue("whatsapp_notify_secondary") ? (
+                  <Form.Item
+                    name="secondary_phones"
+                    label={
+                      <Space>
+                        <WhatsAppOutlined style={{ color: "#25D366" }} />
+                        Secondary Phone Numbers
+                      </Space>
+                    }
+                    extra="Enter numbers in E.164 format (e.g. +254712345678). Press Enter after each number."
+                  >
+                    <Select
+                      mode="tags"
+                      placeholder="+254712345678"
+                      tokenSeparators={[","]}
+                      style={{ width: "100%" }}
+                      size="large"
+                    />
+                  </Form.Item>
+                ) : null
+              }
+            </Form.Item>
           </Col>
         </Row>
       </ProForm>
