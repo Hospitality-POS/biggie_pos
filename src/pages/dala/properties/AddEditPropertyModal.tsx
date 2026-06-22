@@ -1442,11 +1442,20 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       return <div style={{ textAlign: 'center', padding: 20, color: '#999', fontStyle: 'italic', background: '#fafafa', borderRadius: 8 }}>No units added yet.</div>;
     }
 
+    const getFloorNumber = (unit: Unit) => {
+      const floor = floors.find(f => f.tempId === unit.floorId || (f as any)._id === unit.floorId);
+      if (!floor?.name) return 0;
+      const match = floor.name.match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+
     const groupedUnits = propertyType === 'apartment'
       ? blocks.map(block => ({
         blockName: block.name,
         blockId: block.tempId,
-        units: units.filter(u => u.blockId === block.tempId)
+        units: units
+          .filter(u => u.blockId === block.tempId)
+          .sort((a, b) => getFloorNumber(a) - getFloorNumber(b))
       })).filter(g => g.units.length > 0)
       : null;
 
