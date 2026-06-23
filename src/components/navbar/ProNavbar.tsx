@@ -99,9 +99,9 @@ const C = {
 };
 
 const useIsMobile = () => {
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1025);
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
+    const handler = () => setIsMobile(window.innerWidth < 1025);
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
   }, []);
@@ -1125,6 +1125,14 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
         .ant-pro-top-nav-header .ant-menu-submenu-selected .ant-menu-submenu-title {
           color: #ffffff !important;
         }
+        .ant-pro-top-nav-header .ant-menu-item-selected {
+          background: rgba(255,255,255,0.22) !important;
+          border-radius: 6px !important;
+        }
+        .ant-pro-top-nav-header .ant-menu-submenu-selected > .ant-menu-submenu-title {
+          background: rgba(255,255,255,0.22) !important;
+          border-radius: 6px !important;
+        }
         .ant-pro-top-nav-header .ant-menu-item .anticon,
         .ant-pro-top-nav-header .ant-menu-submenu-title .anticon {
           color: rgba(255,255,255,0.85) !important;
@@ -1320,11 +1328,11 @@ const ProNavbar = ({ children }: { children: React.ReactNode }) => {
           colorBgAppListIconHover: "white",
           hashId: "reliatech",
           header: {
-            colorBgMenuItemSelected: "#f6ffed",
+            colorBgMenuItemSelected: `rgba(255,255,255,0.22)`,
             colorBgHeader: primaryColor,
-            colorTextMenu: "#c5bfbfff",
-            colorTextMenuSecondary: "#595959",
-            colorBgMenuItemHover: "#f6ffed",
+            colorTextMenu: "rgba(255,255,255,0.85)",
+            colorTextMenuSecondary: "rgba(255,255,255,0.7)",
+            colorBgMenuItemHover: "rgba(255,255,255,0.12)",
           },
         }}
         menuItemRender={(item: any, dom: any) => {
