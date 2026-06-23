@@ -4,9 +4,9 @@ import {
   FolderFilled, GlobalOutlined, HomeFilled, HomeOutlined, UserOutlined, SettingOutlined,
   SwapOutlined, UsergroupAddOutlined, WalletOutlined,
   TeamOutlined, NotificationOutlined, AimOutlined, RiseOutlined,
-  MedicineBoxOutlined, MessageOutlined, ArrowUpOutlined, ArrowDownOutlined,
+  MedicineBoxOutlined, MessageOutlined, ArrowUpOutlined,
   AuditOutlined, BankOutlined, CustomerServiceOutlined, AccountBookOutlined,
-  ReconciliationOutlined, BuildOutlined, ShopOutlined,
+  ReconciliationOutlined, BuildOutlined,
 } from "@ant-design/icons";
 import { useAppSelector } from "src/store";
 import React from "react";
@@ -184,17 +184,6 @@ const DALA_ROUTE_PERMISSIONS: Record<string, string> = {
   "/staff-management": "USERS_VIEW",
 };
 
-// ─── Top-nav grouping (hybrid) ────────────────────────────────────────────────
-// High-frequency daily items stay flat in the top bar.
-const NAV_FLAT_BARES = ["/home-dashboard", "/accounting", "/tables", "/orders", "/inventory", "/reports"];
-// Secondary Duka (POS) operations grouped under a "Duka" dropdown.
-const NAV_DUKA_BARES = ["/store", "/employee-shift", "/petty-cash", "/refunds"];
-// Mteja (CRM) routes grouped under a "Mteja" dropdown (customers handled separately).
-const NAV_MTEJA_BARES = ["/omnichannel", "/mteja", "/crm/leads", "/crm/campaigns", "/crm/sales-targets", "/crm/sales-budgets"];
-// Dala (Real Estate) routes grouped under a "Dala" dropdown.
-const NAV_DALA_BARES = ["/dala", "/dala/properties", "/dala/property-types", "/dala/sales", "/dala/leases", "/dala/commissions", "/dala/rent-collection", "/dala/maintenance", "/dala/reports"];
-// Shared configuration items grouped under a "Setup" dropdown.
-const NAV_SETUP_BARES = ["/Category-settings", "/table-settings", "/suppliers", "/staff-management", "/documents", "/help-center", "/payment-methods", "/system-setup", "/currencies", "/accounting/currencies"];
 
 // ─── Tenant feature flags ─────────────────────────────────────────────────────
 const getTenantFlags = () => {
@@ -608,79 +597,36 @@ const useProLayoutNav = () => {
 
   const posRoutes = isAdminOrCashier ? posRoutesFullAccess : posRoutesStaff;
 
-  // ── Hybrid top-nav grouping ───────────────────────────────────────────────
-  // Takes a flat list of routes and reorganizes them into a clean top bar:
-  // a few high-frequency items stay flat, everything else is grouped under
-  // module dropdowns (Duka, Pesa, Mteja, Dala) plus a shared Setup menu.
-  // Routes are matched by their bare path so role/permission filtering done
-  // upstream is preserved — nothing is added or removed, only reorganized.
+  // ── Flat top-nav (no module grouping) ────────────────────────────────────
+  // Returns all routes as flat nav items without wrapping them in Duka/Pesa/
+  // Mteja/Dala/Setup dropdown groups. Nested route groups (e.g. the Accounting
+  // submenu) are expanded so every page appears as a direct nav link. AntD's
+  // built-in overflow "More" will show any extras that don't fit as flat items.
   const groupFlatNav = (list: any[]): any[] => {
-    const bareOf = (r: any): string =>
-      prefix && r?.path?.startsWith(prefix) ? r.path.slice(prefix.length) : r?.path;
-
-    const flat: any[] = [];
-    const duka: any[] = [];
-    const dala: any[] = [];
-    const mtejaExtra: any[] = [];
-    const customers: any[] = [];
-    const setup: any[] = [];
-    let pesaGroup: any = null;
-
-    // De-duplicate by path — some module combinations append the same route twice.
     const seen = new Set<string>();
+    const result: any[] = [];
 
-    for (const r of list) {
-      if (!r) continue;
-      if (r.path && !r.routes) {
-        if (seen.has(r.path)) continue;
+    const addFlat = (r: any) => {
+      if (!r) return;
+      // Expand nested-route containers into their individual children.
+      if (r.routes && r.routes.length) {
+        for (const child of r.routes) {
+          addFlat(child);
+        }
+        return;
+      }
+      if (r.path) {
+        if (seen.has(r.path)) return;
         seen.add(r.path);
       }
-      // Existing Accounting submenu → becomes the "Pesa" dropdown.
-      if (r.routes && (r.path === p("/accounting") || r.name === "Accounting")) {
-        pesaGroup = { ...r, name: "Pesa", icon: <AccountBookOutlined /> };
-        continue;
-      }
-      const bare = bareOf(r);
-      if (NAV_FLAT_BARES.includes(bare)) flat.push(r);
-      else if (NAV_DUKA_BARES.includes(bare)) duka.push(r);
-      else if (NAV_DALA_BARES.includes(bare)) dala.push(r);
-      else if (bare === "/customers") customers.push(r);
-      else if (NAV_MTEJA_BARES.includes(bare)) mtejaExtra.push(r);
-      else if (NAV_SETUP_BARES.includes(bare)) setup.push(r);
-      else flat.push(r); // unknown → keep visible at top level
+      result.push(r);
+    };
+
+    for (const r of list) {
+      addFlat(r);
     }
 
-    // The Pesa (accounting) submenu re-lists shared pages (Reports, Inventory,
-    // Customers, etc.) that already appear at the top level or in another group.
-    // Dropping those duplicates avoids redundancy AND the "two active items" issue
-    // where both the top-level item and its Pesa parent highlight on the same route.
-    if (pesaGroup?.routes) {
-      const claimed = new Set<string>(seen);
-      pesaGroup = {
-        ...pesaGroup,
-        routes: pesaGroup.routes.filter((c: any) => {
-          if (!c?.path) return true;
-          if (claimed.has(c.path)) return false;
-          claimed.add(c.path);
-          return true;
-        }),
-      };
-    }
-
-    const tree: any[] = [...flat];
-    if (duka.length) tree.push({ path: p("/group/duka"), name: "Duka", icon: <ShopOutlined />, routes: duka });
-    if (pesaGroup) tree.push(pesaGroup);
-    if (dala.length) tree.push({ path: p("/group/dala"), name: "Dala", icon: <HomeOutlined />, routes: dala });
-
-    const mtejaChildren = [...customers, ...mtejaExtra];
-    if (hasMteja && mtejaChildren.length) {
-      tree.push({ path: p("/group/mteja"), name: "Mteja", icon: <CustomerServiceOutlined />, routes: mtejaChildren });
-    } else {
-      tree.push(...customers); // no Mteja module → customers stays a flat item
-    }
-
-    if (setup.length) tree.push({ path: p("/group/setup"), name: "Setup", icon: <SettingOutlined />, routes: setup });
-    return tree;
+    return result;
   };
 
   // ════════════════════════════════════════════════════════════════════════════

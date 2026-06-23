@@ -48,9 +48,9 @@ const { Text, Title } = Typography;
 
 // ── Mobile detection hook ─────────────────────────────────────────────────────
 const useIsMobile = () => {
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 1025);
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
+    const handler = () => setIsMobile(window.innerWidth < 1025);
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
   }, []);
@@ -1265,6 +1265,20 @@ const AdminDashboard: React.FC = () => {
           transition: transform 0.28s cubic-bezier(0.32, 0, 0.67, 0) !important;
         }
 
+        /* Active nav tab brand background */
+        .ant-pro-top-nav-header .ant-menu-item-selected {
+          background: rgba(255,255,255,0.22) !important;
+          border-radius: 6px !important;
+        }
+        .ant-pro-top-nav-header .ant-menu-submenu-selected > .ant-menu-submenu-title {
+          background: rgba(255,255,255,0.22) !important;
+          border-radius: 6px !important;
+        }
+        .ant-pro-top-nav-header .ant-menu-item-selected,
+        .ant-pro-top-nav-header .ant-menu-submenu-selected .ant-menu-submenu-title {
+          color: #ffffff !important;
+        }
+
         /* Notification popover */
         .notification-popover-overlay .ant-popover-inner {
           padding: 0 !important;
@@ -1370,11 +1384,11 @@ const AdminDashboard: React.FC = () => {
           colorBgAppListIconHover: "white",
           hashId: "reliatech",
           header: {
-            colorBgMenuItemSelected: "#f6ffed",
+            colorBgMenuItemSelected: `rgba(255,255,255,0.22)`,
             colorBgHeader: primaryColor,
-            colorTextMenu: "#c5bfbfff",
-            colorTextMenuSecondary: "#595959",
-            colorBgMenuItemHover: "#f6ffed",
+            colorTextMenu: "rgba(255,255,255,0.85)",
+            colorTextMenuSecondary: "rgba(255,255,255,0.7)",
+            colorBgMenuItemHover: "rgba(255,255,255,0.12)",
           },
         }}
         menuHeaderRender={(logo: any, _title: any) => (
