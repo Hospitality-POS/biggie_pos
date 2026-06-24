@@ -293,241 +293,243 @@ const InvoiceDetailDrawer: React.FC<InvoiceDetailDrawerProps> = ({
   }
 
   return (
-    <Drawer
-      open={open}
-      onClose={onClose}
-      destroyOnClose
-      width={1000}
-      title={
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div
+    <>
+      <Drawer
+        open={open}
+        onClose={onClose}
+        destroyOnClose
+        width={1000}
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div
+              style={{
+                background: C.primaryLight,
+                borderRadius: 7,
+                padding: "4px 6px",
+                color: C.primary,
+                fontSize: 14,
+                lineHeight: 1,
+              }}
+            >
+              <FilePdfOutlined />
+            </div>
+            <Text strong style={{ fontSize: 14, color: C.darkText }}>
+              Invoice Details - {inv.order_no || inv.invoice_no}
+            </Text>
+            {inv.status && (
+              <span
+                style={{
+                  marginLeft: 6,
+                  fontSize: 11,
+                  color: C.subText,
+                  background: C.bg,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 4,
+                  padding: "1px 8px",
+                }}
+              >
+                {inv.status}
+              </span>
+            )}
+          </div>
+        }
+        extra={
+          <Space>
+            <Tooltip title="Record Payment">
+              <Button
+                icon={<DollarOutlined />}
+                onClick={() => {
+                  paymentForm.setFieldsValue({
+                    receipt_date: new Date().toISOString().split('T')[0],
+                    amount: inv.amount_due || inv.grand_total,
+                  });
+                  setPaymentModalOpen(true);
+                }}
+                style={{ borderRadius: 6 }}
+              >
+                Record Payment
+              </Button>
+            </Tooltip>
+            <Tooltip title="Print / Save PDF">
+              <Button
+                type="primary"
+                icon={<PrinterFilled />}
+                onClick={handlePrint}
+                style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}
+              >
+                Print
+              </Button>
+            </Tooltip>
+          </Space>
+        }
+      >
+        {/* Template picker */}
+        <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
+          <Text
             style={{
-              background: C.primaryLight,
-              borderRadius: 7,
-              padding: "4px 6px",
-              color: C.primary,
-              fontSize: 14,
-              lineHeight: 1,
+              fontSize: 11,
+              fontWeight: 700,
+              color: C.subText,
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              display: "block",
+              marginBottom: 8,
             }}
           >
-            <FilePdfOutlined />
-          </div>
-          <Text strong style={{ fontSize: 14, color: C.darkText }}>
-            Invoice Details - {inv.order_no || inv.invoice_no}
+            Choose invoice template
           </Text>
-          {inv.status && (
-            <span
-              style={{
-                marginLeft: 6,
-                fontSize: 11,
-                color: C.subText,
-                background: C.bg,
-                border: `1px solid ${C.border}`,
-                borderRadius: 4,
-                padding: "1px 8px",
-              }}
-            >
-              {inv.status}
-            </span>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {TEMPLATES.map((tpl) => (
+              <TemplateThumbnail
+                key={tpl.id}
+                tpl={tpl}
+                selected={selectedTemplate === tpl.id}
+                onSelect={() => setSelectedTemplate(tpl.id as TemplateId)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Preview */}
+        <div style={{
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          overflow: "hidden",
+          maxHeight: "calc(100vh - 280px)",
+          overflowY: "auto",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+        }}>
+          {([1, 2, 3, 4, 5, 6] as TemplateId[]).map((id) => {
+            const Tpl = TEMPLATES[id - 1].component;
+            return (
+              <div key={id} style={{ display: id === selectedTemplate ? "block" : "none" }}>
+                <Tpl ref={allRefs[id]} inv={inv} sys={sys} accentColor={primaryColor} />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Linked Sales Receipts */}
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: C.subText,
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              display: "block",
+              marginBottom: 8,
+            }}
+          >
+            Linked Sales Receipts ({linkedReceipts.length})
+          </Text>
+          {linkedReceipts.length === 0 ? (
+            <Text style={{ color: C.subText, fontSize: 12 }}>No payments recorded yet</Text>
+          ) : (
+            <Table
+              dataSource={linkedReceipts}
+              columns={[
+                {
+                  title: "Receipt No",
+                  dataIndex: "receipt_no",
+                  key: "receipt_no",
+                  render: (text: string) => <Text strong style={{ fontFamily: "monospace" }}>{text}</Text>,
+                },
+                {
+                  title: "Date",
+                  dataIndex: "receipt_date",
+                  key: "receipt_date",
+                  render: (date: string) => new Date(date).toLocaleDateString("en-GB"),
+                },
+                {
+                  title: "Amount",
+                  dataIndex: "grand_total",
+                  key: "grand_total",
+                  align: "right" as const,
+                  render: (amount: number) => <Text strong>KES {amount.toLocaleString()}</Text>,
+                },
+                {
+                  title: "Method",
+                  dataIndex: "payment_method",
+                  key: "payment_method",
+                  render: (method: string) => <Tag>{method}</Tag>,
+                },
+                {
+                  title: "Status",
+                  dataIndex: "status",
+                  key: "status",
+                  render: (status: string) => (
+                    <Tag color={status === "Posted" ? "success" : "warning"}>{status}</Tag>
+                  ),
+                },
+              ]}
+              rowKey="_id"
+              pagination={false}
+              size="small"
+            />
           )}
         </div>
-      }
-      extra={
-        <Space>
-          <Tooltip title="Record Payment">
-            <Button
-              icon={<DollarOutlined />}
-              onClick={() => {
-                paymentForm.setFieldsValue({
-                  receipt_date: new Date().toISOString().split('T')[0],
-                  amount: inv.amount_due || inv.grand_total,
-                });
-                setPaymentModalOpen(true);
-              }}
+      </Drawer>
+
+      {/* Record Payment Modal */}
+      <Modal
+        title="Record Payment"
+        open={paymentModalOpen}
+        onCancel={() => setPaymentModalOpen(false)}
+        onOk={() => paymentForm.submit()}
+        confirmLoading={createPaymentMutation.isLoading}
+        okText="Record Payment"
+      >
+        <Form form={paymentForm} layout="vertical" onFinish={handleRecordPayment}>
+          <Form.Item
+            name="amount"
+            label="Payment Amount"
+            rules={[{ required: true, message: "Required" }]}
+            initialValue={inv?.amount_due || inv?.grand_total}
+          >
+            <Input type="number" prefix="KES" style={{ borderRadius: 6 }} />
+          </Form.Item>
+          <Form.Item
+            name="receipt_date"
+            label="Payment Date"
+            rules={[{ required: true, message: "Required" }]}
+            initialValue={new Date().toISOString().split('T')[0]}
+          >
+            <Input type="date" style={{ borderRadius: 6 }} />
+          </Form.Item>
+          <Form.Item
+            name="payment_method"
+            label="Payment Method"
+            rules={[{ required: true, message: "Required" }]}
+          >
+            <Select
+              options={[
+                { label: "Cash", value: "Cash" },
+                { label: "M-Pesa", value: "M-Pesa" },
+                { label: "Card", value: "Card" },
+                { label: "Bank Transfer", value: "Bank_Transfer" },
+                { label: "Cheque", value: "Cheque" },
+              ]}
               style={{ borderRadius: 6 }}
-            >
-              Record Payment
-            </Button>
-          </Tooltip>
-          <Tooltip title="Print / Save PDF">
-            <Button
-              type="primary"
-              icon={<PrinterFilled />}
-              onClick={handlePrint}
-              style={{ background: C.primary, borderColor: C.primary, borderRadius: 6 }}
-            >
-              Print
-            </Button>
-          </Tooltip>
-        </Space>
-      }
-    >
-      {/* Template picker */}
-      <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
-        <Text
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: C.subText,
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-            display: "block",
-            marginBottom: 8,
-          }}
-        >
-          Choose invoice template
-        </Text>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {TEMPLATES.map((tpl) => (
-            <TemplateThumbnail
-              key={tpl.id}
-              tpl={tpl}
-              selected={selectedTemplate === tpl.id}
-              onSelect={() => setSelectedTemplate(tpl.id as TemplateId)}
             />
-          ))}
-        </div>
-      </div>
-
-      {/* Preview */}
-      <div style={{
-        border: `1px solid ${C.border}`,
-        borderRadius: 10,
-        overflow: "hidden",
-        maxHeight: "calc(100vh - 280px)",
-        overflowY: "auto",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-      }}>
-        {([1, 2, 3, 4, 5, 6] as TemplateId[]).map((id) => {
-          const Tpl = TEMPLATES[id - 1].component;
-          return (
-            <div key={id} style={{ display: id === selectedTemplate ? "block" : "none" }}>
-              <Tpl ref={allRefs[id]} inv={inv} sys={sys} accentColor={primaryColor} />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Linked Sales Receipts */}
-      <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
-        <Text
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: C.subText,
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-            display: "block",
-            marginBottom: 8,
-          }}
-        >
-          Linked Sales Receipts ({linkedReceipts.length})
-        </Text>
-        {linkedReceipts.length === 0 ? (
-          <Text style={{ color: C.subText, fontSize: 12 }}>No payments recorded yet</Text>
-        ) : (
-          <Table
-            dataSource={linkedReceipts}
-            columns={[
-              {
-                title: "Receipt No",
-                dataIndex: "receipt_no",
-                key: "receipt_no",
-                render: (text: string) => <Text strong style={{ fontFamily: "monospace" }}>{text}</Text>,
-              },
-              {
-                title: "Date",
-                dataIndex: "receipt_date",
-                key: "receipt_date",
-                render: (date: string) => new Date(date).toLocaleDateString("en-GB"),
-              },
-              {
-                title: "Amount",
-                dataIndex: "grand_total",
-                key: "grand_total",
-                align: "right" as const,
-                render: (amount: number) => <Text strong>KES {amount.toLocaleString()}</Text>,
-              },
-              {
-                title: "Method",
-                dataIndex: "payment_method",
-                key: "payment_method",
-                render: (method: string) => <Tag>{method}</Tag>,
-              },
-              {
-                title: "Status",
-                dataIndex: "status",
-                key: "status",
-                render: (status: string) => (
-                  <Tag color={status === "Posted" ? "success" : "warning"}>{status}</Tag>
-                ),
-              },
-            ]}
-            rowKey="_id"
-            pagination={false}
-            size="small"
-          />
-        )}
-      </div>
-    </Drawer>
-
-    {/* Record Payment Modal */}
-    <Modal
-      title="Record Payment"
-      open={paymentModalOpen}
-      onCancel={() => setPaymentModalOpen(false)}
-      onOk={() => paymentForm.submit()}
-      confirmLoading={createPaymentMutation.isLoading}
-      okText="Record Payment"
-    >
-      <Form form={paymentForm} layout="vertical" onFinish={handleRecordPayment}>
-        <Form.Item
-          name="amount"
-          label="Payment Amount"
-          rules={[{ required: true, message: "Required" }]}
-          initialValue={inv?.amount_due || inv?.grand_total}
-        >
-          <Input type="number" prefix="KES" style={{ borderRadius: 6 }} />
-        </Form.Item>
-        <Form.Item
-          name="receipt_date"
-          label="Payment Date"
-          rules={[{ required: true, message: "Required" }]}
-          initialValue={new Date().toISOString().split('T')[0]}
-        >
-          <Input type="date" style={{ borderRadius: 6 }} />
-        </Form.Item>
-        <Form.Item
-          name="payment_method"
-          label="Payment Method"
-          rules={[{ required: true, message: "Required" }]}
-        >
-          <Select
-            options={[
-              { label: "Cash", value: "Cash" },
-              { label: "M-Pesa", value: "M-Pesa" },
-              { label: "Card", value: "Card" },
-              { label: "Bank Transfer", value: "Bank_Transfer" },
-              { label: "Cheque", value: "Cheque" },
-            ]}
-            style={{ borderRadius: 6 }}
-          />
-        </Form.Item>
-        <Form.Item name="reference" label="Reference">
-          <Input placeholder="Optional" style={{ borderRadius: 6 }} />
-        </Form.Item>
-        <Form.Item
-          name="payment_account_id"
-          label="Payment Account"
-          rules={[{ required: true, message: "Required" }]}
-        >
-          <Select options={paymentAccountOptions} placeholder="Select cash/bank account" style={{ borderRadius: 6 }} />
-        </Form.Item>
-        <Form.Item name="notes" label="Notes">
-          <Input.TextArea rows={2} placeholder="Optional notes" style={{ borderRadius: 6 }} />
-        </Form.Item>
-      </Form>
-    </Modal>
+          </Form.Item>
+          <Form.Item name="reference" label="Reference">
+            <Input placeholder="Optional" style={{ borderRadius: 6 }} />
+          </Form.Item>
+          <Form.Item
+            name="payment_account_id"
+            label="Payment Account"
+            rules={[{ required: true, message: "Required" }]}
+          >
+            <Select options={paymentAccountOptions} placeholder="Select cash/bank account" style={{ borderRadius: 6 }} />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea rows={2} placeholder="Optional notes" style={{ borderRadius: 6 }} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   );
 };
 
