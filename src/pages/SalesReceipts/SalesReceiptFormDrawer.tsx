@@ -15,14 +15,12 @@ import {
     Input,
     Table,
     Typography,
-    Tag,
     Divider,
-    Alert,
     Row,
     Col,
     message,
 } from "antd";
-import { PlusOutlined, DeleteOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     createSalesReceipt,
@@ -452,32 +450,13 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
                 layout="vertical"
             >
                 <Row gutter={16}>
-                    <Col span={12}>
+                    <Col span={24}>
                         <ProFormSelect
                             name="customer_id"
                             label="Customer (Optional)"
                             options={customerOptions}
                             placeholder="Leave blank for cash sale"
                             allowClear
-                        />
-                    </Col>
-                    <Col span={12}>
-                        <ProFormSelect
-                            name="invoice_id"
-                            label="Link to Invoice (Optional)"
-                            options={invoiceOptions}
-                            placeholder="Select invoice to apply payment"
-                            allowClear
-                            fieldProps={{
-                                onChange: (value) => {
-                                    if (value) {
-                                        const selectedInvoice = invoicesData?.invoices?.find((inv: any) => inv._id === value);
-                                        if (selectedInvoice?.customer_id) {
-                                            form.setFieldValue("customer_id", typeof selectedInvoice.customer_id === "string" ? selectedInvoice.customer_id : selectedInvoice.customer_id._id);
-                                        }
-                                    }
-                                },
-                            }}
                         />
                     </Col>
                 </Row>

@@ -226,3 +226,14 @@ export const fixVoidedJournalEntries = async (): Promise<{ message: string; fixe
         throw error;
     }
 };
+
+export const unlinkInvoiceFromSalesReceipt = async (id: string): Promise<{ message: string; receipt: SalesReceipt }> => {
+    try {
+        const response = await axiosInstance.post(`${API_BASE}/${id}/unlink-invoice`);
+        message.success("Receipt unlinked from invoice successfully");
+        return response.data;
+    } catch (error: any) {
+        message.error(error.response?.data?.message || "Failed to unlink invoice");
+        throw error;
+    }
+};

@@ -23,6 +23,7 @@ import {
     StopOutlined,
     PrinterOutlined,
     AccountBookOutlined,
+    DisconnectOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -31,6 +32,7 @@ import {
     voidSalesReceipt,
     fixVoidedJournalEntries,
     updateSalesReceipt,
+    unlinkInvoiceFromSalesReceipt,
     SalesReceipt,
     SalesReceiptStatus,
 } from "@services/accounting/salesReceipts";
@@ -137,10 +139,26 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
         }
     };
 
+    const handleUnlinkInvoice = async () => {
+        try {
+            await unlinkInvoiceFromSalesReceipt(receiptId!);
+            queryClient.invalidateQueries({ queryKey: ["sales-receipt", receiptId] });
+            // Also invalidate the invoice query to update the invoice's salesReceipts array
+            if (receipt?.invoice_id?._id) {
+                queryClient.invalidateQueries({ queryKey: ["invoice", receipt.invoice_id._id] });
+                queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            }
+            onSuccess();
+        } catch (error: any) {
+            message.error(error.response?.data?.message || "Failed to unlink invoice");
+        }
+    };
+
     const canEdit = receipt?.status === "Pending";
     const canPost = receipt?.status === "Pending";
     const canVoid = receipt?.status === "Pending" || receipt?.status === "Posted";
     const canLinkInvoice = receipt?.status === "Posted" && !receipt?.invoice_id;
+    const canUnlinkInvoice = receipt?.status === "Posted" && receipt?.invoice_id;
     const needsJournalFix = receipt?.status === "Voided" && receipt?.journal_entry_id?.status === "Posted";
 
     const lineColumns = [
@@ -255,6 +273,19 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
                         <Button icon={<AccountBookOutlined />} onClick={() => setLinkInvoiceModalOpen(true)}>
                             Link to Invoice
                         </Button>
+                    )}
+                    {canUnlinkInvoice && (
+                        <Popconfirm
+                            title="Unlink from invoice?"
+                            description="This will remove the link between this receipt and the invoice."
+                            onConfirm={handleUnlinkInvoice}
+                            okText="Yes"
+                            cancelText="No"
+                        >
+                            <Button icon={<DisconnectOutlined />}>
+                                Unlink Invoice
+                            </Button>
+                        </Popconfirm>
                     )}
                     {canPost && (
                         <Popconfirm
