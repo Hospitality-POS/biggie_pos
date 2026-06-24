@@ -15,14 +15,12 @@ import {
     Input,
     Table,
     Typography,
-    Tag,
     Divider,
-    Alert,
     Row,
     Col,
     message,
 } from "antd";
-import { PlusOutlined, DeleteOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     createSalesReceipt,
@@ -35,6 +33,7 @@ import {
 } from "@services/accounting/salesReceipts";
 import { fetchAllCustomers } from "@services/customers";
 import { getAllAccounts, ChartOfAccount } from "@services/accounting/accounts";
+import { getAllInvoices } from "@services/accounting/invoice";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -142,6 +141,20 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
         value: a._id,
     }));
 
+    // ── Invoices ───────────────────────────────────────────────────────────────
+
+    const { data: invoicesData } = useQuery({
+        queryKey: ["invoices"],
+        queryFn: () => getAllInvoices({ direction: "customer", status: ["Pending", "Partially_Paid"] }),
+        enabled: open,
+        staleTime: 60_000,
+    });
+
+    const invoiceOptions = (invoicesData?.invoices || []).map((inv: any) => ({
+        label: `${inv.order_no} - KES ${inv.grand_total?.toLocaleString()} (${inv.status})`,
+        value: inv._id,
+    }));
+
     // ── Fetch receipt for editing ───────────────────────────────────────────────
 
     const { data: receiptData, isLoading: loadingReceipt } = useQuery({
@@ -173,6 +186,7 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
                     vat_pricing_mode: receipt.vat_pricing_mode,
                     vat_standard_rate: receipt.vat_standard_rate,
                     status: receipt.status,
+                    invoice_id: receipt.invoice_id?._id,
                 });
                 setVatPricingMode(receipt.vat_pricing_mode || "EXCLUSIVE");
                 setVatStandardRate(receipt.vat_standard_rate || 0.16);
@@ -284,6 +298,7 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
                 vat_pricing_mode: values.vat_pricing_mode,
                 vat_standard_rate: values.vat_standard_rate,
                 status: values.status || "Pending",
+                invoice_id: values.invoice_id,
             };
 
             if (receiptId) {
@@ -435,7 +450,7 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
                 layout="vertical"
             >
                 <Row gutter={16}>
-                    <Col span={12}>
+                    <Col span={24}>
                         <ProFormSelect
                             name="customer_id"
                             label="Customer (Optional)"
@@ -444,10 +459,20 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
                             allowClear
                         />
                     </Col>
+                </Row>
+                <Row gutter={16}>
                     <Col span={12}>
                         <ProFormDatePicker
                             name="receipt_date"
                             label="Receipt Date"
+                            rules={[{ required: true, message: "Required" }]}
+                        />
+                    </Col>
+                    <Col span={12}>
+                        <ProFormSelect
+                            name="payment_method"
+                            label="Payment Method"
+                            options={PAYMENT_METHOD_OPTIONS}
                             rules={[{ required: true, message: "Required" }]}
                         />
                     </Col>
@@ -506,29 +531,22 @@ const SalesReceiptFormDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onS
 
                 <Row gutter={16}>
                     <Col span={12}>
-                        <ProFormSelect
-                            name="payment_method"
-                            label="Payment Method"
-                            options={PAYMENT_METHOD_OPTIONS}
-                            rules={[{ required: true, message: "Required" }]}
-                        />
-                    </Col>
-                    <Col span={12}>
                         <ProFormText
                             name="payment_reference"
                             label="Payment Reference"
                             placeholder="Optional"
                         />
                     </Col>
+                    <Col span={12}>
+                        <ProFormSelect
+                            name="payment_account_id"
+                            label="Payment Account"
+                            options={paymentAccountOptions}
+                            placeholder="Optional - select cash/bank account"
+                            allowClear
+                        />
+                    </Col>
                 </Row>
-
-                <ProFormSelect
-                    name="payment_account_id"
-                    label="Payment Account"
-                    options={paymentAccountOptions}
-                    placeholder="Optional - select cash/bank account"
-                    allowClear
-                />
 
                 <ProFormSelect
                     name="revenue_account_id"

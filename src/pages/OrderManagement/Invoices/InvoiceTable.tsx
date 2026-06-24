@@ -290,11 +290,20 @@ const MobileInvoiceCard: React.FC<{
           {record.createdAt ? dayjs(record.createdAt).format("DD MMM YYYY") : "—"}
           {record.table_id?.name ? ` · ${record.table_id.name}` : ""}
         </Text>
-        {record.amount_due > 0 && record.status !== "Draft" && (
-          <Text style={{ fontSize: 11, color: C.orange, fontWeight: 600 }}>
-            Due: KES {fmt(record.amount_due)}
-          </Text>
-        )}
+        {record.status !== "Draft" && (() => {
+          // Calculate amount due including sales receipts
+          const regularPayments = (record.payments || record.payment_ids || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
+          const salesReceiptsTotal = (record.salesReceipts || []).reduce((s: number, r: any) => s + (r.grand_total || 0), 0);
+          const calculatedAmountDue = Math.max(0, (record.grand_total || 0) - regularPayments - salesReceiptsTotal);
+          if (calculatedAmountDue > 0) {
+            return (
+              <Text style={{ fontSize: 11, color: C.orange, fontWeight: 600 }}>
+                Due: KES {fmt(calculatedAmountDue)}
+              </Text>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       {/* Expanded details */}
@@ -406,7 +415,10 @@ const PaymentModal: React.FC<{
     queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
   };
   
-  const amountDue = invoice?.amount_due ?? invoice?.grand_total ?? 0;
+  // Calculate amount due including sales receipts
+  const regularPayments = (invoice?.payments || invoice?.payment_ids || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
+  const salesReceiptsTotal = (invoice?.salesReceipts || []).reduce((s: number, r: any) => s + (r.grand_total || 0), 0);
+  const amountDue = Math.max(0, (invoice?.grand_total || 0) - regularPayments - salesReceiptsTotal);
   const mutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => recordInvoicePayment(id, data),
     onSuccess: () => {
@@ -867,8 +879,12 @@ const InvoicesTable = () => {
     {
       title: "Amount Due", dataIndex: "amount_due", hideInSearch: true, align: "right" as const,
       render: (v: number, record: any) => {
-        if (!v || record.status === "Draft") return <Text style={{ color: C.subText }}>—</Text>;
-        return <Text strong style={{ fontSize: 12, color: v > 0 ? C.orange : C.green }}>KES {fmt(v)}</Text>;
+        if (record.status === "Draft") return <Text style={{ color: C.subText }}>—</Text>;
+        // Calculate amount due including sales receipts
+        const regularPayments = (record.payments || record.payment_ids || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
+        const salesReceiptsTotal = (record.salesReceipts || []).reduce((s: number, r: any) => s + (r.grand_total || 0), 0);
+        const calculatedAmountDue = Math.max(0, (record.grand_total || 0) - regularPayments - salesReceiptsTotal);
+        return <Text strong style={{ fontSize: 12, color: calculatedAmountDue > 0 ? C.orange : C.green }}>KES {fmt(calculatedAmountDue)}</Text>;
       },
     },
     {

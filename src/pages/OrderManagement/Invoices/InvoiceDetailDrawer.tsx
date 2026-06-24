@@ -1,17 +1,20 @@
 import React, { useRef, useState } from "react";
-import { Drawer, Button, Spin, Typography, Tooltip, Space } from "antd";
+import { Drawer, Button, Spin, Typography, Tooltip, Space, Table, Tag, Modal, Form, Input, Select, message } from "antd";
 import {
   CheckCircleOutlined,
   FilePdfOutlined,
   PrinterFilled,
   PrinterOutlined,
   ArrowRightOutlined,
+  DollarOutlined,
 } from "@ant-design/icons";
 import { useReactToPrint } from "react-to-print";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useSystemDetails from "@hooks/useSystemDetails";
 import { getAllInvoices } from "@services/cart";
 import { getNotesByInvoice } from "@services/accounting/notes";
+import { createSalesReceipt, getSalesReceipts } from "@services/accounting/salesReceipts";
+import { getAllAccounts } from "@services/accounting/accounts";
 import {
   TEMPLATES,
   TemplateId,
@@ -124,6 +127,9 @@ const InvoiceDetailDrawer: React.FC<InvoiceDetailDrawerProps> = ({
   invoiceId,
 }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(1);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentForm] = Form.useForm();
+  const queryClient = useQueryClient();
 
   // One ref per template
   const ref1 = useRef<HTMLDivElement>(null);
@@ -158,6 +164,32 @@ const InvoiceDetailDrawer: React.FC<InvoiceDetailDrawerProps> = ({
     enabled: open && !!invoiceId,
     staleTime: 30_000,
   });
+
+  // Fetch sales receipts linked to this invoice
+  const { data: receiptsData } = useQuery({
+    queryKey: ["sales-receipts-by-invoice", invoiceId],
+    queryFn: () => getSalesReceipts({}),
+    enabled: open && !!invoiceId,
+    staleTime: 30_000,
+  });
+
+  const linkedReceipts = receiptsData?.receipts?.filter((r: any) => r.invoice_id?._id === invoiceId) || [];
+
+  // Fetch accounts for payment modal
+  const { data: accountsData } = useQuery({
+    queryKey: ["chart-of-accounts"],
+    queryFn: () => getAllAccounts({ is_active: true }),
+    enabled: paymentModalOpen,
+    staleTime: 60_000,
+  });
+
+  const allAccounts = accountsData?.accounts || [];
+  const cashAccounts = allAccounts.filter((a: any) => a.account_type === "ASSET" && a.account_name.toLowerCase().includes("cash"));
+  const bankAccounts = allAccounts.filter((a: any) => a.account_type === "ASSET" && a.account_name.toLowerCase().includes("bank"));
+  const paymentAccountOptions = [...cashAccounts, ...bankAccounts].map((a: any) => ({
+    label: `${a.account_code} — ${a.account_name}`,
+    value: a._id,
+  }));
 
   const inv: InvoiceForPrint | undefined = invoiceData ? {
     ...invoiceData,
@@ -205,6 +237,41 @@ const InvoiceDetailDrawer: React.FC<InvoiceDetailDrawerProps> = ({
   };
 
   const handlePrint = () => printMap[selectedTemplate]();
+
+  const createPaymentMutation = useMutation({
+    mutationFn: createSalesReceipt,
+    onSuccess: () => {
+      message.success("Payment recorded successfully");
+      setPaymentModalOpen(false);
+      paymentForm.resetFields();
+      queryClient.invalidateQueries({ queryKey: ["sales-receipts-by-invoice", invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["invoice-detail", invoiceId] });
+    },
+    onError: (error: any) => {
+      message.error(error.response?.data?.message || "Failed to record payment");
+    },
+  });
+
+  const handleRecordPayment = async (values: any) => {
+    await createPaymentMutation.mutateAsync({
+      customer_id: typeof inv.customer_id === "string" ? inv.customer_id : inv.customer_id?._id,
+      receipt_date: values.receipt_date,
+      lines: [{
+        description: `Payment for invoice ${inv.order_no || inv.invoice_no}`,
+        quantity: 1,
+        unit_price: values.amount,
+        vat_rate: 0,
+        vat_type: "NONE",
+      }],
+      payment_method: values.payment_method,
+      payment_reference: values.reference,
+      payment_account_id: values.payment_account_id,
+      revenue_account_id: values.revenue_account_id,
+      notes: values.notes,
+      status: "Posted",
+      invoice_id: invoiceId,
+    });
+  };
 
   if (isLoading || !inv) {
     return (
@@ -267,6 +334,21 @@ const InvoiceDetailDrawer: React.FC<InvoiceDetailDrawerProps> = ({
       }
       extra={
         <Space>
+          <Tooltip title="Record Payment">
+            <Button
+              icon={<DollarOutlined />}
+              onClick={() => {
+                paymentForm.setFieldsValue({
+                  receipt_date: new Date().toISOString().split('T')[0],
+                  amount: inv.amount_due || inv.grand_total,
+                });
+                setPaymentModalOpen(true);
+              }}
+              style={{ borderRadius: 6 }}
+            >
+              Record Payment
+            </Button>
+          </Tooltip>
           <Tooltip title="Print / Save PDF">
             <Button
               type="primary"
@@ -325,7 +407,127 @@ const InvoiceDetailDrawer: React.FC<InvoiceDetailDrawerProps> = ({
           );
         })}
       </div>
+
+      {/* Linked Sales Receipts */}
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+        <Text
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: C.subText,
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+            display: "block",
+            marginBottom: 8,
+          }}
+        >
+          Linked Sales Receipts ({linkedReceipts.length})
+        </Text>
+        {linkedReceipts.length === 0 ? (
+          <Text style={{ color: C.subText, fontSize: 12 }}>No payments recorded yet</Text>
+        ) : (
+          <Table
+            dataSource={linkedReceipts}
+            columns={[
+              {
+                title: "Receipt No",
+                dataIndex: "receipt_no",
+                key: "receipt_no",
+                render: (text: string) => <Text strong style={{ fontFamily: "monospace" }}>{text}</Text>,
+              },
+              {
+                title: "Date",
+                dataIndex: "receipt_date",
+                key: "receipt_date",
+                render: (date: string) => new Date(date).toLocaleDateString("en-GB"),
+              },
+              {
+                title: "Amount",
+                dataIndex: "grand_total",
+                key: "grand_total",
+                align: "right" as const,
+                render: (amount: number) => <Text strong>KES {amount.toLocaleString()}</Text>,
+              },
+              {
+                title: "Method",
+                dataIndex: "payment_method",
+                key: "payment_method",
+                render: (method: string) => <Tag>{method}</Tag>,
+              },
+              {
+                title: "Status",
+                dataIndex: "status",
+                key: "status",
+                render: (status: string) => (
+                  <Tag color={status === "Posted" ? "success" : "warning"}>{status}</Tag>
+                ),
+              },
+            ]}
+            rowKey="_id"
+            pagination={false}
+            size="small"
+          />
+        )}
+      </div>
     </Drawer>
+
+    {/* Record Payment Modal */}
+    <Modal
+      title="Record Payment"
+      open={paymentModalOpen}
+      onCancel={() => setPaymentModalOpen(false)}
+      onOk={() => paymentForm.submit()}
+      confirmLoading={createPaymentMutation.isLoading}
+      okText="Record Payment"
+    >
+      <Form form={paymentForm} layout="vertical" onFinish={handleRecordPayment}>
+        <Form.Item
+          name="amount"
+          label="Payment Amount"
+          rules={[{ required: true, message: "Required" }]}
+          initialValue={inv?.amount_due || inv?.grand_total}
+        >
+          <Input type="number" prefix="KES" style={{ borderRadius: 6 }} />
+        </Form.Item>
+        <Form.Item
+          name="receipt_date"
+          label="Payment Date"
+          rules={[{ required: true, message: "Required" }]}
+          initialValue={new Date().toISOString().split('T')[0]}
+        >
+          <Input type="date" style={{ borderRadius: 6 }} />
+        </Form.Item>
+        <Form.Item
+          name="payment_method"
+          label="Payment Method"
+          rules={[{ required: true, message: "Required" }]}
+        >
+          <Select
+            options={[
+              { label: "Cash", value: "Cash" },
+              { label: "M-Pesa", value: "M-Pesa" },
+              { label: "Card", value: "Card" },
+              { label: "Bank Transfer", value: "Bank_Transfer" },
+              { label: "Cheque", value: "Cheque" },
+            ]}
+            style={{ borderRadius: 6 }}
+          />
+        </Form.Item>
+        <Form.Item name="reference" label="Reference">
+          <Input placeholder="Optional" style={{ borderRadius: 6 }} />
+        </Form.Item>
+        <Form.Item
+          name="payment_account_id"
+          label="Payment Account"
+          rules={[{ required: true, message: "Required" }]}
+        >
+          <Select options={paymentAccountOptions} placeholder="Select cash/bank account" style={{ borderRadius: 6 }} />
+        </Form.Item>
+        <Form.Item name="notes" label="Notes">
+          <Input.TextArea rows={2} placeholder="Optional notes" style={{ borderRadius: 6 }} />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 };
 

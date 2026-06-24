@@ -61,6 +61,14 @@ export interface SalesReceipt {
         entry_no: string;
         status: string;
     };
+    invoice_id?: {
+        _id: string;
+        order_no: string;
+        status: string;
+        grand_total: number;
+        amount_paid: number;
+        amount_due: number;
+    } | null;
     created_by: {
         username: string;
         name: string;
@@ -134,6 +142,7 @@ export const createSalesReceipt = async (data: {
     vat_pricing_mode?: VatPricingMode;
     vat_standard_rate?: number;
     status?: SalesReceiptStatus;
+    invoice_id?: string;
 }): Promise<{ message: string; receipt: SalesReceipt; journal_entry?: any }> => {
     try {
         const shop_id = localStorage.getItem("shopId") || "";
@@ -158,6 +167,7 @@ export const updateSalesReceipt = async (
         notes?: string;
         vat_pricing_mode?: VatPricingMode;
         vat_standard_rate?: number;
+        invoice_id?: string;
     }
 ): Promise<{ message: string; receipt: SalesReceipt }> => {
     try {
@@ -213,6 +223,17 @@ export const fixVoidedJournalEntries = async (): Promise<{ message: string; fixe
         return response.data;
     } catch (error: any) {
         message.error(error.response?.data?.message || "Failed to fix voided journal entries");
+        throw error;
+    }
+};
+
+export const unlinkInvoiceFromSalesReceipt = async (id: string): Promise<{ message: string; receipt: SalesReceipt }> => {
+    try {
+        const response = await axiosInstance.post(`${API_BASE}/${id}/unlink-invoice`);
+        message.success("Receipt unlinked from invoice successfully");
+        return response.data;
+    } catch (error: any) {
+        message.error(error.response?.data?.message || "Failed to unlink invoice");
         throw error;
     }
 };

@@ -75,6 +75,12 @@ interface PaymentRecord {
   createdAt: string; created_by?: UserRef; payment_status?: string;
 }
 
+interface SalesReceiptRecord {
+  _id: string; receipt_no: string; receipt_date: string;
+  grand_total: number; payment_method: string;
+  payment_reference?: string; status: string;
+}
+
 export interface InvoiceDetailsInterface {
   _id: string; order_no: string; invoice_no?: string;
   shop_id?: string; source?: string; direction?: string;
@@ -87,6 +93,7 @@ export interface InvoiceDetailsInterface {
   grand_total: number; amount_paid?: number; amount_due?: number;
   notes_adjustment?: number; status?: string;
   payment_ids?: PaymentRecord[]; payments?: PaymentRecord[];
+  salesReceipts?: SalesReceiptRecord[];
   customer_id?: any; supplier_id?: any;
   counterparty_name?: string; counterparty_phone?: string;
   counterparty_email?: string; counterparty_kra_pin?: string;
@@ -423,8 +430,15 @@ const DetailsTab = ({
     items = [], served_by, created_by, subtotal, total_vat_amount,
     vat_breakdown, discount_amount, vat_pricing_mode, grand_total,
     order_no, createdAt, issue_date, due_date,
-    amount_paid, amount_due, notes_adjustment, status, notes, terms,
+    notes_adjustment, status, notes, terms,
+    payments, payment_ids, salesReceipts,
   } = record;
+
+  // Calculate total payments including sales receipts
+  const regularPayments = (payments || payment_ids || []).reduce((s, p) => s + (p.amount || 0), 0);
+  const salesReceiptsTotal = (salesReceipts || []).reduce((s, r) => s + (r.grand_total || 0), 0);
+  const calculatedAmountPaid = regularPayments + salesReceiptsTotal;
+  const calculatedAmountDue = Math.max(0, grand_total - calculatedAmountPaid);
 
   const party = resolveParty(record);
 
@@ -582,15 +596,15 @@ const DetailsTab = ({
           <Text style={{ fontSize: 12, color: C.subText }}>Grand Total</Text>
           <Text strong style={{ fontSize: 15, color: C.primary }}>KES {fmt(grand_total)}</Text>
         </div>
-        {(amount_paid || 0) > 0 && (
+        {calculatedAmountPaid > 0 && (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 6 }}>
               <Text style={{ fontSize: 12, color: C.green }}>Amount Paid</Text>
-              <Text strong style={{ fontSize: 13, color: C.green }}>KES {fmt(amount_paid || 0)}</Text>
+              <Text strong style={{ fontSize: 13, color: C.green }}>KES {fmt(calculatedAmountPaid)}</Text>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 4 }}>
-              <Text style={{ fontSize: 12, color: (amount_due || 0) > 0 ? C.orange : C.green }}>Balance Due</Text>
-              <Text strong style={{ fontSize: 13, color: (amount_due || 0) > 0 ? C.orange : C.green }}>KES {fmt(amount_due || 0)}</Text>
+              <Text style={{ fontSize: 12, color: calculatedAmountDue > 0 ? C.orange : C.green }}>Balance Due</Text>
+              <Text strong style={{ fontSize: 13, color: calculatedAmountDue > 0 ? C.orange : C.green }}>KES {fmt(calculatedAmountDue)}</Text>
             </div>
           </>
         )}
@@ -676,10 +690,10 @@ const DetailsTab = ({
             </ProDescriptions.Item>
           )}
           <ProDescriptions.Item label="Grand Total" span={2}><Text strong style={{ fontSize: 14, color: C.primary }}>KES {fmt(grand_total)}</Text></ProDescriptions.Item>
-          {(amount_paid || 0) > 0 && (
+          {calculatedAmountPaid > 0 && (
             <>
-              <ProDescriptions.Item label="Amount Paid"><Text strong style={{ fontSize: 12, color: C.green }}>KES {fmt(amount_paid || 0)}</Text></ProDescriptions.Item>
-              <ProDescriptions.Item label="Balance Due"><Text strong style={{ fontSize: 12, color: (amount_due || 0) > 0 ? C.orange : C.green }}>KES {fmt(amount_due || 0)}</Text></ProDescriptions.Item>
+              <ProDescriptions.Item label="Amount Paid"><Text strong style={{ fontSize: 12, color: C.green }}>KES {fmt(calculatedAmountPaid)}</Text></ProDescriptions.Item>
+              <ProDescriptions.Item label="Balance Due"><Text strong style={{ fontSize: 12, color: calculatedAmountDue > 0 ? C.orange : C.green }}>KES {fmt(calculatedAmountDue)}</Text></ProDescriptions.Item>
             </>
           )}
         </ProDescriptions>
@@ -698,8 +712,10 @@ const PaymentsTab = ({
 }) => {
   const payments: PaymentRecord[] = record.payments || record.payment_ids || [];
   const total = payments.reduce((s, p) => s + (p.amount || 0), 0);
-  const amountDue = record.amount_due || 0;
+  const salesReceiptsTotal = (record.salesReceipts || []).reduce((s, r) => s + (r.grand_total || 0), 0);
   const grandTotal = record.grand_total || 0;
+  // Calculate amount due by subtracting both regular payments and sales receipts from grand total
+  const amountDue = Math.max(0, grandTotal - total - salesReceiptsTotal);
   const queryClient = useQueryClient();
 
   // Duplicate mutation
@@ -808,7 +824,92 @@ const PaymentsTab = ({
 };
 
 // ═══════════════════════════════════════════════════════════════
-// TAB 4 — Credit / Debit Notes
+// TAB 4 — Payment Receipts (Sales Receipts)
+// ═══════════════════════════════════════════════════════════════
+const SalesReceiptsTab = ({ record }: { record: InvoiceDetailsInterface }) => {
+  const salesReceipts: SalesReceiptRecord[] = record.salesReceipts || [];
+  const total = salesReceipts.reduce((s, r) => s + (r.grand_total || 0), 0);
+  const regularPayments = (record.payments || record.payment_ids || []).reduce((s, p) => s + (p.amount || 0), 0);
+  const grandTotal = record.grand_total || 0;
+  // Calculate amount due by subtracting both regular payments and sales receipts from grand total
+  const amountDue = Math.max(0, grandTotal - regularPayments - total);
+
+  const columns = [
+    {
+      title: "Receipt No",
+      dataIndex: "receipt_no",
+      key: "receipt_no",
+      render: (text: string) => <Text strong style={{ fontFamily: "monospace", fontSize: 11 }}>{text}</Text>,
+    },
+    {
+      title: "Date",
+      dataIndex: "receipt_date",
+      key: "receipt_date",
+      render: (date: string) => <Text style={{ fontSize: 11 }}>{dayjs(date).format("DD MMM YYYY")}</Text>,
+    },
+    {
+      title: "Amount",
+      dataIndex: "grand_total",
+      key: "grand_total",
+      align: "right" as const,
+      render: (amount: number) => <Text strong style={{ fontSize: 11, color: C.green }}>KES {fmt(amount)}</Text>,
+    },
+    {
+      title: "Method",
+      dataIndex: "payment_method",
+      key: "payment_method",
+      render: (method: string) => <Tag color="blue" style={{ fontSize: 10 }}>{method}</Tag>,
+    },
+    {
+      title: "Reference",
+      dataIndex: "payment_reference",
+      key: "payment_reference",
+      render: (v: string) => v ? <Text code style={{ fontSize: 10 }}>{v}</Text> : <Text style={{ color: C.subText, fontSize: 10 }}>—</Text>,
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => (
+        <Tag color={status === "Posted" ? "success" : "warning"} style={{ fontSize: 10 }}>{status}</Tag>
+      ),
+    },
+  ];
+
+  return (
+    <div style={{ padding: "12px 16px" }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        {[
+          { label: "Total Receipts", value: `KES ${fmt(total)}`, color: C.green, bg: "#f0fdf4", border: "#bbf7d0" },
+          { label: "Balance Due", value: `KES ${fmt(amountDue)}`, color: amountDue > 0 ? C.orange : C.green, bg: "#fff7ed", border: "#fed7aa" },
+          { label: "Invoice Total", value: `KES ${fmt(grandTotal)}`, color: C.primary, bg: C.bg, border: C.border },
+        ].map((item) => (
+          <div key={item.label} style={{
+            flex: "1 1 120px", background: item.bg,
+            border: `1px solid ${item.border}`, borderLeft: `3px solid ${item.color}`,
+            borderRadius: 8, padding: "8px 12px",
+          }}>
+            <Text style={{ fontSize: 10, color: C.subText, display: "block", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.3px" }}>
+              {item.label}
+            </Text>
+            <Text strong style={{ fontSize: 14, color: item.color }}>{item.value}</Text>
+          </div>
+        ))}
+      </div>
+      {!salesReceipts.length ? (
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={<Text style={{ fontSize: 12, color: C.subText }}>No payment receipts linked to this invoice</Text>}
+          style={{ padding: "16px 0" }} />
+      ) : (
+        <Table rowKey="_id" columns={columns}
+          dataSource={salesReceipts} pagination={false} size="small" scroll={{ x: 600 }} />
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// TAB 5 — Credit / Debit Notes
 // ═══════════════════════════════════════════════════════════════
 const NOTE_TYPE_COLOR: Record<string, string> = { CREDIT_NOTE: "green", DEBIT_NOTE: "orange" };
 
@@ -1281,8 +1382,9 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
   });
   const noteCount = notesData?.notes?.length || 0;
   const paymentCount = (record.payments || record.payment_ids || []).length;
+  const salesReceiptCount = (record.salesReceipts || []).length;
 
-  // Tab order: Receipt first, then Details, Payments, Notes
+  // Tab order: Receipt first, then Details, Payments, Payment Receipts, Notes
   const tabItems = [
     {
       key: "receipt",
@@ -1337,6 +1439,22 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
       ),
       children: (
         <PaymentsTab record={record} onOpenPrint={() => setActiveTab("receipt")} />
+      ),
+    },
+    {
+      key: "sales-receipts",
+      label: (
+        <Space size={4}>
+          <DollarOutlined />
+          <span>Payment Receipts</span>
+          {salesReceiptCount > 0 && (
+            <Badge count={salesReceiptCount} size="small"
+              style={{ backgroundColor: C.blue, fontSize: 9, marginLeft: 2 }} />
+          )}
+        </Space>
+      ),
+      children: (
+        <SalesReceiptsTab record={record} />
       ),
     },
     {

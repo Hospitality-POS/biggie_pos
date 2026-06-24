@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
     Drawer,
     Button,
@@ -13,12 +13,17 @@ import {
     Col,
     Popconfirm,
     message,
+    Modal,
+    Form,
+    Select,
 } from "antd";
 import {
     EditOutlined,
     CheckOutlined,
     StopOutlined,
     PrinterOutlined,
+    AccountBookOutlined,
+    DisconnectOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -26,9 +31,12 @@ import {
     postSalesReceipt,
     voidSalesReceipt,
     fixVoidedJournalEntries,
+    updateSalesReceipt,
+    unlinkInvoiceFromSalesReceipt,
     SalesReceipt,
     SalesReceiptStatus,
 } from "@services/accounting/salesReceipts";
+import { getAllInvoices } from "@services/accounting/invoice";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
@@ -42,12 +50,28 @@ interface Props {
 
 const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, onSuccess }) => {
     const queryClient = useQueryClient();
+    const [linkInvoiceModalOpen, setLinkInvoiceModalOpen] = useState(false);
+    const [linkInvoiceForm] = Form.useForm();
 
     const { data: receipt, isLoading } = useQuery({
         queryKey: ["sales-receipt", receiptId],
         queryFn: () => getSalesReceiptById(receiptId!),
         enabled: open && !!receiptId,
     });
+
+    const { data: invoicesData } = useQuery({
+        queryKey: ["invoices"],
+        queryFn: () => getAllInvoices({ direction: "customer" }),
+        enabled: linkInvoiceModalOpen,
+        staleTime: 60_000,
+    });
+
+    const invoiceOptions = (invoicesData?.invoices || [])
+        .filter((inv: any) => inv.status === "Pending" || inv.status === "Partially_Paid")
+        .map((inv: any) => ({
+            label: `${inv.order_no} - KES ${inv.grand_total?.toLocaleString()} (${inv.status})`,
+            value: inv._id,
+        }));
 
     const postMutation = useMutation({
         mutationFn: postSalesReceipt,
@@ -102,9 +126,39 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
         fixJournalMutation.mutate();
     };
 
+    const handleLinkInvoice = async (values: any) => {
+        try {
+            await updateSalesReceipt(receiptId!, { invoice_id: values.invoice_id });
+            message.success("Receipt linked to invoice successfully");
+            setLinkInvoiceModalOpen(false);
+            linkInvoiceForm.resetFields();
+            queryClient.invalidateQueries({ queryKey: ["sales-receipt", receiptId] });
+            onSuccess();
+        } catch (error: any) {
+            message.error(error.response?.data?.message || "Failed to link invoice");
+        }
+    };
+
+    const handleUnlinkInvoice = async () => {
+        try {
+            await unlinkInvoiceFromSalesReceipt(receiptId!);
+            queryClient.invalidateQueries({ queryKey: ["sales-receipt", receiptId] });
+            // Also invalidate the invoice query to update the invoice's salesReceipts array
+            if (receipt?.invoice_id?._id) {
+                queryClient.invalidateQueries({ queryKey: ["invoice", receipt.invoice_id._id] });
+                queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            }
+            onSuccess();
+        } catch (error: any) {
+            message.error(error.response?.data?.message || "Failed to unlink invoice");
+        }
+    };
+
     const canEdit = receipt?.status === "Pending";
     const canPost = receipt?.status === "Pending";
     const canVoid = receipt?.status === "Pending" || receipt?.status === "Posted";
+    const canLinkInvoice = receipt?.status === "Posted" && !receipt?.invoice_id;
+    const canUnlinkInvoice = receipt?.status === "Posted" && receipt?.invoice_id;
     const needsJournalFix = receipt?.status === "Voided" && receipt?.journal_entry_id?.status === "Posted";
 
     const lineColumns = [
@@ -184,7 +238,8 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
     };
 
     return (
-        <Drawer
+        <>
+            <Drawer
             title={`Sales Receipt - ${receipt.receipt_no}`}
             width={800}
             open={open}
@@ -213,6 +268,24 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
                         <Button icon={<EditOutlined />} onClick={() => {/* Open edit drawer */}}>
                             Edit
                         </Button>
+                    )}
+                    {canLinkInvoice && (
+                        <Button icon={<AccountBookOutlined />} onClick={() => setLinkInvoiceModalOpen(true)}>
+                            Link to Invoice
+                        </Button>
+                    )}
+                    {canUnlinkInvoice && (
+                        <Popconfirm
+                            title="Unlink from invoice?"
+                            description="This will remove the link between this receipt and the invoice."
+                            onConfirm={handleUnlinkInvoice}
+                            okText="Yes"
+                            cancelText="No"
+                        >
+                            <Button icon={<DisconnectOutlined />}>
+                                Unlink Invoice
+                            </Button>
+                        </Popconfirm>
                     )}
                     {canPost && (
                         <Popconfirm
@@ -265,6 +338,17 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
                     <Descriptions.Item label="Customer" span={2}>
                         {receipt.customer_id?.customer_name || receipt.customer_name || "Cash Sale"}
                     </Descriptions.Item>
+                    {receipt.invoice_id && (
+                        <Descriptions.Item label="Linked Invoice" span={2}>
+                            <Text strong style={{ color: "#1890ff" }}>{receipt.invoice_id.order_no}</Text>
+                            <Tag color={receipt.invoice_id.status === "Paid" ? "success" : receipt.invoice_id.status === "Partially_Paid" ? "warning" : "default"} style={{ marginLeft: 8 }}>
+                                {receipt.invoice_id.status}
+                            </Tag>
+                            <Text style={{ marginLeft: 8, color: "#666" }}>
+                                (Paid: KES {receipt.invoice_id.amount_paid?.toLocaleString()} / Due: KES {receipt.invoice_id.amount_due?.toLocaleString()})
+                            </Text>
+                        </Descriptions.Item>
+                    )}
                     <Descriptions.Item label="Payment Method">
                         {receipt.payment_method}
                     </Descriptions.Item>
@@ -365,6 +449,38 @@ const SalesReceiptDetailDrawer: React.FC<Props> = ({ open, setOpen, receiptId, o
                 </Descriptions>
             </Space>
         </Drawer>
+
+        {/* Link Invoice Modal */}
+        <Modal
+            title="Link to Invoice"
+            open={linkInvoiceModalOpen}
+            onCancel={() => setLinkInvoiceModalOpen(false)}
+            onOk={() => linkInvoiceForm.submit()}
+            okText="Link Invoice"
+        >
+            <Form form={linkInvoiceForm} layout="vertical" onFinish={handleLinkInvoice}>
+                <Form.Item
+                    name="invoice_id"
+                    label="Select Invoice"
+                    rules={[{ required: true, message: "Please select an invoice" }]}
+                >
+                    <Select
+                        options={invoiceOptions}
+                        placeholder="Select an invoice to link this payment to"
+                        showSearch
+                        filterOption={(input, option) =>
+                            (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+                        }
+                    />
+                </Form.Item>
+                <Alert
+                    message="Linking this receipt to an invoice will update the invoice's payment status and amount due."
+                    type="info"
+                    showIcon
+                />
+            </Form>
+        </Modal>
+        </>
     );
 };
 
