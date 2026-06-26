@@ -25,6 +25,15 @@ export interface CartDetailsInterface {
     country?: string;
     landmark?: string;
   };
+  served_by?: Array<{
+    _id: string;
+    username: string;
+  } | string>;
+  staff_earnings?: Array<{
+    staff_id: string;
+    amount: number;
+    _id?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
   __v: number;
