@@ -449,3 +449,47 @@ export const getOrdersByLocation = async (params: {
     throw error;
   }
 };
+
+interface TopEarnersParams {
+  startDate?: string;
+  endDate?: string;
+  shop_id?: string;
+  limit?: number;
+  staffPct?: number;
+  platformPct?: number;
+}
+
+interface TopEarner {
+  staff_id: string;
+  staff_name: string;
+  total_earnings: number;
+  order_count: number;
+  average_per_order: number;
+}
+
+export const getTopEarners = async (params: TopEarnersParams = {}): Promise<{ top_earners: TopEarner[]; summary: any }> => {
+  try {
+    const response = await axiosInstance.get(`${BASE_URL}/orders/top-earners`, {
+      params: {
+        startDate: params.startDate,
+        endDate: params.endDate,
+        shop_id: params.shop_id,
+        limit: params.limit || 10,
+        staffPct: params.staffPct,
+        platformPct: params.platformPct,
+      },
+    });
+    // API returns { success: true, data: { top_earners: [...], summary: {...}, filters_applied: {...} } }
+    return {
+      top_earners: response.data?.data?.top_earners || [],
+      summary: response.data?.data?.summary || null,
+    };
+  } catch (error) {
+    if (error?.response?.data?.message) {
+      message.error(error.response.data.message);
+    } else {
+      message.error("Error fetching top earners");
+    }
+    throw error;
+  }
+};

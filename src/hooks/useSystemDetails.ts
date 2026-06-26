@@ -1,4 +1,5 @@
 import { fetchSystemSetupDetailsById } from "@services/systemsetup";
+import { fetchShop } from "@services/shops";
 import { useQuery } from "@tanstack/react-query";
 
 function useSystemDetails() {
@@ -9,6 +10,18 @@ function useSystemDetails() {
     refetchInterval: 3000,
     networkMode: "always",
   });
+
+  const shopId = typeof window !== "undefined" ? localStorage.getItem("shopId") : null;
+  
+  const { data: shopData } = useQuery({
+    queryKey: ["shop", shopId],
+    queryFn: () => fetchShop(shopId!),
+    enabled: !!shopId,
+    retry: 3,
+    refetchInterval: 3000,
+    networkMode: "always",
+  });
+
   console.log('nice work', data);
   return {
     BRAND_NAME1: `${data?.name} ${data?.location}`,
@@ -24,6 +37,7 @@ function useSystemDetails() {
     bank_details: data?.bank_details,
     receipt_font_size: (data?.receipt_font_size || 13) as number,
     receipt_text_bold: (data?.receipt_text_bold ?? true) as boolean,
+    staff_earning_enabled: (shopData?.staff_earning_enabled ?? false) as boolean,
   };
 }
 

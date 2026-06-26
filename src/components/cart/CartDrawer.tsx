@@ -31,6 +31,7 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import { usePOSMode } from "@context/POSModeContext";
 import { useRetailQueue } from "@context/RetailQueueContext";
 import { usePrintDocument, DocumentType } from "../MODALS/Hooks/usePrintDocument";
+import useSystemDetails from "@hooks/useSystemDetails";
 import {
   sendPrintFromCart,
 } from "@services/printAgent";
@@ -138,6 +139,9 @@ const CartDrawer: React.FC = () => {
   const [customItemLoading, setCustomItemLoading] = useState(false);
   const [mainCategories, setMainCategories] = useState<{ value: string; label: string }[]>([]);
   const [sendingHotelInfo, setSendingHotelInfo] = useState(false);
+  const [earningsModalOpen, setEarningsModalOpen] = useState(false);
+  const [staffEarnings, setStaffEarnings] = useState<Record<string, number>>({});
+  const [updatingEarnings, setUpdatingEarnings] = useState(false);
 
   // Document type driving which print status to check.
   const documentType: DocumentType = "bill";
@@ -145,6 +149,7 @@ const CartDrawer: React.FC = () => {
   const storedTenant = localStorage.getItem("tenant");
   const tenant = storedTenant ? JSON.parse(storedTenant) : null;
   const shopId = localStorage.getItem("shopId");
+  const { staff_earning_enabled } = useSystemDetails();
 
   const { data: shopData } = useQuery({
     queryKey: ["shop", shopId],
@@ -452,6 +457,57 @@ const CartDrawer: React.FC = () => {
       console.error("Failed to update served by", e);
     } finally {
       setUpdatingServedBy(false);
+    }
+  };
+
+  const handleOpenEarningsModal = () => {
+    const servedBy = cartDetails?.served_by;
+    console.log("Opening earnings modal - cartDetails:", cartDetails);
+    console.log("Opening earnings modal - served_by:", servedBy);
+    console.log("Opening earnings modal - staff_earnings:", cartDetails?.staff_earnings);
+    
+    if (!servedBy || !Array.isArray(servedBy) || servedBy.length === 0) return;
+    
+    // Initialize earnings from existing staff_earnings if available, otherwise set to 0
+    const existingEarnings: Record<string, number> = {};
+    if (Array.isArray(cartDetails?.staff_earnings)) {
+      cartDetails.staff_earnings.forEach((earning: any) => {
+        existingEarnings[earning.staff_id] = earning.amount || 0;
+      });
+    }
+    
+    console.log("Opening earnings modal - existingEarnings:", existingEarnings);
+    
+    // Initialize all staff with 0 if not in existing earnings
+    servedBy.forEach((staff: any) => {
+      const staffId = typeof staff === "string" ? staff : staff._id;
+      if (staffId && existingEarnings[staffId] === undefined) {
+        existingEarnings[staffId] = 0;
+      }
+    });
+    
+    setStaffEarnings(existingEarnings);
+    setEarningsModalOpen(true);
+  };
+
+  const handleSaveEarnings = async () => {
+    const cartId = cartDetails?._id ?? cartDetails?.id;
+    if (!cartId) return;
+    setUpdatingEarnings(true);
+    try {
+      const staffEarningsArray = Object.entries(staffEarnings).map(([staff_id, amount]) => ({
+        staff_id,
+        amount,
+      }));
+      await updateCartService(cartId, { staff_earnings: staffEarningsArray });
+      await dispatch(getCart(tableId));
+      setEarningsModalOpen(false);
+      message.success("Earnings saved successfully");
+    } catch (e) {
+      console.error("Failed to update earnings", e);
+      message.error("Failed to save earnings");
+    } finally {
+      setUpdatingEarnings(false);
     }
   };
 
@@ -844,22 +900,9 @@ const CartDrawer: React.FC = () => {
               </div>
             ) : (
               <div
-                onClick={() => (user?.role === "admin" || user?.role === "cashier") && cartDetails?._id && setEditingServedBy(true)}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px",
-                  cursor: (user?.role === "admin" || user?.role === "cashier") && cartDetails?._id ? "pointer" : "default",
-                  transition: "border-color 0.2s, background 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  if ((user?.role === "admin" || user?.role === "cashier") && cartDetails?._id) {
-                    (e.currentTarget as HTMLDivElement).style.borderColor = primaryColor;
-                    (e.currentTarget as HTMLDivElement).style.background = `${primaryColor}06`;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = "#e2e8f0";
-                  (e.currentTarget as HTMLDivElement).style.background = "#fff";
                 }}
               >
                 <Flex align="center" gap={6}>
@@ -875,10 +918,16 @@ const CartDrawer: React.FC = () => {
                           }
                           if (Array.isArray(servedBy)) {
                             if (servedBy.length === 0) return cartDetails?.created_by?.username || "Staff";
-                            if (servedBy.length === 1) return servedBy[0]?.username || servedBy[0]?.fullname || "Staff";
-                            return `${servedBy[0]?.username || servedBy[0]?.fullname || "Staff"}`;
+                            if (servedBy.length === 1) {
+                              const staff = servedBy[0];
+                              if (typeof staff === "string") return "Staff";
+                              return staff?.username || "Staff";
+                            }
+                            const staff = servedBy[0];
+                            if (typeof staff === "string") return "Staff";
+                            return `${staff?.username || "Staff"}`;
                           }
-                          return servedBy?.username || servedBy?.fullname || cartDetails?.created_by?.username || "Staff";
+                          return cartDetails?.created_by?.username || "Staff";
                         })()}
                       </Text>
                       {Array.isArray(cartDetails?.served_by) && cartDetails.served_by.length > 1 && (
@@ -889,15 +938,28 @@ const CartDrawer: React.FC = () => {
                     </Flex>
                   </div>
                 </Flex>
-                {(user?.role === "admin" || user?.role === "cashier") && cartDetails?._id && (
-                  <Flex
-                    align="center" gap={4}
-                    style={{ background: `${primaryColor}15`, border: `1px solid ${primaryColor}40`, borderRadius: 6, padding: "3px 8px", color: primaryColor, fontSize: 11, fontWeight: 600, pointerEvents: "none" }}
-                  >
-                    <EditOutlined style={{ fontSize: 11 }} />
-                    Change
-                  </Flex>
-                )}
+                <Flex gap={4}>
+                  {staff_earning_enabled && Array.isArray(cartDetails?.served_by) && cartDetails.served_by.length > 0 && (user?.role === "admin" || user?.role === "cashier") && (
+                    <Button
+                      size="small"
+                      type="text"
+                      onClick={(e) => { e.stopPropagation(); handleOpenEarningsModal(); }}
+                      style={{ fontSize: 11, color: primaryColor }}
+                    >
+                      Configure Earnings
+                    </Button>
+                  )}
+                  {(user?.role === "admin" || user?.role === "cashier") && cartDetails?._id && (
+                    <Button
+                      size="small"
+                      type="text"
+                      onClick={(e) => { e.stopPropagation(); setEditingServedBy(true); }}
+                      style={{ fontSize: 11, color: primaryColor }}
+                    >
+                      Change
+                    </Button>
+                  )}
+                </Flex>
               </div>
             )}
           </div>
@@ -1041,6 +1103,75 @@ const CartDrawer: React.FC = () => {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* ── Staff Earnings Configuration Modal ─────────────────────────────── */}
+      <Modal
+        open={earningsModalOpen}
+        onCancel={() => setEarningsModalOpen(false)}
+        onOk={handleSaveEarnings}
+        confirmLoading={updatingEarnings}
+        okText="Save Earnings"
+        cancelText="Cancel"
+        width={400}
+        okButtonProps={{
+          disabled: (() => {
+            const totalAllocated = Object.values(staffEarnings).reduce((sum, val) => sum + (val || 0), 0);
+            return totalAllocated > grandTotal || totalAllocated === 0;
+          })()
+        }}
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <SmileFilled style={{ color: primaryColor }} />
+            <span>Configure Staff Earnings</span>
+          </div>
+        }
+      >
+        <div style={{ marginTop: 16 }}>
+          <Text style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 12 }}>
+            Total Order: {fmtKsh(grandTotal)}
+          </Text>
+          {Array.isArray(cartDetails?.served_by) && cartDetails.served_by.map((staff: any) => {
+            const staffId = typeof staff === "string" ? staff : staff._id;
+            const staffName = staff?.username || staff?.fullname || "Staff";
+            return (
+              <div key={staffId} style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4 }}>
+                  {staffName}
+                </Text>
+                <InputNumber
+                  style={{ width: "100%" }}
+                  min={0}
+                  max={grandTotal}
+                  precision={2}
+                  placeholder="0.00"
+                  value={staffEarnings[staffId] || 0}
+                  onChange={(value) => setStaffEarnings(prev => ({ ...prev, [staffId]: value || 0 }))}
+                />
+              </div>
+            );
+          })}
+          <div style={{ marginTop: 12, padding: "8px", background: "#f8fafc", borderRadius: 6 }}>
+            <Text style={{ fontSize: 11, color: (() => {
+              const totalAllocated = Object.values(staffEarnings).reduce((sum, val) => sum + (val || 0), 0);
+              if (totalAllocated > grandTotal) return "#ef4444";
+              if (totalAllocated === 0) return "#f59e0b";
+              return "#64748b";
+            })() }}>
+              Total Allocated: {fmtKsh(Object.values(staffEarnings).reduce((sum, val) => sum + (val || 0), 0))}
+            </Text>
+            {(() => {
+              const totalAllocated = Object.values(staffEarnings).reduce((sum, val) => sum + (val || 0), 0);
+              if (totalAllocated > grandTotal) {
+                return <Text style={{ fontSize: 10, color: "#ef4444", display: "block", marginTop: 4 }}>Cannot exceed total order value</Text>;
+              }
+              if (totalAllocated === 0) {
+                return <Text style={{ fontSize: 10, color: "#f59e0b", display: "block", marginTop: 4 }}>Please configure earnings for at least one staff member</Text>;
+              }
+              return null;
+            })()}
+          </div>
+        </div>
       </Modal>
     </div>
   );

@@ -20,7 +20,8 @@ interface CartDetails {
   _id: string;
   table_id: { _id: string; name: string };
   created_by: { _id: string; username: string };
-  served_by?: { _id: string; username: string };
+  served_by?: Array<{ _id: string; username: string } | string>;
+  staff_earnings?: Array<{ staff_id: string; amount: number; _id?: string }>;
   items: string[];
   order_no: string;
   status: string;

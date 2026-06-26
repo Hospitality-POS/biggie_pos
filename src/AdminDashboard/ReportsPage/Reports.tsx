@@ -30,6 +30,9 @@ import DeliveryReportModal from "@components/Reports/DeliveryReport";
 import InventoryUsageReportModal from "@components/Reports/InventoryUsageReport";
 import { useReport } from "@pages/Settings/hooks/useReport";
 import { fetchAllShops } from "@services/shops";
+import { getTopEarners } from "@services/orders";
+import useSystemDetails from "@hooks/useSystemDetails";
+import { usePrimaryColor } from "@context/PrimaryColorContext";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
@@ -86,7 +89,8 @@ const TabNav: React.FC<{
   tabs: typeof TAB_CFG;
   active: string;
   onChange: (k: string) => void;
-}> = ({ tabs, active, onChange }) => (
+  primaryColor: string;
+}> = ({ tabs, active, onChange, primaryColor }) => (
   <div style={{
     display: "flex", gap: 6, flexWrap: "wrap",
     paddingBottom: 16, borderBottom: `1px solid ${C.border}`, marginBottom: 20,
@@ -95,9 +99,9 @@ const TabNav: React.FC<{
       const on = t.key === active;
       return (
         <button key={t.key} onClick={() => onChange(t.key)} style={{
-          background: on ? C.primary : C.bg,
+          background: on ? primaryColor : C.bg,
           color: on ? "#fff" : C.subText,
-          border: `1px solid ${on ? C.primary : C.border}`,
+          border: `1px solid ${on ? primaryColor : C.border}`,
           borderRadius: 8, padding: "7px 13px", fontSize: 12,
           fontWeight: on ? 700 : 500, cursor: "pointer",
           display: "flex", alignItems: "center", gap: 6,
@@ -222,6 +226,7 @@ const AdminReports: React.FC = () => {
   const [earnerResults, setEarnerResults] = useState<{ id: string; name: string; totalSales: number }[]>([]);
   const [earnerLoading, setEarnerLoading] = useState(false);
   const [earnerPcts, setEarnerPcts] = useState({ staff: 77, platform: 23 });
+  const [earnerSummary, setEarnerSummary] = useState<{ total_revenue: number; total_staff_earnings: number; platform_earnings: number } | null>(null);
   const [earnerSearched, setEarnerSearched] = useState(false);
   const [earnerModalOpen, setEarnerModalOpen] = useState(false);
   const [earnerDateRange, setEarnerDateRange] = useState<[string, string]>(["", ""]);
@@ -229,6 +234,8 @@ const AdminReports: React.FC = () => {
   const shopOptions = useShopOptions();
   const userOptions = useUserOptions();
   const locationOptions = useLocationOptions();
+  const { staff_earning_enabled } = useSystemDetails();
+  const primaryColor = usePrimaryColor();
 
   const {
     onClosePurchaseModal, generateReportHandler, isGenerateButtonDisabled,
@@ -481,50 +488,27 @@ const AdminReports: React.FC = () => {
               setEarnerResults([]);
               setEarnerSearched(false);
               try {
-                const users = await fetchAllUsersByShopId();
-                const rows = await Promise.all(
-                  (users || []).map(async (u: any) => {
-                    try {
-                      const data = await fetchItemSalesReport({
-                        startDate: start,
-                        endDate: end,
-                        servedBy: u._id,
-                        ...(shop_id ? { shop_id } : {}),
-                      });
-                      const cats: any[] =
-                        data?.data && Array.isArray(data.data)
-                          ? data.data
-                          : Array.isArray(data)
-                          ? data
-                          : [];
-                      const total = cats.reduce(
-                        (s: number, cat: any) =>
-                          s +
-                          (cat.orderItems || []).reduce(
-                            (ss: number, i: any) => ss + (Number(i.total_amount) || 0),
-                            0
-                          ),
-                        0
-                      );
-                      return {
-                        id: u._id,
-                        name: u.username || u.fullname || u.email || "Unknown",
-                        totalSales: total,
-                      };
-                    } catch {
-                      return {
-                        id: u._id,
-                        name: u.username || u.fullname || "Unknown",
-                        totalSales: 0,
-                      };
-                    }
-                  })
-                );
-                const sorted = rows
-                  .filter((r) => r.totalSales > 0)
-                  .sort((a, b) => b.totalSales - a.totalSales);
-                setEarnerResults(sorted);
-                if (sorted.length > 0) {
+                const shopId = shop_id || localStorage.getItem("shopId") || undefined;
+                const response = await getTopEarners({
+                  startDate: start,
+                  endDate: end,
+                  shop_id: shopId,
+                  limit: 50,
+                  staffPct: Number(sp),
+                  platformPct: Number(pp),
+                });
+                const rows = response.top_earners.map((earner: any) => ({
+                  id: earner.staff_id,
+                  name: earner.staff_details?.fullname || earner.staff_details?.username || "Staff",
+                  totalSales: earner.total_earnings,
+                }));
+                setEarnerResults(rows);
+                setEarnerSummary(response.summary || {
+                  total_revenue: 0,
+                  total_staff_earnings: 0,
+                  platform_earnings: 0,
+                });
+                if (rows.length > 0) {
                   setEarnerModalOpen(true);
                 }
               } finally {
@@ -664,7 +648,7 @@ const AdminReports: React.FC = () => {
 
       {/* ── Body ───────────────────────────────────────────────────────── */}
       <div style={{ padding: "18px 18px 20px" }}>
-        <TabNav tabs={TAB_CFG} active={activeTab} onChange={handleTabChange} />
+        <TabNav tabs={TAB_CFG} active={activeTab} onChange={handleTabChange} primaryColor={primaryColor} />
 
         <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px 16px 10px" }}>
           <SectionLabel>Report Filters</SectionLabel>
@@ -681,6 +665,8 @@ const AdminReports: React.FC = () => {
         endDate={earnerDateRange[1]}
         staffPct={earnerPcts.staff}
         platformPct={earnerPcts.platform}
+        summary={earnerSummary}
+        staffEarningEnabled={staff_earning_enabled}
       />
     </div>
   );
