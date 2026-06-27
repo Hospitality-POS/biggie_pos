@@ -1,10 +1,7 @@
 import { useState } from "react";
-import { message, notification } from "antd/lib";
-import { ProForm } from "@ant-design/pro-components";
-import { useAppDispatch, useAppSelector } from "../../../store";
-import { resetSupplierMessage } from "../../../features/Supplier/SupplierSlice";
-import { createSupplier } from "../../../features/Supplier/SupplierActions";
-import { createUser, updateUser } from "@features/Auth/AuthActions";
+import { message } from "antd/lib";
+import { useAppDispatch } from "../../../store";
+import { createUser } from "@features/Auth/AuthActions";
 import { resetMessage } from "@features/Auth/AuthSlice";
 import { updateUsers } from "@services/users";
 
@@ -28,8 +25,6 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
   const dispatch = useAppDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { isSuccess } = useAppSelector((state) => state.auth);
-
   const handleClose = () => {
     setIsSubmitting(false);
   };
@@ -41,34 +36,39 @@ const useAddEditUserModal = ({ onAddUser }: useAddEditUserModalProps) => {
   const handleConfirmAddUser = async (data: User) => {
     try {
       dispatch(resetMessage());
-      dispatch(createUser(data));
-      onAddUser(data);
-      handleClose();
-
-      if (isSuccess) {
+      const result = await dispatch(createUser(data) as any);
+      
+      if (createUser.fulfilled.match(result)) {
+        onAddUser?.(data);
+        handleClose();
         message.success("User added successfully");
-        return true
+        return true;
       } else {
-
-        message.error("Failed to add a new User");
+        const errorMessage = result.payload || "Failed to add a new User";
+        message.error(errorMessage);
+        return false;
       }
-
-    } catch (error) {
+    } catch (error: any) {
       setIsSubmitting(false);
       handleClose();
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to add a new User";
+      message.error(errorMessage);
+      return false;
     }
   };
 
-  const handleConfirmEditUser = async (data) => {
-    // console.log("user edit", data);
-
+  const handleConfirmEditUser = async (data: any) => {
     try {
-      updateUsers(data)
+      await updateUsers(data);
       handleClose();
-
-    } catch (error) {
+      message.success("User updated successfully");
+      return true;
+    } catch (error: any) {
       setIsSubmitting(false);
       handleClose();
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to update user";
+      message.error(errorMessage);
+      return false;
     }
   };
   return {
