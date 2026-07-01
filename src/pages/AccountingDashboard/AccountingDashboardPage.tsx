@@ -1,11 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { ProCard } from "@ant-design/pro-components";
 import {
     Row,
     Col,
     Typography,
     Space,
-    Select,
     Badge,
     Tag,
     Table,
@@ -15,6 +14,8 @@ import {
     Tooltip,
     Button,
     App,
+    Radio,
+    DatePicker,
 } from "antd";
 import {
     ArrowUpOutlined,
@@ -27,6 +28,7 @@ import {
     DashboardOutlined,
     RiseOutlined,
     FallOutlined,
+    CalendarOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -56,6 +58,15 @@ import { usePrimaryColor } from "@context/PrimaryColorContext";
 import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
+const { RangePicker } = DatePicker;
+
+const PERIOD_LABELS: Record<string, string> = {
+    day: "Today",
+    week: "This Week",
+    month: "This Month",
+    year: "This Year",
+    custom: "Custom Period",
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -177,29 +188,65 @@ const KPICard: React.FC<KPICardProps> = ({
 const AccountingDashboardPage: React.FC = () => {
     const shopId = getShopId();
     const primaryColor = usePrimaryColor();
-    const now = dayjs();
 
-    const [fiscalYear, setFiscalYear] = useState(now.year());
-    const [fiscalMonth, setFiscalMonth] = useState(now.month() + 1);
+    const [periodFilter, setPeriodFilter] = useState("month");
+    const [customDateRange, setCustomDateRange] = useState<any[]>([]);
+    const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+
+    const getDateRange = useCallback(() => {
+        const today = dayjs();
+        switch (periodFilter) {
+            case "day": return { startDate: today.startOf("day"), endDate: today.endOf("day") };
+            case "week": return { startDate: today.startOf("week"), endDate: today.endOf("week") };
+            case "month": return { startDate: today.startOf("month"), endDate: today.endOf("month") };
+            case "year": return { startDate: today.startOf("year"), endDate: today.endOf("year") };
+            case "custom":
+                if (customDateRange?.length === 2) {
+                    return { startDate: customDateRange[0].startOf("day"), endDate: customDateRange[1].endOf("day") };
+                }
+                return { startDate: today.startOf("month"), endDate: today.endOf("month") };
+            default: return { startDate: today.startOf("month"), endDate: today.endOf("month") };
+        }
+    }, [periodFilter, customDateRange]);
+
+    const { startDate, endDate } = getDateRange();
+    const fiscalYear = endDate.year();
+    const fiscalMonth = endDate.month() + 1;
+
+    const getFormattedDateRange = useCallback(() => {
+        const fmt = "MMM D, YYYY";
+        switch (periodFilter) {
+            case "day": return startDate.format("MMM D, YYYY");
+            case "week": return `${startDate.format(fmt)} – ${endDate.format(fmt)}`;
+            case "month": return startDate.format("MMMM YYYY");
+            case "year": return startDate.format("YYYY");
+            case "custom":
+                if (customDateRange?.length === 2) {
+                    return `${customDateRange[0].format(fmt)} – ${customDateRange[1].format(fmt)}`;
+                }
+                return "Custom Range";
+            default: return startDate.format("MMMM YYYY");
+        }
+    }, [periodFilter, startDate, endDate, customDateRange]);
+
+    const handlePeriodChange = useCallback((value: string) => {
+        setPeriodFilter(value);
+        setShowCustomDatePicker(value === "custom");
+        setFilterDrawerOpen(false);
+    }, []);
 
     const { data, isLoading, isFetching, isError, refetch } = useQuery({
-        queryKey: ["accounting-dashboard", shopId, fiscalYear, fiscalMonth],
-        queryFn: () => getAccountingDashboard({ shop_id: shopId, fiscal_year: fiscalYear, fiscal_month: fiscalMonth }),
+        queryKey: ["accounting-dashboard", shopId, fiscalYear, fiscalMonth, startDate.format(), endDate.format()],
+        queryFn: () => getAccountingDashboard({
+            shop_id: shopId,
+            fiscal_year: fiscalYear,
+            fiscal_month: fiscalMonth,
+            start_date: startDate.toISOString(),
+            end_date: endDate.toISOString(),
+        }),
         enabled: true,
         retry: 1,
     });
-
-    // ── Year options ───────────────────────────────────────────────────────────
-
-    const yearOptions = Array.from({ length: 5 }, (_, i) => {
-        const y = now.year() - i;
-        return { label: String(y), value: y };
-    });
-
-    const monthOptions = Array.from({ length: 12 }, (_, i) => ({
-        label: MONTH_LABELS[i + 1],
-        value: i + 1,
-    }));
 
     if (isLoading) {
         return (
@@ -338,29 +385,48 @@ const AccountingDashboardPage: React.FC = () => {
                         </div>
                         <div>
                             <Title level={4} style={{ margin: 0, color: "#0f172a" }}>
-                                Pesa
+                                {PERIOD_LABELS[periodFilter]} · Pesa
                             </Title>
                             <Text style={{ fontSize: 12, color: "#64748b" }}>
-                                {MONTH_LABELS[fiscalMonth]} {fiscalYear} · Financial overview
+                                {getFormattedDateRange()} · Financial overview
                             </Text>
                         </div>
                     </Space>
 
-                    <Space>
-                        <Select
-                            value={fiscalMonth}
-                            onChange={setFiscalMonth}
-                            options={monthOptions}
-                            style={{ width: 80 }}
-                            size="small"
-                        />
-                        <Select
-                            value={fiscalYear}
-                            onChange={setFiscalYear}
-                            options={yearOptions}
-                            style={{ width: 90 }}
-                            size="small"
-                        />
+                    <Space size="small" wrap>
+                        <div
+                            style={{
+                                background: "#f8fafc",
+                                borderRadius: 8,
+                                padding: "6px 12px",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                border: "1px solid #e2e8f0",
+                            }}
+                        >
+                            <CalendarOutlined style={{ color: primaryColor, fontSize: 13 }} />
+                            <Radio.Group
+                                value={periodFilter}
+                                onChange={(e) => handlePeriodChange(e.target.value)}
+                                buttonStyle="solid"
+                                size="small"
+                            >
+                                <Radio.Button value="day">Day</Radio.Button>
+                                <Radio.Button value="week">Week</Radio.Button>
+                                <Radio.Button value="month">Month</Radio.Button>
+                                <Radio.Button value="year">Year</Radio.Button>
+                                <Radio.Button value="custom">Custom</Radio.Button>
+                            </Radio.Group>
+                        </div>
+                        {showCustomDatePicker && (
+                            <RangePicker
+                                value={customDateRange as any}
+                                onChange={(d) => setCustomDateRange(d || [])}
+                                allowClear
+                                style={{ minWidth: 260 }}
+                            />
+                        )}
                         <Button
                             size="small"
                             icon={<SyncOutlined spin={isFetching} />}

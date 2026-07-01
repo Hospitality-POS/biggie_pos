@@ -42,11 +42,12 @@ interface StoreModalProps {
   edit?: boolean;
   data?: any;
   onSuccess?: () => void;
+  trigger?: React.ReactNode;
 }
 interface categoryValueType { name: string; _id: string; }
 interface modifiersAddonsType { name: string; _id: string; addons: any[]; }
 
-const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess }) => {
+const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess, trigger: customTrigger }) => {
   const [form] = Form.useForm();
   const formRef = useRef<FormInstance>();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
@@ -235,7 +236,9 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess }) => {
       }
       initialValues={edit ? editPayload : {}}
       trigger={
-        edit ? (
+        customTrigger ? (
+          <span onClick={() => form.setFieldsValue(edit ? editPayload : {})}>{customTrigger}</span>
+        ) : edit ? (
           <Button
             type="link"
             disabled={!canEditProduct}
@@ -285,16 +288,10 @@ const StoreModal: React.FC<StoreModalProps> = ({ edit, data, onSuccess }) => {
           request={CategoryRequest}
         />
         {edit && (
-          <>
-            <ProFormText
-              key="sub_category" disabled width="md"
-              id="product-sub-category" name={["sub_category", "name"]} label="Sub-Category"
-            />
-            <ProFormText
-              hasFeedback disabled width="md" id="productcode" name="code" label="Code"
-              convertValue={(value, _) => value?.toUpperCase()}
-            />
-          </>
+          <ProFormText
+            hasFeedback disabled width="md" id="productcode" name="code" label="Code"
+            convertValue={(value, _) => value?.toUpperCase()}
+          />
         )}
         <ProFormMoney
           key="price" hasFeedback width="md" name="price"

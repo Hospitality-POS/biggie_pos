@@ -214,3 +214,151 @@ export const fetchAllUnits = async (params: any) => {
     throw new Error("Failed to fetch units");
   }
 };
+
+// ── PRODUCT EXCEL IMPORT/EXPORT ─────────────────────────────────────────────────
+
+interface AnalyseProductResult {
+  canImport: boolean;
+  sheetUsed: string;
+  headerRowDetectedAt: number;
+  totalDataRows: number;
+  mappedColumns: string[];
+  unmappedColumns: string[];
+  missingRequired: string[];
+  missingRecommended: string[];
+  columnMapping: Record<string, string>;
+  advice: Array<{ level: "success" | "warning" | "error" | "info"; message: string }>;
+  previewRows: Array<{
+    rowNum: number;
+    name: string;
+    price: string;
+    category: string;
+    quantity: string;
+    description: string;
+  }>;
+}
+
+interface ImportProductResult {
+  message: string;
+  summary: {
+    total: number;
+    created: number;
+    updated: number;
+    skipped: number;
+    errors: number;
+    auto_created?: {
+      categories?: string[];
+    };
+    format_detected?: {
+      sheet: string;
+      header_row: number;
+      mapped_columns: number;
+    };
+  };
+  errors: Array<{ row: number | string; name: string; reason: string }>;
+}
+
+export const downloadProductTemplate = async (): Promise<void> => {
+  try {
+    const response = await axiosInstance.get(`${productUrl}/template`, {
+      responseType: "blob",
+    });
+
+    const blob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "products_import_template.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    message.success("Template downloaded successfully");
+  } catch (error) {
+    console.error("Error downloading product template:", error);
+    message.error("Failed to download template");
+    throw new Error("Failed to download product template");
+  }
+};
+
+export const analyseProductFile = async (file: File): Promise<AnalyseProductResult> => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await axiosInstance.post<AnalyseProductResult>(
+      `${productUrl}/analyse-import`,
+      formData,
+      { headers: { "Content-Type": undefined } }
+    );
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Error analysing product file:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to analyse file. Please check the file format and try again.";
+    if (error?.response?.status !== 403) message.error(errMsg);
+    throw error;
+  }
+};
+
+export const importProductsFromExcel = async (
+  file: File,
+  shopId: string,
+  updateMode = false
+): Promise<ImportProductResult> => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("shop_id", shopId);
+    formData.append("update_mode", updateMode.toString());
+
+    const response = await axiosInstance.post<ImportProductResult>(
+      `${productUrl}/import`,
+      formData,
+      { headers: { "Content-Type": undefined } }
+    );
+
+    const data = response.data;
+
+    if (data.summary.created > 0 || data.summary.updated > 0) {
+      const ac = data.summary.auto_created;
+      const totalAC = ac
+        ? Object.values(ac).reduce((s, arr) => s + (arr?.length ?? 0), 0)
+        : 0;
+      const autoNote = totalAC > 0 ? ` (${totalAC} supporting record(s) auto-created)` : "";
+      const createdMsg = data.summary.created > 0 ? `${data.summary.created} item(s) created` : "";
+      const updatedMsg = data.summary.updated > 0 ? `${data.summary.updated} item(s) updated` : "";
+      const itemsMsg = [createdMsg, updatedMsg].filter(Boolean).join(", ");
+      const skippedMsg = data.summary.skipped > 0 ? `, ${data.summary.skipped} skipped` : "";
+      message.success(
+        `Import complete — ${itemsMsg}${skippedMsg}${autoNote}`
+      );
+    } else if (data.summary.errors > 0) {
+      const firstErr = data.errors?.[0];
+      message.warning(
+        firstErr
+          ? `Import issue: ${firstErr.reason}`
+          : "No items were imported — check the error details below."
+      );
+    } else {
+      message.warning("No items were imported. Check the error details.");
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Error importing products from Excel:", error);
+    const errMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "Failed to import products. Please try again.";
+    if (error?.response?.status !== 403) message.error(errMsg);
+    throw error;
+  }
+};
