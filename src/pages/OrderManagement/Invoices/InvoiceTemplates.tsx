@@ -299,7 +299,7 @@ const ItemsTable = ({ inv }: { inv: InvoiceForPrint }) => {
                                 {(item.vat_amount || 0) > 0 ? fmt(item.vat_amount!) : "—"}
                             </td>
                             <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, borderBottom: "1px solid #f1f5f9" }}>
-                                {fmt(item.price * item.quantity + (item.vat_amount || 0))}
+                                {fmt((item.unit_price || item.price || 0) * item.quantity + (item.vat_amount || 0))}
                             </td>
                         </tr>
                     ))

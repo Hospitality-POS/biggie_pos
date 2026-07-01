@@ -1,24 +1,30 @@
-import { FolderAddOutlined, HolderOutlined, SearchOutlined, ReloadOutlined } from "@ant-design/icons";
+import { FolderAddOutlined, HolderOutlined, SearchOutlined, ReloadOutlined, DownloadOutlined, AppstoreOutlined, BarsOutlined, EditOutlined, DeleteFilled } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Empty, Input, Skeleton, Switch, Typography, Popconfirm, notification } from "antd";
-import { useEffect, useRef, useState } from "react";
+import { Button, Empty, Input, Skeleton, Switch, Typography, Popconfirm, notification, Tooltip, message } from "antd";
+import React, { useEffect, useRef, useState } from "react";
 import { getAllProducts, editProduct } from "@services/products";
 import StoreProductCard from "@components/store/StoreProductCard";
 import StoreModal from "@components/MODALS/pro/StoreModal";
-import { useAppSelector } from "../../store";
+import ImportProductsModal from "@components/store/ImportProductsModal";
+import { exportToExcel } from "@utils/exportUtils";
+import { useAppSelector, useAppDispatch } from "../../store";
+import { usePrimaryColor } from "../../context/PrimaryColorContext";
+import { deleteProduct } from "@services/products";
+import ShowConfirm from "@utils/ConfirmUtil";
+import RecipeModal from "@components/MODALS/pro/RecipeModal";
 
 const { Text } = Typography;
 const { Search } = Input;
 
 // ── Palette ────────────────────────────────────────────────────────────────
-const C = {
-  primary: "#6c1c2c",
-  primaryLight: "#f9f0f2",
+const getPalette = (primary: string) => ({
+  primary,
+  primaryLight: `${primary}15`,
   subText: "#64748b",
   darkText: "#0f172a",
   border: "#e2e8f0",
   bg: "#f8fafc",
-};
+});
 
 // ── Mobile hook ────────────────────────────────────────────────────────────
 const useIsMobile = () => {
@@ -85,7 +91,8 @@ const CategoryNav: React.FC<{
   categories: any[];
   active: string;
   onChange: (k: string) => void;
-}> = ({ categories, active, onChange }) => {
+  palette: ReturnType<typeof getPalette>;
+}> = ({ categories, active, onChange, palette }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [catSearch, setCatSearch] = useState("");
 
@@ -108,23 +115,23 @@ const CategoryNav: React.FC<{
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 0 }}>
         <div style={{
           display: "flex", alignItems: "center", gap: 6,
-          background: C.bg, border: `1px solid ${C.border}`,
+          background: palette.bg, border: `1px solid ${palette.border}`,
           borderRadius: 8, padding: "5px 10px", flexShrink: 0,
         }}>
-          <SearchOutlined style={{ color: C.subText, fontSize: 11 }} />
+          <SearchOutlined style={{ color: palette.subText, fontSize: 11 }} />
           <input
             value={catSearch}
             onChange={(e) => setCatSearch(e.target.value)}
             placeholder="Filter…"
             style={{
               border: "none", outline: "none", background: "transparent",
-              fontSize: 12, color: C.darkText, width: 70,
+              fontSize: 12, color: palette.darkText, width: 70,
             }}
           />
           {catSearch && (
             <button onClick={() => setCatSearch("")} style={{
               border: "none", background: "none", cursor: "pointer",
-              color: C.subText, padding: 0, fontSize: 11, lineHeight: 1,
+              color: palette.subText, padding: 0, fontSize: 11, lineHeight: 1,
             }}>✕</button>
           )}
         </div>
@@ -151,7 +158,7 @@ const CategoryNav: React.FC<{
             }}
           >
             {filtered.length === 0 ? (
-              <Text style={{ fontSize: 12, color: C.subText, paddingBottom: 10, whiteSpace: "nowrap" }}>
+              <Text style={{ fontSize: 12, color: palette.subText, paddingBottom: 10, whiteSpace: "nowrap" }}>
                 No categories matching "{catSearch}"
               </Text>
             ) : filtered.map((cat) => {
@@ -163,21 +170,21 @@ const CategoryNav: React.FC<{
                   onClick={() => onChange(cat._id)}
                   style={{
                     flexShrink: 0,
-                    background: on ? C.primary : C.bg,
-                    color: on ? "#fff" : C.subText,
-                    border: `1px solid ${on ? C.primary : C.border}`,
+                    background: on ? palette.primary : palette.bg,
+                    color: on ? "#fff" : palette.subText,
+                    border: `1px solid ${on ? palette.primary : palette.border}`,
                     borderRadius: 8, padding: "6px 11px", fontSize: 12,
                     fontWeight: on ? 700 : 500, cursor: "pointer",
                     display: "flex", alignItems: "center", gap: 6,
                     transition: "all 0.15s", whiteSpace: "nowrap",
                   }}
                 >
-                  <HolderOutlined style={{ color: on ? "#fff" : C.primary, fontSize: 11 }} />
+                  <HolderOutlined style={{ color: on ? "#fff" : palette.primary, fontSize: 11 }} />
                   {cat.name}
                   {cat.products?.length > 0 && (
                     <span style={{
-                      background: on ? "rgba(255,255,255,0.25)" : C.primaryLight,
-                      color: on ? "#fff" : C.primary,
+                      background: on ? "rgba(255,255,255,0.25)" : palette.primaryLight,
+                      color: on ? "#fff" : palette.primary,
                       borderRadius: 10, padding: "0 6px",
                       fontSize: 10, fontWeight: 700, minWidth: 18, textAlign: "center",
                     }}>
@@ -191,7 +198,7 @@ const CategoryNav: React.FC<{
         </div>
       </div>
 
-      <div style={{ borderBottom: `1px solid ${C.border}`, marginTop: 0 }} />
+      <div style={{ borderBottom: `1px solid ${palette.border}`, marginTop: 0 }} />
     </div>
   );
 };
@@ -209,6 +216,134 @@ const ProductsSkeleton: React.FC<{ isMobile: boolean }> = ({ isMobile }) => (
   </div>
 );
 
+// ── List row ───────────────────────────────────────────────────────────────
+const ListProductRow: React.FC<{
+  prod: any;
+  idx: number;
+  total: number;
+  palette: ReturnType<typeof getPalette>;
+  isAdmin: boolean;
+  onSuccess: () => void;
+}> = ({ prod, idx, total, palette, isAdmin, onSuccess }) => {
+  const dispatch = useAppDispatch();
+  const [isDisabled, setIsDisabled] = React.useState<boolean>(prod?.is_disabled ?? false);
+  const [toggling, setToggling] = React.useState(false);
+
+  const handleToggle = async () => {
+    setToggling(true);
+    const next = !isDisabled;
+    setIsDisabled(next);
+    try {
+      await editProduct({ ...prod, is_disabled: next });
+      message.success(`Product ${next ? "disabled" : "enabled"} successfully`);
+      onSuccess();
+    } catch {
+      setIsDisabled(!next);
+      message.error("Failed to update product status");
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const confirmed = await ShowConfirm({
+      title: `Are you sure you want to delete ${prod.name}?`,
+      position: true,
+      description: "This action cannot be undone.",
+    });
+    if (confirmed) {
+      try {
+        await dispatch(deleteProduct(prod._id));
+        message.success(`${prod.name} deleted successfully`);
+        onSuccess();
+      } catch {
+        message.error("Failed to delete product");
+      }
+    }
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "10px 14px",
+        borderBottom: idx < total - 1 ? `1px solid ${palette.border}` : "none",
+        background: isDisabled ? "#fafafa" : "#fff",
+        opacity: isDisabled ? 0.75 : 1,
+        transition: "background 0.12s",
+      }}
+    >
+      {prod.thumbnail ? (
+        <img src={prod.thumbnail} alt={prod.name}
+          style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+      ) : (
+        <div style={{
+          width: 40, height: 40, borderRadius: 8, flexShrink: 0,
+          background: palette.primaryLight,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: palette.primary, fontWeight: 700, fontSize: 15,
+        }}>
+          {prod.name?.charAt(0)?.toUpperCase()}
+        </div>
+      )}
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Text strong style={{ fontSize: 13, color: isDisabled ? "#9ca3af" : palette.darkText, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {prod.name}
+          {isDisabled && <span style={{ fontSize: 10, color: "#ef4444", fontWeight: 500, marginLeft: 6 }}>Disabled</span>}
+        </Text>
+        <Text style={{ fontSize: 11, color: palette.subText }}>
+          {prod.quantity ?? 0} Item{prod.quantity !== 1 ? "s" : ""}
+        </Text>
+      </div>
+
+      <Text strong style={{ fontSize: 13, color: isDisabled ? "#9ca3af" : palette.primary, whiteSpace: "nowrap", marginRight: 8 }}>
+        Ksh.{Number(prod.price).toLocaleString()}
+      </Text>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Tooltip title={isDisabled ? "Enable product" : "Disable product"}>
+          <Switch
+            size="small"
+            checked={!isDisabled}
+            loading={toggling}
+            disabled={!isAdmin}
+            onChange={handleToggle}
+            style={{ backgroundColor: isDisabled ? "#d1d5db" : palette.primary }}
+          />
+        </Tooltip>
+
+        <RecipeModal
+          productId={prod._id}
+          activateInventory={prod?.activateInventory}
+          productName={prod.name}
+          disabled={isDisabled}
+        />
+
+        <Tooltip title="Edit product">
+          <StoreModal
+            edit={true}
+            data={prod}
+            onSuccess={onSuccess}
+            trigger={
+              <EditOutlined style={{ fontSize: 16, color: palette.primary, cursor: "pointer" }} />
+            }
+          />
+        </Tooltip>
+
+        {isAdmin && (
+          <Tooltip title="Delete product">
+            <DeleteFilled
+              onClick={handleDelete}
+              style={{ fontSize: 16, color: "#ef4444", cursor: "pointer" }}
+            />
+          </Tooltip>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function MainStore() {
   const isMobile = useIsMobile();
@@ -220,6 +355,12 @@ export default function MainStore() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [showDisabled, setShowDisabled] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
+
+  // Get tenant primary color from global context (stays in sync with app-wide theme)
+  const primaryColor = usePrimaryColor();
+  const palette = getPalette(primaryColor);
+
 
   // Tracks which bulk operation is running: null | "all-disable" | "all-enable" | "cat-disable" | "cat-enable"
   const [bulkLoading, setBulkLoading] = useState<string | null>(null);
@@ -290,10 +431,53 @@ export default function MainStore() {
     }
   };
 
+  // ── Export to Excel ─────────────────────────────────────────────────────
+  const handleExportToExcel = () => {
+    if (!data || !Array.isArray(data)) {
+      notification.warning({
+        message: "No data to export",
+        description: "Please wait for products to load before exporting.",
+        placement: "bottomLeft",
+        duration: 3,
+      });
+      return;
+    }
+
+    const exportData = data.flatMap((category: any) => {
+      if (!category || !category.products || !Array.isArray(category.products)) return [];
+      return category.products.map((product: any) => ({
+        "Product Name": product.name,
+        "Category": category.name,
+        "Price": product.price,
+        "Quantity": product.quantity || 0,
+        "Description": product.desc || "",
+        "Status": product.is_disabled ? "Disabled" : "Active",
+      }));
+    });
+
+    if (exportData.length === 0) {
+      notification.warning({
+        message: "No products to export",
+        description: "There are no products available to export.",
+        placement: "bottomLeft",
+        duration: 3,
+      });
+      return;
+    }
+
+    exportToExcel(exportData, "products_export");
+    notification.success({
+      message: "Export successful",
+      description: `${exportData.length} products exported to Excel`,
+      placement: "bottomLeft",
+      duration: 3,
+    });
+  };
+
   // ── Loading ──────────────────────────────────────────────────────────
   if (isLoading) return (
-    <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ padding: "14px 18px", background: C.bg, borderBottom: `1px solid ${C.border}` }}>
+    <div style={{ background: "#fff", border: `1px solid ${palette.border}`, borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ padding: "14px 18px", background: palette.bg, borderBottom: `1px solid ${palette.border}` }}>
         <Skeleton.Input active style={{ width: 220, height: 20 }} />
       </div>
       <div style={{ padding: 18 }}>
@@ -305,16 +489,16 @@ export default function MainStore() {
   // ── Error ────────────────────────────────────────────────────────────
   if (isError) return (
     <div style={{
-      background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12,
+      background: "#fff", border: `1px solid ${palette.border}`, borderRadius: 12,
       padding: "40px 24px", textAlign: "center",
     }}>
       <Empty description={
         <div>
-          <Text style={{ fontSize: 14, color: C.subText, display: "block", marginBottom: 8 }}>
+          <Text style={{ fontSize: 14, color: palette.subText, display: "block", marginBottom: 8 }}>
             Failed to load products. Please try again.
           </Text>
           <Button type="primary" onClick={() => window.location.reload()}
-            style={{ background: C.primary, borderColor: C.primary, borderRadius: 8 }}>
+            style={{ background: palette.primary, borderColor: palette.primary, borderRadius: 8 }}>
             Retry
           </Button>
         </div>
@@ -325,20 +509,20 @@ export default function MainStore() {
   // ── Empty state ──────────────────────────────────────────────────────
   if (!data || data.length === 0) return (
     <div style={{
-      background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12,
+      background: "#fff", border: `1px solid ${palette.border}`, borderRadius: 12,
       padding: "60px 24px", textAlign: "center",
     }}>
       <div style={{
-        width: 56, height: 56, background: C.primaryLight, borderRadius: 12,
+        width: 56, height: 56, background: palette.primaryLight, borderRadius: 12,
         display: "flex", alignItems: "center", justifyContent: "center",
-        margin: "0 auto 16px", fontSize: 24, color: C.primary,
+        margin: "0 auto 16px", fontSize: 24, color: palette.primary,
       }}>
         <FolderAddOutlined />
       </div>
-      <Text strong style={{ fontSize: 16, color: C.darkText, display: "block", marginBottom: 8 }}>
+      <Text strong style={{ fontSize: 16, color: palette.darkText, display: "block", marginBottom: 8 }}>
         No Products Yet
       </Text>
-      <Text style={{ fontSize: 13, color: C.subText, display: "block", marginBottom: 24 }}>
+      <Text style={{ fontSize: 13, color: palette.subText, display: "block", marginBottom: 24 }}>
         Add your first product category and products to get started.
       </Text>
       <StoreModal edit={false} onSuccess={() => queryClient.invalidateQueries({ queryKey: ["products"] })} />
@@ -347,22 +531,22 @@ export default function MainStore() {
 
   // ── Main render ──────────────────────────────────────────────────────
   return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ border: `1px solid ${palette.border}`, borderRadius: 12, overflow: "hidden" }}>
 
       {/* ── Header ── */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         flexWrap: "wrap", gap: 10,
         padding: isMobile ? "12px 14px" : "14px 18px",
-        borderBottom: `1px solid ${C.border}`,
+        borderBottom: `1px solid ${palette.border}`,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ borderRadius: 8, padding: "5px 7px", color: C.primary, fontSize: 16, lineHeight: 1 }}>
+          <div style={{ borderRadius: 8, padding: "5px 7px", color: palette.primary, fontSize: 16, lineHeight: 1 }}>
             <FolderAddOutlined />
           </div>
           <div>
-            <Text strong style={{ fontSize: 14, color: C.darkText, display: "block" }}>Services Management</Text>
-            <Text style={{ fontSize: 11, color: C.subText }}>
+            <Text strong style={{ fontSize: 14, color: palette.darkText, display: "block" }}>Services Management</Text>
+            <Text style={{ fontSize: 11, color: palette.subText }}>
               {data.length} {data.length === 1 ? "category" : "categories"} ·{" "}
               {data.reduce((s: number, c: any) => s + (c.products?.length ?? 0), 0)} services
             </Text>
@@ -376,7 +560,7 @@ export default function MainStore() {
             onChange={(e) => setSearchTerm(e.target.value)}
             allowClear
             style={{ width: isMobile ? 150 : 220, borderRadius: 8 }}
-            prefix={<SearchOutlined style={{ color: C.subText }} />}
+            prefix={<SearchOutlined style={{ color: palette.subText }} />}
           />
 
           <button
@@ -384,9 +568,9 @@ export default function MainStore() {
             disabled={isLoading}
             style={{
               display: "flex", alignItems: "center", gap: 5,
-              background: C.bg, border: `1px solid ${C.border}`,
+              background: palette.bg, border: `1px solid ${palette.border}`,
               borderRadius: 7, padding: "4px 10px",
-              fontSize: 11, fontWeight: 600, color: C.subText,
+              fontSize: 11, fontWeight: 600, color: palette.subText,
               cursor: isLoading ? "wait" : "pointer",
               opacity: isLoading ? 0.65 : 1,
               transition: "all 0.15s",
@@ -432,6 +616,25 @@ export default function MainStore() {
             </div>
           )}
 
+          <ImportProductsModal onSuccess={() => { setRefreshKey(prev => prev + 1); }} />
+
+          <button
+            onClick={handleExportToExcel}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: "#eff6ff", border: "1px solid #bfdbfe",
+              borderRadius: 7, padding: "4px 10px",
+              fontSize: 11, fontWeight: 600, color: "#3b82f6",
+              cursor: "pointer",
+              transition: "all 0.15s",
+              whiteSpace: "nowrap",
+            }}
+            title="Export to Excel"
+          >
+            <DownloadOutlined style={{ fontSize: 11 }} />
+            Export
+          </button>
+
           <StoreModal edit={false} onSuccess={() => { setRefreshKey(prev => prev + 1); }} />
         </div>
       </div>
@@ -443,6 +646,7 @@ export default function MainStore() {
           categories={data}
           active={activeTabId ?? ""}
           onChange={(k) => { setActiveTabId(k); setSearchTerm(""); }}
+          palette={palette}
         />
 
         {/* Count strip + per-category bulk actions + view toggle */}
@@ -450,9 +654,9 @@ export default function MainStore() {
           display: "flex", alignItems: "center", justifyContent: "space-between",
           flexWrap: "wrap", gap: 8, marginBottom: 14,
         }}>
-          <Text style={{ fontSize: 12, color: C.subText }}>
+          <Text style={{ fontSize: 12, color: palette.subText }}>
             {activeCategory?.name && (
-              <><span style={{ color: C.primary, fontWeight: 600 }}>{activeCategory.name}</span> · </>
+              <><span style={{ color: palette.primary, fontWeight: 600 }}>{activeCategory.name}</span> · </>
             )}
             {filteredProducts.length} {filteredProducts.length === 1 ? "product" : "products"}
             {searchTerm && ` matching "${searchTerm}"`}
@@ -461,7 +665,7 @@ export default function MainStore() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {searchTerm && (
               <button onClick={() => setSearchTerm("")} style={{
-                background: "none", border: "none", color: C.subText,
+                background: "none", border: "none", color: palette.subText,
                 cursor: "pointer", fontSize: 11, padding: 0,
               }}>
                 Clear search
@@ -505,14 +709,14 @@ export default function MainStore() {
             {/* Active / Disabled view toggle */}
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
-              background: C.bg, border: `1px solid ${C.border}`,
+              background: palette.bg, border: `1px solid ${palette.border}`,
               borderRadius: 8, padding: "4px 10px",
             }}>
-              <Text style={{ fontSize: 11, color: showDisabled ? C.subText : C.primary, fontWeight: showDisabled ? 400 : 600 }}>
+              <Text style={{ fontSize: 11, color: showDisabled ? palette.subText : palette.primary, fontWeight: showDisabled ? 400 : 600 }}>
                 Active
                 <span style={{
-                  marginLeft: 4, background: showDisabled ? C.bg : C.primaryLight,
-                  color: showDisabled ? C.subText : C.primary,
+                  marginLeft: 4, background: showDisabled ? palette.bg : palette.primaryLight,
+                  color: showDisabled ? palette.subText : palette.primary,
                   borderRadius: 10, padding: "0 5px", fontSize: 10, fontWeight: 700,
                 }}>
                   {activeCount}
@@ -524,17 +728,51 @@ export default function MainStore() {
                 onChange={(val) => { setShowDisabled(val); setSearchTerm(""); }}
                 style={{ backgroundColor: showDisabled ? "#ef4444" : "#d1d5db" }}
               />
-              <Text style={{ fontSize: 11, color: showDisabled ? "#ef4444" : C.subText, fontWeight: showDisabled ? 600 : 400 }}>
+              <Text style={{ fontSize: 11, color: showDisabled ? "#ef4444" : palette.subText, fontWeight: showDisabled ? 600 : 400 }}>
                 Disabled
                 <span style={{
-                  marginLeft: 4, background: showDisabled ? "#fef2f2" : C.bg,
-                  color: showDisabled ? "#ef4444" : C.subText,
+                  marginLeft: 4, background: showDisabled ? "#fef2f2" : palette.bg,
+                  color: showDisabled ? "#ef4444" : palette.subText,
                   borderRadius: 10, padding: "0 5px", fontSize: 10, fontWeight: 700,
                 }}>
                   {disabledCount}
                 </span>
               </Text>
             </div>
+          </div>
+
+          {/* View toggle */}
+          <div style={{
+            display: "flex", alignItems: "center",
+            background: palette.bg, border: `1px solid ${palette.border}`,
+            borderRadius: 8, overflow: "hidden",
+          }}>
+            <button
+              onClick={() => setViewMode("card")}
+              title="Card view"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: "5px 9px", border: "none", cursor: "pointer",
+                background: viewMode === "card" ? palette.primary : "transparent",
+                color: viewMode === "card" ? "#fff" : palette.subText,
+                transition: "all 0.15s",
+              }}
+            >
+              <AppstoreOutlined style={{ fontSize: 13 }} />
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              title="List view"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: "5px 9px", border: "none", cursor: "pointer",
+                background: viewMode === "list" ? palette.primary : "transparent",
+                color: viewMode === "list" ? "#fff" : palette.subText,
+                transition: "all 0.15s",
+              }}
+            >
+              <BarsOutlined style={{ fontSize: 13 }} />
+            </button>
           </div>
         </div>
 
@@ -550,7 +788,7 @@ export default function MainStore() {
             }
             style={{ padding: "40px 0" }}
           />
-        ) : (
+        ) : viewMode === "card" ? (
           <div style={{
             display: "grid",
             gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(auto-fill, minmax(220px, 1fr))",
@@ -569,6 +807,24 @@ export default function MainStore() {
                 product={prod}
                 productId={prod?._id}
                 activateInventory={prod?.activateInventory}
+                onSuccess={() => setRefreshKey(prev => prev + 1)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div style={{
+            display: "flex", flexDirection: "column", gap: 0,
+            maxHeight: isMobile ? "calc(100vh - 340px)" : "calc(100vh - 300px)",
+            overflowY: "auto", paddingBottom: 8,
+          }}>
+            {filteredProducts.map((prod: any, idx: number) => (
+              <ListProductRow
+                key={prod._id}
+                prod={prod}
+                idx={idx}
+                total={filteredProducts.length}
+                palette={palette}
+                isAdmin={isAdmin}
                 onSuccess={() => setRefreshKey(prev => prev + 1)}
               />
             ))}

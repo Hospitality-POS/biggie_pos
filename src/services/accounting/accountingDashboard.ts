@@ -229,6 +229,8 @@ export interface GetDashboardParams {
     shop_id: string;
     fiscal_year?: number;
     fiscal_month?: number;
+    start_date?: string;
+    end_date?: string;
 }
 
 // ============================================
