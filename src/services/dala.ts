@@ -680,6 +680,20 @@ export const updatePropertySale = async (id: string, data: Partial<PropertySale>
   }
 };
 
+export const deletePropertySale = async (id: string) => {
+  try {
+    const response = await axiosInstance.delete(`${dalaUrl}/sales/${id}`, {
+      headers: getDalaHeaders()
+    });
+    message.success("Property sale deleted successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to delete property sale";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
 // ── Sales Payments API ─────────────────────────────────────────────────────────
 
 export const fetchSalePayments = async (params?: {
@@ -747,6 +761,20 @@ export const reverseSalePayment = async (id: string, reversalReason?: string) =>
     return response.data;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.error || "Failed to reverse sale payment";
+    message.error(errorMessage);
+    throw error;
+  }
+};
+
+export const deleteSalePayment = async (id: string) => {
+  try {
+    const response = await axiosInstance.delete(`${dalaUrl}/sale-payments/${id}`, {
+      headers: getDalaHeaders()
+    });
+    message.success("Sale payment deleted successfully");
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.error || "Failed to delete sale payment";
     message.error(errorMessage);
     throw error;
   }

@@ -94,8 +94,8 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
     const columns = [
         {
             title: "Lead", dataIndex: "lead_name",
-            fieldProps: { placeholder: "Search by name…" },
-            render: (_: string, record: Lead) => {
+            fieldProps: { placeholder: "Search by name or company…" },
+            render: (_: any, record: Lead) => {
                 const displayName = record.entity_type === 'company' 
                     ? (record.company_name || 'Unnamed Company') 
                     : (record.lead_name || 'Unnamed Individual');
@@ -110,6 +110,20 @@ const LeadTable = forwardRef<LeadTableHandle, LeadTableProps>(({ onView, onEdit 
                         )}
                     </div>
                 );
+            },
+            onFilter: (value: any, record: Lead) => {
+                const searchValue = String(value).toLowerCase();
+                const leadName = String(record.lead_name || '').toLowerCase();
+                const companyName = String(record.company_name || '').toLowerCase();
+                const contactPerson = String(record.contact_person || '').toLowerCase();
+                const email = String(record.email || '').toLowerCase();
+                const phone = String(record.phone || '').toLowerCase();
+                
+                return leadName.includes(searchValue) ||
+                       companyName.includes(searchValue) ||
+                       contactPerson.includes(searchValue) ||
+                       email.includes(searchValue) ||
+                       phone.includes(searchValue);
             },
         },
         {

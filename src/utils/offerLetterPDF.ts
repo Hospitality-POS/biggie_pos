@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import dayjs from 'dayjs';
+import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 
 interface OfferLetterData {
   saleCode?: string;
@@ -30,7 +31,7 @@ interface OfferLetterData {
   customers?: any[];
 }
 
-export const generateOfferLetterPDF = (data: OfferLetterData) => {
+export const generateOfferLetterPDF = async (data: OfferLetterData) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -59,9 +60,19 @@ export const generateOfferLetterPDF = (data: OfferLetterData) => {
   doc.setDrawColor(200, 200, 200);
   doc.line(15, 20, pageWidth - 15, 20);
   
-  // Add logo (use relia.png as default if tenant logo is missing)
-  const logoUrl = '/relia.png';
-  const tenantLogo = localStorage.getItem('tenantLogo') || logoUrl;
+  // Add logo (use tenant logo from tenant object, fallback to relia.png)
+  const defaultLogoUrl = '/relia.png';
+  let tenantLogo = defaultLogoUrl;
+  
+  try {
+    const tenantStr = localStorage.getItem('tenant');
+    if (tenantStr) {
+      const tenant = JSON.parse(tenantStr);
+      tenantLogo = tenant?.tenant_logo?.url || defaultLogoUrl;
+    }
+  } catch (error) {
+    console.error('Error parsing tenant for logo:', error);
+  }
   
   try {
     doc.addImage(tenantLogo, 'PNG', 15, 25, 25, 25);
@@ -74,52 +85,42 @@ export const generateOfferLetterPDF = (data: OfferLetterData) => {
     doc.text('LOGO', 27.5, 37.5, { align: 'center', baseline: 'middle' });
   }
   
-  // Get tenant details for company information
-  const tenantStr = localStorage.getItem('tenant');
-  let tenantName = data.companyDetails?.name || 'Relia POS';
-  let tenantPhone = data.companyDetails?.phone || '';
-  let tenantEmail = data.companyDetails?.email || '';
-  let tenantAddress = data.companyDetails?.address || '';
+  // Get system settings for company information
+  let systemName = data.companyDetails?.name || 'Relia POS';
+  let systemPhone = data.companyDetails?.phone || '';
+  let systemEmail = data.companyDetails?.email || '';
+  let systemAddress = data.companyDetails?.address || '';
   
   try {
-    const tenant = JSON.parse(tenantStr || '{}');
-    tenantName = String(tenant.name || tenant.company_name || data.companyDetails?.name || 'Relia POS');
-    tenantPhone = String(tenant.phone || tenant.contact_phone || data.companyDetails?.phone || '');
-    tenantEmail = String(tenant.email || tenant.contact_email || data.companyDetails?.email || '');
-    const addressValue = tenant.address || tenant.location || data.companyDetails?.address;
-    if (typeof addressValue === 'object' && addressValue !== null) {
-      const parts = [];
-      if (addressValue.street) parts.push(addressValue.street);
-      if (addressValue.city) parts.push(addressValue.city);
-      if (addressValue.country && parts.length > 0) parts.push(addressValue.country);
-      tenantAddress = parts.join(', ') || '';
-    } else {
-      tenantAddress = String(addressValue || '');
-    }
+    const systemSettings = await fetchSystemSetupDetailsById();
+    systemName = String(systemSettings?.name || systemSettings?.business_name || data.companyDetails?.name || 'Relia POS');
+    systemPhone = String(systemSettings?.phone || data.companyDetails?.phone || '');
+    systemEmail = String(systemSettings?.email || data.companyDetails?.email || '');
+    systemAddress = String(systemSettings?.location || systemSettings?.address || data.companyDetails?.address || '');
   } catch (error) {
-    console.error('Error parsing tenant:', error);
+    console.error('Error fetching system settings:', error);
   }
   
   // Company details on the far right
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text(String(tenantName), pageWidth - 15, 30, { align: 'right' });
+  doc.text(String(systemName), pageWidth - 15, 30, { align: 'right' });
   
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   let yPos = 38;
-  if (tenantAddress && tenantAddress !== '[object Object]' && tenantAddress !== '') {
-    doc.text(String(tenantAddress), pageWidth - 15, yPos, { align: 'right' });
+  if (systemAddress && systemAddress !== '[object Object]' && systemAddress !== '') {
+    doc.text(String(systemAddress), pageWidth - 15, yPos, { align: 'right' });
     yPos += 6;
   }
-  if (tenantPhone) {
-    doc.text(String(`Tel: ${tenantPhone}`), pageWidth - 15, yPos, { align: 'right' });
+  if (systemPhone) {
+    doc.text(String(`Tel: ${systemPhone}`), pageWidth - 15, yPos, { align: 'right' });
     yPos += 6;
   }
-  if (tenantEmail) {
-    doc.text(String(`Email: ${tenantEmail}`), pageWidth - 15, yPos, { align: 'right' });
+  if (systemEmail) {
+    doc.text(String(`Email: ${systemEmail}`), pageWidth - 15, yPos, { align: 'right' });
   }
   
   // Divider line after company details
@@ -182,13 +183,22 @@ export const generateOfferLetterPDF = (data: OfferLetterData) => {
     '',
     `Property: ${data.propertyName || 'N/A'}`,
     `Type: ${data.propertyType || 'N/A'}`,
-    `Unit: ${data.unitName || 'N/A'}${data.apartmentName ? ` (${data.apartmentName})` : ''}`,
+  ];
+
+  // Add unit/apartment line
+  if (data.unitName && data.unitName !== 'N/A') {
+    bodyText.push(`Unit: ${data.unitName}${data.apartmentName ? ` (${data.apartmentName})` : ''}`);
+  } else if (data.apartmentName && data.apartmentName !== 'N/A') {
+    bodyText.push(`Apartment: ${data.apartmentName}`);
+  }
+
+  bodyText.push(
     `Sale Price: KES ${(data.salePrice || 0).toLocaleString()}`,
     '',
     `Payment Details:`,
     `- Initial Payment: KES ${(data.initialPayment || 0).toLocaleString()}`,
     `- Payment Plan: ${data.paymentPlan?.replace('_', ' ').toUpperCase() || 'N/A'}`,
-  ];
+  );
   
   bodyText.forEach((line) => {
     doc.text(line, 15, textY);

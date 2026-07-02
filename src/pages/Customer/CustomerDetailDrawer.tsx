@@ -33,7 +33,10 @@ const INDIVIDUAL_DOCUMENT_TYPES = [
     { value: 'id_passport', label: 'ID/Passport' },
     { value: 'contract_agreement', label: 'Contract/Agreement' },
     { value: 'proposal', label: 'Proposal' },
-    { value: 'quotation', label: 'Quotation' }
+    { value: 'quotation', label: 'Quotation' },
+    { value: 'sale_agreement', label: 'Sale Agreement' },
+    { value: 'offer_letter', label: 'Offer Letter' },
+    { value: 'booking_form', label: 'Booking Form' }
 ];
 
 const COMPANY_DOCUMENT_TYPES = [
@@ -45,7 +48,10 @@ const COMPANY_DOCUMENT_TYPES = [
     { value: 'directors_resolution', label: 'Directors Resolution' },
     { value: 'contract_agreement', label: 'Contract/Agreement' },
     { value: 'proposal', label: 'Proposal' },
-    { value: 'quotation', label: 'Quotation' }
+    { value: 'quotation', label: 'Quotation' },
+    { value: 'sale_agreement', label: 'Sale Agreement' },
+    { value: 'offer_letter', label: 'Offer Letter' },
+    { value: 'booking_form', label: 'Booking Form' }
 ];
 
 const InfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value?: React.ReactNode }) => (

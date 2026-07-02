@@ -3,7 +3,7 @@ import { Button, Typography } from "antd";
 import {
     CalendarOutlined, CreditCardOutlined, GiftOutlined,
     LockOutlined, StarOutlined, UserAddOutlined,
-    UserOutlined, WalletOutlined, TeamOutlined,
+    UserOutlined, WalletOutlined,
 } from "@ant-design/icons";
 import CustomerTable from "./CustomerTable";
 import Schedule from "../staff/schedule";
@@ -11,7 +11,6 @@ import AdminCustomersTable from "./CustomerTable";
 import SubscriptionPackagesTable from "./SubscriptionPackagesTable";
 import CustomerSubscriptionsTable from "./CustomerSubscriptionsTable";
 import AddCustomerModal from "./AddCustomerModal";
-import Leads from "@pages/Lead/Leads";
 import { getPermissionChecker } from "@utils/getPermissionChecker";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
 
@@ -74,7 +73,6 @@ const getTabConfig = (): TabItem[] => {
 
     if (hasMteja && hasPOS) {
         return [
-            { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CRM_LEADS_VIEW" },
             { key: "customers", label: customerLabel, icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
             { key: "packages", label: "Packages", icon: <CreditCardOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
             { key: "subscriptions", label: "Subscriptions", icon: <WalletOutlined />, permissionKey: "GIFT_CARDS_VIEW" },
@@ -85,7 +83,6 @@ const getTabConfig = (): TabItem[] => {
 
     if (hasMteja) {
         return [
-            { key: "leads", label: "Leads", icon: <TeamOutlined />, permissionKey: "CRM_LEADS_VIEW" },
             { key: "customers", label: customerLabel, icon: <UserOutlined />, permissionKey: "CUSTOMERS_VIEW" },
             ...(!hasDala ? [{ key: "schedule", label: "Bookings", icon: <CalendarOutlined />, permissionKey: "SCHEDULES_VIEW" }] : []),
         ];
@@ -167,14 +164,6 @@ const TabNav = ({
     </div>
 );
 
-// ── LeadPrefill type ───────────────────────────────────────────────────────
-type LeadPrefill = {
-    customer_name?: string;
-    phone?: string;
-    email?: string;
-    location?: string;
-};
-
 // ── Main ───────────────────────────────────────────────────────────────────
 function Customers() {
     const isMobile = useIsMobile();
@@ -217,7 +206,6 @@ function Customers() {
     const [addCustomerVisible, setAddCustomerVisible] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<any>(null);
     const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-    const [leadPrefill, setLeadPrefill] = useState<LeadPrefill | undefined>(undefined);
     const [activeTab, setActiveTab] = useState(defaultTab);
     const customerTableRef = useRef<any>(null);
 
@@ -225,46 +213,22 @@ function Customers() {
     const handleAddCustomer = () => {
         setModalMode("add");
         setEditingCustomer(null);
-        setLeadPrefill(undefined);
         setAddCustomerVisible(true);
     };
 
     const handleEditCustomer = (customer: any) => {
         setModalMode("edit");
         setEditingCustomer(customer);
-        setLeadPrefill(undefined);
         setAddCustomerVisible(true);
     };
 
     const handleCloseModal = () => {
         setAddCustomerVisible(false);
         setEditingCustomer(null);
-        setLeadPrefill(undefined);
         setModalMode("add");
     };
 
     const handleCustomerAdded = () => customerTableRef.current?.reload();
-
-    /**
-     * Called by the Leads page → LeadDetailDrawer when user clicks
-     * "Convert to Customer". Receives pre-filled data from the lead,
-     * opens AddCustomerModal in lead-conversion mode.
-     */
-    const handleConvertLeadToCustomer = (prefill: LeadPrefill) => {
-        setLeadPrefill(prefill);
-        setEditingCustomer(null);
-        setModalMode("add");
-        setAddCustomerVisible(true);
-    };
-
-    /**
-     * Called after AddCustomerModal successfully saves a customer that
-     * was created from a lead. Switches to the customers tab and reloads.
-     */
-    const handleCustomerCreatedFromLead = () => {
-        setActiveTab("customers");
-        setTimeout(() => customerTableRef.current?.reload(), 300);
-    };
 
     // ── Tab renderer ──────────────────────────────────────────────────────
     const activeTabCfg = tabsWithAccess.find((t) => t.key === activeTab);
@@ -276,9 +240,6 @@ function Customers() {
         switch (activeTab) {
             case "customers":
                 return <CustomerTable ref={customerTableRef} onEditCustomer={handleEditCustomer} />;
-            case "leads":
-                // Pass the convert callback so LeadDetailDrawer can trigger AddCustomerModal
-                return <Leads onConvertWithForm={handleConvertLeadToCustomer} />;
             case "packages":
                 return <SubscriptionPackagesTable />;
             case "subscriptions":
@@ -338,15 +299,14 @@ function Customers() {
         </div>
     );
 
-    // ── Shared AddCustomerModal — used for both normal add/edit and lead conversion
+    // ── Shared AddCustomerModal
     const customerModal = (
         <AddCustomerModal
             visible={addCustomerVisible}
             onClose={handleCloseModal}
-            onSuccess={leadPrefill ? handleCustomerCreatedFromLead : handleCustomerAdded}
+            onSuccess={handleCustomerAdded}
             customer={editingCustomer}
             mode={modalMode}
-            leadPrefill={leadPrefill}
         />
     );
 
