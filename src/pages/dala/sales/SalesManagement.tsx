@@ -39,13 +39,14 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchPropertySales, fetchProperties, createPropertySale, updatePropertySale } from '@services/dala';
+import { fetchPropertySales, fetchProperties, createPropertySale, updatePropertySale, deletePropertySale } from '@services/dala';
 import {
   fetchPropertyDocuments,
   uploadPropertyDocument,
   deletePropertyDocument,
   PROPERTY_DOCUMENT_TYPES,
 } from '@services/dala/propertyDocuments';
+import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 import { useDalaSales, useDalaProperties } from '../../../stores/dalaStore';
 import { generateOfferLetterPDF } from '@utils/offerLetterPDF';
 import { getPermissionChecker } from '@utils/getPermissionChecker';
@@ -233,6 +234,17 @@ const SalesManagement: React.FC = () => {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: deletePropertySale,
+    onSuccess: () => {
+      message.success('Sale deleted successfully');
+      queryClient.invalidateQueries(['dala-sales']);
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.error || 'Failed to delete sale');
+    },
+  });
+
   console.log('Properties query state:', {
     isLoading: propertiesQuery.isLoading,
     error: propertiesQuery.error,
@@ -382,6 +394,21 @@ const SalesManagement: React.FC = () => {
               onClick={() => handleEditSale(record)}
             />
           </Tooltip>
+          <Tooltip title="Delete Sale">
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => {
+                const confirmed = window.confirm(
+                  `Are you sure you want to delete this sale for ${record.client?.name || record.customer?.name || 'this client'}? This action cannot be undone.`
+                );
+                if (confirmed) {
+                  deleteMutation.mutate(record._id);
+                }
+              }}
+            />
+          </Tooltip>
         </Space>
       ),
     },
@@ -446,9 +473,19 @@ const SalesManagement: React.FC = () => {
       doc.setDrawColor(200, 200, 200);
       doc.line(15, 20, pageWidth - 15, 20);
       
-      // Add logo (use relia.png as default if tenant logo is missing)
-      const logoUrl = '/relia.png'; // Default logo path
-      const tenantLogo = localStorage.getItem('tenantLogo') || logoUrl;
+      // Add logo (use tenant logo from tenant object, fallback to relia.png)
+      const defaultLogoUrl = '/relia.png';
+      let tenantLogo = defaultLogoUrl;
+      
+      try {
+        const tenantStr = localStorage.getItem('tenant');
+        if (tenantStr) {
+          const tenant = JSON.parse(tenantStr);
+          tenantLogo = tenant?.tenant_logo?.url || defaultLogoUrl;
+        }
+      } catch (error) {
+        console.error('Error parsing tenant for logo:', error);
+      }
       
       try {
         doc.addImage(tenantLogo, 'PNG', 15, 25, 25, 25);
@@ -461,54 +498,42 @@ const SalesManagement: React.FC = () => {
         doc.text('LOGO', 27.5, 37.5, { align: 'center', baseline: 'middle' });
       }
       
-      // Get tenant details for company information
-      const tenantStr = localStorage.getItem('tenant');
-      let tenantName = 'Relia POS';
-      let tenantPhone = '';
-      let tenantEmail = '';
-      let tenantAddress = '';
+      // Get system settings for company information
+      let systemName = 'Relia POS';
+      let systemPhone = '';
+      let systemEmail = '';
+      let systemAddress = '';
       
       try {
-        const tenant = JSON.parse(tenantStr || '{}');
-        tenantName = String(tenant.name || tenant.company_name || 'Relia POS');
-        tenantPhone = String(tenant.phone || tenant.contact_phone || '');
-        tenantEmail = String(tenant.email || tenant.contact_email || '');
-        const addressValue = tenant.address || tenant.location;
-        // Handle address - if it's an object, try to extract meaningful parts, otherwise skip
-        if (typeof addressValue === 'object' && addressValue !== null) {
-          // Extract street, city, country if available
-          const parts = [];
-          if (addressValue.street) parts.push(addressValue.street);
-          if (addressValue.city) parts.push(addressValue.city);
-          if (addressValue.country && parts.length > 0) parts.push(addressValue.country);
-          tenantAddress = parts.join(', ') || '';
-        } else {
-          tenantAddress = String(addressValue || '');
-        }
+        const systemSettings = await fetchSystemSetupDetailsById();
+        systemName = String(systemSettings?.name || systemSettings?.business_name || 'Relia POS');
+        systemPhone = String(systemSettings?.phone || '');
+        systemEmail = String(systemSettings?.email || '');
+        systemAddress = String(systemSettings?.location || systemSettings?.address || '');
       } catch (error) {
-        console.error('Error parsing tenant:', error);
+        console.error('Error fetching system settings:', error);
       }
       
       // Company details on the far right - aligned professionally
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text(tenantName, pageWidth - 15, 30, { align: 'right' });
+      doc.text(systemName, pageWidth - 15, 30, { align: 'right' });
       
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 100, 100);
       let yPos = 38;
-      if (tenantAddress && tenantAddress !== '[object Object]' && tenantAddress !== '') {
-        doc.text(tenantAddress, pageWidth - 15, yPos, { align: 'right' });
+      if (systemAddress && systemAddress !== '[object Object]' && systemAddress !== '') {
+        doc.text(systemAddress, pageWidth - 15, yPos, { align: 'right' });
         yPos += 6;
       }
-      if (tenantPhone) {
-        doc.text(`Tel: ${tenantPhone}`, pageWidth - 15, yPos, { align: 'right' });
+      if (systemPhone) {
+        doc.text(`Tel: ${systemPhone}`, pageWidth - 15, yPos, { align: 'right' });
         yPos += 6;
       }
-      if (tenantEmail) {
-        doc.text(`Email: ${tenantEmail}`, pageWidth - 15, yPos, { align: 'right' });
+      if (systemEmail) {
+        doc.text(`Email: ${systemEmail}`, pageWidth - 15, yPos, { align: 'right' });
       }
       
       // Divider line after company details

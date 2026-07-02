@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, Table, Typography, Button, Space, Tag, message, DatePicker, Select, Input, Row, Col } from 'antd';
-import { SearchOutlined, ReloadOutlined, PlusOutlined, EyeOutlined } from '@ant-design/icons';
+import { SearchOutlined, ReloadOutlined, PlusOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import dayjs, { Dayjs } from 'dayjs';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import PaymentDrawer from './PaymentDrawer';
 import PaymentModal from './PaymentModal';
 import PaymentStats from './PaymentStats';
-import { fetchSalePayments } from '../../../services/dala';
+import { fetchSalePayments, deleteSalePayment } from '../../../services/dala';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -56,6 +56,17 @@ const SalesPaymentsTab: React.FC<SalesPaymentsTabProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string | undefined>(undefined);
   const [selectedMethod, setSelectedMethod] = useState<string | undefined>(undefined);
   const actionRef = useRef<any>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteSalePayment,
+    onSuccess: () => {
+      message.success('Payment deleted successfully');
+      fetchPayments();
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.error || 'Failed to delete payment');
+    },
+  });
 
   // Fetch payments data from API
   const fetchPayments = async () => {
@@ -164,10 +175,15 @@ const SalesPaymentsTab: React.FC<SalesPaymentsTabProps> = ({
 
   // Filter payments
   const filteredPayments = paymentsData.filter((payment) => {
+    const customerName = String(payment.customer?.name || '').toLowerCase();
+    const reference = String(payment.reference || '').toLowerCase();
+    const receiptNo = String(payment.receiptNo || '').toLowerCase();
+    const searchLower = searchText.toLowerCase();
+    
     const matchesSearch = 
-      payment.customer?.name?.toLowerCase().includes(searchText.toLowerCase()) ||
-      payment.reference?.toLowerCase().includes(searchText.toLowerCase()) ||
-      payment.receiptNo?.toLowerCase().includes(searchText.toLowerCase());
+      customerName.includes(searchLower) ||
+      reference.includes(searchLower) ||
+      receiptNo.includes(searchLower);
     
     const matchesStatus = !selectedStatus || payment.status === selectedStatus;
     const matchesMethod = !selectedMethod || payment.paymentMethod === selectedMethod;
@@ -237,6 +253,21 @@ const SalesPaymentsTab: React.FC<SalesPaymentsTabProps> = ({
             onClick={() => handleViewPayment(record)}
           >
             View
+          </Button>
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => {
+              const confirmed = window.confirm(
+                `Are you sure you want to delete this payment of ${formatCurrency(record.amount)}? This action cannot be undone.`
+              );
+              if (confirmed) {
+                deleteMutation.mutate(record._id || record.id);
+              }
+            }}
+          >
+            Delete
           </Button>
         </Space>
       ),

@@ -450,7 +450,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     onCancel();
   };
 
-  const handleDownloadOfferLetter = () => {
+  const handleDownloadOfferLetter = async () => {
     const values = form.getFieldsValue();
     const client = customers?.find((c: any) => c._id === values.client_id);
     const salesAgent = users?.find((u: any) => u._id === values.salesAgent);
@@ -479,7 +479,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
       paymentTotals: initialData?.paymentTotals || null,
     };
 
-    generateOfferLetterPDF(offerLetterData);
+    await generateOfferLetterPDF(offerLetterData);
   };
 
   const getUnitsForProperty = (propertyId: string) => {
@@ -859,8 +859,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                 >
                   <InputNumber
                     style={{ width: '100%' }}
-                    min={initialPaymentType === 'booking_fee' ? 100000 : 0}
-                    disabled={initialPaymentType === 'booking_fee'}
+                    min={0}
                     formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                     parser={(value: string) => value!.replace(/\$\s?|(,*)/g, '')}
                   />
