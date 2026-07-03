@@ -85,6 +85,7 @@ interface AddEditProUserModalProps {
   userId?: string;
   onUserSaved?: () => void;
   onModalClose?: () => void;
+  onSuccess?: () => void;
 }
 
 // ── Section label ─────────────────────────────────────────────────────────────
@@ -460,6 +461,7 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
   userId,
   onUserSaved,
   onModalClose,
+  onSuccess,
 }) => {
   const [form] = Form.useForm();
   const formRef = useRef<any>();
@@ -652,13 +654,23 @@ const AddEditProUserModal: React.FC<AddEditProUserModalProps> = ({
       } else {
         await handleConfirmAddUser(payload);
       }
-      actionRef.current?.reload();
-      onUserSaved?.();
-      return true;
     } catch {
       message.error("Failed to save user");
       return false;
     }
+
+    message.success(edit ? "User updated successfully" : "User added successfully");
+
+    // Post-update operations (non-critical)
+    try {
+      actionRef.current?.reload();
+      onUserSaved?.();
+      onSuccess?.();
+    } catch (error) {
+      console.error("Post-update operations failed:", error);
+    }
+
+    return true;
   };
 
   // ── Desktop onFinish (used by ModalForm) ───────────────────────────────────
