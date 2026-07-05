@@ -711,10 +711,10 @@ const CartDrawer: React.FC = () => {
               <Text strong style={{ fontSize: 13, display: "block", lineHeight: 1.3 }}>
                 {customerDetails.customer_name || "Customer"}
               </Text>
-              {customerDetails.customer_phone && (
+              {(customerDetails.customer_phone || customerDetails.customer_email) && (
                 <Text style={{ fontSize: 11, color: "#64748b" }}>
-                  {customerDetails.customer_phone}
-                  {customerDetails.customer_email ? ` · ${customerDetails.customer_email}` : ""}
+                  {customerDetails.customer_phone || customerDetails.customer_email}
+                  {customerDetails.customer_phone && customerDetails.customer_email ? ` · ${customerDetails.customer_email}` : ""}
                 </Text>
               )}
             </div>
@@ -1089,8 +1089,8 @@ const CartDrawer: React.FC = () => {
           >
             <InputNumber
               style={{ width: "100%" }}
-              min={1}
-              precision={0}
+              min={0.01}
+              precision={2}
             />
           </Form.Item>
           <Form.Item

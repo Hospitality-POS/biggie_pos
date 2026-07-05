@@ -182,17 +182,21 @@ export const editProduct = async (data: any, silent = false) => {
   }
 };
 
-export const deleteProduct = async (productId: string) => {
+export const deleteProduct = async (productId: string, silent = false) => {
   try {
     const tenant = getTenant();
     await axiosInstance.delete(`${productUrl}/${productId}`, {
       headers,
       data: { tenant },
     });
-    message.success("Product deleted successfully");
+    if (!silent) {
+      message.success("Product deleted successfully");
+    }
     return productId;
   } catch (error) {
-    if (error?.response?.status !== 403) message.error("Failed to delete product");
+    if (!silent && error?.response?.status !== 403) {
+      message.error("Failed to delete product");
+    }
     throw new Error("Failed to delete product");
   }
 };
