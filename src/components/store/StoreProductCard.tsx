@@ -1,10 +1,10 @@
 import React from "react";
 import CircleIcon from "@mui/icons-material/Circle";
-import { useAppDispatch, useAppSelector } from "../../store";
+import { useAppSelector } from "../../store";
 import { Card, Typography, Switch, Tooltip, message } from "antd";
 import { DeleteFilled, EditOutlined } from "@ant-design/icons";
 import ShowConfirm from "@utils/ConfirmUtil";
-import { deleteProduct, editProduct } from "@services/products";
+import { deleteProduct as deleteProductService, editProduct } from "@services/products";
 import StoreModal from "@components/MODALS/pro/StoreModal";
 import RecipeModal from "@components/MODALS/pro/RecipeModal";
 import { usePrimaryColor } from "@context/PrimaryColorContext";
@@ -27,9 +27,9 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
     product?.is_disabled ?? false
   );
   const [toggling, setToggling] = React.useState(false);
+  const [isHovered, setIsHovered] = React.useState(false);
 
   const primaryColor = usePrimaryColor();
-  const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
 
   // Check if user is admin, manager, or cashier (for delete and disable operations)
@@ -37,7 +37,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
   const isManager = user?.role === "manager";
   const isCashier = user?.role === "cashier";
   const canManageProducts = isAdmin || isManager || isCashier; // For delete and disable
-  const canEdit = true; // Everyone can edit products
+  const canEdit = isAdmin || isManager || isCashier; // Admins, managers, and cashiers can edit products
 
   const handleToggleDisabled = async () => {
     if (!canManageProducts) {
@@ -70,8 +70,9 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
     });
     if (confirm) {
       try {
-        await dispatch(deleteProduct(productId));
+        await deleteProductService(productId, true);
         message.success(`${name} deleted successfully`);
+        onSuccess?.();
       } catch (error) {
         message.error("Failed to delete product");
       }
@@ -87,27 +88,29 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
       productName={name}
       disabled={isDisabled}
     />,
-    <Tooltip
-      key="edit-tooltip"
-      title="Edit product"
-    >
-      <div>
-        <StoreModal
-          edit={true}
-          data={product}
-          onSuccess={onSuccess}
-          trigger={
-            <EditOutlined
-              style={{
-                fontSize: 18,
-                color: primaryColor,
-                cursor: "pointer",
-              }}
-            />
-          }
-        />
-      </div>
-    </Tooltip>,
+    canEdit ? (
+      <Tooltip
+        key="edit-tooltip"
+        title="Edit product"
+      >
+        <div>
+          <StoreModal
+            edit={true}
+            data={product}
+            onSuccess={onSuccess}
+            trigger={
+              <EditOutlined
+                style={{
+                  fontSize: 18,
+                  color: "#fff",
+                  cursor: "pointer",
+                }}
+              />
+            }
+          />
+        </div>
+      </Tooltip>
+    ) : null,
     <Tooltip
       key="delete-tooltip"
       title={!canManageProducts ? "Only admins, managers, and cashiers can delete products" : "Delete product"}
@@ -117,7 +120,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
         onClick={handleDelete}
         style={{
           fontSize: 18,
-          color: canManageProducts ? "#ef4444" : "#9ca3af",
+          color: isHovered ? "#fff" : (canManageProducts ? "#ef4444" : "#9ca3af"),
           cursor: canManageProducts ? "pointer" : "not-allowed",
           opacity: canManageProducts ? 1 : 0.5,
         }}
@@ -133,27 +136,29 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
       activateInventory={product?.activateInventory}
       productName={name}
     />,
-    <Tooltip
-      key="edit-tooltip"
-      title="Edit product"
-    >
-      <div>
-        <StoreModal
-          edit={true}
-          data={product}
-          onSuccess={onSuccess}
-          trigger={
-            <EditOutlined
-              style={{
-                fontSize: 18,
-                color: primaryColor,
-                cursor: "pointer",
-              }}
-            />
-          }
-        />
-      </div>
-    </Tooltip>,
+    canEdit ? (
+      <Tooltip
+        key="edit-tooltip"
+        title="Edit product"
+      >
+        <div>
+          <StoreModal
+            edit={true}
+            data={product}
+            onSuccess={onSuccess}
+            trigger={
+              <EditOutlined
+                style={{
+                  fontSize: 18,
+                  color: "#fff",
+                  cursor: "pointer",
+                }}
+              />
+            }
+          />
+        </div>
+      </Tooltip>
+    ) : null,
     <Tooltip
       key="delete-tooltip"
       title={!canManageProducts ? "Only admins, managers, and cashiers can delete products" : "Delete product"}
@@ -163,7 +168,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
         onClick={handleDelete}
         style={{
           fontSize: 18,
-          color: canManageProducts ? "#ef4444" : "#9ca3af",
+          color: isHovered ? "#fff" : (canManageProducts ? "#ef4444" : "#9ca3af"),
           cursor: canManageProducts ? "pointer" : "not-allowed",
           opacity: canManageProducts ? 1 : 0.5,
         }}
@@ -171,17 +176,12 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
     </Tooltip>,
   ];
 
-  // Get role badge text
-  const getRoleBadge = () => {
-    if (isAdmin) return "Admin";
-    if (isManager) return "Manager";
-    return "Staff";
-  };
-
   return (
     <Card
       key={product?._id}
       hoverable={!isDisabled}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
         maxWidth: 200,
         width: 200,
@@ -192,8 +192,9 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
         opacity: isDisabled ? 0.6 : 1,
         transition: "opacity 0.2s ease",
         position: "relative",
+        backgroundColor: isHovered && !isDisabled ? primaryColor : "white",
       }}
-      styles={{ body: { backgroundColor: "white", padding: "12px 14px" } }}
+      styles={{ body: { backgroundColor: "transparent", padding: "12px 14px" } }}
       type="inner"
       actions={isDisabled ? disabledActions : activeActions}
     >
@@ -269,7 +270,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
           textAlign: "center",
           marginBottom: 10,
           fontSize: 13,
-          color: isDisabled ? "#9ca3af" : "#0f172a",
+          color: isDisabled ? "#9ca3af" : (isHovered ? "#fff" : "#0f172a"),
           transition: "color 0.2s ease",
         }}
       >
@@ -299,7 +300,7 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
       >
         <Typography.Text
           ellipsis
-          style={{ fontWeight: 600, color: isDisabled ? "#9ca3af" : "#6c1c2c" }}
+          style={{ fontWeight: 600, color: isDisabled ? "#9ca3af" : (isHovered ? "#fff" : "#6c1c2c") }}
         >
           Ksh.{price?.toLocaleString()}
         </Typography.Text>
@@ -307,13 +308,13 @@ const StoreProductCard: React.FC<StoreProductCardProps> = ({
           <CircleIcon
             style={{
               fontSize: "10px",
-              color: isDisabled ? "#9ca3af" : primaryColor,
+              color: isDisabled ? "#9ca3af" : (isHovered ? "#fff" : primaryColor),
               verticalAlign: "middle",
             }}
           />
         </Typography>
-        <Typography.Text ellipsis>{bowls}</Typography.Text>
-        <Typography.Text> Item{bowls <= 1 ? " " : "s"}</Typography.Text>
+        <Typography.Text ellipsis style={{ color: isHovered ? "#fff" : "inherit" }}>{bowls}</Typography.Text>
+        <Typography.Text style={{ color: isHovered ? "#fff" : "inherit" }}> Item{bowls <= 1 ? " " : "s"}</Typography.Text>
       </div>
     </Card>
   );

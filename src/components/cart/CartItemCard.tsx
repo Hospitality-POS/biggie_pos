@@ -245,7 +245,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   };
 
   const handleStepRemove = async () => {
-    if (!canEditQty || stepLoading || qtyLoading || cartItem.quantity <= 1) return;
+    if (!canEditQty || stepLoading || qtyLoading || cartItem.quantity <= 0.01) return;
     setStepLoading("remove");
     try {
       await dispatch(removeQtyCart(cartItem));
@@ -259,9 +259,9 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
   const commitQtyChange = async () => {
     setIsEditingQty(false);
-    const parsed = parseInt(qtyInputValue, 10);
+    const parsed = parseFloat(qtyInputValue);
 
-    if (isNaN(parsed) || parsed < 1 || parsed === cartItem.quantity) {
+    if (isNaN(parsed) || parsed < 0.01 || parsed === cartItem.quantity) {
       setQtyInputValue(String(cartItem.quantity));
       return;
     }
@@ -285,7 +285,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       setQtyInputValue(String(cartItem.quantity));
       return;
     }
-    if (!/[\d]/.test(e.key) && !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)) {
+    if (!/[\d.]/.test(e.key) && !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)) {
       e.preventDefault();
     }
   };
@@ -494,7 +494,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 {/* Minus */}
                 <button
                   onClick={handleStepRemove}
-                  disabled={!!stepLoading || qtyLoading || cartItem.quantity <= 1}
+                  disabled={!!stepLoading || qtyLoading || cartItem.quantity <= 0.01}
                   style={{
                     width: 22,
                     height: 22,
@@ -502,8 +502,8 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     border: `1.5px solid ${isSent ? "rgba(255,255,255,0.5)" : primaryColor}`,
                     backgroundColor: "transparent",
                     color: isSent ? "#fff" : primaryColor,
-                    cursor: (cartItem.quantity <= 1 || !!stepLoading) ? "not-allowed" : "pointer",
-                    opacity: cartItem.quantity <= 1 ? 0.35 : 1,
+                    cursor: (cartItem.quantity <= 0.01 || !!stepLoading) ? "not-allowed" : "pointer",
+                    opacity: cartItem.quantity <= 0.01 ? 0.35 : 1,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -526,11 +526,12 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     <input
                       ref={inputRef}
                       type="text"
-                      inputMode="numeric"
+                      inputMode="decimal"
                       value={qtyInputValue}
                       onChange={(e) => setQtyInputValue(e.target.value)}
                       onBlur={commitQtyChange}
                       onKeyDown={handleKeyDown}
+                      placeholder="0.00"
                       style={{
                         width: 38,
                         height: 26,
@@ -569,7 +570,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                     </button>
                   </Box>
                 ) : (
-                  <Tooltip title="Click to set quantity" placement="top" mouseEnterDelay={0.5}>
+                  <Tooltip title="Click to set quantity (supports decimals)" placement="top" mouseEnterDelay={0.5}>
                     <button
                       onClick={() => {
                         if (!qtyLoading && !stepLoading) {
@@ -903,8 +904,8 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
           >
             <InputNumber
               style={{ width: "100%" }}
-              min={1}
-              precision={0}
+              min={0.01}
+              precision={2}
             />
           </Form.Item>
           <Form.Item

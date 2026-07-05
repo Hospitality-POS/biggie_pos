@@ -7,9 +7,9 @@ import StoreProductCard from "@components/store/StoreProductCard";
 import StoreModal from "@components/MODALS/pro/StoreModal";
 import ImportProductsModal from "@components/store/ImportProductsModal";
 import { exportToExcel } from "@utils/exportUtils";
-import { useAppSelector, useAppDispatch } from "../../store";
+import { useAppSelector } from "../../store";
 import { usePrimaryColor } from "../../context/PrimaryColorContext";
-import { deleteProduct } from "@services/products";
+import { deleteProduct as deleteProductService } from "@services/products";
 import ShowConfirm from "@utils/ConfirmUtil";
 import RecipeModal from "@components/MODALS/pro/RecipeModal";
 
@@ -222,14 +222,17 @@ const ListProductRow: React.FC<{
   idx: number;
   total: number;
   palette: ReturnType<typeof getPalette>;
-  isAdmin: boolean;
+  canManageProducts: boolean;
   onSuccess: () => void;
-}> = ({ prod, idx, total, palette, isAdmin, onSuccess }) => {
-  const dispatch = useAppDispatch();
+}> = ({ prod, idx, total, palette, canManageProducts, onSuccess }) => {
   const [isDisabled, setIsDisabled] = React.useState<boolean>(prod?.is_disabled ?? false);
   const [toggling, setToggling] = React.useState(false);
 
   const handleToggle = async () => {
+    if (!canManageProducts) {
+      message.warning("Only admins, managers, and cashiers can enable/disable products");
+      return;
+    }
     setToggling(true);
     const next = !isDisabled;
     setIsDisabled(next);
@@ -246,6 +249,10 @@ const ListProductRow: React.FC<{
   };
 
   const handleDelete = async () => {
+    if (!canManageProducts) {
+      message.warning("Only admins, managers, and cashiers can delete products");
+      return;
+    }
     const confirmed = await ShowConfirm({
       title: `Are you sure you want to delete ${prod.name}?`,
       position: true,
@@ -253,7 +260,7 @@ const ListProductRow: React.FC<{
     });
     if (confirmed) {
       try {
-        await dispatch(deleteProduct(prod._id));
+        await deleteProductService(prod._id, true);
         message.success(`${prod.name} deleted successfully`);
         onSuccess();
       } catch {
@@ -307,7 +314,7 @@ const ListProductRow: React.FC<{
             size="small"
             checked={!isDisabled}
             loading={toggling}
-            disabled={!isAdmin}
+            disabled={!canManageProducts}
             onChange={handleToggle}
             style={{ backgroundColor: isDisabled ? "#d1d5db" : palette.primary }}
           />
@@ -320,18 +327,20 @@ const ListProductRow: React.FC<{
           disabled={isDisabled}
         />
 
-        <Tooltip title="Edit product">
-          <StoreModal
-            edit={true}
-            data={prod}
-            onSuccess={onSuccess}
-            trigger={
-              <EditOutlined style={{ fontSize: 16, color: palette.primary, cursor: "pointer" }} />
-            }
-          />
-        </Tooltip>
+        {canManageProducts && (
+          <Tooltip title="Edit product">
+            <StoreModal
+              edit={true}
+              data={prod}
+              onSuccess={onSuccess}
+              trigger={
+                <EditOutlined style={{ fontSize: 16, color: palette.primary, cursor: "pointer" }} />
+              }
+            />
+          </Tooltip>
+        )}
 
-        {isAdmin && (
+        {canManageProducts && (
           <Tooltip title="Delete product">
             <DeleteFilled
               onClick={handleDelete}
@@ -350,6 +359,9 @@ export default function MainStore() {
   const queryClient = useQueryClient();
   const { user } = useAppSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
+  const isManager = user?.role === "manager";
+  const isCashier = user?.role === "cashier";
+  const canManageProducts = isAdmin || isManager || isCashier;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -824,7 +836,7 @@ export default function MainStore() {
                 idx={idx}
                 total={filteredProducts.length}
                 palette={palette}
-                isAdmin={isAdmin}
+                canManageProducts={canManageProducts}
                 onSuccess={() => setRefreshKey(prev => prev + 1)}
               />
             ))}
