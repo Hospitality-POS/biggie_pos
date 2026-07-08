@@ -1292,6 +1292,251 @@ const EtrTab = ({ record }: { record: InvoiceDetailsInterface }) => {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// Payment Receipt Templates
+// ═══════════════════════════════════════════════════════════════
+
+const ReceiptTemplateModern = React.forwardRef<HTMLDivElement, {
+  inv: InvoiceDetailsInterface; sys: SystemDetails; accentColor?: string;
+}>(({ inv, sys, accentColor = "#6c1c2c" }, ref) => {
+  const payments: PaymentRecord[] = inv.payments || inv.payment_ids || [];
+  const party = resolveParty(inv);
+  const totalPaid = payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const balanceDue = Math.max(0, (inv.grand_total || 0) - totalPaid);
+  const receiptNo = (() => {
+    const base = inv.order_no || inv.invoice_no || "";
+    return base ? base.replace(/^(INV|QUOTE|BILL)-?/, "REC-") : `REC-${dayjs().format("YYYYMMDD")}-${(inv._id || "").slice(-6).toUpperCase()}`;
+  })();
+  return (
+    <div ref={ref} style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: "#0f172a", background: "#fff", width: "100%" }}>
+
+      {/* ── Full-width header (no negative-margin hack) ── */}
+      <div style={{ background: accentColor, color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "stretch", minHeight: 110 }}>
+        <div style={{ display: "flex", flexDirection: "column" as const, justifyContent: "center", padding: "20px 36px" }}>
+          <div style={{ fontSize: 9, opacity: 0.7, letterSpacing: 2, textTransform: "uppercase" as const, marginBottom: 2 }}>Payment Receipt</div>
+          <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.2 }}>{sys.BRAND_NAME1 || "Business"}</div>
+          <div style={{ fontSize: 11, opacity: 0.75, fontFamily: "monospace", marginTop: 4, letterSpacing: 0.5 }}>{receiptNo}</div>
+          {sys.PHONE_NO && <div style={{ fontSize: 11, opacity: 0.8, marginTop: 3 }}>{sys.PHONE_NO}</div>}
+          {sys.EMAIL_URL && <div style={{ fontSize: 11, opacity: 0.8 }}>{sys.EMAIL_URL}</div>}
+          {sys.PIN && <div style={{ fontSize: 11, opacity: 0.8 }}>KRA PIN: {sys.PIN}</div>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.13)", minWidth: 150, padding: "16px 28px" }}>
+          {sys.tenant_logo?.url
+            ? <img src={sys.tenant_logo.url} alt="logo" style={{ maxHeight: 82, maxWidth: 140, width: "auto", objectFit: "contain" }} />
+            : <img src="/relia.png" alt="logo" style={{ maxHeight: 82, maxWidth: 140, width: "auto", objectFit: "contain", opacity: 0.88 }} />
+          }
+        </div>
+      </div>
+
+      {/* ── Body ── */}
+      <div style={{ padding: "28px 36px" }}>
+
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 24, marginBottom: 24, flexWrap: "wrap" as const }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 6 }}>Received From</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{party.name}</div>
+            {party.phone && <div style={{ fontSize: 12, color: "#64748b" }}>{party.phone}</div>}
+            {party.email && <div style={{ fontSize: 12, color: "#64748b" }}>{party.email}</div>}
+            {party.kra_pin && <div style={{ fontSize: 12, color: "#64748b" }}>KRA PIN: {party.kra_pin}</div>}
+          </div>
+          <div style={{ textAlign: "right" as const }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 6 }}>Receipt Info</div>
+            <div style={{ fontSize: 12 }}>Receipt No: <strong style={{ fontFamily: "monospace" }}>{receiptNo}</strong></div>
+            <div style={{ fontSize: 12 }}>Invoice: <strong>{inv.order_no}</strong></div>
+            {inv.paid_date && <div style={{ fontSize: 12, color: "#64748b" }}>Paid: <strong>{dayjs(inv.paid_date).format("DD MMM YYYY HH:mm")}</strong></div>}
+            <div style={{ fontSize: 12 }}>Status: <span style={{ color: "#10b981", fontWeight: 700 }}>{inv.status}</span></div>
+          </div>
+        </div>
+
+        <div style={{ background: `${accentColor}10`, border: `2px solid ${accentColor}28`, borderRadius: 10, padding: "16px 20px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 10, color: "#64748b", fontWeight: 600, textTransform: "uppercase" as const, marginBottom: 2 }}>Total Paid</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: accentColor }}>KES {fmt(totalPaid)}</div>
+          </div>
+          <div style={{ textAlign: "center" as const }}>
+            <div style={{ fontSize: 10, color: "#64748b", fontWeight: 600, textTransform: "uppercase" as const, marginBottom: 2 }}>Invoice Total</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>KES {fmt(inv.grand_total)}</div>
+          </div>
+          {balanceDue === 0 ? (
+            <div style={{ background: "#f0fdf4", border: "2px solid #10b981", borderRadius: 8, padding: "8px 18px", fontSize: 14, fontWeight: 800, color: "#10b981", letterSpacing: 1 }}>✓ PAID IN FULL</div>
+          ) : (
+            <div style={{ textAlign: "right" as const }}>
+              <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 600, textTransform: "uppercase" as const, marginBottom: 2 }}>Balance Due</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#ef4444" }}>KES {fmt(balanceDue)}</div>
+            </div>
+          )}
+        </div>
+
+        {payments.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, letterSpacing: "0.5px", marginBottom: 8 }}>Payment Details</div>
+            <table style={{ width: "100%", borderCollapse: "collapse" as const, fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: "#f1f5f9" }}>
+                  {["Date", "Method", "Amount"].map((h) => (
+                    <th key={h} style={{ padding: "8px 10px", textAlign: h === "Amount" ? "right" as const : "left" as const, fontWeight: 700, fontSize: 11, borderBottom: "2px solid #e2e8f0", color: "#374151" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p, i) => (
+                  <tr key={p._id || String(i)} style={{ background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                    <td style={{ padding: "7px 10px", borderBottom: "1px solid #f1f5f9", color: "#64748b" }}>{dayjs(p.payment_date || p.createdAt).format("DD MMM YYYY HH:mm")}</td>
+                    <td style={{ padding: "7px 10px", borderBottom: "1px solid #f1f5f9" }}>
+                      <span style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", borderRadius: 4, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>{p.method_id?.name || p.method || "—"}</span>
+                    </td>
+                    <td style={{ padding: "7px 10px", borderBottom: "1px solid #f1f5f9", textAlign: "right" as const, fontWeight: 700, color: "#10b981" }}>KES {fmt(p.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" as const, gap: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700 }}>Thank you for your payment!</div>
+          <div style={{ fontSize: 11, color: "#64748b" }}>{[sys.EMAIL_URL, sys.PHONE_NO].filter(Boolean).join(" · ")}</div>
+          <div style={{ fontSize: 10, color: "#94a3b8" }}>Printed {new Date().toLocaleDateString("en-KE")}</div>
+        </div>
+      </div>
+      <style>{`@media print{@page{size:A4 portrait;margin:0}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
+    </div>
+  );
+});
+ReceiptTemplateModern.displayName = "ReceiptTemplateModern";
+
+const ReceiptTemplateCompact = React.forwardRef<HTMLDivElement, {
+  inv: InvoiceDetailsInterface; sys: SystemDetails; accentColor?: string;
+}>(({ inv, sys, accentColor = "#6c1c2c" }, ref) => {
+  const payments: PaymentRecord[] = inv.payments || inv.payment_ids || [];
+  const party = resolveParty(inv);
+  const totalPaid = payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const balanceDue = Math.max(0, (inv.grand_total || 0) - totalPaid);
+  const receiptNo = (() => {
+    const base = inv.order_no || inv.invoice_no || "";
+    return base ? base.replace(/^(INV|QUOTE|BILL)-?/, "REC-") : `REC-${dayjs().format("YYYYMMDD")}-${(inv._id || "").slice(-6).toUpperCase()}`;
+  })();
+  return (
+    <div ref={ref} style={{ fontFamily: "'Courier New', Courier, monospace", color: "#000", background: "#fff", padding: "28px 22px", width: "100%", maxWidth: 400, margin: "0 auto", boxSizing: "border-box" as const }}>
+      <div style={{ textAlign: "center" as const, borderBottom: "2px dashed #000", paddingBottom: 12, marginBottom: 14 }}>
+        <div style={{ fontSize: 17, fontWeight: 700 }}>{sys.BRAND_NAME1 || "Business"}</div>
+        {sys.PHONE_NO && <div style={{ fontSize: 11 }}>{sys.PHONE_NO}</div>}
+        {sys.EMAIL_URL && <div style={{ fontSize: 11 }}>{sys.EMAIL_URL}</div>}
+        {sys.PIN && <div style={{ fontSize: 11 }}>KRA PIN: {sys.PIN}</div>}
+        <div style={{ fontSize: 14, fontWeight: 800, marginTop: 10, letterSpacing: 2, color: accentColor }}>PAYMENT RECEIPT</div>
+        <div style={{ fontSize: 11, marginTop: 4, letterSpacing: 1 }}>{receiptNo}</div>
+      </div>
+
+      <div style={{ fontSize: 12, marginBottom: 12 }}>
+        {([
+          ["Receipt No", receiptNo],
+          ["Invoice", inv.order_no || "—"],
+          ["Customer", party.name],
+          ...(inv.paid_date ? [["Date Paid", dayjs(inv.paid_date).format("DD MMM YYYY HH:mm")]] : []),
+        ] as [string, string][]).map(([label, value]) => (
+          <div key={label} style={{ display: "flex", justifyContent: "space-between" as const, marginBottom: 3 }}>
+            <span style={{ color: "#555" }}>{label}:</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ borderTop: "1px dashed #000", borderBottom: "1px dashed #000", padding: "10px 0", marginBottom: 12 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, marginBottom: 6, letterSpacing: 1, color: "#555" }}>Payments</div>
+        {payments.length === 0 && <div style={{ fontSize: 11, color: "#888" }}>No payments recorded</div>}
+        {payments.map((p, i) => (
+          <div key={p._id || String(i)} style={{ marginBottom: 8, fontSize: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" as const }}>
+              <span style={{ fontWeight: 700 }}>{p.method_id?.name || p.method || "Payment"}</span>
+              <span style={{ fontWeight: 700 }}>KES {fmt(p.amount)}</span>
+            </div>
+            {p.reference && <div style={{ fontSize: 10, color: "#555" }}>Ref: {p.reference}</div>}
+            {(p.payment_date || p.createdAt) && <div style={{ fontSize: 10, color: "#555" }}>{dayjs(p.payment_date || p.createdAt).format("DD MMM YYYY HH:mm")}</div>}
+          </div>
+        ))}
+      </div>
+
+      {([
+        ["Invoice Total", `KES ${fmt(inv.grand_total)}`, false],
+        ["Amount Paid", `KES ${fmt(totalPaid)}`, false],
+        ["Balance Due", `KES ${fmt(balanceDue)}`, true],
+      ] as [string, string, boolean][]).map(([label, value, isBold], i) => (
+        <div key={label} style={{ display: "flex", justifyContent: "space-between" as const, borderTop: i === 2 ? "1px solid #000" : "none", paddingTop: i === 2 ? 4 : 0, marginTop: i === 2 ? 4 : 2, fontWeight: isBold ? 700 : 400, fontSize: 12 }}>
+          <span>{label}:</span><span>{value}</span>
+        </div>
+      ))}
+
+      {balanceDue === 0 && (
+        <div style={{ textAlign: "center" as const, border: `3px solid ${accentColor}`, padding: "6px 0", fontWeight: 800, fontSize: 13, letterSpacing: 2, marginTop: 10, color: accentColor }}>*** PAID IN FULL ***</div>
+      )}
+
+      <div style={{ textAlign: "center" as const, borderTop: "2px dashed #000", paddingTop: 10, marginTop: 12, fontSize: 11 }}>
+        <div style={{ fontWeight: 600 }}>Thank you for your payment!</div>
+        <div style={{ fontSize: 10, marginTop: 4, color: "#555" }}>Printed {new Date().toLocaleDateString("en-KE")}</div>
+      </div>
+      <style>{`@media print{@page{size:80mm auto;margin:4mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}`}</style>
+    </div>
+  );
+});
+ReceiptTemplateCompact.displayName = "ReceiptTemplateCompact";
+
+const RECEIPT_STYLES = [
+  { id: "modern" as const, name: "A4 Modern", desc: "Professional A4 payment receipt" },
+  { id: "compact" as const, name: "Compact / Thermal", desc: "80mm thermal-style receipt" },
+];
+
+const PaymentReceiptDownload: React.FC<{
+  inv: InvoiceDetailsInterface; sys: SystemDetails; primaryColor: string;
+}> = ({ inv, sys, primaryColor }) => {
+  const [style, setStyle] = useState<"modern" | "compact">("modern");
+  const modernRef = useRef<HTMLDivElement>(null);
+  const compactRef = useRef<HTMLDivElement>(null);
+  const title = `Receipt-${inv.order_no || inv._id}`;
+  const printModern = useReactToPrint({ content: () => modernRef.current, documentTitle: title, pageStyle: "@page{size:A4 portrait;margin:12mm}@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}" });
+  const printCompact = useReactToPrint({ content: () => compactRef.current, documentTitle: title, pageStyle: "@page{size:80mm auto;margin:4mm}@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}" });
+
+  return (
+    <div style={{ padding: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, flexWrap: "wrap" as const, gap: 10 }}>
+        <div>
+          <Text strong style={{ fontSize: 13 }}>Payment Receipt</Text>
+          <Text style={{ fontSize: 11, color: C.subText, marginLeft: 8 }}>{inv.order_no}</Text>
+        </div>
+        <Button type="primary" icon={<PrinterOutlined />}
+          onClick={() => style === "modern" ? printModern() : printCompact()}
+          style={{ background: primaryColor, borderColor: primaryColor, borderRadius: 6 }}>
+          Download / Print PDF
+        </Button>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        {RECEIPT_STYLES.map((s) => (
+          <button key={s.id} onClick={() => setStyle(s.id)} style={{
+            flex: "0 0 auto", cursor: "pointer",
+            border: style === s.id ? `2.5px solid ${primaryColor}` : `1.5px solid ${C.border}`,
+            borderRadius: 9, background: "#fff", padding: "8px 16px",
+            transform: style === s.id ? "scale(1.04)" : "scale(1)",
+            boxShadow: style === s.id ? `0 0 0 3px ${primaryColor}20` : "none",
+            transition: "all 0.12s",
+          }}>
+            <div style={{ fontSize: 11, fontWeight: style === s.id ? 700 : 500, color: style === s.id ? primaryColor : C.darkText }}>{s.name}</div>
+            <div style={{ fontSize: 10, color: C.subText }}>{s.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden", maxHeight: 540, overflowY: "auto", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+        <div style={{ display: style === "modern" ? "block" : "none" }}>
+          <ReceiptTemplateModern ref={modernRef} inv={inv} sys={sys} accentColor={primaryColor} />
+        </div>
+        <div style={{ display: style === "compact" ? "flex" : "none", justifyContent: "center" as const, background: "#f1f5f9", padding: 24 }}>
+          <ReceiptTemplateCompact ref={compactRef} inv={inv} sys={sys} accentColor={primaryColor} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
 // Root export
 // ═══════════════════════════════════════════════════════════════
 export interface ExpandableInvoiceProps {
@@ -1304,6 +1549,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
   const isMobile = useIsMobile();
   const sys: SystemDetails = useSystemDetails();
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const [receiptPdfOpen, setReceiptPdfOpen] = useState(false);
   const primaryColor = usePrimaryColor();
   const [invoiceColor, setInvoiceColor] = useState(primaryColor);
   const queryClient = useQueryClient();
@@ -1381,8 +1627,8 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
     staleTime: 30_000,
   });
   const noteCount = notesData?.notes?.length || 0;
-  const paymentCount = (record.payments || record.payment_ids || []).length;
-  const salesReceiptCount = (record.salesReceipts || []).length;
+  const paymentCount = (invoiceData.payments || invoiceData.payment_ids || []).length;
+  const salesReceiptCount = (invoiceData.salesReceipts || []).length;
 
   // Tab order: Receipt first, then Details, Payments, Payment Receipts, Notes
   const tabItems = [
@@ -1416,7 +1662,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
       ),
       children: (
         <DetailsTab
-          record={record}
+          record={invoiceData as InvoiceDetailsInterface}
           isMobile={isMobile}
           onSave={(updated) => {
             // Pass to parent or call update API
@@ -1438,7 +1684,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
         </Space>
       ),
       children: (
-        <PaymentsTab record={record} onOpenPrint={() => setActiveTab("receipt")} />
+        <PaymentsTab record={invoiceData as InvoiceDetailsInterface} onOpenPrint={() => setReceiptPdfOpen(true)} />
       ),
     },
     {
@@ -1454,7 +1700,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
         </Space>
       ),
       children: (
-        <SalesReceiptsTab record={record} />
+        <SalesReceiptsTab record={invoiceData as InvoiceDetailsInterface} />
       ),
     },
     {
@@ -1499,6 +1745,21 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
           borderBottom: `1px solid ${C.border}`, paddingLeft: 16,
         }}
       />
+      <Modal
+        open={receiptPdfOpen}
+        onCancel={() => setReceiptPdfOpen(false)}
+        title={null}
+        footer={null}
+        width="min(92vw, 900px)"
+        destroyOnClose
+        styles={{ body: { padding: 0 } }}
+      >
+        <PaymentReceiptDownload
+          inv={invoiceData as InvoiceDetailsInterface}
+          sys={sys}
+          primaryColor={primaryColor}
+        />
+      </Modal>
     </div>
   );
 
