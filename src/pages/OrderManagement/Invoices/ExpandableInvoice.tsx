@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useMemo } from "react";
 import { ProDescriptions } from "@ant-design/pro-components";
 import {
   Badge, Button, ColorPicker, DatePicker, Empty,
-  Form, Input, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography, Modal, Row, Col, Alert, message,
+  Form, Input, InputNumber, Select, Space, Spin, Table, Tabs, Tag, Tooltip, Typography, Modal, Row, Col, Alert, message,
 } from "antd";
 import {
   ArrowRightOutlined, CheckCircleOutlined, CreditCardOutlined,
@@ -11,7 +11,9 @@ import {
   SafetyCertificateOutlined, WarningOutlined, ReloadOutlined, LinkOutlined, CopyOutlined,
 } from "@ant-design/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getInvoiceById, patchInvoice, verifyDigiTax, duplicateInvoice } from "@services/accounting/invoice";
+import { getInvoiceById, patchInvoice, verifyDigiTax, duplicateInvoice, recordInvoicePayment } from "@services/accounting/invoice";
+import { fetchAllPaymentMethods } from "@services/paymentMethod";
+import { getAllAccounts } from "@services/accounting/accounts";
 import { refreshInvoiceEtr } from "@services/accounting/digiTax";
 import { useReactToPrint } from "react-to-print";
 import dayjs from "dayjs";
@@ -708,7 +710,7 @@ const DetailsTab = ({
 const PaymentsTab = ({
   record, onOpenPrint,
 }: {
-  record: InvoiceDetailsInterface; onOpenPrint: () => void;
+  record: InvoiceDetailsInterface; onOpenPrint: (payment?: PaymentRecord) => void;
 }) => {
   const payments: PaymentRecord[] = record.payments || record.payment_ids || [];
   const total = payments.reduce((s, p) => s + (p.amount || 0), 0);
@@ -717,6 +719,69 @@ const PaymentsTab = ({
   // Calculate amount due by subtracting both regular payments and sales receipts from grand total
   const amountDue = Math.max(0, grandTotal - total - salesReceiptsTotal);
   const queryClient = useQueryClient();
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentForm] = Form.useForm();
+
+  // Fetch payment methods and accounts for the payment modal
+  const { data: methodsData } = useQuery({
+    queryKey: ["payment-methods"],
+    queryFn: () => fetchAllPaymentMethods({}),
+    staleTime: 60_000,
+  });
+
+  const { data: accountsData } = useQuery({
+    queryKey: ["chart-of-accounts"],
+    queryFn: () => getAllAccounts({}),
+    staleTime: 60_000,
+  });
+
+  const allAccounts = accountsData?.accounts || [];
+  const assetAccounts = allAccounts.filter(
+    (a: any) => a.account_type === "ASSET" && a.is_active
+  );
+  const assetAccountOptions = assetAccounts.map((a: any) => ({
+    label: `${a.account_code} — ${a.account_name}`,
+    value: a._id,
+  }));
+
+  const methodOptions = (methodsData || []).map((m: any) => ({ label: m.name, value: m._id }));
+
+  // Record payment mutation
+  const recordPaymentMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => recordInvoicePayment(id, data),
+    onSuccess: () => {
+      message.success("Payment recorded successfully");
+      setPaymentModalOpen(false);
+      paymentForm.resetFields();
+      queryClient.invalidateQueries({ queryKey: ["invoice", record._id] });
+      queryClient.invalidateQueries({ queryKey: ["invoices-unsettled"] });
+    },
+  });
+
+  const handleRecordPayment = async () => {
+    try {
+      const values = await paymentForm.validateFields();
+      recordPaymentMutation.mutate({
+        id: record._id,
+        data: {
+          amount: values.amount,
+          method_id: values.method_id,
+          account_id: values.account_id,
+          reference: values.reference,
+          notes: values.notes,
+        },
+      });
+    } catch (error) {
+      // Validation failed
+    }
+  };
+
+  const handleOpenPaymentModal = () => {
+    paymentForm.setFieldsValue({
+      amount: amountDue,
+    });
+    setPaymentModalOpen(true);
+  };
 
   // Duplicate mutation
   const duplicateMutation = useMutation({
@@ -778,6 +843,19 @@ const PaymentsTab = ({
       title: "Amount", dataIndex: "amount", key: "amount", align: "right" as const,
       render: (v: number) => <Text strong style={{ fontSize: 12, color: C.green }}>KES {fmt(v)}</Text>,
     },
+    {
+      title: "Receipt", key: "receipt", align: "center" as const, width: 100,
+      render: (_: any, r: PaymentRecord) => (
+        <Button
+          size="small"
+          icon={<PrinterOutlined />}
+          onClick={() => onOpenPrint(r)}
+          style={{ borderRadius: 6, fontSize: 11 }}
+        >
+          Receipt
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -799,7 +877,16 @@ const PaymentsTab = ({
             <Text strong style={{ fontSize: 14, color: item.color }}>{item.value}</Text>
           </div>
         ))}
-        <Button icon={<PrinterOutlined />} onClick={onOpenPrint}
+        {amountDue > 0 && (
+          <Button 
+            type="primary" 
+            icon={<DollarOutlined />} 
+            onClick={handleOpenPaymentModal}
+            style={{ alignSelf: "center", borderRadius: 8, background: C.green, borderColor: C.green }}>
+            Make Payment
+          </Button>
+        )}
+        <Button icon={<PrinterOutlined />} onClick={() => onOpenPrint()}
           style={{ alignSelf: "center", borderRadius: 8, borderColor: C.primary, color: C.primary }}>
           Download Receipt
         </Button>
@@ -819,6 +906,66 @@ const PaymentsTab = ({
         <Table rowKey={(r) => r._id || String(Math.random())} columns={columns}
           dataSource={payments} pagination={false} size="small" scroll={{ x: 620 }} />
       )}
+      
+      {/* Payment Modal */}
+      <Modal
+        title="Record Payment"
+        open={paymentModalOpen}
+        onCancel={() => setPaymentModalOpen(false)}
+        onOk={handleRecordPayment}
+        confirmLoading={recordPaymentMutation.isLoading}
+        okText="Record Payment"
+        width={500}
+      >
+        <Form form={paymentForm} layout="vertical">
+          <div style={{
+            background: "#f0fdf4", border: "1px solid #bbf7d0",
+            borderRadius: 8, padding: "10px 14px", marginBottom: 16,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <Text style={{ fontSize: 12, color: C.subText }}>Amount Due</Text>
+            <Text strong style={{ fontSize: 15, color: C.green }}>KES {fmt(amountDue)}</Text>
+          </div>
+          <Form.Item name="method_id" label="Payment Method" rules={[{ required: true, message: "Required" }]}>
+            <Select 
+              showSearch 
+              placeholder="M-Pesa / Bank / Cash"
+              options={methodOptions} 
+              optionFilterProp="label" 
+              style={{ borderRadius: 8 }} 
+            />
+          </Form.Item>
+          <Form.Item 
+            name="account_id" 
+            label="Deposit Account"
+            rules={[{ required: true, message: "Select the account receiving payment" }]}
+            tooltip="Choose the cash or bank account where this payment is deposited."
+          >
+            <Select 
+              showSearch 
+              placeholder="e.g. Cash on Hand, Bank, M-Pesa Float"
+              optionFilterProp="label"
+              options={assetAccountOptions}
+              notFoundContent="No asset accounts found"
+              allowClear
+              style={{ borderRadius: 8 }} 
+            />
+          </Form.Item>
+          <Form.Item name="amount" label="Amount (KES)"
+            rules={[{ required: true }, { type: "number", min: 0.01, max: amountDue }]}>
+            <InputNumber style={{ width: "100%", borderRadius: 8 }}
+              min={0.01} max={amountDue} precision={2}
+              formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+              parser={(v) => v!.replace(/,/g, "") as any} />
+          </Form.Item>
+          <Form.Item name="reference" label="Reference / Transaction Code">
+            <Input placeholder="M-Pesa code, cheque no..." style={{ borderRadius: 8 }} />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes">
+            <Input placeholder="Optional" style={{ borderRadius: 8 }} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };
@@ -1296,15 +1443,17 @@ const EtrTab = ({ record }: { record: InvoiceDetailsInterface }) => {
 // ═══════════════════════════════════════════════════════════════
 
 const ReceiptTemplateModern = React.forwardRef<HTMLDivElement, {
-  inv: InvoiceDetailsInterface; sys: SystemDetails; accentColor?: string;
-}>(({ inv, sys, accentColor = "#6c1c2c" }, ref) => {
-  const payments: PaymentRecord[] = inv.payments || inv.payment_ids || [];
+  inv: InvoiceDetailsInterface; sys: SystemDetails; accentColor?: string; selectedPayment?: PaymentRecord;
+}>(({ inv, sys, accentColor = "#6c1c2c", selectedPayment }, ref) => {
+  const allPayments: PaymentRecord[] = inv.payments || inv.payment_ids || [];
+  const payments = selectedPayment ? [selectedPayment] : allPayments;
   const party = resolveParty(inv);
   const totalPaid = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const balanceDue = Math.max(0, (inv.grand_total || 0) - totalPaid);
   const receiptNo = (() => {
     const base = inv.order_no || inv.invoice_no || "";
-    return base ? base.replace(/^(INV|QUOTE|BILL)-?/, "REC-") : `REC-${dayjs().format("YYYYMMDD")}-${(inv._id || "").slice(-6).toUpperCase()}`;
+    const suffix = selectedPayment ? `-${selectedPayment._id?.slice(-6).toUpperCase()}` : "";
+    return base ? base.replace(/^(INV|QUOTE|BILL)-?/, "REC-") + suffix : `REC-${dayjs().format("YYYYMMDD")}-${(inv._id || "").slice(-6).toUpperCase()}`;
   })();
   return (
     <div ref={ref} style={{ fontFamily: "'Segoe UI', Roboto, sans-serif", color: "#0f172a", background: "#fff", width: "100%" }}>
@@ -1405,15 +1554,17 @@ const ReceiptTemplateModern = React.forwardRef<HTMLDivElement, {
 ReceiptTemplateModern.displayName = "ReceiptTemplateModern";
 
 const ReceiptTemplateCompact = React.forwardRef<HTMLDivElement, {
-  inv: InvoiceDetailsInterface; sys: SystemDetails; accentColor?: string;
-}>(({ inv, sys, accentColor = "#6c1c2c" }, ref) => {
-  const payments: PaymentRecord[] = inv.payments || inv.payment_ids || [];
+  inv: InvoiceDetailsInterface; sys: SystemDetails; accentColor?: string; selectedPayment?: PaymentRecord;
+}>(({ inv, sys, accentColor = "#6c1c2c", selectedPayment }, ref) => {
+  const allPayments: PaymentRecord[] = inv.payments || inv.payment_ids || [];
+  const payments = selectedPayment ? [selectedPayment] : allPayments;
   const party = resolveParty(inv);
   const totalPaid = payments.reduce((s, p) => s + (p.amount || 0), 0);
   const balanceDue = Math.max(0, (inv.grand_total || 0) - totalPaid);
   const receiptNo = (() => {
     const base = inv.order_no || inv.invoice_no || "";
-    return base ? base.replace(/^(INV|QUOTE|BILL)-?/, "REC-") : `REC-${dayjs().format("YYYYMMDD")}-${(inv._id || "").slice(-6).toUpperCase()}`;
+    const suffix = selectedPayment ? `-${selectedPayment._id?.slice(-6).toUpperCase()}` : "";
+    return base ? base.replace(/^(INV|QUOTE|BILL)-?/, "REC-") + suffix : `REC-${dayjs().format("YYYYMMDD")}-${(inv._id || "").slice(-6).toUpperCase()}`;
   })();
   return (
     <div ref={ref} style={{ fontFamily: "'Courier New', Courier, monospace", color: "#000", background: "#fff", padding: "28px 22px", width: "100%", maxWidth: 400, margin: "0 auto", boxSizing: "border-box" as const }}>
@@ -1485,12 +1636,12 @@ const RECEIPT_STYLES = [
 ];
 
 const PaymentReceiptDownload: React.FC<{
-  inv: InvoiceDetailsInterface; sys: SystemDetails; primaryColor: string;
-}> = ({ inv, sys, primaryColor }) => {
+  inv: InvoiceDetailsInterface; sys: SystemDetails; primaryColor: string; selectedPayment?: PaymentRecord;
+}> = ({ inv, sys, primaryColor, selectedPayment }) => {
   const [style, setStyle] = useState<"modern" | "compact">("modern");
   const modernRef = useRef<HTMLDivElement>(null);
   const compactRef = useRef<HTMLDivElement>(null);
-  const title = `Receipt-${inv.order_no || inv._id}`;
+  const title = `Receipt-${inv.order_no || inv._id}${selectedPayment ? `-${selectedPayment._id?.slice(-6)}` : ""}`;
   const printModern = useReactToPrint({ content: () => modernRef.current, documentTitle: title, pageStyle: "@page{size:A4 portrait;margin:12mm}@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}" });
   const printCompact = useReactToPrint({ content: () => compactRef.current, documentTitle: title, pageStyle: "@page{size:80mm auto;margin:4mm}@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}" });
 
@@ -1526,10 +1677,10 @@ const PaymentReceiptDownload: React.FC<{
 
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden", maxHeight: 540, overflowY: "auto", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
         <div style={{ display: style === "modern" ? "block" : "none" }}>
-          <ReceiptTemplateModern ref={modernRef} inv={inv} sys={sys} accentColor={primaryColor} />
+          <ReceiptTemplateModern ref={modernRef} inv={inv} sys={sys} accentColor={primaryColor} selectedPayment={selectedPayment} />
         </div>
         <div style={{ display: style === "compact" ? "flex" : "none", justifyContent: "center" as const, background: "#f1f5f9", padding: 24 }}>
-          <ReceiptTemplateCompact ref={compactRef} inv={inv} sys={sys} accentColor={primaryColor} />
+          <ReceiptTemplateCompact ref={compactRef} inv={inv} sys={sys} accentColor={primaryColor} selectedPayment={selectedPayment} />
         </div>
       </div>
     </div>
@@ -1550,6 +1701,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
   const sys: SystemDetails = useSystemDetails();
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [receiptPdfOpen, setReceiptPdfOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | undefined>(undefined);
   const primaryColor = usePrimaryColor();
   const [invoiceColor, setInvoiceColor] = useState(primaryColor);
   const queryClient = useQueryClient();
@@ -1684,7 +1836,13 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
         </Space>
       ),
       children: (
-        <PaymentsTab record={invoiceData as InvoiceDetailsInterface} onOpenPrint={() => setReceiptPdfOpen(true)} />
+        <PaymentsTab 
+          record={invoiceData as InvoiceDetailsInterface} 
+          onOpenPrint={(payment) => {
+            setSelectedPayment(payment);
+            setReceiptPdfOpen(true);
+          }} 
+        />
       ),
     },
     {
@@ -1747,7 +1905,10 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
       />
       <Modal
         open={receiptPdfOpen}
-        onCancel={() => setReceiptPdfOpen(false)}
+        onCancel={() => {
+          setReceiptPdfOpen(false);
+          setSelectedPayment(undefined);
+        }}
         title={null}
         footer={null}
         width="min(92vw, 900px)"
@@ -1758,6 +1919,7 @@ const ExpandableInvoice = ({ record, onOpenNote, defaultTab = "receipt" }: Expan
           inv={invoiceData as InvoiceDetailsInterface}
           sys={sys}
           primaryColor={primaryColor}
+          selectedPayment={selectedPayment}
         />
       </Modal>
     </div>
