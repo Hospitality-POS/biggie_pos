@@ -17,6 +17,7 @@ import {
     Col,
     Switch
 } from "antd";
+import { fetchShop } from "@services/shops";
 import {
     MailOutlined,
     CopyOutlined,
@@ -87,13 +88,31 @@ const GiftCardModal = ({
     const giftCardRef = useRef(null);
     const [savingPDF, setSavingPDF] = useState(false);
     const [isPriceVisible, setIsPriceVisible] = useState(true);
+    const [shopData, setShopData] = useState<any>(null);
 
     const { message: messageApi } = App.useApp();
 
     useEffect(() => {
+        // Fetch shop data from localStorage
+        const fetchShopData = async () => {
+            try {
+                const shopId = localStorage.getItem("shopId");
+                if (shopId) {
+                    const shop = await fetchShop(shopId);
+                    setShopData(shop);
+                }
+            } catch (error) {
+                console.error("Error fetching shop data:", error);
+            }
+        };
+        fetchShopData();
+    }, []);
+
+    useEffect(() => {
         // Set default values when forms are initialized
         if (isGiftCardModalVisible) {
-            const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
+            const branchName = shopData?.name || clientName;
+            const defaultMessage = `Welcome to ${branchName}! We're delighted to have you as our valued customer.`;
             giftCardForm.resetFields();
             giftCardForm.setFieldsValue({
                 message: defaultMessage,
@@ -103,7 +122,8 @@ const GiftCardModal = ({
         }
 
         if (isNewRecipientModalVisible) {
-            const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
+            const branchName = shopData?.name || clientName;
+            const defaultMessage = `Welcome to ${branchName}! We're delighted to have you as our valued customer.`;
             newRecipientForm.resetFields();
             newRecipientForm.setFieldsValue({
                 message: defaultMessage,
@@ -112,7 +132,7 @@ const GiftCardModal = ({
             });
             setIsPriceVisible(true);
         }
-    }, [isGiftCardModalVisible, isNewRecipientModalVisible, giftCardForm, newRecipientForm, clientName]);
+    }, [isGiftCardModalVisible, isNewRecipientModalVisible, giftCardForm, newRecipientForm, clientName, shopData]);
 
     // Update price visibility in current gift card
     useEffect(() => {
@@ -128,7 +148,8 @@ const GiftCardModal = ({
         try {
             const values = await giftCardForm.validateFields();
 
-            const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
+            const branchName = shopData?.name || clientName;
+            const defaultMessage = `Welcome to ${branchName}! We're delighted to have you as our valued customer.`;
             const cardMessage = (values.message === undefined || values.message === null)
                 ? defaultMessage
                 : values.message;
@@ -156,7 +177,8 @@ const GiftCardModal = ({
         try {
             const values = await newRecipientForm.validateFields();
 
-            const defaultMessage = `Welcome to ${clientName}! We're delighted to have you as our valued customer.`;
+            const branchName = shopData?.name || clientName;
+            const defaultMessage = `Welcome to ${branchName}! We're delighted to have you as our valued customer.`;
             const cardMessage = (values.message === undefined || values.message === null)
                 ? defaultMessage
                 : values.message;
@@ -330,7 +352,7 @@ const GiftCardModal = ({
                     <Form.Item
                         name="message"
                         label="Personalized Message"
-                        initialValue={`Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
+                        initialValue={`Welcome to ${shopData?.name || clientName}! We're delighted to have you as our valued customer.`}
                     >
                         <TextArea
                             rows={4}
@@ -458,7 +480,7 @@ const GiftCardModal = ({
                     <Form.Item
                         name="message"
                         label="Personalized Message"
-                        initialValue={`Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
+                        initialValue={`Welcome to ${shopData?.name || clientName}! We're delighted to have you as our valued customer.`}
                     >
                         <TextArea
                             rows={4}
@@ -527,28 +549,28 @@ const GiftCardModal = ({
                         ref={giftCardRef}
                         bordered
                         style={{
-                            background: `#f8f0e5`,
-                            color: "#9a6e44",
+                            background: `${primaryColor}15`,
+                            color: primaryColor,
                             borderRadius: "8px"
                         }}
                     >
                         <div style={{ padding: "16px", textAlign: "center" }}>
-                            <Title level={2} style={{ color: "#9a6e44", margin: "8px 0", textTransform: "uppercase", letterSpacing: "2px", fontWeight: 300 }}>
+                            <Title level={2} style={{ color: primaryColor, margin: "8px 0", textTransform: "uppercase", letterSpacing: "2px", fontWeight: 300 }}>
                                 Gift Certificate
                             </Title>
-                            <Divider style={{ background: "rgba(154,110,68,0.2)", margin: "12px 0" }} />
+                            <Divider style={{ background: `${primaryColor}33`, margin: "12px 0" }} />
 
                             <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
                                 <div style={{ textAlign: "center" }}>
-                                    <div style={{ fontSize: "32px", fontWeight: 300, textTransform: "uppercase", letterSpacing: "2px", color: "#9a6e44" }}>
-                                        Treat <span style={{ fontStyle: "italic", fontWeight: 300, textTransform: "none", color: "#b08968" }}>yourself</span>
+                                    <div style={{ fontSize: "32px", fontWeight: 300, textTransform: "uppercase", letterSpacing: "2px", color: primaryColor }}>
+                                        Treat <span style={{ fontStyle: "italic", fontWeight: 300, textTransform: "none", color: `${primaryColor}99` }}>yourself</span>
                                     </div>
                                 </div>
                             </div>
 
                             <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", marginTop: "20px" }}>
                                 <div style={{ width: "48%", textAlign: "left", marginBottom: "15px" }}>
-                                    <div style={{ color: "#9a6e44", fontWeight: 500, marginBottom: "5px" }}>To:</div>
+                                    <div style={{ color: primaryColor, fontWeight: 500, marginBottom: "5px" }}>To:</div>
                                     <div style={{
                                         backgroundColor: "white",
                                         padding: "12px",
@@ -561,7 +583,7 @@ const GiftCardModal = ({
                                 </div>
 
                                 <div style={{ width: "48%", textAlign: "left", marginBottom: "15px" }}>
-                                    <div style={{ color: "#9a6e44", fontWeight: 500, marginBottom: "5px" }}>From:</div>
+                                    <div style={{ color: primaryColor, fontWeight: 500, marginBottom: "5px" }}>From:</div>
                                     <div style={{
                                         backgroundColor: "white",
                                         padding: "12px",
@@ -569,13 +591,13 @@ const GiftCardModal = ({
                                         color: "#333",
                                         minHeight: "42px"
                                     }}>
-                                        {clientName}
+                                        {shopData?.name || clientName}
                                     </div>
                                 </div>
 
                                 {(isPriceVisible || currentGiftCard.price_visible) && (
                                     <div style={{ width: "48%", textAlign: "left", marginBottom: "15px" }}>
-                                        <div style={{ color: "#9a6e44", fontWeight: 500, marginBottom: "5px" }}>Amount:</div>
+                                        <div style={{ color: primaryColor, fontWeight: 500, marginBottom: "5px" }}>Amount:</div>
                                         <div style={{
                                             backgroundColor: "white",
                                             padding: "12px",
@@ -589,7 +611,7 @@ const GiftCardModal = ({
                                 )}
 
                                 <div style={{ width: isPriceVisible ? "48%" : "100%", textAlign: "left", marginBottom: "15px" }}>
-                                    <div style={{ color: "#9a6e44", fontWeight: 500, marginBottom: "5px" }}>Valid to:</div>
+                                    <div style={{ color: primaryColor, fontWeight: 500, marginBottom: "5px" }}>Valid to:</div>
                                     <div style={{
                                         backgroundColor: "white",
                                         padding: "12px",
@@ -610,7 +632,7 @@ const GiftCardModal = ({
                                 letterSpacing: "2px",
                                 fontSize: "22px",
                                 color: "#333",
-                                border: "1px solid #e8d5c4"
+                                border: `1px solid ${primaryColor}40`
                             }}>
                                 {currentGiftCard.code}
                             </div>
@@ -620,20 +642,34 @@ const GiftCardModal = ({
                             </Paragraph>
 
                             <div style={{ textAlign: "center", marginTop: "20px" }}>
-                                <div style={{
-                                    display: "inline-block",
-                                    width: "80px",
-                                    height: "80px",
-                                    borderRadius: "50%",
-                                    border: "1px solid #9a6e44",
-                                    textAlign: "center",
-                                    lineHeight: "80px",
-                                    fontSize: "24px",
-                                    color: "#9a6e44",
-                                    fontWeight: 300
-                                }}>
-                                    {clientName.substring(0, 1)}
-                                </div>
+                                {shopData?.logo ? (
+                                    <img 
+                                        src={shopData.logo} 
+                                        alt="Shop Logo" 
+                                        style={{
+                                            width: "80px",
+                                            height: "80px",
+                                            borderRadius: "50%",
+                                            objectFit: "cover",
+                                            border: `1px solid ${primaryColor}`
+                                        }}
+                                    />
+                                ) : (
+                                    <div style={{
+                                        display: "inline-block",
+                                        width: "80px",
+                                        height: "80px",
+                                        borderRadius: "50%",
+                                        border: `1px solid ${primaryColor}`,
+                                        textAlign: "center",
+                                        lineHeight: "80px",
+                                        fontSize: "24px",
+                                        color: primaryColor,
+                                        fontWeight: 300
+                                    }}>
+                                        {(shopData?.name || clientName).substring(0, 1).toUpperCase()}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </Card>
@@ -701,11 +737,11 @@ const GiftCardModal = ({
                             <Form.Item label="Message">
                                 <TextArea
                                     rows={3}
-                                    value={currentGiftCard.message || `Welcome to ${clientName}! We're delighted to have you as our valued customer.`}
+                                    value={currentGiftCard.message || `Welcome to ${shopData?.name || clientName}! We're delighted to have you as our valued customer.`}
                                     onChange={(e) => {
                                         setCurrentGiftCard(prev => ({
                                             ...prev,
-                                            message: e.target.value || `Welcome to ${clientName}! We're delighted to have you as our valued customer.`
+                                            message: e.target.value || `Welcome to ${shopData?.name || clientName}! We're delighted to have you as our valued customer.`
                                         }));
                                     }}
                                 />
