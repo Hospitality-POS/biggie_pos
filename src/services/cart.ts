@@ -455,6 +455,11 @@ export interface CartItem {
   table_id: string;
   printed: boolean;
   sent: boolean;
+  addons?: string[];
+  notes?: string;
+  miscellaneous_name?: string;
+  main_category?: any;
+  duration?: number;
   createdAt: string;
   updatedAt: string;
 }
