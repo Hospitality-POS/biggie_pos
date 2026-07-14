@@ -40,6 +40,7 @@ export interface Expense {
     expense_date: string;
 
     // Counterparty
+    customer_id?: string | { _id: string; customer_name: string; email?: string; phone?: string; code?: string };
     supplier_id?: string | { _id: string; name: string; phone?: string; email?: string };
     payee_name?: string;
 
@@ -99,6 +100,7 @@ export interface GetExpensesParams {
     status?: ExpenseStatus;
     payment_method?: ExpensePaymentMethod;
     supplier_id?: string;
+    customer_id?: string;
     from?: string;
     to?: string;
     search?: string;
@@ -117,6 +119,7 @@ export interface CreateExpenseLineParam {
 
 export interface CreateExpenseParams {
     expense_date?: string;
+    customer_id?: string;
     supplier_id?: string;
     payee_name?: string;
     expense_lines: CreateExpenseLineParam[];
@@ -135,6 +138,7 @@ export interface CreateExpenseParams {
 export interface UpdateExpenseParams {
     expense_date?: string;
     payee_name?: string;
+    customer_id?: string;
     supplier_id?: string;
     expense_lines?: CreateExpenseLineParam[];
     payment_method?: ExpensePaymentMethod;

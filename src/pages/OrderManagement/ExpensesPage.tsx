@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
     Button, DatePicker, Spin, Table, Typography, Tag, Modal,
-    Form, Input, App, Space, Tooltip,
+    Form, Input, App, Space, Tooltip, Select,
 } from "antd";
 import {
     ArrowUpOutlined, PlusOutlined, CheckCircleOutlined, StopOutlined, ReloadOutlined,
@@ -13,6 +13,7 @@ import {
     getAllExpenses, getExpenseSummary, approveExpense, voidExpense,
     type Expense, type ExpenseStatus,
 } from "@services/accounting/expense";
+import { fetchAllCustomers } from "@services/customers";
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
@@ -120,16 +121,24 @@ function ExpensesPage() {
         dayjs().startOf("month"),
         dayjs().endOf("month"),
     ]);
+    const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>();
 
     const { message } = App.useApp();
     const queryClient = useQueryClient();
 
+    const { data: customersRaw } = useQuery({
+        queryKey: ["customers-select-expenses"],
+        queryFn: () => fetchAllCustomers({}),
+    });
+    const customers = Array.isArray(customersRaw) ? customersRaw : [];
+
     const { data, isLoading } = useQuery({
-        queryKey: ["expenses", page, dateRange],
+        queryKey: ["expenses", page, dateRange, selectedCustomerId],
         queryFn: () => getAllExpenses({
             page, limit: 10,
             from: dateRange[0].toISOString(),
             to: dateRange[1].toISOString(),
+            customer_id: selectedCustomerId,
         }),
     });
 
@@ -185,6 +194,15 @@ function ExpensesPage() {
             render: (v: string) => (
                 <Text style={{ fontSize: 11, fontFamily: "monospace", color: C.subText }}>{v}</Text>
             ),
+        },
+        {
+            title: "Customer", width: 140,
+            render: (_: any, row: Expense) => {
+                const customer = row.customer_id as any;
+                return customer?.customer_name
+                    ? <Text style={{ fontSize: 12 }}>{customer.customer_name}</Text>
+                    : <Text style={{ color: C.subText }}>—</Text>;
+            },
         },
         {
             title: "Description",
@@ -313,17 +331,32 @@ function ExpensesPage() {
                         display: "flex", justifyContent: "space-between",
                         alignItems: "center", flexWrap: "wrap", gap: 10,
                     }}>
-                        <RangePicker
-                            value={dateRange}
-                            onChange={(v) => { if (v) { setPage(1); setDateRange(v as [dayjs.Dayjs, dayjs.Dayjs]); } }}
-                            style={{ borderRadius: 8 }}
-                            presets={[
-                                { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
-                                { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
-                                { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
-                                { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
-                            ]}
-                        />
+                        <Space size={8}>
+                            <RangePicker
+                                value={dateRange}
+                                onChange={(v) => { if (v) { setPage(1); setDateRange(v as [dayjs.Dayjs, dayjs.Dayjs]); } }}
+                                style={{ borderRadius: 8 }}
+                                presets={[
+                                    { label: "Today", value: [dayjs().startOf("day"), dayjs().endOf("day")] },
+                                    { label: "This Week", value: [dayjs().startOf("week"), dayjs().endOf("week")] },
+                                    { label: "This Month", value: [dayjs().startOf("month"), dayjs().endOf("month")] },
+                                    { label: "Last Month", value: [dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")] },
+                                ]}
+                            />
+                            <Select
+                                showSearch
+                                allowClear
+                                placeholder="Filter by customer"
+                                style={{ width: 200, borderRadius: 8 }}
+                                value={selectedCustomerId}
+                                onChange={(v) => { setPage(1); setSelectedCustomerId(v); }}
+                                options={customers.map((c: any) => ({
+                                    label: c.customer_name,
+                                    value: c._id,
+                                }))}
+                                optionFilterProp="label"
+                            />
+                        </Space>
                         <Space>
                             <Tooltip title="Refresh records">
                                 <Button
