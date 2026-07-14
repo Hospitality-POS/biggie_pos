@@ -114,16 +114,20 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
         }
       }
 
-      if (existingCartItem) {
-        // ── Item already in cart — increment quantity only, never resend price ──
+      // Check if existing item has addons or if we're adding with new addons
+      const existingHasAddons = existingCartItem?.addons && existingCartItem.addons.length > 0;
+      const addingWithAddons = addons && addons.length > 0;
+
+      if (existingCartItem && !existingHasAddons && !addingWithAddons) {
+        // ── Item already in cart without addons and not adding with addons — increment quantity only ──
         // addQtyCart does: existing.quantity + 1 via PUT /cart-item/:id
         // It does NOT modify price, so the unit price stays correct and
         // calculateTotals() will compute lineTotal = unitPrice * newQty correctly.
         await dispatch(addQtyCart(existingCartItem));
       } else {
-        // ── New item — add fresh with unit price ──────────────────────────────
-        // We only send price once (on first add). All subsequent clicks go through
-        // addQtyCart above which only touches quantity, never price.
+        // ── New item OR item with addons — always create fresh cart item ─────────────
+        // For items with addons, each quantity should be a separate line item
+        // to allow different modifier selections per unit
         await dispatch(
           addItemToCart({
             cart_id: cartId,
@@ -135,7 +139,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
             desc: menu.desc,
             table_id: tableId,
             ...(menu.type === 'service' && menu.duration && { duration: menu.duration }),
-            ...(addons && addons.length > 0 && { addons }),
+            ...(addingWithAddons && { addons }),
           })
         );
       }
@@ -197,14 +201,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ menu }) => {
 
   const handleClick = useCallback(() => {
     if (!loading && !isProcessing && tableId) {
-      // Check if product has addons
-      if (menu.addons && menu.addons.length > 0) {
+      // Check if product has addons OR if existing item in cart has addons
+      const existingHasAddons = existingCartItem?.addons && existingCartItem.addons.length > 0;
+      const productHasAddons = menu.addons && menu.addons.length > 0;
+      
+      if (productHasAddons || existingHasAddons) {
+        // Always open addon modal for items with addons to allow different selections per unit
         setAddonModalOpen(true);
       } else {
         handleAddToCart();
       }
     }
-  }, [loading, isProcessing, tableId, menu.addons, handleAddToCart]);
+  }, [loading, isProcessing, tableId, menu.addons, existingCartItem, handleAddToCart]);
 
   const handleAddonModalConfirm = (selectedAddonIds: string[]) => {
     setSelectedAddons(selectedAddonIds);

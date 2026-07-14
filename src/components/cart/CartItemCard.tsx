@@ -8,7 +8,7 @@ import {
   IconButton,
 } from "@mui/material";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty, updateCartItems } from "../../features/Cart/CartActions";
+import { deleteCartItem, addQtyCart, removeQtyCart, updateCartItemQty, updateCartItems, addItemToCart } from "../../features/Cart/CartActions";
 import { useAppDispatch, useAppSelector } from "../../store";
 import AddTaskIcon from "@mui/icons-material/AddTask";
 import { Button, Typography, notification, Tooltip, Input, Popconfirm, Checkbox, Space, Tag } from "antd";
@@ -50,6 +50,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
   const [addonNames, setAddonNames] = useState<string[]>([]);
   const [isAddonModalOpen, setIsAddonModalOpen] = useState(false);
   const [isEditingAddons, setIsEditingAddons] = useState(false);
+  const [isAddingNewItem, setIsAddingNewItem] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [allAvailableAddons, setAllAvailableAddons] = useState<any[]>([]);
   const [isEditMiscModalOpen, setIsEditMiscModalOpen] = useState(false);
@@ -233,6 +234,16 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
 
   const handleStepAdd = async () => {
     if (!canEditQty || stepLoading || qtyLoading) return;
+    
+    // For items with addons, open addon modal to select modifiers for new item
+    if (cartItem?.addons && cartItem.addons.length > 0) {
+      setIsAddingNewItem(true);
+      setIsEditingAddons(true); // Enable edit mode to show addon selection
+      setSelectedAddons([]); // Reset to allow fresh selection
+      setIsAddonModalOpen(true);
+      return;
+    }
+    
     setStepLoading("add");
     try {
       await dispatch(addQtyCart(cartItem));
@@ -241,6 +252,36 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
       notification.error({ message: "Failed to update quantity" });
     } finally {
       setStepLoading(null);
+    }
+  };
+
+  const handleAddNewItemWithAddons = async () => {
+    if (selectedAddons.length === 0) {
+      notification.warning({ message: "Please select at least one addon" });
+      return;
+    }
+    
+    try {
+      await dispatch(
+        addItemToCart({
+          cart_id: cartDetails._id,
+          product_id: cartItem.product_id._id || cartItem.product_id,
+          product_type: cartItem.product_type,
+          price: cartItem.price,
+          created_by: user?.id || user?._id,
+          quantity: 1,
+          desc: cartItem.desc,
+          table_id: cartItem.table_id,
+          addons: selectedAddons,
+          ...(cartItem.duration && { duration: cartItem.duration }),
+        })
+      );
+      notification.success({ message: "Item added to cart" });
+      setIsAddonModalOpen(false);
+      setIsAddingNewItem(false);
+      invalidate();
+    } catch (error) {
+      notification.error({ message: "Failed to add item to cart" });
     }
   };
 
@@ -744,7 +785,15 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
         }
         footer={
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            {isEditingAddons ? (
+            {isAddingNewItem ? (
+              <Space>
+                <Button onClick={() => {
+                  setIsAddonModalOpen(false);
+                  setIsAddingNewItem(false);
+                }}>Cancel</Button>
+                <Button type="primary" onClick={handleAddNewItemWithAddons}>Add New Item</Button>
+              </Space>
+            ) : isEditingAddons ? (
               <Space>
                 <Button onClick={() => setIsEditingAddons(false)}>Cancel</Button>
                 <Button type="primary" onClick={handleSaveAddons}>Save Changes</Button>
@@ -754,7 +803,7 @@ const CartItemCard: React.FC<cartItemCardProps> = ({ cartItem }) => {
                 Close
               </Button>
             )}
-            {!isEditingAddons && (
+            {!isAddingNewItem && !isEditingAddons && (
               <Button
                 type="default"
                 onClick={() => setIsEditingAddons(true)}
