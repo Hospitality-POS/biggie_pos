@@ -12,6 +12,7 @@ import { createExpense } from "@services/accounting/expense";
 import { createBill, updateBill } from "@services/accounting/bill";
 import { fetchAllPaymentMethods } from "@services/paymentMethod";
 import { fetchAllSuppliers } from "@services/supplier";
+import { fetchAllCustomers } from "@services/customers";
 import AddProSupplierModal from "@components/MODALS/pro/AddProSupplierModal";
 import AccountFormDrawer from "@pages/ChartOfAccounts/AccountFormDrawer";
 import { getVATConfigSync, calculateVAT } from "@utils/vat";
@@ -43,6 +44,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
     const [activeTab, setActiveTab] = useState<"expense" | "bill">(defaultTab);
     const [expenseSupplierSearch, setExpenseSupplierSearch] = useState("");
     const [billSupplierSearch, setBillSupplierSearch] = useState("");
+    const [expenseCustomerSearch, setExpenseCustomerSearch] = useState("");
 
     const [expenseAddSupplierOpen, setExpenseAddSupplierOpen] = useState(false);
     const [billAddSupplierOpen, setBillAddSupplierOpen] = useState(false);
@@ -133,6 +135,14 @@ const ManualExpenseBillModal: React.FC<Props> = ({
         staleTime: 30_000,
     });
 
+    const { data: expenseCustomersData, isFetching: expenseCustomersFetching } = useQuery({
+        queryKey: ["customers-dropdown-expense", expenseCustomerSearch],
+        queryFn: () => fetchAllCustomers({ customer_name: expenseCustomerSearch }),
+        enabled: open,
+        select: (res: any) => Array.isArray(res) ? res : (res?.customers || res?.data || []),
+        staleTime: 30_000,
+    });
+
     // ── Options ───────────────────────────────────────────────────────────────
     // FIX: keep full method object in value so we can read account_id on submit
     const methodOptions = paymentMethods.map((m: any) => ({
@@ -155,6 +165,11 @@ const ManualExpenseBillModal: React.FC<Props> = ({
     const billSupplierOptions = (billSuppliersData || []).map((s: any) => ({
         label: `${s.name}${s.phone ? ` — ${s.phone}` : ""}`,
         value: s._id,
+    }));
+
+    const expenseCustomerOptions = (expenseCustomersData || []).map((c: any) => ({
+        label: `${c.customer_name}${c.phone ? ` — ${c.phone}` : ""}`,
+        value: c._id,
     }));
 
     // ── Invalidation helpers ──────────────────────────────────────────────────
@@ -251,6 +266,7 @@ const ManualExpenseBillModal: React.FC<Props> = ({
         expenseMutation.mutate({
             expense_date: v.expense_date?.toISOString(),
             reference: v.reference || undefined,
+            customer_id: v.customer_id || undefined,
             supplier_id: v.supplier_id || undefined,
             expense_lines: [
                 {
@@ -440,6 +456,21 @@ const ManualExpenseBillModal: React.FC<Props> = ({
 
                         <Form.Item name="description" label="Description" rules={[{ required: true }]}>
                             <Input placeholder="e.g. Office rent — January 2025" />
+                        </Form.Item>
+
+                        <Form.Item
+                            name="customer_id"
+                            label="Customer (optional)"
+                            tooltip="Link to a customer for customer statements"
+                        >
+                            <Select
+                                showSearch allowClear placeholder="Search customer..."
+                                filterOption={false}
+                                onSearch={setExpenseCustomerSearch}
+                                loading={expenseCustomersFetching}
+                                options={expenseCustomerOptions}
+                                notFoundContent={expenseCustomersFetching ? "Searching..." : "No customers found"}
+                            />
                         </Form.Item>
 
                         <Form.Item

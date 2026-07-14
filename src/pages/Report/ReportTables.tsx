@@ -1012,10 +1012,150 @@ export const AccountBalancesTable: React.FC<{ data: AccountBalancesResponse }> =
 // ── 8. Customer Statement ─────────────────────────────────────────────────────
 export const CustomerStatementTable: React.FC<{ data: CustomerStatementResponse }> = ({ data }) => {
     const { customer, summary, transactions } = data;
-    const TXN_COLORS: Record<string, string> = { Invoice: "blue", Payment: "green", "Credit Note": "cyan" };
+    const TXN_COLORS: Record<string, string> = { Invoice: "blue", Payment: "green", "Credit Note": "cyan", Expense: "red" };
     const CS_COLS = ["Date", "Type", "Reference", "Description", "Debit (KES)", "Credit (KES)", "Balance (KES)"];
-    const handleExcel = () => exportToExcel("customer_statement", [...transactions.map((t) => ({ "Date": dayjs(t.date).format("DD MMM YYYY"), "Type": t.type, "Reference": t.reference, "Description": t.description, "Debit (KES)": t.debit, "Credit (KES)": t.credit, "Balance (KES)": t.balance })), BLANK_ROW(CS_COLS), { "Date": "SUMMARY", "Type": "", "Reference": "", "Description": "Total Invoiced", "Debit (KES)": summary.total_invoiced, "Credit (KES)": "", "Balance (KES)": "" }, { "Date": "", "Type": "", "Reference": "", "Description": "Total Paid", "Debit (KES)": "", "Credit (KES)": summary.total_paid, "Balance (KES)": "" }, { "Date": "", "Type": "", "Reference": "", "Description": summary.balance_label, "Debit (KES)": "", "Credit (KES)": "", "Balance (KES)": summary.closing_balance }]);
-    const handlePdf = () => exportToPdf("customer_statement", `Customer Statement — ${customer.customer_name}`, `Invoiced: KES ${fmt(summary.total_invoiced)}  |  Paid: KES ${fmt(summary.total_paid)}  |  ${summary.balance_label}: KES ${fmt(Math.abs(summary.closing_balance))}`, ["Date", "Type", "Reference", "Description", "Debit", "Credit", "Balance"], transactions.map((t) => [dayjs(t.date).format("DD MMM YYYY"), t.type, t.reference, t.description, fmt(t.debit), fmt(t.credit), fmt(t.balance)]));
+
+    // Group transactions by type for visual separation
+    const invoiceTransactions = transactions.filter(t => t.type === "Invoice" || t.type === "Credit Note");
+    const expenseTransactions = transactions.filter(t => t.type === "Expense");
+    const paymentTransactions = transactions.filter(t => t.type === "Payment");
+
+    const handleExcel = () => {
+        const excelRows: any[] = [];
+        
+        // Invoices Section
+        if (invoiceTransactions.length > 0) {
+            excelRows.push({ "Date": "INVOICES & CREDIT NOTES", "Type": "", "Reference": "", "Description": "", "Debit (KES)": "", "Credit (KES)": "", "Balance (KES)": "" });
+            invoiceTransactions.forEach(t => {
+                excelRows.push({
+                    "Date": dayjs(t.date).format("DD MMM YYYY"),
+                    "Type": t.type,
+                    "Reference": t.reference,
+                    "Description": t.description,
+                    "Debit (KES)": t.debit,
+                    "Credit (KES)": t.credit,
+                    "Balance (KES)": t.balance
+                });
+            });
+            excelRows.push(BLANK_ROW(CS_COLS));
+        }
+
+        // Expenses Section
+        if (expenseTransactions.length > 0) {
+            excelRows.push({ "Date": "EXPENSES", "Type": "", "Reference": "", "Description": "", "Debit (KES)": "", "Credit (KES)": "", "Balance (KES)": "" });
+            expenseTransactions.forEach(t => {
+                excelRows.push({
+                    "Date": dayjs(t.date).format("DD MMM YYYY"),
+                    "Type": t.type,
+                    "Reference": t.reference,
+                    "Description": t.description,
+                    "Debit (KES)": t.debit,
+                    "Credit (KES)": t.credit,
+                    "Balance (KES)": t.balance
+                });
+            });
+            excelRows.push(BLANK_ROW(CS_COLS));
+        }
+
+        // Payments Section
+        if (paymentTransactions.length > 0) {
+            excelRows.push({ "Date": "PAYMENTS", "Type": "", "Reference": "", "Description": "", "Debit (KES)": "", "Credit (KES)": "", "Balance (KES)": "" });
+            paymentTransactions.forEach(t => {
+                excelRows.push({
+                    "Date": dayjs(t.date).format("DD MMM YYYY"),
+                    "Type": t.type,
+                    "Reference": t.reference,
+                    "Description": t.description,
+                    "Debit (KES)": t.debit,
+                    "Credit (KES)": t.credit,
+                    "Balance (KES)": t.balance
+                });
+            });
+            excelRows.push(BLANK_ROW(CS_COLS));
+        }
+
+        // Summary
+        excelRows.push({ "Date": "SUMMARY", "Type": "", "Reference": "", "Description": "Total Invoiced", "Debit (KES)": summary.total_invoiced, "Credit (KES)": "", "Balance (KES)": "" });
+        excelRows.push({ "Date": "", "Type": "", "Reference": "", "Description": "Total Paid", "Debit (KES)": "", "Credit (KES)": summary.total_paid, "Balance (KES)": "" });
+        excelRows.push({ "Date": "", "Type": "", "Reference": "", "Description": "Total Expenses", "Debit (KES)": summary.total_expenses || 0, "Credit (KES)": "", "Balance (KES)": "" });
+        excelRows.push({ "Date": "", "Type": "", "Reference": "", "Description": summary.balance_label, "Debit (KES)": "", "Credit (KES)": "", "Balance (KES)": summary.closing_balance });
+
+        exportToExcel("customer_statement", excelRows);
+    };
+
+    const handlePdf = () => {
+        const pdfBody: any[][] = [];
+        
+        // Invoices Section
+        if (invoiceTransactions.length > 0) {
+            pdfBody.push([{ content: "INVOICES & CREDIT NOTES", colSpan: 7, styles: { fontStyle: "bold", fillColor: [230, 247, 255] } }]);
+            invoiceTransactions.forEach(t => {
+                pdfBody.push([
+                    dayjs(t.date).format("DD MMM YYYY"),
+                    t.type,
+                    t.reference,
+                    t.description,
+                    fmt(t.debit),
+                    fmt(t.credit),
+                    fmt(t.balance)
+                ]);
+            });
+            pdfBody.push(BLANK_ROW(CS_COLS));
+        }
+
+        // Expenses Section
+        if (expenseTransactions.length > 0) {
+            pdfBody.push([{ content: "EXPENSES", colSpan: 7, styles: { fontStyle: "bold", fillColor: [255, 241, 240] } }]);
+            expenseTransactions.forEach(t => {
+                pdfBody.push([
+                    dayjs(t.date).format("DD MMM YYYY"),
+                    t.type,
+                    t.reference,
+                    t.description,
+                    fmt(t.debit),
+                    fmt(t.credit),
+                    fmt(t.balance)
+                ]);
+            });
+            pdfBody.push(BLANK_ROW(CS_COLS));
+        }
+
+        // Payments Section
+        if (paymentTransactions.length > 0) {
+            pdfBody.push([{ content: "PAYMENTS", colSpan: 7, styles: { fontStyle: "bold", fillColor: [246, 255, 237] } }]);
+            paymentTransactions.forEach(t => {
+                pdfBody.push([
+                    dayjs(t.date).format("DD MMM YYYY"),
+                    t.type,
+                    t.reference,
+                    t.description,
+                    fmt(t.debit),
+                    fmt(t.credit),
+                    fmt(t.balance)
+                ]);
+            });
+            pdfBody.push(BLANK_ROW(CS_COLS));
+        }
+
+        // Summary
+        pdfBody.push([{ content: "SUMMARY", colSpan: 4, styles: { fontStyle: "bold" } }, { content: fmt(summary.total_invoiced), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }, "", { content: "", styles: { fontStyle: "bold" } }]);
+        pdfBody.push(["", "", { content: "Total Paid", styles: { fontStyle: "bold" } }, "", { content: fmt(summary.total_paid), styles: { fontStyle: "bold", textColor: [56, 158, 13] } }, "", ""]);
+        pdfBody.push(["", "", { content: "Total Expenses", styles: { fontStyle: "bold" } }, { content: fmt(summary.total_expenses || 0), styles: { fontStyle: "bold", textColor: [207, 19, 34] } }, "", "", ""]);
+        pdfBody.push(["", "", { content: summary.balance_label, styles: { fontStyle: "bold" } }, "", "", "", { content: fmt(Math.abs(summary.closing_balance)), styles: { fontStyle: "bold", textColor: summary.closing_balance > 0 ? [207, 19, 34] : [56, 158, 13] } }]);
+
+        exportToPdf("customer_statement", `Customer Statement — ${customer.customer_name}`, `Invoiced: KES ${fmt(summary.total_invoiced)}  |  Paid: KES ${fmt(summary.total_paid)}  |  Expenses: KES ${fmt(summary.total_expenses || 0)}  |  ${summary.balance_label}: KES ${fmt(Math.abs(summary.closing_balance))}`, ["Date", "Type", "Reference", "Description", "Debit", "Credit", "Balance"], pdfBody);
+    };
+
+    const columns = [
+        { title: "Date", dataIndex: "date", width: 110, render: (d: string) => dayjs(d).format("DD MMM YYYY") },
+        { title: "Type", dataIndex: "type", width: 110, render: (v: string) => <Tag color={TXN_COLORS[v] || "default"} style={{ fontSize: 10 }}>{v}</Tag> },
+        { title: "Reference", dataIndex: "reference", width: 120 },
+        { title: "Description", dataIndex: "description", ellipsis: true },
+        { title: "Debit", dataIndex: "debit", width: 110, align: "right" as const, render: (v: number) => v > 0 ? <Text style={{ color: "#cf1322" }}>{fmt(v)}</Text> : "—" },
+        { title: "Credit", dataIndex: "credit", width: 110, align: "right" as const, render: (v: number) => v > 0 ? <Text style={{ color: "#389e0d" }}>{fmt(v)}</Text> : "—" },
+        { title: "Balance", dataIndex: "balance", width: 120, align: "right" as const, render: (v: number) => <Text strong style={{ color: v > 0 ? "#cf1322" : "#389e0d" }}>{fmt(Math.abs(v))}</Text> }
+    ];
+
     return (
         <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -1024,11 +1164,68 @@ export const CustomerStatementTable: React.FC<{ data: CustomerStatementResponse 
                     {customer.email && <Text type="secondary">{customer.email}</Text>}
                     <Tag color="blue">Invoiced: KES {fmt(summary.total_invoiced)}</Tag>
                     <Tag color="green">Paid: KES {fmt(summary.total_paid)}</Tag>
+                    {(summary.total_expenses || 0) > 0 && <Tag color="red">Expenses: KES {fmt(summary.total_expenses || 0)}</Tag>}
                     <Tag color={summary.closing_balance > 0 ? "red" : "green"}>{summary.balance_label}: KES {fmt(Math.abs(summary.closing_balance))}</Tag>
                 </Space>
                 <ExportDropdown onExcel={handleExcel} onPdf={handlePdf} />
             </div>
-            <Table rowKey={(r, i) => `${r.document_id}-${i}`} dataSource={transactions} pagination={{ pageSize: 20, showSizeChanger: true }} size="small" scroll={{ x: 700 }} columns={[{ title: "Date", dataIndex: "date", width: 110, render: (d: string) => dayjs(d).format("DD MMM YYYY") }, { title: "Type", dataIndex: "type", width: 110, render: (v: string) => <Tag color={TXN_COLORS[v] || "default"} style={{ fontSize: 10 }}>{v}</Tag> }, { title: "Reference", dataIndex: "reference", width: 120 }, { title: "Description", dataIndex: "description", ellipsis: true }, { title: "Debit", dataIndex: "debit", width: 110, align: "right" as const, render: (v: number) => v > 0 ? <Text style={{ color: "#cf1322" }}>{fmt(v)}</Text> : "—" }, { title: "Credit", dataIndex: "credit", width: 110, align: "right" as const, render: (v: number) => v > 0 ? <Text style={{ color: "#389e0d" }}>{fmt(v)}</Text> : "—" }, { title: "Balance", dataIndex: "balance", width: 120, align: "right" as const, render: (v: number) => <Text strong style={{ color: v > 0 ? "#cf1322" : "#389e0d" }}>{fmt(Math.abs(v))}</Text> }]} />
+
+            {/* Invoices Section */}
+            {invoiceTransactions.length > 0 && (
+                <>
+                    <div style={{ background: "#e6f7ff", padding: "8px 12px", borderRadius: 6, marginBottom: 8, marginTop: 8 }}>
+                        <Text strong style={{ color: "#1890ff", fontSize: 13 }}>Invoices & Credit Notes</Text>
+                    </div>
+                    <Table
+                        rowKey={(r, i) => `invoice-${r.document_id}-${i}`}
+                        dataSource={invoiceTransactions}
+                        pagination={false}
+                        size="small"
+                        scroll={{ x: 700 }}
+                        columns={columns}
+                        style={{ marginBottom: 16 }}
+                    />
+                </>
+            )}
+
+            {/* Expenses Section */}
+            {expenseTransactions.length > 0 && (
+                <>
+                    <div style={{ background: "#fff1f0", padding: "8px 12px", borderRadius: 6, marginBottom: 8, marginTop: 8 }}>
+                        <Text strong style={{ color: "#cf1322", fontSize: 13 }}>Expenses</Text>
+                    </div>
+                    <Table
+                        rowKey={(r, i) => `expense-${r.document_id}-${i}`}
+                        dataSource={expenseTransactions}
+                        pagination={false}
+                        size="small"
+                        scroll={{ x: 700 }}
+                        columns={columns}
+                        style={{ marginBottom: 16 }}
+                    />
+                </>
+            )}
+
+            {/* Payments Section */}
+            {paymentTransactions.length > 0 && (
+                <>
+                    <div style={{ background: "#f6ffed", padding: "8px 12px", borderRadius: 6, marginBottom: 8, marginTop: 8 }}>
+                        <Text strong style={{ color: "#52c41a", fontSize: 13 }}>Payments</Text>
+                    </div>
+                    <Table
+                        rowKey={(r, i) => `payment-${r.document_id}-${i}`}
+                        dataSource={paymentTransactions}
+                        pagination={false}
+                        size="small"
+                        scroll={{ x: 700 }}
+                        columns={columns}
+                    />
+                </>
+            )}
+
+            {transactions.length === 0 && (
+                <div style={{ textAlign: "center", padding: 24, color: "#999" }}>No transactions found</div>
+            )}
         </>
     );
 };

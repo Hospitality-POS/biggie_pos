@@ -74,7 +74,7 @@ const POS_ROUTE_PERMISSIONS: Record<string, string> = {
   "/inventory": "INVENTORY_VIEW",
   "/employee-shift": "SHIFTS_VIEW",
   "/customers": "CUSTOMERS_VIEW",
-  "/reports": "REPORTS_ITEM_SALES",
+  "/reports": "REPORTS_ITEM_SALES|ACCOUNTING_REPORT_PROFIT_LOSS",
   "/documents": "DOCUMENTS_VIEW",
   "/petty-cash": "ORDERS_VIEW_DASHBOARD",
   "/refunds": "ORDERS_VIEW_DASHBOARD",
@@ -103,7 +103,7 @@ const ACCOUNTING_ROUTE_PERMISSIONS: Record<string, string> = {
   "/accounting/bills": "ACCOUNTING_INVOICE_VIEW",
   "/accounting/income": "ACCOUNTING_INCOME_VIEW_HISTORY",
   "/accounting/sales-receipts": "ACCOUNTING_INCOME_VIEW_HISTORY",
-  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS",
+  "/reports": "ACCOUNTING_REPORT_PROFIT_LOSS|REPORTS_ITEM_SALES",
   "/accounting/currencies": "ACCOUNTING_COA_VIEW",
   "/inventory": "INVENTORY_VIEW",
   "/customers": "CUSTOMERS_VIEW",
@@ -225,6 +225,12 @@ const useProLayoutNav = () => {
     // Special case: if Dala module is enabled, show all Dala navigation
     if (hasDala && bare.startsWith("/dala")) {
       return true;
+    }
+    
+    // Handle OR conditions with | separator
+    if (gate.includes("|")) {
+      const permissions = gate.split("|");
+      return permissions.some(perm => can(perm.trim()));
     }
     
     return can(gate);
@@ -399,6 +405,7 @@ const useProLayoutNav = () => {
     { ...inventoryRoute, _bare: inventoryBarePath },
     { path: p("/employee-shift"), name: "Crew", icon: <UsergroupAddOutlined />, _bare: "/employee-shift" },
     ...((!hasMteja || !isMtejaOnly) ? [{ path: p("/customers"), name: getCustomerLabel(), icon: <UserOutlined />, _bare: "/customers" }] : []),
+    { path: p("/reports"), name: "Reports", icon: <ApiFilled />, _bare: "/reports" },
     { ...documentRoute, _bare: "/documents" },
     { path: p("/staff-management"), name: "Staff Management", icon: <TeamOutlined />, _bare: "/staff-management" },
     { path: p("/Category-settings"), name: "Categories", icon: <ApartmentOutlined />, _bare: "/Category-settings" },

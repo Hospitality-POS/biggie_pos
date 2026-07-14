@@ -209,7 +209,7 @@ export interface AccountBalancesResponse {
 
 export interface StatementTransaction {
     date: string;
-    type: "Invoice" | "Payment" | "Credit Note" | "Bill" | "Debit Note";
+    type: "Invoice" | "Payment" | "Credit Note" | "Bill" | "Debit Note" | "Expense";
     reference: string;
     description: string;
     debit: number;
@@ -234,6 +234,8 @@ export interface CustomerStatementResponse {
         total_invoiced: number;
         total_paid: number;
         total_credit_notes: number;
+        total_sales_receipts: number;
+        total_expenses: number;
         closing_balance: number;
         balance_label: "Amount Due" | "Credit Balance" | "Settled";
     };

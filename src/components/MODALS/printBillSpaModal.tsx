@@ -15,6 +15,8 @@ import {
 import "./bill.css";
 import { useReactToPrint } from "react-to-print";
 import useSystemDetails from "@hooks/useSystemDetails";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import {
   PrinterFilled,
   PrinterOutlined,
@@ -34,6 +36,7 @@ import {
   IdcardOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -448,6 +451,42 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    if (!componentRef.current) {
+      message.error("Document is not ready yet. Please try again.");
+      return;
+    }
+    
+    try {
+      const element = componentRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: isPdfView ? 'a4' : [80, canvas.height * 80 / canvas.width],
+      });
+      
+      const imgWidth = isPdfView ? 210 : 80;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      
+      const filename = `${docConfig.label}_${cartDetails?.order_no || 'receipt'}.pdf`;
+      pdf.save(filename);
+      
+      message.success("PDF downloaded successfully");
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      message.error("Failed to download PDF");
+    }
+  };
+
   // ── Styles ─────────────────────────────────────────────────────────────
   const S = makeReceiptStyles(isBold, fontSize);
 
@@ -489,7 +528,17 @@ const PrintSpaBillModal: React.FC<PrintBillProps> = ({ cartDetails, data }) => {
               >
                 Send via Email
               </Button>
-              <Space>{defaultDoms[0]}{defaultDoms[1]}</Space>
+              <Space>
+                <Button
+                  icon={<DownloadOutlined />}
+                  onClick={handleDownloadPDF}
+                  style={{ borderColor: "#1890ff", color: "#1890ff", borderRadius: 7 }}
+                  disabled={!canPrint || isPrinting}
+                >
+                  Download PDF
+                </Button>
+                {defaultDoms[0]}{defaultDoms[1]}
+              </Space>
             </div>
           ),
           submitButtonProps: {
