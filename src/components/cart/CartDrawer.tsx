@@ -345,7 +345,8 @@ const CartDrawer: React.FC = () => {
           .map((u: any) => ({
             value: u._id,
             label: u.username || u.fullname || u.email || "Unknown",
-          }));
+          }))
+          .sort((a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label));
         setStaffList(filtered);
       } catch (e) {
         console.error("Failed to load staff list", e);
