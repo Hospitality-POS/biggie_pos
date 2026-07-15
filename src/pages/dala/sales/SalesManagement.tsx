@@ -21,6 +21,8 @@ import {
   Dropdown,
   Form,
   Upload,
+  Modal,
+  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -96,6 +98,9 @@ const SalesManagement: React.FC = () => {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
   const [documentForm] = Form.useForm();
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const shop_id = localStorage.getItem("shopId");
 
@@ -768,6 +773,10 @@ const SalesManagement: React.FC = () => {
     let clientName = 'N/A';
     let clientEmail = '';
     let clientPhone = '';
+    let clientIdNumber = '';
+    let clientAddress = '';
+    let clientAddressObject = null;
+    let clientKraPin = '';
     let customers = [];
     
     if (selectedSale.isJointPurchase && selectedSale.customers?.length > 0) {
@@ -775,22 +784,45 @@ const SalesManagement: React.FC = () => {
       clientName = customers.map((c: any) => c.name || c.customer_name || c.email).join(', ');
       clientEmail = customers.map((c: any) => c.email).filter(Boolean).join(', ');
       clientPhone = customers.map((c: any) => c.phone).filter(Boolean).join(', ');
+      clientIdNumber = customers.map((c: any) => c.idNumber || c.id_number).filter(Boolean).join(', ');
+      clientAddress = customers.map((c: any) => c.address).filter(Boolean).join(', ');
+      clientAddressObject = customers[0]?.address || null;
+      clientKraPin = customers[0]?.kra_pin || '';
     } else {
       const customer = selectedSale.customer || selectedSale.client;
       clientName = String(customer?.name || customer?.customer_name || customer?.email || 'N/A');
       clientEmail = String(customer?.email || '');
       clientPhone = String(customer?.phone || '');
+      clientIdNumber = String(customer?.idNumber || customer?.id_number || '');
+      clientAddress = String(customer?.address || '');
+      clientAddressObject = customer?.address || null;
+      clientKraPin = String(customer?.kra_pin || '');
     }
+    
+    // Get unit details
+    const unit = selectedSale.unit || selectedSale.unitTypeID;
+    const unitNumber = unit?.unitNumber || unit?.name || selectedSale.apartmentName || '';
+    const unitType = unit?.unitType || unit?.type || '';
+    const floor = unit?.floorId || selectedSale.floor || '';
+    const block = unit?.blockId || selectedSale.block || '';
     
     const offerLetterData = {
       saleCode: String(selectedSale.saleCode || 'N/A'),
       clientName: String(clientName),
       clientEmail: String(clientEmail),
       clientPhone: String(clientPhone),
+      clientIdNumber: String(clientIdNumber),
+      clientAddress: String(clientAddress),
+      clientAddressObject: clientAddressObject,
+      clientKraPin: String(clientKraPin),
       propertyName: String(propertyName),
       propertyType: String(selectedSale.property?.propertyType || 'N/A'),
-      unitName: String(selectedSale.unitTypeID?.unitType || selectedSale.unitTypeID?.type || 'N/A'),
+      unitName: String(unit?.name || 'N/A'),
+      unitNumber: String(unitNumber),
+      unitType: String(unitType),
       apartmentName: String(selectedSale.apartmentName || ''),
+      floor: String(floor),
+      block: String(block),
       salePrice: Number(selectedSale.salePrice || 0),
       initialPayment: Number(selectedSale.deposit?.amount || selectedSale.paymentPlans?.[0]?.initialDeposit || 0),
       paymentPlan: String(selectedSale.paymentPlanType || 'N/A'),
@@ -802,9 +834,161 @@ const SalesManagement: React.FC = () => {
       paymentTotals: selectedSale.paymentTotals || null,
       isJointPurchase: selectedSale.isJointPurchase || false,
       customers: customers,
+      // Chestnut City specific fields
+      propertyTitleNumber: String(selectedSale.property?.titleNumber || 'LR 111199 (Originally 4761/)'),
+      location: String(selectedSale.property?.location || 'NANYUKI'),
+      leaseTerm: String(selectedSale.property?.leaseTerm || 'Ninety-Nine (99) years less the last seven (7) days thereof'),
+      managementCompany: String(selectedSale.property?.managementCompany || 'Chestnut City Management Company'),
+      completionDate: String(selectedSale.property?.completionDate || ''),
+      companyDetails: {
+        name: String(selectedSale.property?.developer || 'CHESTNUT CITY LIMITED'),
+        companyRegNo: String(selectedSale.property?.companyRegNo || 'PVT-RXU2E3RV'),
+        poBox: String(selectedSale.property?.poBox || '45721-00100 Nairobi'),
+        phone: String(selectedSale.property?.phone || ''),
+        email: String(selectedSale.property?.email || ''),
+        address: String(selectedSale.property?.address || ''),
+      },
+      bankDetails: {
+        beneficiary: String('CHESTNUT CITY LIMITED'),
+        accountName: String(selectedSale.property?.bankAccountName || ''),
+        bankName: String(selectedSale.property?.bankName || ''),
+        accountNumber: String(selectedSale.property?.accountNumber || ''),
+        branchName: String(selectedSale.property?.branchName || ''),
+      },
+      lawyerDetails: {
+        name: String(selectedSale.property?.lawyerName || 'Messrs. JASON & COMPANY ADVOCATES'),
+        address: String(selectedSale.property?.lawyerAddress || '62 Lower Plains Road, P.O. Box 61850-00200 Nairobi'),
+        accountName: String(selectedSale.property?.lawyerAccountName || 'JASON & COMPANY ADVOCATES'),
+        bankName: String(selectedSale.property?.lawyerBankName || 'EQUITY BANK (KENYA) LIMITED'),
+        accountNumber: String(selectedSale.property?.lawyerAccountNumber || '1470287315683'),
+        branchName: String(selectedSale.property?.lawyerBranchName || 'KILIMANI SUPREME CENTRE'),
+      },
+      serviceCharge: Number(selectedSale.property?.serviceCharge || 0),
+      serviceChargeDeposit: Number(selectedSale.property?.serviceChargeDeposit || 0),
     };
 
     generateOfferLetterPDF(offerLetterData);
+  };
+
+  const handlePreviewOfferLetter = async () => {
+    if (!selectedSale) return;
+    
+    setPreviewLoading(true);
+    setPreviewModalVisible(true);
+    
+    try {
+      // Try to get property name from properties query data
+      const propertiesList = propertiesQuery.data?.data || [];
+      const property = propertiesList.find((p: any) => p._id === selectedSale.property?._id);
+      const propertyName = property?.name || selectedSale.property?.name || selectedSale.property?.propertyType || 'N/A';
+      
+      // Handle joint purchase customers
+      let clientName = 'N/A';
+      let clientEmail = '';
+      let clientPhone = '';
+      let clientIdNumber = '';
+      let clientAddress = '';
+      let clientAddressObject = null;
+      let clientKraPin = '';
+      let customers = [];
+      
+      if (selectedSale.isJointPurchase && selectedSale.customers?.length > 0) {
+        customers = selectedSale.customers;
+        clientName = customers.map((c: any) => c.name || c.customer_name || c.email).join(', ');
+        clientEmail = customers.map((c: any) => c.email).filter(Boolean).join(', ');
+        clientPhone = customers.map((c: any) => c.phone).filter(Boolean).join(', ');
+        clientIdNumber = customers.map((c: any) => c.idNumber || c.id_number).filter(Boolean).join(', ');
+        clientAddress = customers.map((c: any) => c.address).filter(Boolean).join(', ');
+        clientAddressObject = customers[0]?.address || null;
+        clientKraPin = customers[0]?.kra_pin || '';
+      } else {
+        const customer = selectedSale.customer || selectedSale.client;
+        clientName = String(customer?.name || customer?.customer_name || customer?.email || 'N/A');
+        clientEmail = String(customer?.email || '');
+        clientPhone = String(customer?.phone || '');
+        clientIdNumber = String(customer?.idNumber || customer?.id_number || '');
+        clientAddress = String(customer?.address || '');
+        clientAddressObject = customer?.address || null;
+        clientKraPin = String(customer?.kra_pin || '');
+      }
+      
+      // Get unit details
+      const unit = selectedSale.unit || selectedSale.unitTypeID;
+      const unitNumber = unit?.unitNumber || unit?.name || selectedSale.apartmentName || '';
+      const unitType = unit?.unitType || unit?.type || '';
+      const floor = unit?.floorId || selectedSale.floor || '';
+      const block = unit?.blockId || selectedSale.block || '';
+      
+      const offerLetterData = {
+        saleCode: String(selectedSale.saleCode || 'N/A'),
+        clientName: String(clientName),
+        clientEmail: String(clientEmail),
+        clientPhone: String(clientPhone),
+        clientIdNumber: String(clientIdNumber),
+        clientAddress: String(clientAddress),
+        clientAddressObject: clientAddressObject,
+        clientKraPin: String(clientKraPin),
+        propertyName: String(propertyName),
+        propertyType: String(selectedSale.property?.propertyType || 'N/A'),
+        unitName: String(unit?.name || 'N/A'),
+        unitNumber: String(unitNumber),
+        unitType: String(unitType),
+        apartmentName: String(selectedSale.apartmentName || ''),
+        floor: String(floor),
+        block: String(block),
+        salePrice: Number(selectedSale.salePrice || 0),
+        initialPayment: Number(selectedSale.deposit?.amount || selectedSale.paymentPlans?.[0]?.initialDeposit || 0),
+        paymentPlan: String(selectedSale.paymentPlanType || 'N/A'),
+        saleDate: String(selectedSale.saleDate || ''),
+        salesAgent: String(selectedSale.salesAgent?.fullname || selectedSale.salesAgent?.name || selectedSale.salesAgent?.email || 'N/A'),
+        propertyManager: String(selectedSale.propertyManager?.fullname || selectedSale.propertyManager?.name || selectedSale.propertyManager?.email || 'N/A'),
+        paymentPlans: selectedSale.paymentPlans || [],
+        payments: selectedSale.payments || [],
+        paymentTotals: selectedSale.paymentTotals || null,
+        isJointPurchase: selectedSale.isJointPurchase || false,
+        customers: customers,
+        // Chestnut City specific fields
+        propertyTitleNumber: String(selectedSale.property?.titleNumber || 'LR 111199 (Originally 4761/)'),
+        location: String(selectedSale.property?.location || 'NANYUKI'),
+        leaseTerm: String(selectedSale.property?.leaseTerm || 'Ninety-Nine (99) years less the last seven (7) days thereof'),
+        managementCompany: String(selectedSale.property?.managementCompany || 'Chestnut City Management Company'),
+        completionDate: String(selectedSale.property?.completionDate || ''),
+        companyDetails: {
+          name: String(selectedSale.property?.developer || 'CHESTNUT CITY LIMITED'),
+          companyRegNo: String(selectedSale.property?.companyRegNo || 'PVT-RXU2E3RV'),
+          poBox: String(selectedSale.property?.poBox || '45721-00100 Nairobi'),
+          phone: String(selectedSale.property?.phone || ''),
+          email: String(selectedSale.property?.email || ''),
+          address: String(selectedSale.property?.address || ''),
+        },
+        bankDetails: {
+          beneficiary: String('CHESTNUT CITY LIMITED'),
+          accountName: String(selectedSale.property?.bankAccountName || ''),
+          bankName: String(selectedSale.property?.bankName || ''),
+          accountNumber: String(selectedSale.property?.accountNumber || ''),
+          branchName: String(selectedSale.property?.branchName || ''),
+        },
+        lawyerDetails: {
+          name: String(selectedSale.property?.lawyerName || 'Messrs. JASON & COMPANY ADVOCATES'),
+          address: String(selectedSale.property?.lawyerAddress || '62 Lower Plains Road, P.O. Box 61850-00200 Nairobi'),
+          accountName: String(selectedSale.property?.lawyerAccountName || 'JASON & COMPANY ADVOCATES'),
+          bankName: String(selectedSale.property?.lawyerBankName || 'EQUITY BANK (KENYA) LIMITED'),
+          accountNumber: String(selectedSale.property?.lawyerAccountNumber || '1470287315683'),
+          branchName: String(selectedSale.property?.lawyerBranchName || 'KILIMANI SUPREME CENTRE'),
+        },
+        serviceCharge: Number(selectedSale.property?.serviceCharge || 0),
+        serviceChargeDeposit: Number(selectedSale.property?.serviceChargeDeposit || 0),
+      };
+
+      const pdfUrl = await generateOfferLetterPDF(offerLetterData, true);
+      setPreviewPdfUrl(pdfUrl || null);
+    } catch (error) {
+      console.error('Error generating preview:', error);
+      message.error('Failed to generate preview');
+      setPreviewModalVisible(false);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const handleModalCancel = () => {
@@ -844,6 +1028,15 @@ const SalesManagement: React.FC = () => {
   ];
 
   if (can(PERMISSIONS.DALA_SALES_DOWNLOAD_OFFER_LETTER.key)) {
+    downloadMenuItems.push({
+      key: 'preview-offer-letter',
+      label: (
+        <span>
+          <EyeOutlined /> Preview Offer Letter
+        </span>
+      ),
+      onClick: handlePreviewOfferLetter,
+    });
     downloadMenuItems.push({
       key: 'offer-letter',
       label: (
@@ -1055,6 +1248,49 @@ const SalesManagement: React.FC = () => {
         properties={propertiesQuery.data?.data || []}
         propertiesLoading={propertiesQuery.isLoading || propertiesQuery.isFetching}
       />
+
+      {/* PDF Preview Modal */}
+      <Modal
+        title="Offer Letter Preview"
+        open={previewModalVisible}
+        onCancel={() => {
+          setPreviewModalVisible(false);
+          setPreviewPdfUrl(null);
+        }}
+        width="80%"
+        style={{ top: 20 }}
+        footer={[
+          <Button key="close" onClick={() => {
+            setPreviewModalVisible(false);
+            setPreviewPdfUrl(null);
+          }}>
+            Close
+          </Button>,
+          <Button
+            key="download"
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={handleDownloadOfferLetter}
+          >
+            Download PDF
+          </Button>,
+        ]}
+      >
+        {previewLoading ? (
+          <div style={{ textAlign: 'center', padding: '50px' }}>
+            <Spin size="large" />
+            <div style={{ marginTop: 16 }}>Generating preview...</div>
+          </div>
+        ) : previewPdfUrl ? (
+          <iframe
+            src={previewPdfUrl}
+            style={{ width: '100%', height: '70vh', border: 'none' }}
+            title="Offer Letter Preview"
+          />
+        ) : (
+          <Empty description="Failed to load preview" />
+        )}
+      </Modal>
 
       <Drawer
         title={`Sale Details${selectedSale?.saleCode ? ` - ${selectedSale.saleCode}` : ''}`}

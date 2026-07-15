@@ -197,8 +197,16 @@ const RestaurantPage: React.FC = () => {
     }
 
     const term = searchTerm.toLowerCase();
-    setFilteredProducts(enabledProducts.filter((p) => p.name.toLowerCase().includes(term)));
-    setFilteredServices(enabledServices.filter((s) => s.name.toLowerCase().includes(term)));
+    
+    // Search by name or price/amount
+    setFilteredProducts(enabledProducts.filter((p) => 
+      p.name.toLowerCase().includes(term) || 
+      (p.price && p.price.toString().includes(term))
+    ));
+    setFilteredServices(enabledServices.filter((s) => 
+      s.name.toLowerCase().includes(term) || 
+      (s.price && s.price.toString().includes(term))
+    ));
   }, [searchTerm, products, services]);
 
   useEffect(() => {
