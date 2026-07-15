@@ -459,15 +459,28 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     const unit = property?.units?.find((u: any) => u._id === values.unit_id);
     const apartment = unit?.apartments?.find((a: any) => a._id === values.apartment_id);
 
+    // Get floor and block info
+    const floor = propertyFloors.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId) || 
+                  property?.floors?.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId);
+    const block = property?.blocks?.find((b: any) => b._id === unit?.blockId || b.tempId === unit?.blockId);
+
     const offerLetterData = {
       saleCode: String(initialData?.saleCode || `SALE-${Date.now()}`),
       clientName: String(client?.name || client?.customer_name || 'N/A'),
       clientEmail: String(client?.email || ''),
       clientPhone: String(client?.phone || ''),
+      clientIdNumber: String(client?.idNumber || client?.id_number || ''),
+      clientAddress: String(client?.address || ''),
+      clientAddressObject: client?.address || null,
+      clientKraPin: String(client?.kra_pin || ''),
       propertyName: String(property?.name || 'N/A'),
       propertyType: String(property?.propertyType || 'N/A'),
-      unitName: String(unit?.unitType || unit?.type || 'N/A'),
+      unitName: String(unit?.name || 'N/A'),
+      unitNumber: String(unit?.unitNumber || apartment?.apartmentName || ''),
+      unitType: String(unit?.unitType || unit?.type || 'N/A'),
       apartmentName: String(apartment?.apartmentName || ''),
+      floor: String(floor?.name || ''),
+      block: String(block?.name || ''),
       salePrice: Number(values.sale_price || 0),
       initialPayment: Number(values.initial_payment || 0),
       paymentPlan: String(values.payment_plan || 'N/A'),
@@ -477,6 +490,37 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
       paymentPlans: initialData?.paymentPlans || [],
       payments: initialData?.payments || [],
       paymentTotals: initialData?.paymentTotals || null,
+      // Chestnut City specific fields
+      propertyTitleNumber: String(property?.titleNumber || 'LR 111199 (Originally 4761/)'),
+      location: String(property?.location || 'NANYUKI'),
+      leaseTerm: String(property?.leaseTerm || 'Ninety-Nine (99) years less the last seven (7) days thereof'),
+      managementCompany: String(property?.managementCompany || 'Chestnut City Management Company'),
+      completionDate: String(property?.completionDate || ''),
+      companyDetails: {
+        name: String(property?.developer || 'CHESTNUT CITY LIMITED'),
+        companyRegNo: String(property?.companyRegNo || 'PVT-RXU2E3RV'),
+        poBox: String(property?.poBox || '45721-00100 Nairobi'),
+        phone: String(property?.phone || ''),
+        email: String(property?.email || ''),
+        address: String(property?.address || ''),
+      },
+      bankDetails: {
+        beneficiary: String('CHESTNUT CITY LIMITED'),
+        accountName: String(property?.bankAccountName || ''),
+        bankName: String(property?.bankName || ''),
+        accountNumber: String(property?.accountNumber || ''),
+        branchName: String(property?.branchName || ''),
+      },
+      lawyerDetails: {
+        name: String(property?.lawyerName || 'Messrs. JASON & COMPANY ADVOCATES'),
+        address: String(property?.lawyerAddress || '62 Lower Plains Road, P.O. Box 61850-00200 Nairobi'),
+        accountName: String(property?.lawyerAccountName || 'JASON & COMPANY ADVOCATES'),
+        bankName: String(property?.lawyerBankName || 'EQUITY BANK (KENYA) LIMITED'),
+        accountNumber: String(property?.lawyerAccountNumber || '1470287315683'),
+        branchName: String(property?.lawyerBranchName || 'KILIMANI SUPREME CENTRE'),
+      },
+      serviceCharge: Number(property?.serviceCharge || 0),
+      serviceChargeDeposit: Number(property?.serviceChargeDeposit || 0),
     };
 
     await generateOfferLetterPDF(offerLetterData);
