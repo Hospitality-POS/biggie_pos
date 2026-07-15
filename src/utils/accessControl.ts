@@ -652,6 +652,7 @@ export const PERMISSIONS: Record<string, Permission> = {
     DALA_SALES_UPDATE: { key: "DALA_SALES_UPDATE", label: "Update Sale", module: MODULES.DALA_SALES, action: "update", moduleScope: "dala" },
     DALA_SALES_DELETE: { key: "DALA_SALES_DELETE", label: "Delete Sale", module: MODULES.DALA_SALES, action: "delete", moduleScope: "dala" },
     DALA_SALES_DOWNLOAD_OFFER_LETTER: { key: "DALA_SALES_DOWNLOAD_OFFER_LETTER", label: "Download Offer Letter", module: MODULES.DALA_SALES, action: "special", moduleScope: "dala" },
+    DALA_SALES_PREVIEW_OFFER_LETTER: { key: "DALA_SALES_PREVIEW_OFFER_LETTER", label: "Preview Offer Letter", module: MODULES.DALA_SALES, action: "read", moduleScope: "dala" },
 
     // ── Leases ─────────────────────────────────────────────────────────────────
 

@@ -51,8 +51,6 @@ import {
 import { fetchSystemSetupDetailsById } from '@services/systemsetup';
 import { useDalaSales, useDalaProperties } from '../../../stores/dalaStore';
 import { generateOfferLetterPDF } from '@utils/offerLetterPDF';
-import { getPermissionChecker } from '@utils/getPermissionChecker';
-import { PERMISSIONS } from '@utils/accessControl';
 import dayjs from 'dayjs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -79,7 +77,6 @@ const C = {
 
 const SalesManagement: React.FC = () => {
   const queryClient = useQueryClient();
-  const can = getPermissionChecker();
   
   const [activeTab, setActiveTab] = useState('sales');
   
@@ -916,8 +913,8 @@ const SalesManagement: React.FC = () => {
       const unit = selectedSale.unit || selectedSale.unitTypeID;
       const unitNumber = unit?.unitNumber || unit?.name || selectedSale.apartmentName || '';
       const unitType = unit?.unitType || unit?.type || '';
-      const floor = unit?.floorId || selectedSale.floor || '';
-      const block = unit?.blockId || selectedSale.block || '';
+      const floor = unit?.floorId?.name || unit?.floorId?.floorNumber || selectedSale.floor || '';
+      const block = unit?.blockId?.name || selectedSale.block || '';
       
       const offerLetterData = {
         saleCode: String(selectedSale.saleCode || 'N/A'),
@@ -1027,26 +1024,24 @@ const SalesManagement: React.FC = () => {
     },
   ];
 
-  if (can(PERMISSIONS.DALA_SALES_DOWNLOAD_OFFER_LETTER.key)) {
-    downloadMenuItems.push({
-      key: 'preview-offer-letter',
-      label: (
-        <span>
-          <EyeOutlined /> Preview Offer Letter
-        </span>
-      ),
-      onClick: handlePreviewOfferLetter,
-    });
-    downloadMenuItems.push({
-      key: 'offer-letter',
-      label: (
-        <span>
-          <FileOutlined /> Download Offer Letter
-        </span>
-      ),
-      onClick: handleDownloadOfferLetter,
-    });
-  }
+  downloadMenuItems.push({
+    key: 'preview-offer-letter',
+    label: (
+      <span>
+        <EyeOutlined /> Preview Offer Letter
+      </span>
+    ),
+    onClick: handlePreviewOfferLetter,
+  });
+  downloadMenuItems.push({
+    key: 'offer-letter',
+    label: (
+      <span>
+        <FileOutlined /> Download Offer Letter
+      </span>
+    ),
+    onClick: handleDownloadOfferLetter,
+  });
 
   return (
     <div>

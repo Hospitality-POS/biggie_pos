@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import dayjs from 'dayjs';
 
 interface OfferLetterData {
@@ -173,21 +174,20 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text(`PURCHASER: ${data.clientName || '_______________________________'}`, 15, yPos);
   yPos += 8;
   
-  // Format address from address object
+  // Format address from address object - use only county
   let formattedAddress = '__________________________________';
   if (data.clientAddressObject && typeof data.clientAddressObject === 'object') {
-    const addr = data.clientAddressObject;
-    const parts = [];
-    if (addr.county) parts.push(addr.county);
-    if (addr.postal_code) parts.push(addr.postal_code);
-    if (addr.country) parts.push(addr.country);
-    formattedAddress = parts.join(', ') || '__________________________________';
+    formattedAddress = data.clientAddressObject.county || '__________________________________';
   } else if (data.clientAddress && typeof data.clientAddress === 'string') {
     formattedAddress = data.clientAddress;
   }
   doc.text(`Address: ${formattedAddress}`, 15, yPos);
   yPos += 8;
-  doc.text(`Telephone: ${data.clientPhone || '________________________________'}`, 15, yPos);
+  // Format telephone number with leading 0 if needed
+  const formattedPhone = data.clientPhone ? 
+    (data.clientPhone.startsWith('0') ? data.clientPhone : `0${data.clientPhone}`) : 
+    '________________________________';
+  doc.text(`Telephone: ${formattedPhone}`, 15, yPos);
   yPos += 8;
   
   // Date
@@ -271,20 +271,48 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   yPos += 10;
   
   // 3. Unit/Property
+  if (yPos > pageHeight - 50) {
+    doc.addPage();
+    yPos = 20;
+  }
+
   doc.text('3. Unit/Property;', 15, yPos);
   yPos += 6;
-  const unitNumberDisplay = data.apartmentName || data.unitNumber || '_____________________';
+  const unitNumberDisplay = data.unitNumber || data.apartmentName || '_____________________';
   doc.text(`Unit Number: ${unitNumberDisplay}`, 15, yPos);
   yPos += 6;
-  doc.text(`Unit Type: ${data.unitType || '_______________________'}`, 15, yPos);
+  
+  // Format unit type to full names
+  let formattedUnitType = data.unitType || '_______________________';
+  if (formattedUnitType) {
+    const typeLower = formattedUnitType.toLowerCase();
+    if (typeLower.includes('studio') || typeLower === 's') {
+      formattedUnitType = 'Studio';
+    } else if (typeLower.includes('1') || typeLower.includes('one') || typeLower.includes('1br') || typeLower.includes('1 br')) {
+      formattedUnitType = 'One Bedroom';
+    } else if (typeLower.includes('2') || typeLower.includes('two') || typeLower.includes('2br') || typeLower.includes('2 br')) {
+      formattedUnitType = 'Two Bedroom';
+    } else if (typeLower.includes('3') || typeLower.includes('three') || typeLower.includes('3br') || typeLower.includes('3 br')) {
+      formattedUnitType = 'Three Bedroom';
+    } else if (typeLower.includes('4') || typeLower.includes('four') || typeLower.includes('4br') || typeLower.includes('4 br')) {
+      formattedUnitType = 'Four Bedroom';
+    }
+  }
+  doc.text(`Unit Type: ${formattedUnitType}`, 15, yPos);
   yPos += 6;
+  
   const floorInfo = data.floor || '________';
   const blockInfo = data.block || '________';
   const apartmentDisplay = data.apartmentName || data.unitNumber || '________';
   doc.text(`Apartment No. ${apartmentDisplay} situated on the ${floorInfo} Floor, Block ${blockInfo}`, 15, yPos);
   yPos += 10;
-  
+
   // 4. Purchase Price
+  if (yPos > pageHeight - 80) {
+    doc.addPage();
+    yPos = 20;
+  }
+
   doc.text('4. Purchase Price;', 15, yPos);
   yPos += 6;
   doc.text(`The purchase price is Kenya Shillings: ____________________________ (KES ${(data.salePrice || 0).toLocaleString()}) being the agreed purchase price for the Unit.`, 15, yPos, { maxWidth: pageWidth - 30 });
@@ -292,9 +320,9 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   
   doc.text('The Purchase Prices for the various unit types are as follows:', 15, yPos);
   yPos += 15;
-  
+
   // 5. Deposit/Commitment Fee
-  if (yPos > pageHeight - 60) {
+  if (yPos > pageHeight - 100) {
     doc.addPage();
     yPos = 20;
   }
@@ -527,7 +555,64 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   yPos += 6;
   doc.text('This Offer Letter shall be governed by and construed in accordance with the laws of the Republic of Kenya.', 15, yPos, { maxWidth: pageWidth - 30 });
   yPos += 15;
-  
+
+  // PAYMENT PLANS TABLE
+  if (data.paymentPlans && data.paymentPlans.length > 0) {
+    if (yPos > pageHeight - 100) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(rgb.r, rgb.g, rgb.b);
+    doc.text('PAYMENT PLANS', 15, yPos);
+    yPos += 10;
+
+    const planHeaders = ['Start Date', 'End Date', 'Installment', 'Frequency', 'Installments', 'Status'];
+    const planRows = data.paymentPlans.map((plan: any) => [
+      plan.startDate ? dayjs(plan.startDate).format('DD MMM YYYY') : '-',
+      plan.endDate ? dayjs(plan.endDate).format('DD MMM YYYY') : '-',
+      `KES ${(plan.installmentAmount || 0).toLocaleString()}`,
+      plan.installmentFrequency || '-',
+      plan.numberOfInstallments || 0,
+      plan.status?.toUpperCase() || '-',
+    ]);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [planHeaders],
+      body: planRows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [rgb.r, rgb.g, rgb.b],
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 9,
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 3,
+      },
+      columnStyles: {
+        0: { cellWidth: 45 },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 45 },
+        3: { cellWidth: 40 },
+        4: { cellWidth: 35 },
+        5: { cellWidth: 35 },
+      },
+      didDrawPage: (data) => {
+        if (data.cursor) {
+          (doc as any).lastY = data.cursor.y;
+        }
+      },
+    });
+
+    yPos = (doc as any).lastY || yPos + 50;
+    yPos += 15;
+  }
+
   // ACCEPTANCE section
   if (yPos > pageHeight - 100) {
     doc.addPage();
@@ -700,7 +785,20 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text('Advocate Signature: _______________________', 15, yPos);
   yPos += 8;
   doc.text('Date: _______________________', pageWidth - 60, yPos);
-  
+  yPos += 30;
+
+  // SIGNATURE ROW
+  if (yPos > pageHeight - 40) {
+    doc.addPage();
+    yPos = 20;
+  }
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Vendor\'s Signature: _______________________', 15, yPos);
+  doc.text('Purchaser\'s Signature: _______________________', pageWidth - 80, yPos);
+
   // Footer
   const pageCount = (doc.internal as any).getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
