@@ -81,6 +81,8 @@ interface OfferLetterData {
     bankName?: string;
     accountNumber?: string;
     branchName?: string;
+    branchCode?: string;
+    swiftCode?: string;
   };
   lawyerDetails?: {
     name?: string;
@@ -696,20 +698,24 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   if (data.bankDetails) {
     doc.text(`ACCOUNT NAME: ${data.bankDetails.accountName || 'CHESTNUT CITY LIMITED'}`, 15, yPos);
     yPos += 8;
-    doc.text(`BANK NAME: ${data.bankDetails.bankName || '________________________'}`, 15, yPos);
+    doc.text(`BANK NAME: ${data.bankDetails.bankName || 'Diamond Trust Bank'}`, 15, yPos);
     yPos += 8;
-    doc.text(`ACCOUNT NUMBER: ${data.bankDetails.accountNumber || '________________________'}`, 15, yPos);
+    doc.text(`ACCOUNT NUMBER (KES): ${data.bankDetails.accountNumber || '0636875003'}`, 15, yPos);
     yPos += 8;
-    doc.text(`BRANCH NAME: ${data.bankDetails.branchName || '________________________'}`, 15, yPos);
+    doc.text(`BRANCH CODE: ${data.bankDetails.branchCode || '096'}`, 15, yPos);
+    yPos += 8;
+    doc.text(`SWIFT CODE: ${data.bankDetails.swiftCode || 'DTKEKENA'}`, 15, yPos);
   } else {
     // Default bank details
     doc.text('ACCOUNT NAME: CHESTNUT CITY LIMITED', 15, yPos);
     yPos += 8;
-    doc.text('BANK NAME: ________________________', 15, yPos);
+    doc.text('BANK NAME: Diamond Trust Bank', 15, yPos);
     yPos += 8;
-    doc.text('ACCOUNT NUMBER: ________________________', 15, yPos);
+    doc.text('ACCOUNT NUMBER (KES): 0636875003', 15, yPos);
     yPos += 8;
-    doc.text('BRANCH NAME: ________________________', 15, yPos);
+    doc.text('BRANCH CODE: 096', 15, yPos);
+    yPos += 8;
+    doc.text('SWIFT CODE: DTKEKENA', 15, yPos);
   }
   yPos += 12;
   
