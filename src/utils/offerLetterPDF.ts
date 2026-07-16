@@ -732,48 +732,6 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   yPos += 8;
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
-  doc.text('(Disbursements payable to our Lawyers directly)', 15, yPos);
-  yPos += 12;
-  
-  doc.setFont('helvetica', 'normal');
-  doc.text('Lawyer bank details as follow:', 15, yPos);
-  yPos += 10;
-  
-  if (data.lawyerDetails) {
-    doc.text(`ACCOUNT NAME: ${data.lawyerDetails.accountName || 'JASON & COMPANY ADVOCATES'}`, 15, yPos);
-    yPos += 10;
-    doc.text(`BANK NAME: ${data.lawyerDetails.bankName || 'EQUITY BANK (KENYA) LIMITED'}`, 15, yPos);
-    yPos += 10;
-    doc.text(`ACCOUNT NUMBER: ${data.lawyerDetails.accountNumber || '1470287315683'}`, 15, yPos);
-    yPos += 10;
-    doc.text(`BRANCH NAME: ${data.lawyerDetails.branchName || 'KILIMANI SUPREME CENTRE'}`, 15, yPos);
-  } else {
-    // Default lawyer details
-    doc.text('ACCOUNT NAME: JASON & COMPANY ADVOCATES', 15, yPos);
-    yPos += 10;
-    doc.text('BANK NAME: EQUITY BANK (KENYA) LIMITED', 15, yPos);
-    yPos += 10;
-    doc.text('ACCOUNT NUMBER: 1470287315683', 15, yPos);
-    yPos += 10;
-    doc.text('BRANCH NAME: KILIMANI SUPREME CENTRE', 15, yPos);
-  }
-  yPos += 12;
-  doc.text('*This is an estimated figure.', 15, yPos);
-  yPos += 15;
-  
-  // SCHEDULE 3
-  if (yPos > maxY) {
-    doc.addPage();
-    yPos = 20;
-  }
-  
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(rgb.r, rgb.g, rgb.b);
-  doc.text('SCHEDULE 3', 15, yPos);
-  yPos += 8;
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
   doc.text('Pay to the property management company/corporation once incorporated', 15, yPos);
   yPos += 20;
   
