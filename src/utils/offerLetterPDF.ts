@@ -461,21 +461,6 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   doc.text(splitLegalCosts, 15, yPos);
   yPos += splitLegalCosts.length * 7 + 8;
   
-  doc.setFont('helvetica', 'bold');
-  doc.text('Legal Fees:', 15, yPos);
-  yPos += 6;
-  doc.setFont('helvetica', 'normal');
-  const legalFeesText = 'The Purchaser shall pay the Vendor\'s Advocates fees in the amount of 1.5% of the purchase price inclusive of VAT. This rate includes all applicable Value Added Tax (VAT) at the prevailing rate and represents the total legal fees payable by the Purchaser for the conveyancing services rendered in connection with the purchase of the Unit.';
-  const splitLegalFees = doc.splitTextToSize(legalFeesText, pageWidth - 30);
-  if (yPos + splitLegalFees.length * 7 > maxY) { doc.addPage(); yPos = 20; }
-  doc.text(splitLegalFees, 15, yPos);
-  yPos += splitLegalFees.length * 7 + 8;
-  if (yPos + 14 > maxY) { doc.addPage(); yPos = 20; }
-  doc.text('>>50% of the legal fees shall be payable upon execution of the Agreement for Sale.', 20, yPos);
-  yPos += 7;
-  doc.text('>>50% of the legal fees shall be payable before commencement of the transfer process.', 20, yPos);
-  yPos += 12;
-  
   // 12. Administrative & Handling Charges
   if (yPos > maxY) {
     doc.addPage();
