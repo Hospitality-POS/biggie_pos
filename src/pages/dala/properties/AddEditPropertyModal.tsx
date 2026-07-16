@@ -1,5 +1,5 @@
 import { fetchAllUsersList } from '@services/users';
-import { createProperty, updateProperty } from '@services/dala';
+import { createProperty, updateProperty, createUnit } from '@services/dala';
 import { fetchPropertyTypes } from '@services/dala';
 import { PlusOutlined, HolderOutlined, EditOutlined, DeleteOutlined, TagOutlined, HomeOutlined, BuildOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { ModalForm, ProFormDatePicker, ProFormDigit, ProFormSelect, ProFormText, ProTable } from '@ant-design/pro-components';
@@ -377,7 +377,7 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
     setApartmentNames(updated);
   };
 
-  const saveApartmentNamesAndAddUnit = () => {
+  const saveApartmentNamesAndAddUnit = async () => {
     if (!tempUnitData) return;
     const names = apartmentNames.map(apt => apt.apartmentName);
     const uniqueNames = new Set(names);
@@ -390,7 +390,19 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       return;
     }
     const newUnit: Unit = { ...tempUnitData, apartments: apartmentNames, trackIndividualUnits: true };
-    setUnits([...units, newUnit]);
+    if (edit && data?._id) {
+      try {
+        const apiPayload = buildUnitApiPayload(newUnit, data._id, true, apartmentNames);
+        const result = await createUnit(apiPayload);
+        const savedId = result?.data?._id || result?._id || newUnit.key;
+        setUnits([...units, { ...newUnit, _id: savedId, key: savedId }]);
+      } catch {
+        return;
+      }
+    } else {
+      setUnits([...units, newUnit]);
+      message.success('Unit with individual apartments added successfully');
+    }
     setApartmentModalVisible(false);
     setApartmentNames([]);
     setTempUnitData(null);
@@ -404,14 +416,25 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       totalUnits: 1,
       trackIndividualUnits: false
     });
-    message.success('Unit with individual apartments added successfully');
     setUnitsValidationError(false);
   };
 
-  const skipApartmentNamingAndAddUnit = () => {
+  const skipApartmentNamingAndAddUnit = async () => {
     if (!tempUnitData) return;
     const newUnit: Unit = { ...tempUnitData, trackIndividualUnits: false, apartments: undefined };
-    setUnits([...units, newUnit]);
+    if (edit && data?._id) {
+      try {
+        const apiPayload = buildUnitApiPayload(newUnit, data._id, false, undefined);
+        const result = await createUnit(apiPayload);
+        const savedId = result?.data?._id || result?._id || newUnit.key;
+        setUnits([...units, { ...newUnit, _id: savedId, key: savedId }]);
+      } catch {
+        return;
+      }
+    } else {
+      setUnits([...units, newUnit]);
+      message.success('Unit added successfully');
+    }
     setApartmentModalVisible(false);
     setApartmentNames([]);
     setTempUnitData(null);
@@ -425,7 +448,6 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       totalUnits: 1,
       trackIndividualUnits: false
     });
-    message.success('Unit added successfully');
     setUnitsValidationError(false);
   };
 
@@ -518,19 +540,26 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
       }
 
       if (propertyUnits.length > 0) {
-        setUnits(propertyUnits.map((unit: any, index: number) => ({
-          ...unit,
-          key: unit._id || `unit_${index}`,
-          priceStartPoint: unit.pricing?.basePrice || unit.basePrice || unit.priceStartPoint || unit.listPrice || 0,
-          basePrice: unit.pricing?.basePrice || unit.basePrice || unit.priceStartPoint || unit.listPrice || 0,
-          phasePricing: unit.phasePricing?.map((pricing: any, pIndex: number) => ({
-            ...pricing,
-            price: pricing.listPrice || pricing.price || 0,
-            phaseId: pricing.phaseId || pricing._id,
-            key: pricing._id || `pricing_${index}_${pIndex}`
-          })) || [],
-          apartments: unit.apartments || undefined
-        })));
+        setUnits(propertyUnits.map((unit: any, index: number) => {
+          const directPrice = unit.pricing?.basePrice || unit.basePrice || unit.priceStartPoint || unit.listPrice || 0;
+          const aptPrices = (unit.trackIndividualUnits && unit.apartments?.length > 0)
+            ? unit.apartments.map((a: any) => a.saleListPrice || a.monthlyRent || 0).filter((p: number) => p > 0)
+            : [];
+          const startPrice = directPrice || (aptPrices.length > 0 ? Math.min(...aptPrices) : 0);
+          return {
+            ...unit,
+            key: unit._id || `unit_${index}`,
+            priceStartPoint: startPrice,
+            basePrice: startPrice,
+            phasePricing: unit.phasePricing?.map((pricing: any, pIndex: number) => ({
+              ...pricing,
+              price: pricing.listPrice || pricing.price || startPrice,
+              phaseId: pricing.phaseId || pricing._id,
+              key: pricing._id || `pricing_${index}_${pIndex}`
+            })) || [],
+            apartments: unit.apartments || undefined
+          };
+        }));
       }
 
       // Set current phase properly - handle object or string data.currentPhase
@@ -659,7 +688,32 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
     setPhasesValidationError(false);
   };
 
-  const handleAddUnit = () => {
+  const buildUnitApiPayload = (unitData: any, propertyId: string, trackIndividual: boolean, apts: any[] | undefined) => ({
+    name: unitData.unitNumber || unitData.unitType,
+    code: unitData.unitNumber || `${unitData.unitType}_${Date.now()}`,
+    type: 'residential' as const,
+    unitType: unitData.unitType,
+    unitNumber: unitData.unitNumber,
+    blockId: unitData.blockId,
+    floorId: unitData.floorId,
+    propertyId,
+    areaSqm: unitData.areaSqm,
+    status: 'available' as const,
+    totalUnits: unitData.totalUnits,
+    availableUnits: unitData.availableUnits,
+    trackIndividualUnits: trackIndividual,
+    apartments: apts,
+    pricing: {
+      basePrice: unitData.priceStartPoint,
+      pricePerSqm: unitData.areaSqm > 0 ? unitData.priceStartPoint / unitData.areaSqm : 0,
+      minPrice: unitData.priceStartPoint,
+      maxPrice: unitData.priceStartPoint,
+      currency: 'KES' as const,
+    },
+    phasePricing: unitData.phasePricing,
+  });
+
+  const handleAddUnit = async () => {
     if (propertyType === 'apartment') {
       if (!unitForm.blockId || !unitForm.floorId) { message.error('Please select block and floor'); return; }
       if (!unitForm.unitType) { message.error('Please select unit type'); return; }
@@ -709,7 +763,19 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
         ));
         setApartmentModalVisible(true);
       } else {
-        setUnits([...units, { ...unitData, trackIndividualUnits: false }]);
+        if (edit && data?._id) {
+          try {
+            const apiPayload = buildUnitApiPayload(unitData, data._id, false, undefined);
+            const result = await createUnit(apiPayload);
+            const savedId = result?.data?._id || result?._id || unitData.key;
+            setUnits([...units, { ...unitData, _id: savedId, key: savedId, trackIndividualUnits: false }]);
+          } catch {
+            return;
+          }
+        } else {
+          setUnits([...units, { ...unitData, trackIndividualUnits: false }]);
+          message.success('Unit added successfully');
+        }
         setUnitForm({
           blockId: unitForm.blockId,
           floorId: unitForm.floorId,
@@ -720,7 +786,6 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
           totalUnits: 1,
           trackIndividualUnits: false
         });
-        message.success('Unit added successfully');
         setUnitsValidationError(false);
       }
     } else {
@@ -1408,9 +1473,13 @@ const AddEditPropertyModal: React.FC<AddEditPropertyModalProps> = ({ edit, actio
         render: (_: any, record: Unit) => {
           const pricingItem = (record.phasePricing || []).find(p => p.phaseName === phase.name);
           const unitIdentifier = record._id || record.key;
+          const aptFallbackPrices = (record.trackIndividualUnits && record.apartments?.length)
+            ? record.apartments.map((a: any) => a.saleListPrice || a.monthlyRent || 0).filter((p: number) => p > 0)
+            : [];
+          const fallbackPrice = record.priceStartPoint || record.basePrice || (aptFallbackPrices.length > 0 ? Math.min(...aptFallbackPrices) : 0);
           return (
             <InputNumber
-              value={pricingItem?.price || 0}
+              value={pricingItem?.price || fallbackPrice}
               onChange={(value) => updateUnitPhasePrice(unitIdentifier!, phase.name, Number(value || 0))}
               placeholder="Enter price"
               min={0}
