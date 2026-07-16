@@ -307,7 +307,7 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   const floorInfo = (data.floor || '________').replace(/\s*\([+-]?\d+(\.\d+)?\)/g, '').trim();
   const blockInfo = data.block || '________';
   const apartmentDisplay = data.apartmentName || data.unitNumber || '________';
-  doc.text(`Apartment No. ${apartmentDisplay} situated on the ${floorInfo} Floor, Block ${blockInfo}`, 15, yPos);
+  doc.text(`Apartment No. ${apartmentDisplay} situated on ${floorInfo}, ${blockInfo}`, 15, yPos);
   yPos += 10;
 
   // 4. Purchase Price
