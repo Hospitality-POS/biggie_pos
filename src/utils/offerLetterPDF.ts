@@ -150,16 +150,29 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
   }
   
   try {
-    doc.addImage(tenantLogo, 'PNG', pageWidth - 40, 30, 25, 25);
+    doc.addImage(tenantLogo, 'PNG', 15, 30, 25, 25);
   } catch (error) {
     // If logo fails to load, draw a placeholder with brand color
     doc.setFillColor(rgb.r, rgb.g, rgb.b);
-    doc.circle(pageWidth - 27.5, 42.5, 12.5, 'F');
+    doc.circle(27.5, 42.5, 12.5, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(7);
-    doc.text('CHESTNUT', pageWidth - 27.5, 40, { align: 'center', baseline: 'middle' });
-    doc.text('CITY', pageWidth - 27.5, 45, { align: 'center', baseline: 'middle' });
+    doc.text('CHESTNUT', 27.5, 40, { align: 'center', baseline: 'middle' });
+    doc.text('CITY', 27.5, 45, { align: 'center', baseline: 'middle' });
   }
+  
+  // Contact Information - aligned to right
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(50, 50, 50);
+  const contactX = pageWidth - 15;
+  doc.text('Email: sales@chestnutcity.co.ke', contactX, 35, { align: 'right' });
+  doc.text('Number: 0759 300 300', contactX, 42, { align: 'right' });
+  doc.text('Website: www.chestnutcity.co.ke', contactX, 49, { align: 'right' });
+  doc.text('NANYUKI BUSINESS CENTER- 2nd floor – Room 202', contactX, 56, { align: 'right' });
+  
+  // Update yPos to start after contact information
+  yPos = 65;
   
   // To Section
   doc.setFontSize(11);
