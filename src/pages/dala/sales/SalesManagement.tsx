@@ -23,6 +23,7 @@ import {
   Upload,
   Modal,
   Spin,
+  Checkbox,
 } from 'antd';
 import {
   PlusOutlined,
@@ -98,6 +99,7 @@ const SalesManagement: React.FC = () => {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [hidePaymentPlans, setHidePaymentPlans] = useState(false);
 
   const shop_id = localStorage.getItem("shopId");
 
@@ -848,6 +850,7 @@ const SalesManagement: React.FC = () => {
       saleDate: String(selectedSale.saleDate || ''),
       salesAgent: String(selectedSale.salesAgent?.fullname || selectedSale.salesAgent?.name || selectedSale.salesAgent?.email || 'N/A'),
       propertyManager: String(selectedSale.propertyManager?.fullname || selectedSale.propertyManager?.name || selectedSale.propertyManager?.email || 'N/A'),
+      hidePaymentPlans: hidePaymentPlans,
       paymentPlans: selectedSale.paymentPlans || [],
       payments: selectedSale.payments || [],
       paymentTotals: selectedSale.paymentTotals || null,
@@ -963,6 +966,7 @@ const SalesManagement: React.FC = () => {
         saleDate: String(selectedSale.saleDate || ''),
         salesAgent: String(selectedSale.salesAgent?.fullname || selectedSale.salesAgent?.name || selectedSale.salesAgent?.email || 'N/A'),
         propertyManager: String(selectedSale.propertyManager?.fullname || selectedSale.propertyManager?.name || selectedSale.propertyManager?.email || 'N/A'),
+        hidePaymentPlans: hidePaymentPlans,
         paymentPlans: selectedSale.paymentPlans || [],
         payments: selectedSale.payments || [],
         paymentTotals: selectedSale.paymentTotals || null,
@@ -1382,20 +1386,30 @@ const SalesManagement: React.FC = () => {
         width="80%"
         style={{ top: 20 }}
         footer={[
-          <Button key="close" onClick={() => {
-            setPreviewModalVisible(false);
-            setPreviewPdfUrl(null);
-          }}>
-            Close
-          </Button>,
-          <Button
-            key="download"
-            type="primary"
-            icon={<DownloadOutlined />}
-            onClick={handleDownloadOfferLetter}
-          >
-            Download PDF
-          </Button>,
+          <div key="footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Checkbox
+              checked={hidePaymentPlans}
+              onChange={(e) => setHidePaymentPlans(e.target.checked)}
+            >
+              Hide Payment Plans
+            </Checkbox>
+            <div>
+              <Button key="close" onClick={() => {
+                setPreviewModalVisible(false);
+                setPreviewPdfUrl(null);
+              }} style={{ marginRight: 8 }}>
+                Close
+              </Button>
+              <Button
+                key="download"
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={handleDownloadOfferLetter}
+              >
+                Download PDF
+              </Button>
+            </div>
+          </div>,
         ]}
       >
         {previewLoading ? (

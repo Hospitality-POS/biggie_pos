@@ -114,42 +114,65 @@ export const generateClientStatementPDF = async (data: ClientStatementData, retu
   }
   yPos += 35;
 
-  // Get system settings
-  let systemName = 'Relia POS';
+  // Get tenant details for name, phone, and email
+  let tenantName = '';
+  let tenantAddress = '';
+  let tenantPhone = '';
+  let tenantEmail = '';
+
+  try {
+    const tenantStr = localStorage.getItem('tenant');
+    if (tenantStr) {
+      const tenant = JSON.parse(tenantStr);
+      tenantName = String(tenant?.name || tenant?.business_name || '');
+      tenantAddress = String(tenant?.address || tenant?.location || '');
+      tenantPhone = String(tenant?.phone || '');
+      tenantEmail = String(tenant?.email || '');
+    }
+  } catch (error) {
+    console.error('Error parsing tenant details:', error);
+  }
+
+  // Get system settings for phone and email (fallback)
   let systemPhone = '';
   let systemEmail = '';
-  let systemAddress = '';
 
   try {
     const systemSettings = await fetchSystemSetupDetailsById();
-    systemName = String(systemSettings?.name || systemSettings?.business_name || 'Relia POS');
+    console.log('System settings:', systemSettings);
     systemPhone = String(systemSettings?.phone || '');
     systemEmail = String(systemSettings?.email || '');
-    systemAddress = String(systemSettings?.location || systemSettings?.address || '');
   } catch (error) {
     console.error('Error fetching system settings:', error);
   }
+
+  // Use system settings if available, otherwise fallback to tenant
+  const displayPhone = systemPhone || tenantPhone;
+  const displayEmail = systemEmail || tenantEmail;
+
+  console.log('Display phone:', displayPhone);
+  console.log('Display email:', displayEmail);
 
   // Company details
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text(systemName, pageWidth - 15, yPos - 20, { align: 'right' });
+  doc.text(tenantName, pageWidth - 15, yPos - 20, { align: 'right' });
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   let infoY = yPos - 12;
-  if (systemAddress && systemAddress !== '[object Object]' && systemAddress !== '') {
-    doc.text(systemAddress, pageWidth - 15, infoY, { align: 'right' });
+  if (tenantAddress && tenantAddress !== '[object Object]' && tenantAddress !== '') {
+    doc.text(tenantAddress, pageWidth - 15, infoY, { align: 'right' });
     infoY += 6;
   }
-  if (systemPhone) {
-    doc.text(`Tel: ${systemPhone}`, pageWidth - 15, infoY, { align: 'right' });
+  if (displayPhone) {
+    doc.text(`Tel: ${displayPhone}`, pageWidth - 15, infoY, { align: 'right' });
     infoY += 6;
   }
-  if (systemEmail) {
-    doc.text(`Email: ${systemEmail}`, pageWidth - 15, infoY, { align: 'right' });
+  if (displayEmail) {
+    doc.text(`Email: ${displayEmail}`, pageWidth - 15, infoY, { align: 'right' });
   }
 
   yPos += 15;

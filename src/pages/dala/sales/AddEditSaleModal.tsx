@@ -17,6 +17,7 @@ import {
   Upload,
   Typography,
   Switch,
+  Checkbox,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
@@ -463,6 +464,8 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     onCancel();
   };
 
+  const [hidePaymentPlans, setHidePaymentPlans] = useState(false);
+
   const handleDownloadOfferLetter = async () => {
     const values = form.getFieldsValue();
     const client = customers?.find((c: any) => c._id === values.client_id);
@@ -473,7 +476,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
     const apartment = unit?.apartments?.find((a: any) => a._id === values.apartment_id);
 
     // Get floor and block info
-    const floor = propertyFloors.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId) || 
+    const floor = propertyFloors.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId) ||
                   property?.floors?.find((f: any) => f._id === unit?.floorId || f.tempId === unit?.floorId);
     const block = property?.blocks?.find((b: any) => b._id === unit?.blockId || b.tempId === unit?.blockId);
 
@@ -502,6 +505,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
       saleDate: String(values.sale_date?.format('YYYY-MM-DD') || ''),
       salesAgent: String(salesAgent?.fullname || salesAgent?.name || 'N/A'),
       propertyManager: String(propertyManager?.fullname || propertyManager?.name || 'N/A'),
+      hidePaymentPlans: hidePaymentPlans,
       paymentPlans: initialData?.paymentPlans || [],
       payments: initialData?.payments || [],
       paymentTotals: initialData?.paymentTotals || null,
@@ -1263,8 +1267,8 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                   ← Back
                 </Button>
                 {can(PERMISSIONS.DALA_SALES_DOWNLOAD_OFFER_LETTER.key) && (
-                  <Button 
-                    icon={<DownloadOutlined />} 
+                  <Button
+                    icon={<DownloadOutlined />}
                     onClick={handleDownloadOfferLetter}
                     style={{ marginRight: 8 }}
                   >
@@ -1272,8 +1276,8 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                   </Button>
                 )}
                 {can(PERMISSIONS.DALA_SALES_DOWNLOAD_OFFER_LETTER.key) && (
-                  <Button 
-                    icon={<DownloadOutlined />} 
+                  <Button
+                    icon={<DownloadOutlined />}
                     onClick={handleDownloadClientStatement}
                     style={{ marginRight: 8 }}
                   >
@@ -1286,6 +1290,14 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
                 <Button type="primary" onClick={handleSubmit}>
                   {edit ? 'Update Sale' : 'Create Sale'}
                 </Button>
+              </div>
+              <div style={{ marginTop: 12, textAlign: 'right' }}>
+                <Checkbox
+                  checked={hidePaymentPlans}
+                  onChange={(e) => setHidePaymentPlans(e.target.checked)}
+                >
+                  Hide Payment Plans in Offer Letter
+                </Checkbox>
               </div>
             </div>
           </Col>
