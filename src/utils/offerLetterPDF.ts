@@ -24,6 +24,8 @@ interface OfferLetterData {
   apartmentName?: string;
   floor?: string;
   block?: string;
+  listPrice?: number;
+  discount?: number;
   salePrice?: number;
   initialPayment?: number;
   paymentPlan?: string;
@@ -331,7 +333,18 @@ export const generateOfferLetterPDF = async (data: OfferLetterData, returnAsData
 
   doc.text('4. Purchase Price;', 15, yPos);
   yPos += 6;
-  doc.text(`The purchase price is Kenya Shillings (KES ${(data.salePrice || 0).toLocaleString()}) being the agreed purchase price for the Unit.`, 15, yPos, { maxWidth: pageWidth - 30 });
+  
+  if (data.discount && data.discount > 0) {
+    // Show price breakdown when discount is applied
+    doc.text(`The List Price is Kenya Shillings (KES ${(data.listPrice || 0).toLocaleString()}) for the Unit.`, 15, yPos, { maxWidth: pageWidth - 30 });
+    yPos += 8;
+    doc.text(`A discount of Kenya Shillings (KES ${data.discount.toLocaleString()}) has been applied.`, 15, yPos, { maxWidth: pageWidth - 30 });
+    yPos += 8;
+    doc.text(`The purchase price is Kenya Shillings (KES ${(data.salePrice || 0).toLocaleString()}) being the agreed purchase price for the Unit after discount.`, 15, yPos, { maxWidth: pageWidth - 30 });
+  } else {
+    // Show only sale price when no discount
+    doc.text(`The purchase price is Kenya Shillings (KES ${(data.salePrice || 0).toLocaleString()}) being the agreed purchase price for the Unit.`, 15, yPos, { maxWidth: pageWidth - 30 });
+  }
   yPos += 12;
   
   doc.text('The Purchase Prices for the various unit types are as follows:', 15, yPos);

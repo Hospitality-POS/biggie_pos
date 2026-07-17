@@ -320,10 +320,29 @@ const SalesManagement: React.FC = () => {
       ),
     },
     {
+      title: 'List Price',
+      dataIndex: 'list_price',
+      key: 'list_price',
+      render: (price: number, record: any) => `KES ${(price || record.listPrice || 0).toLocaleString()}`,
+    },
+    {
+      title: 'Discount',
+      dataIndex: 'discount',
+      key: 'discount',
+      render: (discount: number, record: any) => {
+        const discountAmount = discount || record.discount || 0;
+        return discountAmount > 0 ? (
+          <Text type="danger">-KES {discountAmount.toLocaleString()}</Text>
+        ) : (
+          <Text type="secondary">KES 0</Text>
+        );
+      },
+    },
+    {
       title: 'Sale Price',
       dataIndex: 'sale_price',
       key: 'sale_price',
-      render: (price: number) => `KES ${price.toLocaleString()}`,
+      render: (price: number, record: any) => `KES ${(price || record.salePrice || 0).toLocaleString()}`,
     },
     {
       title: 'Payment Plan',
@@ -418,7 +437,8 @@ const SalesManagement: React.FC = () => {
 
   const stats = {
     total: sales.length,
-    totalValue: sales.reduce((sum, sale) => sum + sale.sale_price, 0),
+    totalValue: sales.reduce((sum, sale) => sum + (sale.sale_price || sale.salePrice || 0), 0),
+    totalDiscount: sales.reduce((sum, sale) => sum + (sale.discount || 0), 0),
     pending: sales.filter(s => s.status === 'pending').length,
     completed: sales.filter(s => s.status === 'completed').length,
   };
@@ -553,7 +573,9 @@ const SalesManagement: React.FC = () => {
         ['Client', selectedSale.client?.name || selectedSale.client?.customer_name || selectedSale.client?.email || '-'],
         ['Property', selectedSale.property?.name || selectedSale.property?.propertyType || '-'],
         ['Unit/Apartment', selectedSale.apartmentName || selectedSale.unit?.name || '-'],
-        ['Sale Price', `KES ${(selectedSale.sale_price || 0).toLocaleString()}`],
+        ['List Price', `KES ${(selectedSale.list_price || selectedSale.listPrice || 0).toLocaleString()}`],
+        ['Discount', `KES ${(selectedSale.discount || 0).toLocaleString()}`],
+        ['Sale Price', `KES ${(selectedSale.sale_price || selectedSale.salePrice || 0).toLocaleString()}`],
         ['Deposit Paid', `KES ${(selectedSale.paymentTotals?.depositPaid || selectedSale.deposit?.amount || 0).toLocaleString()}`],
         ['Paid Amount', `KES ${(selectedSale.paymentTotals?.totalPaid || 0).toLocaleString()}`],
         ['Balance', `KES ${(selectedSale.paymentTotals?.outstandingBalance ?? (selectedSale.sale_price - selectedSale.paymentTotals?.totalPaid)).toLocaleString()}`],
@@ -933,6 +955,8 @@ const SalesManagement: React.FC = () => {
         apartmentName: String(selectedSale.apartmentName || ''),
         floor: String(floor),
         block: String(block),
+        listPrice: Number(selectedSale.list_price || selectedSale.listPrice || 0),
+        discount: Number(selectedSale.discount || 0),
         salePrice: Number(selectedSale.salePrice || 0),
         initialPayment: Number(selectedSale.deposit?.amount || selectedSale.paymentPlans?.[0]?.initialDeposit || 0),
         paymentPlan: String(selectedSale.paymentPlanType || 'N/A'),
@@ -988,6 +1012,89 @@ const SalesManagement: React.FC = () => {
     }
   };
 
+  const handlePreviewClientStatement = async () => {
+    if (!selectedSale) return;
+    
+    setPreviewLoading(true);
+    setPreviewModalVisible(true);
+    
+    try {
+      // Handle joint purchase customers
+      let clientName = 'N/A';
+      let clientEmail = '';
+      let clientPhone = '';
+      let clientAddress = '';
+      let clientAddressObject = null;
+      
+      if (selectedSale.isJointPurchase && selectedSale.customers?.length > 0) {
+        const customers = selectedSale.customers;
+        clientName = customers.map((c: any) => c.name || c.customer_name || c.email).join(', ');
+        clientEmail = customers.map((c: any) => c.email).filter(Boolean).join(', ');
+        clientPhone = customers.map((c: any) => c.phone).filter(Boolean).join(', ');
+        clientAddress = customers.map((c: any) => c.address).filter(Boolean).join(', ');
+        clientAddressObject = customers[0]?.address || null;
+      } else {
+        const customer = selectedSale.customer || selectedSale.client;
+        clientName = String(customer?.name || customer?.customer_name || customer?.email || 'N/A');
+        clientEmail = String(customer?.email || '');
+        clientPhone = String(customer?.phone || '');
+        clientAddress = String(customer?.address || '');
+        clientAddressObject = customer?.address || null;
+      }
+      
+      // Get unit details
+      const unit = selectedSale.unit || selectedSale.unitTypeID;
+      const unitNumber = unit?.unitNumber || unit?.name || selectedSale.apartmentName || '';
+      const floor = unit?.floorId?.name || unit?.floorId?.floorNumber || selectedSale.floor || '';
+      const block = unit?.blockId?.name || selectedSale.block || '';
+      
+      const clientStatementData = {
+        saleCode: String(selectedSale.saleCode || 'N/A'),
+        client: {
+          name: String(clientName),
+          email: String(clientEmail),
+          phone: String(clientPhone),
+          address: String(clientAddress),
+          addressObject: clientAddressObject,
+        },
+        property: {
+          name: String(selectedSale.property?.name || selectedSale.property?.propertyType || 'N/A'),
+          propertyType: String(selectedSale.property?.propertyType || 'N/A'),
+        },
+        unit: {
+          name: String(unit?.name || 'N/A'),
+          unitNumber: String(unitNumber),
+          apartmentName: String(selectedSale.apartmentName || ''),
+          floor: String(floor),
+          block: String(block),
+        },
+        list_price: Number(selectedSale.list_price || selectedSale.listPrice || 0),
+        discount: Number(selectedSale.discount || 0),
+        sale_price: Number(selectedSale.salePrice || 0),
+        paymentTotals: selectedSale.paymentTotals || {
+          totalPaid: 0,
+          depositPaid: 0,
+          outstandingBalance: 0,
+          paymentPercentage: 0,
+        },
+        paymentPlans: selectedSale.paymentPlans || [],
+        payments: selectedSale.payments || [],
+        sale_date: String(selectedSale.saleDate || ''),
+        status: String(selectedSale.status || 'reservation'),
+      };
+
+      const { generateClientStatementPDF } = await import('@utils/clientStatementPDF');
+      const pdfUrl = await generateClientStatementPDF(clientStatementData, true);
+      setPreviewPdfUrl(pdfUrl || null);
+    } catch (error) {
+      console.error('Error generating preview:', error);
+      message.error('Failed to generate preview');
+      setPreviewModalVisible(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const handleModalCancel = () => {
     setModalVisible(false);
     setEditSale(null);
@@ -1032,6 +1139,15 @@ const SalesManagement: React.FC = () => {
       </span>
     ),
     onClick: handlePreviewOfferLetter,
+  });
+  downloadMenuItems.push({
+    key: 'preview-client-statement',
+    label: (
+      <span>
+        <EyeOutlined /> Preview Client Statement
+      </span>
+    ),
+    onClick: handlePreviewClientStatement,
   });
   downloadMenuItems.push({
     key: 'offer-letter',
@@ -1101,6 +1217,17 @@ const SalesManagement: React.FC = () => {
                         prefix="KES"
                         precision={0}
                         valueStyle={{ color: '#52c41a' }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={24} sm={6}>
+                    <Card>
+                      <Statistic
+                        title="Total Discount"
+                        value={stats.totalDiscount}
+                        prefix="-KES"
+                        precision={0}
+                        valueStyle={{ color: '#ff4d4f' }}
                       />
                     </Card>
                   </Col>
@@ -1315,22 +1442,57 @@ const SalesManagement: React.FC = () => {
                 children: (
                   <Space direction="vertical" size={16} style={{ width: '100%' }}>
                     <Row gutter={16}>
-                      <Col span={12}>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="List Price"
+                            value={selectedSale.list_price || selectedSale.listPrice || 0}
+                            prefix="KES"
+                            precision={0}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
+                        <Card>
+                          <Statistic
+                            title="Discount"
+                            value={selectedSale.discount || 0}
+                            prefix="-KES"
+                            precision={0}
+                            valueStyle={{ color: '#ff4d4f' }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={8}>
                         <Card>
                           <Statistic
                             title="Sale Price"
-                            value={selectedSale.sale_price || 0}
+                            value={selectedSale.sale_price || selectedSale.salePrice || 0}
                             prefix="KES"
                             precision={0}
                             valueStyle={{ color: '#52c41a' }}
                           />
                         </Card>
                       </Col>
+                    </Row>
+
+                    <Row gutter={16}>
                       <Col span={12}>
                         <Card>
                           <Statistic
                             title="Status"
                             value={selectedSale.status?.replace('_', ' ').toUpperCase() || '-'}
+                            valueStyle={{ color: '#1890ff' }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={12}>
+                        <Card>
+                          <Statistic
+                            title="Payment Progress"
+                            value={selectedSale.paymentTotals?.paymentPercentage ?? 0}
+                            suffix="%"
+                            precision={1}
                             valueStyle={{ color: '#1890ff' }}
                           />
                         </Card>
