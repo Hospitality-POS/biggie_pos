@@ -125,7 +125,7 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
         // Handle joint purchase data
         const isJoint = initialData.isJointPurchase || false;
         const customersArray = initialData.customers || [];
-        const primaryCustomerId = initialData.customer || initialData.customer_id;
+        const primaryCustomerId = initialData.customer?._id || initialData.customer;
 
         setIsJointPurchase(isJoint);
         if (isJoint && customersArray.length > 0) {
@@ -134,30 +134,43 @@ const AddEditSaleModal: React.FC<AddEditSaleModalProps> = ({
           setSelectedCustomers([primaryCustomerId]);
         }
 
+        // Map API response structure to form fields
         form.setFieldsValue({
-          property_id: initialData.property_id,
-          unit_id: initialData.unit_id,
-          apartment_id: initialData.apartment_id,
+          property_id: initialData.property?._id || initialData.property_id,
+          unit_id: initialData.unitTypeID?._id || initialData.unit_id,
+          apartment_id: initialData.apartmentId || initialData.apartment_id,
           client_id: primaryCustomerId,
-          sale_date: initialData.sale_date ? dayjs(initialData.sale_date) : dayjs(),
-          sale_price: initialData.sale_price,
-          list_price: initialData.list_price || initialData.sale_price,
+          sale_date: initialData.saleDate ? dayjs(initialData.saleDate) : dayjs(),
+          sale_price: initialData.salePrice || initialData.sale_price,
+          list_price: initialData.salePrice || initialData.list_price || initialData.sale_price,
           discount: initialData.discount || 0,
-          payment_plan: initialData.payment_plan || 'full_payment',
-          initial_payment_type: initialData.initial_payment_type || 'booking_fee',
-          initial_payment: initialData.initial_payment || 100000,
-          payment_date: initialData.payment_date ? dayjs(initialData.payment_date) : dayjs(),
-          payment_method: initialData.payment_method,
-          commission_rate: initialData.commission_rate || 0,
+          payment_plan: initialData.paymentPlanType || initialData.payment_plan || 'full_payment',
+          initial_payment_type: initialData.initialPaymentType || initialData.initial_payment_type || 'booking_fee',
+          initial_payment: initialData.initialPayment || initialData.initial_payment || 100000,
+          payment_date: initialData.saleDate ? dayjs(initialData.saleDate) : dayjs(),
+          payment_method: initialData.payments?.[0]?.method_id?.name || initialData.payment_method,
+          commission_rate: initialData.commissionPercentage || initialData.commission_rate || 0,
           status: initialData.status || 'pending',
-          salesAgent: initialData.salesAgent,
-          propertyManager: initialData.propertyManager,
+          salesAgent: initialData.salesAgent?._id || initialData.salesAgent,
+          propertyManager: initialData.propertyManager?._id || initialData.propertyManager,
           notes: initialData.notes || '',
         });
-        setSelectedPropertyId(initialData.property_id);
-        // Restore installments if they exist
-        if (initialData.installments) {
+        setSelectedPropertyId(initialData.property?._id || initialData.property_id);
+        
+        // Restore installments from paymentPlans if they exist
+        if (initialData.paymentPlans && initialData.paymentPlans.length > 0) {
+          const mappedInstallments = initialData.paymentPlans.map((plan: any, index: number) => ({
+            key: `installment-${plan._id || index}`,
+            amount: plan.installmentAmount || plan.amount || 0,
+            dueDate: plan.startDate || plan.dueDate || '',
+          }));
+          setInstallments(mappedInstallments);
+          setNumberOfMonths(mappedInstallments.length);
+          setShowInstallmentGenerator(true);
+        } else if (initialData.installments) {
           setInstallments(initialData.installments);
+          setNumberOfMonths(initialData.installments.length);
+          setShowInstallmentGenerator(true);
         }
       } else {
         form.resetFields();
